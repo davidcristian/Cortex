@@ -130,7 +130,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the grace above is only a margin while the header can carry the announcement in "
             "milliseconds; one rung higher the unit is a whole second and the announcement arms "
-            "tonic's own clock under the bound the core enforces, so the adapter refuses it "
+            "tonic's own clock under the bound the core enforces, so the adapter rejects it "
             "there, and its contract quotes the rung as the number a future agent reads instead "
             "of the tree (ADR-0024 unit-ladder addendum)"
         ),

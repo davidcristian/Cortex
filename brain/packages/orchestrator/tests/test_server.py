@@ -1,5 +1,3 @@
-"""Server lifecycle behavior over a real loopback grpc.aio server (CI-safe, no network)."""
-
 import asyncio
 import os
 import signal
@@ -37,9 +35,6 @@ from cortex_orchestrator import (
 )
 from cortex_seam import BrainServiceStub, HealthReply, HealthRequest
 
-# The generated stub's attributes are untyped wire code (gate-exempt, ADR-0002 d4);
-# this helper pins the real types once so every test below stays fully typed.
-
 
 async def _health(stub: BrainServiceStub) -> HealthReply:
     health = stub.Health  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
@@ -69,7 +64,6 @@ async def running_server() -> AsyncIterator[str]:
 
 
 async def test_health_reports_ready_with_version(running_server: str) -> None:
-    """With escalation off there is no residency to read, so readiness is unconditional."""
     async with aio.insecure_channel(running_server) as channel:
         reply = await _health(BrainServiceStub(channel))
     assert reply.ready is True
@@ -99,7 +93,6 @@ async def _serving(manager: SwappingModelManager) -> tuple[aio.Server, str]:
 
 
 async def test_health_reports_the_swap_window_it_is_in() -> None:
-    """Not-ready between turns in the residency's own words, and green again after the swap back."""
     manager = _swapping_manager(ScriptedModelHost(running=["cortex"]))
     server, address = await _serving(manager)
     try:
@@ -118,7 +111,6 @@ async def test_health_reports_the_swap_window_it_is_in() -> None:
 
 
 async def test_health_answers_while_a_stalled_swap_holds_the_gpu() -> None:
-    """The probe must not queue behind the load it is reporting on (ADR-0030 decision 6)."""
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "brain")])
     manager = _swapping_manager(host)
     server, address = await _serving(manager)
@@ -137,7 +129,6 @@ async def test_health_answers_while_a_stalled_swap_holds_the_gpu() -> None:
 
 
 async def test_health_stays_not_ready_through_the_swap_back() -> None:
-    """The restoring window answered at the seam, with ``ready`` read as the literal it is."""
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
     manager = _swapping_manager(host)
     server, address = await _serving(manager)
@@ -156,7 +147,6 @@ async def test_health_stays_not_ready_through_the_swap_back() -> None:
 
 
 async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
-    """The one not-ready that outlives its turn, and the loudest thing the seam can say."""
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _swapping_manager(host)
     server, address = await _serving(manager)
@@ -173,7 +163,6 @@ async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
 
 
 async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back() -> None:
-    """Serving and degraded at once, which is a sentence this reply could not say before."""
     host = ScriptedModelHost(
         running=["cortex", "subagent-gpu"], fail={("start", "subagent-gpu"): "no such device"}
     )
@@ -199,7 +188,6 @@ async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back()
 async def test_health_stays_ready_and_says_the_last_deep_task_ran_far_slower_than_measured() -> (
     None
 ):
-    """The other sentence a serving brain can now say, and the one nothing else would mention."""
     manager = _swapping_manager(ScriptedModelHost(running=["cortex"]))
     manager.handoff_pace.note_pace(spilled=True)
     server, address = await _serving(manager)
@@ -240,7 +228,6 @@ async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
         task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    # Graceful shutdown really stopped the listener: the port no longer accepts.
     async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
         with pytest.raises(TimeoutError):
             await asyncio.wait_for(channel.channel_ready(), timeout=0.5)
@@ -248,7 +235,6 @@ async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
 
 @pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGINT])
 async def test_serve_stops_gracefully_on_signal(signum: signal.Signals) -> None:
-    """SIGTERM (docker compose down) and SIGINT (Ctrl-C) trigger the graceful stop path."""
     port = _free_loopback_port()
     task = asyncio.create_task(
         serve(SeamServerConfig(host="127.0.0.1", port=port), *_engine_and_store())
@@ -259,13 +245,10 @@ async def test_serve_stops_gracefully_on_signal(signum: signal.Signals) -> None:
             reply = await _health(BrainServiceStub(channel))
         assert reply.ready is True
         os.kill(os.getpid(), signum)
-        # serve() returns cleanly (no CancelledError, no kill by default disposition).
         await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
-    # The loop handler was removed on the way out: the pre-serve disposition is back.
     assert signal.getsignal(signum) in (signal.SIG_DFL, signal.default_int_handler)
-    # Graceful shutdown really stopped the listener: the port no longer accepts.
     async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
         with pytest.raises(TimeoutError):
             await asyncio.wait_for(channel.channel_ready(), timeout=0.5)

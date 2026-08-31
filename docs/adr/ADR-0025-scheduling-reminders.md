@@ -17,7 +17,7 @@ this slice's ADR is 0025 and the pointer is fixed alongside it.)
 
 Facts that shape the design:
 
-- **The one hard rule is the headline.** A schedule *outlives every model swap* and
+- **The one hard rule governs this slice.** A schedule *outlives every model swap* and
   every brain restart. Nothing may live in the orchestrator process beyond the in-flight
   fire; every `ScheduledItem` lives in the external store, and firing is a stateless
   read-store → act → persist pass (the ROADMAP names this the gate the slice proves).
@@ -34,7 +34,7 @@ Facts that shape the design:
   shared contract-check suite pattern spans the in-memory fake and the fakeredis-covered
   adapter (`task_contract.py`); read-only overlay views are unary `BrainService` RPCs
   (ADR-0021); the brain→body call path is `BodyGateway` → `BodyService` (ADR-0023).
-- **Two naming landmines.** `Scheduler` already means resource *admission* in this
+- **Two names are already taken.** `Scheduler` already means resource *admission* in this
   codebase (`SubagentScheduler` port, `ResourceBudgetScheduler`), and `scheduler.py`
   exists in `cortex_core`. The time-based machinery is named **`ScheduleTicker`** /
   `schedule.py` throughout. Never "Scheduler".
@@ -424,7 +424,7 @@ tooling for the dead-letter key.
   while still running (a duplicate run; the stale finish is fenced off). The default
   (300 s) sits far above measured subagent latencies; the knob exists, and the risk is
   noted in the runbook.
-- **A tainted recurring reminder is a standing lure.** Its text is fenced on every
+- **A tainted recurring reminder puts attacker text in front of the user repeatedly.** Its text is fenced on every
   model-facing surface and badged on both wire paths, but a human can still read and
   obey it; the tainted-task refusal keeps it from becoming autonomous compute, and the
   active-items cap bounds the volume an injected turn can plant.

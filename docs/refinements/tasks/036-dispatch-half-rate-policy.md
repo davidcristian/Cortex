@@ -12,14 +12,14 @@ services (one round of 500 `tool_calls` was 500 dispatches; eight rounds, 4000).
 `MAX_TOOL_DISPATCHES` (32, per loop via `ToolLoopContext.dispatch_budget`) caps the **total**
 across rounds, a total rather than a per-round cap so the answer to "how many external calls
 can one turn make?" is one number and not a product of two constants. Past it the call is
-still handed to the dispatcher, which refuses it (`BUDGET_EXHAUSTED_MSG`) and audits it:
+still handed to the dispatcher, which returns a refusal (`BUDGET_EXHAUSTED_MSG`) and audits it:
 breaking out instead would strand the round's `tool_calls` without their `Role.TOOL` answers
-(malformed conversation on re-inference) and produce refusals no audit record sees. The check
+(malformed conversation on re-inference) and produce refusals no audit record covers. The check
 sits **ahead of the gate**, so hundreds of gated calls cannot become hundreds of confirmation
 prompts, and **above** the `ToolStep` yield, so a refused call lights no activity chip (which
 makes the chip addendum's "emission is intrinsically bounded per turn" true retroactively).
 CI-gated over the fakes at 100% and mutation-proven (reverting each of the three guards
-individually turns the new tests red). Remaining behind the same seams:
+individually makes the new tests fail). Remaining behind the same seams:
 
 ## Trail
 

@@ -41,7 +41,7 @@ deliberately leaves deliberation on, and folds a recap, where it is discarded un
 ship as a pair because either alone is worse than neither**, which was measured rather than
 argued: the identical fold prompt at `max_tokens` 160 and 256 with thinking left on came back
 `finish_reason: "length"` carrying 624 and 988 characters of `reasoning_content` and an EMPTY
-reply, and even at the shipped 512 it is a coin flip (one run decoded the whole cap for 92
+reply, and even at the shipped 512 it goes either way (one run decoded the whole cap for 92
 unusable characters, another finished thinking in 404 and answered). Paired, the same prompt
 decodes 88 tokens in 3.9 s where the unbounded request decoded 378 to 602 in 13.6 s to 21.5 s,
 for a slightly LONGER account. `--reasoning-budget 0` is still not working on this build, so the
@@ -57,7 +57,7 @@ rank from 448 to 613 tokens at 18.4 s to **12 to 22 tokens at 0.9 s**, its ranki
 (mean reciprocal rank 1.000 either way, the right note first 6 of 6). Two findings the residue
 did not predict: a JSON schema does **not** protect a constrained reply from a cap (a truncated
 one is not JSON, so it falls back exactly as an unreachable model does), and the trap of a cap
-with thinking left on, a coin flip on the fold, is a certainty on these two, empty three times
+with thinking left on, which went either way on the fold, is a certainty on these two, empty three times
 in three at each of 16, 32 and 64 tokens, because their answers are a few tokens and the
 deliberation before them is hundreds. A user-facing reply still keeps its thinking deliberately, which is
 what per-request bounds are for. What the rank's number reopens is its own default, recorded in

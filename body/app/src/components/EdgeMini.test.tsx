@@ -12,22 +12,16 @@ describe("EdgeMini", () => {
     expect(svg).toHaveAttribute("aria-hidden", "true");
     expect(container.querySelector("linearGradient")).toBeNull();
     expect(container.querySelector(".edge-mini-glow")).toBeNull();
-    // The portrait's furniture: the little window's title, reply and composer, and NO ground of
-    // its own, the tile being the ground it floats on.
     expect(container.querySelector(".edge-mini-ground")).toBeNull();
     expect(container.querySelectorAll(".edge-mini-bar")).toHaveLength(2);
     expect(container.querySelector(".edge-mini-pill")).not.toBeNull();
-    // Glass and hairline are the same outline, filled and stroked.
     const glass = container.querySelector(".edge-mini-glass")?.getAttribute("d");
     expect(glass).toBe(container.querySelector(".edge-mini-line")?.getAttribute("d"));
   });
 
   it("shows each liquid's signature, and Lucid none, so the tiles can be told apart", () => {
-    // Lucid is a liquid without a glow: its tile is the moving outline alone, which is also
-    // what separates it from Reverie in the row.
     const strict = render(<EdgeMini style={LUCID} idPrefix="m1b" animated={false} />);
     expect(strict.container.querySelector(".edge-mini-glow")).toBeNull();
-    // Trance's ember is constant: one accent stroke, no neutral twin, no cycle.
     const ember = render(<EdgeMini style={TRANCE} idPrefix="m3" animated={false} />);
     const glows = ember.container.querySelectorAll(".edge-mini-glow");
     expect(glows).toHaveLength(1);

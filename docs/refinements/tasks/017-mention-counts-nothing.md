@@ -6,12 +6,12 @@
 
 Opened 2026-08-08 when the mention matcher was bounded. A `Mention` asks
 whether a file spells the agreed value in the template's shape, and one bounded occurrence is
-enough, so a file spending it twice can lose one of them with the gate green. That is not
+enough, so a file spending it twice can lose one of them with the gate still passing. That is not
 hypothetical: `Message.tsx` compares against `"thinking"` on two adjacent lines and `overlay.css`
 reads `[data-morphing` in three rules, and an ADR published a mutation proof that assumed
 otherwise (corrected where it was published). What was chosen instead of a count is the word
 boundary, because a count ties a registry entry to how many times a stylesheet happens to spend
-a custom property, and every legitimate new rule would then redden a gate about a coupling that
+a custom property, and every legitimate new rule would then fail a gate about a coupling that
 never moved. The fix, if it bites, is a per mention `occurrences` field carrying an exact count
 where one is meaningful and staying unset where it is not, which is a field rather than a design,
 since `check_mention` already renders one needle and would only count matches instead of
@@ -32,7 +32,7 @@ registry carried that morning occurs exactly once.
 open. A floor passes on a far side that grew past it, and having passed once it also passes when
 that far side drops back, so the gate widens by however much the tree drifted with nothing
 saying when; an exact count is falsifiable both ways and costs one integer in `couplings.py`
-when an addition is deliberate. The disable risk the entry worried about is answered by the
+when an addition is deliberate. The disable risk this entry named is answered by the
 field being opt in rather than by weakening the comparison.
 **The stylesheet objection survived and shaped what got registered.** `Message.tsx` is pinned
 at 2, its two comparisons being the `className` and the `aria-label` of one chip. The three
@@ -45,13 +45,13 @@ over all three. Everything spent once stays unpinned.
 `Message.tsx`'s second line exits 1 naming 1 against 2, and the same mutation under the scan as
 it stood the day before exits 0, which is this entry's defect measured rather than asserted; a
 third comparison added exits 1 naming 3 against 2; one of the two share-cap rules stripped exits
-1 naming 1 against 2; and a fourth rule reading the attribute in an unpinned shape stays green,
+1 naming 1 against 2; and a fourth rule reading the attribute in an unpinned shape still passes,
 which is the benign growth the design has to tolerate. Every perturbation was reverted and the
 scan returned to `crosscheck OK` after each.
 **No new deferral is opened, and that is a decision rather than an omission.** Two limits remain
 and are written into the ADR beside the behaviour: a count is over one file, so there is no way
 to say "six across three files", and it is over one rendered needle, so the same value spent in
-another shape is invisible to it. Neither has a case in the tree, every other coupling being
+another shape is not counted. Neither has a case in the tree, every other coupling being
 single-file and single-shape, so filing either would inflate the backlog with a capability
 nothing is waiting on; the entry above on the couplings the registry still cannot hold is where
 a real one would join.

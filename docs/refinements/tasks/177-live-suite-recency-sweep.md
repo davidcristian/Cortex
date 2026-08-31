@@ -4,7 +4,7 @@
 **Area:** session-read-seam
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
 
-Its `finally` deleted only
+The live-Redis session suite's `finally` deleted only
 `cortex:session:{id}:messages` keys, leaving every run's `contract-<uuid>` ids as dangling
 `cortex:sessions` members, and it recorded ids only from checks that RETURNED, so a failing
 check leaked its keys too. Past 50 accumulated members,
@@ -27,8 +27,8 @@ its three newer chats must BE the window for the pin to be the only reason the o
 That lowered the trigger from fifty real sessions to three and nobody came back to this
 paragraph, so the entry kept saying fifty while the code needed three. Sixteen real sessions
 later the live run failed, blaming a correct adapter exactly as described. Neither fix this
-entry proposed was taken: dating the fixtures from a clock is a lie that breaks the moment real
-data is future-dated, and a larger window cannot help a check whose subject is the window. The
+entry proposed was taken: dating the fixtures from a clock makes them claim a recency they do not
+have and breaks the moment real data is future-dated, and a larger window cannot help a check whose subject is the window. The
 live runs now select a Redis logical database of their own
 (`brain/packages/session/tests/live_redis.py`), emptied before the suite and after every check,
 so every check starts from the empty store the fakeredis fixture already gives it and the sweep

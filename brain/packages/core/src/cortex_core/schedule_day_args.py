@@ -1,4 +1,4 @@
-"""Parsing the model's calendar-rule vocabulary (ADR-0025): validate, never raise."""
+"""Parsing the model's calendar-rule vocabulary: validate, never raise."""
 
 import re
 from collections.abc import Mapping
@@ -35,12 +35,10 @@ _MANY_SELECTORS = (
 )
 DAYS_NEED_AT_TIME = "'on_days', 'on_month_days', and 'on_dates' apply only together with 'at_time'"
 
-# The day-selector arguments, named once so "did the call select days at all?" has one answer.
 SELECTOR_KEYS = ("on_days", "on_month_days", "on_dates")
 
-# ``MM-DD``, one or two digits per part: a leading zero is optional because a small model
-# writes "1-5" as readily as "01-05" and neither is ambiguous. A four-digit part fails to
-# match, which is what refuses a full ISO date rather than silently dropping its year.
+# One or two digits per part, so a four-digit part does not match and a full ISO date is
+# refused rather than having its year dropped with nothing reported.
 _MONTH_DAY_RE = re.compile(r"^(\d{1,2})-(\d{1,2})$")
 
 _DATE_PATTERN = "^[0-9]{1,2}-[0-9]{1,2}$"
@@ -54,8 +52,8 @@ def parse_at_time(value: object) -> tuple[int, int] | str:
         parsed = time.fromisoformat(value)
     except ValueError:
         return BAD_AT_TIME
-    # A rule stores hour and minute only, so accepting finer precision would silently drop
-    # part of what the model wrote, and an offset would contradict the zone it is read in.
+    # A rule stores hour and minute only, so finer precision would be dropped with nothing reported,
+    # and an offset would contradict the zone the time is read in.
     if parsed.second or parsed.microsecond or parsed.tzinfo is not None:
         return BAD_AT_TIME
     return parsed.hour, parsed.minute
@@ -65,7 +63,7 @@ def parse_in_zone(
     arguments: Mapping[str, Any], resolve_zone: ZoneResolver
 ) -> DisplayZone | None | str:
     """The rule's own timezone from ``in_zone``, ``None`` for the deployment default, or a
-    correction string (ADR-0025 per-rule addendum).
+    correction string.
     """
     raw = arguments.get("in_zone")
     if raw is None:
@@ -140,8 +138,7 @@ def parse_calendar_rule(
     arguments: Mapping[str, Any], resolve_zone: ZoneResolver
 ) -> CalendarRule | str:
     """A ``CalendarRule`` from ``at_time`` plus its day selector and optional ``in_zone``, or a
-    correction string. Shared by creation and edit so both read one wall-clock vocabulary; each
-    caller derives the rule's first occurrence itself, since only it holds the reference instant.
+    correction string.
     """
     wall = parse_at_time(arguments.get("at_time"))
     if isinstance(wall, str):
@@ -175,11 +172,7 @@ def parse_day_selector(arguments: Mapping[str, Any]) -> DaySelector | str:
 
 
 def in_zone_property() -> dict[str, dict[str, Any]]:
-    """The ``in_zone`` JSON-schema property, one definition shared by both verbs.
-
-    Kept beside ``day_selector_properties`` and phrased to read on creation and edit alike, so
-    the calendar-rule vocabulary has one description the two specs cannot let drift.
-    """
+    """The ``in_zone`` JSON-schema property, one definition shared by both verbs."""
     return {
         "in_zone": {
             "type": "string",

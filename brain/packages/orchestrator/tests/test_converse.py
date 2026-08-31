@@ -1,5 +1,3 @@
-"""Behavior of the converse() stream: mapping, cancel, failure, and teardown paths."""
-
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
@@ -69,17 +67,12 @@ def _delta_texts(events: Sequence[ServerEvent]) -> list[str]:
 
 
 def _make(engine: TurnEngine) -> EngineFactory:
-    """A bare engine as an EngineFactory. These tests wire no confirmer (fail-closed) and no
-    progress sink (a delegating turn's steps go nowhere, which no test here exercises)."""
+    """A bare engine as an EngineFactory."""
     return lambda _confirmer, _progress: engine
 
 
 def _turn_ids() -> Callable[[], str]:
-    """Names one stream's turns t-1, t-2, ... so a test can read back what the client was told.
-
-    The stream mints turn ids now, so pinning them is done where they are minted rather than by
-    building an engine that answers with a fixed one.
-    """
+    """Names one stream's turns t-1, t-2, ..."""
     ids = iter(f"t-{n}" for n in range(1, 10))
     return lambda: next(ids)
 
@@ -148,7 +141,7 @@ class MidStreamFailingBackend:
 
 
 class BrokenBackend:
-    """Backend that fails with an unexpected (untyped) error. This is the internal path."""
+    """Backend that fails with an unexpected (untyped) error."""
 
     async def stream(
         self,
@@ -162,7 +155,7 @@ class BrokenBackend:
         del model, messages, tools, schema, bounds
         msg = "a bug, not a typed seam failure"
         raise RuntimeError(msg)
-        yield TextChunk("")  # makes this an async generator; never reached
+        yield TextChunk("")
 
 
 class GatedBackend:
@@ -216,7 +209,7 @@ class TeardownGatedBackend:
 
 
 class CountingEndlessBackend:
-    """Yields deltas forever and counts them. Backpressure must stall the count."""
+    """Yields deltas forever and counts them."""
 
     def __init__(self) -> None:
         self.yielded = 0
@@ -340,8 +333,6 @@ class ReasoningBackend:
 
 
 async def test_reasoning_maps_to_a_thinking_status_update() -> None:
-    """A domain StatusUpdate becomes a wire ServerEvent(status=...) (ADR-0020); the reasoning
-    delta is surfaced as status and the reply delta follows as text."""
     engine = TurnEngine(InMemorySessionStore(), ReasoningBackend(), SystemClock())
     events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "hey"))))
     assert [e.WhichOneof("event") for e in events] == ["status", "text_delta", "turn_complete"]
@@ -373,11 +364,6 @@ class OneToolCallBackend:
 
 
 async def test_tool_activity_and_its_outcome_map_to_the_wire_events() -> None:
-    """A domain ToolActivity becomes a wire ServerEvent(tool_activity=...) (ADR-0009 addendum)
-    and the ToolOutcome settling it becomes ServerEvent(tool_outcome=...) (ADR-0029 outcome
-    addendum): the audited dispatch reaches the overlay chip with its registry-derived summary,
-    """
-
     async def _read(arguments: Mapping[str, object]) -> str:
         del arguments
         return "data"
@@ -406,7 +392,6 @@ async def test_second_turn_on_the_same_stream_keeps_counting() -> None:
     client = _events_from(_user_turn("s", "one"), _user_turn("s", "two"))
     events = await _collect(converse(_make(_engine()), client, turn_id_factory=_turn_ids()))
     completions = [e for e in events if e.WhichOneof("event") == "turn_complete"]
-    # Two turns on one stream are two turns, each named as it started.
     assert [c.turn_complete.turn_id for c in completions] == ["t-1", "t-2"]
     assert "".join(_delta_texts(events[4:])) == "reply 2: two"
 
@@ -444,9 +429,7 @@ async def test_after_a_seam_error_later_user_turns_are_not_started() -> None:
     stream = converse(_make(engine), client)
     first = await anext(stream)
     assert first.WhichOneof("event") == "error"
-    # Hold the stream open until the server has read PAST the second user turn …
     await asyncio.wait_for(client.drained.wait(), timeout=5)
-    # … which it must have refused to act on: the stream ends, the store was hit once.
     assert await _collect(stream) == []
     assert store.append_calls == 1
 
@@ -458,7 +441,6 @@ async def test_inference_failure_becomes_inference_failed_after_partial_delta() 
     assert [e.WhichOneof("event") for e in events] == ["text_delta", "error"]
     assert events[-1].error.code == ERROR_CODE_INFERENCE_FAILED
     assert "mid-stream" in events[-1].error.message
-    # The user message survived; the partial reply was never persisted.
     assert [(m.role, m.text) for m in await store.history("s")] == [(Role.USER, "hi")]
 
 
@@ -495,7 +477,6 @@ async def test_a_turn_that_failed_names_the_session_and_the_turn_it_was_serving(
     message: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Each mid-turn failure names both ids, and still names no part of what the user wrote."""
     text = "confidential words the log may not carry"
     with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
         await _collect(
@@ -512,13 +493,12 @@ async def test_a_turn_that_failed_names_the_session_and_the_turn_it_was_serving(
     )
     assert record.__dict__["session_id"] == "s7"
     assert record.__dict__["turn_id"] == "t-1"
-    assert "confidential" not in rendered  # traceback included: no user content on the line
+    assert "confidential" not in rendered
 
 
 async def test_a_failure_is_named_for_the_same_turn_the_store_grouped_it_under(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The join, asserted against the store rather than against a string this test arranged."""
     store = InMemorySessionStore()
     engine = TurnEngine(store, MidStreamFailingBackend(), SystemClock())
     with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
@@ -531,7 +511,6 @@ async def test_a_failure_is_named_for_the_same_turn_the_store_grouped_it_under(
 async def test_two_failed_turns_in_one_session_are_told_apart_by_their_own_ids(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The reading this was opened over: one repeating fault, or two unrelated ones."""
     with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
         for _ in range(2):
             await _collect(
@@ -546,7 +525,6 @@ async def test_two_failed_turns_in_one_session_are_told_apart_by_their_own_ids(
 async def test_an_ignored_client_event_names_the_session_and_the_payload_it_had(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The dropped event says whose stream it arrived on and which payload it carried."""
     client = _events_from(ClientEvent(session_id="s3"))
     with caplog.at_level(logging.DEBUG, logger=_STREAM_LOGGER):
         assert await _collect(converse(_make(_engine()), client)) == []
@@ -576,33 +554,29 @@ def test_converse_rejects_a_non_positive_buffer() -> None:
 
 
 async def test_backpressure_stalls_generation_until_the_consumer_reads() -> None:
-    """With a small buffer, an unread stream suspends the turn instead of buffering it."""
     backend = CountingEndlessBackend()
     engine = TurnEngine(InMemorySessionStore(), backend, SystemClock())
     stream = converse(_make(engine), _events_from(_user_turn("s", "hi")), max_buffered_events=2)
     first = await anext(stream)
     assert first.text_delta.text == "d1"
     await _spin()
-    # 2 credits + the 1 returned by the read above + 1 delta held awaiting a credit.
     assert backend.yielded == 4
     await _spin()
-    assert backend.yielded == 4  # genuinely stalled, not merely slow
+    assert backend.yielded == 4
     assert (await anext(stream)).text_delta.text == "d2"
     assert (await anext(stream)).text_delta.text == "d3"
     await _spin()
-    assert backend.yielded == 6  # each read returns exactly one credit
-    # Teardown must complete while the producer is blocked on a credit.
+    assert backend.yielded == 6
     async with asyncio.timeout(5):
         await stream.aclose()
 
 
 async def test_seam_error_bypasses_the_buffer_credits() -> None:
-    """A failure after the buffer filled must still deliver SeamError and end the stream."""
     engine = TurnEngine(InMemorySessionStore(), BurstThenFailBackend(3), SystemClock())
     stream = converse(_make(engine), _events_from(_user_turn("s", "hi")), max_buffered_events=2)
     first = await anext(stream)
     assert first.text_delta.text == "d1"
-    await _spin()  # the turn fills the buffer (d2, d3), fails, and must not block
+    await _spin()
     rest = await _collect(stream)
     assert [e.WhichOneof("event") for e in rest] == ["text_delta", "text_delta", "error"]
     assert rest[-1].error.code == ERROR_CODE_INFERENCE_FAILED
@@ -610,7 +584,6 @@ async def test_seam_error_bypasses_the_buffer_credits() -> None:
 
 
 async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
-    """Client disconnect: the in-flight turn dies, user message stays, partial drops."""
     store = InMemorySessionStore()
     backend = GatedBackend()
     engine = TurnEngine(store, backend, SystemClock())
@@ -623,7 +596,6 @@ async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
 
 
 async def test_cancel_behind_a_queued_turn_stops_current_and_drops_queued() -> None:
-    """[UserTurn A, UserTurn B, Cancel]: A dies mid-stream, B never runs at all."""
     store = InMemorySessionStore()
     backend = GatedBackend()
     engine = TurnEngine(store, backend, SystemClock())
@@ -631,20 +603,18 @@ async def test_cancel_behind_a_queued_turn_stops_current_and_drops_queued() -> N
     stream = converse(_make(engine), client)
     client.send(_user_turn("s", "first"))
     first = await anext(stream)
-    assert first.text_delta.text == "never-finished"  # A is mid-stream …
-    client.send(_user_turn("s", "second"))  # … B queues behind it …
-    client.send(_cancel("s"))  # … and Cancel must act NOW, not after A
+    assert first.text_delta.text == "never-finished"
+    client.send(_user_turn("s", "second"))
+    client.send(_cancel("s"))
     async with asyncio.timeout(5):
-        await backend.closed.wait()  # A was actually cancelled mid-stream
+        await backend.closed.wait()
     client.close()
-    assert await _collect(stream) == []  # no TurnComplete for A, nothing from B
-    assert backend.calls == 1  # B was dropped while queued: it never ran
-    # A's user message persisted without a partial reply; B's was never persisted.
+    assert await _collect(stream) == []
+    assert backend.calls == 1
     assert [(m.role, m.text) for m in await store.history("s")] == [(Role.USER, "first")]
 
 
 async def test_closing_the_stream_during_cancel_teardown_does_not_hang() -> None:
-    """Stream teardown racing a Cancel-initiated turn teardown must still aclose()."""
     store = InMemorySessionStore()
     backend = TeardownGatedBackend()
     engine = TurnEngine(store, backend, SystemClock())
@@ -653,13 +623,12 @@ async def test_closing_the_stream_during_cancel_teardown_does_not_hang() -> None
     client.send(_user_turn("s", "hi"))
     first = await anext(stream)
     assert first.text_delta.text == "never-finished"
-    client.send(_cancel("s"))  # the pump cancels the turn and waits on its teardown …
+    client.send(_cancel("s"))
     async with asyncio.timeout(5):
-        await backend.teardown_started.wait()  # … which is now gated in flight …
-    # … and the consumer closes the stream mid-race. aclose() must complete on its
-    # own (teardown re-cancels the gated turn; `release` is never set). The shield
-    # keeps the timeout from cancelling aclose itself, so a regression fails loudly.
+        await backend.teardown_started.wait()
     closer = asyncio.create_task(stream.aclose())
+    # The shield keeps the timeout from cancelling `aclose` itself, so a regression fails here
+    # instead of being swallowed.
     async with asyncio.timeout(5):
         await asyncio.shield(closer)
     assert [(m.role, m.text) for m in await store.history("s")] == [(Role.USER, "hi")]
@@ -685,7 +654,6 @@ class CutCallBackend:
 
 
 async def test_a_cut_tool_call_completes_the_turn_instead_of_failing_the_stream() -> None:
-    """The surface this arm exists for: the user was told inference failed and shown JSON."""
     store = InMemorySessionStore()
     engine = TurnEngine(store, CutCallBackend(), SystemClock())
 

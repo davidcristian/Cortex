@@ -1,4 +1,4 @@
-"""Public core names for which model is on the GPU, and the handoff that changes the answer."""
+"""Public core names for which model is resident on the GPU and the handoff that swaps it."""
 
 from cortex_core.cadence import (
     MIN_CADENCE_TOKENS,

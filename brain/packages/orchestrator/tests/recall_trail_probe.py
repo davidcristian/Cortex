@@ -1,4 +1,4 @@
-"""How wide is the recall trail's `dropped` field on a line a real stack wrote?"""
+"""Measure how wide the recall trail's `dropped` field renders on a line a real stack wrote."""
 
 import asyncio
 import os
@@ -32,7 +32,7 @@ def _metadata() -> tuple[tuple[str, str], ...] | None:
 
 
 def _say(message: str) -> None:
-    """Progress, on stdout, where no trail line ever lands."""
+    """Print progress on stdout, where no trail line ever lands."""
     print(message, flush=True)  # noqa: T201 -- a probe's only output channel
 
 
@@ -49,7 +49,7 @@ async def _turn(stub: BrainServiceStub, session_id: str, question: str) -> None:
 
 
 def _unfit(config: MemoryConfig) -> str | None:
-    """Why this container can write no recall trail, or ``None`` when it can."""
+    """Return why this container can write no recall trail, or ``None`` when it can."""
     if config.backend != "pgvector":
         return f"memory backend is {config.backend!r}, so no recall trail exists"
     if not config.recall_audit:
@@ -66,7 +66,7 @@ async def _seed(recaller: MemoryRecaller, scope: str) -> None:
 
 
 async def _direct(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> None:
-    """The cheap phase: recalls through the composition root's own wiring, one rank each."""
+    """Run the cheap phase: recalls through the composition root's wiring, one rank each."""
     for index in range(_DIRECT_PASSES):
         scope = f"trail-width-direct-{stamp}-{index}"
         scopes.append(scope)
@@ -77,7 +77,7 @@ async def _direct(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> No
 
 
 async def _served(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> None:
-    """The answerable phase: real turns, whose trail lines go out through the log driver."""
+    """Run real turns, whose trail lines go out through the container's log driver."""
     async with aio.insecure_channel(_SEAM) as channel:
         stub = BrainServiceStub(channel)
         for index in range(_TURNS):

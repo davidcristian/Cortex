@@ -5,7 +5,7 @@
 **Capability:** W
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 
-**Until 2026-07-19 it had no backlog line**, though it was never unrecorded:
+**Until 2026-07-19 this check had no backlog line**, though it was never unrecorded:
 [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)'s host line has named "the overlay's reminder
 surface on the real hotkey→overlay path" since the slice landed, and the procedure is in the
 runbook. What it lacked was a place that listed it as work still owed. (Corrected 2026-07-19: this

@@ -44,8 +44,8 @@ read nothing is the fail-open case every one of these was written to avoid.
   for the bind check, and compose files and variables beside the count of variables actually
   compared for the defaults check, that last being the collection its verdict is over. **This
   file was half right about the empty tree.** The four quoted success lines were exact, but
-  `bindcheck.py` and `defaultcheck.py` have refused an empty walk since they landed, `composefiles.py`
-  raising on no compose file for the reason this file gives, so the fail-open case was open in two
+  `bindcheck.py` and `defaultcheck.py` have failed on an empty walk since they landed,
+  `composefiles.py` raising on no compose file for the reason this file gives, so the fail-open case was open in two
   gates and the other two were the precedent for closing it. **The open question is answered
   both ways.** Nothing asserts the counts, per the reading the registry shape decided: the suites
   pin that each gate's numbers count different things, over fixtures where no two of them

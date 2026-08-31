@@ -1,9 +1,3 @@
-"""One behavior suite over BOTH TaskStore implementations, plus adapter error paths (ADR-0010).
-
-The in-memory fake and the Redis adapter (backed by fakeredis) must be observably interchangeable
-behind the port. This is the ports-before-adapters gate for the subagent task store.
-"""
-
 import json
 from collections.abc import Awaitable, Callable
 
@@ -75,7 +69,6 @@ async def test_corrupt_task_record_wraps_into_task_store_error() -> None:
 
 
 async def test_a_task_record_missing_an_identity_is_corrupt_rather_than_unattributed() -> None:
-    """A dropped attribution must not read back as an honest absence (ADR-0009 fired-work)."""
     client = FakeAsyncRedis(server=FakeServer())
     older = {
         "id": "t1",
@@ -94,7 +87,7 @@ async def test_a_task_record_missing_an_identity_is_corrupt_rather_than_unattrib
 
 async def test_corrupt_result_record_wraps_into_task_store_error() -> None:
     client = FakeAsyncRedis(server=FakeServer())
-    await client.set("cortex:task:t1:result", json.dumps({"task_id": "t1"}))  # missing fields
+    await client.set("cortex:task:t1:result", json.dumps({"task_id": "t1"}))
     with pytest.raises(TaskStoreError, match="corrupt result record at 'cortex:task:t1:result'"):
         await RedisTaskStore(client).get_result("t1")
 

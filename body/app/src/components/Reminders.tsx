@@ -12,26 +12,24 @@ interface RemindersProps {
   readonly reminders: readonly DueReminder[];
   readonly currentId: string;
   /**
-   * Where the caret goes when the last reminder is acked, which is the one case this stack cannot
-   * answer from inside itself: the section goes with its last row, so there is no list left to
-   * keep the caret in.
+   * Where the caret goes when the last reminder is acked, the one case this stack cannot handle
+   * from inside itself: the section is removed with its last row, so there is no list left to keep
+   * the caret in.
    */
   readonly anchor: RefObject<HTMLElement | null>;
   readonly onDismiss: (reminderId: string) => void;
   readonly onOpen: (sessionId: string) => void;
 }
 
-/** Whether the row can offer its origin chat. There is nothing to go to when a session-less
- *  caller sent it (""), and no point offering the chat already on screen, where opening would
- *  only abandon whatever turn is running in it. Absent rather than disabled: nothing to explain. */
+/** Whether the row can offer its origin chat. */
 function canOpen(reminder: DueReminder, currentId: string): boolean {
   return reminder.sessionId !== "" && reminder.sessionId !== currentId;
 }
 
 /**
  * The due-reminder stack (ADR-0025): what fired while the overlay was away, sitting above the
- * history because it is delivery, not conversation. Dismissing acks it; opening loads the chat
- * the reminder was asked for, which is the context "stand-up in 10 minutes" leaves out.
+ * history and outside the scrolling log so that reading the conversation cannot move it out of
+ * view.
  */
 export function Reminders({
   reminders,
@@ -59,14 +57,14 @@ export function Reminders({
               </span>
               <span className="reminder-body">
                 <span className="reminder-text">{reminder.text}</span>
-                {/* Only when it holds something. With the timestamp moved to the side column, a
-                    reminder that is one-shot, untainted and already in the chat on screen has no
-                    meta line at all, and an empty one would still spend its top margin. */}
+                {/* Rendered only when it has content. With the timestamp moved to the side column,
+                    a reminder that is one-shot, untainted and already in the chat on screen has
+                    nothing for this line, and an empty one would still take its top margin. */}
                 {reminder.recurring || reminder.tainted || canOpen(reminder, currentId) ? (
                   <span className="reminder-meta">
-                    {/* The one control leads the badges that follow it: it is the thing you can DO
-                        and they only describe the row, so it sits at one x down the whole stack
-                        rather than being pushed along by however many badges a reminder carries. */}
+                    {/* The control comes before the badges, because it is the only actionable item
+                        on the line and the badges only describe the row. This keeps it at the same
+                        x down the whole stack rather than shifted by how many badges a row has. */}
                     {canOpen(reminder, currentId) ? (
                       <button
                         type="button"

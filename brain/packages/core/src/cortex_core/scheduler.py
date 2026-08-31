@@ -1,4 +1,4 @@
-"""ResourceBudgetScheduler: a pure soft CPU/RAM admission budget (asyncio, no I/O, see ADR-0012)."""
+"""ResourceBudgetScheduler: a pure soft CPU/RAM admission budget (asyncio, no I/O)."""
 
 import asyncio
 from collections.abc import AsyncGenerator
@@ -15,6 +15,9 @@ ADMISSION_WAIT_MSG = (
     "would join the back of the same queue"
 )
 
+# Three whole run deadlines: a task can hold its admission for two of them (a GPU attempt
+# plus one CPU re-run), and the third is margin. Measured on a full batch of eight, the
+# last spawn is admitted 1624.6 s in at worst. docs/readings/generation-bounds.md.
 DEFAULT_ADMISSION_WAIT_S = 7200.0
 
 
@@ -32,9 +35,7 @@ class ResourceBudgetScheduler:
             msg = f"cpu_budget and mem_budget_gb must be > 0, got {cpu_budget}, {mem_budget_gb}"
             raise ValueError(msg)
         if wait_timeout_s < 0:
-            # Zero is allowed and means never queue: refuse anything that does not fit right
-            # now. That is a policy a deployment may want, and it is how `drain` already reads
-            # a bound at or below zero, so the two bounds in this class agree on their floor.
+            # Zero is allowed and means never queue: refuse anything that does not fit right now.
             msg = f"wait_timeout_s must be >= 0, got {wait_timeout_s}"
             raise ValueError(msg)
         self._cpu_budget = cpu_budget
@@ -42,8 +43,8 @@ class ResourceBudgetScheduler:
         self._wait_timeout_s = wait_timeout_s
         self._cpu_used = 0.0
         self._mem_used_gb = 0.0
-        # In-flight admissions counted as an int: the drain-complete predicate must not trust
-        # float residue (summed float charges can release back to a nonzero epsilon).
+        # Counted as an int so the drain-complete check cannot be thrown off by float residue:
+        # summed float charges can release back to a nonzero epsilon.
         self._in_flight = 0
         self._draining = False
         self._budget = asyncio.Condition()
@@ -92,7 +93,7 @@ class ResourceBudgetScheduler:
                 self._budget.notify_all()
 
     async def drain(self, *, timeout_s: float) -> bool:
-        """Quiesce the pool for a model handoff (ADR-0030 decision 4): stop admitting, then wait."""
+        """Quiesce the pool for a model handoff: stop admitting, then wait."""
         async with self._budget:
             self._draining = True
             self._budget.notify_all()
@@ -105,5 +106,5 @@ class ResourceBudgetScheduler:
             return True
 
     def undrain(self) -> None:
-        """Reverse ``drain``: resume normal admission (the conductor's ``finally``, ADR-0030)."""
+        """Reverse ``drain``: resume normal admission (the conductor's ``finally``)."""
         self._draining = False

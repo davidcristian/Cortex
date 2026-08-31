@@ -1,4 +1,4 @@
-"""How a markdown heading is read, and the shapes whose anchor this repo's rule will not guess."""
+"""How a markdown heading is read, and the shapes whose anchor this repo's rule cannot derive."""
 
 import re
 from typing import NamedTuple
@@ -39,7 +39,7 @@ PLAINLY = "; write it as plain text under leading hashes, so the source is what 
 
 
 class Unsluggable(NamedTuple):
-    """One heading whose anchor this rule will not guess at: where it is, and why not."""
+    """One heading whose anchor this rule cannot derive: where it is, and why not."""
 
     line: int
     heading: str
@@ -60,7 +60,7 @@ def headings(text: str) -> list[tuple[int, str]]:
 
 
 def _inline_reason(heading: str) -> str | None:
-    """Why this rule refuses one ATX heading's source text, or None when it can slug it.
+    """Why one ATX heading's source text is refused, or None when this rule can slug it.
 
     The closing hashes are read first and off the raw text, since stripping code spans could
     uncover or bury a trailing run; the rest are read off the heading without its code spans.
@@ -99,7 +99,7 @@ def _underlined(text: str) -> list[Unsluggable]:
 
 
 def unsluggable(text: str) -> list[Unsluggable]:
-    """Return every heading in ``text`` whose anchor this rule refuses to guess at, in order."""
+    """Return every heading in ``text`` whose anchor this rule cannot derive, in order."""
     refused = [
         Unsluggable(line=number, heading=heading, reason=reason)
         for number, heading in headings(text)

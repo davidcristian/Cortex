@@ -1,5 +1,3 @@
-"""Integration: the stop reason off a real llama-server, and the capped verdict the core reads."""
-
 import os
 from datetime import UTC, datetime
 
@@ -26,8 +24,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 _ENDPOINT = os.environ.get("CORTEX_STOP_ENDPOINT", "http://127.0.0.1:8082")
 _MODEL = os.environ.get("CORTEX_STOP_MODEL", "subagent")
-# Small enough that the cap fires in seconds on a CPU tier decoding under 2 tok/s, and large
-# enough that the reply is visibly a cut sentence rather than an empty string.
+# Small enough that the cap fires in seconds on a CPU tier decoding under 2 tokens a second, and
+# large enough that the reply is visibly a cut sentence rather than an empty string.
 _CAP = int(os.environ.get("CORTEX_STOP_MAX_TOKENS", "8"))
 _ESSAY = "Write a long essay about the sea."
 _ONE_WORD = "Reply with exactly one word: PONG."
@@ -47,7 +45,6 @@ def _text(events: list[InferenceEvent]) -> str:
 
 
 async def test_a_real_server_says_when_it_cut_a_completion_and_when_it_did_not() -> None:
-    """Both of the port's answers, derived from one real server rather than from a transcript."""
     async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
         capped = [
@@ -66,11 +63,6 @@ async def test_a_real_server_says_when_it_cut_a_completion_and_when_it_did_not()
 
 
 async def test_the_core_reads_a_capped_delegated_reply_as_unanswered() -> None:
-    """The consumer, end to end: the shipped attempt over the shipped adapter over a real server.
-
-    Without the arm this run comes back `ok=True` carrying a cut sentence, which is the failure the
-    whole entry is about. The refusal names the cap so the reader lands on the knob.
-    """
     task = SubagentTask(id="t-live", instruction=_ESSAY, context="", at=datetime.now(UTC))
     attempt = PlacedAttempt(
         SystemClock(),

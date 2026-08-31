@@ -50,7 +50,7 @@ class RerankingRecallPolicy:
         session_id: str | None = None,
     ) -> Ranking:
         """Rerank by the similarity+recency blend, drop near-duplicates, keep the top ``k``."""
-        del query, session_id  # a geometric policy reads neither the question nor where it is
+        del query, session_id  # scored from scores and embeddings alone
         ranked = sorted(hits, key=lambda hit: self._relevance(hit, now), reverse=True)
         kept: list[ScoredMemory] = []
         for hit in ranked:
@@ -102,7 +102,7 @@ class MmrRecallPolicy:
         session_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` hits of highest marginal relevance (relevance less penalty)."""
-        # MMR weighs relevance against diversity: not the question, not the age, not the caller.
+        # MMR weighs relevance against diversity, using scores and embeddings alone.
         del query, now, session_id
         return Ranking(hits=greedy_mmr(hits, k, self._marginal_relevance), basis=RankBasis.SPREAD)
 
@@ -154,7 +154,7 @@ class RecencyMmrRecallPolicy:
         session_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` of highest recency-blended marginal relevance."""
-        del query, session_id  # a geometric policy reads neither the question nor where it is
+        del query, session_id  # scored from scores, embeddings and the clock alone
         return Ranking(
             hits=greedy_mmr(hits, k, lambda hit, kept: self._marginal_relevance(hit, kept, now)),
             basis=RankBasis.SWEEP,

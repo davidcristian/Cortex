@@ -1,5 +1,3 @@
-"""A spilled handoff, told to somebody: the port, the record, and how long its note stands."""
-
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -36,7 +34,7 @@ _AT = datetime(2026, 8, 19, 21, 0, tzinfo=UTC)
 
 
 class _HeldClock:
-    """A clock that moves only when a test moves it, so a dwell is asserted and never waited on."""
+    """A clock that moves only when a test moves it, so no test ever waits on real time."""
 
     def __init__(self) -> None:
         self._at = _AT
@@ -64,9 +62,6 @@ def _manager(host: ScriptedModelHost, plan: ResidencyPlan | None = None) -> Swap
     )
 
 
-# --- The port, over every implementation of it (AGENTS.md: ports before adapters) --------------
-
-
 @dataclass(frozen=True, slots=True)
 class PaceSinkUnderTest:
     """One implementation of ``PaceSink``, and how to read back what it was told."""
@@ -90,7 +85,6 @@ _IMPLEMENTATIONS = [_fake_under_test, _record_under_test]
 
 @pytest.mark.parametrize("build", _IMPLEMENTATIONS)
 def test_a_sink_starts_with_nothing_to_say(build: Callable[[], PaceSinkUnderTest]) -> None:
-    """A brain that has never escalated has no verdict, which is not the same as a good one."""
     assert build().spill_stands() is False
 
 
@@ -98,7 +92,6 @@ def test_a_sink_starts_with_nothing_to_say(build: Callable[[], PaceSinkUnderTest
 def test_the_last_verdict_written_is_the_one_that_stands(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
-    """The port's whole promise: one write per handoff, and the newest handoff is the truth."""
     under = build()
     under.sink.note_pace(spilled=True)
     assert under.spill_stands() is True
@@ -112,7 +105,6 @@ def test_the_last_verdict_written_is_the_one_that_stands(
 def test_writing_the_same_verdict_twice_says_the_same_thing(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
-    """Two spilled handoffs in a row are not worse than one, and two good ones are not better."""
     under = build()
     under.sink.note_pace(spilled=True)
     under.sink.note_pace(spilled=True)
@@ -126,23 +118,10 @@ def test_writing_the_same_verdict_twice_says_the_same_thing(
 def test_no_implementation_of_the_port_may_await(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
-    """Synchronous by contract, not by accident: the phase calls this inside its persist path.
-
-    An implementation that awaited would put an unrelated collaborator between the deep model's
-    stream ending and its reply reaching the store, which is the one hard rule's own sequence.
-    """
     assert not inspect.iscoroutinefunction(build().sink.note_pace)
 
 
-# --- The record: what it says, and for how long -------------------------------------------------
-
-
 def test_a_spill_rides_a_serving_report_and_names_what_it_costs() -> None:
-    """The sentence a person reads, on the surface they already read it on.
-
-    It is deliberately about lost time rather than about the card: a tooltip's reader can act on
-    "deep tasks are taking much longer than they should" and cannot act on a decode rate.
-    """
     pace = HandoffPace(_HeldClock())
     pace.note_pace(spilled=True)
     assert pace.note_on(RESIDENCY_SERVING) == ResidencyReport(
@@ -152,22 +131,12 @@ def test_a_spill_rides_a_serving_report_and_names_what_it_costs() -> None:
 
 @pytest.mark.parametrize("report", [RESIDENCY_LOADING, RESIDENCY_DEEP, RESIDENCY_LOST])
 def test_a_spill_never_speaks_over_a_swap_that_is_in_flight(report: ResidencyReport) -> None:
-    """Mid handoff the seam is already saying what is happening, and to this one.
-
-    A verdict about the *previous* handoff printed under "a deep task is in progress" would be
-    read as a verdict about the one running, which is a thing nobody can know yet.
-    """
     pace = HandoffPace(_HeldClock())
     pace.note_pace(spilled=True)
     assert pace.note_on(report) is report
 
 
 def test_a_note_stands_for_the_whole_dwell_and_not_a_moment_longer() -> None:
-    """The standing rule at its boundary: a fact about one handoff stops describing now.
-
-    Escalation is rare, so waiting for a later handoff to decide it can mean waiting days, and a
-    note that never lapsed would still be describing the morning by the evening.
-    """
     clock = _HeldClock()
     pace = HandoffPace(clock, dwell_s=DEFAULT_SPILL_DWELL_S)
     pace.note_pace(spilled=True)
@@ -178,7 +147,6 @@ def test_a_note_stands_for_the_whole_dwell_and_not_a_moment_longer() -> None:
 
 
 def test_a_second_spill_starts_the_dwell_again_from_when_it_happened() -> None:
-    """The dwell runs from the handoff, not from the first one this process ever saw."""
     clock = _HeldClock()
     pace = HandoffPace(clock, dwell_s=100.0)
     pace.note_pace(spilled=True)
@@ -189,7 +157,6 @@ def test_a_second_spill_starts_the_dwell_again_from_when_it_happened() -> None:
 
 
 def test_a_handoff_that_held_its_pace_clears_a_standing_note_at_once() -> None:
-    """The other way a note ends, and the only one that is evidence rather than a timeout."""
     clock = _HeldClock()
     pace = HandoffPace(clock, dwell_s=100.0)
     pace.note_pace(spilled=True)
@@ -200,17 +167,11 @@ def test_a_handoff_that_held_its_pace_clears_a_standing_note_at_once() -> None:
 
 @pytest.mark.parametrize("dwell_s", [0.0, -1.0])
 def test_a_dwell_that_could_never_stand_is_refused(dwell_s: float) -> None:
-    """A note that lapses before it is written is a display that cannot work, so it is refused."""
     with pytest.raises(ValueError, match="dwell_s must be > 0"):
         HandoffPace(_HeldClock(), dwell_s=dwell_s)
 
 
 def test_a_missing_peer_and_a_spilled_handoff_are_both_said() -> None:
-    """Two true things with two different remedies: put the tier back, and give the card room.
-
-    Whichever wrote last winning would send an operator to fix one while the other stayed broken,
-    so they join, in the order a probe composes them: the standing condition, then the handoff.
-    """
     tiers = StandingTiers()
     tiers.mark_missing(_TIER)
     pace = HandoffPace(_HeldClock())
@@ -222,11 +183,7 @@ def test_a_missing_peer_and_a_spilled_handoff_are_both_said() -> None:
     )
 
 
-# --- Through the manager, which is the object a probe actually asks ------------------------------
-
-
 async def test_a_spilled_handoff_reaches_a_probe_through_the_manager() -> None:
-    """The end of the path the entry was filed about: the fact leaves the log for the seam."""
     manager = _manager(ScriptedModelHost(running=[_CORTEX]))
     assert manager.residency() == RESIDENCY_SERVING
     manager.handoff_pace.note_pace(spilled=True)
@@ -234,7 +191,6 @@ async def test_a_spilled_handoff_reaches_a_probe_through_the_manager() -> None:
 
 
 async def test_the_pass_that_republishes_a_serving_cortex_does_not_erase_the_note() -> None:
-    """The constraint this was built under, asserted rather than trusted."""
     host = ScriptedModelHost(running=[_CORTEX], status_override={_CORTEX: ModelHostState.FAILED})
     manager = _manager(host)
     with pytest.raises(ResidencyRestoreError):
@@ -242,13 +198,12 @@ async def test_the_pass_that_republishes_a_serving_cortex_does_not_erase_the_not
             pass  # pragma: no cover -- a failed swap in never runs the scope's body
     assert manager.residency() == RESIDENCY_LOST
     manager.handoff_pace.note_pace(spilled=True)
-    host.set_status(_CORTEX, None)  # the operator put the cortex back through the control API
+    host.set_status(_CORTEX, None)
     await manager.heal_residency()
     assert manager.residency() == ResidencyReport(serving=True, detail=SPILLED_PACE_DETAIL)
 
 
 async def test_a_probe_reads_a_missing_peer_and_a_spill_off_one_swap() -> None:
-    """Both records survive the same swap, and a probe is told both facts in one sentence."""
     host = ScriptedModelHost(running=[_CORTEX, _TIER], fail={("start", _TIER): "no such device"})
     plan = ResidencyPlan(
         cortex_model=_CORTEX, brain_model=_DEEP, evict_models=(_TIER,), load_timeout_s=0.0

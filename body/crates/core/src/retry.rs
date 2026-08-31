@@ -23,7 +23,7 @@ use crate::retry::effects::jittered;
 use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
 use crate::transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};
 
-/// Runs `call` and retries it while [`RetryPolicy::backoff`] says so, sleeping the (jittered) delay
+/// Runs `call` and retries it while [`RetryPolicy::backoff`] says so, sleeping the jittered delay
 /// between tries.
 pub async fn retry_with<R, Fut>(
     policy: RetryPolicy,
@@ -150,8 +150,8 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
     }
 
     async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
-        // The one write on the port. It goes through the same door as the reads and the plan
-        // refuses it, so the single attempt is the gate's answer rather than a bypass.
+        // The one write on the port. It runs through `guarded` like the reads and the plan
+        // refuses it, so the single attempt comes from the plan rather than from a bypass.
         self.guarded(SeamMethod::AckReminder, || {
             self.inner.ack_reminder(reminder_id)
         })
@@ -160,8 +160,8 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
         // A user-driven catalog write (ADR-0021). Like `ack_reminder` it carries an effect, so
-        // the plan refuses it and the same door grants exactly one attempt: a lost reply must
-        // not become a silent second relabel.
+        // the plan refuses it and exactly one attempt is made: a lost reply must not become a
+        // second relabel.
         self.guarded(SeamMethod::RenameSession, || {
             self.inner.rename_session(session_id, title)
         })
@@ -169,9 +169,9 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
     }
 
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
-        // A user-driven DESTRUCTIVE write (ADR-0021). The plan refuses it too, so the same door
-        // grants exactly one attempt: a destroy is the last call to re-issue automatically, and a
-        // silent retry could remove a chat re-materialized by a still-streaming turn.
+        // A user-driven destructive write (ADR-0021). The plan refuses it too, so exactly one
+        // attempt is made: a silent retry could remove a chat that a still-streaming turn
+        // re-materialized.
         self.guarded(SeamMethod::DeleteSession, || {
             self.inner.delete_session(session_id)
         })
@@ -184,8 +184,8 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         pinned: bool,
     ) -> Result<(), TransportError> {
         // A user-driven catalog write (ADR-0021 pinning addendum). Like rename it carries an
-        // effect, so the plan refuses it and the same door grants exactly one attempt: a lost
-        // reply must not silently re-assert a pinned value the user's next toggle reversed.
+        // effect, so the plan refuses it and exactly one attempt is made: a lost reply must not
+        // re-assert a pinned value the user's next toggle reversed.
         self.guarded(SeamMethod::SetSessionPinned, || {
             self.inner.set_session_pinned(session_id, pinned)
         })
@@ -193,16 +193,16 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
     }
 
     async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
-        // A read of the settings record, repeatable with the other reads: the retry returns a
-        // fresh answer to the same question and touches nothing.
+        // A read of the settings record, repeatable with the other reads: a retry returns a
+        // fresh answer to the same question and changes nothing.
         self.guarded(SeamMethod::GetPreferences, || self.inner.get_preferences())
             .await
     }
 
     async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
         // A user-driven write. Last write wins in the store, so a repeat cannot duplicate an
-        // effect, but the catalog-write convention still grants exactly one attempt: a lost reply
-        // must not re-assert a value the user's next change reversed.
+        // effect, but the catalog-write convention still allows exactly one attempt: a lost
+        // reply must not re-assert a value the user's next change reversed.
         self.guarded(SeamMethod::SetPreference, || {
             self.inner.set_preference(key, value)
         })

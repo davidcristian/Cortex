@@ -16,7 +16,7 @@ gets when it asks for nothing can drift in every document that quotes it with th
 
 The half that closed needed no registry row: the suite that copied it imports from the module that
 declares it, so `BODY_EDGE` is now that constant rather than a second spelling of it, and the
-compiler holds the pair. The registry's own suite is what said so, refusing an entry whose places
+compiler holds the pair. The registry's own suite reported it, failing on an entry whose places
 were both Rust. The prose is the other half, and it is untouched.
 
 **Why it was left.** The survey is the size of the two this month rather than a clause in a close
@@ -63,7 +63,7 @@ recorded ([R-397](397-nothing-counts-what-the-registry-does-not-name.md)).
   own choice of size and twelve are another value entirely. One more was **removed** instead of
   held: `crosscheck.py`'s docstring said this edge "is already spelled in four places", which is
   a census the gate had no business quoting and which was false by sixty six. Eighteen planted
-  drifts each reddened the gate, seventeen of them one fault each and the site seventeen at once,
+  drifts each made the gate fail, seventeen of them one fault each and the site seventeen at once,
   with nine controls green and three Rust plantings failing in the two suites that assert the
   number; tabled in the ADR-0029 body-edge addendum. Two residues filed: the injection corpus
   calls its render size the body's own output and nothing holds it to one

@@ -1,5 +1,3 @@
-"""The spill watch: what a decode rate has to be before it is allowed to mean anything."""
-
 import pytest
 
 from cortex_core import MIN_CADENCE_TOKENS, CadenceWatch, DecodeCadence
@@ -31,7 +29,6 @@ def test_a_rate_at_or_above_the_floor_is_not() -> None:
 
 
 def test_an_undeclared_floor_reports_and_judges_nothing() -> None:
-    """Zero is "this deployment never measured a rate", never "any rate will do"."""
     watch = CadenceWatch()
     watch.observe(_sample(0.4))
     reading = watch.reading()
@@ -42,7 +39,6 @@ def test_an_undeclared_floor_reports_and_judges_nothing() -> None:
 
 
 def test_a_sample_too_short_to_judge_is_counted_and_never_judged() -> None:
-    """A handful of tokens says more about the server's start than about the card."""
     watch = CadenceWatch(_FLOOR)
     watch.observe(_sample(2.0, tokens=MIN_CADENCE_TOKENS - 1))
     assert watch.reading() is None
@@ -55,7 +51,6 @@ def test_a_sample_too_short_to_judge_is_counted_and_never_judged() -> None:
 
 
 def test_the_fastest_qualifying_sample_decides() -> None:
-    """A spill is a ceiling that holds all phase, so one slow round must not convict alone."""
     watch = CadenceWatch(_FLOOR)
     watch.observe(_sample(31.0))
     watch.observe(_sample(9.0))
@@ -78,7 +73,6 @@ def test_a_tier_that_never_once_reached_its_floor_is_what_a_spill_looks_like() -
 
 
 def test_a_watch_that_saw_nothing_judgeable_has_no_reading_at_all() -> None:
-    """ "No reading" is a third answer, and a caller must be able to tell it from a pass."""
     assert CadenceWatch(_FLOOR).reading() is None
 
 

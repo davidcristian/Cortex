@@ -9,10 +9,10 @@ Opened 2026-08-17 by the tool-call-cut landing
 delegated half of this shape and left the cortex's own.
 
 A completion cut while the cortex was writing a tool call's `arguments` raises out of
-`stream_tool_loop` the same way a delegated one does, and on this path nothing catches it: the
-turn task in `converse_stream.py` turns an `InferenceError` into a `SeamError` carrying
+`stream_tool_loop` the same way a delegated one does, and on this path nothing catches it: the turn
+task in `converse_stream.py` turns an `InferenceError` into a `SeamError` carrying
 `ERROR_CODE_INFERENCE_FAILED` and the error's own text, so the user is told inference failed and
-shown a JSON fragment. What the turn would rather say is what it already says when the loop ends
+shown a JSON fragment. What the turn should say instead is what it already says when the loop ends
 normally on a capped completion, `REPLY_CAPPED_NOTE` under the text it did produce.
 
 The narrower `MalformedToolCallError` and the `StopLedger` the turn already passes are both in

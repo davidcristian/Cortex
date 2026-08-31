@@ -59,8 +59,8 @@ shipped module first, two of which matched *nothing at all* and so escaped **bot
 mode. (1) The encoded separator (`http[&#58;//]evil.com`) is admitted as a bracket chunk whose inner
 carries an **escape marker** (`&`/`%`), the decode fixpoint then resolving whichever encoding it was:
 the sixth addendum's "needs enumeration or whole-stream decode, both rejected" was a **false
-dichotomy**, since constraining the *shape* of an escape is a third option, and the marker is load
-bearing (an unconstrained chunk matches prose like `http(s)-only`, which strict mode would redact out
+dichotomy**, since constraining the *shape* of an escape is a third option, and the marker is what keeps it
+bounded (an unconstrained chunk matches prose like `http(s)-only`, which strict mode would redact out
 of the repo's own docs). (2) A **bracket-shape asymmetry** found while widening that position: the
 refanger always folded `(.)`/`{.}` but the separator tables listed only the square form, so
 `http(://)evil.com` anchored nothing; every defang token now derives from one `_BRACKETS` table.
@@ -68,7 +68,7 @@ refanger always folded `(.)`/`{.}` but the separator tables listed only the squa
 wrong for this half) feeds a registered IDN homoglyph to the existing confusable table. (4)
 **Cf-category format characters** (zero-width space/joiner, soft hyphen, BOM) are stripped after
 decoding; they render as nothing yet survive NFKC, and no prior addendum had named them. Each fix is
-mutation-proven (reverting it individually turns the new tests red); `urls.py` hit the 300-line cap
+mutation-proven (reverting it individually makes the new tests fail); `urls.py` hit the 300-line cap
 and split, keeping the **grammar** while `url_identity.py` took the **identity** passes, with
 `extract_urls` staying put so only `guardrail.py`'s import moved. Remaining behind the same
 seam (ADR-0015 deferred): whitespace-split

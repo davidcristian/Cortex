@@ -17,7 +17,7 @@ already been happening on every start. Nothing in this repo asks the question. A
 pinned image, or any new image in any compose file here, can add a third and the only symptom is
 `docker volume ls` growing.
 
-**Why it was left.** It is a different subject from the leak it came out of, and it wants a
+**Why it was left.** It is a different subject from the leak it came out of, and it needs a
 decision about where such a check can even live. `bindcheck.py` and `defaultcheck.py` read compose
 files as text and run in CI, which has no docker and no images, so the question is unaskable
 there: the answer is in a registry an image pull would have to fetch. The one thing in this repo

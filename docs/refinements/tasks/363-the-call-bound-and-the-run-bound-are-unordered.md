@@ -31,9 +31,9 @@ so its tool calls have nothing to be ordered against.
 
 ## Trail
 
-- 2026-08-21: Filed by the close of
-  [341](341-nothing-declines-work-it-cannot-finish.md), which added the innermost of the four
-  bounds and left it related to none of the others. Recorded in the ADR-0009 bound addendum.
+- 2026-08-21: Filed by the close of [341](341-nothing-declines-work-it-cannot-finish.md), which
+  added the innermost of the four bounds and left it related to none of the others. Recorded in the
+  ADR-0009 bound addendum.
 - 2026-08-21: Landed as a boot-time refusal, `check_tool_call_deadline` in the new
   `cortex_orchestrator/bounds.py`, gating `SubagentsConfig` on its way out of the environment so a
   mispaired deployment is refused before a single adapter is built. A clamp and a logged warning
@@ -43,14 +43,13 @@ so its tool calls have nothing to be ordered against.
   is a whole dispatch, not the bound**, because the bound is spent per walk: measured through the
   real composition root, one delegated dispatch reaches `BoundedToolRegistry` twice at one
   configured sidecar and four times at two, the run's own advertisement walk arriving before any of
-  it, so `delegated_call_bounds` counts the walks and the check compares the product. A fixed
-  factor was rejected, the endpoint count being in the config the check already holds, and
-  widening it to a whole run was rejected too, that ceiling being one the shipped pair does not
-  clear. Two entries opened,
-  [367](367-the-shipped-ordering-of-two-bounds-is-ungated.md) for the repo's own copy of the pair,
-  which the constant scan's integer-only ordering cannot hold, and
+  it, so `delegated_call_bounds` counts the walks and the check compares the product. A fixed factor
+  was rejected, the endpoint count being in the config the check already holds, and widening it to a
+  whole run was rejected too, that ceiling being one the shipped pair does not clear. Two entries
+  opened, [367](367-the-shipped-ordering-of-two-bounds-is-ungated.md) for the repo's own copy of the
+  pair, which the constant scan's integer-only ordering cannot hold, and
   [368](368-the-composition-root-has-no-headroom.md) for the composition root reaching its line cap
-  exactly, [369](369-the-run-deadline-under-the-queue-is-prose-only.md) for the one relation in
-  the same series that is still written only in a runbook, and
+  exactly, [369](369-the-run-deadline-under-the-queue-is-prose-only.md) for the one relation in the
+  same series that is still written only in a runbook, and
   [370](370-an-expiry-reading-is-asserted-exactly.md) for a load-sensitive assertion this task's
-  mutation sweep caught reddening once in an unrelated suite.
+  mutation sweep caught failing once in an unrelated suite.

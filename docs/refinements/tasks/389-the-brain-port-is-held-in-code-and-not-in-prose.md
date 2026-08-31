@@ -53,11 +53,11 @@ before either becomes a row.
   because it runs on every commit and a retune that left it behind fails in the suite that owns the
   constant, while the two live suites are in because `integration` keeps them out of CI and their
   drift surfaces weeks later as a server that is not answering. That is a fact about the file
-  rather than a reading of the test, and it is the same line `capture_bytes.rs` sits on. The WSL
-  runbook's `port=50051` stays out as a paste of captured output. Twenty three planted drifts each
-  exited 1 and each restoration returned the gate to green, with three controls staying green;
-  tabled in the ADR-0023 seam-port-prose addendum. Two residues filed: the loopback address that
-  rides inside a dozen of these needles as shape
+  rather than a reading of the test, and it is the same distinction `capture_bytes.rs` falls on.
+  The WSL runbook's `port=50051` stays out as a paste of captured output. Twenty three planted
+  drifts each exited 1 and each restoration returned the gate to green, with three controls staying
+  green; tabled in the ADR-0023 seam-port-prose addendum. Two residues filed: the loopback address
+  that appears inside a dozen of these needles as fixed text
   ([R-396](396-the-seam-host-rides-inside-the-ports-needles.md)), and the fact that three sorts in
   a row have corrected their own count upward by hand because nothing reads what the registry does
   not name ([R-397](397-nothing-counts-what-the-registry-does-not-name.md)).

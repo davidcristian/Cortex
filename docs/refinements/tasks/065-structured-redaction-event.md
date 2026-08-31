@@ -27,7 +27,7 @@ cost is the `OutputFilter.feed` port widening (the `OutputFilter` protocol, both
 the `ThinkingChannel`, the engine feed loop, and `open_output_channels`), all to drive a signal
 nothing in the overlay reads. Moved to the index's dead-until-a-consumer list; reopens only if the
 overlay grows a redaction surface the inline marker genuinely cannot serve (a persisted count
-badge, distinct styling), which needs a durable channel designed with its record, not the
+badge, distinct styling), which needs a durable channel designed with its record rather than the
 ephemeral status one this deferral imagined.
 
 ## Trail

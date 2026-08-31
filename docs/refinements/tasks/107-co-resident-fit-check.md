@@ -8,9 +8,9 @@ Opened 2026-08-07 by the co-residency landing
 ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) co-residency addendum). `CORTEX_SWAP_CORESIDENT` is
 an assertion the deployment makes about its own hardware and nothing verifies it, because the
 brain container sees no GPU: the fit is a fact about one card's free VRAM at one moment, and the
-brain has no reading of it. The failure this leaves is the quiet one the same addendum measured:
-a card that cannot hold the pair does not refuse the second load, it pages the overcommit to
-system memory and serves the deep model at roughly **half** its decode rate, with `nvidia-smi`
+brain has no reading of it. The failure this leaves is the one the same addendum measured and nothing
+reports: a card that cannot hold the pair does not fail the second load, it pages the overcommit
+to system memory and serves the deep model at roughly **half** its decode rate, with `nvidia-smi`
 showing the same ~23.6 GB used and ~0.5 GB free as a genuine fit. **What would close it:** the
 sidecar reporting free and total device memory on `GET /health` (it is the process that can see
 the card, and that body already carries the two stop bounds), the adapter carrying it, and a
@@ -32,14 +32,14 @@ same figure read after the load cannot tell a fit from a spill. What landed: `Mo
 fourth verb, `device_memory()`, answered off the sidecar's existing `GET /health` (a
 `DeviceMemoryProbe` seam over `nvidia-smi`, with every failure and any second visible GPU
 reported as no reading rather than a guess); the deployment declares the deep tier's cost as
-`CORTEX_SWAP_BRAIN_VRAM_MIB`; `swap_in` refuses with `SwapFailedError` when the card is short or
+`CORTEX_SWAP_BRAIN_VRAM_MIB`; `swap_in` fails with `SwapFailedError` when the card is short or
 when there is no reading at all; and `CORTEX_SWAP_CORESIDENT=1` without that figure is a boot
 failure on the real supervisor, which is the constant half of the claim caught where it is
 constant. The entry's own cost line is **wrong about the price**: the brain still does not depend
 on the sidecar answering at wiring time, because nothing asks it anything until a swap runs, so
 the stop-bounds entry's objection does not transfer. Measured live rather than argued: with the
 cortex resident the sidecar reported **14905 MiB free of 24463**, the declared 19125 MiB did not
-clear it, and the swap refused in **0.03 s** having started nothing; with the cortex evicted the
+clear it, and the swap failed in **0.03 s** having started nothing; with the cortex evicted the
 same call passed and loaded the deep model to `ready` in **69.24 s**, leaving 3579 MiB free. What
 it does **not** detect is recorded as this area's newest entry, and it is the same instrument
 lesson from the other side: a declared figure nobody verified, and a spill that has already
@@ -54,6 +54,6 @@ happened.
   made it buildable was the instrument warning rather than the flag: free memory is evidence at
   exactly one instant, inside `swap_in` between the last `stop` and the `start`, which rules out
   both the wiring-time reading the entry proposed and a reading taken after the load. Live on the
-  same card as the morning's measurement, 14905 MiB free of 24463 refused a declared 19125 MiB in
-  0.03 s having started nothing, and the same call with the cortex evicted loaded the deep model to
+  same card as the morning's measurement, 14905 MiB free of 24463 did not clear a declared 19125 MiB, so the
+  swap failed in 0.03 s having started nothing, and the same call with the cortex evicted loaded the deep model to
   `ready` in 69.24 s with 3579 MiB to spare.

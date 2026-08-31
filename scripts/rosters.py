@@ -8,7 +8,7 @@ from typing import NamedTuple
 import rostermembers
 from rosternames import Bare, Bulleted, Spelled, Written
 
-# How a member is spelled where a roster runs as a sentence rather than as a list. A module is a
+# How a member is written where a roster runs as a sentence rather than as a list. A module is a
 # bare file name, so a code span carrying a path or a flag beside one is not a member; a part is
 # the tuple name the registry joins, which no other code span in that passage is shaped like.
 MODULE = re.compile(r"[a-z_]+\.py")

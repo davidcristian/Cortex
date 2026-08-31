@@ -6,23 +6,15 @@ from typing import NamedTuple
 from composemounts import strip_quotes
 from composetargets import FLOW_OPENERS, KEY, ComposeServiceError, Targets
 
-# The two service keys that cover a container path. `volumes:` mounts something at a target, of
-# whatever type; `tmpfs:` names the path directly. Both leave docker's own volume declaration
-# nothing to anonymise, which is the only question this reader is feeding.
 COVERING_KEYS = frozenset({"volumes", "tmpfs"})
 
-# The service keys that say what a service runs, rather than what it mounts.
 IMAGE_KEY = "image"
 BUILD_KEY = "build"
 
-# The two keys of a `build:` block this reader takes an answer from, and what docker builds when
-# the second is absent: the file called `Dockerfile` at the top of the context.
 CONTEXT_KEY = "context"
 DOCKERFILE_KEY = "dockerfile"
 DEFAULT_DOCKERFILE = "Dockerfile"
 
-# The top-level key that pins the compose project name, which is half of the image name a service
-# that only builds ends up running under.
 PROJECT_KEY = "name"
 
 _ITEM = re.compile(r"^(?P<indent>[ \t]*)-[ \t]*(?P<rest>.*)$")
@@ -57,7 +49,7 @@ class Service(NamedTuple):
 
 
 class ComposeFile(NamedTuple):
-    """One compose file: the project name it pins, if it pins one, and the services it writes."""
+    """One compose file: the project name it sets, if it sets one, and the services it writes."""
 
     project: str | None
     services: tuple[Service, ...]
@@ -156,14 +148,14 @@ class _Reader:
         if self.build_indent < 0:
             self.build_indent = depth
         if depth > self.build_indent:
-            return  # a nested block of the stanza, `args:` and its like, which names no Dockerfile
+            return
         pair = KEY.match(body)
         if pair is None:
             msg = f"line {number}: {body!r} is not a build key"
             raise ComposeServiceError(msg)
         key, value = pair.group("key"), strip_quotes((pair.group("value") or "").strip())
         if not value:
-            return  # a key opening a block of its own, whose body is stepped over above
+            return
         if key == CONTEXT_KEY:
             self.draft.context = value
         elif key == DOCKERFILE_KEY:
@@ -200,7 +192,7 @@ class _Reader:
         elif self.in_build:
             self.build_field(number, line.strip(), depth)
         elif not self.list_key:
-            return  # inside some other key's block, which covers no path and names no image
+            return
         elif item is None:
             self.targets.field(number, line.strip())
         else:
@@ -214,7 +206,7 @@ class _Reader:
             self.top(number, line.strip())
             return
         if not self.in_services:
-            return  # the body of some other top-level block, which declares no service
+            return
         if self.service_indent < 0:
             self.service_indent = depth
         if depth < self.service_indent:
@@ -227,7 +219,7 @@ class _Reader:
 
 
 def read_services(text: str) -> ComposeFile:
-    """Return what one compose file declares: the project it pins, and every service it writes."""
+    """Return what one compose file declares: the project it sets, and every service in it."""
     reader = _Reader()
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.rstrip()

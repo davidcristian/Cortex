@@ -1,4 +1,4 @@
-"""The ``spawn_subagents`` built-in tool: delegate subtasks concurrently (ADR-0010/0018)."""
+"""The ``spawn_subagents`` built-in tool: delegate subtasks concurrently."""
 
 import asyncio
 import json
@@ -28,15 +28,13 @@ class _SpawnItem:
 
 
 def _uuid4_task_id() -> str:
-    """Default task-id factory; injectable so tests can pin ids."""
+    """Default task-id factory; injectable so tests can use fixed ids."""
     return str(uuid4())
 
 
 _ERR_INSTRUCTION = (
     "each instruction must be a non-empty string or an object with a non-empty 'instruction'"
 )
-# Refused, never truncated: silently dropping subtasks would hand the cortex an aggregate that
-# looks complete. An error the model can act on, so it re-delegates in batches that fit.
 _ERR_BATCH = (
     f"spawn_subagents takes at most {MAX_SPAWN_BATCH} subtasks per call; delegate fewer at once"
 )
@@ -55,7 +53,7 @@ def _parse_item(item: object, roster: SubagentRoster) -> _SpawnItem | str:
 
 
 def _stringified_object_item(item: str) -> Mapping[str, object] | None:
-    """An object item the model JSON-encoded into the string slot, or None (ADR-0018 addendum)."""
+    """An object item the model JSON-encoded into the string slot, or None."""
     if not item.lstrip().startswith("{"):
         return None
     try:
@@ -92,8 +90,7 @@ def _parse_instructions(
     if not isinstance(raw, list) or not raw:
         return "spawn_subagents requires a non-empty 'instructions' array"
     elements = cast("list[object]", raw)
-    # Ahead of parsing the items, so an oversized array is refused without walking it and
-    # before a single task is stored or a single subagent placed.
+    # Ahead of parsing the items, so an oversized array is refused before any task is stored.
     if len(elements) > MAX_SPAWN_BATCH:
         return _ERR_BATCH
     items: list[_SpawnItem] = []
@@ -120,7 +117,7 @@ def _format(results: Sequence[SubagentResult]) -> str:
 
 
 class SpawnSubagentsTool:
-    """Built-in ``spawn_subagents`` tool over a ``SubagentRunner`` + ``TaskStore`` (ADR-0010)."""
+    """Built-in ``spawn_subagents`` tool over a ``SubagentRunner`` + ``TaskStore``."""
 
     def __init__(
         self,
@@ -137,7 +134,7 @@ class SpawnSubagentsTool:
 
     @property
     def spec(self) -> ToolSpec:
-        """The tool advertised to the cortex, derived from the runner it fronts (ADR-0018)."""
+        """The tool advertised to the cortex, derived from the runner it fronts."""
         return build_spawn_spec(self._runner.roster, tools_enabled=self._runner.tools_enabled)
 
     async def invoke(self, call: ToolCall) -> ToolResult:

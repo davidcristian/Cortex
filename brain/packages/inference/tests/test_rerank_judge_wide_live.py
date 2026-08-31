@@ -1,5 +1,3 @@
-"""Does the judge still win on a corpus that was not built for it? Scored per category."""
-
 import os
 import time
 from datetime import UTC, datetime
@@ -26,11 +24,11 @@ _ENDPOINT = os.environ.get("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:8080")
 _EMBEDDER = os.environ.get("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://127.0.0.1:8081")
 _AT = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
 _K = 3
-_POOL_FACTOR = 4  # config.recall_pool_factor's default, so the pool is the shipped width.
+_POOL_FACTOR = 4
 
 
 class _Tally:
-    """One arm's score sheet for one category, kept per category because the mean hides."""
+    """One variant's score sheet for one category, kept apart because an aggregate hides a loss."""
 
     def __init__(self) -> None:
         self.answerable = 0
@@ -88,7 +86,6 @@ def _cosine(a: tuple[float, ...], b: tuple[float, ...]) -> float:
 
 @pytest.mark.integration
 async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -> None:
-    """Cosine, judge and a reversed control over six categories, scored one category at a time."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         embedder = LlamaCppEmbedder(client, _EMBEDDER, model="embedding")
         vectors = {rid: tuple(await embedder.embed(text)) for rid, text in MEMORIES.items()}
@@ -128,9 +125,6 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
             verdict = await judge.select(candidates, query=question, now=_AT, k=_K)
             elapsed = time.monotonic() - started
             judge_ids = [r.hit.record.id for r in verdict.hits]
-            # Three outcomes now, not two: the judge ranked (VERDICT), the judge declined the whole
-            # pool (DEMUR, which is an answer and the thing this policy can do that the cosine
-            # cannot), or it could not be reached or believed and something else ranked.
             declined = verdict.basis is RankBasis.DEMUR
             fell_back = verdict.basis not in (RankBasis.VERDICT, RankBasis.DEMUR)
 
@@ -142,7 +136,6 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
             judged.fell_back += int(fell_back)
             judged.declined += int(declined)
             if gold is not None and gold in [hit.record.id for hit in candidates]:
-                # Recorded on one arm only: the pool is the cosine's, and every arm ranks it.
                 arms["cosine (ships)"][category].in_pool += 1
 
             if fell_back:
@@ -175,7 +168,7 @@ def _mean(tallies: dict[Category, _Tally]) -> float:
 
 
 def _report(arms: dict[str, dict[Category, _Tally]], diagnosed: list[str]) -> None:
-    """Print the per-category sheet, then the aggregate that the per-category sheet outranks."""
+    """Print the per-category sheet, then the aggregate that matters less than it."""
     lines = [
         f"\n\nat k={_K}, pool {_K * _POOL_FACTOR}, {len(QUESTIONS)} questions"
         f" over {len(MEMORIES)} notes"

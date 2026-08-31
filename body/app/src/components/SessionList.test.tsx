@@ -15,8 +15,8 @@ const summary = (over: Partial<SessionSummary> = {}): SessionSummary => ({
   ...over,
 });
 
-/** The switcher over a given list, with every write stubbed: the exit cases care about which rows
- *  are on screen and in what order, not about what the row's controls report. */
+/** The switcher over a given list, with every write stubbed, since the exit cases assert which rows
+ *  are on screen and in what order rather than what the row's controls report. */
 const list = (
   sessions: readonly SessionSummary[],
   currentId = "c1",
@@ -47,10 +47,10 @@ const rows = (): string[] =>
 
 const chat = (id: string): SessionSummary => summary({ sessionId: id, title: id });
 
-/** The caret's landing place when the list empties, for the tests that are not about it. */
+/** Where the caret goes when the list empties, for the tests that are not about it. */
 const nowhere = { current: null };
 
-/** A real anchor: the header control the switcher hangs off in production, standing in the page so
+/** A real anchor: the header control the switcher hangs off in production, present in the page so
  *  the caret has somewhere to go when the list runs out of rows. */
 function anchored(): { current: HTMLButtonElement } {
   const button = document.createElement("button");
@@ -79,7 +79,6 @@ describe("SessionList", () => {
     );
     expect(screen.getByText("First chat")).toBeInTheDocument();
     expect(screen.getByText("world")).toBeInTheDocument();
-    // The current chat's button carries the `current` marker class.
     const current = screen.getByText("Second").closest("button");
     expect(current?.className).toContain("current");
     fireEvent.click(screen.getByText("First chat"));
@@ -92,9 +91,6 @@ describe("SessionList", () => {
     const rendered = screen.getByRole("list", { name: "Recent chats" });
     const items = within(rendered).getAllByRole("listitem");
     expect(items).toHaveLength(2);
-    // Each row keeps all four of its buttons on their own tab stops. An option is a leaf, so the
-    // listbox shape would have had to answer for the pin, the pencil and the trash; this one does
-    // not, and nothing here holds a roving `tabIndex` that would take three of the four away.
     for (const item of items) {
       const buttons = within(item).getAllByRole("button");
       expect(buttons).toHaveLength(4);
@@ -102,8 +98,6 @@ describe("SessionList", () => {
         expect(button.tabIndex).toBe(0);
       }
     }
-    // Which chat is open was a tint and nothing else. `aria-selected` would have needed the role
-    // that just came off, so the open row carries `aria-current` and the others deny it.
     expect(screen.getByText("Second").closest("button")).toHaveAttribute("aria-current", "true");
     expect(screen.getByText("First chat").closest("button")).toHaveAttribute(
       "aria-current",
@@ -145,13 +139,11 @@ describe("SessionList", () => {
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     const input = screen.getByLabelText<HTMLInputElement>("New chat name");
-    expect(input.value).toBe("First chat"); // prefilled with the current title
-    // The other row stays a normal, selectable item while one is being renamed.
+    expect(input.value).toBe("First chat");
     expect(screen.getByText("Second")).toBeInTheDocument();
     fireEvent.change(input, { target: { value: "  Everything about cats  " } });
     fireEvent.submit(input);
-    expect(onRename).toHaveBeenCalledWith("c1", "Everything about cats"); // trimmed
-    // The editor closes on save, so the row is a normal item again.
+    expect(onRename).toHaveBeenCalledWith("c1", "Everything about cats");
     expect(screen.queryByLabelText("New chat name")).not.toBeInTheDocument();
   });
 
@@ -173,7 +165,7 @@ describe("SessionList", () => {
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     fireEvent.change(screen.getByLabelText("New chat name"), { target: { value: "   " } });
     fireEvent.click(screen.getByLabelText("Save name"));
-    expect(onRename).toHaveBeenCalledWith("c1", ""); // "" is the clear-the-override signal
+    expect(onRename).toHaveBeenCalledWith("c1", "");
   });
 
   it("cancels on Escape without renaming, and ignores other keys", () => {
@@ -193,7 +185,7 @@ describe("SessionList", () => {
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     const input = screen.getByLabelText<HTMLInputElement>("New chat name");
-    fireEvent.keyDown(input, { key: "a" }); // a non-Escape key leaves the editor open
+    fireEvent.keyDown(input, { key: "a" });
     expect(screen.getByLabelText("New chat name")).toBeInTheDocument();
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByLabelText("New chat name")).not.toBeInTheDocument();
@@ -215,13 +207,10 @@ describe("SessionList", () => {
         anchor={nowhere}
       />,
     );
-    // One click on the trash asks, but does not delete: the confirm replaces the row.
     fireEvent.click(screen.getByLabelText("Delete First chat"));
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.getByText("Delete this chat?")).toBeInTheDocument();
-    // The other row stays a normal, selectable item while one is confirming.
     expect(screen.getByText("Second")).toBeInTheDocument();
-    // Confirming fires the destructive write and closes the confirm.
     fireEvent.click(screen.getByLabelText("Confirm delete First chat"));
     expect(onDelete).toHaveBeenCalledWith("c1");
     expect(screen.queryByText("Delete this chat?")).not.toBeInTheDocument();
@@ -246,7 +235,6 @@ describe("SessionList", () => {
     fireEvent.click(screen.getByLabelText("Cancel delete"));
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.queryByText("Delete this chat?")).not.toBeInTheDocument();
-    // Back to a normal row: the trash is offered again.
     expect(screen.getByLabelText("Delete First chat")).toBeInTheDocument();
   });
 
@@ -268,7 +256,7 @@ describe("SessionList", () => {
     const toggle = screen.getByLabelText("Pin First chat");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(toggle);
-    expect(onPin).toHaveBeenCalledWith("c1", true); // pins the target chat
+    expect(onPin).toHaveBeenCalledWith("c1", true);
   });
 
   it("unpins a pinned chat: its row is grouped/marked and the toggle fires onPin(false)", () => {
@@ -289,22 +277,16 @@ describe("SessionList", () => {
         anchor={nowhere}
       />,
     );
-    // The pinned row carries the pinned marker class and its toggle reads pressed + offers "Unpin".
-    // The marker is on `.switcher-row`, inside the roll, not on the `<li>` slot around it.
     const pinnedRow = screen.getByText("Pinned").closest(".switcher-row");
     expect(pinnedRow?.className).toContain("pinned");
     const toggle = screen.getByLabelText("Unpin Pinned");
     expect(toggle).toHaveAttribute("aria-pressed", "true");
-    // The unpinned row does not carry the pinned marker.
     expect(screen.getByText("Recent").closest(".switcher-row")?.className).not.toContain("pinned");
     fireEvent.click(toggle);
-    expect(onPin).toHaveBeenCalledWith("p1", false); // unpins the target chat
+    expect(onPin).toHaveBeenCalledWith("p1", false);
   });
 
   it("holds a deleted row through its own roll while its neighbours close over it", () => {
-    // The defect: the row was rendered from `sessions`, so a landed delete removed it in a frame
-    // and every row under it snapped up 50px into the hole. Held here until its roll ends, and the
-    // roll is what closes the gap.
     const land = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b"), chat("c")]));
     rerender(list([chat("a"), chat("c")]));
@@ -322,7 +304,6 @@ describe("SessionList", () => {
     const leaving = slots()[1]!;
     expect(leaving.getAttribute("aria-hidden")).toBe("true");
     expect(leaving.hasAttribute("inert")).toBe(true);
-    // The surviving row is untouched: withdrawal is per row, not per list.
     expect(slots()[0]!.hasAttribute("inert")).toBe(false);
     land();
     expect(slots()).toHaveLength(1);
@@ -331,9 +312,9 @@ describe("SessionList", () => {
   it("carries a leaving row with the neighbour it left under when the list reorders", () => {
     const land = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b"), chat("c"), chat("d")]));
-    rerender(list([chat("a"), chat("b"), chat("d")])); // c deleted, from under b
+    rerender(list([chat("a"), chat("b"), chat("d")]));
     expect(rows()).toEqual(["a", "b", "c*", "d"]);
-    rerender(list([chat("d"), chat("a"), chat("b")])); // d pinned: the list re-groups mid-roll
+    rerender(list([chat("d"), chat("a"), chat("b")]));
     expect(rows()).toEqual(["d", "a", "b", "c*"]);
     land();
     expect(rows()).toEqual(["d", "a", "b"]);
@@ -359,8 +340,6 @@ describe("SessionList", () => {
   });
 
   it("puts back a row that returns before its exit ends, rather than holding it shut", () => {
-    // A failed delete leaves the chat where it was and the next refresh lists it again under the id
-    // it left with. Held shut, that row would keep its place in the switcher and never be seen.
     const land = stubRoll();
     const { rerender } = render(list([chat("a"), chat("b")]));
     rerender(list([chat("a")]));
@@ -386,7 +365,7 @@ describe("SessionList", () => {
     rerender(list([]));
     expect(rows()).toEqual(["a*"]);
     const line = screen.getByText(/no other chats/iu).closest(".collapse");
-    expect(line).toHaveAttribute("data-morphing"); // rolling, and the panel can read where to
+    expect(line).toHaveAttribute("data-morphing");
     land();
     expect(rows()).toEqual([]);
     expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
@@ -405,9 +384,6 @@ describe("SessionList", () => {
   });
 
   it("does not roll the line in when the switcher opens on a list that is already empty", () => {
-    // Mounting is not arriving. The list opens inside the switcher's own roll, and a line rolling
-    // in underneath that roll would have the section measure itself against a card growing out of
-    // nothing.
     stubRoll();
     render(list([]));
     expect(screen.getByText(/no other chats/iu).closest(".collapse")).not.toHaveAttribute(
@@ -416,9 +392,6 @@ describe("SessionList", () => {
   });
 
   it("travels every row a regrouping moved, instead of leaving them at their new places", () => {
-    // The switcher re-lists pinned chats first and then by recency, so a pin moves rows that are
-    // staying. Traced at 900x900 before this, pinning the third of three chats took it 270 to 170
-    // and pushed the two above it 50px each, all inside the frame the re-listing committed.
     const places = new Map([
       ["a", 0],
       ["b", 50],
@@ -442,27 +415,18 @@ describe("SessionList", () => {
     places.set("b", 0);
     places.set("a", 50);
     rerender(list([chat("b"), chat("a")]));
-    // Each row is handed back the distance it moved, which decays to nothing over the roll's clock.
     expect(played).toEqual(["b:translateY(50px)", "a:translateY(-50px)"]);
   });
 
-  // WHERE THE CARET GOES FOR THE GESTURES THAT SWAP NOTHING (`overlay/rowCaret.ts`). Every one of
-  // these takes the control that fired it off the page, and measured at 900x900 every one of them
-  // left `document.activeElement` on `<body>`, outside the panel entirely.
   it("puts the caret in the rename editor, with the name it is replacing selected", () => {
     render(list([summary(), summary({ sessionId: "c2", title: "Second" })]));
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     const input = screen.getByLabelText<HTMLInputElement>("New chat name");
     expect(document.activeElement).toBe(input);
-    // Renaming a thing means replacing its name, so typing replaces it and one Backspace is the
-    // empty submit that clears a custom title back to the derived one.
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, "First chat".length]);
   });
 
   it("keeps a cancelling Escape to itself, the overlay dismissing the panel on the same key", () => {
-    // Measured at 900x900 before this: Escape cancelled the rename AND reached the window listener
-    // that dismisses the panel, so undoing a rename ended the session. Escape closes the innermost
-    // thing, and this editor is the innermost thing there is.
     const heard: string[] = [];
     const listener = (event: KeyboardEvent) => heard.push(event.key);
     window.addEventListener("keydown", listener);
@@ -470,15 +434,11 @@ describe("SessionList", () => {
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     fireEvent.keyDown(screen.getByLabelText("New chat name"), { key: "Escape" });
     expect(heard).toEqual([]);
-    // The delete confirm is the row's other overlay and answers the same way, leaving the question
-    // closed rather than the panel dismissed with the question still standing under it.
     fireEvent.click(screen.getByLabelText("Delete First chat"));
     fireEvent.keyDown(screen.getByLabelText("Cancel delete"), { key: "Escape" });
     expect(heard).toEqual([]);
     expect(screen.queryByText("Delete this chat?")).not.toBeInTheDocument();
     expect(document.activeElement).toBe(screen.getByLabelText("Delete First chat"));
-    // Every other key is the overlay's business as before: the switcher's own Ctrl+K, the cycle
-    // keys and Ctrl+N all still reach it from inside a row.
     fireEvent.keyDown(screen.getByLabelText("Rename First chat"), { key: "Escape" });
     expect(heard).toEqual(["Escape"]);
     fireEvent.keyDown(screen.getByLabelText("Delete First chat"), { key: "k", ctrlKey: true });
@@ -512,12 +472,8 @@ describe("SessionList", () => {
       fireEvent.keyDown(input, { key, metaKey: true });
     }
     expect(heard).toEqual([]);
-    // Held, not answered: the editor is where it was, holding what was typed into it, and nothing
-    // has been written. Enter and Escape are the two presses that settle it.
     expect(screen.getByLabelText<HTMLInputElement>("New chat name").value).toBe("a brand new name");
     expect(onRename).not.toHaveBeenCalled();
-    // Every unmodified key still goes on to the overlay, `?` included: that one is guarded there by
-    // element type, so holding it here would duplicate a rule instead of composing with it.
     fireEvent.keyDown(input, { key: "?" });
     expect(heard).toEqual(["?"]);
     window.removeEventListener("keydown", listener);
@@ -530,8 +486,6 @@ describe("SessionList", () => {
     render(list([summary()]));
     fireEvent.click(screen.getByLabelText("Delete First chat"));
     fireEvent.keyDown(screen.getByLabelText("Cancel delete"), { key: "n", ctrlKey: true });
-    // Measured at 900x900: a new chat, the switcher closed, the caret in the composer and nothing
-    // deleted. Asking again costs one press, so there is nothing here for the rule to protect.
     expect(heard).toEqual(["n"]);
     expect(screen.getByText("Delete this chat?")).toBeInTheDocument();
     window.removeEventListener("keydown", listener);
@@ -542,7 +496,6 @@ describe("SessionList", () => {
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     fireEvent.submit(screen.getByLabelText("New chat name"));
     expect(document.activeElement).toBe(screen.getByLabelText("Rename First chat"));
-    // And the same for the way out that writes nothing.
     rerender(list([summary()]));
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     fireEvent.keyDown(screen.getByLabelText("New chat name"), { key: "Escape" });
@@ -552,11 +505,8 @@ describe("SessionList", () => {
   it("opens a delete confirm on its cancel, never on the trash beside it", () => {
     render(list([summary()]));
     fireEvent.click(screen.getByLabelText("Delete First chat"));
-    // Measured at 900x900: with the caret on the confirm, one further Enter deletes the chat; here,
-    // the same press puts the row back. The confirm exists so one stray press cannot delete.
     expect(document.activeElement).toBe(screen.getByLabelText("Cancel delete"));
     expect(document.activeElement).not.toBe(screen.getByLabelText("Confirm delete First chat"));
-    // Cancelling gives it back to the trash that asked, which is where the reader was.
     fireEvent.click(screen.getByLabelText("Cancel delete"));
     expect(document.activeElement).toBe(screen.getByLabelText("Delete First chat"));
   });
@@ -565,8 +515,6 @@ describe("SessionList", () => {
     render(list([chat("a"), chat("b"), chat("c")]));
     fireEvent.click(screen.getByLabelText("Delete b"));
     fireEvent.click(screen.getByLabelText("Confirm delete b"));
-    // The same control one row down, so deleting several chats is one gesture repeated rather than
-    // a walk back into the list between each.
     expect(document.activeElement).toBe(screen.getByLabelText("Delete c"));
   });
 
@@ -582,15 +530,10 @@ describe("SessionList", () => {
     render(list([chat("a")], "open", anchor));
     fireEvent.click(screen.getByLabelText("Delete a"));
     fireEvent.click(screen.getByLabelText("Confirm delete a"));
-    // The switcher is still open in front of the reader, saying it holds nothing; the control that
-    // opened it is the one that closes it again.
     expect(document.activeElement).toBe(anchor.current);
   });
 
   it("says nothing about the caret when the chat deleted is the one on screen", () => {
-    // That delete is a SWAP: a fresh chat arrives in its place and takes the caret to the composer
-    // with it (`sessionState.deleteSession`). Aiming at a row first would put the caret somewhere
-    // the arriving chat pulls it straight back out of.
     const anchor = anchored();
     render(list([chat("a"), chat("b")], "a", anchor));
     fireEvent.click(screen.getByLabelText("Delete a"));
@@ -600,8 +543,6 @@ describe("SessionList", () => {
   });
 
   it("leaves the pin toggle's own caret alone, its gesture taking no control away", () => {
-    // The one row gesture that needs no answer: pinning regroups the list around the row, and the
-    // button rides the move. Measured at 900x900, it held focus at every sample through 700ms.
     render(list([summary()]));
     const toggle = screen.getByLabelText("Pin First chat");
     toggle.focus();
@@ -610,9 +551,6 @@ describe("SessionList", () => {
   });
 
   it("puts up the list's empty line in the words the live region borrows for it", () => {
-    // The region says the same thing when the last row leaves (`overlay/notice.ts`), so a reader
-    // who hears one and then reads the other must not be told two different things about one
-    // empty list. Reddens if either side grows its own wording.
     render(list([]));
     expect(document.querySelector(".switcher-empty")?.textContent).toBe(NO_OTHER_CHATS);
   });

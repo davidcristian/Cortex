@@ -39,7 +39,7 @@ host runs it.
 which one is tested, while `body/app/vite.config.ts` names `tauriBridge.ts` and
 `demoBridge.ts` in its coverage `exclude` list. The 100% threshold is therefore met with two
 thirds of that port unmeasured, which is the same class of thing this sweep was looking for:
-a gate that reads green over code it was never pointed at.
+a gate that passes over code it was never pointed at.
 
 **That case closed on 2026-08-11, which is this entry's trigger firing once rather than the
 entry closing.** The next port to gain a shared check list was the overlay's, and it adopted the
@@ -67,9 +67,9 @@ demo bridge having announced a capture activity inside the `converse` call, whic
 the real bridge cannot make: its events cross a Tauri channel and arrive after the call has
 handed back the cancellation its caller stores. It was then proven able to fail three times over,
 on a delete put back to the no-op it once was, on a cancellation that leaves its turn's timers
-running, and on a completion moved ahead of the reply it settles. The first two redden one arm of
-the shared list apiece and the third reddens the demo's own suite while all thirteen shared
-checks stay green, which is the division of labour showing itself: the list holds the port and
+running, and on a completion moved ahead of the reply it settles. The first two fail one arm of
+the shared list apiece and the third fails the demo's own suite while all thirteen shared
+checks pass, which is the division of labour showing itself: the list holds the port and
 the suite holds the script. Each break was restored. The whole account, including the four places
 the two implementations legitimately disagree and so what the list holds instead, is the
 [ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day, with the divergences
@@ -93,7 +93,7 @@ vector with an unrelated embedding in between changing nothing, and that a backe
 answer raises `EmbedderError`.
 
 It found no behavioural disagreement, which is the honest outcome for a port one method wide and
-is recorded rather than left as a silence. What it did find is that the fake could not fail at
+is recorded rather than left unwritten. What it did find is that the fake could not fail at
 all: `HashEmbedder` had no way to raise the one error the port names, so nothing in the core
 could exercise a remember or a recall against a dead embedding server, and on the only path where
 the two implementations have anything to disagree about the fake could not stand in for the
@@ -104,11 +104,11 @@ fake answers a `tuple` and the adapter a `list`, and their widths differ, which 
 check compares an implementation's own answers with each other rather than with a number.
 
 **Proven able to fail, once per arm and once per side of the new knob.** Dropping the adapter's
-`float(value)` coercion reddens `text_embeds_to_a_vector_of_real_numbers[llamacpp]` alone, 1
-failed against 7 passed; making the fake's width depend on the text's parity reddens
+`float(value)` coercion fails `text_embeds_to_a_vector_of_real_numbers[llamacpp]` alone, 1
+failed against 7 passed; making the fake's width depend on the text's parity fails
 `every_text_embeds_at_one_width[hash]` alone; letting the adapter's `httpx.HTTPError` escape
-reddens `a_backend_that_cannot_answer_raises_embedder_error[llamacpp]`; and making `fail_with` a
-no-op reddens that same check on the `hash` arm, which is what proves the knob load-bearing. Each
+fails `a_backend_that_cannot_answer_raises_embedder_error[llamacpp]`; and making `fail_with` a
+no-op fails that same check on the `hash` arm, which is what proves the knob necessary. Each
 break was restored. The account port by port is the
 [ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day. **Three of the four Python
 ports stay open**, `ToolRegistry`, `BodyGateway` and `Confirmer`, alongside
@@ -125,31 +125,32 @@ the tool's text; that a tool which ran and failed is an `is_error` result rather
 exception; that a name the registry does not serve never comes back as a success; and that an
 unreachable backend raises `ToolError` from both verbs.
 
-The fake could express neither the port's central case nor its world. `InMemoryToolRegistry`
+The fake could express neither the port's central case nor the conditions it runs under.
+`InMemoryToolRegistry`
 handlers answered result text, so the fake could never produce a result with `is_error` set,
 which is the case the port draws its whole `is_error`-against-raise distinction around, and every
 core test of a failing tool went through the other branch, a handler raising, which the
 dispatcher labels differently (its own sentence is trusted, a relayed one is not). It copied its
-tool set at construction, so no test could move the world the port promises to re-read. And it
+tool set at construction, so no test could change the tool set the port promises to re-read. And it
 had no way to be unreachable, so nothing held it to the `ToolError` that
 `SkipUnavailableToolRegistry` is built on. It gained a widened handler answer, `serve`, and the
 same `fail_with` the embedder's fake took.
 
 **One divergence was decided against the port rather than against an implementation.** The port
-promised `ToolNotFoundError` for an unknown name, which only a registry that knows its whole set
+promised `ToolNotFoundError` for an unknown name, which only a registry that holds its whole set
 can keep: an MCP server answers an unknown tool with an error result, so the adapter has never
-raised there and cannot without sniffing an error string or paying a listing round trip per call.
+raised there and cannot without matching an error string or paying a listing round trip per call.
 The description was the thing that was wrong, and it now states the safety half both owe, that a
 name an implementation does not serve never comes back as a success, with the divergence and its
 downstream consequence written into
 [docs/modules/brain-tools.md](../../modules/brain-tools.md).
 
 **Proven able to fail four times, each on the arms that can carry the defect.** An adapter
-reading `isError` as always false reddens the failed-tool check and the unknown-name check on
-both MCP arms while the fake stays green (4 failed, 15 passed); an adapter dropping the call's
-arguments reddens the id-and-text check and the failed-tool check on the same two; a fake
-answering an empty listing instead of raising when unreachable reddens the backend check on the
-`in-memory` arm alone; and a listing cache in `McpToolRegistry` reddens the re-read check on the
+reading `isError` as always false fails the failed-tool check and the unknown-name check on
+both MCP arms while the fake passes (4 failed, 15 passed); an adapter dropping the call's
+arguments fails the id-and-text check and the failed-tool check on the same two; a fake
+answering an empty listing instead of raising when unreachable fails the backend check on the
+`in-memory` arm alone; and a listing cache in `McpToolRegistry` fails the re-read check on the
 `mcp` arm only, since the reconnecting wrapper builds a fresh inner registry per call and is
 structurally immune to it, which is the evidence that both MCP arms earn their place. Each break
 was restored. **Two of the four Python ports stay open**, `BodyGateway` and `Confirmer`,
@@ -183,11 +184,11 @@ clamp happens in different places, which is why the check asks only that a legal
 back.
 
 **Proven able to fail four times, once per side.** The bounds rule taken back out of the fake
-reddens the refusal check on the `in-memory` arm alone (1 failed, 19 passed), which is the
+fails the refusal check on the `in-memory` arm alone (1 failed, 19 passed), which is the
 finding measured rather than asserted; the adapter sending a zero for an absent level instead of
-leaving the field unset reddens the presence check on the `grpc` arm alone, which is the mute
-that would silence the host; the adapter stamping the asked target onto the answer reddens the
-target check the same way; and the fake recording a notification without its taint bit reddens
+leaving the field unset fails the presence check on the `grpc` arm alone, which is the mute
+that would silence the host; the adapter stamping the asked target onto the answer fails the
+target check the same way; and the fake recording a notification without its taint bit fails
 the notification check on `in-memory`. Each break was restored. **One of the four Python ports
 stays open**, `Confirmer`, alongside `InferenceBackend`'s streaming half and every Rust row.
 
@@ -211,11 +212,11 @@ request object while the real card crosses as JSON built with `default=str`, so 
 cannot represent would reach the person rendered rather than verbatim, and the checks use the
 JSON-native arguments a model always sends.
 
-**Proven able to fail three times, and once deliberately not.** A timeout that approves reddens
-the silence check on the `seam` arm alone; a card emitted without its reason reddens the two
-checks that read what the person was shown, on `seam`; a fake that stops recording reddens the
+**Proven able to fail three times, and once deliberately not.** A timeout that approves fails
+the silence check on the `seam` arm alone; a card emitted without its reason fails the two
+checks that read what the person was shown, on `seam`; a fake that stops recording fails the
 same two on `recording`. The fourth attempt is the informative one: `resolve` rewritten to
-answer whichever ask is pending rather than the one whose id it was given leaves all ten green,
+answer whichever ask is pending rather than the one whose id it was given leaves all ten passing,
 because through the port only one ask is ever outstanding. That is the division of labour rather
 than a hole, the shared list holding the port while `test_confirm.py` holds the stream, where a
 stale or forged `confirm_id` resolving nothing is checked directly.
@@ -250,11 +251,11 @@ went into [docs/modules/brain-inference.md](../../modules/brain-inference.md) in
 checks: an empty delta is permitted by the port and dropped by the adapter, tool calls trail both
 closing events there because a call is whole only once the stream ends, and the twin's script
 advances per call, which is why nothing asks an implementation to answer twice the same way. The
-shipped `EchoInferenceBackend` is deliberately not a third leg, since three of the four worlds
+shipped `EchoInferenceBackend` is deliberately not a third leg, since three of the four scenarios
 cannot be put to it and teaching it any of them would turn shipped wiring into a test stub. What
 that left open is narrower and is filed as its own entry
 ([R-280](280-twin-answers-for-any-model-id.md)): the twin answers for a model id no deployment
-serves, where the adapter refuses one its manager cannot lease. The whole account, including the
+serves, where the adapter rejects one its manager cannot lease. The whole account, including the
 seven breaks that proved the list able to fail and the eighth that deliberately did not, is the
 [ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day.
 
@@ -290,7 +291,7 @@ shared list would have named.
   sweep's own finding closed inside it, `SessionStore` having had the identical defect, its
   fourteen shared checks read only by the integration-marked live-Redis run while the CI driver
   restated them by hand; it now parametrizes over the tuple and was proven able to fail on a
-  poisoned fifteenth check, which reddens both implementations where the restated driver had
+  poisoned fifteenth check, which fails both implementations where the restated driver had
   answered `66 passed` over it. What opened is the half the sweep could only measure. The full port
   inventory went into the ADR-0001 addendum on decision 2 rather than into this entry, so that the
   next sweep re-reads it rather than re-deriving it, and it names the ports whose fake and adapter
@@ -314,8 +315,8 @@ shared list would have named.
   recalled notes. The index filed that arrival to the memory area rather than here.
 - 2026-08-11: `ToolRegistry` was the second and the one that paid, six checks over three
   implementations, since the translating and the reconnecting MCP registries are not the same
-  implementation of every promise. The fake could express neither the port's central case nor its
-  world, and one divergence was decided against the port's own wording rather than against either
+  implementation of every promise. The fake could express neither the port's central case nor the
+  conditions it runs under, and one divergence was decided against the port's own wording rather than against either
   implementation.
 - 2026-08-11: `BodyGateway` was the third and its finding ran the dangerous way, the fake handing
   back a capture the adapter would have refused, which is a fake more permissive than the adapter
@@ -323,8 +324,8 @@ shared list would have named.
   moved into the core, where both implementations call it.
 - 2026-08-11: `Confirmer` was the fourth and last, five checks over `RecordingConfirmer` and
   `SeamConfirmer` with a scripted overlay wired into the adapter's `emit`. No behavioural
-  disagreement came out of them, and one break deliberately did not redden, which is the division
-  of labour rather than a hole. That finished the four Python ports the sweep named, leaving
+  disagreement came out of them, and one break deliberately made nothing fail, which is the
+  division of labour rather than a hole. That finished the four Python ports the sweep named, leaving
   `InferenceBackend`'s streaming half, which is a design question rather than a transcription, and
   every Rust row.
 - 2026-08-16: `InferenceBackend`'s streaming half closed, eight checks over the scripted twin and

@@ -1,5 +1,3 @@
-"""The sidecar's composition root: what ``python -m cortex_model_manager`` actually wires."""
-
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -34,7 +32,6 @@ async def test_the_wired_app_serves_the_roster_its_env_declared(
 async def test_the_wiring_hands_over_every_timing_knob_it_reads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Distinctive values, read back off the two objects the root actually handed them to."""
     monkeypatch.setenv("CORTEX_MODELHOST_STOP_GRACE_S", "7.5")
     monkeypatch.setenv("CORTEX_MODELHOST_REAP_TIMEOUT_S", "11.25")
     monkeypatch.setenv("CORTEX_MODELHOST_PROBE_TIMEOUT_S", "3.25")
@@ -51,7 +48,6 @@ async def test_the_wiring_hands_over_every_timing_knob_it_reads(
 def test_main_serves_the_configured_interface_and_port_and_configures_the_root_logger(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The root logger is the sidecar's whole diagnosis surface, and nothing else configures it."""
     served: list[tuple[str, int, str]] = []
     configured: list[tuple[str, str]] = []
 
@@ -76,7 +72,6 @@ def test_main_serves_the_configured_interface_and_port_and_configures_the_root_l
 def test_the_sidecar_renders_its_fields_the_way_a_reader_gets_them_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A deployment that names no rendering gets the one a person reads, not a bare message."""
     configured: list[tuple[str, str]] = []
     served: list[str] = []
 

@@ -1,5 +1,3 @@
-"""The supervisor's own rules, beyond what the shared port contract can observe."""
-
 import asyncio
 import logging
 
@@ -17,7 +15,7 @@ _TINY = 0.05
 def _supervisor(
     processes: FakeChildProcesses | None = None, probe: FakeProbe | None = None
 ) -> tuple[ModelSupervisor, FakeChildProcesses, FakeProbe]:
-    """A supervisor over the contract roster with sub-second bounds, plus its two fakes."""
+    """Build a supervisor over the contract roster with sub-second bounds, plus its two fakes."""
     children = processes or FakeChildProcesses()
     health = probe or FakeProbe()
     supervisor = ModelSupervisor(
@@ -32,7 +30,6 @@ def test_the_roster_is_what_the_daemon_serves_and_nothing_else() -> None:
 
 
 def test_each_supervisor_names_a_different_boot_and_keeps_naming_it() -> None:
-    """The property the brain's whole reconciliation rests on, and the only two it needs."""
     first, _, _ = _supervisor()
     second, _, _ = _supervisor()
     assert first.boot_id != second.boot_id
@@ -41,7 +38,6 @@ def test_each_supervisor_names_a_different_boot_and_keeps_naming_it() -> None:
 
 @pytest.mark.parametrize("verb", ["start", "stop", "status"])
 async def test_every_verb_refuses_an_id_the_roster_does_not_hold(verb: str) -> None:
-    """A request cannot name a model into existence: that is the whole safety of the control API."""
     supervisor, processes, _ = _supervisor()
     with pytest.raises(UnknownModelError, match="unknown model 'ghost'"):
         await getattr(supervisor, verb)("ghost")
@@ -49,7 +45,6 @@ async def test_every_verb_refuses_an_id_the_roster_does_not_hold(verb: str) -> N
 
 
 async def test_a_start_spawns_the_specs_argv_once_however_often_it_is_asked() -> None:
-    """Idempotence is a single process, not a tolerated second one holding the same port."""
     supervisor, processes, _ = _supervisor()
     await supervisor.start(CORTEX)
     await supervisor.start(CORTEX)
@@ -59,11 +54,6 @@ async def test_a_start_spawns_the_specs_argv_once_however_often_it_is_asked() ->
 
 
 async def test_two_concurrent_starts_spawn_one_process() -> None:
-    """A stop racing a start is what produces a bind failure, so the three verbs serialize.
-
-    The fake suspends inside ``spawn``, so the first start genuinely holds the per-model lock
-    while the second arrives: without the lock both would see no child and both would spawn.
-    """
     supervisor, processes, _ = _supervisor()
     processes.gate = asyncio.Event()
     first = asyncio.create_task(supervisor.start(CORTEX))
@@ -75,7 +65,6 @@ async def test_two_concurrent_starts_spawn_one_process() -> None:
 
 
 async def test_a_spawn_that_fails_starts_nothing_and_raises_a_typed_error() -> None:
-    """A failed start must leave the model absent, or a swap would health-gate a phantom."""
     supervisor, processes, _ = _supervisor()
     processes.error = OSError("no such file or directory")
     with pytest.raises(SupervisorError, match="could not start 'cortex'"):
@@ -85,7 +74,6 @@ async def test_a_spawn_that_fails_starts_nothing_and_raises_a_typed_error() -> N
 
 
 async def test_a_spawn_that_fails_over_a_dead_child_keeps_reporting_that_childs_exit_code() -> None:
-    """A failed replacement does not erase the corpse: this tier's last process really did die."""
     supervisor, processes, _ = _supervisor()
     await supervisor.start(CORTEX)
     processes.spawned[0].exit(7)
@@ -100,7 +88,6 @@ async def test_a_spawn_that_fails_over_a_dead_child_keeps_reporting_that_childs_
 async def test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The identifying fields have to reach the line, which is the entry's formatter's job now."""
     supervisor, processes, _ = _supervisor()
     with caplog.at_level(logging.INFO):
         await supervisor.start(CORTEX)
@@ -117,11 +104,6 @@ async def test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about(
 
 
 async def test_status_reads_the_exit_code_without_asking_the_probe_at_all() -> None:
-    """The probe is never consulted for a dead child: the witness is that it was not called.
-
-    Measured hazard: a start that could not bind dies at once while the model it was replacing
-    keeps answering 200 on that port. Asking would get the wrong answer, so it is not asked.
-    """
     supervisor, processes, probe = _supervisor()
     roster = contract_roster()
     probe.set(roster[DEEP].health_url, serving=True)
@@ -143,11 +125,6 @@ async def test_status_reports_the_loading_pid_of_a_child_that_is_not_serving_yet
 
 
 async def test_stop_does_not_return_until_the_child_is_reaped() -> None:
-    """``swap_in`` starts the next model immediately after this returns, so VRAM must be free.
-
-    The child here honours no signal until the test lets it exit, which is how the ordering is
-    observed rather than assumed: the stop is still pending while the process is alive.
-    """
     supervisor, processes, _ = _supervisor(FakeChildProcesses(exits_on=None))
     await supervisor.start(CORTEX)
     child = processes.spawned[0]
@@ -162,7 +139,6 @@ async def test_stop_does_not_return_until_the_child_is_reaped() -> None:
 
 
 async def test_a_wedged_child_is_killed_after_the_grace() -> None:
-    """SIGTERM first, SIGKILL after the bound, and the stop completes either way."""
     supervisor, processes, _ = _supervisor(FakeChildProcesses(exits_on="kill"))
     await supervisor.start(CORTEX)
     await supervisor.stop(CORTEX)
@@ -177,7 +153,6 @@ async def test_a_wedged_child_is_killed_after_the_grace() -> None:
 async def test_a_child_that_survives_sigkill_keeps_being_reported(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The one stop that can fail: a process still holding VRAM must not vanish into STOPPED."""
     supervisor, processes, probe = _supervisor(FakeChildProcesses(exits_on=None))
     roster = contract_roster()
     probe.set(roster[CORTEX].health_url, serving=True)
@@ -188,19 +163,16 @@ async def test_a_child_that_survives_sigkill_keeps_being_reported(
         "a model process ignored SIGTERM; killing it"
     ]
     assert processes.spawned[0].signals == ["terminate", "kill"]
-    # Still reported as the running process it is, on the probe's own answer: the slot was NOT
-    # released, which is the point. A deleted slot would read STOPPED here.
     assert (await supervisor.status(CORTEX)).state is ModelHostState.READY
 
 
 async def test_stop_all_stops_every_model_and_survives_one_that_will_not_die(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A shutdown that raised on the first wedged child would leave the rest holding the GPU."""
     supervisor, processes, _ = _supervisor(FakeChildProcesses(exits_on=None))
     await supervisor.start(CORTEX)
     await supervisor.start(DEEP)
-    processes.spawned[1].exit(0)  # the deep model dies politely; the cortex is wedged
+    processes.spawned[1].exit(0)
     with caplog.at_level(logging.ERROR):
         await supervisor.stop_all()
     assert "a model process could not be stopped at shutdown" in caplog.text

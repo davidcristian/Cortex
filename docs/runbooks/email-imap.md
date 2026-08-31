@@ -36,8 +36,8 @@ set -a; . ~/.cortex/email.env; set +a
 cd brain && uv run pytest -m integration --no-cov packages/email
 ```
 
-`--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run. It
-lists your folders, searches INBOX, and reads a message through `EmailReader` over the real
+`--no-cov` matters, since the 100% gate in the workspace addopts would otherwise fail the run. The
+suite lists your folders, searches INBOX, and reads a message through `EmailReader` over the real
 Bridge (the IMAP the fake cannot prove). Reads are non-destructive: EXAMINE + `mark_seen=False`
 never touch your mail.
 
@@ -97,7 +97,7 @@ for is written in `docker/dovecot/probe-mailboxes.sh`, which builds them.
 All seven are named a second time by `packages/email/tests/test_imap_probe_live.py`, and
 `scripts/crosscheck.py` holds the two spellings together (ADR-0029 fixture addendum): rename a
 mailbox in the script alone and the gate says so on the next commit, where the suite that would
-have noticed is `integration`-marked and runs only when somebody measures.
+otherwise catch it is `integration`-marked and runs only when somebody measures.
 The mail store is a tmpfs, so every start builds the tree again from nothing, and the path it sits
 at is written once in `docker/docker-compose.imap-probe.yml` and handed to the container as
 `CORTEX_IMAP_PROBE_MAIL_ROOT`, which the entrypoint reads and dovecot expands with `%{env:...}`
@@ -107,7 +107,7 @@ with nothing mounted at it leaves an anonymous volume behind on every single run
 bound in at `/probe.conf` and copied onto that mount by the entrypoint (ADR-0022
 configuration-directory addendum). So a full `up` and `down` of this fixture leaves `docker volume
 ls` exactly as it found it, which is worth checking after a Dovecot bump: a new declared volume in
-the image would start leaking again. Two ways this fixture refuses to start, both by design and
+the image would start leaking again. Two ways this fixture fails to start, both by design and
 both naming themselves in `docker compose logs`: `is not the tmpfs the compose file mounts` means
 one of the two mounts went missing, and `parameter not set` means the variable behind it never
 arrived. Neither is a server fault, and `just up-imap-probe` reports both as a container that
@@ -127,7 +127,7 @@ that answers at neither is reported rather than waited on. The answers, measured
 
 Four things to read off that. The refusal for a mailbox that is **there and shut** carries none
 of the words that prove a folder missing, which is the assumption the whole classification rests
-on and was until now only assumed. The refusal for a **missing** mailbox shares no word with the
+on and which nothing had measured before this. The refusal for a **missing** mailbox shares no word with the
 Bridge's, so both phrases are read and neither server sends a response code to read instead. The
 refusal for a name **no mailbox could have** says nothing about a mailbox at all, so it is read off
 RFC 5530's `[CANNOT]` instead and typed as the folder correction, which is what the Bridge already
@@ -142,7 +142,7 @@ listed in its own right, and on the Bridge the two flagged parents that open are
 
 ### Asking this server for the flag imap-tools never asks about
 
-`folder.list()` sends the plain `LIST "" "*"`, so the newer spelling of "not a mailbox" cannot
+`folder.list()` sends the plain `LIST "" "*"`, so the newer attribute for "not a mailbox" cannot
 reach the adapter through it. To see where that word really comes from, drive imaplib directly
 against the running probe (this is what
 `test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends` does, so
@@ -166,8 +166,8 @@ cannot be asked at all: it advertises no LIST-EXTENDED and answers the extended 
 name really can open. That was measured on the Bridge, on one account, and nowhere else until
 `Feigned` was added to this fixture. `Feigned` is an ordinary mailbox that opens; its child
 `Feigned/Followed` is subscribed and it is not, which is the state RFC 3501 has an `LSUB` of `%`
-answer with `\Noselect` whatever the name really is. So a standard obliges a compliant server to
-flag a mailbox it will happily open, and this one does:
+answer with `\Noselect` whatever the name really is. So the standard obliges a compliant server to
+flag a mailbox that opens normally, and this one does:
 
 ```python
 conn.lsub('""', '"%"')  # ('LSUB', [b'() "/" Ghost', b'(\\Noselect) "/" Feigned'])

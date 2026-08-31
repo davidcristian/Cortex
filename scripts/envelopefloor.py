@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, cast
 
-# The fraction of its own runs a control arm must not be proven to have fallen under. Argued in
-# full above; nine tenths is where a control stops outrunning the arms it is supposed to explain.
+# The fraction of its own runs a control arm must not be proven to have fallen under. Nine tenths
+# is where a control stops doing better than the arms it exists to explain (ADR-0028).
 FLOOR = 0.9
 # The two-sided 95% normal quantile, which is the interval every rate in the ADR-0028 addenda is
 # published with. Ten of those intervals were recomputed here when this landed and all ten agree.
@@ -109,21 +109,21 @@ def _require(condition: bool, message: str) -> None:  # noqa: FBT001 -- a bare p
 
 
 def _text(source: dict[str, object], key: str, where: Path) -> str:
-    """One string field of a sample, or a refusal naming the file and the key."""
+    """One string field of a sample; raises naming the file and the key when it is absent."""
     value = source.get(key)
     _require(isinstance(value, str), f"{where}: {key} is missing or is not a string")
     return cast("str", value)
 
 
 def _flag(source: dict[str, object], key: str, where: Path) -> bool:
-    """One boolean field of a sample, or a refusal naming the file and the key."""
+    """One boolean field of a sample; raises naming the file and the key when it is absent."""
     value = source.get(key)
     _require(isinstance(value, bool), f"{where}: {key} is missing or is not a boolean")
     return cast("bool", value)
 
 
 def _turn(entry: object, where: Path) -> Turn:
-    """One turn of a sample, refusing a run written before the driver recorded what it asked."""
+    """One turn of a sample, raising on a run written before the driver recorded what it asked."""
     _require(isinstance(entry, dict), f"{where}: a turn is not a JSON object")
     turn = cast("dict[str, object]", entry)
     return Turn(
@@ -134,7 +134,7 @@ def _turn(entry: object, where: Path) -> Turn:
 
 
 def load(path: Path) -> Arm:
-    """Read one arm's sample file, refusing anything it cannot read as a set of runs."""
+    """Read one arm's sample file, raising on anything it cannot read as a set of runs."""
     try:
         parsed: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as err:

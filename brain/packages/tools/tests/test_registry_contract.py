@@ -1,5 +1,3 @@
-"""Every `ToolRegistry` implementation against the same checks (`registry_contract.py`)."""
-
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -25,7 +23,7 @@ type Build = Callable[[], RegistryUnderTest]
 
 
 class ServingSession:
-    """An `McpSession` standing in for a running MCP server, tools and all."""
+    """An `McpSession` in place of a running MCP server, tools and all."""
 
     def __init__(self) -> None:
         self._tools: list[ServedTool] = []
@@ -71,7 +69,9 @@ class ServingSession:
 
 
 def _handler(tool: ServedTool) -> Callable[[Mapping[str, Any]], Any]:
-    """The fake's handler for one served tool: its text, or a whole result when it failed."""
+    """Return the fake's handler for one served tool: its text, or a whole result when the tool is
+    marked failed.
+    """
 
     async def handle(arguments: Mapping[str, Any]) -> str | ToolResult:
         rendered = tool.reply(arguments)
@@ -110,7 +110,9 @@ def _over_session(*, reconnecting: bool) -> RegistryUnderTest:
 
 
 def _bounded() -> RegistryUnderTest:
-    """The stack production wires: the per-call opener under the bound the root gives it."""
+    """The stack production wires: the per-call opener under the bound the composition root gives
+    it.
+    """
     under_test = _over_session(reconnecting=True)
     return replace(under_test, registry=BoundedToolRegistry(under_test.registry))
 
@@ -138,8 +140,6 @@ def _spec(name: str) -> ToolSpec:
 
 
 async def test_a_handler_answering_a_result_is_stamped_with_the_calls_own_id() -> None:
-    # The fake's widened handler: a result a handler builds carries whatever id it likes, and the
-    # registry replaces it, so a handler never has to be told which call it is serving.
     async def handle(arguments: Mapping[str, Any]) -> ToolResult:
         del arguments
         return ToolResult(call_id="not-this-one", content="ok", is_error=True)

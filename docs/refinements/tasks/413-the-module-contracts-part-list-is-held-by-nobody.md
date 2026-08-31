@@ -11,8 +11,8 @@ parts to the files on disk and left the two copies in the module contract as the
 [modules/repo-gates.md](../../modules/repo-gates.md) names the nine `*couplings.py` files twice:
 once in the no-CLI-module listing near the top and once in the `crosscheck.py` bullet, the second
 of which also gives each part's subject in a parallel prose list. Both are hand-maintained. A
-tenth part lands, `registry.py`'s docstring reddens until it names it, and this document quietly
-keeps describing nine. The two copies are already in different orders, the top listing not being
+tenth part lands, `registry.py`'s docstring fails the suite until it names it, and this document
+goes on describing nine with nothing reporting it. The two copies are already in different orders, the top listing not being
 in read order, which is fine and is also the evidence that nobody is comparing them to anything.
 
 **Why it was left.** The close held a module's own docstring to its own directory, which is a
@@ -23,7 +23,7 @@ on the next row.
 
 **What would close it.** Decide whether that standing decision covers a list of **names** or only
 a list of **numbers**. The argument that it does not is that a name list goes stale exactly when a
-part is added, which is when it should redden, where a tally goes stale on any edit anywhere. The
+part is added, which is when it should fail, where a tally goes stale on any edit anywhere. The
 argument that it does is that this document restates what `registry.py` already declares and now
 has held, so its copy is a convenience and a stale convenience is a documentation lag rather than
 a lost answer. If the answer is to hold it, the cheapest shape is the one the close already used,
@@ -42,13 +42,13 @@ part's subject.
   [R-442](442-nothing-holds-the-live-check-roster-to-the-suite.md), `scripts/rostercheck.py`.
   **The standing decision was answered rather than worked around**: it covers a list of numbers
   and not a list of names, on the entry's own argument, that a tally goes stale on any edit
-  anywhere while a name list goes stale on exactly the edit that should redden it. **Both copies
+  anywhere while a name list goes stale on exactly the edit that should make it fail. **Both copies
   are held, and the first one wider than this entry asked.** Re-derivation found the parts list is
   a run inside a bigger roster: that paragraph names every module in `scripts/`, not only the ten
   `*couplings.py` files, and the promise it makes is that a future agent can work here without
   reading the tree, which breaks the day any module lands unnamed. So the registered roster is the
   paragraph against the directory, and it reported the four modules this change itself added as
-  four reds before the document was updated. The second copy, the tuple names in the
+  four failures before the document was updated. The second copy, the tuple names in the
   `crosscheck.py` bullet, is held on its own against the names the `<subject>couplings.py`
   convention gives, so no third place spells them. Both copies were **current** on the day this was
   picked up, ten parts in each, the log part having been absorbed by hand, and both were still in

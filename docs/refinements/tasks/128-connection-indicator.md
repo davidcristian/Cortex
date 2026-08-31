@@ -15,19 +15,19 @@ the reducer (so a live turn keeps the dot exact for free); one probe per **summo
 on the rising edge of visibility (`useSummonEffect`, shared with the reminder pull); and a
 recovery re-check every 5 s **only while the overlay is visible and the link is not ready**,
 which stops the moment it answers ready, so a healthy system spends nothing. A liveness poll
-was rejected outright: it burns a request per interval forever, mostly while nobody is
+was rejected outright: it costs a request per interval forever, mostly while nobody is
 looking, and is still stale in exactly the window the turn covers for free.
-**Four states, not three:** `ready` (green), `degraded` (amber, the brain **answered** and is
+**Four states rather than three:** `ready` (green), `degraded` (amber, the brain **answered** and is
 not serving: a non-OK status such as `Unauthenticated` for a bad seam token, an unreadable
 reply, or a future `ready = false`), `down` (red, `Connection`, the only failure where nothing
-answered), and `unknown` (neutral, not asked yet, because the v1 dot's sin was claiming a
-state it had not earned). "Connecting" is deliberately a modifier rather than a state: the dot
+answered), and `unknown` (neutral, not asked yet, because the v1 dot reported a
+state it had not established). "Connecting" is deliberately a modifier rather than a state: the dot
 keeps its last known colour and pulses, and the probe itself rides the retrying transport, so
 one probe already spans the reconnect window. Classification is pure and gated
 (`body_core::link`), CI-gated at 100% on both sides, browser-validated in both themes, and
 checked against a real brain by the `body-rpc` live suite (`Ready` from a running brain,
 `Down` from a dead address). **One defect the gate caught:** re-arming the recovery check off
-each answer dies after a single retry when the probe resolves inside one React batch, since
+each answer stops after a single retry when the probe resolves inside one React batch, since
 the in-flight flip is never rendered; it is an interval keyed on "visible and unhealthy"
 because of that.
 

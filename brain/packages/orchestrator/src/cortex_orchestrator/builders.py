@@ -49,8 +49,9 @@ __all__ = [
     "resolve_trace_lever",
 ]
 
-# Connect/write/pool time out fast on a dead server, one knob for every tier: a dead server is
-# dead at the same speed everywhere. The read phase is the factory's argument, not this.
+# Connect, write and pool time out fast on a dead server, one knob for every tier, because a dead
+# server fails to connect at the same speed everywhere. The read phase is the factory's argument
+# rather than this constant.
 LLAMACPP_CONNECT_TIMEOUT_S = 10.0
 
 
@@ -65,7 +66,7 @@ _logger = logging.getLogger(__name__)
 
 
 def _report_sidecar_unavailable(name: str, error: ToolError) -> None:
-    """The skip-and-report reporter: degradation is a logged warning, never silent."""
+    """The skip-and-report reporter: degradation is logged as a warning rather than passed over."""
     _logger.warning(
         "tool sidecar unavailable; serving without it",
         extra={"sidecar": name, "error": str(error)},

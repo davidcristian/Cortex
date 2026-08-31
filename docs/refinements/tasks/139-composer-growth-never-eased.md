@@ -27,11 +27,11 @@ consecutive samples with no third state between them:
 
 The send button and the pill's bottom edge are identical in every sample of all four (the button
 read `top 547, left 541` throughout), which is why it ships: it reads as a relayout under a still
-hand rather than as a jump. The fix is the `ResizeObserver` the entry above wants: the panel
+hand rather than as a jump. The fix is the `ResizeObserver` the entry above needs: the panel
 would then ease its own content's growth from wherever it is, and the composer would be its
 largest and most frequent case. Filed rather than taken here because driving `place` from a
-non-render is exactly the care that entry names (the observer must not fight the animations,
-every placement resizing the element being watched), and it is a panel-motion change rather than
+non-render is exactly the care that entry names (the observer must not conflict with the
+animations, every placement resizing the element being watched), and it is a panel-motion change rather than
 a composer one. What the growth costs the history is NOT part of this entry: the log now holds
 its own tail across a pill resize ([ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 18), so
 what is left here is the easing and nothing else. Measured 2026-07-20.

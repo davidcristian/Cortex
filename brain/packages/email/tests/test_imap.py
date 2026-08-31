@@ -40,14 +40,15 @@ def test_the_newer_spelling_of_unselectable_is_dropped_too(
     box = FakeBox(names=["INBOX"], nodes=["Ghost"], node_flags=NONEXISTENT_NODE_FLAGS)
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
-    assert box.set_calls == [("Ghost", True)]  # the newer word buys the same one question
+    assert box.set_calls == [("Ghost", True)]  # the newer word leads to the same single probe
 
 
 def test_a_flagged_name_the_server_opens_is_still_offered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The Bridge flags the parents of its own hierarchy and opens them, so believing the flag
-    # withholds names that work. The flag decides who gets asked; the server decides the rest.
+    # The Bridge flags the parents of its own hierarchy and opens them, so dropping every flagged
+    # name would withhold names that work. The flag only selects which names are probed, and
+    # whether the server opens the name is what decides if it is offered.
     box = FakeBox(names=["INBOX"], open_nodes=["Folders"], node_flags=OPEN_NODE_FLAGS)
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX", "Folders"]
@@ -55,8 +56,8 @@ def test_a_flagged_name_the_server_opens_is_still_offered(
 
 
 def test_a_flagged_name_the_server_refuses_is_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The other server's answer to the same question, and the loop the drop exists to close:
-    # Dovecot lists a node and then refuses it in the words that prove a folder missing.
+    # Dovecot lists a hierarchy node and then refuses to open it in the words that mean a folder
+    # is missing, so an offered name would send the caller straight back to the same refusal.
     box = FakeBox(names=["INBOX"], nodes=["Parent"])
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]

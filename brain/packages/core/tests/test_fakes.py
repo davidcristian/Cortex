@@ -1,5 +1,3 @@
-"""Behavior tests for the reference port implementations shipped in the core."""
-
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -68,7 +66,6 @@ async def test_echo_backend_counts_only_user_messages() -> None:
 
 
 async def test_echo_backend_closes_its_reply_by_saying_it_finished() -> None:
-    """Every backend owes the port an answer about why a completion ended, this one included."""
     stream = EchoInferenceBackend().stream("cortex", (_message(Role.USER, "hello"),))
     events = [event async for event in stream]
     assert [event for event in events if isinstance(event, DecodeStop)] == [

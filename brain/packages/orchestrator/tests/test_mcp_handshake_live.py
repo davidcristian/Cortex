@@ -1,5 +1,3 @@
-"""Integration: what the MCP per-call session costs a turn, in handshakes and in seconds."""
-
 import os
 import statistics
 import time
@@ -31,8 +29,6 @@ _READ_PATH = os.environ.get("CORTEX_TOOLS_READ_PATH", "/projects/hello.txt")
 _LIST_TOOL = os.environ.get("CORTEX_TOOLS_LIST_TOOL", "list_directory")
 _SAMPLES = int(os.environ.get("CORTEX_TOOLS_HANDSHAKE_SAMPLES", "20"))
 
-# The composition root's gated set (ADR-0022); named here so the stack under measurement is the
-# shipped one, GatedToolRegistry included, rather than a simplified stand-in.
 _GATED = ("send_email", "escalate_to_brain")
 
 pytestmark = pytest.mark.skipif(
@@ -41,7 +37,7 @@ pytestmark = pytest.mark.skipif(
 
 
 class CountingOpener:
-    """A session opener that counts opens. One open is one handshake, which is the unit."""
+    """A session opener that counts opens."""
 
     def __init__(self, url: str) -> None:
         self._url = url
@@ -55,19 +51,21 @@ class CountingOpener:
 
 
 def _endpoint(counter: CountingOpener, allow: Sequence[str]) -> ToolRegistry:
-    """One configured endpoint as `build_tool_registry` assembles it: the filter over the dial."""
+    """One configured endpoint as `build_tool_registry` assembles it: the allow-list filter over the
+    reconnecting registry.
+    """
     return FilteredToolRegistry(ReconnectingMcpToolRegistry(counter), allow=allow)
 
 
 def _roots(counters: Sequence[CountingOpener], allows: Sequence[Sequence[str]]) -> ToolRegistry:
-    """The shared registry root for N endpoints, aggregated (when N > 1) and gated."""
+    """The shared registry root for N endpoints, aggregated when N > 1, behind the approval wrap."""
     registries = [_endpoint(c, a) for c, a in zip(counters, allows, strict=True)]
     root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
     return GatedToolRegistry(root, gated=_GATED)
 
 
 async def _opens(counters: Sequence[CountingOpener], work: Callable[[], Awaitable[object]]) -> int:
-    """How many sessions ``work`` opened."""
+    """Return how many sessions ``work`` opened."""
     before = sum(c.opens for c in counters)
     await work()
     return sum(c.opens for c in counters) - before
@@ -85,11 +83,9 @@ async def _median_ms(work: Callable[[], Awaitable[object]]) -> tuple[float, floa
 
 @pytest.mark.integration
 async def test_a_turn_pays_one_session_open_per_advertisement_and_per_dispatch() -> None:
-    """The handshake count per turn shape, asserted exactly against the production stack."""
     assert _TOOLS is not None
     call = ToolCall(id="hs-1", name=_READ_TOOL, arguments={"path": _READ_PATH})
 
-    # N = 1: the single-endpoint root is the endpoint itself, no aggregate in the way.
     solo = [CountingOpener(_TOOLS)]
     root = _roots(solo, [(_READ_TOOL, _LIST_TOOL)])
     cortex = CompositeToolRegistry([], remote=root)
@@ -97,8 +93,6 @@ async def test_a_turn_pays_one_session_open_per_advertisement_and_per_dispatch()
     assert await _opens(solo, partial(cortex.invoke, call)) == 1
     assert await _opens(solo, partial(UngatedToolRegistry(root).invoke, call)) == 2
 
-    # N = 2, with the called tool owned by the SECOND endpoint: the allowlists split the one
-    # live sidecar into two that advertise different names, which is what makes k observable.
     pair = [CountingOpener(_TOOLS), CountingOpener(_TOOLS)]
     root = _roots(pair, [(_LIST_TOOL,), (_READ_TOOL,)])
     cortex = CompositeToolRegistry([], remote=root)
@@ -109,9 +103,8 @@ async def test_a_turn_pays_one_session_open_per_advertisement_and_per_dispatch()
 
 @pytest.mark.integration
 async def test_the_open_is_what_a_fresh_session_costs_over_a_warm_one() -> None:
-    """Price the open, and prove the instrument is reading the open rather than the sidecar."""
     assert _TOOLS is not None
-    url = _TOOLS  # A local, so the None narrowing reaches into the closure below.
+    url = _TOOLS
     call = ToolCall(id="hs-2", name=_READ_TOOL, arguments={"path": _READ_PATH})
     fresh = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
     counter = CountingOpener(url)
@@ -121,14 +114,12 @@ async def test_the_open_is_what_a_fresh_session_costs_over_a_warm_one() -> None:
         async with streamable_http_session(url):
             pass
 
-    await bare_open()  # Warm whatever the first dial pays for once (DNS, the sidecar's own boot).
+    await bare_open()
     handshake, hs_lo, hs_hi = await _median_ms(bare_open)
     fresh_list, fl_lo, fl_hi = await _median_ms(fresh.describe_tools)
     fresh_call, fc_lo, fc_hi = await _median_ms(partial(fresh.invoke, call))
     two_open_call, tc_lo, tc_hi = await _median_ms(partial(subagent.invoke, call))
 
-    # The control arm. Held open for the whole block, so these calls pay no open at all; the
-    # `async with` is also what releases it, whatever the assertions below do.
     async with streamable_http_session(url) as session:
         warm = McpToolRegistry(session)
         warm_list, wl_lo, wl_hi = await _median_ms(warm.describe_tools)
@@ -149,8 +140,8 @@ async def test_the_open_is_what_a_fresh_session_costs_over_a_warm_one() -> None:
             f"  {label:36s} {med:8.2f}  ({lo:.2f}..{hi:.2f})"
         )
 
-    # Half an open is the margin throughout: enough to catch a harness that stopped separating
-    # the arms, loose enough that a jittery localhost round trip does not fail a green run.
+    # Half an open: wide enough to catch a harness that stopped separating the cases, loose
+    # enough that a jittery localhost round trip does not fail a good run.
     margin = handshake / 2
     assert fresh_list - warm_list > margin, (fresh_list, warm_list, handshake)
     assert fresh_call - warm_call > margin, (fresh_call, warm_call, handshake)

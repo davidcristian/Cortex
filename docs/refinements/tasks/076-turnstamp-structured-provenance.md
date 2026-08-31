@@ -15,7 +15,7 @@ quotation. Kind is part of the identity, so eviction by sender cannot sweep a UR
 same string. **The untrusted string is bounded and sanitized in the value's constructor**
 (`cortex_core/provenance.py`), not at an adapter and not at a call site: category-`C`
 characters dropped with whitespace exempted (a newline is a control character, and dropping it
-outright would silently *join* the words it separated, which the tests caught), whitespace runs
+outright would *join* the words it separated, which the tests caught), whitespace runs
 collapsed, `<`/`>` removed so a value can never spell an `<untrusted-tool-output id=...>`
 marker, and a hard `MAX_SOURCE_CHARS` cap, idempotently, with no constructor that skips the
 pass; the ledger then caps the *count* at `MAX_TURN_SOURCES`, keeping the earliest, so a flood

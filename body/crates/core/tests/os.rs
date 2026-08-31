@@ -1,7 +1,3 @@
-//! Behavioral tests for `body_core::os` covering the `Accelerator` chord→code mapping
-//! (every supported key kind and the unsupported paths), the `HotkeyError`
-//! messages, and a contract-style check that `Hotkey` works as a generic bound
-
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -12,7 +8,7 @@ use body_core::{
 };
 
 /// A fake `Hotkey` backend: records the chords it registers and fires the callback once per
-/// successful registration; scripted to fail on demand.
+/// successful registration, or fails on demand.
 struct FakeHotkey {
     fail: Option<HotkeyError>,
     registered: RefCell<Vec<String>>,
@@ -74,9 +70,6 @@ fn accelerator_maps_supported_keys_to_codes() {
 
 #[test]
 fn accelerator_rejects_unsupported_keys() {
-    // Covers the single-char non-alnum path (`-`), an out-of-range f-key
-    // (`f0`/`f25`/`f99` parse ok but fail the range check), and a non-numeric f-word
-    // (`foo` fails to parse), all falling through to the empty named match.
     for key in ["-", "f0", "f25", "f99", "foo"] {
         let chord = HotkeyChord::parse(key).unwrap();
         assert_eq!(
@@ -168,9 +161,8 @@ fn hotkey_backend_reports_registration_failure_without_firing() {
     assert!(backend.registered.borrow().is_empty());
 }
 
-/// A fake `AudioControl` backend: reads/writes a `Mutex`-held state (the port requires
-/// `Send + Sync`, so (unlike `FakeHotkey`'s `RefCell`) the interior mutability is a `Mutex`),
-/// or returns a scripted error.
+/// A fake `AudioControl` backend: reads and writes a `Mutex`-held state, or returns a scripted
+/// error.
 struct FakeAudio {
     state: Mutex<VolumeState>,
     fail: Option<AudioError>,
@@ -225,7 +217,6 @@ fn audio_backend_reads_and_writes_through_the_bound() {
             muted: false,
         },
     );
-    // Level and mute both set.
     assert_eq!(
         set_via(&backend, VolumeChange::new(Some(0.9), Some(true))).unwrap(),
         VolumeState {
@@ -233,7 +224,6 @@ fn audio_backend_reads_and_writes_through_the_bound() {
             muted: true,
         },
     );
-    // A None field leaves that dimension untouched (mute changes, level stays 0.9).
     assert_eq!(
         set_via(&backend, VolumeChange::new(None, Some(false))).unwrap(),
         VolumeState {
@@ -264,7 +254,6 @@ fn audio_backend_surfaces_its_error() {
 
 #[test]
 fn volume_change_clamps_a_present_level() {
-    // Both fields set; in-range level is preserved.
     assert_eq!(
         VolumeChange::new(Some(0.5), Some(true)),
         VolumeChange {
@@ -272,11 +261,9 @@ fn volume_change_clamps_a_present_level() {
             mute: Some(true),
         },
     );
-    // Out-of-range clamps to the nearest bound; NaN clamps to the silent floor.
     assert_eq!(VolumeChange::new(Some(1.5), None).level, Some(1.0));
     assert_eq!(VolumeChange::new(Some(-0.2), None).level, Some(0.0));
     assert_eq!(VolumeChange::new(Some(f32::NAN), None).level, Some(0.0));
-    // A missing level stays absent; mute rides alone.
     assert_eq!(
         VolumeChange::new(None, Some(false)),
         VolumeChange {

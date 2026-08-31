@@ -1,4 +1,4 @@
-r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015)."""
+r"""The URL grammar behind the output guardrail's laundering defense."""
 
 import re
 
@@ -24,18 +24,15 @@ _NON_URL = r"\s<>\"'\)\]\}"
 
 _URL_CHAR = rf"(?:[^{_NON_URL}]|{REMOVED_CHARS})"
 
-# A character that may belong to an *authority*: a body character that is not one of the three
-# delimiters ending it, the backslash included since a special scheme's parser reads that as one.
 HOST_CHAR = rf"[^{_NON_URL}/?#\\]"
 
-# A label of a **whitespace-split** host: body characters carrying no dot in any reading. The
-# absence is the whole point of the rule below, so it is spelled here rather than assumed.
 SPLIT_LABEL = rf"(?:(?!{DOT_SPELLING}){HOST_CHAR})+"
 
-# One gap and the label it separates from the last, which is the unit the split host repeats and
-# the unit the host anchor below reads one of to know it is looking at a host at all.
 SPLIT_GAP = rf"{SPACED_DOT}{SPLIT_LABEL}"
 
+# A host whose labels are separated by whitespace instead of a dot (`evil dot com`). It is a
+# branch of `URL_RE` rather than one more alternative inside `_BODY`, where the repeated group
+# re-entered at every position and read `http://example.com dot the file` as one host.
 _SPLIT_HOST = rf"{SPLIT_LABEL}(?:{SPLIT_GAP})+"
 
 _HOST_ANCHOR = (
@@ -62,6 +59,9 @@ def _authority_sep(anchor: str) -> str:
 
 _DEFANG_CHUNK = rf"{OPEN_BRACKET}{CHUNK_INNER}+{CLOSE_BRACKET}"
 
+# A bracketed chunk at the separator position (`http[&#58;//]evil.com`). Its inner run must
+# include an escape marker: without that, ordinary prose such as `http(s)-only` matches and
+# strict mode redacts it out of this repo's own documents.
 _ENCODED_SEP_CHUNK = rf"{OPEN_BRACKET}{CHUNK_INNER}*[&%]{CHUNK_INNER}*{CLOSE_BRACKET}"
 
 
@@ -73,6 +73,8 @@ def _family(words: tuple[str, ...], seps: str) -> str:
     )
 
 
+# `data:` is admitted only when a MIME-type shape or the `,`/`;` that begins the payload follows
+# the colon, so prose such as `data:the results` stays out. The lookahead consumes nothing.
 _DATA_ANCHOR = rf"(?=(?:[\w.+-]|{REMOVED_CHARS})+/|[;,])"
 _DATA_SCHEME = rf"{_family(('data',), OPAQUE_SEP_RE)}{_DATA_ANCHOR}"
 

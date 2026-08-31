@@ -1,4 +1,4 @@
-"""Schedule value types + the pure recurrence math (ADR-0025): durable, swap-safe time."""
+"""Schedule value types and the pure recurrence math: durable, swap-safe time."""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -16,7 +16,7 @@ class ScheduleKind(Enum):
 
 
 class ScheduleStatus(Enum):
-    """The store-side lifecycle: armed, claimed by a fire pass, or terminally fired."""
+    """The store-side lifecycle: waiting, claimed by a fire pass, or finished for good."""
 
     PENDING = "pending"
     FIRING = "firing"
@@ -65,11 +65,7 @@ class ScheduledItem:
 
 @dataclass(frozen=True, slots=True)
 class ScheduleClaim:
-    """One claimed fire: the item as of the claim (status FIRING) plus the fencing token.
-
-    ``finish``/``release`` apply only under the token the store minted for the *current*
-    claim; a stale claimant's call is a no-op ``False`` (ADR-0025 decision 1).
-    """
+    """One claimed fire: the item as of the claim (status FIRING) plus the fencing token."""
 
     item: ScheduledItem
     token: str
@@ -92,13 +88,12 @@ class FireOutcome:
 
 
 def recurrence_base(item: ScheduledItem) -> datetime:
-    """The recurrence grid origin the ticker re-arms from: the ``anchor`` if set, else ``due_at``.
-    """
+    """The origin the ticker counts the next occurrence from: ``anchor`` if set, else ``due_at``."""
     return item.anchor if item.anchor is not None else item.due_at
 
 
 def next_occurrence(item: ScheduledItem, now: datetime, zone: DisplayZone) -> datetime | None:
-    """Where ``item`` re-arms after firing at ``now``, or ``None`` when it is terminal."""
+    """When ``item`` is due again after firing at ``now``, or ``None`` when it is finished."""
     if item.rule is not None:
         return next_calendar_due(item.rule, now, zone)
     return next_due(recurrence_base(item), item.every, now)

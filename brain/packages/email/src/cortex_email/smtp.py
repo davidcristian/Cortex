@@ -28,7 +28,7 @@ def _reject_header_injection(field: str, value: str) -> None:
 
 
 def _reject_bad_attachments(attachments: tuple[EmailAttachment, ...]) -> None:
-    """Raise unless every attachment is nameable, typeable, and within the send's bounds."""
+    """Raise unless every attachment has a usable filename and subtype and fits the bounds."""
     if len(attachments) > MAX_ATTACHMENTS:
         msg = f"a message may carry at most {MAX_ATTACHMENTS} attachments"
         raise ValueError(msg)

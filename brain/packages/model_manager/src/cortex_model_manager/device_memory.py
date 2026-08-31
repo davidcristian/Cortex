@@ -1,4 +1,4 @@
-"""How much of the card is free: the daemon's third OS seam (port + ``nvidia-smi`` adapter)."""
+"""How much of the card is free: a port and its ``nvidia-smi`` adapter."""
 
 import asyncio
 import logging
@@ -8,8 +8,8 @@ from cortex_core import DeviceMemory
 
 _logger = logging.getLogger(__name__)
 
-# One row per visible GPU, "free, total" in MiB and nothing else: no header to skip and no unit to
-# strip, so the parse below is two integers or nothing.
+# One row per visible GPU, "free, total" in MiB and nothing else: no header to skip and no unit
+# to strip, so the parse below is two integers or nothing.
 _QUERY = ("--query-gpu=memory.free,memory.total", "--format=csv,noheader,nounits")
 
 
@@ -20,11 +20,7 @@ class DeviceMemoryProbe(Protocol):
 
 
 class NoDeviceMemory:
-    """The default probe: a daemon nobody gave a card reports none, without asking anything.
-
-    What a CPU-only deployment and the test suites get. It exists so the "no reading" path is a
-    real object rather than a ``None`` collaborator every caller has to branch on.
-    """
+    """The default probe: reports no reading without running anything."""
 
     async def read(self) -> DeviceMemory | None:
         return None
@@ -43,7 +39,7 @@ class NvidiaSmiMemory:
         return None if output is None else _parse(output)
 
     async def _query(self) -> str | None:
-        """Run the query under its bound, treating every way it can go wrong as no reading."""
+        """Run the query under its bound, returning no reading for every way it can fail."""
         try:
             async with asyncio.timeout(self._timeout_s):
                 process = await asyncio.create_subprocess_exec(
@@ -54,7 +50,6 @@ class NvidiaSmiMemory:
                 )
                 stdout, _ = await process.communicate()
         except (OSError, TimeoutError) as err:
-            # The normal case on a machine with no GPU: the binary is not in the image at all.
             _logger.info(
                 "no device memory reading is available",
                 extra={"binary": self._binary, "error": str(err)},

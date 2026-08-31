@@ -26,7 +26,6 @@ describe("relativeTime", () => {
     for (const minutes of spans) {
       expect(relativeTime(NOW - minutes * minute, NOW)).toMatch(shapes);
     }
-    // And the two the width was read off, exactly as measured.
     expect(relativeTime(NOW - 59 * minute, NOW)).toBe("59m ago");
     expect(relativeTime(NOW - 999 * 24 * 60 * minute, NOW)).toBe("999d ago");
   });

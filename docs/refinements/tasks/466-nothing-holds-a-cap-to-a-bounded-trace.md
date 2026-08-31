@@ -19,13 +19,13 @@ dropped when a request that asked for no thinking is answered with a trace, and
 `test_thinking_switch_live.py` answers the question per shape for a deployment that thinks to ask.
 Both are after the fact.
 
-**Why it was left.** A gate would have to know something the core is built not to know. Whether a
+**Why it was left.** A gate would need a fact the core is built not to carry. Whether a
 tier's trace is bounded is a property of that tier's argv (`--reasoning-budget`), which lives in the
 model host's config and in two compose files, and the core reaches inference through a port that
-deliberately says nothing about how the server was started. Teaching the port a
+deliberately says nothing about how the server was started. Giving the port a
 "the trace is bounded here" capability is the obvious move and the wrong one on today's evidence:
 llama.cpp offers no way to ask, so the value would be a deployment's own claim about itself, which
-is a knob that lies in the other direction.
+is a setting that can be wrong in the other direction.
 
 **What would close it.** Something that catches the pairing at the point it is written rather than
 the point it fires. Three candidates, none costed: a constructor-level rule that a cap-carrying

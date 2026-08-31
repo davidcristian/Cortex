@@ -40,7 +40,7 @@ whose share cannot hold one row to leave rather than to stand there as a frame.
   At 200px the strip is 14px out with both sections costing nothing at all: what is left in the
   column is the header, a history already at its 10px floor, and the composer standing on its own
   84px pill floor. Yielding that floor is the one thing the whole reserve ordering exists to
-  refuse (the conversation gives up room before the chrome, the chrome before the composer), so
+  prevent (the conversation gives up room before the chrome, the chrome before the composer), so
   there is no further design here, only a screen the panel cannot be used on.
 - **The arm was proved able to fail before it was trusted, twice over.** The 284px boundary and the
   34px are read off the tree as it stood, the change stashed away and the whole ladder walked

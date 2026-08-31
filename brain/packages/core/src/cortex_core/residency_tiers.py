@@ -1,4 +1,4 @@
-"""Which peers of the cortex the standing residency is missing right now (ADR-0030 decision 4)."""
+"""Which peer tiers of the cortex are not serving right now."""
 
 from enum import Enum
 
@@ -11,14 +11,14 @@ TIERS_MISSING_DETAIL = (
 
 
 class TierFault(Enum):
-    """Why a peer of the standing residency is not serving, in the two kinds that differ."""
+    """Why a peer tier is not serving, in the two kinds that differ."""
 
     MISSING = "missing"
     UNHOSTED = "unhosted"
 
 
 class StandingTiers:
-    """The peers the standing residency is missing, plus the one consequence of being one."""
+    """The peer tiers that are not serving, plus the one consequence: no GPU placement."""
 
     def __init__(self, placer: SubagentPlacer | None = None) -> None:
         self._placer = placer
@@ -26,7 +26,7 @@ class StandingTiers:
 
     @property
     def missing(self) -> tuple[str, ...]:
-        """Every tier believed down, sorted, whichever kind of fault it is."""
+        """Every tier recorded as down, sorted, whichever kind of fault it is."""
         return tuple(sorted(self._faults))
 
     @property
@@ -35,11 +35,7 @@ class StandingTiers:
         return self._placer
 
     def fault_of(self, model: str) -> TierFault | None:
-        """Why this tier is believed down, or ``None`` when it is believed to be standing.
-
-        The one reader that needs the kind rather than the list is the sweep, which must not spend
-        a control call on a roster that cannot grow.
-        """
+        """Why this tier is recorded as down, or ``None`` when it is recorded as serving."""
         return self._faults.get(model)
 
     def mark_missing(self, model: str) -> None:

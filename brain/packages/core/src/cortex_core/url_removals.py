@@ -1,18 +1,14 @@
-r"""The characters a URL parser *removes* from its input, behind the output guardrail (ADR-0015)."""
+r"""The characters a URL parser removes from its input, behind the output guardrail."""
 
 import re
 
-# The one character of the three that is admitted. Written as an escape so the source shows it
-# rather than a blank the eye cannot tell from a space, the `_CONFUSABLES` convention.
+# Of the three characters the URL Standard removes, only the tab is admitted. Admitting the
+# line break extended 42 matches over this repo's own prose, a link at the end of a line
+# swallowing the first word of the next, against none for the tab.
 REMOVED = "\t"
 
-# The same table as a regex fragment, for the grammar's body character. Held here beside the
-# string so the class the matcher admits and the characters the fold drops cannot drift.
 REMOVED_CHARS = f"[{REMOVED}]"
 
-# A run of them, which is what may stand between any two characters of a literal below, and
-# what a caller spells at a junction `permeable` cannot see: between a bracket and the token it
-# wraps, or between a scheme word and its separator.
 REMOVED_RUN = f"{REMOVED_CHARS}*"
 
 _REMOVALS = str.maketrans(dict.fromkeys(REMOVED, None))
@@ -25,4 +21,7 @@ def permeable(literal: str) -> str:
 
 def strip_removed(url: str) -> str:
     """Drop the characters a URL parser removes from its input (``REMOVED``) from an identity."""
+    # Run after the gap fold, not before it: a host written `evil<TAB>dot<TAB>com` has the
+    # reader's reading, `evil.com`, and the parser's, `evildotcom`, and the identity takes the
+    # reader's, which is the reading the whole defanging family rests on.
     return url.translate(_REMOVALS)

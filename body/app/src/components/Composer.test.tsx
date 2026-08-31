@@ -18,7 +18,7 @@ interface StageProps {
   readonly onResize?: () => void;
 }
 
-/** The composer holds no text of its own, so a test that types needs the thing that does. */
+/** The composer holds no text of its own, so a test that types needs the state that does. */
 function Stage({
   sessionId = "a",
   busy = false,
@@ -29,8 +29,6 @@ function Stage({
   onResize = () => undefined,
 }: StageProps) {
   const [drafts, setDrafts] = useState<Record<string, string>>(seed);
-  // The field's ref belongs to the view above in production, so that the reminder stack can hand
-  // the caret back to the conversation when its last row goes (`ChatView`, `overlay/rowCaret.ts`).
   const field = useRef<HTMLTextAreaElement>(null!);
   return (
     <Composer
@@ -60,9 +58,6 @@ function fakeMetrics(oneLine: number, needs: (stacked: boolean) => number) {
       return needs((this.parentElement as HTMLElement).classList.contains("stacked"));
     },
   });
-  // The pill follows its field, plus the button's own row once the layout stacks. The chrome is
-  // approximated (the shape is what the component reads, not the exact padding), but the two ways
-  // it can change are the real ones, which is what makes "did it actually resize?" a real question.
   Object.defineProperty(pill(), "offsetHeight", {
     configurable: true,
     get(this: HTMLElement) {
@@ -86,17 +81,12 @@ describe("Composer", () => {
   });
 
   it("shows the arriving conversation's own sentence, never the one it replaced", () => {
-    // The defect this answers, at the component: the field was never unmounted and held one text
-    // for the whole overlay, so "half a question" typed in one chat was still sitting there, caret
-    // and all, once another conversation had loaded around it.
     const { rerender } = render(<Stage sessionId="a" arrival={1} seed={{ b: "the other chat's line" }} />);
     fireEvent.change(field(), { target: { value: "half a question" } });
     rerender(<Stage sessionId="b" arrival={2} seed={{ b: "the other chat's line" }} />);
     expect(field().value).toBe("the other chat's line");
-    // And a chat nobody has typed into arrives on an empty field rather than on a stranger's words.
     rerender(<Stage sessionId="c" arrival={3} seed={{ b: "the other chat's line" }} />);
     expect(field().value).toBe("");
-    // Back where it started, the sentence is where it was left.
     rerender(<Stage sessionId="a" arrival={4} seed={{ b: "the other chat's line" }} />);
     expect(field().value).toBe("half a question");
   });
@@ -111,8 +101,6 @@ describe("Composer", () => {
   });
 
   it("never empties its own field: a send the state refuses leaves the words standing", () => {
-    // The field is emptied by the state that holds it, which spends a draft only when a turn
-    // actually starts. Pressing Enter into a busy panel used to blank the field regardless.
     const onSubmit = vi.fn();
     render(<Stage busy={true} onSubmit={onSubmit} seed={{ a: "half a question" }} />);
     fireEvent.keyDown(field(), { key: "Enter" });
@@ -148,7 +136,6 @@ describe("Composer", () => {
     expect(stop.className).toContain("stopping");
     fireEvent.click(stop);
     expect(onStop).toHaveBeenCalledOnce();
-    // Enter still routes to submit, but the busy guard keeps it from firing mid-turn.
     fireEvent.keyDown(field(), { key: "Enter" });
     expect(onSubmit).not.toHaveBeenCalled();
   });
@@ -167,18 +154,11 @@ describe("Composer", () => {
     const composer = (arrival: number | null) => <Stage arrival={arrival} />;
     const { rerender } = render(composer(3));
     expect(document.activeElement).toBe(field());
-    // A reader who has gone somewhere else in the panel keeps their place: a stream re-rendering
-    // the chat around a still draft must not reach in and take the caret back.
     (document.activeElement as HTMLElement).blur();
     rerender(composer(3));
     expect(document.activeElement).not.toBe(field());
-    // A chat arriving is the case that moves it. The gestures that fire one are made inside
-    // sections the swap takes away (a switcher row, a reminder's open control, a delete confirm),
-    // so without this the control pressed stops existing and focus falls to `<body>`.
     rerender(composer(4));
     expect(document.activeElement).toBe(field());
-    // And a chat arriving while the console is over the chat, or the panel is shut, is not a
-    // landing at all: there is nothing on screen here to put a caret in.
     (document.activeElement as HTMLElement).blur();
     rerender(composer(null));
     rerender(composer(null));
@@ -208,15 +188,10 @@ describe("Composer", () => {
 
   it("decides the layout at the inline width, so a draft in the band cannot flip-flop", () => {
     render(<Stage arrival={0} />);
-    // The band: this draft needs two lines while the button holds its column beside the field, and
-    // one once the button drops below and hands the width back. Asked at the width in use, the two
-    // layouts would answer each other forever.
     fakeMetrics(34, (stacked) => (stacked ? 34 : 50));
     fireEvent.change(field(), { target: { value: "a draft that only just wraps" } });
     expect(pill().className).toBe("composer stacked");
-    // Sized for the layout it chose (one line at the full width), not for the one it asked at.
     expect(field().style.height).toBe("34px");
-    // Still stacked a keystroke later: the answer is the text's, not the current layout's.
     fireEvent.change(field(), { target: { value: "a draft that only just wraps!" } });
     expect(pill().className).toBe("composer stacked");
     expect(field().style.height).toBe("34px");
@@ -236,22 +211,17 @@ describe("Composer", () => {
     });
     fireEvent.change(field(), { target: { value: "one line\nand a second" } });
     expect(floors).toEqual(["34px", "34px"]);
-    // And it is only a floor for the measurement: the pill sizes itself again on the way out.
     expect(pill().style.minHeight).toBe("");
   });
 
   it("tells the container when the pill resizes, and stays quiet when it only retypes", () => {
     const onResize = vi.fn();
     render(<Stage arrival={0} onResize={onResize} />);
-    // A draft inside one line: the pill is the same size it was, so nothing is announced. This is
-    // the case that must stay silent, since every keystroke of a short message passes through here.
     fakeMetrics(34, () => 34);
     fireEvent.change(field(), { target: { value: "one line" } });
     onResize.mockClear();
     fireEvent.change(field(), { target: { value: "one line still" } });
     expect(onResize).not.toHaveBeenCalled();
-    // Restacking is a resize (the button takes a row of its own), and so is a further line after
-    // it. The log above uses this to hold its tail, which the pill is now covering more of.
     fakeMetrics(34, () => 50);
     fireEvent.change(field(), { target: { value: "one line\nand a second" } });
     expect(onResize).toHaveBeenCalledOnce();
@@ -263,22 +233,16 @@ describe("Composer", () => {
   it("re-measures when the viewport resizes, since the answer belongs to a width", () => {
     const onResize = vi.fn();
     render(<Stage arrival={0} onResize={onResize} />);
-    // A draft that fits one line at the width it was typed at.
     let narrow = false;
     fakeMetrics(34, () => (narrow ? 50 : 34));
     fireEvent.change(field(), { target: { value: "a draft that fits one line at the wide panel" } });
     expect(pill().className).toBe("composer");
     expect(field().style.height).toBe("34px");
     onResize.mockClear();
-    // The panel narrows under a standing draft: the same text now wraps, and nothing was typed. The
-    // keystroke that used to be the only trigger would have left the field scrolled inside a box
-    // sized for a line that no longer fits, with the button still holding its column beside it.
     narrow = true;
     fireEvent(window, new Event("resize"));
     expect(pill().className).toBe("composer stacked");
     expect(field().style.height).toBe("50px");
-    // And the pill really did change size, so the log above hears about it exactly as it does for a
-    // keystroke that grows the pill.
     expect(onResize).toHaveBeenCalledOnce();
   });
 

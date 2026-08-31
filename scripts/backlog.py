@@ -10,8 +10,8 @@ FIELD = re.compile(r"^\*\*([A-Za-z]+):\*\* +(.+?) *$")
 TITLE_BANS = ("landed", "declined", "satisfied")
 TITLE_YEAR = re.compile(r"\b(19|20)\d{2}\b")
 
-# The open states, each mapped to the heading it is filed under. A state is a promise
-# about what unblocks the task, so the reader picks a bucket and not a priority number.
+# The open states, each mapped to the heading it is filed under. A state says what unblocks the
+# task, so a reader picks a bucket rather than a priority number.
 OPEN_STATES = {
     "actionable": "Actionable now",
     "a seam or port change comes first": "Actionable, once a seam or port changes",
@@ -20,9 +20,8 @@ OPEN_STATES = {
     "feature breadth": "Feature breadth, on request",
     "blocked on host hardware": "Blocked on hardware this repo is not developed on",
 }
-# Two states are defined by waiting for something nobody is doing yet, so each must name
-# the thing that would reopen it. Without that a deferral is indistinguishable from a
-# task that was quietly dropped.
+# Two states are defined by waiting for something nobody is doing yet, so each must name the
+# thing that would reopen it. Without that, a deferral cannot be told from a task that was dropped.
 NEEDS_TRIGGER = frozenset({"fix when it bites", "dead until a consumer"})
 UNRECORDED = "unrecorded"
 CLOSED_VERBS = ("landed", "declined", "satisfied")
@@ -238,8 +237,8 @@ def load(directory: Path, kind: str) -> list[Task]:
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as err:
-            # A directory wearing a task name, or bytes that are not text. The stray scan
-            # names both too, so the gate must report this rather than die reading it.
+            # A directory named like a task file, or bytes that are not text. The stray scan
+            # names both too, so the gate reports this rather than failing while reading it.
             msg = f"{path}: cannot be read as a task file: {err}"
             raise TaskFileError(msg) from err
         try:

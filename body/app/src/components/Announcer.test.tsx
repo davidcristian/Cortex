@@ -14,9 +14,6 @@ const read = (container: HTMLElement) => {
 
 describe("Announcer", () => {
   it("stands in the tree with nothing to say, and is polite when it has something", () => {
-    // A live region has to be present BEFORE the change it reports, so an empty one is the
-    // resting state rather than an absent one. Reddens if the region is only rendered with a
-    // notice in hand, which is the arrangement that announces nothing at all.
     const { container, rerender } = render(<Announcer notice={null} />);
     const idle = read(container);
     expect(idle.region.getAttribute("role")).toBe("status");
@@ -25,17 +22,11 @@ describe("Announcer", () => {
 
     rerender(<Announcer notice={{ text: "Switched to Everything about cats.", count: 1 }} />);
     const spoken = read(container);
-    // The same node, with words in it now: the region itself never remounts.
     expect(spoken.region).toBe(idle.region);
-    // Rendered as given. The sentence is built in `notice.ts`, which is what keeps everything
-    // the region may carry in one file; reddens if this component starts composing again.
     expect(spoken.text).toBe("Switched to Everything about cats.");
   });
 
   it("reads whatever the notice holds, a list change included", () => {
-    // The region's contract widened from "the conversation that arrived" to "what happened to
-    // the panel", and a delete that also swaps says both in one sentence rather than racing a
-    // second region. Reddens if this component ever puts a fixed prefix back in front.
     const { container } = render(
       <Announcer notice={{ text: "Chat deleted. 1 chat left. Switched to New chat.", count: 4 }} />,
     );
@@ -55,8 +46,6 @@ describe("Announcer", () => {
   });
 
   it("takes its words back down when a swap speaks for itself", () => {
-    // A switcher row clears the notice, and the region must not keep reading the last chat
-    // switched to: what stands in it is only ever the last thing that was actually announced.
     const { container, rerender } = render(
       <Announcer notice={{ text: "Switched to Cats.", count: 1 }} />,
     );

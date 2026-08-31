@@ -121,7 +121,9 @@ async def test_delete_scope_without_matches_returns_zero() -> None:
 
 
 async def test_a_store_told_to_fail_takes_every_verb_away_the_way_a_lost_backend_does() -> None:
-    """The twin's failure knob, matching ``HashEmbedder.fail_with`` on the other port."""
+    """``fail_with`` makes every verb raise, matching ``HashEmbedder.fail_with`` on the other
+    port.
+    """
     store = InMemoryMemoryStore()
     await store.add(_record("a1", (1.0, 0.0), record_id="a1", scope="conv-a"))
     store.fail_with(MemoryStoreError("the memory store is unreachable"))
@@ -186,7 +188,7 @@ async def test_cascade_forgets_a_session_scoped_chats_own_memories() -> None:
 
 
 async def test_cascade_does_not_run_under_global_scoping() -> None:
-    """THE critical guard: under the shared global space nothing session-private cascades, and
+    """The critical guard: under the shared global space nothing session-private cascades, and
     ``GLOBAL_SCOPE`` is NEVER handed to ``delete_scope`` (which would erase every conversation)."""
     store = _SpyDeleteStore()
     await store.add(_record("a shared fact", (1.0, 0.0), record_id="g1", scope=GLOBAL_SCOPE))
@@ -352,7 +354,9 @@ async def test_recall_over_fetches_the_pool_and_applies_the_policy() -> None:
 
 
 async def test_the_policy_is_told_which_recall_it_is_ranking() -> None:
-    """The one identity that crosses the port, so a policy that reports can say where."""
+    """The recalling session is the one identity that crosses the port, so a policy that reports
+    can name the recall it ranked.
+    """
     spy = _SpyRecallPolicy()
     recaller = MemoryRecaller(
         InMemoryMemoryStore(), HashEmbedder(), _FixedClock(), policy=spy, id_factory=lambda: "m0"
@@ -365,7 +369,8 @@ async def test_the_policy_is_told_which_recall_it_is_ranking() -> None:
 
 
 async def test_recall_audits_the_ranking_when_a_sink_is_wired() -> None:
-    """The trail the relevance-field decline had to write a throwaway script for (ADR-0038)."""
+    """A wired sink receives the ranking, which the relevance-field decline had needed a
+    throwaway script to see (ADR-0038)."""
     store = InMemoryMemoryStore()
     sink = RecordingRecallSink()
     ids = iter([f"m{i}" for i in range(3)])
@@ -505,7 +510,7 @@ async def test_the_trail_names_the_candidates_the_policy_left_behind() -> None:
 
 
 async def test_recall_without_a_sink_records_nothing() -> None:
-    """The founding silent path: an unwired audit is not an empty trail, it is no trail."""
+    """With no sink wired, recall still answers and writes no trail at all."""
     store = InMemoryMemoryStore()
     recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: "m0")
     await recaller.record("a fact", session_id="s")

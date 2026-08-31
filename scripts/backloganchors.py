@@ -14,9 +14,9 @@ DROPPED = re.compile(r"[^\w \-]")
 ELSEWHERE = ("http://", "https://", "mailto:")
 MARKDOWN = ".md"
 
-# What a pointer at markdown outside the scan's own reach is told. Failing closed here is
-# the whole reason the widening is safe: the alternative, skipping whatever the scan cannot
-# answer for, is how the one stale anchor already in this tree survived every gate.
+# What a pointer at markdown outside the scan's own reach is told. Failing closed is what makes
+# reading every markdown file safe: skipping whatever the scan cannot answer for is how the one
+# stale anchor already in this tree survived every gate.
 UNREAD = (
     "aims at a document this scan does not read, so nothing here can say which headings it "
     "offers: it is missing, outside the tree, or inside a vendored or built one"
@@ -26,8 +26,8 @@ UNREAD = (
 class Index(NamedTuple):
     """One backlog index: the name a problem calls it by, and the anchors it will render.
 
-    ``anchors`` is None when this run could not work out what the index renders, in which
-    case nothing aimed at it is judged and the run is already failing on the reason.
+    ``anchors`` is None when this run could not work out what the index renders, in which case
+    nothing aimed at it is judged and the run is already failing on that reason.
     """
 
     name: str
@@ -37,7 +37,7 @@ class Index(NamedTuple):
 class Document(NamedTuple):
     """One markdown file the scan read: what a problem calls it, and the anchors it offers.
 
-    ``anchors`` is None when the file carries a heading this rule refuses to slug, in which
+    ``anchors`` is None when the file carries a heading this rule cannot slug, in which
     case nothing aimed at it is judged and the run is already failing on that heading.
     """
 

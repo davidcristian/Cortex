@@ -6,13 +6,15 @@ from datetime import datetime
 
 from cortex_core.conversation import Message
 
+# The overlay declares the same number in ``sessionState.ts`` for the titles it derives
+# before the brain has listed a chat; ``scripts/crosscheck.py`` keeps the two equal.
 TITLE_MAX = 48
 PREVIEW_MAX = 96
 
 
 @dataclass(frozen=True, slots=True)
 class SessionSummary:
-    """One recent chat as the switcher shows it (ADR-0021)."""
+    """One recent chat as the switcher shows it."""
 
     session_id: str
     title: str
@@ -21,15 +23,14 @@ class SessionSummary:
     pinned: bool = False
 
 
-# How long a stored recap may be. It is prepended to every windowed turn once the window
-# starts dropping, so a runaway model reply would eat the context the window exists to
-# protect; ~1 turn's worth of the 48K default budget is generous for a paragraph.
+# A stored recap is prepended to every windowed turn, so it is bounded to about one turn's
+# worth of the 48K character budget it would otherwise eat into.
 RECAP_MAX = 2_000
 
 
 @dataclass(frozen=True, slots=True)
 class HistoryRecap:
-    """What the turns that fell out of a session's history window said (ADR-0038 decision 9)."""
+    """What the turns that fell out of a session's history window said."""
 
     text: str
     covers: int
@@ -68,7 +69,7 @@ def summarize_ends(
     title_override: str | None = None,
     pinned: bool = False,
 ) -> SessionSummary:
-    """Derive a chat's summary from its two end messages (ADR-0021)."""
+    """Derive a chat's summary from its two end messages."""
     return SessionSummary(
         session_id=session_id,
         title=_title(title_override, first.text),
@@ -85,15 +86,14 @@ def summarize_session(
     title_override: str | None = None,
     pinned: bool = False,
 ) -> SessionSummary:
-    """Derive a chat's summary from its persisted messages (ADR-0021)."""
+    """Derive a chat's summary from its persisted messages."""
     return summarize_ends(
         session_id, messages[0], messages[-1], title_override=title_override, pinned=pinned
     )
 
 
 def merge_pinned(summaries: Iterable[SessionSummary]) -> tuple[SessionSummary, ...]:
-    """Order a listing's candidate summaries: pinned chats first, recency-descending in each group.
-    """
+    """Order a listing: `pinned` chats first, then newest first within each group."""
     by_recency = sorted(summaries, key=lambda summary: summary.last_activity, reverse=True)
     by_recency.sort(key=lambda summary: not summary.pinned)
     return tuple(by_recency)

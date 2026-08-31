@@ -10,8 +10,7 @@ GET_LOGGER = re.compile(
     r"getLogger\(\s*(?:__name__|\"(?P<named>[^\"]+)\"|(?P<bound>[A-Za-z_]\w*))\s*\)"
 )
 
-# The module name that is a package rather than a module: `cortex_core/__init__.py` is the logger
-# `cortex_core` and not `cortex_core.__init__`.
+# `cortex_core/__init__.py` is the logger `cortex_core`, not `cortex_core.__init__`.
 PACKAGE_MODULE = "__init__"
 
 
@@ -24,11 +23,7 @@ def dotted(relative: Path) -> str:
 
 
 def _literal(named: str, text: str, shown: str) -> str:
-    """The name a literal call claims, refused when the same module also binds it.
-
-    Only the binding is what the constant registry ties documents to, so a module holding both
-    spellings can move the literal alone and leave them restating a name nothing writes through.
-    """
+    """The name a literal call claims, raising when the same module also binds it."""
     strings, _ = constants(parsed(text, shown))
     declared = sorted(name for name, value in strings.items() if value == named)
     if declared:
@@ -41,7 +36,7 @@ def _literal(named: str, text: str, shown: str) -> str:
 
 
 def claimed(claim: re.Match[str], text: str, inside: Path, shown: str) -> str:
-    """The logger name one ``getLogger`` call claims, in whichever spelling it claims it."""
+    """The logger name one ``getLogger`` call claims, in whichever of the three forms it uses."""
     named = claim["named"]
     if named is not None:
         return _literal(named, text, shown)

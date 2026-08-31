@@ -1,4 +1,4 @@
-"""Read every variable substitution a compose file spends, refusing every form it cannot name."""
+"""Read every variable substitution a compose file spends, raising on every form it cannot name."""
 
 import re
 from typing import NamedTuple
@@ -20,7 +20,7 @@ _NAME = re.compile(r"[A-Za-z_]\w*")
 
 
 class SubstitutionReadError(Exception):
-    """A compose file carries a `$` form this reader will not guess at."""
+    """A compose file carries a `$` form this reader cannot read."""
 
 
 class Substitution(NamedTuple):

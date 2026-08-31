@@ -1,4 +1,4 @@
-"""One turn, one stream, two models: the wrapper that carries a handoff (ADR-0030 d5/d6)."""
+"""The wrapper that runs a handoff through one turn on one stream."""
 
 from collections.abc import AsyncGenerator, Callable
 
@@ -34,13 +34,8 @@ class EscalatingTurnEngine:
                     parts.append(event.text)
                 yield event
         finally:
-            # The inner turn is closed deterministically, so a consumer that walks away mid
-            # cortex phase leaves no half-suspended loop behind (its own contract: the user
-            # message stays, the partial reply is dropped).
             await events.aclose()
         if completed is None:
-            # An inner runner that ended without completing was torn down, not finished, so
-            # there is no turn to hand off and nothing to complete on its behalf.
             return
         if slot.brief is None:
             yield completed
@@ -53,6 +48,4 @@ class EscalatingTurnEngine:
                 yield event
         finally:
             await handoff.aclose()
-        # The one completion, at the true end. Its text is the whole turn's, cortex wrap-up and
-        # deep answer alike; each phase already persisted its own message under this turn id.
         yield TurnCompleted(turn_id=turn_id, full_text="".join(parts))

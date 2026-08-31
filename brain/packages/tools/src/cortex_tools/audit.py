@@ -13,6 +13,9 @@ from cortex_core.log_fields import (
 
 _LOGGER_NAME = "cortex.tools.audit"
 
+# The word every audited line opens with, bound here for the same reason as the logger name above
+# and against the same restatements in the tools runbook and the process entry's suite (ADR-0009
+# audit-message addendum). It is handed to the call below so this module writes the word once.
 _MESSAGE = "tool.invocation"
 
 _logger = logging.getLogger(_LOGGER_NAME)

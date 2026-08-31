@@ -23,23 +23,23 @@ memory policy written over it would say "remember whole-display captures but not
 ones", which does not answer this entry's own example: either target can be showing a password
 manager.
 
-**And it does not reach the write anyway, which is a second wall behind the first.** The
+**And it does not reach the write anyway, which is a second obstacle behind the first.** The
 `ScreenCapture` that holds `target` is consumed into prose at the tool boundary and no field on
-`ToolResult` carries it forward, so the ledger notes the same
-`Provenance(TOOL, "capture_screen")` for both targets, and `record_exchange` sees only the opaque
-bit, the taint bit, the query and the reply
-([turn_output.py](../../../brain/packages/core/src/cortex_core/turn_output.py)). Reaching a
+`ToolResult` carries it forward, so the ledger notes the same `Provenance(TOOL, "capture_screen")`
+for both targets, and `record_exchange` sees only the opaque bit, the taint bit, the query and the
+reply ([turn_output.py](../../../brain/packages/core/src/cortex_core/turn_output.py)). Reaching a
 per-source rule therefore means adding an identifier to the capture seam first, which is the
 decision the origin already made in the other direction.
 
-**The loss this entry names is real and it needs no source at all**, which is the honest residue:
-the sentence that goes missing is the user's own, and the user's own words are the one thing on a
+**The loss this entry names is real and it needs no source at all**, which is the real residue: the
+sentence that goes missing is the user's own, and the user's own words are the one thing on a
 capture turn that an attacker cannot write. `render_exchange` renders both halves and the opaque
 check skips the whole write, so the user's half is collateral. That is filed as
 [R-286](286-user-half-of-an-opaque-turn.md), and it is a smaller and better-aimed change than the
-one declined here. **The area's count moves by one.** This reopens on one thing: a capture-seam
-field that names a source on the operating system's word rather than the screen's, at which point
-the question is a policy over an attested identity and no longer this entry.
+one declined here.
+**The area's count moves by one.** This reopens on one thing: a capture-seam field that names a
+source on the operating system's word rather than the screen's, at which point the question is a
+policy over an attested identity and no longer this entry.
 
 ## Trail
 

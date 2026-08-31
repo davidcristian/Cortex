@@ -35,9 +35,9 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
   before `TurnComplete`, a `converse`-only variant, distinct from a brain-*reported* turn
   error, which is `TurnEvent::Failed`) | `Timeout { after: Duration }` (the attempt was
   abandoned: nothing came back inside the deadline, so the call was dropped, ADR-0024 deadline
-  addendum). The fourth variant is a fourth thing: `Connection` says nothing accepted the call
-  and `Rpc` says the brain answered, while a deadline says **we stopped waiting**, which
-  neither of the others can report without claiming something that did not happen.
+  addendum). The fourth variant reports what the other three cannot: `Connection` says nothing
+  accepted the call and `Rpc` says the brain answered, while a deadline says **this side stopped
+  waiting**, which neither of the others can report without claiming something that did not happen.
 - `TurnEvent` and `ConfirmDecision` are the turn vocabulary a `converse` call carries, and they
   live in the `transport::turn` submodule (split out for the line cap) re-exported from
   `transport`, so `body_core::TurnEvent` and `body_core::transport::TurnEvent` both still resolve.
@@ -138,7 +138,7 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
 - `Sleeper` (`retry::effects`) is the timer effect port, asked two ways: `sleep(&self,
   Duration) -> impl Future<Output = ()> + Send` is the backoff *between* attempts, and
   `bounded<F>(&self, deadline, call) -> impl Future<Output = Option<F::Output>> + Send` is the
-  deadline *on* one attempt, `None` meaning the clock won and the call was dropped (which for
+  deadline *on* one attempt, `None` meaning the deadline expired first and the call was dropped (which for
   the gRPC adapter resets the in-flight stream). One port rather than two, because both are the
   same clock: the core decides how long, an adapter owns the measuring. A fake records the
   schedule, records the deadline each attempt was given, and scripts which side of the race
@@ -167,23 +167,24 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   the waits was right while an attempt could return at any time, and promised a bound it could
   not hold once attempts became bounded, since an attempt that spends its whole deadline and
   then fails transiently buys a wait on top. One attempt always survives `within`, so a budget
-  buys back patience, never the call, and the guarantee is therefore
-  `attempts × attempt + backoff ≤ max(budget, attempt)`. `RetryPolicy::ONCE` is the schedule that cannot retry (one
-  attempt, no wait): what a refused method runs on, so a refusal is *executed* by the same loop
-  as a permission instead of by a second code path no test can enter.
+  shortens the waiting and never removes the call, and the guarantee is therefore
+  `attempts × attempt + backoff ≤ max(budget, attempt)`. `RetryPolicy::ONCE` is the schedule that
+  cannot retry (one attempt, no wait), which is what a non-repeatable method runs on, so a call
+  that may not be retried runs through the same loop as one that may, instead of through a second
+  code path no test can enter.
 - `is_transient(&TransportError) -> bool` is the retryable classifier: `Connection` and
   `Rpc{code=="Unavailable"}` are transient; every other `Rpc` status, `Protocol`, and `Timeout`
-  are not. **`Timeout` is terminal by decision** (ADR-0024 deadline addendum): a retried
-  deadline is the classic load amplifier, and more precisely, an expired deadline is not the
-  brain's report about the call but this side's decision to stop waiting, so it cannot say a
-  second attempt would be faster. The cure for a call that needs longer is a longer deadline.
+  are not. **`Timeout` is terminal by decision** (ADR-0024 deadline addendum): retrying an expired
+  deadline amplifies load, and an expired deadline is this side's decision to stop waiting rather
+  than the brain's report about the call, so it says nothing about whether a second attempt would
+  be faster. A call that needs longer needs a longer deadline.
   It is a **necessary** condition for a retry, never a sufficient one: a status says the brain
   could not serve the call, never that the brain did not already run it. That one-entry set is
   **decided, not provisional** (ADR-0024 addendum): the seam's server writes only `UNAVAILABLE`
   and `UNAUTHENTICATED`, and the three codes a wider table would have added are each argued
   terminal and pinned by test, `RESOURCE_EXHAUSTED` most sharply, since the only producer on
   either direction of this seam pair raises it about a payload a repeat would resend unchanged.
-  Widening it is safe to do one code at a time because `policy_for` has already refused every
+  Widening it is safe to do one code at a time because `policy_for` has already excluded every
   call with an effect before this classifier is consulted.
 - `SeamMethod` (`retry::plan`; `Copy`, `Eq`, `Debug`) names every `BrainTransport` method, and
   `repeatable()` is the safety property retry rests on: **repeating the call is observably the
@@ -195,10 +196,11 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   for `RenameSession`, a plain write a repeat could use to re-apply a stale label over one the
   user has since changed, for `DeleteSession`, a **destructive** write: idempotent in
   isolation, but a silent retry could destroy a chat re-materialized by a still-streaming turn
-  (a concurrent `append` between a lost reply and the retry), the last call to re-issue by machinery,
+  (a concurrent `append` between a lost reply and the retry), which makes it the last call anything
+  should re-issue automatically,
   and for `SetSessionPinned`, the case where "idempotent by value" is strongest yet still one
-  attempt: setting the same pin twice is a no-op, but the uniform catalog-write convention refuses a
-  retry so a lost reply never re-asserts a pinned value the user's next toggle reversed.
+  attempt: setting the same pin twice is a no-op, but the uniform catalog-write convention allows
+  no retry, so a lost reply never re-asserts a pinned value the user's next toggle reversed.
   `AckReminder` is the case that shows repeatability is two tests, not one: no duplicated
   effect **and** no changed answer. The match is exhaustive, so a new variant does not compile
   until it is classified.
@@ -210,21 +212,23 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   stream runs under, see `gaps_for` below). One constant beside them is not a field
   and not configurable, `ANNOUNCED_DEADLINE_GRACE_MS = 250`: how much longer the deadline the body
   announces is than the one it enforces (see `announced_deadline_for` below).
-  `policy_for(method)` is the **one door every retry decision goes through**, and it answers
+  `policy_for(method)` is the **single entry point every retry decision goes through**, and it
+  answers
   `None` for a method that may not be repeated at all: the caller must then make exactly one
   attempt and surface whatever comes back, however transient it looks. `From<RetryPolicy>`
   reads a bare schedule as a plan governing the reads with the default budget, so a caller
   with no opinion about the probe keeps passing one policy. The probe is split out because the
-  connection indicator renders its answer, so patience there is time the dot spends claiming a
-  state the seam has stopped proving; at the shipped defaults the budget leaves the probe two
+  connection indicator renders its answer, so a long retry there is time the indicator spends
+  showing a state the seam has stopped proving; at the shipped defaults the budget leaves the probe two
   attempts (250 + 200 + 250 fits 1 s, a third try would need 1.35 s) while the reads keep all
   three.
-- `deadline_for(method)` is the same door for the clock, and it answers `None` for exactly one
+- `deadline_for(method)` is the same entry point for the clock, and it answers `None` for exactly
+  one
   method: `Converse`, because a turn is long by design and ending one on a clock would be a
   different feature. Every other call gets a duration, **the writes included**, since bounding
   a call is not repeating it: repeatability and a deadline are independent questions, so a
-  write the plan refuses to retry is still bounded (ADR-0024 deadline addendum).
-- `gaps_for(method)` is the door for the **other** clock, and the mirror image of the one above:
+  write the plan does not retry is still bounded (ADR-0024 deadline addendum).
+- `gaps_for(method)` is the entry point for the **other** clock, and the mirror image of the one above:
   `Some` for `Converse` alone, `None` everywhere else. Between the two, **every call on the port is
   bounded, by a clock on the call or a clock on its silence, and never by both**, which
   `retry_plan.rs` asserts over every variant. It lives in `retry::gap` rather than beside
@@ -245,8 +249,8 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   enforces classifies `Connection`, which is *retryable*, so the announcement has to be the later
   of the two clocks by construction. Its size is argued at the constant: a loopback round trip and
   the brain's header parse cost about a millisecond, measured at a real brain's handler entry; the
-  header's encoding truncates by under a millisecond for every announcement the gRPC adapter is
-  willing to send, and it refuses the ones past that rather than widen this margin for them; and
+  header's encoding truncates by under a millisecond for every announcement the gRPC adapter
+  sends, and it rejects the ones past that rather than widening this margin for them; and
   what actually sizes it is the scheduler stall the ordering must survive, since
   a runtime stopped past both deadlines finds them both due in one poll and the call is polled
   before the clock. `retry_plan.rs` holds the ordering over every method and several plans, the
@@ -257,7 +261,7 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   `Duration::MAX` rather than branched on, which is what "no deadline" means to a clock (the
   timer is armed and never wins; `tokio::time::timeout` saturates it to the far future). The
   shape is deliberate: this is generic code, so a branch is compiled once per call type and no
-  instantiation the decorator makes could take the unbounded arm, leaving it dead in every copy. It is public so patience *and* a bound
+  instantiation the decorator makes could take the unbounded arm, leaving it dead in every copy. It is public so a retry schedule *and* a bound
   compose around a non-seam future too, which the shell's eager `converse` dial uses. The bound
   lives here rather than in the gRPC adapter for a specific reason: tonic attaches its
   `transport::Error` to the `Status::cancelled` it raises on its own expiry, so the adapter
@@ -272,30 +276,32 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   one against `gaps.idle`; a `None` for `gaps` is `TurnGaps::UNBOUNDED`, spelled as a duration for
   the reason `within_deadline` spells its own exemption that way. An expired gap yields one final
   `TransportError::Timeout { after }` carrying the gap and ends the stream, dropping the inner one,
-  which cancels the turn. Ending silently was the alternative and is not one: the overlay leaves a
+  which cancels the turn. Ending the stream without an error was the alternative and was rejected:
+  the overlay leaves a
   reply streaming until a terminal event or an error reaches it, so a stream that merely stopped
   would leave the indicator exactly where the stall did. Every branch that decides anything lives
-  in the file's non-generic `GapClock`, leaving the generic wrapper two whose sides any drained
-  stream takes both of.
+  in the file's non-generic `GapClock`, leaving the generic wrapper with two branches whose sides
+  any drained stream takes both of.
 - `retry_with(policy, sleeper, randomness, call)` is the bounded-retry loop over any fallible
   async factory (ADR-0024 addendum): re-issues `call()` each attempt, sleeping the jittered
-  delay while `backoff` says so. It is the schedule **executor**, not the gate: it takes the
-  caller's word that repeating `call` is safe. Public so patience composes around a
+  delay while `backoff` says so. It is the schedule **executor** rather than the gate, and it
+  relies on the caller having established that repeating `call` is safe. Public so a retry
+  schedule composes around a
   non-transport factory, which the shell uses to wrap its eager `converse` dial (safe: the
   non-idempotent turn has not begun until the dial succeeds, and a dial is not a seam method,
   so it has no entry in the plan).
 - `RetryingTransport<T: BrainTransport, S: Sleeper, R: Randomness = FullDelay>` *is* a
   `BrainTransport`: wraps an inner transport and routes every unary call through the plan's
   verdict for that `SeamMethod`, running `retry_with` on the resolved schedule when the method
-  is repeatable and on `RetryPolicy::ONCE` when the plan refuses it, so a refused call makes
-  **exactly one attempt** and takes no path a permitted one does not. So
+  is repeatable and on `RetryPolicy::ONCE` when the plan allows no retry, so a non-repeatable call
+  makes **exactly one attempt** and takes no path a repeatable one does not. So
   `ack_reminder` is unretried by the gate rather than by bypassing it (ADR-0025), and no error
   code, however transient, can promote a call with an effect into two of them. `converse` is
   the one method that cannot reach the gate at runtime (a
   stream is not a future the loop could re-issue); it is classified all the same so the port's
   methods are covered exhaustively (ADR-0024 decision 2). Its items are forwarded verbatim all the
-  same, under the plan's `TurnGaps`: not retried is not unbounded, and what the decorator adds to a
-  turn is a bound on its silence (ADR-0024 idle-gap addendum). `new(inner, sleeper, plan)` (no
+  same, under the plan's `TurnGaps`: a method that is never retried is still bounded, and what the
+  decorator adds to a turn is a bound on its silence (ADR-0024 idle-gap addendum). `new(inner, sleeper, plan)` (no
   jitter, the v1 default) or `with_randomness(inner, sleeper, randomness, plan)` (jittered);
   both take `impl Into<RetryPlan>`, so a bare `RetryPolicy` still works.
 
@@ -310,7 +316,7 @@ is domain logic:
 - `LinkStatus { state, detail }` (`Clone`, `Eq`, `Debug`) is one classified answer, `detail`
   being display-only text (never parsed, rendered inert).
   - `from_health(&SeamHealth)`: `ready` → `Ready`, else `Degraded`, carrying the brain's own
-    detail. The brain's readiness verdict wins over mere reachability.
+    detail. The brain's own readiness verdict takes precedence over mere reachability.
   - `from_error(&TransportError)`: `Connection` → `Down` (nothing answered) with the dial
     failure; `Rpc { code, message }` → `Degraded` as `"{code}: {message}"` (the brain answered,
     e.g. `Unauthenticated` for a rejected seam token); `Protocol` → `Degraded` as
@@ -322,10 +328,10 @@ is domain logic:
   **It never fails**: a failure is the answer, which is what lets a caller render a state
   instead of an error. Composed over `RetryingTransport` it is also the reconnect attempt,
   since `health` is retried, so `Down` means the whole probe budget failed to reach the
-  brain. That budget is bounded on purpose (`RetryPlan::probe_budget`): patience past the
-  point where the answer still matters is the indicator showing a state the seam stopped
+  brain. That budget is bounded on purpose (`RetryPlan::probe_budget`): retrying past the
+  point where the answer still matters leaves the indicator showing a state the seam stopped
   proving, so the probe's schedule is trimmed to fit while the reads keep theirs. The bound is
-  arithmetic rather than hope now that an attempt has its own deadline: `Down` arrives within
+  arithmetic rather than an estimate now that an attempt has its own deadline: `Down` arrives within
   `max(probe_budget, probe_deadline)`, one attempt always surviving. How many attempts fit inside
   that bound depends on how the dial fails, which is a fact about the host: a refused dial costs
   microseconds and leaves room for the retry the budget affords, while a dial the host drops
@@ -342,7 +348,7 @@ OS-capability ports (`os` module) are the first portability seam (ADR-0011):
   `docs/modules/body-os.md`.
 - `HotkeyCallback` is `Box<dyn Fn() + Send + 'static>`, invoked on an OS/event-loop thread.
 - `HotkeyError` (thiserror, `Clone`) is `UnsupportedKey(String)` (the key has no `code`
-  mapping) | `Registration(String)` (the OS refused the binding).
+  mapping) | `Registration(String)` (the OS rejected the binding).
 - `Accelerator` is a chord resolved to the OS-neutral form a backend needs: `modifiers:
   Vec<Modifier>` (canonical order) + `code: String` (the W3C `KeyboardEvent.code` name,
   e.g. `"Space"`, `"KeyA"`, `"F5"`). `Accelerator::from_chord(&HotkeyChord) ->
@@ -363,14 +369,14 @@ reminder delivery:
   pull path shows it on the next open), so the split exists to keep the body's own logs
   honest, not to change the outcome.
 - `NotifyError` (thiserror, `Clone`) is `Unavailable(String)` (no notification service
-  reachable) | `Backend(String)` (the backend refused or failed), the same transient/fault
-  split as `AudioError`.
+  reachable) | `Backend(String)` (the backend rejected the request or failed), the same
+  transient/fault split as `AudioError`.
 - `Notification` is the value a backend renders, built only by `Notification::new(title,
   body, reminder_id, tainted)`, which is where the **inert-text rule** lives: every control
   character becomes a space (replaced, not dropped, so words never fuse across a stripped
   newline, and a raw control byte can never make a backend's document unparseable) and each
   line is bounded at `MAX_TEXT_CHARS` (200) with a trailing ellipsis marking the cut, because
-  an oversized payload is refused by the OS as a whole, which would turn a long reminder into
+  the OS rejects an oversized payload as a whole, which would turn a long reminder into
   no reminder. Accessors `title()`, `body()`, `reminder_id()`, `tainted()`, and
   `attribution()`, which answers the fixed `UNTRUSTED_ATTRIBUTION` line
   (`"from an untrusted source"`) for a tainted reminder and `None` otherwise: the badge that
@@ -392,14 +398,14 @@ and the pure core decides what crosses the seam.
   undefined), and the encoder drops it.
 - `CaptureTarget` is what a capture is pointed at, mirroring the wire enum: `Display` (the
   whole primary display, the proto3 zero) or `Focus` (the topmost visible top-level window that
-  is neither the body's own nor excluded from capture). A closed vocabulary the body resolves,
-  never a rectangle the caller names, because the model that will not admit it cannot read a
-  screen will not decline to name a rectangle either.
+  is neither the body's own nor excluded from capture). It is a closed vocabulary the body
+  resolves, and never a rectangle the caller names, because a model that will not admit it cannot
+  read a screen would invent a rectangle just as readily.
 - `CapturedFrame::display(frame)` / `CapturedFrame::window(frame, TargetRect)` is what a
   backend answers: the **whole display's** pixels either way, plus where in them the target
   resolved to. `TargetRect::new(left, top, right, bottom)` is signed and unvalidated, exactly
   as the OS reports it, since a window may hang off an edge or sit on another monitor.
-  Clamping that rectangle into the frame, and refusing one with nothing on the display
+  Clamping that rectangle into the frame, and rejecting one with nothing on the display
   (`CaptureError::NoTarget`), is pure core's job and is gated here.
 - `CaptureRequest::targeted(max_edge, max_bytes, target)` resolves every proto3 hint: a zero
   edge
@@ -413,9 +419,9 @@ and the pure core decides what crosses the seam.
   whole policy: crop to the resolved region, downscale so the long edge is at most `max_edge`,
   PNG-encode, and while the
   result is over `max_bytes` halve the edge **that was actually reached** and retry, up to
-  `MAX_SHRINK_ATTEMPTS` (2) times, then answer `CaptureError::TooLarge(bytes)`. Verifying
-  after encoding is the only honest order: a flat desktop is kilobytes at 1600x900 and a
-  photograph is megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`,
+  `MAX_SHRINK_ATTEMPTS` (2) times, then answer `CaptureError::TooLarge(bytes)`. Checking the
+  size after encoding is the only order that can work, since a flat desktop is kilobytes at
+  1600x900 and a photograph is megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`,
   `image/png`), `width`/`height` after the crop and downscale, `source_width`/`source_height`
   which are always the **display's** (never the crop's, since three consumers read them as the
   size of the screen), and `covers_display()`, which is the one bit the receipt needs.
@@ -494,8 +500,8 @@ other side (ADR-0029 cross-language-constant addendum).
   Both must pass. Three things follow for anyone adding a test here. The seed is frozen and lives
   in the `justfile`, libtest taking its arguments only on the command line; it is unrelated to the
   three other suites' seeds and nothing should tie them. Adding one test re-draws its whole binary,
-  since libtest seeds on the seed plus a hash of the test-name list, so a red can name a pair you
-  did not touch and is still a real, reproducible order dependency. And the shuffle permutes
+  since libtest seeds on the seed plus a hash of the test-name list, so a failure can name a pair
+  you did not touch and is still a real, reproducible order dependency. And the shuffle permutes
   *dispatch* order into 24 parallel threads, so it redraws pairs further apart than the thread
   count and changes nothing for adjacent ones, which were already racing. Each binary prints
   `(shuffle seed: 104729)` in its header, so a failing log names its order; `just shuffle [seed]`

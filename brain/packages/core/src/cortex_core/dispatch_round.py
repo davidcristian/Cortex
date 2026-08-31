@@ -1,4 +1,4 @@
-"""Running one planned round of tool dispatches, and the context every round is configured by."""
+"""Running one planned round of tool dispatches, and the context each round is given."""
 
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -21,9 +21,7 @@ from cortex_core.untrusted import TaintLedger
 
 @dataclass(frozen=True, slots=True)
 class ToolLoopContext:
-    """The per-invocation collaborators of one tool loop (ADR-0013), bundled to stay under the
-    argument ceiling.
-    """
+    """The collaborators of one tool loop, bundled to stay under the argument limit."""
 
     dispatcher: ToolDispatcher | None
     clock: Clock
@@ -66,7 +64,7 @@ def _refused_by(
 
 
 def _stamp(context: ToolLoopContext) -> TurnStamp:
-    """What the dispatching turn hands one call, built fresh per dispatch (ADR-0027)."""
+    """What the dispatching turn gives one call, built fresh for each dispatch."""
     return TurnStamp(
         session_id=context.session_id,
         turn_id=context.turn_id,
@@ -89,20 +87,18 @@ async def run_round(
     working: list[Message],
 ) -> AsyncGenerator[ToolStep | StepOutcome, None]:
     """Dispatch every call one planned round answers, appending each result to ``working``."""
-    # This round's dispatched calls, appended to the loop's history before the round runs so
-    # the policy sees the round in progress as its last group (ADR-0009 salience addendum).
     this_round: list[ToolCall] = []
     dispatched.append(this_round)
     for call, oversized in plan.answered():
         spec = spec_by_name.get(call.name)
         refusal = _refused_by(call, dispatcher, dispatched, context.budget, oversized=oversized)
         if refusal is None:
-            # Recorded when the call is handed over, not when it answers: a gate denial and
-            # a declined confirmation are `is_error` results too, so counting only successes
-            # would leave a declined gated call free to re-prompt the user every round.
             this_round.append(call)
+        # Only an advertised spec is shown, so no model-written tool name reaches the overlay.
         if refusal is None and spec is not None:
             yield ToolStep(tool_name=spec.name, summary=step_summary(spec))
+        # A refused call is dispatched too, because the dispatcher writes the refusal as the
+        # call's result: a tool call with no result would make the next request malformed.
         result = await dispatcher.dispatch(
             call,
             stamp=_stamp(context),
@@ -111,9 +107,6 @@ async def run_round(
         )
         if refusal is None and spec is not None:
             yield StepOutcome(tool_name=spec.name, ok=not result.is_error)
-        # An untrusted result's source is the tool it came through, named by the registry's
-        # own advertisement. A call that matched no spec attributes nothing rather than
-        # falling back to the model's chosen name.
         context.taint.observe(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )

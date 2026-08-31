@@ -9,8 +9,7 @@ import {
   traceRowRef,
 } from "./measured";
 
-/** An element whose laid-out height jsdom would otherwise report as nothing at all. Given through
- *  the computed style, which is where `publishHeight` reads it. */
+/** An element whose laid-out height jsdom would otherwise report as nothing at all. */
 function tall(height: number): HTMLElement {
   const element = document.createElement("div");
   lays(element, height);
@@ -35,17 +34,11 @@ afterEach(() => {
 
 describe("publishHeight", () => {
   it("publishes the height it measured, not the number the stylesheet started with", () => {
-    // The whole point of the module: an empty state that grew a line has to move the floor with
-    // it. A probe that published the frozen 185 would pass every structural test and drift exactly
-    // as the constant did.
     publishHeight(CHAT_FLOOR_PROPERTY, tall(207));
     expect(standing(CHAT_FLOOR_PROPERTY)).toBe("207px");
   });
 
   it("republishes when the same element is measured again at a new height", () => {
-    // The empty state mounts once per empty chat, so this is the ordinary path rather than a
-    // corner: a second chat, a changed mark, a reload after an edit. Measuring twice must land on
-    // the second reading and not latch the first.
     const element = tall(185);
     publishHeight(CHAT_FLOOR_PROPERTY, element);
     lays(element, 224);
@@ -54,18 +47,12 @@ describe("publishHeight", () => {
   });
 
   it("leaves the standing value alone when the element has no layout to report", () => {
-    // jsdom, a `display: none` ancestor, and a node that is not in a document all read 0. A zero
-    // floor would collapse the log the constant exists to hold up, so the stylesheet's own
-    // declaration has to survive the reading.
     publishHeight(CHAT_FLOOR_PROPERTY, tall(185));
     publishHeight(CHAT_FLOOR_PROPERTY, document.createElement("div"));
     expect(standing(CHAT_FLOOR_PROPERTY)).toBe("185px");
   });
 
   it("leaves the standing value alone when the element is on its way out", () => {
-    // React calls a ref with null at unmount. The empty state unmounts precisely when the first
-    // message arrives, which is the frame the floor is first load-bearing, so forgetting the
-    // number there would be worse than never having taken it.
     publishHeight(CHAT_FLOOR_PROPERTY, tall(185));
     publishHeight(CHAT_FLOOR_PROPERTY, null);
     expect(standing(CHAT_FLOOR_PROPERTY)).toBe("185px");
@@ -111,9 +98,6 @@ describe("the refs the components attach", () => {
   });
 
   it("stops following an element it has let go of", () => {
-    // React hands the ref the next element before it hands over null when a component re-keys, and
-    // the empty state is keyed to its chat. An observer left behind on the old node would go on
-    // publishing a box nobody is looking at.
     const gone = tall(185);
     chatFloorRef(gone);
     chatFloorRef(tall(207));

@@ -18,7 +18,7 @@ MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 
-# Which answer the capture tool's advertisement takes when nothing overrides it. Named for the
+# Which answer the capture tool's advertisement takes when nothing overrides it. Declared for the
 # reason the port below is: the body override ships it again as a substitution default, so the
 # scan can hold the two together only if one of them is a declaration it can read.
 DEFAULT_VISION_MODE: VisionMode = "auto"
@@ -62,7 +62,7 @@ class BrainRuntimeConfig(BaseSettings):
 
     # env CORTEX_REDIS_URL is where the session state lives (the one hard rule).
     redis_url: str = DEFAULT_REDIS_URL
-    # env CORTEX_MODEL_CORTEX is a LOGICAL model id (ADR-0004), never a file path.
+    # env CORTEX_MODEL_CORTEX is a logical model id (ADR-0004), never a file path.
     # The dictated env name breaks the prefix pattern, hence the explicit alias.
     cortex_model: str = Field(default=DEFAULT_CORTEX_MODEL, validation_alias="CORTEX_MODEL_CORTEX")
     # env CORTEX_VRAM_SOFT_CAP_GB is the deliberate GPU budget (ADR-0004, 14 GB); the

@@ -30,8 +30,8 @@ adoption targets `sessions[0]` and cycling targets `cycleTarget(state.sessions, 
 already target a session in `state.sessions`; doing the lookup in the reducer (not threading the
 clicked row's title through the click handler, the narrower shape the entry imagined) covers
 switcher-open, cycling, and adoption alike. Gated at 100% over fakes, with the carry
-mutation-proven (reverting `headerTitle` to the local derivation reddens the switcher-title tests
-in `openSession`, `adoptSession`, and the cold-start hook); browser-validated against the demo
+mutation-proven (reverting `headerTitle` to the local derivation makes the switcher-title tests
+in `openSession`, `adoptSession`, and the cold-start hook fail); browser-validated against the demo
 bridge, live-validated against real Redis (below).
 **The truncation-length third of that claim was itself too broad, and closed 2026-08-03
 ([ADR-0021 truncation addendum](../../adr/ADR-0021-session-read-seam.md)).** The carry closed the

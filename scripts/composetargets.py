@@ -1,30 +1,25 @@
-"""The container path a compose mount entry names, in every spelling compose accepts."""
+"""The container path a compose mount entry names, in every form compose accepts."""
 
 import re
 
 from composemounts import strip_quotes
 
-# What opens a flow collection, which is YAML's inline `{key: value}` / `[a, b]` spelling. A mount
-# written that way would reach the scalar reader below and pass for a path, so it is refused here
-# instead. `composemounts.py` refuses the same shape for the same reason.
 FLOW_OPENERS = ("{", "[")
 
-# One `key: value` line, in the one YAML rule these readers lean on: a mapping needs a space after
-# its colon, which is what tells `type: bind` from the short-syntax scalar `redis-data:/data`.
-# The walk above reads its own keys with it too, so both halves agree on what a key looks like.
+# A YAML mapping needs a space after its colon, which is what tells `type: bind` from the
+# short-syntax scalar `redis-data:/data`.
 KEY = re.compile(r"^(?P<key>[A-Za-z_][\w.-]*):(?:[ \t]+(?P<value>.*))?$")
 _ALIAS = re.compile(r"^\*(?P<anchor>[\w.-]+)$")
 
-# Source and target, the two fields a short-syntax mount needs before it names a container path.
 _FIELDS = 2
 
 
 class ComposeServiceError(Exception):
-    """A compose file carries a shape this reader will not guess at."""
+    """A compose file has a form this reader cannot read."""
 
 
 def normalize(path: str) -> str:
-    """Drop the trailing slash a target may carry, so one container path has one spelling."""
+    """Drop the trailing slash a target may have, so one container path is written one way."""
     trimmed = path.rstrip("/")
     return trimmed or "/"
 

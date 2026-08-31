@@ -24,10 +24,10 @@ typically is, moves the number. Nothing has ever read the width off a line a liv
 plus the CPU embedder), seed a corpus wide enough that a pool of twenty is a real pool rather than
 the whole store, run recalls with the audit sink attached, and measure the rendered `dropped` field
 off the lines the container wrote. That is a live run and therefore `integration` marked and out of
-the coverage gate. Honest estimate, from the shape of the existing live memory runs rather than
-from having done this one: thirty to forty five minutes including bring-up and seeding, with the
-seeding the part most likely to run long. The result is worth having whichever way it lands, since
-a synthesis that matches the real distribution is a stronger justification than one nobody checked,
+the coverage gate. Estimate, taken from the shape of the existing live memory runs rather than from
+having done this one: thirty to forty five minutes including bring-up and seeding, with the seeding
+the part most likely to run long. The result is worth having whichever way it lands, since a
+synthesis that matches the real distribution is a stronger justification than one nobody checked,
 and a synthesis that does not is a bound argued against the wrong number.
 
 ## Trail

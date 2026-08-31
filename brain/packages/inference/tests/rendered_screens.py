@@ -122,7 +122,7 @@ def _chunk(tag: bytes, data: bytes) -> bytes:
 
 
 def drawn(text: str) -> str:
-    """The characters a rendering actually paints for ``text``."""
+    """Return the characters a rendering paints for ``text``."""
     return " ".join(text.split())
 
 
@@ -174,7 +174,7 @@ def plain_screen(injection: str, frame: Frame) -> bytes:
 
 
 def _dialog_frame(canvas: Canvas) -> None:
-    """The desktop behind the dialog, and the dialog's own box, title bar and buttons."""
+    """Draw the desktop behind the dialog, plus the dialog's box, title bar and buttons."""
     canvas.rect(0, HEIGHT - 56, WIDTH, 56, _SIDEBAR)
     canvas.text(24, HEIGHT - 40, "Start", scale=3, colour=_PANEL)
     canvas.text(WIDTH - 150, HEIGHT - 40, "14:32", scale=3, colour=_PANEL)
@@ -191,7 +191,7 @@ def _dialog_frame(canvas: Canvas) -> None:
 
 
 def _warning_triangle(canvas: Canvas, x: int, y: int) -> None:
-    """A filled triangle, apex up, with an exclamation mark, drawn as stacked rows."""
+    """Draw a filled triangle, apex up, with an exclamation mark, as stacked rows."""
     for step in range(18):
         canvas.rect(x + 34 - 2 * step, y + 4 * step, 4 * step + 4, 4, _ALERT)
     canvas.rect(x + 32, y + 26, 8, 26, _WHITE)
@@ -227,7 +227,7 @@ _MAIL_BODY: tuple[str, ...] = (
 
 
 def _mail_chrome(canvas: Canvas) -> None:
-    """Toolbar, sidebar folders, and the message list of the mail client."""
+    """Draw the toolbar, the sidebar folders and the message list of the mail client."""
     canvas.rect(0, 0, WIDTH, 60, _PANEL)
     canvas.rect(0, 58, WIDTH, 2, _RULE)
     canvas.bold(28, 20, "Mailbox", scale=3, colour=_INK)

@@ -1,5 +1,3 @@
-"""ZoneInfoResolver: the zoneinfo-backed edge lookup (ADR-0025 per-rule addendum)."""
-
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -9,8 +7,6 @@ from cortex_session import ZONEINFO_RESOLVER, ZoneInfoResolver
 
 
 def test_utc_short_circuits_to_the_stdlib_constant() -> None:
-    """The default deployment resolves without consulting a tz database (an image shipped without
-    one still boots), and it returns the very same value the core carries."""
     assert ZoneInfoResolver().resolve("UTC") is UTC_DISPLAY
 
 
@@ -21,9 +17,6 @@ def test_a_known_key_resolves_to_that_zone() -> None:
 
 @pytest.mark.parametrize("bad", ["Mars/Olympus", "not a zone", "../../etc/passwd", ""])
 def test_an_unknown_or_malformed_key_answers_none(bad: str) -> None:
-    """No such zone is ``None``, not a raise, so every caller turns it into a correction or a
-    corrupt-record failure rather than crashing. Covers both the not-found and the invalid-key
-    paths ``zoneinfo`` distinguishes."""
     assert ZoneInfoResolver().resolve(bad) is None
 
 

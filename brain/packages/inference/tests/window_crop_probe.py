@@ -1,4 +1,8 @@
-"""The two arms of the window-crop legibility measurement, and how a transcription is scored."""
+"""The two conditions of the window-crop legibility measurement, and how a transcription is scored.
+
+``display`` sends the whole frame downscaled to the capture edge, which is what the deployment
+sends today; ``focus`` sends the focused window's rectangle through the same downscale.
+"""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -30,8 +34,8 @@ _CAPTURED_AT = datetime(2026, 8, 10, 9, 14, tzinfo=UTC)
 _TURN = "window-crop-probe"
 _CALL_ID = "c1"
 
-# The word the ask offers instead of a guess. Scored as a decline rather than as a miss, which
-# is the distinction the recorded measurement had to make when the model invented 38 strings.
+# The word the question offers instead of a guess. It is scored as a decline rather than a miss,
+# which is the difference the recorded measurement had to make when the model invented 38 strings.
 DECLINE = "UNREADABLE"
 
 _INSTRUCTION = (
@@ -51,7 +55,7 @@ class Arm:
     target: CaptureTarget
 
     def region(self, desktop: Desktop) -> Rect:
-        """The rectangle this arm reads out of the frame."""
+        """Return the rectangle this variant reads out of the frame."""
         if self.target is CaptureTarget.FOCUS:
             return desktop.window
         return Rect(0, 0, desktop.screen.width, desktop.screen.height)
@@ -62,7 +66,7 @@ ARMS: tuple[Arm, ...] = (Arm("display", CaptureTarget.DISPLAY), Arm("focus", Cap
 
 @dataclass(frozen=True)
 class Picture:
-    """The encoded capture one arm produces, and the geometry that explains it."""
+    """The encoded capture one variant produces, and the geometry that explains it."""
 
     png: bytes
     width: int
@@ -71,19 +75,19 @@ class Picture:
 
     @property
     def resampled(self) -> bool:
-        """Whether the body's box filter ran, or the identity arm carried it untouched."""
+        """Whether the body's box filter ran, or the identity path passed it through untouched."""
         return (self.width, self.height) != (self.region.width, self.region.height)
 
 
 def picture(desktop: Desktop, arm: Arm, bound: int) -> Picture:
-    """Put the desktop through the body's own crop and downscale for this arm."""
+    """Put the desktop through the body's own crop and downscale for this variant."""
     region = arm.region(desktop)
     width, height, rgb = downscale(desktop.screen, region, bound)
     return Picture(encode_png(width, height, rgb), width, height, region)
 
 
 async def messages(desktop: Desktop, arm: Arm, shot: Picture) -> list[dict[str, object]]:
-    """The whole vision conversation, serialised by the backend's own message mapper."""
+    """Build the whole vision conversation, serialised by the backend's own message mapper."""
     capture = ScreenCapture(
         image=ImagePart(data=shot.png, mime_type="image/png", width=shot.width, height=shot.height),
         source_width=desktop.screen.width,
@@ -105,14 +109,15 @@ async def messages(desktop: Desktop, arm: Arm, shot: Picture) -> list[dict[str, 
 
 
 def ask(truths: tuple[Truth, ...]) -> str:
-    """The ask, which names every string by its place on the screen and never by its value."""
+    """Build the ask, which names every string by its place on screen and never by its value."""
     places = "\n".join(f"- {truth.key}: {truth.where}" for truth in truths)
     return f"{_INSTRUCTION}\n\n{places}"
 
 
 def schema(truths: tuple[Truth, ...]) -> dict[str, object]:
-    """A JSON schema with one required string property per ground truth, so scoring is
-    mechanical."""
+    """Build a JSON schema with one required string property per ground truth, so that scoring is
+    mechanical.
+    """
     properties = {truth.key: {"type": "string"} for truth in truths}
     return {
         "type": "object",
@@ -124,7 +129,7 @@ def schema(truths: tuple[Truth, ...]) -> dict[str, object]:
 
 @dataclass(frozen=True)
 class Reading:
-    """What one arm made of one ground-truth string."""
+    """What one variant made of one ground-truth string."""
 
     truth: Truth
     answer: str
@@ -137,7 +142,7 @@ class Reading:
 
 
 def readings(truths: tuple[Truth, ...], answers: dict[str, Any]) -> tuple[Reading, ...]:
-    """Score one arm's reply: read, declined, or wrong, in that order of precedence."""
+    """Score one variant's reply: read, declined, or wrong, in that order of precedence."""
     scored: list[Reading] = []
     for truth in truths:
         raw = answers.get(truth.key, "")
@@ -156,14 +161,14 @@ def _verdict(truth: Truth, answer: str) -> str:
 
 
 def tally(scored: Sequence[Reading]) -> tuple[int, int, int]:
-    """How many of a set of readings were read, wrong, and declined."""
+    """Count how many of a set of readings were read, wrong, and declined."""
     read = sum(1 for reading in scored if reading.verdict == "read")
     wrong = sum(1 for reading in scored if reading.verdict == "wrong")
     return (read, wrong, len(scored) - read - wrong)
 
 
 def report(results: Mapping[str, Sequence[Reading]]) -> str:
-    """The whole printed table: totals per arm, then hits per physical type size."""
+    """Render the whole table: totals per variant, then hits per physical type size."""
     lines = ["", "  arm       scope    read  wrong  declined  of"]
     for arm, scored in results.items():
         for scope, subset in (("inside", _inside(scored)), ("outside", _outside(scored))):
@@ -184,7 +189,7 @@ def report(results: Mapping[str, Sequence[Reading]]) -> str:
 
 
 def _differences(results: Mapping[str, Sequence[Reading]]) -> list[str]:
-    """Every string the arms disagreed about, with what each of them said."""
+    """Render every string the two variants disagreed about, with what each of them said."""
     arms = list(results)
     by_key = {arm: {row.truth.key: row for row in results[arm]} for arm in arms}
     lines = ["", "  where the arms disagreed, and what each said", ""]
@@ -201,10 +206,10 @@ def _differences(results: Mapping[str, Sequence[Reading]]) -> list[str]:
 
 
 def _inside(scored: Sequence[Reading]) -> list[Reading]:
-    """The readings whose ground truth lies inside the focused window."""
+    """Return the readings whose ground truth lies inside the focused window."""
     return [reading for reading in scored if reading.truth.inside]
 
 
 def _outside(scored: Sequence[Reading]) -> list[Reading]:
-    """The readings whose ground truth lies outside it, which a crop cannot carry."""
+    """Return the readings whose ground truth lies outside it, which a crop cannot include."""
     return [reading for reading in scored if not reading.truth.inside]

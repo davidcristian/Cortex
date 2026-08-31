@@ -49,7 +49,7 @@ lives in the runbook section with the procedure, which is where a re-run will be
 - 2026-07-19: Moved here from the untrusted-content area of the refinements backlog, one of five
   counted entries extracted to the host directory that day, with a dated pointer stub left at the
   origin. It sat behind the deep-model pick with the other four capstone items, and it never shared
-  this sitting's bring-up: it is a pytest that starts its own `llama-server` container and wants the
+  this sitting's bring-up: it is a pytest that starts its own `llama-server` container and needs the
   model host down.
 - 2026-08-04: Run by the agent, once the hardware premise that filed it had been found false. The
   second item to leave this directory, and the first whose outcome could have changed shipped

@@ -1,5 +1,3 @@
-"""Live halves of the model host: real child processes, and a real sidecar over real HTTP."""
-
 import asyncio
 import os
 from collections.abc import Awaitable, Callable, Sequence
@@ -38,17 +36,22 @@ from cortex_model_manager.probe import HttpHealthProbe
 
 _MODEL = "stand-in"
 _GRACE_S = 0.5
-# How long the trapping shell gets to arm itself before the test gives up rather than hanging.
+# How long the trapping shell gets to install its trap before the test gives up rather than
+# hanging.
 _ARM_TIMEOUT_S = 5.0
-# The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a stop
-# answers only once the child is reaped, so this must clear the sidecar's grace plus reap bounds.
+# The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a
+# stop answers only once the child is reaped, so this must clear the sidecar's grace and reap
+# bounds together.
 _CONTROL_TIMEOUT_S = 60.0
+# The deep tier's measured cost and a subagent ask, each in the units its own setting uses
+# (CORTEX_SWAP_BRAIN_VRAM_MIB, CORTEX_SUBAGENTS_VRAM_GB). The ask is held at the figure that
+# straddles the handoff window rather than tracking the shipped default, which would fit both.
 _DEEP_TIER_MIB = 19125
 _SPAWN_GB = 5.5
 
 
 class _SystemClock:
-    """The real clock, for the live gate only: the gated suites all inject a deterministic one."""
+    """The real clock, for the live run only: the other suites all inject a deterministic one."""
 
     def now(self) -> datetime:
         return datetime.now(UTC)
@@ -68,7 +71,7 @@ class _RecordingProcesses:
 
 
 def _supervisor(command: str) -> tuple[ModelSupervisor, _RecordingProcesses]:
-    """A supervisor whose one model is a shell command: the OS half real, the model not."""
+    """Build a supervisor whose one model is a shell command: the OS half real, the model not."""
     roster = build_roster(
         [ModelSpec(model=_MODEL, port=8099, argv=("/bin/sh", "-c", command, "--port", "8099"))]
     )
@@ -82,13 +85,10 @@ def _supervisor(command: str) -> tuple[ModelSupervisor, _RecordingProcesses]:
 
 @pytest.mark.integration
 async def test_a_real_child_is_started_signalled_and_reaped() -> None:
-    """SIGTERM reaches a real process, and the stop returns only once the OS has reaped it."""
     supervisor, processes = _supervisor("sleep 30")
     await supervisor.start(_MODEL)
     child = processes.children[0]
     assert child.returncode is None
-    # Nothing serves /health on that port, so an alive child reads as still loading. That is the
-    # honest state of every llama-server for the first seconds of its life.
     assert (await supervisor.status(_MODEL)).state is ModelHostState.LOADING
     await supervisor.stop(_MODEL)
     assert child.returncode is not None
@@ -97,13 +97,10 @@ async def test_a_real_child_is_started_signalled_and_reaped() -> None:
 
 @pytest.mark.integration
 async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace(tmp_path: Path) -> None:
-    """The bounded escalation, against a process that genuinely traps the signal."""
     armed = tmp_path / "armed"
     supervisor, processes = _supervisor(f'trap "" TERM; : > {armed}; sleep 30')
     await supervisor.start(_MODEL)
     async with asyncio.timeout(_ARM_TIMEOUT_S):
-        # The suppressed rule wants an asyncio.Event, which cannot observe a file that another
-        # process creates; the enclosing timeout is what keeps the poll from becoming a hang.
         while not armed.exists():  # noqa: ASYNC110
             await asyncio.sleep(0.01)
     child = processes.children[0]
@@ -114,7 +111,6 @@ async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace(tmp_p
 
 @pytest.mark.integration
 async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> None:
-    """The mechanism against a running sidecar: a real llama-server up, then genuinely gone."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -133,15 +129,12 @@ async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> 
         await host.stop(model)
         assert await host.status(model) is ModelHostState.STOPPED
     finally:
-        # Leave the tier this ran against loaded, which is the sidecar's boot default when the
-        # model is the standing resident (the default) and is the caller's to undo when it is not.
         await host.start(model)
         await client.aclose()
 
 
 @pytest.mark.integration
 async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> None:
-    """The swap, over real weights: the closest thing to a handoff that fits the dev GPU."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -167,12 +160,8 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
         await host.start(standing)
         assert manager.residency() == RESIDENCY_SERVING
         async with manager.swap_scope(deep):
-            # The gate inside swap_scope already waited for READY; what is asserted here is the
-            # eviction half, which nothing else would catch: a swap that loaded the deep model
-            # without stopping the standing one would leave both processes alive.
             assert await host.status(deep) is ModelHostState.READY
             assert await host.status(standing) is ModelHostState.STOPPED
-            # And what the seam would tell a probing overlay right now matches those two reads.
             assert manager.residency() == RESIDENCY_DEEP
             async with manager.acquire(deep) as lease:
                 assert lease.endpoint == "http://127.0.0.1:8081"
@@ -185,7 +174,6 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
 
 @pytest.mark.integration
 async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model() -> None:
-    """The opt-in reversal, over real weights: the peer tier never leaves the card."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -221,8 +209,6 @@ async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model(
         async with manager.swap_scope(deep):
             assert await host.status(deep) is ModelHostState.READY
             assert await host.status(standing) is ModelHostState.STOPPED
-            # The whole point: the peer was never asked to leave, so it is serving beside the
-            # deep model rather than waiting to be restarted after it.
             assert await host.status(peer) is ModelHostState.READY
         assert await host.status(standing) is ModelHostState.READY
         assert await host.status(peer) is ModelHostState.READY
@@ -234,7 +220,6 @@ async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model(
 async def test_a_stock_sidecar_answers_the_escalation_precondition_without_touching_a_thing() -> (
     None
 ):
-    """The refusal's evidence, taken from a real daemon rather than from the twin."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -260,8 +245,6 @@ async def test_a_stock_sidecar_answers_the_escalation_precondition_without_touch
         await host.start(standing)
         assert await _settled(host, standing) is ModelHostState.READY
         assert await manager.unhosted(deep) is True
-        # The half only a real daemon can witness: the question changed nothing. A swap that had
-        # gone ahead would have this tier STOPPED right now and owe minutes to reload it.
         assert await host.status(standing) is ModelHostState.READY
         assert manager.residency() == RESIDENCY_SERVING
     finally:
@@ -281,7 +264,6 @@ async def _settled(host: HttpModelHost, model: str) -> ModelHostState:
 
 @pytest.mark.integration
 async def test_the_real_sidecar_reports_the_card_it_can_see() -> None:
-    """The reading the fit check rests on, taken through the real adapter off a real driver."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -297,7 +279,6 @@ async def test_the_real_sidecar_reports_the_card_it_can_see() -> None:
 
 @pytest.mark.integration
 async def test_a_swap_refuses_the_load_the_card_has_no_room_for_and_allows_the_one_it_has() -> None:
-    """Both sides of the fit check against one real card, one real sidecar, one real load."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -315,18 +296,12 @@ async def test_a_swap_refuses_the_load_the_card_has_no_room_for_and_allows_the_o
         if reading is None:
             pytest.skip("this model-host container can see no GPU, so no fit can be checked")
         gate = _gate_for(host)
-        # One MiB more than the card has free: nothing may be started, and the message has to
-        # carry both figures, since that is all an operator gets to diagnose it with.
         with pytest.raises(SwapFailedError, match=f"only {reading.free_mib} of "):
             await swap_in(host, _fit_plan(target, reading.free_mib + 1), target, gate)
         assert await host.status(target) is ModelHostState.STOPPED
-        # Exactly what is free: the same call, the same card, and this one really loads.
         await swap_in(host, _fit_plan(target, reading.free_mib), target, gate)
         assert await host.status(target) is ModelHostState.READY
     finally:
-        # Leave the sidecar as it was found, on every path this can take: a start is idempotent,
-        # so it is a no-op against the tier the second arm just loaded and a restore for one an
-        # early skip left stopped.
         if found_running:
             await host.start(target)
         else:
@@ -336,7 +311,6 @@ async def test_a_swap_refuses_the_load_the_card_has_no_room_for_and_allows_the_o
 
 @pytest.mark.integration
 async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card() -> None:
-    """The handoff window's arithmetic, against a real residency change and a real card reading."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -391,7 +365,6 @@ async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card(
 
 @pytest.mark.integration
 async def test_a_background_pass_regains_residency_from_the_real_sidecar() -> None:
-    """The recovery that used to need a restart of the brain, taken off a real daemon's answers."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -411,14 +384,13 @@ async def test_a_background_pass_regains_residency_from_the_real_sidecar() -> No
         assert manager.residency() == RESIDENCY_SERVING
         async with manager.acquire(standing) as lease:
             assert lease.endpoint == "http://127.0.0.1:8080"
-        assert list(await _tier_states(host, (standing, deep))) == before  # a reading, not a move
+        assert list(await _tier_states(host, (standing, deep))) == before
     finally:
         await client.aclose()
 
 
 @pytest.mark.integration
 async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
-    """The guard, against a deep tier that is genuinely resident rather than a scripted one."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -441,7 +413,7 @@ async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
                 pytest.skip("this card could not hold both tiers, so there is no guard to test")
             await manager.publish_boot_residency(serving=False)
             await manager.heal_residency()
-            assert manager.residency().serving is False  # the deep tier still holds the card
+            assert manager.residency().serving is False
             await host.stop(deep)
             await manager.heal_residency()
             assert manager.residency() == RESIDENCY_SERVING
@@ -453,7 +425,7 @@ async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
 
 
 def _live_manager(host: HttpModelHost, standing: str, deep: str) -> SwappingModelManager:
-    """The shipped manager over the real adapter, with the endpoints the loopback override maps."""
+    """Build the shipped manager over the real adapter, on the loopback override's endpoints."""
     return SwappingModelManager(
         host,
         {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
@@ -464,7 +436,7 @@ def _live_manager(host: HttpModelHost, standing: str, deep: str) -> SwappingMode
 
 
 async def _tier_states(host: HttpModelHost, models: Sequence[str]) -> list[str]:
-    """What the sidecar says each tier is doing, with a 404 read as the fact that it is not one."""
+    """Return what the sidecar says each tier is doing, reading a 404 as a tier it does not host."""
     states: list[str] = []
     for model in models:
         try:
@@ -475,19 +447,19 @@ async def _tier_states(host: HttpModelHost, models: Sequence[str]) -> list[str]:
 
 
 def _spawn() -> PlacementRequest:
-    """One spawn asking for the shipped subagent VRAM budget."""
+    """Build one spawn asking for the shipped subagent VRAM budget."""
     return PlacementRequest("subagent", vram_gb=_SPAWN_GB, cpus=1.0, memory_gb=2.0)
 
 
 def _fit_plan(target: str, needed_mib: int) -> ResidencyPlan:
-    """A plan whose standing resident is the target itself, so nothing else is evicted."""
+    """Build a plan whose resident model is the target itself, so nothing else is evicted."""
     return ResidencyPlan(
         cortex_model=target, brain_model=target, brain_vram_mib=needed_mib, load_timeout_s=300.0
     )
 
 
 def _gate_for(host: HttpModelHost) -> Callable[[str], Awaitable[ModelHostState]]:
-    """The real readiness gate, bound to this host, as the manager binds its own."""
+    """The real readiness check, bound to this host, as the manager binds its own."""
 
     async def gate(model: str) -> ModelHostState:
         return await _settled(host, model)

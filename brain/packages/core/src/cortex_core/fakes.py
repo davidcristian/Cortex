@@ -21,7 +21,7 @@ from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, Too
 
 
 class EchoInferenceBackend:
-    """The scripted fake behind CI chat: deterministic, observable state survival."""
+    """A scripted backend: its reply counts the user messages it was given, so it is testable."""
 
     async def stream(
         self,
@@ -33,7 +33,6 @@ class EchoInferenceBackend:
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         """Stream the scripted reply; the model id and offered tools do not alter the script."""
-        # routing/config concern; the script is model/tool/schema-independent
         del model, tools, schema, bounds
         user_messages = [message for message in messages if message.role is Role.USER]
         if not user_messages:
@@ -46,7 +45,7 @@ class EchoInferenceBackend:
 
 
 class InMemoryTaskStore:
-    """TaskStore held in dicts as the contract twin of the Redis adapter (ADR-0010)."""
+    """TaskStore kept in dicts, tested against the same contract as the Redis adapter."""
 
     def __init__(self) -> None:
         self._tasks: dict[str, SubagentTask] = {}
@@ -74,7 +73,7 @@ _ToolHandler = Callable[[Mapping[str, Any]], Awaitable[_ToolAnswer]]
 
 
 class InMemoryToolRegistry:
-    """ToolRegistry held in a dict as the contract twin of the MCP adapter (ADR-0009)."""
+    """ToolRegistry kept in a dict, tested against the same contract as the MCP adapter."""
 
     def __init__(self, tools: Mapping[str, tuple[ToolSpec, _ToolHandler]]) -> None:
         self._tools = dict(tools)
@@ -126,7 +125,7 @@ class RecordingAuditSink:
 
 
 class RecordingConfirmer:
-    """Confirmer that records each request and returns a fixed answer, for gate tests (ADR-0013)."""
+    """Confirmer that records each request and returns a fixed answer."""
 
     def __init__(self, *, answer: bool) -> None:
         self._answer = answer
@@ -148,8 +147,7 @@ class RecordingConfirmer:
 
 
 class RecordingProgressSink:
-    """ProgressSink that records emitted events so tests can assert what a turn surfaced (ADR-0010).
-    """
+    """ProgressSink that records every event, so a test can assert what a turn reported."""
 
     def __init__(self) -> None:
         self._events: list[ProgressEvent] = []
@@ -165,7 +163,7 @@ class RecordingProgressSink:
 
 
 class RecordingPaceSink:
-    """PaceSink that records the verdicts a deep phase published, in order (ADR-0030)."""
+    """PaceSink that records the results a deep phase reported, in order."""
 
     def __init__(self) -> None:
         self._verdicts: list[bool] = []
@@ -176,7 +174,7 @@ class RecordingPaceSink:
 
     @property
     def verdicts(self) -> Sequence[bool]:
-        """Every verdict published so far, in order, one per handoff that settled a reading."""
+        """Every result reported so far, in order, one per handoff that produced a reading."""
         return tuple(self._verdicts)
 
 

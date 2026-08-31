@@ -27,8 +27,6 @@ describe("LinkDot", () => {
   });
 
   it("says what it means, for a pointer and for a screen reader alike", () => {
-    // A colour on its own is not an explanation, and this dot replaces one that explained
-    // nothing because it was always green.
     render(<LinkDot link={view({ state: "down", detail: "connection refused" })} />);
     const dot = screen.getByRole("status");
     expect(dot).toHaveAttribute("title", "Cannot reach the brain: connection refused");

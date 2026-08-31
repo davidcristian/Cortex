@@ -1,5 +1,3 @@
-"""What does recapping a dropped prefix cost, and does it keep what a follow-up needs?"""
-
 import os
 import time
 from collections.abc import Sequence
@@ -28,19 +26,16 @@ _ENDPOINT = os.environ.get("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:8080")
 _AT = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
 _SESSION = "recap-live"
 
-# The budget is small on purpose: it is the ratio of window to conversation that matters, and a
-# short corpus keeps the run to one generation per arm rather than a long transcript's worth.
+# Small on purpose: what matters is the ratio of window to conversation, and a short corpus
+# keeps the run to one generation per case rather than a transcript's worth.
 _BUDGET = 350
 
-# The facts the opening turns carry. The question at the end depends on the first of them, and
-# nothing after it repeats the number, so a window that merely truncates cannot answer.
 _OPENING = [
     ("my booking reference is QH7-4412 and the flight lands at 06:20", "Noted, QH7-4412 at 06:20."),
     ("the hotel is the Marlow on Gilbert Street, checking in late", "The Marlow, late check-in."),
     ("put the whole trip on the personal card, not the company one", "Personal card it is."),
 ]
 
-# Filler that pushes the opening out of the window without repeating anything from it.
 _FILLER = [
     ("what is the weather usually like there in spring?", "Mild, with rain most weeks."),
     ("is the tap water fine to drink?", "Yes, it is treated and safe everywhere in the city."),
@@ -52,8 +47,6 @@ _FILLER = [
     ("what plug voltage do they run?", "Two hundred and thirty volts."),
 ]
 
-# Filler for the staged run below, which keeps adding exchanges so the boundary moves again and
-# again and every fold after the first reads the previous account rather than the raw opening.
 _MORE_FILLER = [
     ("do the buses run through the night?", "On the two main lines only."),
     ("is tipping expected in cafes?", "Rounding up is enough."),
@@ -66,11 +59,13 @@ _MORE_FILLER = [
 _QUESTION = "remind me of my booking reference"
 _FACT = "QH7-4412"
 
+# Taken from the wrap rather than copied from it, so a leak check here follows what
+# ``wrap_untrusted`` really renders.
 _FENCE_TAG = wrap_untrusted("", nonce="0").split(" ", 1)[0].lstrip("<")
 
 
 def _exchanges(pairs: Sequence[tuple[str, str]]) -> list[Message]:
-    """``pairs`` as stored history: one user message and one assistant reply per exchange."""
+    """Render ``pairs`` as stored history: one user message and one assistant reply each."""
     messages: list[Message] = []
     for index, (user, assistant) in enumerate(pairs):
         turn = f"t{index}"
@@ -80,7 +75,7 @@ def _exchanges(pairs: Sequence[tuple[str, str]]) -> list[Message]:
 
 
 def _asking(pairs: Sequence[tuple[str, str]]) -> list[Message]:
-    """Those exchanges with the follow-up appended, which is what a turn hands the window."""
+    """Return those exchanges with the follow-up appended, as a turn hands them to the window."""
     return [*_exchanges(pairs), Message(role=Role.USER, text=_QUESTION, at=_AT, turn_id="ask")]
 
 
@@ -113,8 +108,6 @@ async def test_the_recap_is_measured_against_the_window_that_ships() -> None:
         summarizing = SummarizingHistoryWindow(plain, store, backend, _MODEL, _FixedClock())
 
         shipped = list(await plain.select(history, session_id=_SESSION))
-        # The first selection pays for the recap; the second is the cached read every later turn
-        # of the same boundary gets, which is what the feature actually costs in steady state.
         cold_started = time.monotonic()
         recapped = list(await summarizing.select(history, session_id=_SESSION))
         recap_cost = time.monotonic() - cold_started
@@ -135,8 +128,6 @@ async def test_the_recap_is_measured_against_the_window_that_ships() -> None:
             f"\nrecap pass: {recap_cost:.1f}s cold, {cached_cost:.3f}s cached"
             f"\nreply first token: shipped {shipped_ttft:.1f}s, recap {recapped_ttft:.1f}s"
             f"\nrecap: {stored.text if stored else '(none)'}"
-            # What the fence costs in the unit the budget is denominated in: the preface plus the
-            # two markers, carried on every turn the recap rides, on top of the recap itself.
             f"\nrecap text {len(stored.text) if stored else 0} chars,"
             f" fenced {len(recapped[0].text)} chars"
             f"\nasked: {_QUESTION}"
@@ -145,32 +136,23 @@ async def test_the_recap_is_measured_against_the_window_that_ships() -> None:
             f"\nfact {_FACT} kept: shipped {_FACT in shipped_answer},"
             f" recapped {_FACT in recapped_answer}"
         )
-        # The numbers are the point; the assertions pin only that the arms really differ, so a
-        # run where the recap silently did not happen cannot be read as a measurement of it.
         assert stored is not None
-        assert _FACT not in "".join(m.text for m in shipped)  # the fact really did drop out
-        assert len(recapped) == len(shipped) + 1  # and the recap really did ride along
-        # The control fired: without the recap the model cannot answer. A run where the shipped
-        # arm answers anyway has measured nothing, because there is no contrast left in it.
+        assert _FACT not in "".join(m.text for m in shipped)
+        assert len(recapped) == len(shipped) + 1
         assert _FACT not in shipped_answer
-        # And the fenced recap is still usable as facts, without the fence reaching the user.
         assert _FACT in recapped_answer
         assert _FENCE_TAG not in recapped_answer
 
 
-# How many of the staged runs below are played out. Retention across repeated folds turned out
-# to vary between runs, so one sample would be an anecdote in either direction; this reports a
-# rate. Each round is five folds plus two replies, so keep it small enough to sit through.
+# How many of the staged runs below are played out. Retention across repeated folds varies
+# between runs, so one sample would be an anecdote in either direction and this reports a rate.
 _ROUNDS = 3
 
-# Where the conversation grows, two exchanges at a time. Each growth moves the window's boundary,
-# so each is one fold reading the previous account rather than the raw opening.
 _GROWTH = [_FILLER[2:4], _FILLER[4:6], _FILLER[6:8], _MORE_FILLER[:2], _MORE_FILLER[2:4]]
 
 
 @pytest.mark.integration
 async def test_a_fact_survives_being_folded_forward_several_times() -> None:
-    """The same question after the boundary has moved repeatedly, which is the default-on case."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
         plain = CharBudgetHistoryWindow(_BUDGET)
@@ -183,8 +165,6 @@ async def test_a_fact_survives_being_folded_forward_several_times() -> None:
             )
             session = f"{_SESSION}-folded-{round_index}"
 
-            # The conversation grows as turns arrive, and the window is asked for its selection
-            # after each growth, so every move of the boundary is paid for as a fold.
             grown = [*_OPENING, *_FILLER[:2]]
             folds: list[tuple[int, float]] = []
             for pair in _GROWTH:
@@ -219,9 +199,8 @@ async def test_a_fact_survives_being_folded_forward_several_times() -> None:
                 f"\nfact {_FACT}: in the recap {kept}, in the reply {quoted}"
             )
             assert stored is not None
-            # The boundary really did move on every growth: these were folds, not cache hits.
             assert len({covers for covers, _ in folds}) == len(folds)
-            assert _FACT not in shipped_answer  # the control fires here too
+            assert _FACT not in shipped_answer
             assert _FENCE_TAG not in recapped_answer
         print(  # noqa: T201 -- the measurement IS this test's output
             f"\nafter {len(_GROWTH)} folds, over {_ROUNDS} rounds:"
@@ -230,20 +209,17 @@ async def test_a_fact_survives_being_folded_forward_several_times() -> None:
         )
 
 
-# How many times the before-and-after arm below repeats each side. Small: the point is a ratio
-# of several times, not a tight confidence interval, and the unbounded side is the slow one.
 _PRICING_RUNS = 3
 
 
 def _fold_prompt() -> list[Message]:
-    """The prompt one fold sends: a session's first account of its whole dropped opening."""
+    """Build the prompt one fold sends: a session's first account of its dropped opening."""
     dropped = _exchanges([*_OPENING, *_FILLER[:2]])
     return build_recap_messages(None, dropped, at=_AT, turn_id="t4")
 
 
 @pytest.mark.integration
 async def test_the_fold_costs_less_once_it_stops_paying_for_thinking_nobody_reads() -> None:
-    """The before and after, over the identical prompt, through the shipped adapter."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
         prompt = _fold_prompt()
@@ -264,7 +240,6 @@ async def test_the_fold_costs_less_once_it_stops_paying_for_thinking_nobody_read
             f" accounts {[len(a) for a in accounts['bounded']]} chars"
             f"\nbounded account: {accounts['bounded'][-1]}"
         )
-        # Every bounded fold produced something the window would actually store.
         assert all(accounts["bounded"])
         assert all(_FACT in account for account in accounts["bounded"])
         assert sum(timings["bounded"]) < sum(timings["unbounded"])
@@ -272,7 +247,6 @@ async def test_the_fold_costs_less_once_it_stops_paying_for_thinking_nobody_read
 
 @pytest.mark.integration
 async def test_a_small_cap_against_a_thinking_model_is_the_trap_the_pairing_avoids() -> None:
-    """Why the cap is not shipped on its own, with the number that says so."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
         prompt = _fold_prompt()
@@ -282,19 +256,18 @@ async def test_a_small_cap_against_a_thinking_model_is_the_trap_the_pairing_avoi
             f"\nthinking on, capped at {thinking_and_capped.max_tokens}:"
             f" {len(raw)} chars of reply, usable: {bool(clean_recap(raw))}"
         )
-        # And the pairing, at the same cap, is usable. Asserted together so the run cannot be
-        # read as "the model was slow today" rather than as the cap doing this.
         paired = await drain_text(backend, _MODEL, prompt, bounds=RECAP_BOUNDS)
         assert clean_recap(paired)
 
 
+# The floor ``build_history_window`` computes rather than the raw default: it is clamped to the
+# character budget, and this corpus runs on a deliberately tiny one.
 _DEFAULT_FLOOR = 2_000
 _SHIPPED_FLOOR = min(_DEFAULT_FLOOR, _BUDGET)
 
 
 @pytest.mark.integration
 async def test_the_shipped_fold_floor_pays_for_fewer_folds_over_the_same_conversation() -> None:
-    """What the default would actually do, counted rather than assumed."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
         plain = CharBudgetHistoryWindow(_BUDGET)

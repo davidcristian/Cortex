@@ -1,6 +1,4 @@
-"""What a ``RecallPolicy`` returns: the hits it kept, the key it ranked them by, and what that
-key means (ADR-0038).
-"""
+"""What a ``RecallPolicy`` returns: the kept hits, the ranking key, and what that key means."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -11,7 +9,7 @@ from cortex_core.memory import ScoredMemory
 
 
 class RankBasis(Enum):
-    """How a memory came to mind, or why none did (ADR-0038 decision 4, abstention addendum)."""
+    """Which quantity a policy ranked by, or why it returned nothing (ADR-0038 decision 4)."""
 
     ECHO = "echo"
     EMBER = "ember"
@@ -46,7 +44,7 @@ class Ranking:
     basis: RankBasis
 
     def __post_init__(self) -> None:
-        """Refuse the one combination that has no meaning: a declined rank that kept hits."""
+        """Raise for the one combination that has no meaning: a declined rank that kept hits."""
         if self.basis is RankBasis.DEMUR and self.hits:
             msg = "a DEMUR ranking declines, so it carries no hits"
             raise ValueError(msg)
@@ -94,7 +92,7 @@ def dropped_candidates(
 
 @dataclass(frozen=True, slots=True)
 class RecallAudit:
-    """One recall as its trail sees it: what was asked, how wide the pool was, and what ranked."""
+    """One recall as the trail records it: the query, the pool width, and what ranked."""
 
     session_id: str
     query: str

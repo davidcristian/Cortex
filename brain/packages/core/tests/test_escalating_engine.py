@@ -1,5 +1,3 @@
-"""The escalating wrapper: one turn, one stream, one completion, whichever model answers."""
-
 import asyncio
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
@@ -28,7 +26,7 @@ _AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
 
 
 class _ScriptedTurn:
-    """An inner turn that streams fixed events, optionally filling the slot as it goes."""
+    """An inner turn that streams fixed events and can fill the escalation slot as it goes."""
 
     def __init__(
         self,
@@ -48,8 +46,6 @@ class _ScriptedTurn:
         self, session_id: str, text: str, *, turn_id: str
     ) -> AsyncGenerator[TurnEvent, None]:
         del session_id, text, turn_id
-        # Arm the slot exactly as the real engine does at turn start, so the wrapper's slot is
-        # the one that ends up snapshotted.
         self._slot.refs = EscalationRefs(
             working=[Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN)],
             taint=TaintLedger(),
@@ -75,11 +71,7 @@ def _wrapper(
     brief: str | None = None,
     block: asyncio.Event | None = None,
 ) -> tuple[EscalatingTurnEngine, list[_ScriptedTurn]]:
-    """The wrapper around a scripted inner turn, plus the list the turns it built land in.
-
-    The inner turn is constructed around the slot the WRAPPER makes, which is the seam under
-    test: a turn fills the slot it was armed with, and the wrapper reads that same one.
-    """
+    """The wrapper around a scripted inner turn, plus the list of turns it built."""
     built: list[_ScriptedTurn] = []
 
     def make(slot: EscalationSlot) -> TurnRunner:
@@ -102,7 +94,6 @@ async def _drain(engine: EscalatingTurnEngine) -> list[TurnEvent]:
 
 
 async def test_a_turn_that_does_not_escalate_is_passed_through_unchanged() -> None:
-    """The wrapper is transparent until the model actually asks for the deep tier."""
     live = build_harness()
     completed = TurnCompleted(turn_id=harness.TURN, full_text="just this")
     thinking = StatusUpdate(state="thinking", detail="hmm")
@@ -110,13 +101,11 @@ async def test_a_turn_that_does_not_escalate_is_passed_through_unchanged() -> No
         live.conductor, events=(thinking, TextDelta(text="just this"), completed)
     )
     events = await _drain(engine)
-    # Everything the inner turn emitted rides through untouched, in order, completion included.
     assert events == [thinking, TextDelta(text="just this"), completed]
-    assert live.host.calls == []  # nothing was swapped, because nothing was asked for
+    assert live.host.calls == []
 
 
 async def test_the_escalated_turn_answers_under_the_id_it_was_asked_to_serve() -> None:
-    """The wrapper's id is the caller's, never whatever the inner runner claimed."""
     live = build_harness()
     await live.seed_session()
     engine, _built = _wrapper(
@@ -127,13 +116,10 @@ async def test_the_escalated_turn_answers_under_the_id_it_was_asked_to_serve() -
     events = await _drain(engine)
     completions = [event for event in events if isinstance(event, TurnCompleted)]
     assert [completion.turn_id for completion in completions] == [harness.TURN]
-    # And the handoff ran under that same name, not the inner runner's: the record a clean
-    # handoff deletes at the end is keyed by the id the conductor was asked to claim.
     assert live.handoffs.deleted == [harness.TURN]
 
 
 async def test_an_escalating_turn_completes_once_at_the_true_end() -> None:
-    """The inner completion is suppressed; the real one carries the whole turn's text."""
     live = build_harness()
     await live.seed_session()
     engine, _built = _wrapper(
@@ -144,17 +130,14 @@ async def test_an_escalating_turn_completes_once_at_the_true_end() -> None:
     events = await _drain(engine)
     completions = [event for event in events if isinstance(event, TurnCompleted)]
     assert len(completions) == 1
-    assert events[-1] is completions[0]  # exactly one, and last
+    assert events[-1] is completions[0]
     assert completions[0].turn_id == harness.TURN
-    # The whole turn's text: the cortex's wrap-up and the deep model's answer.
     assert completions[0].full_text == harness.CORTEX_TEXT + "a deep answer"
-    # And the swap really happened between them, on this one stream.
     assert any(isinstance(event, StatusUpdate) for event in events)
     assert live.host.calls.count(("start", "brain")) == 1
 
 
 async def test_the_wrapper_hands_the_conductor_the_turn_id_the_inner_engine_minted() -> None:
-    """The handoff record is keyed by the escalating turn, which only the engine knows."""
     live = build_harness()
     await live.seed_session()
     engine, _built = _wrapper(
@@ -167,7 +150,6 @@ async def test_the_wrapper_hands_the_conductor_the_turn_id_the_inner_engine_mint
 
 
 async def test_closing_the_stream_mid_cortex_phase_tears_the_inner_turn_down() -> None:
-    """A consumer that walks away leaves no half-suspended turn and no handoff behind."""
     live = build_harness()
     engine, built = _wrapper(
         live.conductor, events=(TextDelta(text="thinking"),), block=asyncio.Event()
@@ -180,7 +162,6 @@ async def test_closing_the_stream_mid_cortex_phase_tears_the_inner_turn_down() -
 
 
 async def test_closing_the_stream_mid_handoff_unwinds_the_swap_at_the_wrapper_too() -> None:
-    """The conductor's stream is owed the same deterministic close the inner turn already gets."""
     live = build_harness()
     await live.seed_session()
     engine, _built = _wrapper(
@@ -192,15 +173,13 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_at_the_wrapper_to
     async for event in stream:
         if isinstance(event, StatusUpdate) and event.detail == WORKING_DETAIL:
             break
-    assert live.host.running == {"brain"}  # the swap really is in flight
+    assert live.host.running == {"brain"}
     await stream.aclose()
-    # No cancellation and no settling: the close itself is what owes the swap back.
     assert live.host.running == {"cortex"}
     assert await live.handoffs.active() is None
 
 
 async def test_an_inner_turn_that_never_completes_hands_nothing_off() -> None:
-    """No completion means the turn was torn down, not finished, so there is nothing to swap."""
     live = build_harness()
     engine, _built = _wrapper(
         live.conductor, events=(TextDelta(text="cut short"),), brief=harness.BRIEF

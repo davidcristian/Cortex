@@ -1,4 +1,4 @@
-"""The couplings around one capture: what the brain asks for, holds the reply to, and waits."""
+"""The couplings around one capture: the size asked for, the reply allowed, and the deadlines."""
 
 from couplings import Constant, Mention, Site
 
@@ -12,11 +12,11 @@ BODY_CONFIG_TEST = "brain/packages/orchestrator/tests/test_config.py"
 SCREEN_POLICY = "body/crates/core/src/os/screen_policy.rs"
 SEAM_PROTO = "proto/body.proto"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
-BODY_CORE_DOC = "docs/modules/body-core.md"
+BODY_CORE_DOC = "docs/modules/body-core-capture.md"
 CAPTURE_BYTES = "body/crates/core/tests/capture_bytes.rs"
 CAPTURE_CHECK = "docs/host/tasks/012-display-capture-path.md"
 MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
-ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
+ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator-config.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
@@ -52,9 +52,6 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_CLIENT_DOC, "`DEFAULT_CALL_TIMEOUT_S = {value}`"),
         ),
     ),
-    # The two capture bounds that ride with a request. The byte budget is the brain's half of a
-    # ceiling the body enforces too, so it is a site in `seamcouplings.py` as well; here it is the
-    # shipped number three deployment surfaces restate. The edge is the brain's alone.
     Constant(
         label="the capture edge's shipped default",
         why=(
@@ -62,16 +59,13 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
             "module contracts quote it as the brain half of the measured legibility pair, and "
             "the body's own headroom suite sizes its worst case on it, so retuning the field "
             "alone would leave every deployment asking for the old edge while the encoder was "
-            "sized for the new one (ADR-0029 legibility addendum)"
+            "sized for the new one (ADR-0029 decision 17)"
         ),
-        # The second site is the other tree's: `capture_bytes.rs` names the edge the brain asks
-        # for and measures how much room the byte ceiling leaves at it, so a retune here alone
-        # leaves that suite reporting headroom for a capture nothing requests any more.
         sites=(Site(BODY_CONFIG, "DEFAULT_CAPTURE_MAX_EDGE"), Site(CAPTURE_BYTES, "BRAIN_EDGE")),
         mentions=(
             Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
             Mention(BODY_COMPOSE, "defaults to {value} rather"),
-            Mention(BODY_CONFIG, "defaults to **{value} rather"),
+            Mention(BODY_CONFIG, "asks for {value} rather"),
             Mention(CAPTURE_BYTES, "a {value} px capture by default"),
             Mention(CAPTURE_BYTES, "a {value} px capture costs"),
             Mention(CAPTURE_BYTES, "resampled to {value} px"),
@@ -102,7 +96,7 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
             Mention(CAPTURE_BYTES, "than the {value} px view"),
             Mention(CAPTURE_BYTES, "than a {value} px one"),
             Mention(IMAGES, "the body's {value} px default edge"),
-            Mention(BODY_CONFIG, "the body's own {value}**"),
+            Mention(BODY_CONFIG, "the body's own {value},"),
             Mention(BODY_CONFIG, "its own conservative {value}"),
             Mention(BODY_CONFIG_TEST, "body's own default is {value}"),
             Mention(BODY_COMPOSE, "the body's own {value}, which"),

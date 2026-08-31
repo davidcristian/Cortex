@@ -20,18 +20,18 @@ The shell's eager `converse` dial takes the same helper, so no attempt the body 
 is unbounded.
 
 **The enforcement point moved, and the reason is the interesting half.** The shape the entry
-proposed, a request timeout in the adapter, is a trap. tonic attaches its `transport::Error` to
-the `Status::cancelled` it raises on its own expiry, so `body/crates/rpc/src/status.rs` classifies
-that as `TransportError::Connection` and the indicator draws `Down`, which is honest. `Connection`
-is in the *retryable* set, though, so a transport-armed deadline would have been retried, two more
-times on the shipped schedule, against a brain that had just proved too slow or too stuck to
-answer. That is the load amplifier this same entry classifies a timeout terminal to avoid, reached
-through a back door and with nothing in the indicator looking wrong while it happened. So
-the bound is enforced in the core over the `Sleeper` port, which gained a second question,
-`bounded(deadline, call)`, whose real implementation is one line of `tokio::time::timeout` in the
-ungated shell beside the existing `sleep`. The failure is its own variant,
-`TransportError::Timeout { after }`, and the indicator draws it `Down`, since `Degraded` means the
-brain answered and a timeout is exactly the absence of an answer.
+proposed, a request timeout in the adapter, is the wrong place for it. tonic attaches its
+`transport::Error` to the `Status::cancelled` it raises on its own expiry, so
+`body/crates/rpc/src/status.rs` classifies that as `TransportError::Connection` and the indicator
+draws `Down`, which is accurate. `Connection` is in the *retryable* set, though, so a
+transport-armed deadline would have been retried, two more times on the shipped schedule, against a
+brain that had just proved too slow or too stuck to answer. That is the load amplifier this same
+entry classifies a timeout terminal to avoid, reached indirectly and with nothing in the indicator
+looking wrong while it happened. So the bound is enforced in the core over the `Sleeper` port, which
+gained a second question, `bounded(deadline, call)`, whose real implementation is one line of
+`tokio::time::timeout` in the ungated shell beside the existing `sleep`. The failure is its own
+variant, `TransportError::Timeout { after }`, and the indicator draws it `Down`, since `Degraded`
+means the brain answered and a timeout is exactly the absence of an answer.
 
 **The retryability decision, made deliberately rather than inherited:** an expired deadline is
 **terminal**. A retried deadline is the classic load amplifier, and it amplifies when the peer is
@@ -42,11 +42,11 @@ deadline, which is a knob rather than a repeat. The decline of `DEADLINE_EXCEEDE
 [022](022-retryable-code-table.md) rested on there being no producer, and that ground is gone, so
 the classification now stands on its merits and is pinned by test alongside the local variant.
 
-**The probe budget now counts the attempts**, which is what makes its promise true rather than
-approximately true: `RetryPolicy::within` takes the per-attempt cost and trims until
-`attempts × deadline + backoff` fits, so `Down` arrives within `max(probe_budget, probe_deadline)`.
-That changes the shipped default deliberately, from three probe attempts to two, so the dot
-resolves inside 700 ms worst case and still spends one real retry on a restarting brain.
+**The probe budget now counts the attempts**, which is what makes its bound exact rather than
+approximate: `RetryPolicy::within` takes the per-attempt cost and trims until `attempts × deadline +
+backoff` fits, so `Down` arrives within `max(probe_budget, probe_deadline)`. That changes the
+shipped default deliberately, from three probe attempts to two, so the dot resolves inside 700 ms
+worst case and still spends one real retry on a restarting brain.
 
 ## Trail
 

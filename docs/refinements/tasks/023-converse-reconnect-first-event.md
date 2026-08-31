@@ -5,8 +5,8 @@
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 **Trigger:** routine mid-turn evictions once the real model swap lands, and turns costly enough that a silent re-run beats paying for dedup.
 
-Its one-line cost ("a
-replayable request and a signature change") was right about the shape and silent about the size.
+The transport retry entry costed this at one line, "a replayable request and a signature
+change", which was right about the shape and said nothing about the size.
 Read against both sides of the seam: a `converse` turn's first durable effect is
 `await self._store.append(session_id, user)` in `TurnEngine.handle_turn` (`engine.py`), run
 before inference and before the first yielded event, on an independent turn task that advances
@@ -22,11 +22,11 @@ plus a Redis-backed idempotency/resume registry keyed by `(session_id, request_i
 a model swap (the one hard rule) and either replays a completed turn's outcome or re-attaches to
 an in-flight turn's buffered events. That is a turn-lifecycle state machine, an idempotency store,
 and an event-replay path, and it reverses the deliberate "an in-flight turn is disposable, its
-partial reply dropped" design. Disproportionate at personal loopback scale where reconnects are
+partial reply dropped" design. That is disproportionate at personal loopback scale, where reconnects are
 rare and a dropped turn is already terminal (the user resends), so it waits for a trigger: routine
 mid-turn evictions once the real model swap lands, and turns costly enough that a silent re-run
 beats paying for dedup. `converse` stays unretried (`SeamMethod::Converse` is not repeatable);
-this sharpen is why, not a change to it.
+this sharpening explains why, and does not change it.
 
 ## Trail
 

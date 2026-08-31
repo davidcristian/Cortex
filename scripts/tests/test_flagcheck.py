@@ -1,4 +1,4 @@
-"""Behaviour of the gate holding every subagent server this repo starts to its tier's flags."""
+"""Tests for the gate holding every subagent server this repo starts to its tier's flags."""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -192,7 +192,7 @@ def test_the_committed_tree_is_green_so_every_red_below_is_the_mutation(tmp_path
 def test_the_hosted_tier_is_held_by_the_same_rule_as_the_servers_compose_starts(
     tmp_path: Path,
 ) -> None:
-    """The placement no compose file holds. Taking the pair off the sidecar's own tier reddens
+    """The placement no compose file holds. Taking the pair off the sidecar's own tier fails
     this gate rather than only the suite next to it, which is what one rule over two placements
     means: the fault names the module the argv is assembled in, not a service."""
     faults = check(copied(tmp_path, [(TIER_MODULE, HOSTED_PAIR, "                extra=(),\n")]))
@@ -219,7 +219,7 @@ def test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared(tmp_path
     assert len(faults) == 2, "the shared argv still carries --jinja, so only the pair is missing"
 
 
-def test_a_sidecar_renaming_the_tool_capable_template_reddens_its_own_tier(
+def test_a_sidecar_renaming_the_tool_capable_template_fails_its_own_tier(
     tmp_path: Path,
 ) -> None:
     """The flag names are compared rather than each trusted to its own tree, so the requirement
@@ -258,7 +258,7 @@ def test_a_server_started_without_the_tool_capable_template_is_a_fault(tmp_path:
 
 def test_a_server_no_registry_names_is_held_the_day_its_override_is_written(tmp_path: Path) -> None:
     """The whole reason this scan exists. A third server, in a file nothing here has heard of,
-    dialled by a roster entry and started with none of the flags: every requirement reddens, and
+    dialled by a roster entry and started with none of the flags: every requirement fails, and
     nobody had to add it to a list first."""
     root = copied(tmp_path)
     (root / "docker" / "docker-compose.subagents-third.yml").write_text(THIRD, encoding="utf-8")
@@ -282,7 +282,7 @@ def test_an_artifact_named_outside_the_family_names_itself_and_says_what_it_cost
     assert fault is not None
     assert fault.detail.startswith("the artifact naming rule: ")
     assert "CORTEX_SUB_FILE" in fault.detail
-    assert "leaves the set in silence" in fault.detail
+    assert "drops out of the set unreported" in fault.detail
 
 
 def test_a_hosted_tiers_artifact_spelled_another_way_is_reported_rather_than_dropped(
@@ -316,7 +316,7 @@ def test_a_compose_servers_artifact_spelled_another_way_is_reported_too(tmp_path
 def test_a_fourth_tier_arriving_under_a_name_no_reader_looks_at_is_held_the_day_it_lands(
     tmp_path: Path,
 ) -> None:
-    """The two halves together. A fourth tier spelled inside the family reddens for the tail its
+    """The two halves together. A fourth tier spelled inside the family fails for the tail its
     author forgot; spelled outside it, the tail is nobody's business because the tier is in no
     set, and the name is what reports it."""
     field = FOURTH_FIELD + (

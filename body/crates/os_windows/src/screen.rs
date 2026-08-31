@@ -1,5 +1,8 @@
 //! The Windows [`ScreenCapture`] backend: a GDI `BitBlt` of the primary display.
-#![allow(unsafe_code)] // ADR-0029: GDI (GetDC/BitBlt/GetDIBits) is a raw Win32 FFI surface.
+//!
+//! GDI draws hardware-overlay and DRM-protected surfaces black, and no error tells that apart
+//! from a dark screen. Every size decision (crop, downscale, encode, byte limit) is in `body_core`.
+#![allow(unsafe_code)] // GDI is a raw Win32 API.
 
 use body_core::{
     CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, RawFrame, ScreenCapture, TargetRect,
@@ -69,7 +72,7 @@ fn framed(frame: RawFrame, target: Option<TargetRect>) -> CapturedFrame {
     }
 }
 
-/// The primary display's size in **physical pixels**.
+/// The primary display's size in physical pixels.
 fn display_size() -> Result<(u32, u32), CaptureError> {
     // SAFETY: a pure metric read with no handles and no out-parameters.
     let (width, height) = unsafe { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
@@ -83,6 +86,9 @@ fn display_size() -> Result<(u32, u32), CaptureError> {
 }
 
 /// Copies `width x height` pixels out of `screen` and reads them back as BGRA bytes.
+///
+/// Split from the trait method so that the screen device context is released on every failure
+/// path. The handles created here are released here, in reverse creation order.
 fn blit(screen: HDC, width: u32, height: u32) -> Result<Vec<u8>, CaptureError> {
     // SAFETY: `screen` is a live DC from `GetDC`; the memory DC is deleted below.
     let memory = unsafe { CreateCompatibleDC(screen) };
@@ -129,8 +135,7 @@ fn copy_pixels(
     let (w, h) = (as_i32(width)?, as_i32(height)?);
     // SAFETY: both handles are live and the bitmap is compatible with `screen`.
     let previous = unsafe { SelectObject(memory, HGDIOBJ(bitmap.0)) };
-    // SAFETY: a straight copy of the whole screen into the selected bitmap. CAPTUREBLT is what
-    // includes layered windows, which is most of what a modern desktop is made of.
+    // SAFETY: a straight copy of the whole screen into the selected bitmap.
     let blitted = unsafe { BitBlt(memory, 0, 0, w, h, screen, 0, 0, SRCCOPY | CAPTUREBLT) };
     let taken = match blitted {
         Ok(()) => read_back(memory, bitmap, width, height),
@@ -145,8 +150,8 @@ fn copy_pixels(
 
 /// Reads `bitmap` back as a top-down 32-bit BGRA buffer.
 ///
-/// The header's height is **negative**, which is what asks GDI for top-down rows; a positive
-/// height would hand back a vertically flipped image, and the core has no way to know.
+/// The header's height is negative, which is what asks GDI for top-down rows. A positive
+/// height returns a vertically flipped image, which the core cannot detect.
 fn read_back(
     memory: HDC,
     bitmap: HBITMAP,
@@ -203,13 +208,16 @@ fn as_i32(value: u32) -> Result<i32, CaptureError> {
 }
 
 /// Hides a window from every screen capture on the machine, at the DWM level.
+///
+/// The overlay is opaque and on top, so without this the model would see its own prior output.
+/// `false` means the OS refused, which the caller must treat as forbidding capture entirely.
 #[must_use]
 pub fn exclude_from_capture(hwnd: isize) -> bool {
     use windows::Win32::UI::WindowsAndMessaging::{
         SetWindowDisplayAffinity, WDA_EXCLUDEFROMCAPTURE,
     };
 
-    // SAFETY: a display-affinity change on a window handle the caller owns; it touches no
-    // memory of ours and returns a plain success flag.
+    // SAFETY: a display-affinity change on a window handle the caller owns; it touches no memory of
+    // ours and returns a plain success flag.
     unsafe { SetWindowDisplayAffinity(HWND(hwnd as *mut _), WDA_EXCLUDEFROMCAPTURE).is_ok() }
 }

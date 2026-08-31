@@ -229,8 +229,8 @@ def test_extract_urls_refangs_a_defanged_mailto() -> None:
 
 
 def test_a_defanged_url_and_its_plain_twin_share_one_identity() -> None:
-    # The whole point: a fully-defanged link normalizes to exactly its plain form, so collection
-    # from untrusted content and reproduction in the reply always compare equal.
+    # A fully-defanged link normalizes to exactly its plain form, so collection from untrusted
+    # content and reproduction in the reply always compare equal.
     assert extract_urls("hxxps://evil[.]example/report") == extract_urls(
         "https://evil.example/report"
     )
@@ -503,8 +503,9 @@ def test_data_scheme_split_across_chunks_is_carried_not_lost() -> None:
 
 
 def test_extract_urls_refangs_a_defang_dot_with_encoded_inner_and_literal_brackets() -> None:
-    # The gap: literal brackets + an encoded inner dot. The raw `]`/`)`/`}` used to end the match
-    # before decode ran, orphaning the token; the chunk now eats the closer so decode+refang fold.
+    # The case this closes: literal brackets around an encoded inner dot. The raw `]`/`)`/`}`
+    # used to end the match before decode ran, orphaning the token; the chunk now consumes the
+    # closer, so decode and refang fold it.
     plain = {"http://evil.example"}
     assert extract_urls("http://evil[&#46;]example") == plain  # numeric entity dot
     assert extract_urls("http://evil(&#46;)example") == plain
@@ -566,8 +567,9 @@ def test_a_long_unclosed_bracket_run_terminates_and_matches_linearly() -> None:
 
 
 def test_extract_urls_refangs_an_encoded_scheme_separator() -> None:
-    # The gap: the colon entity-/percent-encoded inside defang brackets. The whole match used to
-    # fail to anchor, so `extract_urls` returned *nothing*: both redact and strict mode missed it.
+    # The case this closes: the colon entity- or percent-encoded inside defang brackets. The
+    # match used to fail to anchor, so `extract_urls` returned *nothing* and both redact and
+    # strict mode missed it.
     plain = {"http://evil.example"}
     assert extract_urls("http[&#58;//]evil.example") == plain  # numeric entity colon
     assert extract_urls("http[%3a//]evil.example") == plain  # percent-escaped colon
@@ -609,8 +611,8 @@ def test_encoded_separator_split_across_chunks_is_carried_not_lost() -> None:
 
 
 def test_an_unescaped_bracket_at_the_separator_is_not_a_url() -> None:
-    # The escape marker is load bearing: without it this chunk would match ordinary prose, which
-    # strict mode would then redact out of the repo's own docs.
+    # The escape marker is what keeps this narrow: without it the chunk would match ordinary
+    # prose, which strict mode would then redact out of the repo's own docs.
     assert extract_urls("http(s)-only endpoints") == frozenset()
     assert extract_urls("use http(s) or ftp(s) here") == frozenset()
 
@@ -701,7 +703,7 @@ def test_a_bare_bracketed_colon_in_prose_is_not_a_url() -> None:
 
 
 def test_an_opaque_turn_is_scanned_strictly_under_the_default_policy() -> None:
-    """The default policy redacts URLs collected from untrusted result *text*."""
+    """An opaque turn is scanned strictly even under the default policy."""
     taint = _Taint(tainted=True, opaque=True)
     guard = UrlRedactingGuardrail().open(taint, allow=frozenset())
     fed = guard.feed(f"the screen says {EVIL} ") + guard.flush()
@@ -711,7 +713,7 @@ def test_an_opaque_turn_is_scanned_strictly_under_the_default_policy() -> None:
 
 def test_a_tainted_but_transparent_turn_keeps_the_default_policy() -> None:
     """The control arm: without the opaque bit the same turn redacts only what it collected, so
-    the escalation above is the bit and not some blanket tightening."""
+    the escalation above comes from the bit rather than from a blanket tightening."""
     taint = _Taint(tainted=True, opaque=False)
     guard = UrlRedactingGuardrail().open(taint, allow=frozenset())
     fed = guard.feed(f"the page says {EVIL} ") + guard.flush()
@@ -974,7 +976,8 @@ def test_the_tenth_addendum_composes_with_its_predecessors() -> None:
 
 
 def test_extract_urls_anchors_a_slashless_authority() -> None:
-    # The bypass: one solidus or none, in every scheme the parser reads a special authority for.
+    # The bypass this closes: one solidus or none, in every scheme the parser reads a special
+    # authority for.
     assert extract_urls("https:evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https:/evil.example/pay") == _PLAIN_LINK
     assert extract_urls(r"https:\evil.example/pay") == _PLAIN_LINK
@@ -1233,7 +1236,7 @@ def test_a_gap_is_spelled_with_every_space_nfkc_folds() -> None:
 
 def test_the_gap_space_table_is_exactly_what_nfkc_folds_to_a_space() -> None:
     # The table is the claim, so the claim is checked against the database rather than trusted: a
-    # later Unicode version adding a space character reddens here instead of quietly opening a gap.
+    # later Unicode version adding a space character fails here instead of quietly opening a gap.
     folded = {
         chr(point)
         for point in range(sys.maxunicode + 1)

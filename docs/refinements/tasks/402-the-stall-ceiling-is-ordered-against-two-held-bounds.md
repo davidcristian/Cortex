@@ -11,8 +11,8 @@ and left the third number in the same ordering loose.
 `brain/packages/core/src/cortex_core/subagents.py` states the ordering three bounds stand in: "the
 pool's 600 s stall ceiling and its 3600 s admission wait, so the three are ordered by the scope of
 what they bound". The run deadline in the middle has been a registry entry since it landed; the
-admission wait above it is one now; the ceiling under it is not, and it is the one the brain
-actually refuses to boot against (`config_subagents.py`, the `run_timeout_s <= stall_timeout_s`
+admission wait above it is one now; the ceiling under it is not, and it is the one the brain's
+own boot-time check reads (`config_subagents.py`, the `run_timeout_s <= stall_timeout_s`
 check). So one sentence now carries two held numbers and one free one, which is the shape a
 presence check reads as green while half a line is wrong.
 
@@ -40,10 +40,10 @@ find two constants that are not the same value and one env name that is not this
 - 2026-08-23: landed as one entry in `scripts/subagentcouplings.py`, one site and four mentions.
   **Its own count was low, as it warned it might be.** It names three far sides; the tree carries
   four, the miss being [modules/brain-inference.md](../../modules/brain-inference.md)'s "600 s for
-  the CPU pool". **And the hoist went elsewhere than it proposed**: not into `cortex_core` beside
-  the run deadline, but into `config_subagents.py` beside `DEFAULT_MEM_BUDGET_GB`, which is a
-  module constant there for this same reason already. The pure core never spends this number, and
-  putting one there to suit a scan would be the gate editing the architecture. Out because it
+  the CPU pool". **And the hoist went elsewhere than it proposed**: into `config_subagents.py` beside
+  `DEFAULT_MEM_BUDGET_GB`, which is a module constant there for this same reason already, rather
+  than into `cortex_core` beside the run deadline. The pure core never spends this number, and
+  putting one there to suit a scan would mean changing the architecture to satisfy the gate. Out because it
   states no number: the compose override's knob list, which documents the env var and leaves the
   value to the brain. Out on the suite rule: the unit test asserting the default. Five planted
   drifts each exited 1 and each restoration returned the gate to green, with one control staying

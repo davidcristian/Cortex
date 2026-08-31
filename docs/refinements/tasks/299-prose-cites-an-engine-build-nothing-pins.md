@@ -20,12 +20,11 @@ cached `server-cuda` prints `version: 9870 (2d973636e)`, and inside the cached `
 `version: 9879 (72874f559)`. So the CPU-tier citations match the image that would run, and the
 GPU-tier ones name a build this machine does not have.
 
-**Why it is worth recording rather than shrugging at.** The number is not decoration: the same
-corpus already records that a cached `server-cuda` at b9870 survives a start that b10236 and b10276
-abort on (the vision ADR and the GPU runbook), so which build is present changes behaviour and not
-only throughput. A reader who re-pulls the tag gets neither the build the prose names nor
-necessarily the one that works, and every figure attributed to b10298 becomes a claim about a stack
-nobody in the repo is running.
+**Why it is worth recording.** The number is not decoration: the same corpus already records that a
+cached `server-cuda` at b9870 survives a start that b10236 and b10276 abort on (the vision ADR and
+the GPU runbook), so which build is present changes behaviour and not only throughput. A reader who
+re-pulls the tag gets neither the build the prose names nor necessarily the one that works, and
+every figure attributed to b10298 becomes a claim about a stack nobody in the repo is running.
 
 **Three shapes, none of them settled here.** Pinning the image by digest makes the tag mean one
 thing and turns an engine upgrade into a commit, at the cost of a deliberate bump whenever upstream

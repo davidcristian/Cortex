@@ -1,5 +1,5 @@
 //! The Windows [`AudioControl`] backend: Core Audio (`IAudioEndpointVolume`) master volume.
-#![allow(unsafe_code)] // ADR-0023: Core Audio (IAudioEndpointVolume) is COM.
+#![allow(unsafe_code)] // Core Audio is a COM API.
 
 use std::ptr;
 
@@ -11,9 +11,7 @@ use windows::Win32::System::Com::{
 };
 use windows::core::Error as WinError;
 
-/// The Windows Core Audio volume backend. Stateless, since each call resolves the current default
-/// render endpoint, so a device change between calls is picked up (the one hard rule: the body
-/// server holds no state).
+/// The Windows Core Audio volume backend.
 pub struct WindowsAudioControl;
 
 impl WindowsAudioControl {
@@ -23,12 +21,10 @@ impl WindowsAudioControl {
         Self
     }
 
-    /// Resolves the default render endpoint's volume interface. COM is initialized on the
-    /// calling thread (idempotent, multithreaded apartment, so any async worker may call).
-    /// Takes no `self`: the backend is stateless, so the lookup depends only on the OS.
+    /// Resolves the default render endpoint's volume interface.
     fn endpoint() -> Result<IAudioEndpointVolume, AudioError> {
         unsafe {
-            // Idempotent per thread; a prior initialization returns a non-fatal status we ignore.
+            // Initializing COM again on this thread returns a non-fatal status, which is ignored.
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)

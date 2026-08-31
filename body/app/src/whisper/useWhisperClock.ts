@@ -12,19 +12,25 @@ import {
 } from "./front";
 import { MIST_GAP, MIST_H, MIST_W, type Metrics, boxFor, measure, watchWrap } from "./metrics";
 
+// The whisper's frame clock: one rAF loop that writes the letter ramps, the mist's glide and the
+// bubble's posed box as inline styles, never through React. Per-frame state is a ref and what the
+// loop needs from a render is read out of a ref, so the loop never restarts mid-reply.
+
 export type WhisperPhase = "breath" | "talking" | "settled";
 
 /** How fast the posed box chases the front (per second of gain). */
 const BOX_GAIN = 10;
-/** The mist eases a little quicker than the box, so it reads as leading, not dragged. */
+/** The mist eases a little quicker than the box, so it reads as leading rather than dragged. */
 const MIST_GAIN = 12;
 /** How far the front must travel before the breath becomes speech. */
 const TALK_THRESHOLD = 0.05;
 /** How deep the band's blur goes at the mist end of a letter's ramp. */
 const BLUR_PX = 4;
-/** A clock tick is capped here so a background tab's resumed frame cannot teleport the front. */
+/** A clock tick is capped here, so the first frame after a background tab resumes cannot jump
+ *  the front far forward in one step. */
 const MAX_TICK_SECONDS = 0.05;
-/** A height change worth reporting to the tail pin; the box eases in sub-pixel steps below it. */
+/** A height change worth reporting, so the history can follow the tail; the box eases in
+ *  sub-pixel steps below this. */
 const GROWTH_NOTICE_PX = 0.5;
 
 export interface WhisperRefs {
@@ -41,7 +47,7 @@ export interface WhisperFacts {
   readonly confirmed: number;
   /** False under reduced motion: no frames are scheduled at all, the mark's standard. */
   readonly animated: boolean;
-  /** Fired when the posed box grows, so the history's tail pin can follow the drain. */
+  /** Fired when the posed box grows, so the history can follow the tail through the drain. */
   readonly onGrow: () => void;
 }
 
@@ -58,9 +64,9 @@ interface World {
   my: number;
 }
 
-/** One letter's paint under the band: fractional opacity and blur, pinned at "1" once done
- *  because the `.ch` class holds unreached letters at zero and clearing the inline style would
- *  hand a finished letter back to it. */
+/** One letter's paint under the band: fractional opacity and blur, held at "1" once done. The
+ *  `.ch` class keeps unreached letters at zero, so clearing the inline style would hand a
+ *  finished letter back to it. */
 function paint(el: HTMLElement, q: number): void {
   if (q >= 1) {
     el.style.opacity = "1";
@@ -75,11 +81,8 @@ function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }
 
-/**
- * Drive one live whisper. Returns the phase for the bubble's state class; under
- * `animated: false` it schedules nothing and derives the phase from the message alone (the
- * stylesheet reveals letters as they arrive, and the CSS breath floor holds the waiting pill).
- */
+/** Drive one live whisper and return the phase for the bubble's state class. With
+ *  `animated: false` it schedules nothing and derives the phase from the message alone. */
 export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): WhisperPhase {
   const [phase, setPhase] = useState<WhisperPhase>("breath");
   const live = useRef(facts);
@@ -108,12 +111,14 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     let m = measure(bubble);
     const s = world.current;
     // The letter DOM lays out at the measured wrap width, so letter positions hold for as long as
-    // that width does and only the posed box's edge moves (ADR-0037 decision 4). A window that
-    // changes size re-lays them at the new one, below.
+    // that width does and only the posed box's edge moves. A window that changes size re-lays them.
     const layOut = (): void => {
       text.style.width = `${Math.max(0, m.maxW - m.padX * 2)}px`;
     };
     layOut();
+    // The waiting pose. The front starts a whole band past whatever is already confirmed, so a
+    // bubble remounted mid-stream shows the words it already has, fully condensed, instead of
+    // replaying them. A fresh turn starts at zero, or the first arrivals would appear as ink.
     const confirmed = live.current.confirmed;
     s.front = { at: confirmed > 0 ? confirmed + BAND_LETTERS : 0, velocity: 0 };
     s.w = m.breathW;
@@ -133,7 +138,6 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       }
       const els = s.letters;
       if (els.length === 0) {
-        // Nothing to condense. A stopped turn with no reply settles at once; a breath waits.
         if (draining) {
           setPhase("settled");
           return true;
@@ -151,8 +155,8 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
           break;
         }
         paint(els[i]!, q);
-        // The ramp falls with the index, so a fully condensed letter can only be the first
-        // unfinished one: advancing here keeps the loop bounded to the band.
+        // The ramp falls with the index, so a finished letter can only be the first unfinished
+        // one: advancing here keeps the loop inside the band.
         if (q >= 1) {
           s.lo += 1;
         }
@@ -166,6 +170,9 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       const fy = el.offsetTop;
       const finished = draining && s.lo >= els.length;
       const { w: tW, h: tH } = boxFor(m, fx, fy);
+      // The bubble owns its height while the stream runs and says so through the panel's roll
+      // attribute, so the panel follows the box frame by frame. The value is kept to a tenth of a
+      // pixel, not a whole one; docs/readings/panel-motion.md has the measurements.
       const rolling = tH.toFixed(1);
       if (bubble.getAttribute(MORPHING_ATTRIBUTE) !== rolling) {
         const announced = bubble.hasAttribute(MORPHING_ATTRIBUTE);
@@ -180,7 +187,6 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       s.h = h;
       bubble.style.width = `${s.w.toFixed(1)}px`;
       bubble.style.height = `${s.h.toFixed(1)}px`;
-      // Clamped into the box, so the blob hugs an edge rather than leaving the bubble.
       const gx = clamp(fx + MIST_GAP, m.padX, s.w - MIST_W - 6);
       const gy = clamp(fy + m.line / 2 - MIST_H / 2, 4, s.h - MIST_H - 4);
       s.mx = approach(s.mx, gx, dt, MIST_GAIN);
@@ -189,6 +195,9 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       if (grown >= GROWTH_NOTICE_PX) {
         f.onGrow();
       }
+      // The settle waits for the mist. The drain moves the front quickly and the mist trails it on
+      // its own ease, so stopping the clock when the last letter cleared froze the glide mid-line
+      // and ended the evaporation a dozen letters short of the reply.
       if (finished && Math.abs(gx - s.mx) < 1 && Math.abs(gy - s.my) < 1) {
         bubble.removeAttribute(MORPHING_ATTRIBUTE);
         bubble.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));
@@ -198,11 +207,14 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       return false;
     };
 
+    // A bubble whose loop has stopped keeps the px box the loop left it with, and nothing else in
+    // the overlay revisits it, so a re-wrap has to pose it here. It poses at once rather than
+    // easing: the window's own resize is the motion, and an easing box would only trail the drag.
     const repose = (): void => {
       const tail = s.letters[s.letters.length - 1];
       if (tail === undefined) {
-        // A turn that stopped before its first word settled at the breath pill, and that pill is
-        // the paddings and the mist, neither of which a window change moves.
+        // A turn that stopped before its first word settled at the breath pill, which is the
+        // paddings and the mist, and a window change moves neither.
         return;
       }
       const box = boxFor(m, tail.offsetLeft + tail.offsetWidth, tail.offsetTop);
@@ -210,7 +222,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       s.h = box.h;
       bubble.style.width = `${s.w.toFixed(1)}px`;
       bubble.style.height = `${s.h.toFixed(1)}px`;
-      // A re-wrap moves the tail of the log, and the pin is what restores a reader who was at it.
+      // A re-wrap moves the tail of the log; this puts back a reader who was reading it.
       live.current.onGrow();
     };
 
@@ -229,9 +241,6 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     const unwatch = watchWrap(bubble, m, (next: Metrics) => {
       m = next;
       layOut();
-      // While the loop still runs it needs nothing else: the letters keep the inline opacity they
-      // were painted with (paint is per element, not per position), and the next frame reads the
-      // front's fresh offsets and eases the box to where the new wrap put it.
       if (stopped) {
         repose();
       }
@@ -239,8 +248,8 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     return () => {
       unwatch();
       cancelAnimationFrame(frame);
-      // A bubble unmounted mid-stream (a chat switch under a running turn) hands the height
-      // back explicitly, or the panel would keep deferring to a roll whose section is gone.
+      // A bubble unmounted mid-stream, on a chat switch under a running turn, hands the height
+      // back, or the panel would keep deferring to a roll whose section is gone.
       if (bubble.hasAttribute(MORPHING_ATTRIBUTE)) {
         bubble.removeAttribute(MORPHING_ATTRIBUTE);
         bubble.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));

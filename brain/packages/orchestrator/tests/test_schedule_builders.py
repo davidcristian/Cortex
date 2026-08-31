@@ -1,5 +1,3 @@
-"""The schedule builders + the ticker lifecycle (ADR-0025 decision 7)."""
-
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -50,7 +48,6 @@ class FixedClock:
 
 
 def _spawn_tool() -> SpawnSubagentsTool:
-    # A real spawn tool over fakes: build_ticker only needs its identity, not a run.
     backend = EchoInferenceBackend()
     resources = SubagentResources(
         backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
@@ -83,7 +80,7 @@ async def test_build_schedule_redis_builds_and_closes_the_store() -> None:
     )
     assert isinstance(store, RedisScheduleStore)
     assert urls == ["redis://redis:6379/0"]
-    await close()  # the store's aclose: releases the client
+    await close()
 
 
 def test_build_schedule_tools_off_when_scheduling_is_off() -> None:
@@ -102,8 +99,6 @@ def test_build_schedule_tools_names_and_honest_advertisement() -> None:
         "snooze_scheduled",
         "edit_scheduled",
     }
-    # tasks_enabled=False: the spec offers reminders only (the fire path still answers a
-    # stale TASK with an ok=False outcome via the ticker's no-runner branch).
     assert dict(specs["schedule_task"].parameters["properties"])["kind"]["enum"] == ["reminder"]
 
 
@@ -153,7 +148,7 @@ def test_build_ticker_wires_the_loop() -> None:
 
 async def test_start_and_stop_ticker_lifecycle() -> None:
     assert start_ticker(None) is None
-    await stop_ticker(None, None)  # both no-ops must be clean
+    await stop_ticker(None, None)
     ticker = ScheduleTicker(
         InMemoryScheduleStore(),
         SystemClock(),
@@ -161,7 +156,7 @@ async def test_start_and_stop_ticker_lifecycle() -> None:
     )
     task = start_ticker(ticker)
     assert task is not None
-    await asyncio.sleep(0.005)  # let a pass or two run
+    await asyncio.sleep(0.005)
     await stop_ticker(ticker, task)
     assert task.done()
 
@@ -169,7 +164,7 @@ async def test_start_and_stop_ticker_lifecycle() -> None:
 async def test_stop_ticker_forces_a_cancel_past_the_grace() -> None:
     class _StuckTicker(ScheduleTicker):
         async def run(self) -> None:
-            await asyncio.Event().wait()  # never returns; ignores stop()
+            await asyncio.Event().wait()
 
     ticker = _StuckTicker(
         InMemoryScheduleStore(),
@@ -189,7 +184,7 @@ async def test_log_ticker_death_covers_each_ending() -> None:
 
     failed = asyncio.get_running_loop().create_task(boom())
     await asyncio.gather(failed, return_exceptions=True)
-    _log_ticker_death(failed)  # logs the death (the supervision posture)
+    _log_ticker_death(failed)
 
     async def forever() -> None:
         await asyncio.Event().wait()
@@ -197,11 +192,10 @@ async def test_log_ticker_death_covers_each_ending() -> None:
     cancelled = asyncio.get_running_loop().create_task(forever())
     cancelled.cancel()
     await asyncio.gather(cancelled, return_exceptions=True)
-    _log_ticker_death(cancelled)  # cancelled: not a death, nothing logged
+    _log_ticker_death(cancelled)
 
 
 async def test_the_configured_zone_reaches_every_rendering_builtin() -> None:
-    """CORTEX_SCHEDULE_TZ is inert unless the builder threads it, so assert all three."""
     store = InMemoryScheduleStore()
     await store.add(
         ScheduledItem(
@@ -229,11 +223,7 @@ async def test_the_configured_zone_reaches_every_rendering_builtin() -> None:
 
 
 async def _rearm_of_a_nine_am_rule(config: ScheduleConfig) -> datetime:
-    """Fire a 09:00 calendar reminder through a built ticker and report where it re-armed.
-
-    Asserted through behavior rather than by reading the ticker's settings: the zone matters
-    only because it moves the re-arm, so the re-arm is what the test should pin.
-    """
+    """Fire a 09:00 calendar reminder through a built ticker and report its next due time."""
     store = InMemoryScheduleStore()
     await store.add(
         ScheduledItem(
@@ -254,7 +244,6 @@ async def _rearm_of_a_nine_am_rule(config: ScheduleConfig) -> datetime:
 
 
 async def test_build_ticker_threads_the_configured_zone_into_its_settings() -> None:
-    """Creating and firing must read one zone, or a rule fires somewhere it was not scheduled."""
     config = ScheduleConfig(backend="redis", tz="Europe/Bucharest")
     assert await _rearm_of_a_nine_am_rule(config) == datetime(2026, 7, 13, 6, 0, tzinfo=UTC)
 

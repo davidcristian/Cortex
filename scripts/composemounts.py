@@ -1,13 +1,10 @@
-"""Read the bind mounts a compose file declares, refusing every entry it cannot classify."""
+"""Read the bind mounts a compose file declares, raising on every entry it cannot classify."""
 
 import re
 from typing import NamedTuple
 
-# Long-syntax mount types that name something other than a path on the host, so nothing of
-# theirs can land in the tree. An unlisted type is a fault, never a skip.
 NON_BIND_TYPES = frozenset({"volume", "tmpfs", "npipe", "cluster", "image"})
 
-# What makes a short-syntax source a path at all rather than a named volume.
 PATH_PREFIXES = (".", "/", "~")
 
 FLOW_OPENERS = ("{", "[")
@@ -18,7 +15,7 @@ _MAPPING = re.compile(r"^(?P<key>[A-Za-z_][\w.-]*):(?:[ \t]+(?P<value>.*))?$")
 
 
 class ComposeReadError(Exception):
-    """A compose file carries a mount entry this reader will not guess at."""
+    """A compose file has a mount entry this reader cannot classify."""
 
 
 class Mount(NamedTuple):
@@ -29,7 +26,7 @@ class Mount(NamedTuple):
 
 
 def strip_quotes(text: str) -> str:
-    """Drop one layer of matching quotes, which is how compose spells an expansion."""
+    """Drop one layer of matching quotes, which is how compose writes an expansion."""
     stripped = text.strip()
     for quote in ('"', "'"):
         if len(stripped) > 1 and stripped.startswith(quote) and stripped.endswith(quote):
@@ -69,7 +66,7 @@ def _short_mount(line: int, item: str) -> Mount | None:
         msg = f"line {line}: mount entry {item!r} is not source:target"
         raise ComposeReadError(msg)
     if not source.startswith(PATH_PREFIXES):
-        return None  # a named volume, which never touches the working tree
+        return None
     return Mount(line=line, source=source)
 
 
@@ -91,7 +88,7 @@ class _Reader:
                 self.mounts.append(mount)
 
     def open_block(self, number: int, line: str) -> None:
-        """Enter a service's `volumes:` list. A top-level one declares named volumes; ignore it."""
+        """Enter a service's `volumes:` list."""
         header = _VOLUMES.match(line)
         if header is None:
             return
@@ -126,8 +123,6 @@ class _Reader:
         """Offer one non-blank, non-comment line to the walk."""
         depth = len(line) - len(line.lstrip())
         item = _ITEM.match(line)
-        # A flush sequence puts its items at the key's own indent, so only a line that is not an
-        # item closes the block there; anything shallower closes it either way.
         if self.indent >= 0 and (depth < self.indent or (depth == self.indent and item is None)):
             self.close()
             self.indent = -1

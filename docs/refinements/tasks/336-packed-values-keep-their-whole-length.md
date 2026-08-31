@@ -18,12 +18,12 @@ meets the same 16 KiB message split the plain reader does, one JSON object arriv
 entries, and the one that reassembles them is `docker compose logs` rather than anything
 downstream of it.
 
-Three shapes are available and none is obviously right. The line could carry the bound as a
-sibling key, say `fields_cut`, naming the fields that were shortened, which keeps the object
-parseable at the cost of a key nothing else uses. The packed rendering could pass values through
-`render_value` and become a line of rendered strings, which is a different rendering rather than a
-bounded one. Or the bound could stay a plain-rendering rule and the packed one could be documented
-as unbounded on purpose, which is where it stands today and is only honest while nobody runs it.
+Three shapes are available and none is obviously right. The line could carry the bound as a sibling
+key, say `fields_cut`, naming the fields that were shortened, which keeps the object parseable at
+the cost of a key nothing else uses. The packed rendering could pass values through `render_value`
+and become a line of rendered strings, which is a different rendering rather than a bounded one. Or
+the bound could stay a plain-rendering rule and the packed one could be documented as unbounded on
+purpose, which is where it stands today and is only accurate while nobody runs it.
 
 ## Trail
 

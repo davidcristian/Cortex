@@ -1,5 +1,3 @@
-"""Behavior tests for the spawn_subagents built-in tool (ADR-0010/0018)."""
-
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -51,7 +49,7 @@ class FixedClock:
 
 
 class FailingBackend:
-    """Yields one delta then fails. Every subagent driven by it comes back ok=False."""
+    """Yields one delta and then fails, so every subagent using it returns ok=False."""
 
     async def stream(
         self,
@@ -135,7 +133,7 @@ class OneToolCallBackend:
 def _delegating_tool(
     store: InMemoryTaskStore, sink: RecordingAuditSink
 ) -> tuple[SpawnSubagentsTool, SubagentRunner]:
-    """A spawn tool whose subagents hold one `read` tool, all auditing to ``sink``."""
+    """A spawn tool whose subagents have one ``read`` tool, all auditing to ``sink``."""
     registry = InMemoryToolRegistry(
         {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
     )
@@ -166,9 +164,6 @@ async def test_a_batch_shares_the_spawning_turns_pool_instead_of_one_each() -> N
 
 
 async def test_a_spawn_with_no_pool_on_its_stamp_leaves_each_subagent_its_own() -> None:
-    # The schedule ticker (ADR-0025) dispatches spawn_subagents directly, outside any tool loop,
-    # so its stamp carries no pool. Every subagent then runs on its own allowance, exactly as
-    # before this addendum: a fire is its own root, like a turn.
     store = InMemoryTaskStore()
     sink = RecordingAuditSink()
     tool, _ = _delegating_tool(store, sink)
@@ -184,18 +179,14 @@ async def test_spawns_run_concurrently_and_results_aggregate_in_order() -> None:
     )
     assert result.is_error is False
     assert result.content == "[subagent 1] reply 1: do A\n\n[subagent 2] reply 1: do B"
-    # Each subtask was persisted to the store (the runner read it back by id).
     first, second = await store.get_task("st-1"), await store.get_task("st-2")
     assert first is not None
     assert second is not None
     assert (first.instruction, second.instruction) == ("do A", "do B")
-    # A bare string requests the default model, no context, and rides the clean-turn stamp.
     assert (first.model, first.context, first.tainted) == ("", "", False)
 
 
 async def test_default_task_id_factory_round_trips_through_the_store() -> None:
-    # With no injected factory the tool mints uuid4 task ids; the subagent's success proves the
-    # same id was used to persist and to read the task back (a mismatch would be "task not found").
     store = InMemoryTaskStore()
     tool = SpawnSubagentsTool(_runner(store, EchoInferenceBackend(), "s"), store, FixedClock())
     result = await tool.invoke(_call({"instructions": ["go"]}))
@@ -205,21 +196,13 @@ async def test_default_task_id_factory_round_trips_through_the_store() -> None:
 async def test_a_failed_subagent_is_reported_not_raised() -> None:
     store = InMemoryTaskStore()
     result = await _tool(store, FailingBackend()).invoke(_call({"instructions": ["go"]}))
-    assert result.is_error is False  # the tool ran; the subagent's failure is content
-    # This harness places on the GPU and serves both targets from the one backend, so the runner's
-    # single CPU re-run (ADR-0012's re-place) fires and fails too, and the detail it records is
-    # what the cortex reads back. Two attempts of one subtask is the honest thing to tell it.
+    assert result.is_error is False
     assert result.content == (
         "[subagent 1] FAILED: the GPU attempt failed (boom); the CPU re-run failed too (boom)"
     )
 
 
 async def test_a_refused_subagent_does_not_take_the_rest_of_the_batch_down() -> None:
-    """The scheduler's wall is one member's outcome, never the batch's (ADR-0012 addendum).
-
-    `asyncio.gather` propagates the first exception, so a refusal that stayed an exception would
-    lose every sibling's answer and fail the turn. As a value it is one `FAILED:` section.
-    """
     store = InMemoryTaskStore()
     backend = EchoInferenceBackend()
     oversized = SubagentProfile(
@@ -227,7 +210,6 @@ async def test_a_refused_subagent_does_not_take_the_rest_of_the_batch_down() -> 
             backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
             scheduler=ResourceBudgetScheduler(8.0, 8.0),
             placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
-            # 16 cpus against a whole budget of 8: refused on every attempt, never queued.
             request=PlacementRequest("toobig", vram_gb=2.0, cpus=16.0, memory_gb=2.0),
         )
     )
@@ -255,15 +237,12 @@ async def test_a_delegating_batch_surfaces_its_scale_and_the_subagents_tool_step
     result = await tool.invoke(_call({"instructions": ["a", "b"]}, progress=progress))
     assert result.is_error is False
     events = progress.events
-    # The scale comes first, deterministically (emitted before the batch's gather):
     assert events[0] == StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks")
-    # Then a `read` step per subagent, both registry-authored (the matched ToolSpec's fields):
     steps = [event for event in events if isinstance(event, ToolActivity)]
     assert [step.tool_name for step in steps] == ["read", "read"]
 
 
 async def test_a_single_subtask_batch_status_is_singular() -> None:
-    # The count line is user-facing, so "1 subtask" is not "1 subtasks".
     store = InMemoryTaskStore()
     progress = RecordingProgressSink()
     await _tool(store, EchoInferenceBackend()).invoke(
@@ -276,7 +255,7 @@ async def test_a_single_subtask_batch_status_is_singular() -> None:
 
 async def test_one_shared_tool_routes_each_calls_progress_to_its_own_sink() -> None:
     store = InMemoryTaskStore()
-    tool = _tool(store, EchoInferenceBackend())  # tool-less subagents: only the batch status
+    tool = _tool(store, EchoInferenceBackend())
     sink_a, sink_b = RecordingProgressSink(), RecordingProgressSink()
     await tool.invoke(_call({"instructions": ["a"]}, progress=sink_a))
     await tool.invoke(_call({"instructions": ["b", "c"]}, progress=sink_b))
@@ -325,8 +304,6 @@ async def test_object_items_carry_model_and_context_onto_the_task() -> None:
 
 
 async def test_a_stringified_object_item_is_parsed_as_the_object_form() -> None:
-    # Live gemma-4-12B JSON-encodes the object form into the string slot (ADR-0018 addendum);
-    # the pick must not silently degrade to "run the JSON blob as an instruction".
     store = InMemoryTaskStore()
     tool = SpawnSubagentsTool(
         SubagentRunner(
@@ -354,8 +331,6 @@ async def test_a_stringified_object_item_is_parsed_as_the_object_form() -> None:
 
 
 async def test_a_stringified_object_item_is_still_validated() -> None:
-    # The diverted form goes through the same validation. An unknown pick is an error the
-    # cortex can correct, not a silent fallback.
     store = InMemoryTaskStore()
     result = await _tool(store, EchoInferenceBackend()).invoke(
         _call({"instructions": ['{"instruction": "go", "model": "ghost"}']})
@@ -367,9 +342,9 @@ async def test_a_stringified_object_item_is_still_validated() -> None:
 @pytest.mark.parametrize(
     "text",
     [
-        "{not json, just braces in an instruction",  # invalid JSON -> a plain instruction
-        '{"model": "fast"}',  # a JSON object without 'instruction' -> a plain instruction
-        '  {"instruction": "indented ok"}',  # leading whitespace still detected as JSON
+        "{not json, just braces in an instruction",
+        '{"model": "fast"}',
+        '  {"instruction": "indented ok"}',
     ],
 )
 async def test_brace_strings_that_are_not_object_items_stay_plain_instructions(
@@ -380,15 +355,12 @@ async def test_brace_strings_that_are_not_object_items_stay_plain_instructions(
     assert result.is_error is False
     task = await store.get_task("st-1")
     assert task is not None
-    # The third case IS a valid object item, so its instruction is the unwrapped text.
     expected = "indented ok" if "indented ok" in text else text
     assert task.instruction == expected
     assert task.model == ""
 
 
 async def test_the_dispatchers_taint_stamp_rides_onto_every_task() -> None:
-    # The dispatcher stamped the call because the turn had read untrusted content (ADR-0018);
-    # the tool copies that onto each task so the runner's ADR-0017 resolution sees it.
     store = InMemoryTaskStore()
     await _tool(store, EchoInferenceBackend()).invoke(
         _call({"instructions": ["a", "b"]}, tainted=True)
@@ -424,13 +396,10 @@ async def test_bad_arguments_are_an_error_result(
     result = await _tool(store, EchoInferenceBackend()).invoke(_call(arguments))
     assert result.is_error is True
     assert message in result.content
-    assert await store.get_task("st-1") is None  # nothing was spawned
+    assert await store.get_task("st-1") is None
 
 
 async def test_a_batch_at_the_cap_still_runs_every_subtask() -> None:
-    # The boundary the refusal above sits one past: an over-cap batch is refused, a batch of
-    # exactly MAX_SPAWN_BATCH is ordinary work. Pins the comparison against an off-by-one that
-    # would quietly cost the cortex its largest legitimate delegation.
     store = InMemoryTaskStore()
     batch = [f"task {n}" for n in range(MAX_SPAWN_BATCH)]
     result = await _tool(store, EchoInferenceBackend()).invoke(_call({"instructions": batch}))
@@ -461,23 +430,18 @@ async def test_the_spec_advertises_the_roster_to_a_tool_less_wiring() -> None:
     spec = _spec_of(SubagentRunner(store, roster, FixedClock()))
     model = _model_property(spec)
     assert model is not None
-    assert model["enum"] == ["fast", "subagent"]  # sorted, deterministic
+    assert model["enum"] == ["fast", "subagent"]
     assert "'fast' (small and quick)" in model["description"]
     assert "'subagent' (the robust default)" in model["description"]
     assert "default 'subagent'" in model["description"]
-    assert "untrusted external content" in spec.description  # the ADR-0017 caveat is advertised
-    # The measured trade-off is advertised, not a blanket parallel claim (ADR-0012 addendum):
-    # distinct models overlap, and "one after another" for a shared model understates the
-    # admitted pair's two-way overlap on purpose, so spreading stays the wall-clock lever.
+    assert "untrusted external content" in spec.description
     assert "on distinct models run in parallel" in spec.description
     assert "share one model run one after another" in spec.description
     assert "spread independent subtasks across models" in spec.description
-    assert "worth parallelizing" not in spec.description  # the old blanket overclaim is gone
+    assert "worth parallelizing" not in spec.description
 
 
 async def test_the_spec_omits_the_model_knob_when_subagents_hold_tools() -> None:
-    # ADR-0017 rule 2b pins every spawn in a tools-enabled wiring, so advertising a model
-    # choice would be a knob that cannot do anything. The spec is honest about the wiring.
     store = InMemoryTaskStore()
     roster = SubagentRoster(
         entries={
@@ -490,26 +454,19 @@ async def test_the_spec_omits_the_model_knob_when_subagents_hold_tools() -> None
     spec = _spec_of(SubagentRunner(store, roster, FixedClock(), tools=dispatcher))
     assert _model_property(spec) is None
     assert "default subagent model" in spec.description
-    # One model available leaves no spread to advertise, so the note says the batch groups
-    # independent work rather than leaving the blanket parallel impression; its "one after another"
-    # understates the admitted pair's two-way overlap on purpose (ADR-0012 addendum).
     assert "run one after another" in spec.description
     assert "rather than running them in parallel" in spec.description
 
 
 async def test_the_spec_omits_the_model_knob_for_a_single_entry_roster() -> None:
-    # One entry = no choice to advertise, whatever the tool wiring.
     store = InMemoryTaskStore()
     spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))
     assert _model_property(spec) is None
     assert "default subagent model" in spec.description
-    assert "run one after another" in spec.description  # single entry, same conservative wording
+    assert "run one after another" in spec.description
 
 
 async def test_the_spec_advertises_the_batch_cap() -> None:
-    # The cap is told to the model twice over (a schema bound a grammar can enforce, and prose
-    # for a model that reads only the description), so a refusal is a correction and not a
-    # surprise. The runtime check stays the authority; this is what keeps it from firing.
     store = InMemoryTaskStore()
     spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))
     instructions = cast("dict[str, Any]", spec.parameters["properties"]["instructions"])

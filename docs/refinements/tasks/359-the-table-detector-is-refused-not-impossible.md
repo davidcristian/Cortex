@@ -17,13 +17,13 @@ written in, and 88 of the 100 name no path this repository tracks. A rule the es
 violates 88 times out of 100 declares the practice a violation rather than catching a defect. And
 the detector needs three patterns to see those 100 at all, only 54 of them using `reddens`, while
 one of the 100 is a change whose body says there is no assertion to prove able to fail, so the
-gate's first true output would be a false accusation against a message that told the truth.
+gate's first report would be a false failure against a message that was accurate.
 
-**Why the trigger is the honest form of the decline.** AGENTS.md now requires a mutation table to
+**Why the trigger is the accurate form of the decline.** AGENTS.md now requires a mutation table to
 name the suite its counts are over, as a rule no machine checks. If that requirement takes hold,
 recent bodies converge on naming both a suite and a file, and the refusal rate that refused the gate
-falls out of the corpus on its own. At that point the rule stops demanding a rewrite of honest
-messages and becomes a check that a habit did not lapse, which is a different gate wearing the same
+falls out of the corpus on its own. At that point the rule stops demanding a rewrite of accurate
+messages and becomes a check that a habit did not lapse, which is a different check under the same
 regex. Measuring the refusal rate again is the census script from the close, about thirty lines, so
 firing this trigger costs a reading rather than a build.
 

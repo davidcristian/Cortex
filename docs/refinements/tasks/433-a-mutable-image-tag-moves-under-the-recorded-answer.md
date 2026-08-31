@@ -15,7 +15,7 @@ reference a compose file writes, which makes a version bump self-healing: change
 unrecorded image, and whoever bumped it has to run `just image-volumes`. That is the good case
 and it needs nothing further.
 
-The bad case is a **mutable tag**. `ghcr.io/ggml-org/llama.cpp:server` is a moving target by
+The bad case is a **mutable tag**. `ghcr.io/ggml-org/llama.cpp:server` is republished under one name by
 design, and so are `node:22-bookworm-slim`, `redis:8-alpine`, `pgvector/pgvector:pg16` and
 `python:3.12-slim` to a lesser degree: the publisher can push a new image under the same name,
 and if that image adds a `VOLUME`, every compose file naming the tag starts collecting an
@@ -37,7 +37,7 @@ the exposure does not justify any of them: a publisher adding a `VOLUME` to an e
 rare, the symptom is clutter rather than data loss, and the re-derivation recipe already exists
 for anyone who suspects it. If the answer is the scheduled run, note that `shuffle.yml` is the
 precedent for a weekly workflow here that gates nothing, and that this one would need to report
-somewhere a human reads rather than only reddening a job nobody watches.
+somewhere a human reads rather than only failing a job nobody watches.
 
 ## Trail
 
@@ -57,7 +57,7 @@ somewhere a human reads rather than only reddening a job nobody watches.
   addendum, along with the accidental live proof: the first live run could not pull at all on this
   host and reported five failed pulls instead of five cache answers, and with the pull removed the
   same shell goes green. What stays open, named on the recipe: between two runs, a republished tag
-  can still add a declared path and nothing here will know. One residue filed, the same record
+  can still add a declared path and nothing here reports it. One residue filed, the same record
   moving under the gate from inside the tree instead: three of its rows are images built from
   Dockerfiles here, and a `VOLUME` added to one of those would leave the row saying the image
   declares nothing

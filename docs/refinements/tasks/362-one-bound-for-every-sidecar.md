@@ -15,8 +15,8 @@ contributes its own `CORTEX_TOOLS_ENDPOINTS__<name>` key so layered compose over
 bound is sitting there, `CORTEX_TOOLS_CALL_TIMEOUT_S__<name>`, merged under the flat default the
 way `costs` and `gate_reasons` merge their built-ins under the user's.
 
-It was not built with the bound because one number is the honest starting point when one of the two
-sidecars has never been measured. A per-endpoint knob shipped today would offer an operator a
+It was not built with the bound because one number is the defensible starting point when one of the
+two sidecars has never been measured. A per-endpoint knob shipped today would offer an operator a
 choice between a guess and a different guess, and the flat 60 s is already some four hundred times
 the only call this repo has timed. The knob is worth having when a real call is cut, and cutting a
 real call is also what would produce the measurement to set the second number from.

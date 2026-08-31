@@ -24,8 +24,6 @@ describe("useViewTransition", () => {
       initialProps: { view: "chat" },
     });
     rerender({ view: "console:appearance" });
-    // Not one paint later: this render is the one that has to lift the chat out of the layout
-    // flow, or it would define the height the panel is easing away from.
     expect(result.current).toBe("chat");
   });
 
@@ -44,7 +42,6 @@ describe("useViewTransition", () => {
     });
     rerender({ view: "console:appearance" });
     act(() => vi.advanceTimersByTime(MORPH_MS / 2));
-    // Straight on to a third view: what is still on screen is the chat, so that is what leaves.
     rerender({ view: "console:shortcuts" });
     expect(result.current).toBe("chat");
     act(() => vi.advanceTimersByTime(MORPH_MS));

@@ -17,7 +17,7 @@ conversations, a burst of rank fallbacks cannot be attributed to one of them, an
 be tied to the recall whose trail line sits beside it in the same log.
 
 The cost is the port, which is why this is filed rather than folded into the line. `select` gains a
-caller-supplied identity, and the honest shape is the one `drain_text` took for its ledger: an
+caller-supplied identity, and the right shape is the one `drain_text` took for its ledger: an
 optional collaborator, so the five policies that never log are unchanged and a policy that does
 takes what it needs. A required positional would touch `RawRecallPolicy`, the three heuristic
 policies, `MemoryRecaller.recall`, every fake in the core tests and the composition root, for a

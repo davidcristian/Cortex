@@ -45,8 +45,8 @@ wanting reordered rows to travel.
   one line. The pinned chat travels 270 to 170 over 300.3ms (largest frame 15.04px) where it used
   to move in one, the two rows it displaces 50px each (largest frame 7.52px), and the leaving row
   is on that same clock because it is one of the rows the hook watches, traced with a pin 120ms
-  into a delete. Two things the entry did not have. **A travel is a transform, so the panel cannot
-  be fought by it**: layout is final before it starts, the card holds 164 on every frame and its
+  into a delete. Two things the entry did not have. **A travel is a transform, so it cannot disturb the
+  panel**: layout is final before it starts, the card holds 164 on every frame and its
   `scrollHeight` holds 162 against a 162 client box, so not even a scrollbar flickers. **And
   FLIP's "before" cannot be read at the previous commit**, which is the hazard that would have
   turned this into a regression: a roll moves rows by layout with no commit anywhere in it, so

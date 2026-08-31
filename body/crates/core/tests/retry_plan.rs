@@ -1,7 +1,3 @@
-//! Behavioral tests for the retry **gate**: `SeamMethod`, `RetryPlan`, the two `RetryPolicy`
-//! helpers the probe budget is built from (`worst_case_backoff`, `within`), and the per-method
-//! deadline that bounds an attempt rather than the wait before it, plus the gaps that bound a
-
 use std::time::Duration;
 
 use body_core::{
@@ -10,8 +6,6 @@ use body_core::{
 };
 
 /// Every variant, so the invariant below is checked over the whole port rather than a sample.
-/// A new variant makes `SeamMethod::repeatable`'s exhaustive match fail to compile, which is
-/// the reminder to classify it and add it here.
 const EVERY_METHOD: [SeamMethod; 11] = [
     SeamMethod::Health,
     SeamMethod::Converse,
@@ -26,9 +20,9 @@ const EVERY_METHOD: [SeamMethod; 11] = [
     SeamMethod::SetPreference,
 ];
 
-/// A deliberately patient read schedule: 6 attempts, 500 ms base, ×2, 10 s cap, so its
-/// backoffs are 500 ms / 1 s / 2 s / 4 s / 8 s and its worst case is 15.5 s. This is what
-/// someone who wants a session read to survive a slow brain restart would configure.
+/// A long read schedule: 6 attempts, 500 ms base, ×2, 10 s cap, so its backoffs are 500 ms / 1 s /
+/// 2 s / 4 s / 8 s and its worst case is 15.5 s. This is what someone who wants a session read to
+/// survive a slow brain restart would configure.
 fn patient() -> RetryPolicy {
     RetryPolicy {
         max_attempts: 6,
@@ -40,22 +34,14 @@ fn patient() -> RetryPolicy {
 
 #[test]
 fn repeatable_marks_exactly_the_calls_a_repeat_cannot_change() {
-    // The four reads are views of a store they do not touch.
     assert!(SeamMethod::Health.repeatable());
     assert!(SeamMethod::ListSessions.repeatable());
     assert!(SeamMethod::SessionMessages.repeatable());
     assert!(SeamMethod::ListDueReminders.repeatable());
-    // A turn may append messages, run tools, and stream output before it fails.
     assert!(!SeamMethod::Converse.repeatable());
-    // The ack's *effect* is idempotent brain-side; its *answer* is not, which is the case
-    // that shows repeatability is two tests, not one.
     assert!(!SeamMethod::AckReminder.repeatable());
-    // The rename is a plain write: a repeat over a lost reply could re-apply a stale label.
     assert!(!SeamMethod::RenameSession.repeatable());
-    // The delete is a destructive write: a silent retry could destroy a re-materialized chat.
     assert!(!SeamMethod::DeleteSession.repeatable());
-    // The pin is idempotent by value, yet still one attempt: a retry could re-assert a pinned
-    // value the user's next toggle reversed (the uniform catalog-write convention).
     assert!(!SeamMethod::SetSessionPinned.repeatable());
     assert!(SeamMethod::GetPreferences.repeatable());
     assert!(!SeamMethod::SetPreference.repeatable());
@@ -63,9 +49,6 @@ fn repeatable_marks_exactly_the_calls_a_repeat_cannot_change() {
 
 #[test]
 fn the_plan_hands_out_a_schedule_exactly_when_the_call_is_repeatable() {
-    // The invariant that makes the gate meaningful: nothing else may decide this. If a
-    // future edit lets an unrepeatable method through, `policy_for` answers `Some` and this
-    // fails, whichever side of the pair was changed.
     let plan = RetryPlan::default();
     for method in EVERY_METHOD {
         assert_eq!(
@@ -78,7 +61,6 @@ fn the_plan_hands_out_a_schedule_exactly_when_the_call_is_repeatable() {
 
 #[test]
 fn a_refused_method_gets_no_schedule_however_generous_the_plan() {
-    // No amount of configured patience buys a retry for a call with an effect.
     let generous = RetryPlan {
         reads: patient(),
         probe_budget: Duration::from_mins(10),
@@ -98,7 +80,6 @@ fn the_reads_share_one_schedule_and_the_probe_is_trimmed_to_its_budget() {
         probe_budget: Duration::from_secs(1),
         ..RetryPlan::default()
     };
-    // Every read the user waits on gets the configured schedule verbatim.
     for method in [
         SeamMethod::ListSessions,
         SeamMethod::SessionMessages,
@@ -106,9 +87,6 @@ fn the_reads_share_one_schedule_and_the_probe_is_trimmed_to_its_budget() {
     ] {
         assert_eq!(plan.policy_for(method), Some(patient()));
     }
-    // The probe does not: two attempts at 250 ms plus the 500 ms wait between them is exactly
-    // the 1 s budget, and a third attempt would need 2.25 s. The indicator therefore answers
-    // within its budget while a session read is still allowed its 15.5 s of patience.
     let probe = plan.policy_for(SeamMethod::Health).unwrap();
     assert_eq!(probe.max_attempts, 2);
     assert_eq!(probe.worst_case_backoff(), Duration::from_millis(500));
@@ -116,7 +94,6 @@ fn the_reads_share_one_schedule_and_the_probe_is_trimmed_to_its_budget() {
         probe.max_attempts * plan.probe_deadline + probe.worst_case_backoff(),
         plan.probe_budget
     );
-    // Only the attempt count moved; the delays themselves are the configured ones.
     assert_eq!(probe.base_delay, patient().base_delay);
     assert_eq!(probe.max_delay, patient().max_delay);
     assert_eq!(probe.multiplier, patient().multiplier);
@@ -143,7 +120,6 @@ fn a_bare_policy_reads_as_a_plan_with_the_default_budget() {
     assert_eq!(plan.probe_budget, DEFAULT_PROBE_BUDGET);
     assert_eq!(plan.probe_deadline, DEFAULT_PROBE_DEADLINE);
     assert_eq!(plan.call_deadline, DEFAULT_CALL_DEADLINE);
-    // Copy + Eq + Debug, as `RetryPolicy` is.
     let copy = plan;
     assert_eq!(copy, plan);
     assert_ne!(plan, RetryPlan::default());
@@ -152,9 +128,6 @@ fn a_bare_policy_reads_as_a_plan_with_the_default_budget() {
 
 #[test]
 fn the_refusal_schedule_can_never_buy_a_second_attempt() {
-    // What a refused method is run on. It has to be inert under every input the retry loop
-    // can hand it, because it is the whole of the refusal once the loop executes it: one
-    // attempt, no wait, and no transient error able to argue for another go.
     let once = RetryPolicy::ONCE;
     assert_eq!(once.max_attempts, 1);
     assert_eq!(once.worst_case_backoff(), Duration::ZERO);
@@ -180,8 +153,6 @@ fn worst_case_backoff_sums_every_wait_a_schedule_can_spend() {
         patient().worst_case_backoff(),
         Duration::from_millis(15_500)
     );
-    // A single-try schedule never waits, and neither does the degenerate zero-attempt one
-    // (the subtraction saturates rather than wrapping to four billion waits).
     let single = RetryPolicy {
         max_attempts: 1,
         ..patient()
@@ -195,7 +166,6 @@ fn worst_case_backoff_sums_every_wait_a_schedule_can_spend() {
         .worst_case_backoff(),
         Duration::ZERO
     );
-    // A schedule whose delays already saturate reports the ceiling instead of panicking.
     let enormous = RetryPolicy {
         max_attempts: 3,
         base_delay: Duration::MAX,
@@ -207,25 +177,19 @@ fn worst_case_backoff_sums_every_wait_a_schedule_can_spend() {
 
 #[test]
 fn within_trims_attempts_until_the_schedule_fits_the_budget() {
-    // A free attempt is the old arithmetic, kept as the base case: only the waits are counted.
     let free = Duration::ZERO;
-    // Fits already: untouched, including the exact-fit boundary (a schedule that spends
-    // precisely the budget is inside it).
     assert_eq!(patient().within(Duration::from_mins(1), free), patient());
     assert_eq!(
         RetryPolicy::default().within(Duration::from_millis(600), free),
         RetryPolicy::default()
     );
-    // One millisecond short of the last wait drops exactly that attempt.
     assert_eq!(
         RetryPolicy::default()
             .within(Duration::from_millis(599), free)
             .max_attempts,
         2
     );
-    // A budget that buys nothing still buys the call itself: one attempt always survives.
     assert_eq!(patient().within(Duration::ZERO, free).max_attempts, 1);
-    // A schedule with no retries to trim is returned as-is (the loop is never entered).
     let single = RetryPolicy {
         max_attempts: 1,
         ..patient()
@@ -247,7 +211,6 @@ fn within_counts_the_attempts_and_not_only_the_waits() {
         RetryPolicy::default().within(budget, costly).max_attempts,
         1
     );
-    // The boundary: two attempts plus the 200 ms between them is exactly 1.2 s.
     assert_eq!(
         RetryPolicy::default()
             .within(Duration::from_millis(1200), costly)
@@ -260,20 +223,14 @@ fn within_counts_the_attempts_and_not_only_the_waits() {
             .max_attempts,
         1
     );
-    // An attempt too expensive for the budget still gets made, which is what makes the bound
-    // `max(budget, attempt)` rather than `budget`: patience is what a budget can refuse.
     let trimmed = patient().within(Duration::from_millis(10), Duration::from_secs(30));
     assert_eq!(trimmed.max_attempts, 1);
-    // Saturating arithmetic: an attempt cost that overflows the sum cannot wrap into a budget
-    // that suddenly fits, so the schedule is trimmed rather than lengthened.
     assert_eq!(
         patient()
             .within(Duration::from_hours(1), Duration::MAX)
             .max_attempts,
         1
     );
-    // The other end of the same arithmetic: a budget nothing can exhaust trims nothing, even
-    // when every term in the sum has saturated.
     assert_eq!(
         patient().within(Duration::MAX, Duration::MAX).max_attempts,
         patient().max_attempts
@@ -324,7 +281,6 @@ fn every_call_is_bounded_by_exactly_one_of_the_two_clocks() {
             "{method:?} is bounded by both clocks or by neither",
         );
     }
-    // And the gap half is the turn's alone, carrying the plan's own pair.
     assert_eq!(
         plan.gaps_for(SeamMethod::Converse),
         Some(TurnGaps::default())
@@ -351,8 +307,6 @@ fn every_call_but_the_turn_is_bounded_by_a_deadline() {
         );
     }
     assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
-    // The probe's deadline is its own, because the indicator renders its answer; every other
-    // call shares the general one, writes included.
     assert_eq!(
         plan.deadline_for(SeamMethod::Health),
         Some(DEFAULT_PROBE_DEADLINE)
@@ -374,7 +328,6 @@ fn every_call_but_the_turn_is_bounded_by_a_deadline() {
             "{method:?} was bounded by something other than the call deadline",
         );
     }
-    // The two are separately configurable, so a tighter dot never tightens a read.
     let split = RetryPlan {
         probe_deadline: Duration::from_millis(40),
         call_deadline: Duration::from_secs(90),
@@ -408,9 +361,6 @@ fn the_announced_deadline_outlives_the_enforced_one_on_every_call_that_has_one()
     ] {
         for method in EVERY_METHOD {
             let Some(enforced) = plan.deadline_for(method) else {
-                // The turn announces nothing because nothing bounds it: there is no deadline to
-                // tell the brain about, and a header would hand the transport a clock to end a
-                // turn with, which is the one thing the exemption exists to prevent.
                 assert_eq!(plan.announced_deadline_for(method), None);
                 continue;
             };
@@ -422,9 +372,6 @@ fn the_announced_deadline_outlives_the_enforced_one_on_every_call_that_has_one()
                 "{method:?} would announce {announced:?}, which the body's own {enforced:?} \
                  does not beat",
             );
-            // And it is the margin exactly, not merely something larger: the number is what the
-            // grace argument is about, so a change to it should redden here rather than pass
-            // under an inequality.
             assert_eq!(announced, enforced + grace);
         }
     }
@@ -432,9 +379,6 @@ fn the_announced_deadline_outlives_the_enforced_one_on_every_call_that_has_one()
 
 #[test]
 fn a_deadline_at_the_end_of_time_still_announces_something_a_clock_can_hold() {
-    // The saturating edge. `RetryPlan`'s fields are public, so a caller can build a deadline
-    // within the grace of `Duration::MAX`; the addition must not panic, and what it answers is
-    // the ceiling rather than a wrapped-around instant.
     let plan = RetryPlan {
         call_deadline: Duration::MAX,
         ..RetryPlan::default()

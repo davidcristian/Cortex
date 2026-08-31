@@ -5,19 +5,18 @@ from typing import Annotated
 
 from pydantic import Field
 
-# How many attachments one send may carry. Refused, never truncated: a silently dropped
-# attachment is a send the user approved and did not get (ADR-0010's batch-cap argument).
+# How many attachments one send may carry. Going over rejects the send rather than truncating it:
+# an attachment dropped without a word is a send the user approved and did not get (ADR-0010's
+# batch-cap argument).
 MAX_ATTACHMENTS = 8
-# Characters summed across every attachment's content. The bound comes from the authoring
-# side, not from SMTP: 32K is already half the cortex's 16K-token context, so past it an
+# Characters summed across every attachment's content. The bound comes from the authoring side
+# rather than from SMTP: 32K is already half the cortex's 16K-token context, so past it an
 # attachment competes with the conversation that wrote it (ADR-0022 attachments addendum).
 MAX_ATTACHMENT_CHARS = 32768
-# A filename rides a Content-Disposition header, and a header line is not a payload.
+# A filename travels in a Content-Disposition header rather than in the payload, so it is bounded
+# at a header line's length.
 MAX_FILENAME_CHARS = 128
 
-# Written as instruction rather than as documentation, the `capture_screen` target precedent:
-# each sentence exists to remove one guess a model would otherwise make, and every refusal is
-# named because the check runs in the sidecar, which is *after* the user approved the card.
 _FILENAME_HELP = (
     "The name the recipient sees on the attached file. Give it an extension matching the "
     "subtype, such as notes.md for markdown. It rides a header rather than the payload, so "
@@ -35,7 +34,7 @@ _SUBTYPE_HELP = (
     "holding a slash, a space or a semicolon, or the send is refused. Leave it out for plain."
 )
 # The two bounds that belong to the array rather than to any one attachment: one counts the
-# entries, the other sums their content. Spent by the tool signature in `server.py`.
+# entries, the other sums their content. Used by the tool signature in `server.py`.
 ATTACHMENTS_HELP = (
     "Files to attach, each of them text you have written. At most "
     f"{MAX_ATTACHMENTS} of them, and their content totals at most {MAX_ATTACHMENT_CHARS} "

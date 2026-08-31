@@ -46,7 +46,6 @@ describe("envelopeAt", () => {
     const mid = envelopeAt("ping", 1);
     expect(mid).toBeLessThan(0.3);
     expect(mid).toBeGreaterThan(0);
-    // Well past the crest the ripple is spent, then the cadence brings it back.
     expect(envelopeAt("ping", 3.3)).toBeLessThan(0.01);
     expect(envelopeAt("ping", 3.4)).toBeCloseTo(1, 5);
   });
@@ -71,7 +70,6 @@ describe("lobeAt", () => {
     expect(start).toEqual({ cx: 80, cy: 50, r: 12 });
     expect(swung.cx).not.toBeCloseTo(80, 3);
     expect(Math.hypot(swung.cx - 50, swung.cy - 50)).toBeCloseTo(30, 6);
-    // A full period returns it to where it started: the cluster jostles, it never drifts away.
     const later = lobeAt(rider, 8);
     expect(later.cx).toBeCloseTo(80, 6);
     expect(later.cy).toBeCloseTo(50, 6);
@@ -92,7 +90,6 @@ describe("lobePath", () => {
     const radii = points(lobePath(shape, 1.7, 360)).map(({ x, y }) => Math.hypot(x - 50, y - 50));
     expect(Math.min(...radii)).toBeGreaterThanOrEqual(40 * 0.92 - 0.01);
     expect(Math.max(...radii)).toBeLessThanOrEqual(40 * 1.08 + 0.01);
-    // It is genuinely off round, not a circle drawn the long way.
     expect(Math.max(...radii) - Math.min(...radii)).toBeGreaterThan(2);
   });
 
@@ -103,7 +100,6 @@ describe("lobePath", () => {
       expect(middle.x).toBeCloseTo(50, 1);
       expect(middle.y).toBeCloseTo(50, 1);
     }
-    // …and the outline really did move between those instants.
     expect(lobePath(shape, 0)).not.toBe(lobePath(shape, 1.3));
   });
 
@@ -113,8 +109,6 @@ describe("lobePath", () => {
       const first = points(lobePath(shape, seconds, 360))[0];
       return Math.hypot((first?.x ?? 0) - 50, (first?.y ?? 0) - 50);
     };
-    // One period puts the same bulge back at angle zero; part way through, a different one is
-    // there. (0.1s lands on a crest for this mode; 0.6s would land on a node and prove nothing.)
     expect(radiusAt(2.4)).toBeCloseTo(radiusAt(0), 6);
     expect(radiusAt(0.1)).toBeCloseTo(40 * 1.03, 6);
     expect(radiusAt(0.1)).not.toBeCloseTo(radiusAt(0), 3);

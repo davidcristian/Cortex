@@ -1,5 +1,3 @@
-"""End-to-end delegation over the fakes: a cortex turn spawns subagents (ADR-0010/0018)."""
-
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
@@ -49,7 +47,7 @@ class FixedClock:
 
 
 class ScriptedCortexBackend:
-    """Cortex backend: replays per-step events and records the messages it was shown."""
+    """Cortex backend that replays per-step events and records the messages it was shown."""
 
     def __init__(self, steps: Sequence[Sequence[InferenceEvent]]) -> None:
         self._steps = list(steps)
@@ -74,7 +72,7 @@ class ScriptedCortexBackend:
 
 
 class TextBackend:
-    """Yields fixed text deltas and records whether it was ever used."""
+    """Yields fixed text deltas and records whether it was used."""
 
     def __init__(self, deltas: Sequence[str]) -> None:
         self._deltas = deltas
@@ -122,10 +120,8 @@ def _single_roster(backend: InferenceBackend) -> SubagentRoster:
 
 async def test_cortex_turn_delegates_and_consumes_the_results() -> None:
     task_store = InMemoryTaskStore()
-    # A subagent tier with no tools of its own. The delegation-free subset keeps fan-out depth-1.
     runner = SubagentRunner(task_store, _single_roster(EchoInferenceBackend()), FixedClock())
     spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
-    # The cortex's tools: the built-in spawn tool only (no remote MCP registry in this test).
     sink = RecordingAuditSink()
     cortex_tools = ToolDispatcher(CompositeToolRegistry([spawn]), sink, FixedClock())
     backend = ScriptedCortexBackend(
@@ -149,15 +145,12 @@ async def test_cortex_turn_delegates_and_consumes_the_results() -> None:
     )
     events = await _collect(engine.handle_turn("s", "do two things", turn_id="t-1"))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="delegating... both done")
-    # The spawn tool ran once and was audited as a success.
     (audit,) = sink.records
     assert (audit.name, audit.ok) == ("spawn_subagents", True)
-    # Step 2 saw the aggregated subagent results fed back as a TOOL message keyed to the call.
     _, second_step = backend.seen
     tool_msg = second_step[-1]
     assert tool_msg.role is Role.TOOL
     assert tool_msg.tool_call_id == "c1"
-    # Clean subagents (no untrusted reads) -> the aggregate is trusted, so it is not fenced.
     assert tool_msg.text == "[subagent 1] reply 1: task A\n\n[subagent 2] reply 1: task B"
 
 
@@ -169,9 +162,7 @@ _READ_SPEC = ToolSpec(name="read", description="", parameters={})
 
 
 class OneReadThenAnswer:
-    """Stateless subagent backend: read once, then answer. Whether the read already happened is
-    read off the messages (a TOOL result present), so concurrent subagents share one instance
-    without a counter that overlap would scramble (the test_spawn OneToolCallBackend pattern)."""
+    """Stateless subagent backend: read once, then answer."""
 
     async def stream(
         self,
@@ -219,10 +210,8 @@ async def test_delegation_surfaces_progress_to_the_stream_sink() -> None:
     )
     events = await _collect(engine.handle_turn("s", "do two things", turn_id="t-1"))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="both done")
-    # The engine's OWN stream carries the cortex's spawn_subagents chip, never the subagents':
     engine_activities = [event for event in events if isinstance(event, ToolActivity)]
     assert [activity.tool_name for activity in engine_activities] == ["spawn_subagents"]
-    # The subagents' progress rode the side channel instead: scale first, then a step each.
     surfaced = progress.events
     assert surfaced[0] == StatusUpdate(
         state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks"
@@ -234,7 +223,6 @@ async def test_delegation_surfaces_progress_to_the_stream_sink() -> None:
 
 async def test_a_subagent_reading_untrusted_content_taints_the_delegation_result() -> None:
     task_store = InMemoryTaskStore()
-    # The subagent reads an (untrusted) file tool, then answers.
     sub_backend = ScriptedCortexBackend(
         [
             [ToolCall(id="s1", name="read", arguments={"path": "/secret"})],
@@ -264,8 +252,6 @@ async def test_a_subagent_reading_untrusted_content_taints_the_delegation_result
         capabilities=TurnCapabilities(tools=cortex_tools),
     )
     await _collect(engine.handle_turn("s", "delegate", turn_id="t-1"))
-    # The subagent read untrusted content, so the aggregated spawn result feeds back to the
-    # cortex fenced as untrusted data. The taint propagated up (ADR-0013).
     _, second_step = cortex_backend.seen
     spawn_msg = second_step[-1]
     assert spawn_msg.role is Role.TOOL
@@ -274,9 +260,6 @@ async def test_a_subagent_reading_untrusted_content_taints_the_delegation_result
 
 
 async def test_a_tainted_turns_spawn_is_forced_onto_the_robust_model_end_to_end() -> None:
-    # The full ADR-0017 chain over the fakes: the cortex reads an untrusted file, THEN spawns
-    # asking for the cheap model. The ledger marked the turn, the dispatcher stamped the spawn
-    # call, the task carried the taint, and the runner resolved to the robust default.
     task_store = InMemoryTaskStore()
     robust, fast = TextBackend(["robust answer"]), TextBackend(["fast answer"])
     roster = SubagentRoster(
@@ -286,7 +269,7 @@ async def test_a_tainted_turns_spawn_is_forced_onto_the_robust_model_end_to_end(
         },
         default="subagent",
     )
-    runner = SubagentRunner(task_store, roster, FixedClock())  # tool-less: only taint pins
+    runner = SubagentRunner(task_store, roster, FixedClock())
     spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
     cortex_tools = ToolDispatcher(
         CompositeToolRegistry(
@@ -317,9 +300,9 @@ async def test_a_tainted_turns_spawn_is_forced_onto_the_robust_model_end_to_end(
     await _collect(engine.handle_turn("s", "read then delegate", turn_id="t-1"))
     task = await task_store.get_task("st-1")
     assert task is not None
-    assert (task.model, task.tainted) == ("fast", True)  # the stamp rode the store
-    assert robust.seen  # the robust default answered...
-    assert not fast.seen  # ...and the requested cheap model never saw the hostile material
+    assert (task.model, task.tainted) == ("fast", True)
+    assert robust.seen
+    assert not fast.seen
 
 
 async def test_a_delegated_call_is_audited_under_the_turn_that_spawned_it() -> None:
@@ -351,7 +334,6 @@ async def test_a_delegated_call_is_audited_under_the_turn_that_spawned_it() -> N
         capabilities=TurnCapabilities(tools=cortex_tools),
     )
     await _collect(engine.handle_turn("s-9", "delegate", turn_id="t-9"))
-    # The turn's own dispatch: its chat and its turn, and no task, because a turn is not one.
     (spawn_line,) = cortex_sink.records
     assert (spawn_line.name, spawn_line.session_id, spawn_line.turn_id, spawn_line.task_id) == (
         "spawn_subagents",
@@ -359,11 +341,9 @@ async def test_a_delegated_call_is_audited_under_the_turn_that_spawned_it() -> N
         "t-9",
         "",
     )
-    # The attribution went through the store, which is where a stateless runner reads it.
     task = await task_store.get_task("st-1")
     assert task is not None
     assert (task.session_id, task.turn_id) == ("s-9", "t-9")
-    # And the delegated call names both, so "what did this turn's subagents do?" is one grep.
     (read_line,) = sub_sink.records
     assert (read_line.name, read_line.session_id, read_line.turn_id, read_line.task_id) == (
         "read",
@@ -371,20 +351,12 @@ async def test_a_delegated_call_is_audited_under_the_turn_that_spawned_it() -> N
         "t-9",
         "st-1",
     )
-    # And it names no item, which is the truth about a turn's delegate: nothing fired it. The
-    # absence is asserted rather than assumed, because a propagation that borrowed some other
-    # id would satisfy every line above (ADR-0009 fired-work addendum).
     assert (task.item_id, read_line.item_id) == ("", "")
-    # What the subagent's own messages are grouped under is still its task, not that turn: a
-    # working list nobody persists is the task's, and only the trail is read across both.
     _, second_step = sub_backend.seen
     assert second_step[-1].turn_id == "st-1"
 
 
 async def test_a_ticker_rooted_subagent_names_its_chat_and_no_turn() -> None:
-    # The third dispatch caller (the schedule ticker) reaches this same path through the spawn
-    # tool with a stamp that has a chat and no turn. The subagent's line must carry the one and
-    # leave the other empty rather than invent a turn for work no turn is waiting on.
     task_store = InMemoryTaskStore()
     sub_backend = ScriptedCortexBackend(
         [[ToolCall(id="s1", name="read", arguments={"path": "/notes"})], [TextChunk("done")]]
@@ -421,12 +393,9 @@ async def test_a_fires_delegate_names_the_item_that_fired_it() -> None:
         ToolCall(id="schedule-r1", name="spawn_subagents", arguments={"instructions": ["do it"]}),
         stamp=TurnStamp(session_id="chat-1", item_id="r-1"),
     )
-    # The item rode the store, which is the only place a re-read could recover it from.
     task = await task_store.get_task("st-1")
     assert task is not None
     assert task.item_id == "r-1"
-    # So one grep over the trail reaches the fire and the work it caused, and neither line
-    # borrows an identity it does not have: the fire is still turn-less, its delegate too.
     (fire_line,) = fire_sink.records
     (read_line,) = sub_sink.records
     assert (fire_line.name, fire_line.item_id, fire_line.turn_id) == (

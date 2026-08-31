@@ -1,5 +1,3 @@
-"""The confirm round-trip through converse(): a gated tool suspends the turn on the user."""
-
 import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 
@@ -71,7 +69,7 @@ class _ScriptedToolBackend:
 
 
 def _gated_send_factory(ran: list[str]) -> EngineFactory:
-    """An engine whose model calls the gated 'send' tool once, then replies 'done'."""
+    """Build an engine whose model calls 'send', a tool needing approval, then replies 'done'."""
 
     async def send(arguments: Mapping[str, object]) -> str:
         ran.append(str(arguments["to"]))
@@ -112,9 +110,7 @@ def _answer(confirm_id: str, *, approved: bool) -> ClientEvent:
 
 
 async def _next_of(stream: AsyncIterator[ServerEvent], kind: str) -> ServerEvent:
-    """The next event of `kind`. Bounded, because these streams stay open by design: an
-    event that never arrives has to fail the test, not hang the suite (its absence is
-    exactly what a missing emit looks like)."""
+    """Return the next event of `kind`."""
     try:
         async with asyncio.timeout(5.0):
             async for event in stream:
@@ -139,11 +135,11 @@ async def test_an_approved_confirm_runs_the_gated_tool() -> None:
     request = (await _next_of(stream, "confirm_request")).confirm_request
     assert request.tool_name == "send"
     assert request.arguments_json == '{"to": "bob@example.com"}'
-    assert request.reason  # shown verbatim to the user, so never empty
+    assert request.reason
     client.send(_answer(request.confirm_id, approved=True))
     client.end()
     remaining = await _drain(stream)
-    assert ran == ["bob@example.com"]  # the tool ran, with the approved draft
+    assert ran == ["bob@example.com"]
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
 
 
@@ -156,7 +152,7 @@ async def test_a_denied_confirm_never_runs_the_tool_but_the_turn_completes() -> 
     client.send(_answer(request.confirm_id, approved=False))
     client.end()
     remaining = await _drain(stream)
-    assert ran == []  # declined: the tool never ran
+    assert ran == []
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
 
 
@@ -181,7 +177,7 @@ async def test_a_stale_confirm_id_is_ignored_and_the_real_answer_lands() -> None
     stream = converse(_gated_send_factory(ran), client)
     client.send(_user_turn("send it"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
-    client.send(_answer("forged-or-stale-id", approved=True))  # resolves nothing
+    client.send(_answer("forged-or-stale-id", approved=True))
     client.send(_answer(request.confirm_id, approved=True))
     client.end()
     await _drain(stream)
@@ -189,6 +185,8 @@ async def test_a_stale_confirm_id_is_ignored_and_the_real_answer_lands() -> None
 
 
 async def test_input_ending_mid_confirm_denies_immediately() -> None:
+    # The confirm wait is 60 s and the drain below is bounded at 5 s, so finishing at all is the
+    # assertion: ending the input denied the ask rather than waiting the timeout out.
     ran: list[str] = []
     client = _LiveClient()
     stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
@@ -198,16 +196,11 @@ async def test_input_ending_mid_confirm_denies_immediately() -> None:
         remaining = await _drain(stream)
     assert ran == []
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
-    # Input ended BEFORE the tool asked, so the ask was refused without ever emitting a
-    # request. No card was raised, so no resolution is owed (ADR-0022 addendum).
     assert not any(e.WhichOneof("event") == "confirm_request" for e in remaining)
     assert not any(e.WhichOneof("event") == "confirm_resolved" for e in remaining)
 
 
 async def test_input_ending_after_the_ask_resolves_the_card_as_unavailable() -> None:
-    # The other half-close shape: the question is already on screen when input ends. The
-    # client can no longer answer, but it is still reading (a half-close is not a
-    # disconnect), so the resolution is what tells it the card is void.
     ran: list[str] = []
     client = _LiveClient()
     stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
@@ -224,16 +217,13 @@ async def test_input_ending_after_the_ask_resolves_the_card_as_unavailable() -> 
 
 
 async def test_stream_teardown_mid_confirm_cancels_the_turn_cleanly() -> None:
-    # A client disconnect (aclose) while a confirm is pending must CANCEL the turn rather than
-    # resume it to a spurious "user declined" audit (ADR-0022 post-review fix): the pump's
-    # finally no longer close()s the confirmer; events()'s finally cancels the in-flight turn.
     ran: list[str] = []
     client = _LiveClient()
     stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
     client.send(_user_turn("send it"))
     await _next_of(stream, "confirm_request")
     async with asyncio.timeout(5.0):
-        await stream.aclose()  # teardown: must not hang, must not run the tool
+        await stream.aclose()
     assert ran == []
 
 
@@ -246,7 +236,6 @@ async def test_cancel_mid_confirm_drops_the_turn_and_the_stream_stays_open() -> 
     client.send(ClientEvent(session_id="s", cancel=Cancel()))
     client.end()
     remaining = await _drain(stream)
-    assert ran == []  # the cancelled turn never ran the tool
+    assert ran == []
     assert not any(e.WhichOneof("event") == "turn_complete" for e in remaining)
-    # A late answer to the dead turn's request is the stale-id case: nothing to resolve.
     del request

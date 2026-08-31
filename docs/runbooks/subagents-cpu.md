@@ -39,7 +39,7 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   reasons: the E2B loses answers to a channel nobody reads, and the 0.8B mostly hands the
   instruction back.
 
-  **What keeps those numbers true, since nothing holds them.** Each is a dated reading of one
+  **What those numbers depend on, since no gate holds them.** Each is a dated reading of one
   artifact on one engine build at one cap under one appended sentence, judged by hand once per
   sweep, and four things move it: the GGUF the variable above names, the llama.cpp build serving it
   (each measurement names its image by digest), `CORTEX_SUBAGENTS_MAX_TOKENS`, since a run cut at
@@ -86,7 +86,7 @@ delegation time (ADR-0012 admission-wall addendum).
 > `CORTEX_SUBAGENTS_MAX_TOKENS` (default 1024) is how far any one of a run's completions may
 > decode, and `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` (default 2400 s) is the deadline on the whole run,
 > the tool dispatches between its completions included (ADR-0005 total-cap addendum). This is the
-> failure the ceiling above cannot see: a model in a repetition loop is never silent, so it holds
+> failure the ceiling above does not cover: a model in a repetition loop is never silent, so it holds
 > its admission and its entry's lease exactly as a wedged stream used to while looking healthy the
 > whole way. Reaching either is an `ok=False` result whose text names the bound, so the cortex
 > reads a refusal it can act on rather than a fragment that looks like an answer. **The token half
@@ -97,7 +97,7 @@ delegation time (ADR-0012 admission-wall addendum).
 > server's own context window, which the wire cannot tell apart; the refusal quotes this knob only
 > when the deployment set one. Neither has an
 > off switch; the deadline must stay **above** `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, and the brain
-> refuses to start otherwise, since a wedge reported as a runaway loses the CPU re-run it deserves.
+> fails to start otherwise, since a wedge reported as a runaway loses the CPU re-run a stall gets.
 > The numbers are this hardware's, measured over five subtask shapes on the shipped entry, all five
 > of them on the **tools-enabled** shape, so on a subagents-only stack the cap is confirmed rather
 > than derived: forty draws of the tool-less shape answer in 256 to 429 decoded tokens, and every
@@ -106,8 +106,8 @@ delegation time (ADR-0012 admission-wall addendum).
 > the looser of them.** In decoded tokens the run deadline admits about 425 on a saturated host and
 > about 3200 on an idle one, against the context's 4096 less your prompt, so on a busy box the
 > deadline fires before the cap can and raising `CORTEX_SUBAGENTS_MAX_TOKENS` there buys nothing.
-> **Nothing refuses a deployment whose cap and deadline disagree, and that is a decision rather
-> than a gap** (ADR-0005 independence addendum). The three orderings the brain does refuse at boot
+> **No check fails a deployment whose cap and deadline disagree, and that is a decision rather
+> than a gap** (ADR-0005 independence addendum). The three orderings the brain does reject at boot
 > all compare seconds with seconds; this pair compares a count with a time, the exchange rate is
 > your own tier's decode rate on the day, and it moved by a factor of seven here between an idle
 > host and a busy one. So the conversion is yours: read the ceilings addendum's table before
@@ -123,7 +123,7 @@ delegation time (ADR-0012 admission-wall addendum).
 > times the longest a spawn was measured holding its admission there, 595.2 s, which lands on the
 > same number. The
 > deadline also lands between the two bounds either side of it, above the stall ceiling and below
-> `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the brain refuses to start on either ordering broken, so
+> `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the brain fails to start on either ordering broken, so
 > a deployment where a run holds its admission for as long as a peer will queue for that admission
 > is one that never boots. A wait of **zero** is the exception and passes beside any deadline, that
 > being the setting where nothing queues and so nothing waits on a run at all. What the boot check
@@ -136,7 +136,7 @@ delegation time (ADR-0012 admission-wall addendum).
 > `CORTEX_TOOLS_CALL_TIMEOUT_S` (default 60 s) bounds one tool dispatch, and a delegated loop
 > dispatches tools between its completions. A dispatch spends that bound several times over, once
 > listing the tools the run advertises, once more stripping the gated ones, once more routing
-> across an aggregate, and once in the call, so the brain refuses a deployment where a whole
+> across an aggregate, and once in the call, so the brain rejects a deployment where a whole
 > dispatch is allowed to outlast the run that made it (ADR-0009 ordering addendum), that costing
 > the whole run instead of the one call and reporting a wedged sidecar as a subtask that would not
 > stop talking.
@@ -148,7 +148,7 @@ delegation time (ADR-0012 admission-wall addendum).
 > three reached the cap and came back refused. It is not writing more: its replies are **shorter**.
 > The tokens went to a reasoning trace, and a delegated run drops every reasoning delta unread.
 > **That is fixed in this file's own command block, and the fix is a server flag, so a subagent
-> server started without it still has it** (ADR-0005 thinking-lever addendum). The pair to check on
+> server started without it still has the problem** (ADR-0005 thinking-lever addendum). The pair to check on
 > any subagent tier's argv is `--chat-template-kwargs '{"enable_thinking": false}'` **and**
 > `--reasoning-budget 0`: the kwarg is what a chat template reads on a plain request, and the
 > budget is what reaches a request carrying a `response_format`, the shape the kwarg was measured
@@ -225,10 +225,11 @@ delegation time (ADR-0012 admission-wall addendum).
 > returned 96 of 96 on three picks and then 93 and 92 on two more, both times because the pick
 > failed the subtask, so it is a reading and not a constant. If you re-measure any of this, the
 > driver writes one sample per arm and `just envelope-floor <those files>` is what turns them into
-> rates: it reports that control arm per subtask shape and **refuses to print the comparison at
+> rates: it reports that control arm per subtask shape and **prints no comparison at
 > all** when a cell of it is proven below nine tenths of its own runs, since a difference read
-> against a control that failed the subtask prices the pick and not the envelope. A refusal is not
-> a broken run: the samples are still on disk, and what they price is the override you chose.
+> against a control that failed the subtask prices the pick and not the envelope. A withheld
+> comparison is not a broken run: the samples are still on disk, and what they price is the
+> override you chose.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to
@@ -289,7 +290,7 @@ delegation time (ADR-0012 admission-wall addendum).
 > plain request and deliberate through it under a `response_format`, the E2B on 5 draws of 5 and the
 > E4B on 4, so on those the budget is the whole of the defence for every reply an envelope is
 > decoded in. The Qwen-2B override honours it on **both** shapes, on all five draws of each, so
-> there the budget is a second lock on a door already shut. Keep both flags on both servers anyway: the
+> there the budget only repeats a defence the kwarg already provides. Keep both flags on both servers anyway: the
 > difference is a property of the pick's own chat template, and the argv outlives the pick a
 > deployment happens to name.
 
@@ -303,7 +304,7 @@ cd brain && CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 \
   uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_live.py -v
 ```
 
-`--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run.
+`--no-cov` matters, since the 100% gate in the workspace addopts would otherwise fail the run.
 
 ## 2b. Validate the multi-model roster (ADR-0018)
 
@@ -384,10 +385,10 @@ cap to reach the GPU. The GPU arm (headroom 8.7 GB against the then 5.5 GB ask) 
 concurrent spawns on the tier and overflowed the other: the tier answered in **221.05 ms** (18
 prompt tokens at 104.83 tok/s, 4 generated at 81.07 tok/s) against **12536.83 ms** on the CPU
 server, a ratio no core-side arrangement could fake. The CPU arm (the shipped 14 GB cap, headroom
-2.7 GB) overflowed both and left the tier's count unmoved. **Distrust green here:** point
+2.7 GB) overflowed both and left the tier's count unmoved. **Prove the arm can fail:** point
 `CORTEX_SUBAGENTS_GPU_ENDPOINT` at a closed port under the GPU-arm budget and the run must **fail**
 with three placements and a "a GPU-placed subagent did not answer" warning, which is the ADR-0012
-CPU re-place doing its job. A suite that passes that way is measuring nothing.
+CPU re-place taking over. A suite that passes that way is measuring nothing.
 
 **Re-run on 2026-08-08 against the measured ask**, which is the run the commands above now
 describe. Under the old 5.5 the GPU arm could not even select itself (it skips with "ask=5.5 GB
@@ -396,7 +397,7 @@ against headroom=5.4 GB"), the CPU arm passed with both spawns on the CPU server
 tier's count moves by exactly one, and that spawn answers in **152.11 ms** (18 prompt tokens at
 152.54 tok/s, 3 generated at 87.95 tok/s) against **13134.73 ms** for the sibling that overflowed.
 The CPU arm at `CORTEX_VRAM_SOFT_CAP_GB=11` (headroom 2.4 GiB, under the ask) passes with the count
-still unmoved. The closed-port proof was taken again first and still reddens the GPU arm on three
+still unmoved. The closed-port proof was taken again first and still fails the GPU arm on three
 placements with the re-place warning.
 
 ## 3. Validate cortex-driven delegation (full stack, needs the GPU cortex)

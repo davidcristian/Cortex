@@ -49,7 +49,7 @@ kind of single draw.
   The Qwen claim this entry singled out, credited to a `17 + 25` that proved nothing, is measured on
   a deliberative prompt now and is true on both shapes; the compose comment that carried it,
   [ADR-0010](../../adr/ADR-0010-subagents.md) and the subagent runbook say so.
-  **What decides a verdict is neither the family nor the chat handler but the template**, read off
+  **What decides a verdict is the template, rather than the family or the chat handler**, read off
   each server's own `POST /apply-template`: an entry whose template answers the kwarg with a thought
   already closed holds under a schema, and one that drops the block and adds nothing does not, on
   every entry measured. `peg-gemma4` serves both sides of the split, which is what rules the handler

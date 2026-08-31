@@ -29,8 +29,8 @@ from cortex_core import (
 _logger = logging.getLogger(__name__)
 
 # The toast titles; the body renders a title (and the reminder text or task outcome) as inert
-# escaped text. A task's outcome delivers under its own title so the toast is honest about which
-# it is (ADR-0025 task-outcome addendum).
+# escaped text. A task's outcome delivers under its own title, so the toast names which of the
+# two kinds it is (ADR-0025 task-outcome addendum).
 REMINDER_TITLE = "Cortex reminder"
 TASK_TITLE = "Cortex task"
 _NO_RUNNER_OUTCOME = "FAILED: subagent delegation is not wired"
@@ -67,7 +67,7 @@ class ScheduleTicker:
         self._stopping = asyncio.Event()
 
     def stop(self) -> None:
-        """Ask the loop to end after the in-flight pass (idempotent, sync, signal-safe)."""
+        """Signal the loop to end after the in-flight pass (idempotent, sync, signal-safe)."""
         self._stopping.set()
 
     async def run(self) -> None:
@@ -76,18 +76,18 @@ class ScheduleTicker:
             try:
                 await self.run_once()
             except Exception:
-                # The ADR-0025 pass guard: an unenumerated bug degrades to a skipped
-                # pass (logged), never a silently dead ticker.
+                # The ADR-0025 pass guard: an unenumerated bug costs one skipped pass, which is
+                # logged, rather than ending the loop.
                 _logger.exception("schedule pass failed; the next poll retries")
-            # Wake early on stop(); otherwise pace the next pass. wait_for cancels the
-            # inner wait on timeout. The loop condition then decides.
+            # Wake early on stop(); otherwise pace the next pass. wait_for cancels the inner
+            # wait on timeout, and the loop condition above is then re-read.
             try:
                 await asyncio.wait_for(self._stopping.wait(), timeout=self._settings.poll_s)
             except TimeoutError:
                 continue
 
     async def run_once(self) -> None:
-        """One stateless pass: claim → fire concurrently → persist; release what didn't finish."""
+        """One stateless pass: claim, fire concurrently, persist; release what didn't finish."""
         now = self._clock.now()
         claims = await self._store.claim_due(
             now, lease=self._settings.lease, limit=self._settings.claim_limit

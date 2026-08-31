@@ -10,8 +10,8 @@ from composedefaults import Substitution, SubstitutionReadError, read_substituti
 from composefiles import ComposeSearchError, compose_files
 from values import CrossCheckError, parse_value, whole_spelling
 
-# How many times a variable has to be written before there is anything to compare. A lone
-# spend has no sibling to disagree with, whatever its default reduces to or refuses to.
+# How many times a variable has to be written before there is anything to compare. A lone spend
+# has no sibling to disagree with, whatever its default reduces to.
 MIN_SPENDS = 2
 
 

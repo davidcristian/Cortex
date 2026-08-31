@@ -1,4 +1,4 @@
-"""Which calls deserve dispatching: the ``SaliencePolicy`` port and the two policies that ship."""
+"""Which calls are worth dispatching: the ``SaliencePolicy`` port and the two policies that ship."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -6,6 +6,8 @@ from typing import Protocol
 
 from cortex_core.tools import ToolCall
 
+# Two rather than one: a second identical call can be a retry after a transient failure or a
+# re-read of something the turn itself just changed, while a third is the model repeating itself.
 MAX_IDENTICAL_DISPATCHES = 2
 
 
@@ -16,15 +18,11 @@ class SaliencePolicy(Protocol):
 
 
 class AlwaysSalient:
-    """Every call deserves dispatch: the loop's behavior before this policy existed.
-
-    ``CORTEX_TOOLS_SALIENCE=off`` selects it, so a deployment can restore the unfiltered loop
-    exactly. It is not the default, because a bound that ships off protects nobody.
-    """
+    """Every call is dispatched: the loop's behavior before this policy existed."""
 
     def admits(self, call: ToolCall, dispatched: Sequence[Sequence[ToolCall]]) -> bool:
         """Admit unconditionally; neither the call nor the history is consulted."""
-        del call, dispatched  # nothing is filtered
+        del call, dispatched
         return True
 
 
@@ -55,7 +53,5 @@ def _asks_the_same(call: ToolCall, other: ToolCall) -> bool:
     return call.name == other.name and call.arguments == other.arguments
 
 
-# Both policies are stateless and immutable, so one shared instance of each is safe and lets a
-# default argument be a plain value (the RAW_RECALL_POLICY precedent).
 ALWAYS_SALIENT = AlwaysSalient()
 REPEAT_SALIENCE = RepeatSalience()

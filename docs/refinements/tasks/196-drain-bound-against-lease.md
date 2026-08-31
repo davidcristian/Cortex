@@ -22,8 +22,8 @@ fence and, in `ScheduleTicker.run_once`, the `asyncio.wait_for` cap that cancels
 cancellation cap, and neither decides the outcome.
 **What decides it is a measurement, and the honest word is "usually".** A whole CPU subtask is
 200 to 300 s, so a drain meeting one in flight clears it only when 60 s or less remains: roughly
-a quarter of arrivals for a single run, fewer for an admitted pair whose releases stagger. Likely,
-not systematic, which is the word the entry used. The framing was narrow too: an interactive spawn
+a quarter of arrivals for a single run, fewer for an admitted pair whose releases stagger. That is likely rather than
+systematic, which is the word the entry used. The framing was narrow too: an interactive spawn
 holds the same admission with no lease at all, and since nothing caps a generation's length (the total
 generation cap below) and the 600 s ceiling bounds only the gap between chunks, its hold has no upper bound
 at all, so the collision is drain against delegated work of any origin.

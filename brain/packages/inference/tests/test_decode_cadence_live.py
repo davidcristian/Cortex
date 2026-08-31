@@ -1,5 +1,3 @@
-"""Integration: the decode cadence off a real llama-server, and the spill it is there to catch."""
-
 import os
 from datetime import UTC, datetime
 
@@ -15,14 +13,13 @@ _ENDPOINT = os.environ.get("CORTEX_CADENCE_ENDPOINT", "http://127.0.0.1:9081")
 _MODEL = os.environ.get("CORTEX_CADENCE_MODEL", "brain")
 _FLOOR = float(os.environ.get("CORTEX_CADENCE_FLOOR_TPS", "25.0"))
 _RUNS = int(os.environ.get("CORTEX_CADENCE_RUNS", "3"))
-# Long enough that the completion clears MIN_CADENCE_TOKENS several times over, so the run is
-# judging the tier rather than the first token's latency.
+# Long enough that the completion clears ``MIN_CADENCE_TOKENS`` several times over, so the run
+# measures the tier rather than the first token's latency.
 _PROMPT = "Explain, in about 120 words, why a GPU is fast at matrix work."
 _TIMEOUT_S = 600.0
 
 
 async def test_a_real_server_reports_its_decode_cadence_and_the_watch_judges_it() -> None:
-    """One tier, `_RUNS` completions, through the shipped adapter and the shipped watch."""
     watch = CadenceWatch(_FLOOR)
     async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)

@@ -1,5 +1,3 @@
-"""ScheduleConfig: defaults, env names, and the constructor-beats-env rule (ADR-0025)."""
-
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -27,7 +25,7 @@ def test_defaults_are_schedule_free(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.claim_limit == 8
     assert config.max_active == 32
     assert config.tz == "UTC"
-    # The default resolves to the stdlib constant, so it needs no tz database at all.
+    # The default resolves to the stdlib constant, so it needs no timezone database at all.
     assert config.display_zone() is UTC_DISPLAY
 
 
@@ -67,6 +65,5 @@ def test_a_configured_zone_resolves_to_that_zone() -> None:
 
 @pytest.mark.parametrize("bad", ["Europe/Bucarest", "not a zone", "../../etc/passwd", ""])
 def test_an_unknown_zone_fails_at_boot_not_at_the_first_listing(bad: str) -> None:
-    """A typo must stop the process where it can be read, never inside a later tool call."""
     with pytest.raises(ValidationError, match="unknown timezone"):
         ScheduleConfig(tz=bad)

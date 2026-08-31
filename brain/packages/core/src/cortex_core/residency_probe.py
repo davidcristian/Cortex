@@ -12,7 +12,7 @@ from cortex_core.residency_watch import BootWatch
 
 
 class ResidencyProbeMixin:
-    """The honesty surface of ``SwappingModelManager``: what it publishes, and what it answers."""
+    """The reporting side of ``SwappingModelManager``: what it publishes, and what it reports."""
 
     _board: ResidencyBoard
     _boot: BootWatch
@@ -26,7 +26,7 @@ class ResidencyProbeMixin:
 
     @property
     def standing_tiers(self) -> StandingTiers:
-        """The peers the standing residency is missing, for boot recovery to write from outside."""
+        """The peer tiers recorded as not serving, for boot recovery to write from outside."""
         return self._tiers
 
     @property

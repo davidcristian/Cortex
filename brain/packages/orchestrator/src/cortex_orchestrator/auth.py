@@ -1,4 +1,4 @@
-"""Seam authentication: the shared-secret token interceptor (assumption 5, ADR-0016)."""
+"""Authenticating a call on the brain's interface: the shared-secret token interceptor."""
 
 import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -7,19 +7,16 @@ from typing import TypeVar
 import grpc
 from grpc import aio
 
-# The metadata key the body's client attaches the token under (lowercase per gRPC rules).
-# Its home is the seam facade (ADR-0023); this interceptor reads it to authorize inbound calls.
 from cortex_seam import SEAM_TOKEN_HEADER
 
-# What a rejected caller sees; deliberately silent on whether the token was absent or wrong.
+# Deliberately does not say whether the token was absent or wrong.
 _DENIED_DETAIL = "invalid or missing seam token"
 
 _TRequest = TypeVar("_TRequest")
 _TResponse = TypeVar("_TResponse")
 
-# One aborting-handler constructor per RPC shape, keyed by (request_streaming,
-# response_streaming). The rejection must match the intercepted method's shape or gRPC
-# cannot deliver the status. Data, not branches: all four exist, the service uses two today.
+# One aborting handler per RPC shape. The rejection must match the intercepted method's shape
+# or gRPC cannot deliver the status, so all four exist though the service uses two.
 _HANDLER_FACTORIES = {
     (False, False): grpc.unary_unary_rpc_method_handler,
     (False, True): grpc.unary_stream_rpc_method_handler,
@@ -57,7 +54,7 @@ def _rejection_like[TRequest, TResponse](
 
 
 class SeamTokenInterceptor(aio.ServerInterceptor):
-    """Rejects any seam call not bearing the shared secret (fail closed, ADR-0016)."""
+    """Rejects any call that does not bear the shared secret (fail closed)."""
 
     def __init__(self, token: str) -> None:
         self._token = token.encode()
@@ -77,7 +74,7 @@ class SeamTokenInterceptor(aio.ServerInterceptor):
         return _rejection_like(handler)
 
     def _authorized(self, details: grpc.HandlerCallDetails) -> bool:
-        """Whether the call's metadata carries the token; constant-time on the compare."""
+        """Whether the call's metadata has the token; the comparison is constant-time."""
         for key, value in details.invocation_metadata or ():
             if key == SEAM_TOKEN_HEADER:
                 presented = value.encode() if isinstance(value, str) else bytes(value)

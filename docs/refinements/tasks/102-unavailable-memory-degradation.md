@@ -21,8 +21,8 @@ raising `EmbedderError` rather than their own backend's exception, which is what
 catch possible at all; what is missing is the catch. The fix is a decision rather than a line:
 where it belongs (`recall_memory_context`, which already answers `None` for memory being
 switched off, so a failure reading as "no memories this turn" needs no new shape), whether the
-user is told (a turn that silently forgets is its own kind of wrong, and the degraded-mode
-precedent reports rather than hides), and whether a write failing is the same call as a read
+user is told (a turn that forgets without saying so is its own kind of wrong, and the
+degraded-mode precedent reports rather than hides), and whether a write failing is the same call as a read
 failing (`remember` losing an exchange is a durability question, not a context one).
 **Trigger:** the first live turn taken against a stopped embedding server or a stopped Postgres,
 which the memory runbook's own teardown step makes easy to hit by accident, or the degraded-mode
@@ -48,13 +48,13 @@ just the same and takes a turn the user has read with it. The exchange is not th
 either, staying in the conversation the user can scroll to; what is lost is a derived index
 entry, which is why the write logs an `error` and the read a `warning`. On being told, the entry
 guessed right that the precedent reports rather than hides, and the report is unconditional on
-the module logger rather than a line on the opt-in recall trail, an outage visible only where
-`CORTEX_MEMORY_RECALL_AUDIT` is on being the silence rather than the cure. The trail gains an
+the module logger rather than a line on the opt-in recall trail, since an outage visible only where
+`CORTEX_MEMORY_RECALL_AUDIT` is on would be the same silence rather than a cure. The trail gains an
 omission instead: no line is written for a recall that never happened, so `pool == available`
 goes on meaning the pool was the whole readable store rather than acquiring a `0 == 0` reading
 for a store nobody could reach. The user is told once, about the read only, by one app-authored
 `StatusUpdate(state="forgoing")` on the channel a fold already narrates itself on, which earns
-its chip where the silently-lost recap does not because a recap compresses history the user can
+its chip where a recap lost without a signal does not because a recap compresses history the user can
 still scroll to while a recalled memory is knowledge from other conversations they cannot see
 and cannot supply. **Two opened in its place**, both residue of this close rather than found
 beside it, and they are the next two entries here.

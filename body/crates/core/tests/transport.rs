@@ -85,8 +85,8 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
-        // Only the id the canned listing offers is ackable, which is the brain's own
-        // contract in miniature: an unknown id clears nothing and answers false.
+        // Only the id the canned listing offers can be acked, which mirrors the brain's own
+        // contract: an unknown id clears nothing and answers false.
         Ok(reminder_id == "r1")
     }
 
@@ -261,8 +261,8 @@ fn turn_event_is_clone_eq_and_debug() {
         tool_name: String::from("read_email"),
         summary: String::from("reading"),
     };
-    // The settling half of the activity above, and the one pair a consent surface reads:
-    // two outcomes for the same tool must not compare equal when only `ok` differs.
+    // The settling half of the activity above, and the pair a consent surface reads: two
+    // outcomes for the same tool must not compare equal when only `ok` differs.
     let outcome = TurnEvent::ToolOutcome {
         tool_name: String::from("read_email"),
         ok: true,
@@ -400,7 +400,6 @@ fn error_debug_output_names_the_variant() {
 
 #[test]
 fn error_equality_compares_variant_and_payload() {
-    // Same variant, same payload.
     assert_eq!(
         TransportError::Connection(String::from("a")),
         TransportError::Connection(String::from("a"))
@@ -415,7 +414,6 @@ fn error_equality_compares_variant_and_payload() {
             message: String::from("a"),
         }
     );
-    // Same variant, different payload.
     assert_ne!(
         TransportError::Connection(String::from("a")),
         TransportError::Connection(String::from("b"))
@@ -440,7 +438,6 @@ fn error_equality_compares_variant_and_payload() {
             message: String::from("b"),
         }
     );
-    // Different variants.
     assert_ne!(
         TransportError::Connection(String::from("a")),
         TransportError::Rpc {
@@ -502,7 +499,8 @@ async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
     assert_eq!(due.len(), 1);
     assert_eq!(due[0].text, "stand up");
     assert!(due[0].recurring);
-    // A dismissal acks; anything the store no longer holds answers false, not an error.
+    // A dismissal acks, and anything the store no longer holds answers false rather than
+    // failing.
     assert!(assert_send(ack(&fake, &due[0].reminder_id)).await);
     assert!(!ack(&fake, "gone").await);
 }
@@ -522,7 +520,7 @@ async fn fake_transport_renames_a_session_through_the_generic_bound() {
             detail: String::new(),
         }),
     };
-    // A relabel and a clear-the-override both report success; a store failure surfaces.
+    // A relabel and a clear-the-override both report success, and a store failure surfaces.
     assert!(
         assert_send(rename(&fake, "s1", "Everything about cats"))
             .await
@@ -549,7 +547,8 @@ async fn fake_transport_deletes_a_session_through_the_generic_bound() {
             detail: String::new(),
         }),
     };
-    // A delete reports success; a store/memory failure surfaces rather than being swallowed.
+    // A delete reports success, and a store or memory failure surfaces rather than being
+    // swallowed.
     assert!(assert_send(delete(&fake, "s1")).await.is_ok());
     assert_eq!(
         delete(&fake, "").await.unwrap_err(),
@@ -575,7 +574,8 @@ async fn fake_transport_sets_the_pin_through_the_generic_bound() {
             detail: String::new(),
         }),
     };
-    // Pinning and unpinning both report success; a store failure surfaces rather than being lost.
+    // Pinning and unpinning both report success, and a store failure surfaces rather than
+    // being lost.
     assert!(assert_send(set_pinned(&fake, "s1", true)).await.is_ok());
     assert!(set_pinned(&fake, "s1", false).await.is_ok());
     assert_eq!(

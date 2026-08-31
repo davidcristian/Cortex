@@ -26,13 +26,13 @@ class _Ground(Enum):
 
 
 # The grounds that need untrusted content to have entered the turn. `COLLECTED` is not among them:
-# it needs no taint *bit* because a non-empty collected set is itself the evidence, and a turn
-# cannot collect a URL without being marked tainted in the same call.
+# it needs no taint bit, because a non-empty collected set is itself the evidence and a turn cannot
+# collect a URL without being marked tainted in the same call.
 _ON_TAINT = frozenset({_Ground.LOOKALIKE, _Ground.LINK})
 
-# What an **opaque** turn adds to whatever policy is configured (ADR-0029): a URL painted into
-# pixels is in no result text, so nothing is collected and no host is read, and distrusting every
-# link is the only ground left standing.
+# What an opaque turn adds to whatever policy is configured (ADR-0029): a URL painted into pixels
+# is in no result text, so nothing is collected and no host is read, which leaves `LINK` as the
+# only ground that can apply.
 _ON_OPAQUE = frozenset({_Ground.LINK})
 
 
@@ -49,7 +49,7 @@ class OutputFilter(Protocol):
 
 
 class TaintView(Protocol):
-    """The **live** taint signals the guardrail reads at scan time (ADR-0013/0015)."""
+    """The live taint signals the guardrail reads at scan time (ADR-0013/0015)."""
 
     @property
     def tainted(self) -> bool: ...
@@ -68,7 +68,7 @@ class OutputGuardrail(Protocol):
 
 
 class UrlRedactingGuardrail:
-    """The default ``OutputGuardrail``: redact URLs sourced *verbatim* from untrusted content."""
+    """The default ``OutputGuardrail``: redact URLs sourced verbatim from untrusted content."""
 
     def open(self, taint: TaintView, *, allow: frozenset[str]) -> OutputFilter:
         """One turn's redacting filter; state dies with the turn."""
@@ -76,9 +76,7 @@ class UrlRedactingGuardrail:
 
 
 class LookalikeUrlRedactingGuardrail:
-    """The default policy plus one ground (ADR-0015 fourteenth addendum): on a **tainted** turn,
-    also redact a URL whose **host is not plain ASCII**, whatever this turn collected.
-    """
+    """The default policy plus one ground (ADR-0015 fourteenth addendum)."""
 
     def open(self, taint: TaintView, *, allow: frozenset[str]) -> OutputFilter:
         """One turn's redacting filter; state dies with the turn."""
@@ -88,9 +86,7 @@ class LookalikeUrlRedactingGuardrail:
 
 
 class StrictUrlRedactingGuardrail:
-    """The opt-in strict ``OutputGuardrail`` (ADR-0015 addendum): on a **tainted** turn, redact
-    *every* URL the user did not themselves send, going beyond the verbatim-collected ones.
-    """
+    """The opt-in strict ``OutputGuardrail`` (ADR-0015 addendum)."""
 
     def open(self, taint: TaintView, *, allow: frozenset[str]) -> OutputFilter:
         """One turn's strict redacting filter; state dies with the turn."""

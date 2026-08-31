@@ -108,8 +108,6 @@ describe("Overlay", () => {
   it("shows the preview with the latest reply and reopens on click", () => {
     const controller = fakeController("preview", [reply]);
     const { container } = renderOverlay(controller);
-    // Asked of the card's own text box: the reply also stands in the always-mounted panel
-    // behind it, as one plain text node now that a settled bubble is not word spans.
     expect(container.querySelector(".pv-b")?.textContent).toBe("the answer");
     fireEvent.click(screen.getByLabelText("Open reply"));
     expect(controller.open).toHaveBeenCalledOnce();
@@ -140,9 +138,6 @@ describe("Overlay", () => {
   });
 
   it("Ctrl+N announces the chat it mints and the header's pencil does not", () => {
-    // One controller call, two doors, and the difference is the whole rule: a keystroke names
-    // nothing, so the fresh chat is announced, while the pencil is labelled "New chat" and
-    // would be handing the reader back the label they just pressed (`overlay/notice.ts`).
     const controller = fakeController("panel");
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "n", ctrlKey: true });
@@ -167,14 +162,11 @@ describe("Overlay", () => {
     const controller = fakeController("panel");
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "k", ctrlKey: true });
-    // Announced, which is this door's whole difference from the header's button below: the key
-    // names nothing and moves no caret, so an opened list would otherwise arrive in silence.
     expect(controller.toggleSwitcher).toHaveBeenCalledWith(true);
     fireEvent.keyDown(document.body, { key: "ArrowUp", ctrlKey: true });
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
     fireEvent.keyDown(document.body, { key: "ArrowDown", metaKey: true });
     expect(controller.cycleNext).toHaveBeenCalledOnce();
-    // Arrows without the modifier are ignored (they scroll the history).
     fireEvent.keyDown(document.body, { key: "ArrowUp" });
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
   });
@@ -224,7 +216,6 @@ describe("Overlay", () => {
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "?" });
     expect(controller.toggleConsole).toHaveBeenCalledWith("shortcuts");
-    // In the composer a ? is just typing, never the console.
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "?" });
     expect(controller.toggleConsole).toHaveBeenCalledOnce();
     const editor = document.createElement("input");
@@ -239,7 +230,6 @@ describe("Overlay", () => {
       const controller = fakeController("panel", [], { consoleTab: tab });
       const { unmount } = renderOverlay(controller);
       fireEvent.keyDown(document.body, { key: "Escape" });
-      // One console, so one Esc: the settings-then-shortcuts two-step is gone with the two sheets.
       expect(controller.closeConsole).toHaveBeenCalledOnce();
       expect(controller.dismiss).not.toHaveBeenCalled();
       unmount();

@@ -1,4 +1,4 @@
-"""Behaviour of the gate tying the committed Rust stub to the proto it was generated from."""
+"""Tests for the gate tying the committed Rust stub to the proto it was generated from."""
 
 from pathlib import Path
 
@@ -83,11 +83,7 @@ def test_a_stub_that_still_says_what_the_proto_says_is_accounted_for(tmp_path: P
 
 
 def test_a_number_retuned_in_the_proto_alone_is_reported(tmp_path: Path) -> None:
-    """The whole point. Every other gate here watches this edit go past: the constant's own
-
-    registry entry is about the proto comment and the prose around it, and the generated copy of
-    that sentence is outside every scan, so the stub goes on stating the old number.
-    """
+    """A number retuned in the proto alone is reported."""
     _tree(tmp_path, proto=PROTO.replace("(1601)", "(1602)"))
     misses = stubcheck.check(tmp_path).misses
     assert [(miss.line, miss.text) for miss in misses] == [(7, 'default" (1602).')]
@@ -107,14 +103,16 @@ def test_a_comment_added_to_the_proto_alone_is_reported(tmp_path: Path) -> None:
 
 
 def test_a_trailing_comment_is_compared_like_any_other(tmp_path: Path) -> None:
-    """It is the kind a naive `//` split reads wrong, and a third of these comments are one."""
+    """A trailing comment is the kind a naive `//` split reads wrong, and a third of the comments
+    here are trailing."""
     _tree(tmp_path, proto=PROTO.replace("clamped to [0.0, 1.0]", "clamped to [0.0, 2.0]"))
     misses = stubcheck.check(tmp_path).misses
     assert [miss.text for miss in misses] == ["clamped to [0.0, 2.0]"]
 
 
 def test_a_doc_comment_the_proto_never_wrote_is_not_this_gates_business(tmp_path: Path) -> None:
-    """tonic documents its own client, so the reverse containment could never be a rule."""
+    """tonic documents its own client, so the stub carries doc comments the proto never wrote and
+    the comparison runs in one direction only."""
     _tree(tmp_path)
     docs = protocomments.rust_docs(STUB)
     assert " Attempt to create a new client by connecting to a given endpoint." in docs
@@ -145,9 +143,10 @@ def test_a_service_banner_survives_the_heading_marker_and_the_collapsed_rule(
 
 
 def test_a_banner_whose_words_changed_is_still_reported(tmp_path: Path) -> None:
-    """A normalization that swallowed the sentence with the markers would be a gate that cannot
+    """A banner whose words changed is still reported.
 
-    fail on a banner, and a banner is where the seam says which side hosts which service.
+    A normalization that swallowed the sentence along with the markers would leave the gate unable
+    to fail on a banner, and a banner is where the seam says which side hosts which service.
     """
     _tree(tmp_path, proto=BANNER_PROTO.replace("host-native", "dockerized"), stub=BANNER_STUB)
     misses = stubcheck.check(tmp_path).misses
@@ -160,10 +159,10 @@ def test_a_banner_whose_words_changed_is_still_reported(tmp_path: Path) -> None:
 
 
 def test_a_banner_reworded_in_one_of_its_two_copies_is_reported(tmp_path: Path) -> None:
-    """The case containment cannot see: tonic writes a service comment into both modules, so one
+    """One copy of a two-copy banner reworded is reported, which a containment check cannot see.
 
-    surviving copy satisfies "is it in the file" while the module the other copy documents goes on
-    stating what the proto used to say.
+    tonic writes a service comment into both modules, so one surviving copy answers "is it in the
+    file" while the module the other copy documents goes on stating what the proto used to say.
     """
     _tree(tmp_path, proto=BANNER_PROTO, stub=HALF_STUB)
     misses = stubcheck.check(tmp_path).misses
@@ -188,11 +187,7 @@ def test_one_text_short_at_several_proto_lines_is_reported_once(tmp_path: Path) 
 
 
 def test_a_rule_line_is_owed_one_copy_however_many_the_proto_writes() -> None:
-    """Prost absorbs a banner's closing rule into the heading, so the copies are not the copies
-
-    written. The floor stays where containment had it, because a red over punctuation would teach
-    everyone to distrust the gate that catches the retuned number.
-    """
+    """A rule line is owed one copy however many the proto writes."""
     assert BANNER_PROTO.count("// ---") == 2
     assert BANNER_STUB.count("/// ---") == 2
     assert stubcheck.owed([protocomments.Comment(1, " ---", leading=True, service=True)]) == {
@@ -201,7 +196,8 @@ def test_a_rule_line_is_owed_one_copy_however_many_the_proto_writes() -> None:
 
 
 def test_a_stub_with_no_rule_line_left_at_all_is_still_reported(tmp_path: Path) -> None:
-    """One is the floor, not nothing: the pinned tally is a floor and never an exemption."""
+    """One copy is a floor rather than an exemption, so a stub carrying no rule line at all is
+    still reported."""
     _tree(tmp_path, proto=BANNER_PROTO, stub=BANNER_STUB.replace("/// ---\n", ""))
     misses = stubcheck.check(tmp_path).misses
     assert [(set(miss.text), miss.wanted, miss.found) for miss in misses] == [({"-"}, 1, 0)]
@@ -238,14 +234,15 @@ def test_a_proto_with_no_syntax_line_is_a_failure(tmp_path: Path) -> None:
 
 
 def test_a_proto_with_no_comment_at_all_is_a_failure_not_a_pass(tmp_path: Path) -> None:
-    """A comparison over an empty collection would report success forever."""
+    """A proto with no comment raises, since a comparison over an empty collection would pass
+    every time it ran."""
     _tree(tmp_path, proto=HEAD)
     with pytest.raises(stubcheck.StubCheckError, match="no comment in proto/body"):
         stubcheck.check(tmp_path)
 
 
 def test_a_stub_with_no_doc_comment_is_a_failure_not_a_pass(tmp_path: Path) -> None:
-    """The other empty side, and the louder one: it is what a lost regeneration looks like."""
+    """The other empty side, which is what a lost regeneration looks like."""
     _tree(tmp_path, stub="// This file is @generated by prost-build.\n")
     with pytest.raises(stubcheck.StubCheckError, match="no doc comment in body/crates"):
         stubcheck.check(tmp_path)
@@ -255,14 +252,15 @@ def test_a_stub_with_no_doc_comment_is_a_failure_not_a_pass(tmp_path: Path) -> N
 
 
 def test_check_counts_the_comments_and_the_doc_lines_it_read(tmp_path: Path) -> None:
-    """Three numbers, none derivable from another: the stub always says more than the proto."""
+    """Three counts, none derivable from another, since the stub always carries more doc lines
+    than the proto has comments."""
     _tree(tmp_path)
     scanned = stubcheck.check(tmp_path)
     assert (scanned.leading, scanned.trailing, scanned.doubled, scanned.docs) == (3, 1, 0, 5)
 
 
 def test_check_counts_the_comments_a_service_claims_two_copies_of(tmp_path: Path) -> None:
-    """A fourth number, overlapping the first two and derivable from neither."""
+    """A fourth count, which overlaps the first two and is derivable from neither."""
     _tree(tmp_path, proto=BANNER_PROTO, stub=BANNER_STUB)
     assert stubcheck.check(tmp_path).doubled == 3
 
@@ -312,7 +310,7 @@ def test_the_repo_itself_is_clean() -> None:
 
 
 def test_the_repo_really_carries_comments_for_this_gate_to_have_checked() -> None:
-    """A guard on the guard: a proto read as empty would make the test above vacuously green."""
+    """This guards the test above, which a proto read as empty would leave vacuous."""
     scanned = stubcheck.check(REPO_ROOT)
     assert scanned.leading >= 150
     assert scanned.trailing >= 20
@@ -321,7 +319,11 @@ def test_the_repo_really_carries_comments_for_this_gate_to_have_checked() -> Non
 
 
 def test_the_real_stub_carries_every_re_spelling_this_gate_undoes() -> None:
-    """Each normalization is dead code the day prost stops needing it, so each is pinned here."""
+    """Each normalization becomes dead code the day prost stops needing it, so each is pinned here.
+
+    A normalization nothing exercises keeps passing on a tree where the shape it was written for
+    no longer occurs, and the next person to change it would have nothing to change it against.
+    """
     docs = protocomments.rust_docs((REPO_ROOT / stubcheck.STUB).read_text(encoding="utf-8"))
     assert any("\\[" in doc and "\\]" in doc for doc in docs)
     assert any(doc.strip().startswith("##") for doc in docs)

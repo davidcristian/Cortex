@@ -1,6 +1,4 @@
-//! Contract tests for the `BodyService` server (ADR-0023, ADR-0025): the `body_service` adapter
-//! over a fake `AudioControl` + a fake `Notify` is served on loopback (127.0.0.1:0, CI-safe) and
-//! driven by the generated `BodyServiceClient` end to end, covering get/set with every
+//! Contract tests for the `BodyService` server.
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -26,8 +24,8 @@ use tonic::{Code, Request};
 
 const TOKEN: &str = "sekrit-seam-token";
 
-/// The threads a fake backend was called on, shared with the test after the fake itself has
-/// moved into the server task.
+/// The threads a fake backend was called on, shared with the test after the fake itself has moved
+/// into the server task.
 type Threads = Arc<Mutex<Vec<ThreadId>>>;
 
 /// Records `thread` as one call site.
@@ -46,16 +44,15 @@ fn recorded(threads: &Threads) -> Vec<ThreadId> {
         .clone()
 }
 
-/// What a fake `AudioControl` does when called. `Panic` stands in for a backend that dies
-/// mid-call (an `unwrap` inside a COM wrapper, a poisoned lock): the handler must still answer.
+/// What a fake `AudioControl` does when called.
 enum AudioBehaviour {
     Answer,
     Fail(AudioError),
     Panic,
 }
 
-/// A fake `AudioControl`: reads/writes a `Mutex`-held state (the port is `Send + Sync`), or
-/// applies a scripted failure on every call.
+/// A fake `AudioControl`: reads/writes a `Mutex`-held state (the port is `Send + Sync`), or applies
+/// a scripted failure on every call.
 struct FakeAudio {
     state: Mutex<VolumeState>,
     behaviour: AudioBehaviour,
@@ -118,8 +115,7 @@ impl AudioControl for FakeAudio {
     }
 }
 
-/// What a fake `Notify` does when called, mirroring [`AudioBehaviour`]. `Answer` carries the
-/// verdict the host would give (shown, or declined because notifications are off).
+/// What a fake `Notify` does when called, mirroring [`AudioBehaviour`].
 #[derive(Clone)]
 enum NotifyBehaviour {
     Answer(bool),
@@ -127,9 +123,8 @@ enum NotifyBehaviour {
     Panic,
 }
 
-/// A fake `Notify`: records every notification it is shown and answers a scripted verdict, or
-/// fails on every call. The record lives behind an `Arc` so a test can read what actually
-/// crossed the seam after the fake moved into the server task.
+/// A fake `Notify`: records every notification it is shown and answers a scripted result, or
+/// fails on every call.
 #[derive(Clone)]
 struct FakeNotify {
     behaviour: NotifyBehaviour,
@@ -188,14 +183,14 @@ impl Notify for FakeNotify {
     }
 }
 
-/// Serves `fake` (with a notification backend that always shows) fronted by the seam-token
-/// validator on an ephemeral loopback port.
+/// Serves `fake`, with a notification backend that always shows, behind the token validator on
+/// an ephemeral loopback port.
 async fn spawn_body(fake: FakeAudio, token: &'static str) -> Result<SocketAddr, std::io::Error> {
     spawn_with(fake, FakeNotify::answering(true), token).await
 }
 
-/// Serves the audio and notification fakes with capture switched off (the host default),
-/// fronted by the seam-token validator on an ephemeral loopback port.
+/// Serves the audio and notification fakes with capture off, behind the token validator on an
+/// ephemeral loopback port.
 async fn spawn_with(
     audio: FakeAudio,
     notify: FakeNotify,
@@ -213,7 +208,7 @@ async fn spawn_screen(
     serve(FakeAudio::new(0.5, false), notify, screen, receipts, "").await
 }
 
-/// Serves every fake fronted by the seam-token validator on an ephemeral loopback port.
+/// Serves every fake behind the token validator on an ephemeral loopback port.
 async fn serve<S: ScreenCapture + 'static>(
     audio: FakeAudio,
     notify: FakeNotify,
@@ -247,8 +242,7 @@ async fn connect(addr: SocketAddr) -> Result<BodyServiceClient<Channel>, tonic::
     BodyServiceClient::connect(format!("http://{addr}")).await
 }
 
-/// A request carrying the seam token as `x-cortex-seam-token` metadata (a `&'static str`, so
-/// the metadata value needs no fallible parse).
+/// A request with the shared token as `x-cortex-seam-token` metadata.
 fn with_token<T>(message: T, token: &'static str) -> Request<T> {
     let mut request = Request::new(message);
     request
@@ -281,7 +275,6 @@ async fn set_volume_applies_each_field_combination() {
     let addr = spawn_body(FakeAudio::new(0.1, false), "").await.unwrap();
     let mut client = connect(addr).await.unwrap();
 
-    // Level only: mute is left untouched.
     let reply = client
         .set_volume(SetVolumeRequest {
             level: Some(0.9),
@@ -298,7 +291,6 @@ async fn set_volume_applies_each_field_combination() {
         }
     );
 
-    // Mute only: level is left untouched.
     let reply = client
         .set_volume(SetVolumeRequest {
             level: None,
@@ -315,7 +307,6 @@ async fn set_volume_applies_each_field_combination() {
         }
     );
 
-    // Neither field: the state is reported unchanged.
     let reply = client
         .set_volume(SetVolumeRequest {
             level: None,
@@ -332,7 +323,6 @@ async fn set_volume_applies_each_field_combination() {
         }
     );
 
-    // Both fields: the whole state changes.
     let reply = client
         .set_volume(SetVolumeRequest {
             level: Some(0.2),
@@ -364,8 +354,6 @@ async fn no_endpoint_maps_to_failed_precondition() {
         .get_volume(GetVolumeRequest {})
         .await
         .unwrap_err();
-    // Host state, not a body nobody could reach: the brain reserves `Unavailable` for a call
-    // that never arrived, so an unplugged speaker must not borrow that code.
     assert_eq!(status.code(), Code::FailedPrecondition);
     assert!(status.message().contains("gone"));
 }
@@ -418,9 +406,6 @@ async fn notify_shows_the_reminder_as_inert_text_and_reports_it() {
         .into_inner();
     assert_eq!(reply, NotifyReply { shown: true });
 
-    // The wire values reached the backend through `Notification`, so the newline is already
-    // a space and the taint carries its body-authored attribution. Markup characters stay:
-    // escaping is the renderer's step, and the value must not double-escape for it.
     let shown = notifier.seen();
     assert_eq!(shown.len(), 1);
     assert_eq!(shown[0].title(), "Reminder");
@@ -516,8 +501,6 @@ async fn a_panicking_audio_backend_answers_internal_and_keeps_the_connection() {
     assert_eq!(status.code(), Code::Internal);
     assert!(status.message().contains("the OS call failed"));
 
-    // The brain holds this connection for every later OS action, so a dead backend must cost
-    // it a status and not the channel: the next call is answered rather than dropped.
     let status = client
         .set_volume(SetVolumeRequest {
             level: Some(0.3),
@@ -597,7 +580,6 @@ async fn a_missing_token_is_unauthenticated() {
 #[tokio::test]
 async fn a_wrong_same_length_token_is_unauthenticated() {
     let addr = spawn_body(FakeAudio::new(0.3, false), TOKEN).await.unwrap();
-    // Same length as TOKEN so the constant-time compare runs its full byte loop.
     let status = connect(addr)
         .await
         .unwrap()
@@ -610,7 +592,6 @@ async fn a_wrong_same_length_token_is_unauthenticated() {
 #[tokio::test]
 async fn a_wrong_length_token_is_unauthenticated() {
     let addr = spawn_body(FakeAudio::new(0.3, false), TOKEN).await.unwrap();
-    // Different length exercises the constant-time compare's length-mismatch short-circuit.
     let status = connect(addr)
         .await
         .unwrap()
@@ -620,17 +601,15 @@ async fn a_wrong_length_token_is_unauthenticated() {
     assert_eq!(status.code(), Code::Unauthenticated);
 }
 
-/// A fake `ScreenCapture`: answers a scripted frame or failure, records the resolved requests
-/// it was handed and the thread each ran on.
+/// A fake `ScreenCapture`: answers a scripted frame or failure, records the resolved requests it
+/// was handed and the thread each ran on.
 struct FakeScreen {
     answer: Answer,
     seen: Arc<Mutex<Vec<CaptureRequest>>>,
     threads: Threads,
 }
 
-/// What a fake backend hands back. `Raw` is the honest shape of a backend fault in a buffer:
-/// the frame is built by production's own `RawFrame::new` inside the handler, so a miscounted
-/// buffer is rejected there and the message the brain reads is production's, not the test's.
+/// What a fake backend hands back.
 enum Answer {
     Frame(RawFrame),
     Window(RawFrame, TargetRect),
@@ -643,8 +622,8 @@ impl FakeScreen {
         Self::with(Answer::Frame(frame))
     }
 
-    /// A backend that resolved a target to a window inside the frame, which is what the real
-    /// one does after its Z-order walk.
+    /// A backend that resolved a target to a window inside the frame, which is what the real one
+    /// does after its Z-order walk.
     fn showing(frame: RawFrame, window: TargetRect) -> Self {
         Self::with(Answer::Window(frame, window))
     }
@@ -703,8 +682,8 @@ fn frame(width: u32, height: u32) -> RawFrame {
         .unwrap_or_else(|error| panic!("the fixture frame is malformed: {error}"))
 }
 
-/// Wall-clock milliseconds, read independently of the server so a timestamp assertion is not
-/// checking production against a value production produced.
+/// Wall-clock milliseconds, read independently of the server so a timestamp assertion does not
+/// check production against a value production produced.
 fn now_millis() -> i64 {
     let since_epoch = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -712,7 +691,7 @@ fn now_millis() -> i64 {
     i64::try_from(since_epoch.as_millis()).unwrap_or(i64::MAX)
 }
 
-/// Runs one capture, returning the blob the seam carried.
+/// Runs one capture, returning the blob the reply contained.
 async fn capture_once(addr: SocketAddr, max_edge: u32) -> Result<ImageBlob, tonic::Status> {
     capture_bounded(addr, max_edge, 0).await
 }
@@ -726,8 +705,8 @@ async fn capture_bounded(
     capture_targeted(addr, max_edge, max_bytes, PbCaptureTarget::Display.into()).await
 }
 
-/// Runs one capture that names what to point at, as the raw wire integer so a value the enum
-/// does not name can be sent the way a newer brain would send one.
+/// Runs one capture that names what to point at, as the raw wire integer so a value the enum does
+/// not name can be sent the way a newer brain would send one.
 async fn capture_targeted(
     addr: SocketAddr,
     max_edge: u32,
@@ -740,8 +719,8 @@ async fn capture_targeted(
         .unwrap_or_else(|| panic!("the reply carried no image")))
 }
 
-/// Runs one capture and hands back the whole reply, for the assertions that are about what the
-/// body says it pointed at rather than about the pixels.
+/// Runs one capture and hands back the whole reply, for the assertions that are about what the body
+/// says it pointed at rather than about the pixels.
 async fn capture_reply(
     addr: SocketAddr,
     max_edge: u32,
@@ -811,8 +790,6 @@ async fn an_unset_max_edge_reaches_the_backend_as_the_body_default() {
 
 #[tokio::test]
 async fn a_targeted_capture_reaches_the_backend_as_a_target_and_crosses_cropped() {
-    // The whole point of landing the field and the body's honouring of it together: a knob a
-    // shipping body ignores is a silent lie under proto3, so this asserts both halves at once.
     let screen = FakeScreen::showing(frame(40, 20), TargetRect::new(10, 5, 20, 15));
     let requests = screen.requests();
     let addr = spawn_screen(screen, FakeNotify::answering(true), true)
@@ -829,16 +806,12 @@ async fn a_targeted_capture_reaches_the_backend_as_a_target_and_crosses_cropped(
         .clone();
     assert_eq!(seen.len(), 1);
     assert_eq!(seen[0].target(), CaptureTarget::Focus);
-    // The picture is the window, and the source size is still the display's, which is what the
-    // brain shows the model as the size of the screen.
     assert_eq!((blob.width, blob.height), (10, 10));
     assert_eq!((blob.source_width, blob.source_height), (40, 20));
 }
 
 #[tokio::test]
 async fn a_target_this_body_does_not_know_reads_as_the_whole_display() {
-    // Proto3's own rule for an unrecognized enum, which is what a newer brain asking for
-    // something this body cannot resolve looks like on the wire.
     let screen = FakeScreen::answering(frame(4, 4));
     let requests = screen.requests();
     let addr = spawn_screen(screen, FakeNotify::answering(true), true)
@@ -869,16 +842,12 @@ async fn a_desktop_with_no_window_to_point_at_is_a_host_state_failure() {
         .await
         .unwrap_err();
 
-    // FailedPrecondition, like a shut lid: it is host state, and it works again the moment a
-    // window is on screen. The brain reads that code as "the host is not in a state to capture".
     assert_eq!(status.code(), Code::FailedPrecondition);
     assert_eq!(status.message(), "no capture target: a bare desktop");
 }
 
 #[tokio::test]
 async fn a_window_off_the_captured_display_is_refused_by_the_core_the_backend_fed() {
-    // The backend resolved a window; pure core found it has nothing on the display and refused.
-    // Nothing falls back to the whole screen, which is the widening this path must never do.
     let notifier = FakeNotify::answering(true);
     let addr = spawn_screen(
         FakeScreen::showing(frame(40, 20), TargetRect::new(200, 200, 300, 300)),
@@ -955,9 +924,6 @@ async fn a_window_filling_the_display_is_announced_as_a_screen_capture() {
 
 #[tokio::test]
 async fn the_reply_says_which_of_the_two_things_the_picture_is() {
-    // The brain cannot tell a crop from a shrunk screen out of the blob alone: `source_width` and
-    // `source_height` are the display's on both paths, deliberately. This field is how it can say
-    // honestly what it was shown, and a window that is genuinely a window reads as one.
     let windowed_at = spawn_screen(
         FakeScreen::showing(frame(40, 20), TargetRect::new(10, 5, 20, 15)),
         FakeNotify::answering(true),
@@ -1019,8 +985,6 @@ async fn the_receipt_can_be_switched_off_without_losing_the_capture() {
 
 #[tokio::test]
 async fn a_failed_receipt_does_not_lose_the_capture() {
-    // The pixels have already been read by the time the receipt runs, so refusing to answer
-    // would cost the capability and buy no privacy back.
     let notifier = FakeNotify::failing(NotifyError::Unavailable(String::from("no service")));
     let addr = spawn_screen(FakeScreen::answering(frame(4, 4)), notifier, true)
         .await
@@ -1049,9 +1013,7 @@ async fn a_capture_runs_off_the_async_worker() {
     );
 }
 
-/// Every `CaptureError` variant, with the code the brain classifies it by. The whole set is
-/// here rather than a sample, because the brain reads the code to choose what it tells the
-/// model, so a variant sharing another's code is a variant the model cannot be told apart.
+/// Every `CaptureError` variant, with the code the brain classifies it by.
 fn capture_failure_table() -> [(CaptureError, Code, &'static str); 4] {
     [
         (
@@ -1189,8 +1151,8 @@ async fn a_backend_that_miscounts_its_buffer_is_caught_by_the_pure_core_frame_ch
     );
 }
 
-/// The pure-core capture value is what the handler maps, so a `Capture` built here and the
-/// blob the seam carried must agree byte for byte.
+/// The pure-core capture value is what the handler maps, so a `Capture` built here and the blob
+/// in the reply must agree byte for byte.
 #[tokio::test]
 async fn the_blob_carries_exactly_what_the_core_encoded() {
     let source = frame(30, 12);
@@ -1215,8 +1177,6 @@ async fn the_blob_carries_exactly_what_the_core_encoded() {
 
 #[tokio::test]
 async fn a_ceiling_the_ladder_cannot_meet_is_refused_as_too_large() {
-    // The brain names a ceiling no PNG can fit under, so all three rungs overshoot and the
-    // body refuses rather than sending a picture the caller already said it would not take.
     let addr = spawn_screen(
         FakeScreen::answering(frame(32, 32)),
         FakeNotify::answering(true),
@@ -1226,8 +1186,6 @@ async fn a_ceiling_the_ladder_cannot_meet_is_refused_as_too_large() {
     .unwrap();
 
     let status = capture_bounded(addr, 32, 40).await.unwrap_err();
-    // Resource exhausted, not internal: the picture was taken and the ladder ran out, which is
-    // a different thing from a backend that broke and is worth a different sentence.
     assert_eq!(status.code(), Code::ResourceExhausted);
     assert!(
         status
@@ -1249,7 +1207,6 @@ async fn a_ceiling_the_ladder_can_meet_is_honoured() {
     .await
     .unwrap();
 
-    // 400x400 flat colour encodes tiny, so a 4 KiB ceiling is met on the first rung.
     let blob = capture_bounded(addr, 400, 4096).await.unwrap();
     assert_eq!((blob.width, blob.height), (400, 400));
     assert!(blob.data.len() <= 4096, "{} bytes", blob.data.len());

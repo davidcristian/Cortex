@@ -16,8 +16,8 @@ interface PanelProps {
   readonly open: boolean;
   readonly dark: boolean;
   readonly mark: MarkStyle;
-  /** The window's edge style (ADR-0036): Still leaves the panel exactly as it was; a liquid
-   *  style hands the panel's face to the `PanelEdge` layers. */
+  /** The window's edge style (ADR-0036): Still leaves the panel's own surface as it is, while a
+   *  liquid style draws that surface through the `PanelEdge` layers. */
   readonly edge: EdgeStyle;
   /** The chosen theme name, or `null` while following the system scheme (the view shows it). */
   readonly themeName: string | null;
@@ -37,7 +37,7 @@ interface PanelProps {
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  /** Load a chat, announcing it or not by the door it came from (`overlay/notice.ts`). */
+  /** Load a chat, announced or not depending on which control opened it (`overlay/notice.ts`). */
   readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
@@ -58,8 +58,8 @@ const CONSOLE: View = "console";
 export function Panel(props: PanelProps) {
   const { state, open, themeName, mark, edge, onOpenConsole, onCloseConsole } = props;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // A style with no waves is Still, and Still mounts nothing: the panel keeps its own face and
-  // pays nothing per frame, so the crisp choice is exactly the panel this feature found.
+  // A style with no waves is Still, which mounts no edge layers at all: the panel keeps its own
+  // surface and costs nothing per frame.
   const liquid = edge.waves.length > 0;
   const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);

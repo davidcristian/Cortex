@@ -1,5 +1,7 @@
-//! What one outgoing seam call carries: the metadata it is sent with, and the deadline the body
-//! told the brain about it.
+//! What one outgoing call sends: its metadata, and the deadline the body told the brain about.
+//!
+//! The token is per connection and a deadline is per call, but both travel through the same
+//! tonic interceptor, so one interceptor is built per call.
 
 use std::time::Duration;
 
@@ -13,17 +15,16 @@ use tonic::{Request, Status};
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::status::announced_status_to_error;
 
-/// The metadata key the seam token travels under (ADR-0016; lowercase per gRPC). Declared again
-/// in `auth.rs` and once more in the brain's `cortex_seam`; `scripts/crosscheck.py` ties all
-/// three, so a rename here that misses either of the others fails the gate rather than the seam.
+/// The metadata key the shared token travels under. Declared again in `auth.rs` and in the
+/// brain's `cortex_seam`.
 const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
 
-/// The service every seam call runs over: tonic's [`Channel`] fronted by the
-/// token interceptor (which is a pass-through when no token is configured).
+/// The service every call runs over: tonic's [`Channel`] fronted by the token interceptor,
+/// which passes calls through when no token is configured.
 pub(crate) type SeamChannel = InterceptedService<Channel, SeamTokenInterceptor>;
 
-/// Attaches the shared seam token to every outgoing request (ADR-0016), and this call's
-/// announced deadline when it has one (ADR-0024 courtesy-header addendum).
+/// Attaches the shared token to every outgoing request, and this call's announced deadline when
+/// it has one. It must not derive `Debug`, because it holds the secret.
 #[derive(Clone)]
 pub(crate) struct SeamTokenInterceptor {
     token: Option<MetadataValue<Ascii>>,
@@ -38,28 +39,28 @@ impl Interceptor for SeamTokenInterceptor {
                 .insert(SEAM_TOKEN_HEADER, token.clone());
         }
         if let Some(announced) = self.announced {
-            // Writes `grpc-timeout` and nothing else. The channel's own `GrpcTimeout` layer sits
-            // below this one and parses the header back off the request, so this also arms a
-            // local clock: see `announcing` for why that clock must never be the first to fire.
+            // This writes `grpc-timeout` and also starts a local clock, because the channel's
+            // own timeout layer parses the header back off the request.
             request.set_timeout(announced);
         }
         Ok(request)
     }
 }
 
-/// The longest deadline this transport will announce, and the reason this adapter filters at all.
-/// About 27.8 hours, which is the top of `grpc-timeout`'s millisecond rung.
+/// The longest deadline this transport will announce: about 27.8 hours, the top of the
+/// millisecond step of `grpc-timeout`, whose value is at most 8 digits plus a unit. Above it the
+/// next step is whole seconds, whose truncation would cost more than the grace margin.
 const MAX_ANNOUNCED_DEADLINE_MS: u64 = 99_999_999;
 
-/// One unary call in flight: the client that carries its announcement, and the announcement.
+/// One unary call in flight: the client that sends the announcement, and the announcement.
 pub(crate) struct SeamCall {
     client: BrainServiceClient<SeamChannel>,
     announced: Option<Duration>,
 }
 
 impl SeamCall {
-    /// Builds one call over `channel`, sending `token` and announcing as much of `deadline` as the
-    /// header can carry.
+    /// Builds one call over `channel`, sending `token` and announcing `deadline` when the header
+    /// can hold it.
     pub(crate) fn new(
         channel: Channel,
         token: Option<MetadataValue<Ascii>>,
@@ -75,8 +76,7 @@ impl SeamCall {
         }
     }
 
-    /// The generated client for this call. Cloned because every generated method takes `&mut
-    /// self`; clones share the channel, so this costs a pair of `Option`s and an `Arc` bump.
+    /// The generated client for this call.
     pub(crate) fn client(&self) -> BrainServiceClient<SeamChannel> {
         self.client.clone()
     }
@@ -89,8 +89,8 @@ impl SeamCall {
     }
 }
 
-/// The part of `deadline` this transport may actually announce: itself, or nothing when the
-/// header cannot carry it in an order-preserving unit ([`MAX_ANNOUNCED_DEADLINE_MS`]).
+/// The part of `deadline` this transport may announce: itself, or nothing when the header cannot
+/// hold it in a unit that keeps the two clocks in order ([`MAX_ANNOUNCED_DEADLINE_MS`]).
 fn announceable(deadline: Option<Duration>) -> Option<Duration> {
     let ceiling = Duration::from_millis(MAX_ANNOUNCED_DEADLINE_MS);
     deadline.filter(|announced| *announced <= ceiling)

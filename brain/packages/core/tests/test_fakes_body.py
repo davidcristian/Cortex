@@ -1,6 +1,3 @@
-"""The InMemoryBodyGateway's notify and capture surfaces (ADR-0025/0029); volume paths:
-test_fakes/test_volume."""
-
 from datetime import UTC, datetime
 
 import pytest
@@ -53,7 +50,6 @@ async def test_capture_screen_records_the_hints_and_answers_the_default() -> Non
 
 
 async def test_a_capture_the_fake_was_given_is_answered_whatever_was_asked_for() -> None:
-    """The fake is the adapter's twin, and the adapter reports what the body says it pointed at."""
     gateway = InMemoryBodyGateway()
     capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)
     assert capture.target is CaptureTarget.DISPLAY
@@ -80,6 +76,5 @@ async def test_capture_screen_raises_the_scripted_failure() -> None:
 
 
 def test_the_default_capture_reports_a_downscaled_view() -> None:
-    # The fake's stand-in is deliberately a 1x1 view of a 2x2 screen, so a consumer that only
-    # ever sees the default still exercises the downscaled branch of the value.
+    # The fake's default capture is deliberately a 1x1 view of a 2x2 screen.
     assert default_capture().downscaled is True

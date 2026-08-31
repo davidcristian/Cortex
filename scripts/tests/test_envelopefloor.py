@@ -16,12 +16,12 @@ SENT = f"{ASK} Your entire response must be the answer itself."
 
 
 def turn(*, instruction: str = ASK, ok: bool = True, output: str = "a summary, in full") -> Run:
-    """One run as the driver writes it, defaulting to a run that stood."""
+    """Return one run as the driver writes it, defaulting to a run that stood."""
     return {"question": "warehouse", "instruction": instruction, "ok": ok, "output": output}
 
 
 def sample(path: Path, arm: str, turns: list[Run], *, control: bool) -> Path:
-    """One arm's sample file, written the way the driver writes it."""
+    """Write one arm's sample file the way the driver writes it."""
     path.write_text(json.dumps({"arm": arm, "control": control, "turns": turns}), encoding="utf-8")
     return path
 
@@ -31,7 +31,8 @@ def stood(count: int, *, instruction: str = ASK) -> list[Run]:
 
 
 def test_a_refused_run_is_a_lapse_whatever_its_text_held() -> None:
-    """The runner already settled it, and a cut reply carries the text it had got to."""
+    """A run the runner rejected is a lapse whatever its output held, since a cut reply still
+    carries the text it had reached."""
     assert envelopefloor.Turn(ASK, ok=False, output="a summary, in full").lapse == "refused"
 
 
@@ -40,28 +41,28 @@ def test_an_accepted_but_empty_reply_is_a_lapse() -> None:
 
 
 def test_the_instruction_handed_back_is_a_lapse_through_punctuation_and_case() -> None:
-    """The quiet failure this tier really produces, and it is read over letters and digits so a
-    reply that differs from the ask by a full stop or a capital is still the ask."""
+    """This is the failure the tier produces most often. The comparison is over letters and digits,
+    so a reply differing from the ask by a full stop or a capital is still the ask."""
     assert envelopefloor.Turn(ASK, ok=True, output=ASK).lapse == "echo"
     assert envelopefloor.Turn(ASK, ok=True, output=f"  {ASK.upper()}  ").lapse == "echo"
 
 
 def test_a_reply_that_quotes_the_instruction_on_its_way_to_answering_is_not_an_echo() -> None:
-    """Equality and not containment: the echo rule may not call a real answer a failure."""
+    """The echo rule compares for equality rather than containment, so a real answer that quotes
+    the ask on its way is not a lapse."""
     assert envelopefloor.Turn(ASK, ok=True, output=f"{ASK} Inbound pallets 1,842.").lapse is None
 
 
 def test_an_answer_this_reader_cannot_judge_is_not_a_lapse() -> None:
-    """The half that stays a reading. A narration is a well formed reply about the task, and
-    nothing structural separates it from an answer, which is why `stood` bounds `delivered`
-    from above rather than measuring it."""
+    """A narration is a well formed reply about the task, and nothing structural separates it from
+    an answer, which is why `stood` bounds `delivered` from above rather than measuring it."""
     assert envelopefloor.Turn(ASK, ok=True, output="The user wants a summary.").lapse is None
 
 
 def test_the_interval_reproduces_the_published_rates() -> None:
     """Ten of the rates the ADR-0028 addenda published by hand, recomputed here. The arithmetic
-    moved into this file to be covered; a different arithmetic would have quietly rewritten every
-    number the record already carries."""
+    moved into this file to be covered, and a different arithmetic would rewrite every number the
+    record already carries."""
     published = {
         (32, 32): (0.89, 1.00),
         (31, 32): (0.84, 0.99),
@@ -80,21 +81,21 @@ def test_the_interval_reproduces_the_published_rates() -> None:
 
 
 def test_a_cell_is_refused_only_when_its_whole_interval_is_under_the_floor() -> None:
-    """One-sided on purpose: a red has to be a proof, so the point estimate falling under the
-    floor is not enough and 26 of 32 passes where 25 of 32 does not."""
+    """The test is one-sided deliberately: a failure has to be proven, so a point estimate under
+    the floor is not enough, and 26 of 32 passes where 25 of 32 does not."""
     assert not envelopefloor.rate(_cell(26, 32)).refused
     assert envelopefloor.rate(_cell(25, 32)).refused
 
 
-def test_a_four_run_probe_reddens_only_once_half_of_it_has_failed() -> None:
-    """The default knobs draw four runs an arm, where one loss is a quarter of the sample and
-    evidence of nothing; half of them failing is a different claim, and the interval says so."""
+def test_a_four_run_probe_fails_only_once_half_of_it_has_failed() -> None:
+    """The default settings draw four runs an arm, where one loss is a quarter of the sample and
+    evidence of nothing, while half of them failing is a claim the interval supports."""
     assert not envelopefloor.rate(_cell(3, 4)).refused
     assert envelopefloor.rate(_cell(2, 4)).refused
 
 
 def _cell(count: int, runs: int) -> tuple[envelopefloor.Turn, ...]:
-    """``runs`` runs of which ``count`` stood, the rest handing the instruction back."""
+    """Return ``runs`` runs of which ``count`` stood, the rest handing the instruction back."""
     good = [envelopefloor.Turn(ASK, ok=True, output="a summary, in full") for _ in range(count)]
     bad = [envelopefloor.Turn(ASK, ok=True, output=ASK) for _ in range(runs - count)]
     return tuple(good + bad)
@@ -166,8 +167,8 @@ def test_load_refuses_a_sample_that_names_no_arm(tmp_path: Path) -> None:
 
 
 def test_load_refuses_a_sample_that_does_not_say_whether_it_is_the_control(tmp_path: Path) -> None:
-    """The field is how the control arm is found at all, an arm's NAME being a string this reader
-    would otherwise have to agree with the driver about."""
+    """The field is how the control arm is found, since an arm's name is a string this reader would
+    otherwise have to agree with the driver about."""
     path = tmp_path / "raw.json"
     path.write_text(json.dumps({"arm": "raw", "turns": stood(1)}), encoding="utf-8")
     with pytest.raises(envelopefloor.FloorError, match="control is missing"):
@@ -194,8 +195,8 @@ def test_load_refuses_a_turn_that_is_not_an_object(tmp_path: Path) -> None:
 def test_load_refuses_a_turn_written_before_the_driver_recorded_the_instruction(
     tmp_path: Path,
 ) -> None:
-    """The sample format this reader needs: an older run carries no instruction, so it can be
-    grouped into no shape and judged against no ask, and saying so beats guessing."""
+    """An older run carries no instruction, so it can be grouped into no shape and judged against
+    no ask. The reader raises rather than supplying one."""
     old: Run = {"question": "warehouse", "ok": True, "output": "a summary, in full"}
     with pytest.raises(envelopefloor.FloorError, match="instruction is missing"):
         envelopefloor.load(sample(tmp_path / "raw.json", "raw", [old], control=True))
@@ -230,8 +231,8 @@ def test_publish_reports_the_control_arm_then_the_comparison(tmp_path: Path) -> 
 
 
 def test_publish_refuses_a_comparison_read_against_a_collapsed_control(tmp_path: Path) -> None:
-    """The whole point: a control arm that failed the subtask leaves a tidy table pricing the
-    pick, and the table is what must not be printed."""
+    """A control arm that failed the subtask would leave a tidy table pricing the pick, and that
+    table is what must not be printed."""
     collapsed = stood(20) + [turn(output=ASK) for _ in range(12)]
     arms = [
         envelopefloor.load(sample(tmp_path / "raw.json", "raw", collapsed, control=True)),
@@ -244,8 +245,9 @@ def test_publish_refuses_a_comparison_read_against_a_collapsed_control(tmp_path:
 
 
 def test_publish_refuses_when_one_shape_of_several_collapsed(tmp_path: Path) -> None:
-    """Per shape rather than pooled: a pick that answers a summarization and cannot do an
-    extraction has one cell at ceiling and one on the floor, and their average describes neither."""
+    """Cells are judged per shape rather than pooled: a pick that answers a summarization and
+    cannot do an extraction has one cell at the ceiling and one on the floor, and their average
+    describes neither."""
     extraction = "Extract every number from the report below."
     turns = stood(32) + [turn(instruction=extraction, output=extraction) for _ in range(32)]
     arms = [envelopefloor.load(sample(tmp_path / "raw.json", "raw", turns, control=True))]
@@ -256,7 +258,7 @@ def test_publish_refuses_when_one_shape_of_several_collapsed(tmp_path: Path) -> 
 
 def test_publish_refuses_a_run_that_drew_no_control_arm(tmp_path: Path) -> None:
     """A probe may run any subset of the arms, so the control arm can be absent entirely, and a
-    comparison with no control in it is not a weaker reading but no reading."""
+    comparison with no control in it reads nothing at all."""
     arms = [
         envelopefloor.load(sample(tmp_path / "con.json", "constrained", stood(8), control=False))
     ]

@@ -15,7 +15,7 @@ end of what a screen can arrive at. Both halves of that argument are about **com
 conservatism**, not about the number. What neither half establishes is whether the framing's
 measured resistance moves with the picture's size at all.
 
-It plausibly could. The encoder resizes whatever it is handed onto its own grid, so a payload
+The size plausibly could matter. The encoder resizes whatever it is handed onto its own grid, so a payload
 occupying a smaller fraction of a larger frame arrives with fewer pixels per glyph, and the arm's
 whole premise is that the model reads the instruction. If resistance is flat across the two edges
 a deployment can send, the corpus's frame is a free choice and the argument for it is complete. If
@@ -44,8 +44,8 @@ The harness to run is `brain/packages/inference/tests/test_injection_defense_liv
   frame from comparability and from the attacker's benefit and found no evidence either way about
   whether the frame changes the result.
 - 2026-08-30: **landed, with the frame a free choice over the range measured and the entry's own
-  experiment refused.** Every particular of the entry held at HEAD: one frame was not the arm's
-  default but the only frame the corpus could build, and the published matrix was measured in it.
+  experiment rejected.** Every particular of the entry held at HEAD: one frame was the only frame the corpus
+  could build rather than the arm's default, and the published matrix was measured in it.
   The experiment it proposed was not run, because a canvas that grows while the glyphs stay put
   varies the payload's share of the picture as well as the picture's size, and two matrices
   differing in two variables are two experiments. The corpus now takes a `Frame` that multiplies

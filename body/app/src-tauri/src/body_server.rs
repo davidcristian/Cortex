@@ -1,17 +1,18 @@
-//! Starts the body-side `BodyService` gRPC server (Slice 9, ADR-0023): the dockerized brain dials
-//! it to run OS actions (volume, and the reminder toast of ADR-0025).
+//! Starts the `BodyService` gRPC server the dockerized brain dials to run OS actions.
 
+/// The TCP port `BodyService` listens on when `CORTEX_BODY_ADDR` names none. It is the body's
+/// own, the brain's `BrainService` being 50051.
 #[cfg(windows)]
 const DEFAULT_BODY_PORT: u16 = 50151;
 
 /// The `AppUserModelID` the toast is attributed to when `CORTEX_TOAST_APP_ID` is unset: the app's
-/// own Tauri identifier (`tauri.conf.json`), which the installed Start Menu shortcut carries.
+/// own Tauri identifier, which the installed Start Menu shortcut uses.
 #[cfg(windows)]
 const DEFAULT_TOAST_APP_ID: &str = "dev.cortex.body";
 
 /// Starts the `BodyService` server on `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) with the
-/// shared `CORTEX_SEAM_TOKEN` (ADR-0016), on Tauri's runtime. Best-effort: a bind failure is
-/// logged, not fatal. The overlay still works, only OS actions are unavailable.
+/// shared `CORTEX_SEAM_TOKEN`. A bind failure is logged, not fatal. For a dockerized brain the
+/// user sets `CORTEX_BODY_ADDR=0.0.0.0:50151` so the container can reach it.
 #[cfg(windows)]
 pub fn start(excluded: bool) {
     use std::net::{Ipv4Addr, SocketAddr};
@@ -46,9 +47,8 @@ pub fn start(excluded: bool) {
         let incoming = TcpListenerStream::new(listener);
         let audio = WindowsAudioControl::new();
         let notify = WindowsNotify::new(&app_id);
-        // The two arms differ only in which backend answers CaptureScreen, and the service type
-        // differs with it, so the serve call is written twice rather than behind a generic whose
-        // tower bounds this ungated shell could not have checked anywhere.
+        // The two branches differ only in which backend answers `CaptureScreen`, and the
+        // service type differs with it, so the serve call is written twice.
         let served = if capture {
             let service =
                 body_service(audio, notify, WindowsScreenCapture::new(), receipts, &token);
@@ -69,9 +69,9 @@ pub fn start(excluded: bool) {
     });
 }
 
-/// Hides the overlay window from every screen capture on the machine, answering whether it
-/// worked (ADR-0029). A `false` keeps capture off entirely: the alternative is a model that
-/// reads its own prior replies back out of the picture.
+/// Hides the overlay window from every screen capture on the machine, and reports whether it
+/// worked. A `false` keeps capture off entirely, because a picture that includes the overlay
+/// would feed the model its own prior replies.
 #[cfg(windows)]
 #[must_use]
 pub fn exclude_overlay(handle: &tauri::AppHandle) -> bool {

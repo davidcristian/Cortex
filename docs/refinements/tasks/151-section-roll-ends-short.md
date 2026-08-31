@@ -41,9 +41,9 @@ half pixel, or any report of a section settling with a flick.
   (`stubRoll`) and `Collapse.test.tsx`'s own now say the height through the computed style, so the
   three files sharing them assert on what production reads; `laysEverything` was widened to take
   an answer that changes under the test, which is what a roll interrupted mid-flight needs.
-  Falsified both ways: put `offsetHeight` back and 11 `Collapse` cases redden along with the
+  Falsified both ways: put `offsetHeight` back and 11 `Collapse` cases fail along with the
   per-row exits in `Reminders.test.tsx` and `SessionList.test.tsx`; round the used height instead
-  and exactly one case reddens, the new one that names the sub-pixel.
+  and exactly one case fails, the new one that names the sub-pixel.
 
 ## Trail
 
@@ -51,6 +51,6 @@ half pixel, or any report of a section settling with a flick.
   off `offsetHeight` and left this one on it, and landed hours later the same day with both
   published numbers reproducing exactly at HEAD. The 57.25px section is a reminder row rather than
   the Thoughts trace the entry named, which measures 76 flat at that viewport. The step at every
-  roll boundary reads 0.000px after, the harness moved with it, and reverting the reading reddens
-  eleven `Collapse` cases. It opened the whisper bubble's rounded roll target behind it, so the area
+  roll boundary reads 0.000px after, the harness moved with it, and reverting the reading makes
+  eleven `Collapse` cases fail. It opened the whisper bubble's rounded roll target behind it, so the area
   held at twelve, one out and one in.

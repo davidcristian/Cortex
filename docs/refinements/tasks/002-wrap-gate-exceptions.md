@@ -4,9 +4,8 @@
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
-Opened 2026-07-19 behind the landing.
-The entry above named four things a hard wrap must not touch, a URL, a
-pasted command, a fenced code block, and a `BREAKING CHANGE:` footer, and called deciding them
+Opened 2026-07-19 behind the landing. The entry above named four things a hard wrap must not
+touch, a URL, a pasted command, a fenced code block, and a `BREAKING CHANGE:` footer, and called deciding them
 "the whole reason this is not a two-line patch". Only the first is covered, because the shipped
 exemption is a property of the longest **word** rather than of the line's **kind**, and a pasted
 command or a fenced line is built out of ordinary short words. Measured against the shipped gate
@@ -14,9 +13,9 @@ on 2026-07-19 rather than reasoned about: one message carrying an indented
 `docker compose --project-directory . -f docker/docker-compose.yml ... up -d` line (108 chars,
 longest word 29), a fenced `uv run pytest packages/core --cov ...` line (82 chars), and a
 `BREAKING CHANGE:` footer of short words (118 chars) drew three complaints and exit 1. The
-footer is the sharp one, because [AGENTS.md](../../../AGENTS.md) itself mandates that footer for a
-breaking change, so the gate can now refuse a message the commit rules require; it is also the
-easiest of the three to live with, since a footer is prose and its value may legitimately carry
+footer is the most serious of the three, because [AGENTS.md](../../../AGENTS.md) itself mandates
+that footer for a breaking change, so the gate can now reject a message the commit rules require;
+it is also the easiest of the three to live with, since a footer is prose and its value may legitimately carry
 newlines, so it can simply be wrapped. A command and a fence cannot: reflowing either changes
 what it says, which is the "rewriting messages rather than checking them" failure the entry
 named. **What would close it:** a line-kind exemption rather than a word-width one, which is a
@@ -24,8 +23,8 @@ fence toggle carried through the walk plus a heuristic for a pasted command (a l
 shell prompt), and the decision about whether a footer is exempt at all or simply wrapped like
 any other prose. **Trigger:** the first commit that genuinely needs a command or a block in its
 body, at which point the author chooses between mangling the paste and bypassing the hook, which
-is precisely the outcome the entry above was recorded to avoid. Until then the gate is right
-about every message this repo has actually written.
+is precisely the outcome the entry above was recorded to avoid. Until then the gate passes every
+message this repo has actually written.
 
 **Landed 2026-08-09, ahead of its trigger and not by it**
 ([ADR-0026 line-kind addendum](../../adr/ADR-0026-prose-style-gates.md)). No commit had yet needed
@@ -44,10 +43,10 @@ read and its value is prose, and neither reader loses anything to a newline: git
 admits no space, so `BREAKING CHANGE:` is not a git trailer at all (`interpret-trailers --parse`
 prints nothing for it and prints `Co-authored-by:` from the same message), and the Conventional
 Commits parser that does read it allows a footer value to carry newlines. Exempting it would
-hole the wrap for the one class of text the wrap is for, keyed on a token rather than on the
+remove the wrap from the one class of text the wrap is for, keyed on a token rather than on the
 words.
-**Two of this entry's own claims did not survive the measurement.** The first is the sharp one:
-the gate cannot "refuse a message the commit rules require", because what it refuses is a footer
+**Two of this entry's own claims did not survive the measurement.** The first is the more serious:
+the gate cannot "reject a message the commit rules require", because what it rejects is a footer
 written unwrapped, and AGENTS.md mandates the footer and the wrap on the same page while the
 specification it cites permits both at once. Proven against the gate as it stood that morning,
 before anything was changed: a 139-character one-line footer exits 1 and the same footer wrapped
@@ -69,5 +68,5 @@ Only the prompt shipped. **What this opens** is the entry below.
   its body. The wrap walks the message carrying a fence toggle, steps over a fenced line and over
   a `$` prompted paste, and reports a fence left open rather than letting one exempt every line
   after it. The footer was decided rather than exempted, and the leading-indent half of the
-  entry's own heuristic was refused on this repo's history, where all 9 indented body lines are
+  entry's own heuristic was rejected on this repo's history, where all 9 indented body lines are
   prose. What replaced it is the entry on a paste's reach.

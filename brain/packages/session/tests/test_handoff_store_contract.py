@@ -1,5 +1,3 @@
-"""One behavior suite over BOTH HandoffStore implementations, plus adapter error paths."""
-
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import replace
@@ -54,7 +52,6 @@ async def test_backend_failure_wraps_into_handoff_store_error(operation: str) ->
 
 
 async def test_terminal_put_failure_wraps_too() -> None:
-    """The terminal write path (pointer read + TTL'd set) wraps its backend failure alike."""
     store = _disconnected_store()
     record = handoff_contract.make_record("t1", state=HandoffState.DONE)
     with pytest.raises(HandoffStoreError, match="put for handoff 't1' failed") as excinfo:
@@ -84,7 +81,6 @@ async def test_corrupt_record_wraps_into_handoff_store_error() -> None:
 
 @pytest.mark.parametrize("field", ["tainted", "opaque", "sources", "untrusted_urls"])
 async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str) -> None:
-    """A document without one of its taint fields fails LOUDLY; a default would fail open."""
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
     del fields[field]
@@ -94,7 +90,6 @@ async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str)
 
 
 async def test_record_with_an_unknown_source_kind_is_corrupt() -> None:
-    """A forged/unknown provenance kind never decodes into an attested-looking source."""
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
     fields["sources"] = [{"kind": "root-of-trust", "value": "evil"}]
@@ -104,7 +99,6 @@ async def test_record_with_an_unknown_source_kind_is_corrupt() -> None:
 
 
 async def test_terminal_records_expire_and_live_ones_do_not() -> None:
-    """A non-terminal record has no TTL (boot recovery must find it); a terminal one does."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisHandoffStore(client)
     record = handoff_contract.make_record("t1")
@@ -115,16 +109,14 @@ async def test_terminal_records_expire_and_live_ones_do_not() -> None:
 
 
 async def test_a_dangling_active_pointer_reads_as_no_active_handoff() -> None:
-    """A pointer naming a gone record self-heals to None on read (nothing is mutated)."""
     client = FakeAsyncRedis(server=FakeServer())
     await client.set(ACTIVE_KEY, "ghost")
     store = RedisHandoffStore(client)
     assert await store.active() is None
-    assert await client.get(ACTIVE_KEY) is not None  # read-only: the pointer is left alone
+    assert await client.get(ACTIVE_KEY) is not None
 
 
 async def test_a_terminal_record_behind_the_pointer_is_not_active() -> None:
-    """A hand-crafted finished-but-still-pointed record never resurrects as in flight."""
     client = FakeAsyncRedis(server=FakeServer())
     done = replace(handoff_contract.make_record("t1"), state=HandoffState.DONE)
     await client.set("cortex:handoff:t1", encode_record(done))

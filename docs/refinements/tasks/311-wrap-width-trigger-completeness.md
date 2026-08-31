@@ -14,20 +14,20 @@ of the viewport and nothing else. Today it is: `.panel` is `width: min(560px, 92
 width the log can take is a viewport width, and no other input reaches it.
 
 The day something else moves the panel's width, the wrap changes with no `resize` behind it and the
-letters stay laid for the old one, which is the defect the close removed, returned by a different
-road. The candidates are ordinary rather than exotic: a drag handle on the panel, a width in the
-appearance record beside the theme and the window edge, or a screen-sized transparent window whose
-log is inset by something other than a percentage of the viewport.
+letters stay laid for the old one, which is the defect the close removed, reappearing from a
+different cause. The candidates are ordinary rather than exotic: a drag handle on the panel, a width
+in the appearance record beside the theme and the window edge, or a screen-sized transparent window
+whose log is inset by something other than a percentage of the viewport.
 
-**What would close it.** The honest general instrument is a `ResizeObserver` on the log, and the
-close rejected it for a reason that survives this change: the log's own height follows the posed
-bubble every frame of every stream, so the callback would run per frame, and writing the letter
-DOM's width inside an observation of an ancestor re-gathers at the same depth and raises the
-"loop completed with undelivered notifications" error `overlay/panelWatch.ts` already paid for
-once. The way through is the one that hook found, so read it first: drop the observation for the
-frame the write happens in and take it back up on the next, and compare the width before calling
-anything, since a bubble's own pose must not read as a wrap change. Whichever instrument wins, the
-watch is already one function with one caller, so the change is contained to `watchWrap`.
+**What would close it.** The general instrument is a `ResizeObserver` on the log, and the close
+rejected it for a reason that survives this change: the log's own height follows the posed bubble
+every frame of every stream, so the callback would run per frame, and writing the letter DOM's width
+inside an observation of an ancestor re-gathers at the same depth and raises the "loop completed
+with undelivered notifications" error `overlay/panelWatch.ts` already paid for once. The way through
+is the one that hook found, so read it first: drop the observation for the frame the write happens
+in and take it back up on the next, and compare the width before calling anything, since a bubble's
+own pose must not read as a wrap change. Whichever instrument wins, the watch is already one
+function with one caller, so the change is contained to `watchWrap`.
 
 ## Trail
 

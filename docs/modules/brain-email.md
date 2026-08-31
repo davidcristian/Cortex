@@ -26,18 +26,19 @@ denied outright.
   one promise about success: every name `list_folders` answers with is a name the other two calls
   may be given, so a server's bare hierarchy nodes are filtered out by the implementation rather
   than handed on (ADR-0022 hierarchy-node addendum). Two contract checks hold it, one walking the
-  offered list and one saying that naming a node anyway is still refused. The other direction, that
+  offered list and one requiring that naming a node anyway still fails. The other direction, that
   every name the server opens is offered, is not a contract check: it can only be seen beside the
   server's own LIST, so the adapter's tests and the live Bridge test carry it (ADR-0022
   flagged-and-refused addendum).
-- `MailboxError` says the mailbox could not answer: unreachable Bridge, refused TLS or login, a
-  folder that could not be examined, a connection that went away. Beneath it are the two narrower
+- `MailboxError` says the mailbox could not answer: unreachable Bridge, rejected TLS or login, a
+  folder that could not be examined, a dropped connection. Beneath it are the two narrower
   subclasses, one per argument the read tools invite a model to guess, and the line in both cases
   is whether writing the call differently would change anything.
-  `SearchRefusedError` is the server having read a query and refused it as malformed (ADR-0022
-  refused-search addendum). It carries the `query` it refused and its message points the model at
-  the `query` field's own description rather than restating the dialect.
-  `FolderUnknownError` is no mailbox having the folder that was named (ADR-0022 unknown-folder
+  `SearchRefusedError` is the server rejecting a query it read as malformed (ADR-0022
+  refused-search addendum). It carries the `query` that was rejected and its message points the
+  model at the `query` field's own description rather than restating the dialect.
+  `FolderUnknownError` reports that no mailbox holds the folder that was named (ADR-0022
+  unknown-folder
   addendum), and a name no mailbox *could* have is the same error rather than a third one: the
   two servers disagree about which fact an empty or malformed name is and cannot disagree about
   the correction, since `list_folders` never offered such a name (ADR-0022 refused-name addendum).
@@ -50,10 +51,10 @@ denied outright.
 - `ImapMailbox(config)` is the `Mailbox` over imap-tools. Connects per call (the Bridge is local)
   so the server holds no IMAP state. `list_folders` reads the LIST attributes `folder.list()`
   carries beside each name and treats a name flagged `\Noselect` (RFC 3501) or `\NonExistent`
-  (RFC 5258), case-folded, as a question rather than an answer: it opens that name once with
-  EXAMINE and drops it only if the server refuses it too. The two servers disagree about the flag,
-  Dovecot refusing such a node in the very words that prove a folder missing and the Bridge opening
-  the two parents of its own hierarchy, so asking is what is correct on both (ADR-0022
+  (RFC 5258), case-folded, as unproven rather than settled: it opens that name once with
+  EXAMINE and drops it only when the server rejects it too. The two servers disagree about the flag,
+  Dovecot rejecting such a node in the very words that prove a folder missing and the Bridge opening
+  the two parents of its own hierarchy, so opening the name is what is correct on both (ADR-0022
   flagged-and-refused addendum). Both spellings are measured, in different listings: Dovecot sends
   `\Noselect` with its hierarchy node under every LIST it accepts, and keeps `\NonExistent` for a
   subscribed name no mailbox has, which only a LIST asking for subscriptions returns. The plain
@@ -64,20 +65,22 @@ denied outright.
   a search becomes `SearchRefusedError`, a `NO` to `SELECT` whose own text says the mailbox does
   not exist becomes `FolderUnknownError`, and everything else, imaplib's `IMAP4.abort` for a
   connection lost mid-command included, becomes `MailboxError` with the cause chained. Both
-  classifications look rather than assume, and for the same reason. The abort is tested for by
+  classifications read what the server said rather than assuming it, for the same reason. The
+  abort is tested for by
   subclass, since reporting a dropped connection as a refused query would send a model round a
   rewrite loop that cannot end. The select is classified from what the server said, in either of
   the two forms it can say it in: `_FOLDER_MISSING_PHRASES` holds the Bridge's measured `no such
   mailbox` and Dovecot's measured `Mailbox doesn't exist`, and `_FOLDER_MISSING_CODES` holds the
   RFC 5530 codes `[NONEXISTENT]` and `[CANNOT]`. The same `NO` also covers a folder that is
   really there and could not be opened, and a folder that cannot be proved missing is not
-  reported missing. Two servers, one fact, no shared word and no response code from either for
-  the missing case, which is why the words are read at all and why there are two of them; the
+  reported missing. The two servers report one fact with no shared wording, and neither sends a
+  response code for the missing case, which is why the phrases are read at all and why there are
+  two of them; the
   code is what settles the refusal whose prose says nothing about a mailbox, Dovecot answering
   every malformed name (empty, `Parent/`, `/Parent`, `Parent//Child`, `INBOX/../etc`, `~root`)
   with `[CANNOT] Invalid mailbox name` where the Bridge says `no such mailbox` (ADR-0022
   refused-name addendum). It is read bracketed rather than as the word inside it, so a refusal
-  whose prose merely contains "cannot" is untouched. The other
+  whose prose merely contains "cannot" is not classified as a missing folder. The other
   refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
   two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
 - **The probe suite's seven fixture names are module constants and registered couplings.**
@@ -91,24 +94,25 @@ denied outright.
   ordinary LIST (ADR-0022 flagged-name-that-opens addendum).
   `scripts/crosscheck.py` ties each to the line
   the script writes it in (ADR-0029 fixture addendum). This suite is `integration`-marked and
-  never runs in CI, so the gate is the only thing that would notice the fixture and the suite
-  drifting apart; the invented name the suite expects to be refused is deliberately not tied,
-  the point of it being that nothing builds it.
+  never runs in CI, so the gate is the only check that catches the fixture and the suite
+  drifting apart; the invented name the suite expects to be rejected is deliberately not tied,
+  since the point of that name is that nothing builds it.
 - **The mail root those names live under is the compose file's, handed to the container in
   `CORTEX_IMAP_PROBE_MAIL_ROOT`.** The script builds the tree under it and dovecot resolves the
   account's home out of it with `%{env:...}`, which needs the name on `import_environment` to
   reach the processes that expand it, so the store, the tree and the home are one spelling rather
-  than three. The store must be the tmpfs the compose file mounts and the entrypoint refuses to
-  start when it is not, that being the one property of this fixture whose loss nothing else would
-  say out loud (ADR-0022 one-mail-root addendum).
+  than three. The store must be the tmpfs the compose file mounts, and the entrypoint exits
+  instead of starting when it is not, since that is the one property of this fixture whose loss
+  nothing else would report (ADR-0022 one-mail-root addendum).
 - **The configuration directory is a tmpfs for a different reason, and the conf is copied onto
   it.** The image declares a volume at `/etc/dovecot` as well, so a container with nothing mounted
   there gets an anonymous volume `docker compose down` leaves on the host, once per run. The
   compose file mounts a tmpfs at the path it hands the container as
   `CORTEX_IMAP_PROBE_CONFIG_ROOT`, binds the conf in at `/probe.conf` beside the entrypoint, and
-  the entrypoint copies it onto the mount, which is what keeps that one spelling honest: dovecot's
-  configuration directory is compiled in, so a root written as anything else is a server reading
-  the image's own settings and seven red tests rather than a leak nothing mentions. The conf names
+  the entrypoint copies it onto the mount, which is what keeps that path to a single spelling:
+  dovecot's configuration directory is compiled in, so a root written as anything else produces a
+  server reading the image's own settings and seven failing tests rather than a leak nothing
+  reports. The conf names
   `/etc/ssl/certs/ssl-cert-snakeoil.pem` and `/etc/ssl/private/ssl-cert-snakeoil.key`, the files
   the image's `cert.pem` and `key.pem` symlinks point at, because those symlinks are under the
   tmpfs (ADR-0022 configuration-directory addendum).
@@ -119,8 +123,9 @@ denied outright.
   `DEFAULT_TLS_INSECURE` (which both halves read) and `DEFAULT_SEND_ENABLED`, because the email
   override spells each again as a substitution default and `scripts/crosscheck.py` can only hold a
   restatement to a declaration it can read (ADR-0029's boolean addendum). Flip both or neither.
-  One name covers the reader's hatch and the sender's because it is one answer rather than two
-  that coincide: a hatch that ships open is not a hatch.
+  One name covers the reader's escape hatch and the sender's because they are one setting rather
+  than two that happen to agree, and an escape hatch that shipped open would leave nothing to
+  switch off.
 - `EmailSummary` / `EmailDetail` are frozen value types (a search hit; a full message).
 - `EmailDraft` is the frozen send-side value the user approves: `to`/`subject`/`body` plus
   optional `cc`, `bcc`, `html` (each defaulting to `""` = omitted), and `attachments`. It is the
@@ -133,23 +138,24 @@ denied outright.
   addendum). It is also **the one value type in this package that is a prompt**: pydantic lifts
   its class docstring into the tool's `$defs` entry and each field's `Field(description=...)`
   into that field, so `values.py` imports pydantic and owns the model-facing prose (ADR-0022
-  per-field addendum). The three bounds a send is refused against (`MAX_ATTACHMENTS`,
+  per-field addendum). The three bounds a send is checked against (`MAX_ATTACHMENTS`,
   `MAX_ATTACHMENT_CHARS`, `MAX_FILENAME_CHARS`) live there too, beside `ATTACHMENTS_HELP`, so
   the number the model is told and the number `SmtpSender` enforces are one value.
 - `build_server(reader, sender=None) -> FastMCP` registers the three read tools always, and
   `send_email(to, subject, body, cc="", bcc="", html="", attachments=())` only when a sender is
   passed (with advisory MCP `ToolAnnotations`: not read-only, destructive, open-world, and never
-  authority; the brain-side overlay is). `cc`/`bcc` are comma-separated address lists; `html`
+  the authority on gating, which the brain-side overlay is). `cc`/`bcc` are comma-separated
+  address lists; `html`
   adds a rich alternative; `attachments` is an array of `{filename, content, subtype}` objects
   (the one nested schema in the tool surface), carrying `ATTACHMENTS_HELP` as its own schema
   description because the two bounds it names belong to the array rather than to any field of
   an attachment. `search_emails` describes all three of its parameters from `values.py`
   (ADR-0022 search-dialect addendum): `SEARCH_QUERY_HELP` names the raw IMAP `SEARCH` dialect
   the query is written in, criterion by criterion and only where a live pass against a real
-  Bridge proved the criterion works, plus the client `from:` syntax that is refused rather than
-  understood; `FOLDER_HELP` (spent by `read_email` too, so the two cannot drift) says a folder
+  Bridge proved the criterion works, plus the client `from:` syntax that is rejected rather than
+  parsed; `FOLDER_HELP` (spent by `read_email` too, so the two cannot drift) says a folder
   name comes verbatim from `list_folders`, and `FOLDER_UNKNOWN` is the same fact said once the
-  server has refused a name, so it names neither searching nor reading in particular; `SEARCH_LIMIT_HELP` says the matches kept are the
+  server has rejected a name, so it names neither searching nor reading in particular; `SEARCH_LIMIT_HELP` says the matches kept are the
   first in the folder's own uid order rather than the newest. The live test
   `test_every_advertised_search_criterion_is_one_the_bridge_accepts` is the guard on that prose:
   it runs one query per named family and fails if the description names a criterion no query
@@ -158,8 +164,8 @@ denied outright.
   a `CallToolResult` themselves (`_one_text`), each for something the block alone cannot carry.
   Both folder-taking tools mark a correction `isError` while keeping the port's own wording,
   because a tool that lets an exception out is restated by FastMCP as `Error executing tool
-  <name>: ...`, which is the truth for a mailbox that could not answer (deliberately left to
-  escape) and a falsehood for a call the server read and declined. `search_emails` catches both
+  <name>: ...`, which is accurate for a mailbox that could not answer (deliberately left to
+  escape) and inaccurate for a call the server read and declined. `search_emails` catches both
   corrections, `read_email` the folder one, which it hits before it has looked at a uid (so a
   guessed folder never reads "message not found"). `read_email` adds a
   result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
@@ -174,12 +180,12 @@ denied outright.
 - `EmailSender` is the `Protocol` the send tool needs (`send(draft: EmailDraft) -> str`).
 - `SmtpSender(config)` is the `EmailSender` over smtplib + STARTTLS (or implicit TLS),
   connecting per call. `From` is the authenticated Bridge user, never a parameter, so the tool
-  cannot spoof a sender; a CR/LF in the recipient, subject, `cc`, or `bcc` is refused in code
+  cannot spoof a sender; a CR/LF in the recipient, subject, `cc`, or `bcc` is rejected in code
   (header injection, not left to the interpreter's patch level). A `bcc` rides the envelope but
   is stripped from the transmitted message by `send_message`, so it stays hidden from the To/Cc
   readers. An `html` draft composes a `multipart/alternative` (plain `body` fallback + HTML);
   a plain draft stays a single `text/plain` part. Attachments wrap whatever the body shapes
-  built in a `multipart/mixed`, and are refused (never truncated) unless each filename is
+  built in a `multipart/mixed`, and are rejected (never truncated) unless each filename is
   non-empty, CR/LF-free, and at most `MAX_FILENAME_CHARS` (128), each `subtype` is a MIME
   token (`_SUBTYPE_TOKEN`, the one of the four bounds that stays here because it is a rule
   rather than a number), there are at most `MAX_ATTACHMENTS` (8), and their `content` totals at

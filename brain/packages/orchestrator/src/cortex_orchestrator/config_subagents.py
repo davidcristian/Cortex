@@ -1,4 +1,4 @@
-"""Subagent-delegation configuration (ADR-0010/0012/0018): env-driven, root-read only."""
+"""Subagent-delegation configuration: env-driven, root-read only."""
 
 from typing import Literal
 
@@ -15,27 +15,32 @@ from cortex_core import (
 
 SubagentsBackendName = Literal["none", "llamacpp"]
 
-# The logical id of the subagent tier (ADR-0004); deployments override via CORTEX_SUBAGENTS_MODEL.
 DEFAULT_SUBAGENT_MODEL = "subagent"
 
-# What the spawn spec advertises for the default entry unless the deployment overrides it
-# (CORTEX_SUBAGENTS_MODEL_DESCRIPTION). Trade-off text only. Safety never rides a description
-# (ADR-0017 is enforced in the core, whatever this says).
 DEFAULT_SUBAGENT_DESCRIPTION = "the injection-robust default; safe for any subtask"
 
+# The soft admission ceilings, and the twins of the CPU subagent container's own limits: the
+# scheduler stops admitting at these sums and `docker/docker-compose.subagents.yml` caps the
+# container from the same numbers, so retuning one alone caps what the other admits against.
 DEFAULT_MEM_BUDGET_GB = 8.0
 
 DEFAULT_CPU_BUDGET = 4.0
 
+# One subagent's own ask. The VRAM figure sits about 174 MiB above the 3338 to 3410 MiB the
+# GPU-placed tier costs at its shipped shape, and the memory figure rounds the CPU entry's
+# 2.5 GiB RSS up so two are admitted under the budget. The CPU ask is a placeholder.
 DEFAULT_VRAM_GB = 3.5
 DEFAULT_CPUS = 2.0
 DEFAULT_MEMORY_GB = 3.0
 
+# How long a delegated stream may send nothing before the adapter gives up on it. Loose where
+# the resident tier's is tight, because a CPU server decodes at about 0.35 tok/s: it is twice
+# the longest whole subtask measured there, so it fires on a wedge and not on slowness.
 DEFAULT_STALL_TIMEOUT_S = 600.0
 
 
 class SubagentRosterEntry(BaseModel):
-    """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value (ADR-0018)."""
+    """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value."""
 
     endpoint: str = Field(min_length=1)
     gpu_endpoint: str = ""
@@ -46,7 +51,7 @@ class SubagentRosterEntry(BaseModel):
 
 
 class SubagentsConfig(BaseSettings):
-    """Whether the cortex can delegate to subagents (ADR-0010, ADR-0012, ADR-0018)."""
+    """Whether the cortex can delegate to subagents."""
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SUBAGENTS_", env_nested_delimiter="__")
 
@@ -65,9 +70,6 @@ class SubagentsConfig(BaseSettings):
     admission_wait_s: float = Field(default=DEFAULT_ADMISSION_WAIT_S, ge=0)
     max_tokens: int = Field(default=DEFAULT_SUBAGENT_MAX_TOKENS, ge=1)
     run_timeout_s: float = Field(default=DEFAULT_SUBAGENT_RUN_TIMEOUT_S, gt=0)
-    # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
-    # format-laundering on the weak-model niche. On by default; the raw stream is restored per
-    # niche with CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT=false.
     constrain_output: bool = True
 
     @model_validator(mode="after")
@@ -92,7 +94,7 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _every_ask_must_fit_the_whole_budget(self) -> "SubagentsConfig":
-        """Refuse at boot an entry the scheduler could only ever refuse (ADR-0012 addendum)."""
+        """Fail at boot on an entry the scheduler could never admit."""
         for name, entry in self.named_roster.items():
             if entry.cpus > self.cpu_budget or entry.memory_gb > self.mem_budget_gb:
                 msg = (
@@ -105,7 +107,7 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _the_run_deadline_must_outlast_the_stall_ceiling(self) -> "SubagentsConfig":
-        """Refuse at boot a pair of bounds whose precedence would be the wrong way round."""
+        """Fail at boot on a pair of bounds whose precedence would be the wrong way round."""
         if self.run_timeout_s <= self.stall_timeout_s:
             msg = (
                 f"CORTEX_SUBAGENTS_RUN_TIMEOUT_S ({self.run_timeout_s}) must be greater than "
@@ -119,7 +121,7 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _the_run_deadline_must_fit_inside_the_queue_for_it(self) -> "SubagentsConfig":
-        """Refuse at boot a hold no queued peer would still be waiting through."""
+        """Fail at boot on a hold no queued peer would still be waiting through."""
         hold_s = ATTEMPTS_PER_ADMISSION * self.run_timeout_s
         if self.admission_wait_s > 0 and hold_s >= self.admission_wait_s:
             msg = (
@@ -137,11 +139,7 @@ class SubagentsConfig(BaseSettings):
 
     @property
     def attempt_bounds(self) -> AttemptBounds:
-        """How far one delegated attempt may go, as the core's value (ADR-0005 total-cap addendum).
-
-        A property rather than a field so the two knobs stay independently settable env vars while
-        everything below the composition root receives the one value object they mean together.
-        """
+        """How far one delegated attempt may go, as the core's value."""
         return AttemptBounds(max_tokens=self.max_tokens, timeout_s=self.run_timeout_s)
 
     @property

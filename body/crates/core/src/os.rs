@@ -1,6 +1,7 @@
-//! OS-capability ports for the body, forming the first portability seam (AGENTS.md,
-//! ADR-0011). Pure traits and value types here; per-platform adapters live in
-//! the `os_windows` / `os_linux` / `os_macos` crates behind them.
+//! OS-capability ports for the body, the first of its two portability boundaries.
+//!
+//! Pure traits and value types live here; the per-platform adapters are in the `os_windows`,
+//! `os_linux` and `os_macos` crates.
 
 pub mod notify;
 pub mod screen;
@@ -23,18 +24,13 @@ pub use screen_target::{CaptureTarget, CapturedFrame, TargetRect};
 
 use crate::hotkey::{HotkeyChord, Modifier};
 
-/// A callback a [`Hotkey`] backend invokes each time the chord is pressed. It
-/// fires on an OS/event-loop thread, so it is `Send` and outlives the call.
+/// A callback a [`Hotkey`] backend invokes each time the chord is pressed.
 pub type HotkeyCallback = Box<dyn Fn() + Send + 'static>;
 
-/// Why registering or resolving a global hotkey failed. See [`Hotkey`] and
-/// [`Accelerator::from_chord`].
+/// Why registering or resolving a global hotkey failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum HotkeyError {
-    /// The chord's key has no known [`KeyboardEvent.code`] mapping, so no
-    /// backend can register it. `0` is the offending key (e.g. `"f99"`).
-    ///
-    /// [`KeyboardEvent.code`]: https://www.w3.org/TR/uievents-code/
+    /// The chord's key has no known [`KeyboardEvent.code`] mapping, so no backend can register it.
     #[error("hotkey key `{0}` is not supported")]
     UnsupportedKey(String),
     /// The OS backend refused the registration (already taken, OS error, …).
@@ -42,11 +38,13 @@ pub enum HotkeyError {
     Registration(String),
 }
 
-/// The port a global-hotkey backend implements (`os_windows` real; other
-/// platforms are stubs until built, per ADR-0011).
+/// The port a global-hotkey backend implements. Only `os_windows` is real; the others are stubs.
 pub trait Hotkey {
-    /// Registers `chord` as a global hotkey, invoking `on_activate` on each
-    /// press.
+    /// Registers `chord` as a global hotkey, invoking `on_activate` on each press.
+    ///
+    /// # Errors
+    ///
+    /// [`HotkeyError`] when the key has no accelerator mapping or the OS refuses the binding.
     fn register(&self, chord: &HotkeyChord, on_activate: HotkeyCallback)
     -> Result<(), HotkeyError>;
 }
@@ -77,9 +75,7 @@ impl Accelerator {
     }
 }
 
-/// Maps a chord's lowercase key to its `KeyboardEvent.code` name, or `None` if
-/// unsupported. Letters → `KeyA`…`KeyZ`, digits → `Digit0`…`Digit9`,
-/// `f1`…`f24` → `F1`…`F24`, plus a small set of named keys.
+/// Maps a chord's lowercase key to its `KeyboardEvent.code` name, or `None` if unsupported.
 fn key_to_code(key: &str) -> Option<String> {
     if let Some(single) = single_char_code(key) {
         return Some(single);
@@ -93,9 +89,10 @@ fn key_to_code(key: &str) -> Option<String> {
     named_code(key)
 }
 
-/// The `code` for a single-character key: a letter or a digit. The slice
-/// pattern keeps both arms reachable. A single ASCII char is one byte; empty
-/// or multi-byte keys take `_`. That leaves no dead branch to exclude.
+/// The `code` for a single-character key: a letter or a digit.
+///
+/// Matching on the byte slice keeps both branches reachable: one ASCII character is one byte,
+/// and an empty or multi-byte key takes the `_` branch.
 fn single_char_code(key: &str) -> Option<String> {
     let ch = match key.as_bytes() {
         [byte] => *byte as char,
@@ -110,20 +107,18 @@ fn single_char_code(key: &str) -> Option<String> {
     None
 }
 
-/// Why reading or changing the host audio volume failed. See [`AudioControl`].
+/// Why reading or changing the host audio volume failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum AudioError {
     /// No usable audio output endpoint (no default device, or it was removed).
-    /// `0` is a backend detail.
     #[error("no audio output endpoint is available: {0}")]
     NoEndpoint(String),
-    /// The OS audio backend refused or failed the operation. `0` is a backend detail.
+    /// The OS audio backend refused or failed the operation.
     #[error("the audio backend failed: {0}")]
     Backend(String),
 }
 
 /// The host's audio output state: `level` in `[0.0, 1.0]` and whether it is `muted`.
-/// The OS-neutral value both directions of the seam speak (mirrors the proto `VolumeState`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VolumeState {
     /// Output volume as a fraction, `0.0` (silent) to `1.0` (max).
@@ -133,7 +128,6 @@ pub struct VolumeState {
 }
 
 /// A requested change to the host volume: set the `level`, the `mute` flag, or both.
-/// A `None` field is left untouched (proto explicit presence, resolved to the core here).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct VolumeChange {
     /// The target level, already clamped to `[0.0, 1.0]`, or `None` to leave it.
@@ -163,9 +157,7 @@ fn clamp_level(level: f32) -> f32 {
     }
 }
 
-/// The port an audio-control backend implements (`os_windows` real via Core Audio; other
-/// platforms are stubs until built, per ADR-0023). It is the sibling of [`Hotkey`] and the first
-/// OS capability the brain drives over `BodyService`.
+/// The port an audio-control backend implements, real only in `os_windows`, over Core Audio.
 pub trait AudioControl: Send + Sync {
     /// Reads the host's current output volume state.
     ///

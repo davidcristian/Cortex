@@ -401,7 +401,7 @@ async def test_a_trace_budget_rides_the_request_where_the_engine_reads_one() -> 
 
 
 async def test_a_trace_budget_is_withheld_where_the_engine_does_not_read_one() -> None:
-    """The floor: an engine that ignores the key is sent no key at all (ADR-0005)."""
+    """An engine that does not read the key is sent no key at all (ADR-0005)."""
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -497,7 +497,7 @@ async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
 
 
 async def test_an_unparsable_tool_call_is_the_ports_narrower_failure() -> None:
-    """The model's own tokens, said apart from the transport's (ADR-0005 tool-call-cut addendum)."""
+    """A tool call the model left unparsable raises the narrow ``MalformedToolCallError``."""
     content = _sse(
         _chunk(
             {
@@ -704,9 +704,9 @@ async def test_content_precedes_the_cadence_when_one_chunk_carries_both() -> Non
 
 
 async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
-    # Read before the choices are, so a build closing on `{"choices":[]}` is not silently unheard.
-    # The exact event list is the other half: the stop is read off the first choice, so a chunk
-    # with no choice has none to report, and only the cadence comes out.
+    # The timings are read before the choices are, so a build closing on `{"choices":[]}` still
+    # has its cadence read. The exact event list is the other half: the stop is read off the first
+    # choice, so a chunk with no choice has none to report and only the cadence comes out.
     chunk = json.dumps(
         {"choices": [], "timings": {"predicted_per_second": 12.0, "predicted_n": 40}}
     )
@@ -732,7 +732,8 @@ async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
 async def test_an_unusable_timings_object_yields_no_cadence_and_keeps_the_reply(
     timings: str,
 ) -> None:
-    # The quiet stance: a diagnostic that arrives after the answer never costs the answer.
+    # An unreadable diagnostic arriving after the answer costs the answer nothing: no cadence is
+    # emitted and the reply text still crosses.
     body = _sse(
         '{"choices":[{"delta":{"content":"hi"}}]}',
         f'{{"choices":[{{"delta":{{}}}}],"timings":{timings}}}',

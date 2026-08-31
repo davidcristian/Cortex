@@ -1,20 +1,21 @@
+// The window edge's geometry: a rounded rectangle sampled as one closed loop, with every point
+// moved along its outward normal by the style's spectrum. Pure functions; nothing here touches the
+// DOM. Every path stays inside the box it is given, which the registry tests check per style.
 
 import type { EdgeStyle } from "./edges";
 
-/** The panel's own corner radius (overlay.css `.panel`), which the neutral line carries. */
+/** The panel's own corner radius, matching `.panel` in overlay.css. */
 export const CORNER_RADIUS = 28;
 
-/** How far the edge wrapper extends past the panel's border box on every side, px. The wrapper
- *  wears this as its negative inset (PanelEdge), the sampler as the neutral line's inset, so the
- *  two cannot drift; reachOf(style) <= BLEED is what keeps every wave inside the wrapper. */
+/** How far the edge wrapper extends past the panel's border box on every side, px. Keeping
+ *  `reachOf(style) <= BLEED` is what holds every wave inside the wrapper. */
 export const BLEED = 14;
 
-/** How far past its arc a corner's full swell reaches into the straight runs, px. The panel
- *  scales it with everything else; the tile passes it whole, so the swell owns the small loop. */
+/** How far past its arc a corner's full swell reaches into the straight runs, px. */
 export const CORNER_TAIL = 34;
 
-/** Samples around the loop. Order eight around a panel-sized perimeter spans ~200px per wave, so
- *  this leaves better than twenty points per wave, smooth at one decimal of precision. */
+/** Samples around the loop. Order eight around a panel-sized perimeter spans about 200px per
+ *  wave, so this leaves more than twenty points per wave. */
 const SAMPLES = 176;
 
 /** How hard the working pose is chased, seconds to close ~63% of the remaining distance. */
@@ -26,8 +27,8 @@ export function reachOf(style: EdgeStyle): number {
   return resting * (1 + style.depthBoost);
 }
 
-/** Ease a depth toward its target, frame-rate independent: the same fraction of the remaining
- *  distance closes per unit time whatever the frame spacing does. */
+/** Ease a depth toward its target. The same fraction of the remaining distance closes per unit
+ *  of time whatever the frame spacing does. */
 export function approachDepth(current: number, target: number, dtSeconds: number): number {
   if (dtSeconds <= 0) {
     return current;
@@ -42,8 +43,7 @@ interface Segment {
 }
 
 /** The rounded rectangle `(0,0)..(w,h)` with radius `r`, as segments walked clockwise from the
- *  top-left arc's end. Corner weight is 1 on the arcs and falls off along the runs over the
- *  tail, so the swell belongs to the corners and the runs keep only their configured share. */
+ *  top-left arc's end. Corner weight is 1 on the arcs and falls to 0 along the runs over `tail`. */
 function segmentsOf(w: number, h: number, r: number, tail: number): readonly Segment[] {
   const fall = (distance: number): number =>
     distance >= tail ? 0 : 0.5 * (1 + Math.cos((Math.PI * distance) / tail));
@@ -77,7 +77,7 @@ function segmentsOf(w: number, h: number, r: number, tail: number): readonly Seg
 }
 
 /** A plain rounded rectangle path at `(x,y)..(x+w,y+h)`: the still edge, and the fallback for a
- *  box too small to carry the liquid (start-up, tests, a collapsed panel mid-mount). */
+ *  box too small for the liquid (start-up, tests, a collapsed panel part way through mounting). */
 function roundedRect(x: number, y: number, w: number, h: number, r: number): string {
   const radius = Math.max(0, Math.min(r, w / 2, h / 2));
   const right = x + w;
@@ -91,7 +91,7 @@ function roundedRect(x: number, y: number, w: number, h: number, r: number): str
 }
 
 /** The displacement at `loopFraction` of the way around, px, positive outward. Bounded by the
- *  reach: weights and the depth scale never exceed 1 and the crests never all align past it. */
+ *  style's reach, since the weights and the depth scale never exceed 1. */
 function displacementAt(
   style: EdgeStyle,
   loopFraction: number,
@@ -112,10 +112,8 @@ function displacementAt(
   return weight * scale * sum;
 }
 
-/**
- * The rectangle one liquid loop breathes around, placed wherever the caller draws, plus how far
- * the spectrum swings on it.
- */
+/** The rectangle one loop is drawn around, plus how far the spectrum swings on it. `amplitude`
+ *  scales displacement and nothing else, so a miniature keeps a legible swing on a small box. */
 export interface LoopFrame {
   readonly x: number;
   readonly y: number;
@@ -126,10 +124,8 @@ export interface LoopFrame {
   readonly tail: number;
 }
 
-/**
- * The loop's outline on an explicit frame at `seconds` on the clock and `depth` in [0, 1] of
- * the working pose, as an SVG path string usable as both a `path()` clip and a stroked `d`.
- */
+/** The loop's outline on one frame, at `seconds` on the clock and `depth` in [0, 1] of the
+ *  working pose, as an SVG path usable both as a `path()` clip and as a stroked `d`. */
 export function loopPath(
   style: EdgeStyle,
   frame: LoopFrame,
@@ -137,7 +133,6 @@ export function loopPath(
   depth: number,
 ): string {
   const { x, y, width: w, height: h, radius } = frame;
-  // A still style, or a box with no room for two arcs and a run between them: the plain rect.
   if (style.waves.length === 0 || w < 2 * radius + 16 || h < 2 * radius + 16) {
     return roundedRect(x, y, Math.max(0, w), Math.max(0, h), radius);
   }
@@ -162,8 +157,8 @@ export function loopPath(
   return `${parts.join("")}Z`;
 }
 
-/** The panel's edge: `loopPath` on the uniform-inset frame the bleed wrapper implies, with the
- *  whole treatment (inset, radius, amplitude, tail) scaled together. */
+/** The panel's edge: `loopPath` on the frame the bleed wrapper implies, with inset, radius,
+ *  amplitude and tail all scaled together. */
 export function edgePath(
   style: EdgeStyle,
   width: number,

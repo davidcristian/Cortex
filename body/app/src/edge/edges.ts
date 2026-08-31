@@ -1,8 +1,10 @@
+// The window's edge styles, as a registry: a style is a named set of numbers, and adding one to
+// `EDGES` makes it selectable. The geometry is in `liquid.ts`; this file is only the numbers.
 
-/** One wave of the edge's spectrum. `waves` is the spatial order around the loop and must be an
- *  integer of two or higher: integers are what close the loop without a seam, and order >= 2 is
- *  what holds the shape's centre still (the same invariant the mark pins). */
+/** One wave of the edge's spectrum. */
 export interface EdgeWave {
+  /** The spatial order around the loop: an integer of two or higher, so the loop closes without a
+   *  break and the shape's centre stays still. */
   readonly waves: number;
   /** Peak displacement of this wave alone, px, at rest and full corner weight. */
   readonly amplitude: number;
@@ -11,13 +13,13 @@ export interface EdgeWave {
   readonly phase: number;
 }
 
-/** What rides the outline. `none` is bare glass and hairline; `settled` is neutral at rest and
- *  takes the accent while a turn runs; `ember` keeps a low accent lit at rest, the one written
- *  exception to color-is-activity (ADR-0036). */
+/** The glow drawn on the outline. `none` is bare glass and hairline, `settled` takes the accent
+ *  while a turn runs, `ember` keeps a low accent lit at rest. */
 export type EdgeGlow = "none" | "settled" | "ember";
 
 /** The parameters that make one window edge. */
 export interface EdgeStyle {
+  /** The key the stored preference holds, so it does not change once it has been written. */
   readonly name: string;
   /** How the style is named in the picker. */
   readonly label: string;
@@ -60,7 +62,8 @@ export const LUCID: EdgeStyle = {
   glow: "none",
 };
 
-/** The one the user stopped at: Lucid's liquid with a smolder riding the rim. */
+/** Lucid's liquid with a smolder over the rim. It takes Lucid's spectrum deliberately: the glow
+ *  is the whole difference between the two, which the tests check. */
 export const REVERIE: EdgeStyle = {
   ...LUCID,
   name: "reverie",
@@ -88,15 +91,11 @@ export const TRANCE: EdgeStyle = {
   glow: "ember",
 };
 
-/** The registry, in ladder order: the row of tiles reads Still to Trance and that order is the
- *  explanation. Plug-and-play: add an `EdgeStyle` here and it becomes pickable. */
+/** The registry, in order from Still to Trance. Add an `EdgeStyle` here and it becomes
+ *  selectable, with the row of tiles reading in this order. */
 export const EDGES: readonly EdgeStyle[] = [STILL, LUCID, REVERIE, TRANCE];
 
-/**
- * Reverie carries Lucid's spectrum on purpose (the glow is the whole difference), so the
- * difference is data the tests can pin rather than a coincidence.
- */
-
+/** Resolve the active edge. An unknown or absent name falls back to the default, Lucid. */
 export function resolveEdge(preference: string | null): EdgeStyle {
   if (preference !== null) {
     const chosen = EDGES.find((edge) => edge.name === preference);

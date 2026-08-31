@@ -1,8 +1,4 @@
-"""Typed errors of the core: adapters wrap backend failures into these (cause chained).
-
-Core code raises and propagates only typed errors. There is never a bare Exception, and no
-adapter-specific exception ever crosses a port boundary.
-"""
+"""Typed errors of the core: adapters wrap backend failures into these (cause chained)."""
 
 from enum import Enum
 
@@ -36,7 +32,7 @@ class ToolError(Exception):
 
 
 class ToolNotFoundError(ToolError):
-    """invoke() named a tool the registry does not know."""
+    """invoke() named a tool the registry does not have."""
 
 
 class TaskStoreError(Exception):
@@ -56,15 +52,15 @@ class SubagentAdmissionError(Exception):
 
 
 class BodyFailure(Enum):
-    """How far a ``BodyGateway`` call got before it failed (ADR-0023 2026-08-08 addendum)."""
+    """How far a ``BodyGateway`` call got before it failed."""
 
     UNREACHABLE = "unreachable"
-    """No answer arrived at all, whether for want of a route or of time. The only kind that may
-    tell the caller the body could not be reached."""
+    """No answer arrived at all, for want of a route or of time. The only kind that may tell
+    the caller the body could not be reached."""
 
     REFUSED = "refused"
-    """The body answered and declined: a standing policy answer (screen capture switched off, a
-    rejected seam token), not a transient one, so retrying it changes nothing."""
+    """The body answered and declined by policy (screen capture switched off, a rejected
+    token), not for a temporary reason, so a retry changes nothing."""
 
     UNSUPPORTED = "unsupported"
     """The body answered and has no such capability: an RPC it does not implement, or a body
@@ -75,17 +71,17 @@ class BodyFailure(Enum):
     endpoint, no notification service). It works again once the user fixes the state."""
 
     OVERSIZE = "oversize"
-    """The work was done and its result will not fit the seam's budget. Distinct from a fault
-    because nothing is broken: the same call will keep answering the same way."""
+    """The work was done and its result will not fit the size limit for one message. Not a
+    fault, because nothing is broken: the same call keeps returning the same thing."""
 
     FAULTED = "faulted"
-    """Anything else: an OS fault, an answer the brain will not vouch for, a bound this
-    deployment cannot ask for. The default, deliberately, so a failure nobody classified says
-    the honest uninformative thing rather than claiming the body was out of reach."""
+    """Anything else: an OS fault, an answer the brain will not accept, a bound this
+    deployment cannot ask for. It is the default, so an unclassified failure says nothing
+    specific rather than claiming the body was out of reach."""
 
 
 class BodyGatewayError(Exception):
-    """A BodyGateway call failed, carrying the ``BodyFailure`` kind that says how."""
+    """A BodyGateway call failed, with the ``BodyFailure`` kind that says how."""
 
     def __init__(self, message: str, *, kind: BodyFailure = BodyFailure.FAULTED) -> None:
         super().__init__(message)
@@ -105,15 +101,15 @@ class ModelUnavailableError(ModelManagerError):
 
 
 class SwapFailedError(ModelManagerError):
-    """A residency scope could not swap its model in, so the handoff is off (ADR-0030)."""
+    """A residency scope could not swap its model in, so the handoff does not run."""
 
 
 class HandoffInProgressError(ModelManagerError):
-    """Another handoff already owns the swap, so this one never started (ADR-0030)."""
+    """Another handoff is already swapping, so this one never started."""
 
 
 class ResidencyRestoreError(ModelManagerError):
-    """The cortex could not be restored after a swap, even on the retry (ADR-0030 decision 4)."""
+    """The cortex could not be restored after a swap, even on the retry."""
 
 
 class ModelHostError(Exception):

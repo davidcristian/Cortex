@@ -66,7 +66,7 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class SeamPorts:
-    """The optional ports the seam serves *beyond* a turn, bundled as one dependency."""
+    """The optional ports the seam serves beyond a turn, bundled as one dependency."""
 
     schedules: ScheduleStore | None = None
     memory_cascade: SessionMemoryCascade | None = None

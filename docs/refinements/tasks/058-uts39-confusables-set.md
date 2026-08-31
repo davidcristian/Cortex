@@ -15,9 +15,9 @@ an ASCII host character, **stdlib NFKC already folds 749 of those (52%)**, the c
 and the untabled residue that a host label can actually carry is 635 codepoints collapsing to **483
 distinct characters** after NFKC. So the small curated widening the entry imagines does not exist:
 Cyrillic alone is 23 more entries, Cyrillic with Greek and Latin is 116 entries covering 249 of the
-635, which is 39%, and full coverage is a data file wearing a source file's clothes.
+635, which is 39%, and full coverage is a data file rather than a source file.
 
-**The resolver question this ADR decides rows by answers no here, which is the deeper reason.**
+**The resolver question this ADR decides rows by is answered no here, which is the deeper reason.**
 Every row it has closed was a respelling of one URL that something in the path undoes. A confusable
 host is not: `http://ev<Cyrillic i>l.example/pay` resolves, in a real parser, to
 `http://xn--evl-khd.example/pay`, a **different host**, and nothing turns one into the other. Pass 6
@@ -29,10 +29,10 @@ link collected and the reply spelling a lookalike, a curated homoglyph is redact
 policies, and an untabled one (U+0406, say) **leaks under the default policy and is redacted under
 strict**, because `URL_RE` matches a homoglyph host whatever the table holds. The attacker picks the
 codepoint, so a fold carrying 29 of 6,565 mappings, or 483, is a defence against exactly the
-characters an attacker would avoid. Three costs the fragment never named seal it: the data is not
+characters an attacker would avoid. Three costs the fragment never named settle it: the data is not
 deterministic across upgrades (this interpreter's database is UCD 15.0.0 against the file's 17.0.0,
 and **41 of the 483 characters are codepoints it cannot even name**), UTS-39's mapping is
-confusables rather than twins (`ш` to `w`, `б` to `6`), and a local-first assistant would carry
+confusables rather than exact equivalents (`ш` to `w`, `б` to `6`), and a local-first assistant would carry
 either a package or 745 KB of vendored table for it. **The area's count moves by one.** It reopens
 only on a measurement naming a specific confusable a deployed model reproduces, and the answer then
 is that one character in the curated table, not the set.

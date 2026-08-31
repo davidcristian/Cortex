@@ -11,7 +11,7 @@ does nothing under a schema and came back with a lever that works.
 `GenerationBounds(thinking=False)` renders as `chat_template_kwargs: {"enable_thinking": false}` and
 nothing else, which is a hint to the deployment's chat template. On a request carrying a
 `response_format` that hint is overruled by the grammar llama.cpp builds, so on the shipped subagent
-pick the switch is a coin toss: 4 draws in 5 deliberate through it and spend the whole of a paired
+pick the switch holds only sometimes: 4 draws in 5 deliberate through it and spend the whole of a paired
 cap on the trace, which is a deleted reply rather than a short one.
 
 Measured on `ghcr.io/ggml-org/llama.cpp` `b10644-d7a207411`, that same request can carry
@@ -19,8 +19,8 @@ Measured on `ghcr.io/ggml-org/llama.cpp` `b10644-d7a207411`, that same request c
 falls back to the tier's `--reasoning-budget` for only when the request says `-1`. Sent as `0` on
 the exact cell that fails, the subagent pick's constrained request with the switch, it holds on **5
 draws of 5**, each returning the envelope. It is a sampler rather than a prompt or a grammar: it
-watches for the thought's start sequence and forces its end tag, so it reaches every request shape
-by construction. The spelling this repo tried and recorded, `reasoning_budget`, is genuinely ignored
+detects the thought's start sequence and forces its end tag, so it reaches every request shape
+by construction. The name this repo tried and recorded, `reasoning_budget`, is genuinely ignored
 on the same build in the same minute (4 draws in 5 still deliberated, and the server logged
 `reasoning budget: tokens=-1` for every one of them), so the earlier reading was right about the
 name it sent and is no longer right about the engine.
@@ -33,9 +33,10 @@ gave a request no lever, and this is that argument's premise moving.
 
 **What has to be decided rather than typed.** Three things, none of them settled here.
 
-- **The floor a build has to meet.** A server that does not know the key ignores it silently, which
-  is the failure mode this repo dislikes most: the flag half of the same lever fails a tier at
-  startup instead. So sending it unconditionally buys a knob that lies on an older build, and the
+- **The floor a build has to meet.** A server that does not recognize the key ignores it with
+  nothing reported, which is the failure this repo most wants to avoid: the flag half of the same
+  lever fails a tier at startup instead. So sending it unconditionally buys a setting that has no
+  effect on an older build and reports nothing, and the
   honest shapes are a deployment setting or a probe of the running server, not a constant.
 - **What it does to the trace a user reads.** The cortex turn renders its trace as the thinking
   status the overlay shows, so a budget of zero attached to every `thinking=False` request is only
@@ -56,7 +57,7 @@ carried R-295 with it. `GenerationBounds` gained `trace_tokens`, rendering as
 and a user's own reply names nothing unless `CORTEX_REPLY_TRACE_TOKENS` says so. The port's
 switch-is-advisory wording moved with it, and the shared contract list gained an eleventh check: a
 trace that arrived despite a budget of zero crosses all the same, which is a separate obligation
-from the switch's because a count reads like an order.
+from the switch's, because a count is a stronger instruction than a hint.
 
 **The three open questions, answered.** The **floor** is a probe of the running server
 (`CORTEX_INFERENCE_TRACE_LEVER=auto|on|off`, the shape `CORTEX_VISION` already has), not a

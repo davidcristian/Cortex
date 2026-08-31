@@ -11,12 +11,8 @@ from composetargets import normalize
 from dockerfilebases import DockerfileError, Inheritance, inherited, logical
 from imagevolumes import RECORD_PATH, Row
 
-# The instruction this reader is looking for, matched case-insensitively the way docker matches it.
 INSTRUCTION = "VOLUME"
 
-# What opens a JSON container, which is how the array spelling of the instruction begins. Both are
-# dispatched to the array reader, because an object where an array belongs is a shape to refuse
-# with the reason rather than to hand to the path splitter and refuse for the wrong one.
 JSON_OPENERS = ("[", "{")
 
 _UNDECLARED = (
@@ -60,7 +56,7 @@ class Reading(NamedTuple):
 
 
 def _array(number: int, argument: str) -> list[str]:
-    """The paths a JSON-array VOLUME names, refused whole when it is not an array of paths."""
+    """The paths a JSON-array VOLUME names, raising when it is not an array of paths."""
     try:
         loaded: object = json.loads(argument)
     except json.JSONDecodeError as err:
@@ -79,7 +75,7 @@ def _array(number: int, argument: str) -> list[str]:
 
 
 def _paths(number: int, argument: str) -> list[str]:
-    """The container paths one VOLUME instruction names, in either spelling docker accepts."""
+    """The container paths one VOLUME instruction names, in either form docker accepts."""
     if "$" in argument:
         msg = f"line {number}: VOLUME {argument!r} carries an expansion only a build can resolve"
         raise DockerfileError(msg)
@@ -120,7 +116,7 @@ def onbuild_volumes(entries: Iterable[str]) -> tuple[str, ...]:
 def _triggered(
     dockerfile: str, reference: str, stands: Inheritance, carried: set[str]
 ) -> list[str]:
-    """Every path this file's base would declare through a trigger that its row does not carry."""
+    """Every path this file's base would declare through a trigger that its row does not have."""
     faults: list[str] = []
     for base in stands.bases:
         try:
@@ -143,7 +139,7 @@ def _triggered(
 
 
 def landings(root: Path, compose: Path, build: Build) -> list[Path]:
-    """Every place the Dockerfile a service builds from lands, over both project directories."""
+    """Every path the Dockerfile a service builds from resolves to, under either project root."""
     projects = [root] if compose.parent == root else [root, compose.parent]
     found: list[Path] = []
     for project in projects:

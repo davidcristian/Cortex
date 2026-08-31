@@ -89,13 +89,13 @@ this ADR. Two adjacent facts shape it:
    bigger model simply fit-tests to CPU more often). `SubagentRunner` takes the roster, loads the
    task **first**, resolves the entry, then admits→places→runs on that entry's resources.
 
-8. **Advertisement is honest about the wiring it runs in.** The spawn tool builds its spec from
+8. **The advertised spec describes the wiring it runs in.** The spawn tool builds its spec from
    the roster: the `model` enum lists every entry with its description, and the tool description
    states the ADR-0017 rule (on a turn that read untrusted content the default is enforced). In a
    wiring whose subagents are **tools-enabled**, ADR-0017 rule 2b pins *every* spawn to the
-   default. The spec thus **omits the `model` property entirely** rather than advertising a knob
-   that cannot do anything (the `context`/object form stays). The runner enforces regardless of
-   what was advertised. That is defense in depth, not trust in the spec.
+   default. The spec therefore **omits the `model` property entirely** rather than advertising a
+   knob that has no effect (the `context`/object form stays). The runner enforces the rule whatever
+   the spec advertised, so the spec is an optimization aid and the runner is the boundary.
 
 ## Alternatives considered
 

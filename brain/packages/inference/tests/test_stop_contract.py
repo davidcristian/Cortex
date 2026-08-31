@@ -1,5 +1,3 @@
-"""Drive the shared stop-reason contract over both implementations of the port."""
-
 from functools import partial
 
 import httpx
@@ -24,12 +22,10 @@ from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = "http://llama-subagent:8082"
 
-# The reply text every arm streams, so a check comparing two arms compares only their endings.
 _DELTAS = ("The ", "sea ", "is")
 
-# The final chunk of a real capped run and of a real finished one, verbatim in shape from live
-# requests to the shipped CPU tier; only the ``timings`` object is dropped, this contract being
-# about the other closing event and the two being independent.
+# The final chunk of a real capped run and of a real finished one, in the shape live requests to
+# the shipped CPU tier returned; only the ``timings`` object is dropped.
 _CAPPED_TAIL = (
     '{"choices":[{"finish_reason":"length","index":0,"delta":{}}],"object":"chat.completion.chunk"}'
 )
@@ -50,7 +46,7 @@ def _body(tail: str | None) -> bytes:
 
 @pytest.fixture
 def scripted() -> BackendUnderTest:
-    """The core twin, scripted with the world-condition rather than asked to derive it."""
+    """Build the core twin, scripted with the world-condition rather than asked to derive it."""
 
     def build(*, reason: StopReason | None) -> InferenceBackend:
         events: list[InferenceEvent] = [TextChunk(delta) for delta in _DELTAS]
@@ -71,7 +67,7 @@ def scripted() -> BackendUnderTest:
 
 @pytest.fixture
 def adapter() -> BackendUnderTest:
-    """The real adapter over a MockTransport serving the real llama-server body."""
+    """Build the real adapter over a MockTransport serving the real llama-server body."""
     clients: list[httpx.AsyncClient] = []
 
     def build(*, tail: str | None) -> InferenceBackend:
@@ -117,7 +113,6 @@ async def test_llamacpp_backend_meets_the_stop_contract(
 async def test_the_adapter_leg_really_reads_the_servers_own_word(
     adapter: BackendUnderTest,
 ) -> None:
-    """The contract's derived half, stated once outside the shared checks."""
     body = _body(_CAPPED_TAIL).decode()
     assert '"finish_reason":"length"' in body
     assert "capped" not in body

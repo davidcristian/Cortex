@@ -5,8 +5,8 @@
 
 ## Context
 
-Four recorded deferrals converge on the same missing seam, each wanting "where did this
-work come from" to travel with what a turn spawns:
+Four recorded deferrals converge on the same missing seam. Closing any of them means
+letting "where did this work come from" travel with what a turn spawns:
 
 1. **ADR-0013** defers structured provenance beyond the binary taint bit (source URI,
    sender) at the untrusted-content boundary.
@@ -21,8 +21,8 @@ Today the only turn context a dispatched call carries is the lone `tainted` bool
 to `ToolDispatcher.dispatch` as a keyword and overwritten onto `ToolCall.tainted` at
 dispatch time (the ADR-0018 stamp), where `spawn_subagents` and the schedule built-ins
 read it. Landing each deferral the same way would add a parallel keyword and a second
-overwritten field per fact, recreating the divergence one at a time. The channel wants
-to be designed once.
+overwritten field per fact, recreating the divergence one at a time. This ADR designs the
+channel once instead.
 
 ## Decision
 
@@ -42,7 +42,7 @@ to be designed once.
    is the unattributed default: no session, no taint, the same fail-open-on-attribution
    and fail-safe-on-gating posture as today's `tainted=False`.
 
-3. **Three stamp sources, one rule: the caller states what it knows.**
+3. **Three stamp sources, one rule: the caller states the facts it holds.**
    - The **cortex turn**: `ToolLoopContext` grows a required `session_id`, filled by the
      engine from `handle_turn`; the loop builds a fresh stamp per dispatch (the taint
      bit is live and can flip mid-loop as results arrive).

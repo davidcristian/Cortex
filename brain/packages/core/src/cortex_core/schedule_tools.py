@@ -1,4 +1,4 @@
-"""The ``schedule_task`` / ``list_scheduled`` built-ins (ADR-0025)."""
+"""The ``schedule_task`` / ``list_scheduled`` built-ins."""
 
 from collections.abc import Callable
 from typing import Any
@@ -23,7 +23,7 @@ TAINTED_TASK_MSG = (
 
 
 def _uuid4_id() -> str:
-    """Default item-id factory; injectable so tests can pin ids."""
+    """Default item-id factory; injectable so tests can use fixed ids."""
     return str(uuid4())
 
 
@@ -50,7 +50,7 @@ class ScheduleTaskTool:
 
     @property
     def spec(self) -> ToolSpec:
-        """Rebuilt per walk: carries the current local time and is honest about task wiring."""
+        """Rebuilt per walk: it states the current local time and matches the task wiring."""
         what = "a reminder to deliver to the user"
         kinds = [ScheduleKind.REMINDER.value]
         properties: dict[str, Any] = {
@@ -134,8 +134,6 @@ class ScheduleTaskTool:
                 id=self._item_id_factory(),
                 kind=parsed.kind,
                 text=parsed.text,
-                # Attribution from the dispatcher's stamp (ADR-0027): the origin chat rides
-                # the record (provenance, never display; the listing does not render it).
                 session_id=call.stamp.session_id,
                 due_at=parsed.due_at,
                 created_at=now,
@@ -165,13 +163,12 @@ def _recurrence(item: ScheduledItem) -> str:
 
 
 def _describe(item: ScheduledItem, zone: DisplayZone) -> str:
-    """One listing line per item; the stored text rides at the end, provenance marked."""
+    """One listing line per item; the stored text comes last, with its provenance marked."""
     recurring = _recurrence(item)
     fired = ", fired awaiting delivery" if item.deliverable_since is not None else ""
     firing = ", firing now" if item.status is ScheduleStatus.FIRING else ""
     tainted = ", from untrusted content" if item.tainted else ""
     marks = f"{recurring}{firing}{fired}{tainted}"
-    # A calendar item with its own zone shows the wall time it names (per-rule addendum).
     due = effective_zone(item.rule, zone).render(item.due_at)
     line = f"[{item.id}] {item.kind.value} due {due}{marks}: {item.text}"
     if item.last_outcome is not None:
@@ -199,11 +196,7 @@ class ListScheduledTool:
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """List active items; the listing is UNTRUSTED iff any item carries taint.
-
-        A tainted item's text is attacker-influenced: fencing the whole listing (and
-        re-tainting the turn) beats laundering it through a trusted result (ADR-0025).
-        """
+        """List active items; the listing is UNTRUSTED when any item is tainted."""
         try:
             items = await self._store.list_active()
         except ScheduleStoreError as err:

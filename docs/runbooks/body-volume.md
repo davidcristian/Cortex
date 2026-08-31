@@ -16,7 +16,7 @@ and the host-only Windows validation with real Core Audio.
   call on a blocking thread, so a slow endpoint never parks the runtime.
 - **Every call is bounded**, `CORTEX_BODY_CALL_TIMEOUT_S` (default `5.0`) for volume and notify
   and `CORTEX_BODY_CAPTURE_TIMEOUT_S` (default `10.0`) for a capture. That blocking thread is
-  what makes the short one necessary rather than tidy: Core Audio is COM, a COM call parks its
+  what makes the short bound necessary: Core Audio is COM, a COM call parks its
   thread for as long as the audio stack takes, and nothing above the gateway bounds a tool call,
   so a wedged endpoint used to hang the turn with no way out but closing the overlay. What an
   operator sees on expiry is the ordinary "could not reach the body" tool result, since a
@@ -39,7 +39,7 @@ fallback (a body-initiated tunnel) would be a pure adapter swap, no seam change.
 
 ## Agent half (the brain→body dial across the container boundary)
 
-Proves the reversed seam token, the wire, and the round-trip without needing real audio. Stand
+This half proves the reversed seam token, the wire, and the round-trip without needing real audio. Stand
 up **any** `BodyService` server on the host and point the brain's live test at it:
 
 - Against the **real** Windows body (user path): run the Tauri app (below), then from the brain

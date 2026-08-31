@@ -24,10 +24,10 @@ bind-mounted read-only from `D:\Software\AI\Models`).
    directly (Slice 7 co-residency, Slice 11 handoff evict/load, per ROADMAP). In Slice 4 its
    only consumer is the llama.cpp adapter, but it is a genuine seam (real adapter + fake +
    contract test), so it is a port now.
-   - `ModelManager.acquire(model) -> AbstractAsyncContextManager[ModelLease]`: entering
-     queues for GPU access and yields a `ModelLease`; exiting releases it so the next
-     waiter proceeds. `ModelLease.endpoint -> str` is the base URL of the `llama-server`
-     serving that model. Acquiring a model that is not the resident one raises
+   - `ModelManager.acquire(model) -> AbstractAsyncContextManager[ModelLease]`: entering the
+     context manager queues for GPU access and yields a `ModelLease`; exiting releases it so
+     the next waiter proceeds. `ModelLease.endpoint -> str` is the base URL of the
+     `llama-server` serving that model. Acquiring a model that is not the resident one raises
      `ModelUnavailableError` (swap is Slice 11).
 
 2. **The llama.cpp adapter composes the Model Manager behind `InferenceBackend`.**
@@ -47,7 +47,7 @@ bind-mounted read-only from `D:\Software\AI\Models`).
    `cortex_core.model`) implements the `ModelManager` port with pure policy, namely
    single-resident enforcement (`acquire` of any other id raises `ModelUnavailableError`)
    and serialized GPU access via an `asyncio.Lock` whose waiter queue **is** the "queue
-   API". It does no I/O, so it lives in the core as a reference impl (like
+   API". It does no I/O, so it lives in the core as a reference implementation (like
    `InMemorySessionStore` / `EchoInferenceBackend`) and is fully covered in CI. Process
    lifecycle (start on load, stop on unload, per ADR-0005's swap mechanism) is real I/O and
    lands in a `cortex_model_manager` adapter package in Slice 11, passing this slice's
@@ -83,9 +83,9 @@ bind-mounted read-only from `D:\Software\AI\Models`).
   `ModelManager` / `ModelLease` ports, the pure `SingleResidentModelManager`, and
   `ModelManagerError` / `ModelUnavailableError`. The `cortex_model_manager` package (repo
   map) is deferred to Slice 11, when process lifecycle gives it real I/O to adapt.
-- The `ModelManager` seam later slices extend (co-residency, real swap) exists now with a
-  contract test; Slice 11 adds process lifecycle behind the same port without touching the
-  core.
+- The `ModelManager` seam that later slices extend (co-residency, real swap) exists now
+  with a contract test; Slice 11 adds process lifecycle behind the same port without
+  touching the core.
 - The slice splits into a **CI-gated half** (everything above, green under `just check`
   without a GPU) and a **host-only half** (VRAM measurement, final model picks, runbook
   numbers, live integration tests). The second is host-driven.

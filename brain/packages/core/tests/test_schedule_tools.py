@@ -1,6 +1,3 @@
-"""The five schedule built-ins: parsing, bounds, trust, and the tainted-task refusal
-(ADR-0025)."""
-
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -78,7 +75,7 @@ def _call(arguments: dict[str, Any], *, tainted: bool = False, session_id: str =
 
 
 class FailingStore(InMemoryScheduleStore):
-    """Scripts a down store: the port methods the tools touch raise ScheduleStoreError."""
+    """A store that is down: every port method the tools use raises ScheduleStoreError."""
 
     def _down(self) -> ScheduleStoreError:
         msg = "redis down"
@@ -100,16 +97,13 @@ class FailingStore(InMemoryScheduleStore):
         raise self._down()
 
 
-# --- the spec: clock-bearing, honest about task wiring -------------------------------------
-
-
 def test_spec_carries_the_current_utc_time() -> None:
     tool, _ = _tool()
     assert "2026-07-12T12:00:00+00:00" in tool.spec.description
 
 
 class SteppingClock:
-    """now() advances one minute per call. Proves the spec is REBUILT, not cached."""
+    """``now()`` advances one minute per call, which shows the spec is rebuilt and not cached."""
 
     def __init__(self) -> None:
         self._minute = 0
@@ -120,11 +114,6 @@ class SteppingClock:
 
 
 async def test_spec_is_rebuilt_per_walk_with_the_live_clock() -> None:
-    """Two describe walks through the full dispatcher chain carry two different times.
-
-    The ADR-0025 blocker mechanism: a cached spec would freeze "now" at build time and
-    the model could never compute a correct absolute 'at' again.
-    """
     tool = ScheduleTaskTool(
         InMemoryScheduleStore(), SteppingClock(), tasks_enabled=False, max_active=8
     )
@@ -136,10 +125,10 @@ async def test_spec_is_rebuilt_per_walk_with_the_live_clock() -> None:
 
     first = await described()
     second = await described()
-    assert first != second  # each walk re-read the clock; nothing cached the spec
+    assert first != second
     assert "The current date-time is 2026-07-12T12:0" in first
     assert "The current date-time is 2026-07-12T12:0" in second
-    assert "(UTC)" in first  # the default zone is named, not assumed
+    assert "(UTC)" in first
 
 
 def test_spec_advertises_tasks_and_model_only_when_wired() -> None:
@@ -151,10 +140,7 @@ def test_spec_advertises_tasks_and_model_only_when_wired() -> None:
     properties = dict(disabled.spec.parameters["properties"])
     assert properties["kind"]["enum"] == ["reminder"]
     assert "model" not in properties
-    assert not disabled.spec.gated  # ungated by default; CORTEX_TOOLS_GATED is the backstop
-
-
-# --- creation: happy paths -------------------------------------------------------------------
+    assert not disabled.spec.gated
 
 
 async def test_schedules_a_one_shot_reminder_at_an_absolute_time() -> None:
@@ -165,7 +151,7 @@ async def test_schedules_a_one_shot_reminder_at_an_absolute_time() -> None:
     assert not result.is_error
     assert result.trust is Trust.TRUSTED
     assert "scheduled reminder item-1: due 2026-07-12T16:00:00+00:00" in result.content
-    assert "stretch" not in result.content  # never echoes the stored text
+    assert "stretch" not in result.content
     item = await store.get("item-1")
     assert item is not None
     assert item.kind is ScheduleKind.REMINDER
@@ -188,8 +174,6 @@ async def test_schedules_a_recurring_task_in_seconds_with_a_model_hint() -> None
         )
     )
     assert not result.is_error
-    # The creation confirmation and the listing line share one recurrence phrase, so the two
-    # can never describe the same schedule differently (ADR-0025 calendar addendum).
     assert "every 3600s" in result.content
     item = await store.get("item-1")
     assert item is not None
@@ -216,10 +200,7 @@ async def test_default_id_factory_mints_uuids() -> None:
     result = await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
     assert not result.is_error
     (item,) = await store.list_active()
-    assert len(item.id) == 36  # a uuid4, from the default factory
-
-
-# --- creation bounds ---------------------------------------------------------------------------
+    assert len(item.id) == 36
 
 
 async def test_a_tainted_turn_cannot_schedule_a_task() -> None:
@@ -234,7 +215,6 @@ async def test_a_tainted_turn_cannot_schedule_a_task() -> None:
 
 
 async def test_the_dispatcher_taint_stamp_drives_the_refusal() -> None:
-    """End to end: the dispatcher's stamp (not the model's forged flag) hits the refusal."""
     tool, _ = _tool()
     sink = RecordingAuditSink()
     dispatcher = ToolDispatcher(CompositeToolRegistry([tool]), sink, FixedClock())
@@ -246,13 +226,11 @@ async def test_the_dispatcher_taint_stamp_drives_the_refusal() -> None:
     result = await dispatcher.dispatch(call, stamp=TurnStamp(tainted=True))
     assert result.is_error
     assert result.content == TAINTED_TASK_MSG
-    (record,) = sink.records  # the refusal is audited like any dispatch
+    (record,) = sink.records
     assert record.ok is False
 
 
 async def test_creation_fills_the_items_origin_session_from_the_stamp() -> None:
-    # Attribution (ADR-0027): the dispatcher's stamp carries the turn's session, and the
-    # created item records it. Provenance only: the confirmation does not echo it.
     tool, store = _tool()
     result = await tool.invoke(
         _call({"kind": "reminder", "text": "stretch", "in_seconds": 60}, session_id="chat-7")
@@ -265,7 +243,6 @@ async def test_creation_fills_the_items_origin_session_from_the_stamp() -> None:
 
 
 async def test_the_dispatcher_stamp_drives_the_attribution_end_to_end() -> None:
-    # Through a real dispatcher: the stamp (never the model's forged one) reaches the record.
     tool, store = _tool()
     dispatcher = ToolDispatcher(CompositeToolRegistry([tool]), RecordingAuditSink(), FixedClock())
     call = ToolCall(
@@ -287,9 +264,6 @@ async def test_the_active_items_cap_bounds_creation() -> None:
     second = await tool.invoke(_call({"kind": "reminder", "text": "b", "in_seconds": 60}))
     assert second.is_error
     assert "the schedule is full (1 active items)" in second.content
-
-
-# --- creation: validation matrix ---------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -350,9 +324,6 @@ async def test_task_kind_is_rejected_when_delegation_is_not_wired() -> None:
     assert "reminders only" in result.content
 
 
-# --- the store down ----------------------------------------------------------------------------
-
-
 async def test_store_errors_become_trusted_error_results() -> None:
     tool, _ = _tool(FailingStore())
     result = await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
@@ -373,9 +344,6 @@ async def test_list_and_cancel_wrap_a_down_store() -> None:
     )
     assert cancel.is_error
     assert "unavailable" in cancel.content
-
-
-# --- listing: content and trust ---------------------------------------------------------------
 
 
 async def test_empty_listing_is_trusted() -> None:
@@ -435,9 +403,6 @@ async def test_listing_shows_recurrence_firing_delivery_and_outcome() -> None:
     assert "last outcome: [subagent 1] ok" in listing.content
 
 
-# --- cancel ------------------------------------------------------------------------------------
-
-
 async def test_cancel_round_trip() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
@@ -473,9 +438,6 @@ def test_view_tool_specs_name_their_tools() -> None:
     assert EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec.name == "edit_scheduled"
 
 
-# --- snooze ------------------------------------------------------------------------------------
-
-
 def _snooze_tool(store: InMemoryScheduleStore) -> SnoozeScheduledTool:
     return SnoozeScheduledTool(store, FixedClock())
 
@@ -494,7 +456,6 @@ async def test_snooze_round_trip_postpones_from_now() -> None:
     loaded = await store.get("item-1")
     assert loaded is not None
     assert loaded.due_at == _NOW + timedelta(minutes=10)
-    # The stored text never rides the result (the no-echo rule).
     assert "stretch" not in result.content
 
 
@@ -516,9 +477,9 @@ async def test_snooze_moves_only_the_next_occurrence_of_a_recurring_item() -> No
     assert result.content == "snoozed item-1: now due 2026-07-12T12:10:00+00:00"
     loaded = await store.get("item-1")
     assert loaded is not None
-    assert loaded.due_at == _NOW + timedelta(minutes=10)  # only the next fire moved
-    assert loaded.every == timedelta(hours=1)  # still recurring
-    assert loaded.anchor == _NOW + timedelta(seconds=60)  # grid pinned to the original due
+    assert loaded.due_at == _NOW + timedelta(minutes=10)
+    assert loaded.every == timedelta(hours=1)
+    assert loaded.anchor == _NOW + timedelta(seconds=60)
 
 
 async def test_snooze_refuses_a_firing_item() -> None:
@@ -531,12 +492,10 @@ async def test_snooze_refuses_a_firing_item() -> None:
 
 
 async def test_snooze_racing_a_change_reports_it_correctably() -> None:
-    """The advisory read passes but the fenced transition refuses (a cancel/claim won)."""
-
     class RacingStore(InMemoryScheduleStore):
         async def snooze(self, item_id: str, *, until: datetime) -> bool:
             del item_id, until
-            return False  # the store-side fence lost to a concurrent transition
+            return False
 
     store = RacingStore()
     tool = ScheduleTaskTool(
@@ -575,9 +534,6 @@ async def test_snooze_wraps_a_down_store() -> None:
     assert result.trust is Trust.TRUSTED
 
 
-# --- edit --------------------------------------------------------------------------------------
-
-
 def _edit_call(arguments: dict[str, Any], *, tainted: bool = False) -> ToolCall:
     return ToolCall(
         id="c", name="edit_scheduled", arguments=arguments, stamp=TurnStamp(tainted=tainted)
@@ -595,12 +551,12 @@ async def test_edit_retext_round_trip_keeps_timing() -> None:
     assert not result.is_error
     assert result.content == "edited item-1"
     assert result.trust is Trust.TRUSTED
-    assert "new" not in result.content  # never echoes the stored text
+    assert "new" not in result.content
     loaded = await store.get("item-1")
     assert loaded is not None
     assert loaded.text == "new"
-    assert loaded.due_at == _NOW + timedelta(seconds=60)  # the next occurrence is unmoved
-    assert loaded.every == timedelta(hours=1)  # recurrence untouched
+    assert loaded.due_at == _NOW + timedelta(seconds=60)
+    assert loaded.every == timedelta(hours=1)
 
 
 async def test_edit_changes_and_clears_recurrence() -> None:
@@ -616,7 +572,7 @@ async def test_edit_changes_and_clears_recurrence() -> None:
     assert not clear_result.is_error
     loaded = await store.get("item-1")
     assert loaded is not None
-    assert loaded.every is None  # 0 stops repeating
+    assert loaded.every is None
 
 
 async def test_edit_taint_ors_onto_a_reminder() -> None:
@@ -628,7 +584,7 @@ async def test_edit_taint_ors_onto_a_reminder() -> None:
     assert not result.is_error
     loaded = await store.get("item-1")
     assert loaded is not None
-    assert loaded.tainted is True  # a retext on a tainted turn marks the item
+    assert loaded.tainted is True
 
 
 async def test_edit_refuses_a_task_on_a_tainted_turn() -> None:
@@ -642,7 +598,7 @@ async def test_edit_refuses_a_task_on_a_tainted_turn() -> None:
     assert result.trust is Trust.TRUSTED
     loaded = await store.get("item-1")
     assert loaded is not None
-    assert loaded.text == "sweep"  # the injected retext never landed
+    assert loaded.text == "sweep"
 
 
 async def test_edit_a_reminder_on_a_tainted_turn_is_allowed() -> None:
@@ -651,7 +607,7 @@ async def test_edit_a_reminder_on_a_tainted_turn_is_allowed() -> None:
     result = await EditScheduledTool(store, FixedClock()).invoke(
         _edit_call({"id": "item-1", "text": "new"}, tainted=True)
     )
-    assert not result.is_error  # a reminder's text only reaches a badged human
+    assert not result.is_error
 
 
 async def test_edit_with_no_change_is_a_correctable_error() -> None:
@@ -702,12 +658,10 @@ async def test_edit_refuses_a_firing_item() -> None:
 
 
 async def test_edit_racing_a_change_reports_it_correctably() -> None:
-    """The advisory read passes but the fenced transition refuses (a cancel/claim won)."""
-
     class RacingStore(InMemoryScheduleStore):
         async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:
             del item_id, edit
-            return False  # the store-side fence lost to a concurrent transition
+            return False
 
     store = RacingStore()
     tool = ScheduleTaskTool(
@@ -738,9 +692,6 @@ async def test_edit_wraps_a_down_store() -> None:
     assert result.trust is Trust.TRUSTED
 
 
-# --- calendar recurrence: a wall-clock rule beside the interval (calendar addendum) ---------
-
-
 def test_spec_advertises_the_wall_clock_form_with_the_zone_and_the_day_names() -> None:
     tool, _ = _tool()
     properties = tool.spec.parameters["properties"]
@@ -750,7 +701,6 @@ def test_spec_advertises_the_wall_clock_form_with_the_zone_and_the_day_names() -
 
 
 async def test_at_time_derives_the_first_fire_and_stores_the_rule() -> None:
-    """The model names a wall time only; the due time is computed, never asked for twice."""
     tool, store = _tool()
     result = await tool.invoke(_call({"kind": "reminder", "text": "stretch", "at_time": "09:00"}))
     assert not result.is_error
@@ -763,7 +713,6 @@ async def test_at_time_derives_the_first_fire_and_stores_the_rule() -> None:
 
 
 async def test_on_days_restricts_the_rule_and_the_first_fire() -> None:
-    """2026-07-12 is a Sunday, so a Monday/Friday rule fires first on Monday the 13th."""
     tool, store = _tool()
     result = await tool.invoke(
         _call(
@@ -796,8 +745,8 @@ async def test_a_listing_describes_a_calendar_item_in_wall_clock_terms() -> None
         ({"in_seconds": 600, "on_days": ["mon"]}, "only together with 'at_time'"),
         ({"at_time": 900}, "'at_time' must be"),
         ({"at_time": "9am"}, "'at_time' must be"),
-        ({"at_time": "09:00:30"}, "'at_time' must be"),  # a rule stores no seconds
-        ({"at_time": "09:00+02:00"}, "'at_time' must be"),  # the zone is the deployment's
+        ({"at_time": "09:00:30"}, "'at_time' must be"),
+        ({"at_time": "09:00+02:00"}, "'at_time' must be"),
         ({"at_time": "09:00", "on_days": "mon"}, "'on_days' must be"),
         ({"at_time": "09:00", "on_days": []}, "'on_days' must be"),
         ({"at_time": "09:00", "on_days": ["funday"]}, "'on_days' must be"),
@@ -816,8 +765,6 @@ async def test_a_bad_wall_clock_request_is_a_correction_not_an_exception(
 
 
 async def test_a_rule_with_no_schedulable_occurrence_is_a_correction() -> None:
-    """Past the representable maximum the rule has no first fire, so creation is refused."""
-
     class EndOfTimeClock:
         def now(self) -> datetime:
             return datetime(9999, 12, 31, 23, 59, tzinfo=UTC)
@@ -831,9 +778,6 @@ async def test_a_rule_with_no_schedulable_occurrence_is_a_correction() -> None:
     assert "no next occurrence" in result.content
 
 
-# --- editing a calendar rule in place (rule-edit addendum) -----------------------------------
-
-
 def test_edit_spec_advertises_the_wall_clock_form_beside_the_interval() -> None:
     properties = EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec
     assert "at_time" in properties.description
@@ -841,7 +785,6 @@ def test_edit_spec_advertises_the_wall_clock_form_beside_the_interval() -> None:
 
 
 async def test_edit_sets_a_rule_on_an_interval_item_and_moves_the_due_time() -> None:
-    """The switch the calendar addendum could not express: an interval becomes a wall-clock rule."""
     tool, store = _tool()
     await tool.invoke(
         _call({"kind": "reminder", "text": "standup", "in_seconds": 60, "every_seconds": 3600})
@@ -860,7 +803,6 @@ async def test_edit_sets_a_rule_on_an_interval_item_and_moves_the_due_time() -> 
 
 
 async def test_edit_retimes_an_existing_rule_rather_than_firing_the_old_one_once_more() -> None:
-    """Retiming 09:00 to 10:00 must not leave tomorrow's already-armed 09:00 fire standing."""
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "standup", "at_time": "09:00"}))
     result = await EditScheduledTool(store, FixedClock()).invoke(
@@ -874,14 +816,13 @@ async def test_edit_retimes_an_existing_rule_rather_than_firing_the_old_one_once
 
 
 async def test_edit_can_switch_a_rule_back_to_an_interval() -> None:
-    """The reverse direction the calendar addendum already shipped, still reachable."""
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "standup", "at_time": "09:00"}))
     result = await EditScheduledTool(store, FixedClock()).invoke(
         _edit_call({"id": "item-1", "every_seconds": 7200})
     )
     assert not result.is_error
-    assert result.content == "edited item-1"  # only the rule branch reports a new due time
+    assert result.content == "edited item-1"
     loaded = await store.get("item-1")
     assert loaded is not None
     assert loaded.rule is None
@@ -913,7 +854,6 @@ async def test_edit_retexts_and_reschedules_in_one_call() -> None:
 
 
 async def test_edit_refuses_a_task_rule_change_on_a_tainted_turn() -> None:
-    """The taint gate is per-verb, so a retiming is refused exactly like a retext."""
     tool, store = _tool()
     await tool.invoke(_call({"kind": "task", "text": "sweep", "in_seconds": 60}))
     result = await EditScheduledTool(store, FixedClock()).invoke(
@@ -953,7 +893,7 @@ async def test_edit_bad_rule_arguments_are_correctable(
     assert expected in result.content
     loaded = await store.get("item-1")
     assert loaded is not None
-    assert loaded.rule == CalendarRule(hour=9, minute=0)  # nothing landed
+    assert loaded.rule == CalendarRule(hour=9, minute=0)
 
 
 async def test_edit_to_a_rule_with_no_schedulable_occurrence_is_a_correction() -> None:
@@ -973,9 +913,6 @@ async def test_edit_to_a_rule_with_no_schedulable_occurrence_is_a_correction() -
     assert "no next occurrence" in result.content
 
 
-# --- monthly day-of-month rules (ADR-0025 monthly addendum) ----------------------------------
-
-
 def test_spec_advertises_the_month_day_selector_with_its_bounds() -> None:
     tool, _ = _tool()
     on_month_days = tool.spec.parameters["properties"]["on_month_days"]
@@ -985,7 +922,6 @@ def test_spec_advertises_the_month_day_selector_with_its_bounds() -> None:
 
 
 async def test_on_month_days_stores_a_monthly_rule_and_derives_the_first_fire() -> None:
-    """_NOW is 2026-07-12, so a 20th-of-the-month rule fires first later in the same month."""
     tool, store = _tool()
     result = await tool.invoke(
         _call({"kind": "reminder", "text": "rent", "at_time": "09:00", "on_month_days": [20]})
@@ -1050,7 +986,6 @@ def test_edit_spec_advertises_the_month_day_selector_too() -> None:
 
 
 async def test_edit_switches_a_weekly_rule_to_a_monthly_one() -> None:
-    """Both selectors reach the edit verb, so a rule can change shape without recreation."""
     tool, store = _tool()
     await tool.invoke(
         _call({"kind": "reminder", "text": "rent", "at_time": "09:00", "on_days": ["mon"]})
@@ -1065,9 +1000,6 @@ async def test_edit_switches_a_weekly_rule_to_a_monthly_one() -> None:
     assert loaded.rule == CalendarRule(hour=9, minute=0, on=MonthDays(days=frozenset({20})))
 
 
-# --- yearly calendar-date rules (ADR-0025 yearly addendum) -----------------------------------
-
-
 def test_spec_advertises_the_year_date_selector_with_its_format() -> None:
     tool, _ = _tool()
     on_dates = tool.spec.parameters["properties"]["on_dates"]
@@ -1077,7 +1009,6 @@ def test_spec_advertises_the_year_date_selector_with_its_format() -> None:
 
 
 def test_both_verbs_advertise_one_shared_day_selector_vocabulary() -> None:
-    """The three selector properties come from one definition, so they cannot drift apart."""
     create = _tool()[0].spec.parameters["properties"]
     edit = EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec.parameters["properties"]
     for key in ("on_days", "on_month_days", "on_dates"):
@@ -1085,7 +1016,6 @@ def test_both_verbs_advertise_one_shared_day_selector_vocabulary() -> None:
 
 
 async def test_on_dates_stores_a_yearly_rule_and_derives_the_first_fire() -> None:
-    """_NOW is 2026-07-12, so a 25 December rule fires first later in the same year."""
     tool, store = _tool()
     result = await tool.invoke(
         _call({"kind": "reminder", "text": "gifts", "at_time": "09:00", "on_dates": ["12-25"]})
@@ -1110,7 +1040,6 @@ async def test_a_date_already_past_this_year_first_fires_next_year() -> None:
 
 
 async def test_an_unpadded_date_is_accepted_since_it_is_not_ambiguous() -> None:
-    """A small model writes "1-5" as readily as "01-05"; neither can mean anything else."""
     tool, store = _tool()
     await tool.invoke(
         _call({"kind": "reminder", "text": "x", "at_time": "09:00", "on_dates": ["1-5"]})
@@ -1140,11 +1069,9 @@ async def test_a_listing_describes_a_yearly_item_in_calendar_terms() -> None:
         ({"at_time": "09:00", "on_dates": []}, "'on_dates' must be"),
         ({"at_time": "09:00", "on_dates": [1225]}, "'on_dates' must be"),
         ({"at_time": "09:00", "on_dates": ["25 december"]}, "'on_dates' must be"),
-        # A full ISO date is refused rather than truncated: dropping the year silently would
-        # answer a different question than the model asked.
         ({"at_time": "09:00", "on_dates": ["2026-12-25"]}, "'on_dates' must be"),
-        ({"at_time": "09:00", "on_dates": ["13-01"]}, "'on_dates' must be"),  # no 13th month
-        ({"at_time": "09:00", "on_dates": ["02-30"]}, "'on_dates' must be"),  # no year has it
+        ({"at_time": "09:00", "on_dates": ["13-01"]}, "'on_dates' must be"),
+        ({"at_time": "09:00", "on_dates": ["02-30"]}, "'on_dates' must be"),
         ({"in_seconds": 600, "on_dates": ["12-25"]}, "only together with 'at_time'"),
         ({"at_time": "09:00", "on_days": ["mon"], "on_dates": ["12-25"]}, "never more than one"),
         (
@@ -1165,13 +1092,12 @@ async def test_a_bad_year_date_request_is_a_correction_not_an_exception(
 
 
 async def test_the_leap_day_is_schedulable_and_clamps_in_a_common_year() -> None:
-    """29 February constructs (a real date) and fires every year rather than one in four."""
     tool, store = _tool()
     await tool.invoke(
         _call({"kind": "reminder", "text": "x", "at_time": "09:00", "on_dates": ["02-29"]})
     )
     item = (await store.list_active())[0]
-    assert item.due_at == datetime(2027, 2, 28, 9, 0, tzinfo=UTC)  # 2027 is a common year
+    assert item.due_at == datetime(2027, 2, 28, 9, 0, tzinfo=UTC)
 
 
 def test_edit_spec_advertises_the_year_date_selector_too() -> None:
@@ -1181,7 +1107,6 @@ def test_edit_spec_advertises_the_year_date_selector_too() -> None:
 
 
 async def test_edit_switches_a_monthly_rule_to_a_yearly_one() -> None:
-    """All three selectors reach the edit verb, so a rule changes shape without recreation."""
     tool, store = _tool()
     await tool.invoke(
         _call({"kind": "reminder", "text": "rent", "at_time": "09:00", "on_month_days": [20]})
@@ -1198,14 +1123,11 @@ async def test_edit_switches_a_monthly_rule_to_a_yearly_one() -> None:
     )
 
 
-# --- per-rule timezone: in_zone (ADR-0025 per-rule addendum) --------------------------------
-
 _NEW_YORK = DisplayZone(name="America/New_York", tz=ZoneInfo("America/New_York"))
 
 
 class _MapResolver:
-    """A ZoneResolver over a fixed name->zone map: the composition root's zoneinfo lookup, faked
-    so a core test can offer a per-rule zone without importing the session adapter."""
+    """A ZoneResolver over a fixed name to zone map, in place of the real zoneinfo lookup."""
 
     def __init__(self, zones: dict[str, DisplayZone]) -> None:
         self._zones = zones
@@ -1218,8 +1140,7 @@ _RESOLVER = _MapResolver({"America/New_York": _NEW_YORK})
 
 
 def _zoned_tool() -> tuple[ScheduleTaskTool, InMemoryScheduleStore]:
-    """A creation tool whose deployment zone stays UTC but whose resolver knows New York, so a
-    test can prove ``in_zone`` overrides the deployment zone rather than merely echoing it."""
+    """A creation tool whose deployment zone is UTC and whose resolver knows New York."""
     store = InMemoryScheduleStore()
     tool = ScheduleTaskTool(
         store,
@@ -1241,8 +1162,6 @@ def test_the_creation_spec_advertises_in_zone() -> None:
 
 
 async def test_creation_fires_persists_and_renders_a_per_rule_zone() -> None:
-    """At noon UTC, New York reads 08:00, so a daily 09:00 rule fires 13:00 UTC the same day; the
-    stored due time is that UTC instant while the model sees the 09:00 New York wall time."""
     tool, store = _zoned_tool()
     result = await tool.invoke(
         _call(
@@ -1261,13 +1180,11 @@ async def test_creation_fires_persists_and_renders_a_per_rule_zone() -> None:
     )
     loaded = await store.get("item-1")
     assert loaded is not None
-    assert loaded.due_at == datetime(2026, 7, 12, 13, 0, 0, tzinfo=UTC)  # stored as a UTC instant
+    assert loaded.due_at == datetime(2026, 7, 12, 13, 0, 0, tzinfo=UTC)
     assert loaded.rule == CalendarRule(hour=9, minute=0, zone=_NEW_YORK)
 
 
 async def test_listing_renders_a_per_rule_zone_in_its_own_zone() -> None:
-    """A calendar item with its own zone lists the wall time it names, not the same instant in the
-    deployment zone, so the listing and the rule's own phrase agree."""
     tool, store = _zoned_tool()
     await tool.invoke(
         _call(
@@ -1279,7 +1196,7 @@ async def test_listing_renders_a_per_rule_zone_in_its_own_zone() -> None:
             }
         )
     )
-    listing = await ListScheduledTool(store).invoke(_call({}))  # deployment zone is UTC
+    listing = await ListScheduledTool(store).invoke(_call({}))
     assert not listing.is_error
     assert "due 2026-07-12T09:00:00-04:00, every day at 09:00 (America/New_York)" in listing.content
 
@@ -1291,7 +1208,7 @@ async def test_creation_rejects_an_unknown_in_zone() -> None:
     )
     assert result.is_error
     assert "no known timezone" in result.content
-    assert not await store.list_active()  # nothing persisted on a rejected zone
+    assert not await store.list_active()
 
 
 async def test_creation_rejects_a_non_string_in_zone() -> None:
@@ -1304,7 +1221,6 @@ async def test_creation_rejects_a_non_string_in_zone() -> None:
 
 
 async def test_creation_rejects_in_zone_without_at_time() -> None:
-    """``in_zone`` names the zone of a wall clock, so it is meaningless without ``at_time``."""
     tool, _ = _zoned_tool()
     result = await tool.invoke(
         _call({"kind": "reminder", "text": "x", "in_seconds": 60, "in_zone": "America/New_York"})

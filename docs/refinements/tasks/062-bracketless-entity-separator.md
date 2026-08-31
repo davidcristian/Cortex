@@ -8,7 +8,7 @@ This is the leftover the entry above
 named as its natural next pass, and the tail it came out of still stays open. Measured the same
 way first, through a real `TaintLedger` holding a collected `https://evil.example/pay` and a real
 streaming filter fed one character at a time: `https&#58;//evil.example/pay` anchored **no match
-at all**, so both policies were blind to it, the severe shape a third time. Fixing the one
+at all**, so neither policy matched it, the severe shape a third time. Fixing the one
 measured spelling would have left ten, because the reference is a family: the decimal and
 hexadecimal forms, zero-padded (`&#0058;`, `&#x003a;`) or not, with HTML's optional semicolon or
 without, upper or lower case, the named `&colon;` and `&sol;`, and the solidi as well as the
@@ -28,10 +28,10 @@ is what keeps the anchor's promise that every spelling it admits is one the iden
 `url_identity.py` did not change at all: the decode fixpoint already folded all of this and the
 whole gap was that nothing reached it. The streaming hold-back grew the second branch it needed
 (`_OPEN_SEP_RE`, a scheme word then complete separator spellings then an unfinished reference,
-the leading `&` load bearing so `database` is not held), verified at all 840 two-way split points
+the leading `&` required so `database` is not held), verified at all 840 two-way split points
 of the measurement's probes. Eleven tests, each mutation-proven with `__pycache__` cleared and
-each mutation verified applied; the first fixture written for the digit-run guard did not redden
-it and was replaced with one that does. **The count does not move**, on the same reasoning as the
+each mutation verified applied; the first fixture written for the digit-run guard did not make
+it fail and was replaced with one that does. **The count does not move**, on the same reasoning as the
 entry above rather than by copying its answer: what closed here was never counted (it was named
 in that entry's leftover table, not carried as an item, the treatment the bracket asymmetry got),
 and the counted tail it belongs to, "mixed/other encodings past percent + HTML", is still open,

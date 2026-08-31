@@ -84,13 +84,13 @@ here.
   Both of the readings this entry demanded that its predecessor's did not: the other shapes are
   asked, and the residue is a rate. **8 of 96 constrained draws** wrote into the reasoning channel
   against 1 of 96 bare and 0 of 96 raw, on two bodies and all three shapes, and six of the eight are
-  not deliberation but a malformed channel marker followed by the answer itself routed to the half a
-  delegated run drops. That belongs to
+  a malformed channel marker followed by the answer itself routed to the half a delegated run drops,
+  rather than deliberation. That belongs to
   [R-479](479-the-reasoning-budget-held-until-the-prompt-pushed.md), which now has a rate, more than
   one body and a mechanism.
   The finding that settles the detector question is the failure **kind**: of the bare arm's 24 non
   deliveries, 23 came back `ok=True`, and of the constrained arm's 6, all 6 came back refused. The
-  sentence moves the residue out of the silent failure mode.
+  sentence moves the residue out of the failure mode that reports nothing.
   Opened by it: [R-480](480-a-narrated-reply-arrives-as-an-answer.md), which carries the quiet
   failure this close decided not to detect, and
   [R-481](481-the-sentence-is-measured-on-one-pick.md), which carries what 288 runs of one model

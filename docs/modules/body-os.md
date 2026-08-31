@@ -22,7 +22,7 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   `DWMWA_EXTENDED_FRAME_BOUNDS`), which is **not** `GetForegroundWindow`, because the overlay
   is the foreground window whenever a capture runs and hides itself from capture besides.
   It hands back raw BGRA and no policy:
-  every size decision is in `body_core` where the coverage gate can see it. GDI was chosen over
+  every size decision is in `body_core`, where the coverage gate measures it. GDI was chosen over
   DXGI Desktop Duplication and `Windows.Graphics.Capture` because it needs no COM apartment
   (so it does not deepen the recorded unbalanced-`CoUninitialize` entry), holds no persistent
   device (so it satisfies the blocking pool's `FnOnce + Send + 'static`), and has the smallest
@@ -40,7 +40,7 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   COM-initialized thread and the `BodyService` server's threads have none, so
   it makes the same idempotent `CoInitializeEx` call the audio backend does.
   Since 2026-07-16 that thread is a **tokio blocking-pool** thread rather than an async
-  worker (`body_rpc::off_worker`), which is what makes both backends' shape load-bearing:
+  worker (`body_rpc::off_worker`), which is why both backends are shaped the way they are:
   each resolves its own COM interface inside the call and holds none across calls, so nothing
   `!Send` is ever moved between threads and a per-call `CoInitializeEx` is all either needs.
   Neither balances it with `CoUninitialize`, which is deliberate and recorded
@@ -58,9 +58,10 @@ implementor (`Linux`/`Macos`/`WindowsAudioControl`), and from Slice 9.5 one `Not
 implementor (`Linux`/`Macos`/`WindowsNotify`); the app selects the platform's types by
 `cfg(target_os)`. `AudioControl` and `Notify` are `Send + Sync` (the `body_rpc` tonic
 `BodyService` server holds both, and lends each to a blocking thread per call), unlike the
-single-threaded `Hotkey`. Both ports stay **synchronous** on purpose: the OS they wrap is,
-and an async signature would only wrap a blocking call in a lie. Getting it off the async
-worker is the server's job, not the port's. The ports and pure
+single-threaded `Hotkey`. Both ports stay **synchronous** on purpose, because the OS APIs they
+wrap are synchronous and an async signature would present a blocking call as an awaitable one.
+Moving the call off the async worker is the server's job, and the port does not attempt it.
+The ports and pure
 values live in `body_core`
 (`docs/modules/body-core.md`): `AudioControl` (`get_volume() -> VolumeState`,
 `set_volume(VolumeChange) -> VolumeState`), the value types `VolumeState { level, muted }`
@@ -78,16 +79,17 @@ synchronous. Its shape is deliberately unlike the other two: `capture(&CaptureRe
 Result<CapturedFrame, CaptureError>` hands back **raw BGRA pixels and no policy at all**. Every
 size decision (crop, downscale, PNG encode, the byte ceiling and its shrink ladder) lives in
 pure
-`body_core`, because a `cfg(windows)` backend is invisible to the coverage gate and the seam's
-size guarantee may not rest on code CI never measures. That is the `escape_xml` argument
-verbatim. The one thing only a backend can do is resolve the request's `CaptureTarget`, since
-only the OS knows where windows are, and even that is answered as a rectangle beside the whole
-frame rather than as a crop: widening the **return value** rather than the trait method keeps
-the port one line and the crop arithmetic gated.
+`body_core`, because a `cfg(windows)` backend does not compile where the coverage gate runs and
+the seam's size guarantee may not rest on code CI never measures. That is the `escape_xml`
+argument verbatim. The one step only a backend can perform is resolving the request's
+`CaptureTarget`, since the window positions are known only to the OS, and the backend returns
+that as a rectangle beside the whole frame rather than as a crop: widening the **return value**
+instead of the trait method keeps the port one line and the crop arithmetic gated.
 `CaptureError` is `NoDisplay`/`Disabled`/`Backend`/`NoTarget`/`TooLarge`, and
 `DeniedScreenCapture` (in `body_core`, not in a platform crate) is the real, gated backend a
-host wires when capture is switched off: refusing is a capability, not a missing platform.
-Input backends join later.
+host wires when capture is switched off. It returns `CaptureError::Disabled` from ordinary
+gated code on every platform, so a host with capture off runs a tested path rather than an
+`unimplemented!()` stub. Input backends join later.
 
 **The escape hatch (how the 100% gate stays honest).** `cargo llvm-cov` sets `cfg(coverage)`;
 each stub crate opts into the nightly attribute under it,

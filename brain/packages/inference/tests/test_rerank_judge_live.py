@@ -1,5 +1,3 @@
-"""Does the model rank recall better than the cosine that ships? Measured, not assumed."""
-
 import os
 import time
 from datetime import UTC, datetime
@@ -25,7 +23,6 @@ _ENDPOINT = os.environ.get("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:8080")
 _EMBEDDER = os.environ.get("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://127.0.0.1:8081")
 _AT = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
 
-# id -> remembered text. Ten notes; six of them are the answer to one question each.
 _MEMORIES: dict[str, str] = {
     "state": (
         "we settled on Redis for anything a turn is holding, and Postgres for what outlives it"
@@ -43,7 +40,6 @@ _MEMORIES: dict[str, str] = {
     "deploy-noise": "the deploy script lives in the scripts directory next to the linters",
 }
 
-# question -> the note that actually answers it.
 _QUESTIONS: dict[str, str] = {
     "where are we keeping things while a conversation is in progress?": "state",
     "can two of them be loaded at once?": "gpu",
@@ -83,7 +79,6 @@ class _Arm:
 
 @pytest.mark.integration
 async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> None:
-    """Three arms: the cosine that ships, the rank as it first shipped, and the bounded rank."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         embedder = LlamaCppEmbedder(client, _EMBEDDER, model="embedding")
         pool: list[ScoredMemory] = []
@@ -131,6 +126,9 @@ async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> Non
             unbounded.seconds += time.monotonic() - started
             order = parse_order(reply, pool_size=len(scored), k=k)
             unbounded.fell_back += int(order is None)
+            # ``None`` is a reply nothing can be read out of, which falls back to the cosine. An
+            # empty pick is the model declining the pool, and on this corpus every question has an
+            # answer, so that scores as the empty result it is.
             unbounded_ids = baseline_ids if order is None else [scored[i].record.id for i in order]
             unbounded.record(unbounded_ids, gold)
 
@@ -153,9 +151,6 @@ async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> Non
             + unbounded.line(n)
             + bounded.line(n)
         )
-        # The measurement is the point; the assertions pin that the rank ran at all (a reranker
-        # that silently fell back would otherwise report the baseline as its own score) and that
-        # the bounds are what made it cheap rather than the model having a fast day.
         assert bounded.fell_back < n
         assert bounded.seconds < unbounded.seconds
 

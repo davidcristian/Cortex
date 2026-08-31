@@ -1,4 +1,4 @@
-"""The RedisScheduleStore's record codec + key layout (ADR-0025)."""
+"""The RedisScheduleStore's record codec and key layout."""
 
 import json
 from dataclasses import dataclass
@@ -35,9 +35,7 @@ def _encode_days(on: DaySelector) -> dict[str, Any]:
 
 
 def _encode_rule(rule: CalendarRule | None) -> dict[str, Any] | None:
-    """A calendar rule as a plain JSON object: its wall time, its one day-selector key, and its
-    zone name if it named one. A zone-less rule writes no ``zone`` key, so it encodes exactly as a
-    rule did before the per-rule addendum (additive, no version bump)."""
+    """A calendar rule as JSON: wall time, one day-selector key, and a zone name when set."""
     if rule is None:
         return None
     encoded: dict[str, Any] = {"hour": rule.hour, "minute": rule.minute, **_encode_days(rule.on)}
@@ -47,11 +45,7 @@ def _encode_rule(rule: CalendarRule | None) -> dict[str, Any] | None:
 
 
 def _decode_days(raw: dict[str, Any]) -> DaySelector:
-    """The stored day selector, read by which key the record carries.
-
-    Checked most-recent-variant first, falling through to the weekly reading, so a record
-    predating either newer selector decodes as the weekly rule it was written as.
-    """
+    """The stored day selector, chosen by which key is present in the record."""
     year_dates = cast("list[list[int]] | None", raw.get("year_dates"))
     if year_dates is not None:
         return YearDays(days=frozenset(MonthDay(month=m, day=d) for m, d in year_dates))
@@ -62,9 +56,7 @@ def _decode_days(raw: dict[str, Any]) -> DaySelector:
 
 
 def _decode_zone(name: object, item_id: str, resolve_zone: ZoneResolver) -> DisplayZone | None:
-    """The rule's stored zone, or ``None`` when absent (a rule written before the per-rule
-    addendum, or one that took the deployment zone).
-    """
+    """The rule's stored zone, or ``None`` when the record has no zone name."""
     if name is None:
         return None
     zone = resolve_zone.resolve(name) if isinstance(name, str) else None
@@ -77,7 +69,7 @@ def _decode_zone(name: object, item_id: str, resolve_zone: ZoneResolver) -> Disp
 def _decode_rule(
     fields: dict[str, Any], item_id: str, resolve_zone: ZoneResolver = ZONEINFO_RESOLVER
 ) -> CalendarRule | None:
-    """The stored rule, or None. Absent on every record written before calendar recurrence."""
+    """The stored rule, or None."""
     raw = cast("dict[str, Any] | None", fields.get("rule"))
     if raw is None:
         return None
@@ -104,7 +96,7 @@ def record_key(item_id: str) -> str:
 
 
 def encode(item: ScheduledItem, *, claim: str | None, claimed_at: datetime | None) -> str:
-    """One JSON document per schedule; ``claim``/``claimed_at`` ride only while FIRING."""
+    """One JSON document per schedule; ``claim``/``claimed_at`` are set only while FIRING."""
     return json.dumps(
         {
             "v": RECORD_VERSION,
@@ -144,6 +136,7 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             )
             raise ScheduleStoreError(msg)
         every_s = fields["every_s"]
+        # .get rather than []: records written before the snooze anchor existed have no such key.
         anchor = fields.get("anchor")
         deliverable_since = fields["deliverable_since"]
         claim = cast("str | None", fields["claim"])
@@ -167,8 +160,8 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             ),
             last_outcome=fields["last_outcome"],
         )
+    # AttributeError: a JSON document that is not an object has no .get.
     except (AttributeError, KeyError, TypeError, ValueError) as err:
-        # AttributeError: a JSON document that is not an object has no .get.
         msg = f"corrupt schedule record at {record_key(item_id)!r}"
         raise ScheduleStoreError(msg) from err
     return item, claim, claimed_at

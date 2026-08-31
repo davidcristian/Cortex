@@ -1,5 +1,3 @@
-"""Integration: a token cap landing inside a tool call, off a real llama-server."""
-
 import os
 from collections.abc import AsyncIterator, Mapping
 from datetime import UTC, datetime
@@ -32,8 +30,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 _ENDPOINT = os.environ.get("CORTEX_CUT_ENDPOINT", "http://127.0.0.1:8080")
 _MODEL = os.environ.get("CORTEX_CUT_MODEL", "cortex")
-# Small enough that the cut has to land inside the long argument rather than after it, and large
-# enough that the call's name and its opening brace are already on the wire.
+# Small enough that the cut falls inside the long argument rather than after it, and large enough
+# that the call's name and its opening brace are already on the wire.
 _CAP = int(os.environ.get("CORTEX_CUT_MAX_TOKENS", "60"))
 _TIMEOUT_S = 600.0
 _ASK = (
@@ -57,7 +55,7 @@ _WRITE_NOTE = ToolSpec(
 
 
 async def _wrote(arguments: Mapping[str, object]) -> str:
-    """The tool the cap never lets the model reach; present so the request advertises it."""
+    """Stand in for the tool the cap never lets the model reach, so the request advertises it."""
     return f"wrote {arguments.get('path')}"
 
 
@@ -77,11 +75,6 @@ async def _drain_into(stream: AsyncIterator[InferenceEvent], seen: list[Inferenc
 
 
 async def test_a_real_cap_inside_a_tool_call_reports_the_stop_before_it_fails() -> None:
-    """The ordering the whole arm rests on, taken from a real server rather than a transcript.
-
-    The stop rides the final chunk and the calls are assembled only once the stream is over, so a
-    consumer has already been told the completion was capped when the assembly raises.
-    """
     seen: list[InferenceEvent] = []
     async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
         stream = _backend(client).stream(
@@ -100,11 +93,6 @@ async def test_a_real_cap_inside_a_tool_call_reports_the_stop_before_it_fails() 
 
 
 async def test_the_core_reads_a_cut_tool_call_as_a_cap_and_not_as_a_dead_backend() -> None:
-    """The consumer, end to end: the shipped attempt over the shipped adapter over a real server.
-
-    Without the arm this comes back an inference failure quoting a JSON decode error, which the
-    runner re-places onto the CPU to be cut at the same cap again.
-    """
     task = SubagentTask(id="t-live", instruction=_ASK, context="", at=datetime.now(UTC))
     attempt = PlacedAttempt(
         SystemClock(),

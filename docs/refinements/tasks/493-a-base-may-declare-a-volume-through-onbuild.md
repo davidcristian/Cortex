@@ -23,7 +23,7 @@ That is a dated reading and not a property, and it is the same shape of exposure
 added for. Both are moving tags. A republish that adds `ONBUILD VOLUME` leaves every gate green:
 the base row is still empty and correct, the Dockerfile rule sees nothing, and the built row goes on
 answering from whatever this machine last built, until somebody rebuilds and hand-runs `just
-image-volumes`. Then it reddens as an uncovered path rather than as the base change it is.
+image-volumes`. Then it fails as an uncovered path rather than as the base change it is.
 
 The built rows are recorded rather than derived precisely so a third source like this one lands in
 the record instead of being reasoned away, so the record is right; what is missing is the rule that
@@ -37,8 +37,8 @@ rule is the existing one-directional comparison over a second set. Weigh three t
 Whether the row's shape should change or a parallel mapping is honest, given every consumer of
 `IMAGE_VOLUMES` would see the new shape. Whether the record should hold the raw `ONBUILD` list or
 only the volume paths it resolves to, since the first is what docker says and the second is what the
-rule spends. And whether `dockerfilevolumes.py`'s deliberate refusal to read `ONBUILD VOLUME` in a
-Dockerfile here should stay: it is right for what that reader answers, and a file here that grew one
+rule spends. And whether `dockerfilevolumes.py` should go on not reading `ONBUILD VOLUME` in a
+Dockerfile here: it is right for what that reader answers, and a file here that grew one
 would then be a base whose downstream nothing records.
 
 ## Trail
@@ -59,12 +59,12 @@ would then be a base whose downstream nothing records.
   paid, four modules and their tests seeing the new shape. The dimension is recorded **raw**, since
   the record holds what docker says and a resolved path is a reading of it, one that would be taken
   once on the recorder's machine and would leave the recipe comparing an image against a
-  derivation. `dockerfilevolumes.py` goes on refusing `ONBUILD VOLUME` in a file here, and that
-  refusal is now argued as a correctness requirement: reading one there would make the existing
+  derivation. `dockerfilevolumes.py` still does not read `ONBUILD VOLUME` in a file here, and that
+  decision is now argued as a correctness requirement: reading one there would make the existing
   rule demand a path in a row that correctly lacks it. The record was re-derived with `just
   image-volumes` against a real daemon, which agrees with all ten rows in both dimensions.
   `imagedrift.py` split off under the line cap, holding the inspect call and the drift report while
-  `imagevolumes.py` stays the record. Thirteen mutants over the `scripts/` suite, all red, and one
+  `imagevolumes.py` stays the record. Thirteen mutants over the `scripts/` suite, all failing, and one
   of them was green first: a trigger pasted as the path it resolves to declared nothing, which is
   now a refusal. Opened by this close:
   [R-506](506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md).

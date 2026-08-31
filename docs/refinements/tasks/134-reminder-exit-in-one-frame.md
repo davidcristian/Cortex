@@ -9,8 +9,8 @@ stack, so the stack rolls shut when the last reminder is acked, but acking one o
 deletes that row. The history absorbs the slack rather than jerking the composer, so what is left
 is one row's worth of instant against a smooth panel.
 Fixing it properly is a `usePresence(items, key)` hook that keeps a removed item rendered until
-its own roll finishes, which the switcher's rows would want too. Deferred as genuinely small,
-not as invisible: it is one row, and the surrounding motion no longer amplifies it.
+its own roll finishes, which the switcher's rows would want too. Deferred as genuinely small
+rather than as invisible: it is one row, and the surrounding motion no longer amplifies it.
 - **LANDED 2026-08-03 as the hook this entry named, and the entry was stale about the defect
   while being right about the fix** ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)).
   Half of what it describes had been fixed on 2026-07-20, the day after it was written, by the

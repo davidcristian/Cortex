@@ -7,7 +7,7 @@ import { Message } from "./Message";
 
 const grow = (): void => undefined;
 
-/** Renders under test with the tail pin every real caller supplies. */
+/** Renders under test with the growth callback every real caller supplies. */
 function Show({ message }: { readonly message: MessageModel }) {
   return <Message message={message} onGrow={grow} />;
 }
@@ -25,8 +25,6 @@ const msg = (over: Partial<MessageModel>): MessageModel => ({
   ...over,
 });
 
-// A streaming message mounts the whisper's clock; its frames are swallowed here (the clock has
-// its own tests) so these stay about what the message renders.
 beforeEach(() => {
   vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
   vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
@@ -127,9 +125,7 @@ describe("Message", () => {
     );
     expect(container.querySelector(".thoughts")).not.toBeNull();
     const control = screen.getByRole("button", { name: "Thoughts" });
-    expect(control).toHaveAttribute("aria-expanded", "false"); // collapsed by default
-    // The trace itself is the message's own, so opening it is what proves it was handed down whole:
-    // the body is not in the DOM at all while the disclosure is shut.
+    expect(control).toHaveAttribute("aria-expanded", "false");
     expect(container.querySelector(".thoughts-body")).toBeNull();
     fireEvent.click(control);
     expect(container.querySelector(".thoughts-body")?.textContent).toBe("step one\nstep two");

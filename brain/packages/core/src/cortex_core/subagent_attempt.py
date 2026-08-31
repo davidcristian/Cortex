@@ -1,4 +1,4 @@
-"""One placed attempt at a delegated task, and what it produced (ADR-0010/0012/0028)."""
+"""One placed attempt at a delegated task, and what it produced."""
 
 import asyncio
 from contextlib import aclosing
@@ -35,8 +35,6 @@ from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
-# Re-exported so every existing `from cortex_core.subagent_attempt import ...` keeps resolving
-# after the outcome and reply splits; neither vocabulary lives beside a single collaborator now.
 __all__ = [
     "GENERATION_CAP_BOUND",
     "GENERATION_CAP_MSG",
@@ -58,11 +56,7 @@ __all__ = [
 
 
 def task_messages(task: SubagentTask, *, constrain: bool) -> list[Message]:
-    """The subagent's prompt: the instruction as the user ask, context as system framing.
-
-    A constrained ask carries the envelope's own sentence on the end of the instruction, that being
-    the only channel a schema's meaning can travel on (ADR-0028 instruction addendum).
-    """
+    """The subagent's prompt: the instruction as the user ask, context as system framing."""
     asked = instruct_reply(task.instruction) if constrain else task.instruction
     messages = [Message(role=Role.USER, text=asked, at=task.at, turn_id=task.id)]
     if task.context:
@@ -84,9 +78,6 @@ class PlacedAttempt:
     ) -> None:
         self._clock = clock
         self._tools = tools
-        # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
-        # format-laundering on the weak-model niche. Gated to the tool-less path below so the JSON
-        # grammar never fights llama.cpp's tool-calling grammar (ADR-0028 decision 3).
         self._constrain_output = constrain_output
         self._bounds = bounds
         self._generation = (
@@ -103,14 +94,8 @@ class PlacedAttempt:
         progress: ProgressSink | None,
     ) -> AttemptOutcome:
         """Stream ``task`` on ``backend`` as ``model`` and say what came back."""
-        # Structurally, `self._tools is None` is exactly the niche a weak model is reachable in
-        # (ADR-0017), which is the niche the envelope defends. Decided before the prompt is built,
-        # because the envelope now reaches the model as words as well as as a grammar.
         constrain = self._tools is None and self._constrain_output
         working = task_messages(task, constrain=constrain)
-        # A tools-enabled subagent reads untrusted content too, so it gets the same standing rule
-        # and its own taint ledger. A subagent that reads a malicious file taints its result,
-        # which propagates to the cortex that spawned it (ADR-0013).
         if self._tools is not None:
             working.insert(0, security_preamble_message(task.at, task.id))
         taint = TaintLedger()
@@ -125,12 +110,7 @@ class PlacedAttempt:
             task_id=task.id,
             item_id=task.item_id,
             schema=REPLY_ENVELOPE if constrain else None,
-            # How far each of this loop's completions may decode. The rounds cap and this one
-            # multiply, so what they bound together is the attempt's decoding rather than one
-            # completion's (ADR-0005 total-cap addendum).
             bounds=self._generation,
-            # A run with no spawning turn is its own root and gets the default allowance, as
-            # every run did before the turn-wide pool existed.
             budget=DispatchBudget() if budget is None else budget,
             stops=stops,
         )
@@ -163,6 +143,8 @@ class PlacedAttempt:
                 tainted=taint.tainted,
             )
         except MalformedToolCallError as err:
+            # A tool call the model was still writing when a token limit ended the completion is
+            # a truncation, not a bad reply, so the ledger decides which of the two this is.
             if not stops.capped:
                 return AttemptOutcome(
                     text="".join(parts),

@@ -29,7 +29,7 @@ both. The request wins where both are named, since the tier flag is only the fal
 deployment is currently in this position, and the two tier flags still express the split for one
 that wants it. Splitting the request-level count means either a second env field the deep phase
 reads instead, which is one more knob for a case nobody has hit, or a second `GenerationBounds`
-on `TurnCapabilities`, which is the wider change and would want the cap and the switch to split
+on `TurnCapabilities`, which is the wider change and would need the cap and the switch to split
 with it or explain why they did not.
 
 **What would close it.** Either `CORTEX_REPLY_TRACE_TOKENS_BRAIN` beside the tier flag it mirrors,

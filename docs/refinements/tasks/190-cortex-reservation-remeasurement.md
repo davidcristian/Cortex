@@ -13,7 +13,7 @@ MiB and deliberately left `CORTEX_VRAM_CORTEX_GB=11.3` alone because lowering it
 placer admits and that is this area's decision rather than the handoff's. Both were right to
 defer and neither wrote a line anywhere that counts open work, so an item that bounded every
 spawn's fit-test sat outside every count for three days. That is the doc-first rule's own failure
-mode, recorded here plainly rather than quietly fixed.
+mode, recorded here plainly rather than fixed without a note.
 **What the re-measurement found.** The published 8448 to 8468 was an idle figure and a reservation
 has to cover a peak, which is why this was never a one-line edit. At the shipped tier shape, read
 out of the running child's argv (`-ngl 99 --ctx-size 16384 --parallel 1 --jinja` with the projector
@@ -43,4 +43,4 @@ and it is the term the re-measurement deliberately did not touch.
   about 2.6 GiB high, most of the apparent gap being a unit rather than a build. The default is
   8.6 GiB, 233 MiB over the measured peak, and the headroom goes from 2.7 to 5.4 GiB. It arrived
   with no matching departure, having closed nothing this area's count had ever carried, and one
-  entry opened in its place, the term the sitting refused to bend.
+  entry opened in its place, the term the sitting deliberately left alone.

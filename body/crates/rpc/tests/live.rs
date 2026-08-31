@@ -29,7 +29,7 @@ fn seam_token() -> Option<String> {
 }
 
 /// A session id unique per test run, so reruns against the same live brain
-/// never share session state (Slice 3's deterministic reply counts the user
+/// never share session state (the deterministic reply counts the user
 /// turns accumulated in the session store under this id).
 fn unique_session_id() -> String {
     let nanos = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -128,8 +128,8 @@ async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve()
 }
 
 /// The real `Sleeper` the shell composes, repeated here because the shell is un-gated and this
-/// suite cannot import it. Real time on purpose: these checks measure the wall clock the
-/// deterministic fakes deliberately avoid.
+/// suite cannot import it. It uses real time on purpose, since these checks measure the wall
+/// clock the deterministic fakes avoid.
 struct RealSleeper;
 
 impl Sleeper for RealSleeper {
@@ -146,7 +146,7 @@ impl Sleeper for RealSleeper {
     }
 }
 
-/// A patient read schedule, as someone tuning `CORTEX_BRAIN_RETRY_*` for a slow brain restart
+/// A long read schedule, as someone tuning `CORTEX_BRAIN_RETRY_*` for a slow brain restart
 /// would set it: 5 attempts, 400 ms base, ×2, so the reads spend up to 6 s backing off.
 fn patient_reads() -> RetryPolicy {
     RetryPolicy {
@@ -220,7 +220,7 @@ async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
         detail = status.detail
     );
     // Two attempts and no more: the first fails `Connection`, which is transient, so the budget
-    // buys the retry it can afford (250 + 400 + 250 fits 1 s) and refuses the third (1.95 s).
+    // allows the one retry that fits (250 + 400 + 250 fits 1 s) and refuses a third (1.95 s).
     assert_eq!(
         probe_dials, 2,
         "the probe made {probe_dials} attempts on a 5-attempt schedule trimmed to a 1 s budget"
@@ -287,6 +287,9 @@ async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
 #[tokio::test]
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn the_ack_write_is_answered_once_against_the_live_brain() {
+    // The refusal, live: `ack_reminder` is the one write on the port and the plan does not retry
+    // it, so it crosses the decorator exactly once. A brain with no schedule backend answers
+    // `false` (ADR-0025), which is what this asserts, and it arrives with no backoff spent on it.
     let addr = brain_addr();
     let token = seam_token();
     let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
@@ -310,8 +313,8 @@ async fn the_ack_write_is_answered_once_against_the_live_brain() {
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn converse_round_trips_one_turn_over_the_live_seam() {
     let addr = brain_addr();
-    // Raw generated client on purpose: the `BrainTransport` port does not
-    // grow a typed converse method this slice (it lands with the body slices).
+    // The raw generated client on purpose, because the `BrainTransport` port does not grow a
+    // typed converse method this slice; it lands with the body slices.
     let mut client = match BrainServiceClient::connect(addr.clone()).await {
         Ok(client) => client,
         Err(error) => panic!("cannot reach the brain at {addr}: {error}"),
@@ -365,21 +368,20 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
                 code = error.code,
                 message = error.message
             ),
-            // Tool/status traffic is legal on the stream, an announced dispatch's outcome
-            // included; this check only cares about the reply text and turn completion.
+            // Tool and status traffic is legal on the stream, an announced dispatch's outcome
+            // included, and this check only reads the reply text and the turn completion.
             Some(
                 server_event::Event::ToolActivity(_)
                 | server_event::Event::ToolOutcome(_)
                 | server_event::Event::Status(_),
             ) => {}
-            // Nothing gated is asked for here, and this raw one-shot client
-            // could not answer anyway (ADR-0022). A confirm request means
-            // something is wrong brain-side.
+            // Nothing gated is asked for here, and this raw one-shot client could not answer
+            // one anyway (ADR-0022), so a confirm request means something is wrong brain-side.
             Some(server_event::Event::ConfirmRequest(request)) => panic!(
                 "unexpected confirm request for tool {tool} on session {session_id}",
                 tool = request.tool_name
             ),
-            // Likewise its resolution: with nothing asked, nothing can have been resolved.
+            // The same holds for a resolution: with nothing asked, nothing can be resolved.
             Some(server_event::Event::ConfirmResolved(resolved)) => panic!(
                 "unexpected confirm resolution ({outcome}) on session {session_id}",
                 outcome = resolved.outcome
@@ -402,8 +404,8 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
     );
 }
 
-/// Drives one turn to completion over the raw client, so a session exists in the
-/// store for the read RPCs to list. Panics on any failure (this is a live check).
+/// Drives one turn to completion over the raw client, so a session exists in the store for the
+/// read RPCs to list. It panics on any failure, as a live check does.
 async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
     let mut client = match BrainServiceClient::connect(addr.to_owned()).await {
         Ok(client) => client,
@@ -446,9 +448,9 @@ async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
 #[tokio::test]
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn session_reads_round_trip_over_the_live_seam() {
-    // ListSessions / GetSessionMessages (ADR-0021) end to end: seed a turn, then read
-    // the chat back over the typed BrainTransport port. Needs only the brain + Redis
-    // (no GPU), since the echo backend serves the turn.
+    // ListSessions and GetSessionMessages (ADR-0021) end to end: seed a turn, then read the
+    // chat back over the typed BrainTransport port. It needs only the brain and Redis, with no
+    // GPU, since the echo backend serves the turn.
     let addr = brain_addr();
     let token = seam_token();
     let session_id = unique_session_id();

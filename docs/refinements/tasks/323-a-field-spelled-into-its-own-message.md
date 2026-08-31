@@ -10,7 +10,7 @@ on its own. About twenty log sites still spell the same field into the message a
 that was the only way to be read before the formatter existed. Each of them now prints its field
 twice: `started a model process: model=cortex pid=41 port=8081 model=cortex pid=41 port=8081`.
 
-The family is `model=%s`, `pid=%d`, `error=%s` and their siblings, and it runs across
+The group is `model=%s`, `pid=%d`, `error=%s` and their siblings, and it runs across
 `cortex_model_manager` (`supervisor.py`, `server.py`, `adapter.py`, `api.py`, `children.py`,
 `device_memory.py`), `cortex_core` (`residency_sweep.py`, `residency_moves.py`,
 `residency_regain.py`, `residency_watch.py`) and `cortex_orchestrator` (`swap_builders.py`). The
@@ -27,24 +27,24 @@ should not have to rule out mid incident.
 
 ## Trail
 
-- 2026-08-19: Opened by the close of
-  [R-317](317-shipped-handler-drops-every-field.md), whose survey of hand-rolled renderings named
-  three and whose re-derivation from the tree found this fourth family beside them.
+- 2026-08-19: Opened by the close of [R-317](317-shipped-handler-drops-every-field.md), whose survey
+  of hand-rolled renderings named three and whose re-derivation from the tree found this fourth
+  group beside them.
 - 2026-08-19: Landed as the ADR-0038 twice-printed-field addendum. Re-derived from the tree first,
   which found **31** sites and not "about twenty", across 13 files: the eleven this entry named,
   plus `swap_conductor.py` and `swap_recovery.py`. Every one of them now logs a constant sentence
-  and carries its values as fields alone, so a value appears once on the line and a runbook's
-  `grep` matches every instance of a line rather than the one whose id it quoted. No field was
-  lost: every value taken out of a message was already attached, which is why nothing had to be
-  rescued, and each site's assertions moved onto `PlainFormatter().format(record)` rather than
-  staying on a message that no longer carries them. Seven messages needed rewording rather than a
-  deleted token, the two device-memory lines whose value was a word of the sentence and the five
-  `%r` clauses that now name their subject generically. Two shapes deliberately keep a value in
-  prose: a message that is also a raised exception's text, and the sweep's own predicate
-  (`could not be started`), which is not a field and so cannot double. The runbooks moved in the
-  same commit: `model-swap.md` (three quoted lines and the log-reading pointer),
-  `local-dev-wsl.md` (a fourth reading rule) and `brain-model-manager.md`. Verified live against
-  the real sidecar, before and after, in `docker compose logs model-host`. What it opened is
-  [R-325](325-a-raised-message-is-also-a-logged-one.md), the six messages that are logged and
-  raised, and [R-326](326-a-line-that-names-nothing-it-happened-to.md), the lines at the other end
-  of the question that attach no field at all.
+  and carries its values as fields alone, so a value appears once on the line and a runbook's `grep`
+  matches every instance of a line rather than the one whose id it quoted. No field was lost: every
+  value taken out of a message was already attached, which is why nothing had to be rescued, and
+  each site's assertions moved onto `PlainFormatter().format(record)` rather than staying on a
+  message that no longer carries them. Seven messages needed rewording rather than a deleted token,
+  the two device-memory lines whose value was a word of the sentence and the five `%r` clauses that
+  now name their subject generically. Two shapes deliberately keep a value in prose: a message that
+  is also a raised exception's text, and the sweep's own predicate (`could not be started`), which
+  is not a field and so cannot double. The runbooks moved in the same commit: `model-swap.md` (three
+  quoted lines and the log-reading pointer), `local-dev-wsl.md` (a fourth reading rule) and
+  `brain-model-manager.md`. Verified live against the real sidecar, before and after, in `docker
+  compose logs model-host`. What it opened is [R-325](325-a-raised-message-is-also-a-logged-one.md),
+  the six messages that are logged and raised, and
+  [R-326](326-a-line-that-names-nothing-it-happened-to.md), the lines at the other end of the
+  question that attach no field at all.

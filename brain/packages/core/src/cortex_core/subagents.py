@@ -26,9 +26,7 @@ class SubagentTask:
 
 @dataclass(frozen=True, slots=True)
 class AttemptBounds:
-    """How far one placed attempt at a task may go before it must stop (ADR-0005 total-cap
-    addendum).
-    """
+    """How far one placed attempt at a task may go before it stops (ADR-0005 total-cap addendum)."""
 
     max_tokens: int | None = None
     timeout_s: float | None = None

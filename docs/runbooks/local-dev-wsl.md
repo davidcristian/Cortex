@@ -34,7 +34,7 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   the code. `FAIL producer:` means the `body/coverage.json` being judged was written by a different
   cargo-llvm-cov than the one that just ran, so re-run the measurement rather than reading its
   numbers. `coverage report has no 'cargo_llvm_cov' entry` means the export stopped naming its
-  writer, which the gate refuses on purpose (ADR-0002 single-verdict addendum).
+  writer, which the gate treats as a failure by design (ADR-0002 single-verdict addendum).
 - **just** provides `just check`, THE gate (AGENTS.md gate 6); run it before calling
   anything done.
 - **Every suite in that gate runs shuffled under a fixed seed** (the
@@ -49,8 +49,8 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   printed, `uv run pytest --randomly-seed=9973 <path>`, or the test will run in a different order
   than the failing run did. Do not tune a seed to make a test pass; that throws away every draw
   the suite has survived and hides the dependency rather than fixing it.
-- **The Rust arm is the one with different mechanics** (the same ADR's rust-shuffle addendum), and
-  the difference is worth knowing before it surprises you. It rides the nightly coverage step
+- **The Rust arm is the one with different mechanics** (the same ADR's rust-shuffle addendum), so
+  read this before trying to reproduce a failure there. It rides the nightly coverage step
   because libtest's shuffle is nightly-only behind `-Z unstable-options` and every other Rust gate
   stays on stable, so `just check` runs that suite twice, alphabetically and permuted, and both
   must pass. Each test binary prints `running N tests (shuffle seed: 104729)`. Reproducing one
@@ -62,12 +62,12 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 - **`just shuffle [seed]`** is the deliberate sweep, and the one thing `just check` does not do:
   all four suites at ONE seed of your choosing, a random one by default, printed so the run
   reproduces with `just shuffle <seed>`. Run it when a test behaves as though a sibling left
-  something behind, and after landing a batch of tests. It stays out of the gate, its whole point
-  being an order nobody chose, and a red the committer cannot reproduce is what a pre-commit gate
-  cannot absorb.
-- **Something does run that sweep now** (the same ADR's sweep-schedule addendum):
+  something behind, and after landing a batch of tests. It stays out of the gate because its point
+  is an order nobody chose, and a pre-commit gate cannot absorb a red the committer cannot
+  reproduce.
+- **A weekly workflow runs that sweep** (the same ADR's sweep-schedule addendum):
   `.github/workflows/shuffle.yml` draws a seed every Monday, and takes one from the Actions tab on
-  demand, so the pairs the frozen seeds run past get re-drawn without anyone remembering. It is the
+  demand, so the pairs the frozen seeds never draw get re-drawn without anyone remembering. It is the
   one workflow here that is not the `just check` mirror: it gates nothing, is a required check on
   nothing, and a red there blocks no merge and no push. Read such a red as a real order dependency
   between two tests that already coexisted, so it is not about whatever commit was at the head; the
@@ -183,17 +183,18 @@ every control call the sidecar left unanswered, however many tiers and errors th
 of line still carry a value in their prose, and neither is a field printed twice: one whose message
 the code also raises as an exception's text, which has to read on its own where no formatter runs,
 and one whose sentence needs a word to finish it (`a tier of the standing residency could not be
-started`), that word being a word rather than a field and never attached as one.
+started`); that word is part of the sentence rather than a field, and is never attached as one.
 
-**Two things never appear**, and both are the formatter's doing rather than each call site's. A
+**Two things never appear in a rendered line**, and the formatter removes them rather than each
+call site. A
 field whose name looks like a secret (`token`, `password`, `secret`, `credential`, `api_key`,
 `authorization`, `cookie`, and anything containing one of those) prints `<redacted>` in place of
 its value, the key still there so a withheld field reads differently from a missing one. And the
 credential inside any URL is stripped from the whole line, message and traceback included, so a
 `redis://` or `imap://` connection error names its host and never its password.
 
-For a deployment that would rather collect than read, `CORTEX_LOG_FORMAT=packed` writes one JSON
-object per line instead, with the fields under their own `fields` key:
+For a deployment that collects lines rather than reading them, `CORTEX_LOG_FORMAT=packed` writes
+one JSON object per line instead, with the fields under their own `fields` key:
 
 ```sh
 CORTEX_LOG_FORMAT=packed docker compose up -d --build
@@ -259,7 +260,7 @@ CORTEX_SEAM_TOKEN=<value> just seam-health
 **The token is a precondition of the suite, not an option** (ADR-0016 addendum on the
 checked precondition). One check proves a wrong token is refused, and a brain serving
 without one accepts every token there is, so that check fails on a stack that is merely
-unconfigured. `just seam-health` refuses to start without the variable and prints what to
+unconfigured. `just seam-health` stops with an error when the variable is unset and prints what to
 do; a token written into `.env` reaches compose, which reads that file, and not `just`,
 which does not. To check a token-free brain anyway, run the suite by hand with that one
 check skipped, and say so in what you report:
@@ -293,7 +294,7 @@ never opens, and they empty it before the suite and after every check. So the ru
 machine carrying real state, it needs no cleanup of yours, and each check gets the empty store
 the fakeredis fixture gives it (`brain/packages/session/tests/live_redis.py`, decided in the
 [ADR-0002](../adr/ADR-0002-toolchain-gates.md) addendum on the live-run database). Two things
-follow for you. Do not point `CORTEX_REDIS_URL` at database 15; the run refuses to start if you
+follow for you. Do not point `CORTEX_REDIS_URL` at database 15; the run fails at startup if you
 do, rather than emptying the brain's state. And if you want to inspect what a run left behind,
 look in database 15 (`redis-cli -n 15`) while it is paused, since the next `reset` clears it.
 

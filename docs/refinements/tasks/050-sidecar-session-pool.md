@@ -6,7 +6,7 @@
 
 The entry above priced the per-call open with an
 adjective and no number, on a budget where a user-facing default moved the same week on 0.515 s
-of time to first token, so it was measured rather than shrugged at, and every clause of it was
+of time to first token, so it was measured rather than assumed, and every clause of it was
 re-derived from the tree first. **How many** opens a turn pays turned out to be undocumented and
 larger than "one per describe/invoke": with N configured endpoints and the called tool owned by
 the k-th in config order, advertising costs N and one cortex dispatch costs k + 1, because
@@ -16,7 +16,7 @@ recompute the gated set before delegating. Both walks are deliberate (live, so a
 dropped or re-flagged fails closed rather than routing stale); what nothing recorded is that they
 make a delegated dispatch cost twice a cortex one. The count is now asserted exactly, against the
 shipped stack, in `packages/orchestrator/tests/test_mcp_handshake_live.py`, and it is
-mutation-proven (deleting the ungated re-walk turns it red at `assert 1 == 2`).
+mutation-proven (deleting the ungated re-walk makes it fail at `assert 1 == 2`).
 **What one open costs is 17.8 ms** (n=30, 16.5 to 21.5), measured against a control server on
 the FastMCP streamable-http transport `cortex_email` itself serves (a control rather than the
 email sidecar, which needs Bridge credentials and does IMAP work, because the number wanted is
@@ -44,12 +44,12 @@ pooled session must be closed, closing needs an explicit scope, and a scope is a
 that all seven combinators (`Aggregate`, `Filtered`, `Gated`, `SkipUnavailable`, `Ungated`,
 `Composite`, `Sighted`) would have to forward. Without one the session gets closed by a task
 other than the one that opened it, which is exactly the anyio cancel-scope corruption the
-per-call open was adopted to escape, and boot tolerance would have to be rebuilt on the far side
+per-call open was adopted to avoid, and boot tolerance would have to be rebuilt on the far side
 of it. That is a port change across the whole core seam, bought for 17.8 ms. It reopens if a
 deployment ever makes the residual bite: after the sidecar fix each call still pays that
 sidecar's own child spawn, about 125 ms, which only a held session removes (the same calls on a
 warm session measure 4.4 ms and 3.8 ms). The honest scope when it does is **one tool loop**,
-which is same-task by construction, and the price of admission is the port change above.
+which is same-task by construction, and the cost is the port change above.
 Nothing else opened behind it.
 
 ## Trail

@@ -6,7 +6,7 @@ import pytest
 import dashcheck
 from gitenv import git_env
 
-# Built from escapes, not literals, so this file passes the gate it tests.
+# Written as escapes so this file passes the check it tests.
 EM = "\u2014"
 EN = "\u2013"
 MINUS = "\u2212"
@@ -20,11 +20,7 @@ def _write(root: Path, name: str, text: str) -> Path:
 
 
 def _git(root: Path, *args: str) -> None:
-    """Drive git against the fixture's own tree, with the environment the gate itself uses.
-
-    `gitenv.git_env()` rather than a strip of its own: a fixture that rebuilt it by hand could
-    drift from the gate it tests, and would then be wrong in the same silent way.
-    """
+    """Run git in the test repo, with the same environment the check uses."""
     subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(root), *args],  # noqa: S607 -- git on PATH
         check=True,
@@ -35,16 +31,9 @@ def _git(root: Path, *args: str) -> None:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
-    """A real git working tree, because what the walk reads is now git's own answer.
-
-    The gate asks git which paths it ignores, so a fake answer would test the fixture rather than
-    the rule; `test_bindcheck.py` inits a repository for the same reason.
-    """
+    """Return a real git working tree, because the check reads git's own file list."""
     _git(tmp_path, "init", "-q")
     return tmp_path
-
-
-# ── what counts as punctuation ─────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -62,10 +51,10 @@ def test_punctuating_dashes_are_found(line: str, kind: str) -> None:
 @pytest.mark.parametrize(
     "line",
     [
-        "a 2-4B model fits the budget",  # a range takes a plain hyphen
+        "a 2-4B model fits the budget",
         "0.15-0.27 GB of VRAM",
-        f"24 GB {MINUS} ~11 GB of headroom",  # minus sign: arithmetic, still legal
-        "# noqa: DTZ001 -- the naive value under test",  # the inline-reason idiom
+        f"24 GB {MINUS} ~11 GB of headroom",
+        "# noqa: DTZ001 -- the naive value under test",
         "run cargo build --locked",
         "a well-formed hyphenated-word",
         "",
@@ -80,9 +69,6 @@ def test_the_allow_pragma_exempts_a_line() -> None:
     assert dashcheck.find_in_line(line) is None
 
 
-# ── scanning text ──────────────────────────────────────────────────────────────
-
-
 def test_scan_text_reports_line_numbers_and_content() -> None:
     text = f"clean line\nbad {EM} line\nclean again\n"
     (violation,) = dashcheck.scan_text(Path("f.md"), text)
@@ -95,15 +81,12 @@ def test_scan_text_reports_every_offending_line() -> None:
     assert len(dashcheck.scan_text(Path("f.md"), f"a {EM} b\nc {EM} d\n")) == 2
 
 
-# ── binary handling ────────────────────────────────────────────────────────────
-
-
 @pytest.mark.parametrize(
     ("data", "expected"),
     [
         (b"plain text", False),
-        (b"\x89PNG\x00\x1a", True),  # null byte
-        (b"\xff\xfe\xfa", True),  # not valid UTF-8
+        (b"\x89PNG\x00\x1a", True),
+        (b"\xff\xfe\xfa", True),
         (f"text {EM} with em dash".encode(), False),
     ],
 )
@@ -119,12 +102,9 @@ def test_read_text_returns_none_for_binary(tmp_path: Path) -> None:
 
 def test_read_text_raises_on_an_unreadable_file(tmp_path: Path) -> None:
     path = tmp_path / "gone.txt"
-    path.symlink_to(tmp_path / "missing.txt")  # dangling symlink
+    path.symlink_to(tmp_path / "missing.txt")
     with pytest.raises(dashcheck.UnreadableFileError):
         dashcheck.read_text(path)
-
-
-# ── walking a tree ─────────────────────────────────────────────────────────────
 
 
 def test_scan_finds_violations_across_file_types(repo: Path) -> None:
@@ -152,20 +132,15 @@ def test_scan_skips_non_regular_files(repo: Path) -> None:
     assert dashcheck.scan(repo).violations == []
 
 
-# ── the collection: the working tree minus what git ignores ────────────────────
-
-
 def test_scan_skips_a_file_git_ignores(repo: Path) -> None:
-    """Generated output is nobody's prose, so a dash in it is a file to delete, not a sentence."""
     _write(repo, ".gitignore", "coverage.json\n")
     _write(repo, "coverage.json", f'{{"note": "a {EM} b"}}\n')
     scanned = dashcheck.scan(repo)
     assert scanned.violations == []
-    assert scanned.files == 1  # the .gitignore itself, which git does not ignore
+    assert scanned.files == 1
 
 
 def test_scan_never_descends_into_a_directory_git_ignores(repo: Path) -> None:
-    """A wholly ignored tree is pruned rather than read, which is what keeps a models dir cheap."""
     _write(repo, ".gitignore", "blobs/\n")
     _write(repo, "blobs/deep/note.md", f"a {EM} b\n")
     scanned = dashcheck.scan(repo)
@@ -175,11 +150,6 @@ def test_scan_never_descends_into_a_directory_git_ignores(repo: Path) -> None:
 
 @pytest.mark.parametrize("staged", [False, True])
 def test_a_file_the_repo_does_not_ship_yet_is_still_read(repo: Path, staged: bool) -> None:  # noqa: FBT001 -- a parametrized case, not a flag
-    """Why the walk is a walk: both are prose this repo is about to own, and neither is committed.
-
-    A gate reading `git ls-files` would miss the first outright and catch the second only once
-    somebody staged it, which is after the sentence was written and usually after it was read.
-    """
     _write(repo, "doc.md", f"fresh {EM} prose\n")
     if staged:
         _git(repo, "add", "doc.md")
@@ -190,7 +160,6 @@ def test_a_file_the_repo_does_not_ship_yet_is_still_read(repo: Path, staged: boo
 def test_an_exported_git_dir_does_not_decide_which_repository_answers(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The strip is what makes `-C` the answer, and the collection is git's answer now."""
     _write(repo, ".gitignore", "out/\n")
     _write(repo, "out/generated.md", f"generated {EM} prose\n")
     _write(repo, "doc.md", "clean prose\n")
@@ -201,7 +170,6 @@ def test_an_exported_git_dir_does_not_decide_which_repository_answers(
 def test_a_root_git_cannot_answer_about_is_a_failure(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """No repository, no collection: scanning everything instead would be a different rule."""
     _write(tmp_path, "doc.md", "clean prose\n")
     assert dashcheck.main(["--root", str(tmp_path)]) == 2
     captured = capsys.readouterr()
@@ -212,8 +180,6 @@ def test_a_root_git_cannot_answer_about_is_a_failure(
 def test_a_git_that_cannot_be_run_is_a_failure(
     repo: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The other half of the same refusal, for a box with no git on its PATH at all."""
-
     def boom(*_args: object, **_kwargs: object) -> object:
         message = "no such executable"
         raise OSError(message)
@@ -223,11 +189,7 @@ def test_a_git_that_cannot_be_run_is_a_failure(
     assert "cannot run git: no such executable" in capsys.readouterr().err
 
 
-# ── the CLI ────────────────────────────────────────────────────────────────────
-
-
 def test_main_passes_a_clean_tree(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Two different numbers, so a summary that printed one of them twice would show here."""
     _write(repo, "doc.md", "clean prose\n")
     _write(repo, "src/app.ts", "// one\n// two\n")
     assert dashcheck.main(["--root", str(repo)]) == 0
@@ -237,7 +199,6 @@ def test_main_passes_a_clean_tree(repo: Path, capsys: pytest.CaptureFixture[str]
 
 
 def test_scan_counts_the_text_it_read_and_not_what_it_skipped(repo: Path) -> None:
-    """The count after the skips: a binary, an excluded tree and an ignored file are in neither."""
     _write(repo, ".gitignore", "notes/\n")
     _write(repo, "doc.md", "one\ntwo\n")
     _write(repo, "src/app.ts", "// three\n")
@@ -245,14 +206,13 @@ def test_scan_counts_the_text_it_read_and_not_what_it_skipped(repo: Path) -> Non
     _write(repo, "node_modules/pkg/index.js", "four\nfive\nsix\n")
     _write(repo, "notes/scratch.md", "seven\neight\n")
     scanned = dashcheck.scan(repo)
-    assert (scanned.files, scanned.lines) == (3, 4)  # the two above plus the .gitignore
+    assert (scanned.files, scanned.lines) == (3, 4)
     assert scanned.violations == []
 
 
 def test_a_tree_with_no_text_file_is_a_failure_not_a_pass(
     repo: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A walk that read nothing cannot fail, so reporting OK over one is the fail-open case."""
     (repo / "logo.png").write_bytes(b"\x89PNG\x00\xff")
     assert dashcheck.main(["--root", str(repo)]) == 2
     captured = capsys.readouterr()
@@ -265,7 +225,6 @@ def test_a_tree_with_no_text_file_is_a_failure_not_a_pass(
 def test_a_tree_git_ignores_entirely_meets_the_same_floor(
     repo: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The floor's second road, opened by narrowing the walk: text present, collection empty."""
     _write(repo, ".gitignore", ".gitignore\ndoc.md\n")
     _write(repo, "doc.md", f"an ignored {EM} line\n")
     assert dashcheck.main(["--root", str(repo)]) == 2

@@ -1,8 +1,4 @@
-"""Shared TaskStore behavior checks. Every implementation must pass all of them.
-
-Driven by the parametrized contract test (in-memory fake + fakeredis-backed Redis adapter).
-The two must be observably interchangeable behind the port (ports-before-adapters, ADR-0010).
-"""
+"""Shared TaskStore behavior checks. Every implementation must pass all of them."""
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
@@ -38,7 +34,7 @@ async def check_missing_task_and_result_are_none(store: TaskStore) -> None:
 
 
 async def check_task_round_trips(store: TaskStore) -> None:
-    """A stored task reads back field-for-field, the resolution inputs included (ADR-0018)."""
+    """A stored task reads back field for field, the resolution inputs included."""
     task = replace(
         make_task(
             _task_id(),
@@ -56,17 +52,13 @@ async def check_task_round_trips(store: TaskStore) -> None:
 
 
 async def check_result_round_trips(store: TaskStore) -> None:
-    """A stored result reads back field-for-field, failures and taint included.
-
-    Taint MUST survive the round-trip (ADR-0018): a result re-read after a restart that lost
-    ``tainted`` would fail open. That is the exact gap the slice 8.6 review closed.
-    """
+    """A stored result reads back field-for-field, failures and taint included."""
     task_id = _task_id()
     ok = SubagentResult(task_id=task_id, output="done")
     await store.put_result(ok)
     assert await store.get_result(task_id) == ok
     failed = SubagentResult(task_id=task_id, output="", ok=False, detail="boom")
-    await store.put_result(failed)  # overwrites
+    await store.put_result(failed)
     assert await store.get_result(task_id) == failed
     tainted = SubagentResult(task_id=task_id, output="the file said hi", tainted=True)
     await store.put_result(tainted)

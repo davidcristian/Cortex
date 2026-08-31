@@ -8,8 +8,8 @@ The strip carries `role="tablist"` with a
 `role="tab"` per face and `aria-selected` on the one showing, and focus travels with the view:
 the arriving pane's selected tab takes it (`components/ConsoleView.tsx`), and leaving the console
 hands it back to the composer, whose `active` prop is "the panel is open AND no console tab is
-up" (`components/ChatView.tsx`). That handoff is load-bearing rather than polish, because a
-browser refuses to hide the focused element's ancestor from assistive tech, so without it the
+up" (`components/ChatView.tsx`). That handoff is required rather than cosmetic, because a
+browser does not hide the focused element's ancestor from assistive tech, so without it the
 `aria-hidden` on the pane being left is ignored and the tree holds two consoles for the length of
 a morph (Chromium says so in the console, and the AX tree over CDP showed both before the handoff
 landed and one after). Two pieces of the pattern are deferred. The strip has no roving `tabindex`
@@ -34,7 +34,7 @@ which this console can afford twice over: both panes are already mounted, and at
 spread they share a height, so an arrow changes the content and not the panel's size. The leaving
 pane is `inert` as well as `aria-hidden`, from one function (`overlay/withdrawn.ts`) used in all
 three places the overlay holds something mounted that is not on screen, the third being the panel
-itself while dismissed. **The React 19 blocker evaporated on contact.** Only the TYPE is missing:
+itself while dismissed. **The React 19 blocker did not survive a check.** Only the TYPE is missing:
 probed against the tree's own react-dom 18.3.1 on both renderers, `inert=""` renders
 `<div inert="">` with no warning and `inert={undefined}` removes it again, while `inert={true}` is
 the form React 18 drops. An empty string is how HTML spells a present boolean attribute, so the

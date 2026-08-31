@@ -39,7 +39,6 @@ def report_of(tmp_path: Path, document: object) -> str:
 
 
 def argv_of(report: str, *, rustc: str = PROBED_RUSTC, llvm_cov: str = PROBED_TOOL) -> list[str]:
-    """A full command line: both toolchain relays are mandatory, so every run carries both."""
     return [report, "--rustc", rustc, "--llvm-cov", llvm_cov]
 
 

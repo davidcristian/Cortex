@@ -4,6 +4,10 @@ import type { EdgeStyle } from "../edge/edges";
 import { BLEED, approachDepth, edgePath } from "../edge/liquid";
 import { useMarkClock } from "../mark/useMarkClock";
 
+// The panel's liquid edge. Layers, back to front: the glass slab with the animated clip, the
+// blurred glow strokes, the panel's content, then the crisp hairline. The box is measured into a
+// ref, because `setState` in a per-render layout effect trips React's nested-update guard.
+
 interface PanelEdgeProps {
   readonly style: EdgeStyle;
   /** A turn is running: the liquid deepens toward its working pose and the glow takes over. */
@@ -13,15 +17,14 @@ interface PanelEdgeProps {
   readonly idPrefix: string;
 }
 
-/** The accent's own hues (theme/themes.ts ACTIVITY), as gradient stops: an SVG stroke cannot
- *  wear the CSS `--accent` token, so the stops are restated here the way the mark restates the
- *  palette. */
+/** The accent's own hues (theme/themes.ts ACTIVITY), as gradient stops. An SVG stroke cannot take
+ *  the CSS `--accent` token, so they are restated here. */
 const EMBER_STOPS = ["#8B5CF6", "#E24BC4", "#FF7A6B"] as const;
 
 export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps) {
   const seconds = useMarkClock(animated);
-  // The eased working depth, advanced by the frames themselves so the deepening is a movement.
-  // Not animating (reduced motion) snaps it: a still edge holds one pose per state, exactly.
+  // The eased working depth, advanced by the frames themselves. Under reduced motion it jumps to
+  // the target, since a still edge holds one shape per state.
   const pace = useRef({ seconds, depth: working ? 1 : 0 });
   const target = working ? 1 : 0;
   const depth = animated
@@ -29,7 +32,6 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
     : target;
   pace.current = { seconds, depth };
 
-  // Mounted with the component, so the ref is always set by the time anything reads it.
   const box = useRef<HTMLDivElement>(null!);
   const size = useRef({ width: 0, height: 0 });
   const [, bump] = useReducer((n: number) => n + 1, 0);
@@ -42,9 +44,9 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
     }
   }, []);
   useLayoutEffect(() => {
-    // Once before first paint, so the edge never shows a zero-size pose; after that the observer
-    // owns it. jsdom has no layout, so under test the mount measurement is a stub and the
-    // observer's deliveries are hand-driven (`src/test-setup.ts`).
+    // Measured once before first paint, so the edge never draws at zero size; after that the
+    // observer drives it. jsdom has no layout, so under test the mount measurement is a stub and
+    // the observer's deliveries are driven by hand (`src/test-setup.ts`).
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(box.current);
@@ -54,9 +56,8 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
   const d = edgePath(style, size.current.width, size.current.height, seconds, depth);
   const ember = `${idPrefix}-ember`;
   return (
-    // The wrapper bleeds past the panel so the neutral outline rides the panel's real edge and
-    // the waves have room to swing outward. The inset is the geometry module's own number, worn
-    // inline so the two cannot drift.
+    // The wrapper extends past the panel so the neutral outline sits on the panel's real edge and
+    // the waves have room to swing outward. The inset is the geometry module's own constant.
     <div
       ref={box}
       className={`edge edge-${style.glow}${working ? " edge-working" : ""}`}

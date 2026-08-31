@@ -11,8 +11,8 @@ from composestarts import ComposeStartError
 from hostedtiers import HostedTierError, hosted
 from subagentservers import FAMILY_PREFIX, Server, servers
 
-# A gate over no server, or over no requirement, would be green forever, which is the one thing
-# every scan here refuses.
+# A gate over no server, or over no requirement, would be green forever, so every scan here fails
+# when either set is empty.
 MIN_SERVERS = 1
 MIN_FLAGS = 1
 
@@ -63,7 +63,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
         ),
         # The budget's count is the model host's `_NO_REASONING_BUDGET`, held to this spelling by
         # the constant scan, so the hosted tier and the compose servers cannot disagree about it.
-        # Zero rather than a count, because a narrow subtask wants no thought and not a short one.
+        # Zero rather than a count, because a narrow subtask needs no thought and not a short one.
         flags=(
             Flag("--chat-template-kwargs", '{"enable_thinking": false}'),
             Flag("--reasoning-budget", "0"),
@@ -76,8 +76,8 @@ REQUIREMENTS: tuple[Requirement, ...] = (
 # requirement prints why every server must meet it.
 WHY_NAMED = (
     "both readers of this gate's set decide whether a server or a tier serves subagents from that "
-    "spelling alone, so an artifact named another way leaves the set in silence and this scan "
-    "reports success over the server or tier it belongs to"
+    "spelling alone, so an artifact named another way drops out of the set unreported and this "
+    "scan passes over the server or tier it belongs to"
 )
 
 

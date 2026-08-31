@@ -1,4 +1,4 @@
-"""Whether a tier's rendered prompt still predicts what its constrained cell did."""
+"""Check that a tier's rendered prompt still predicts what its constrained cell did."""
 
 import argparse
 import sys
@@ -7,39 +7,50 @@ from typing import cast
 
 from switchsamples import Cell, Probe, ProbeError, load
 
+# The two template families in ADR-0004's lineup, each as its (opens, closes) marker pair. The bar
+# sits on the other side of the closing marker, so neither member of a pair is a substring of the
+# other.
 MARKERS: tuple[tuple[str, str], ...] = (
     ("<|channel>thought", "<channel|>"),
     ("<think>", "</think>"),
 )
-# How many draws a cell must carry before its verdict is read as a tier's behaviour. The probe's
-# own rule, and its own reason: the constrained cell of the failing pick holds on 1 draw in 5.
+# Minimum draws before a cell's verdict is read as a tier's behaviour: the failing pick's
+# constrained cell holds on 1 draw in 5.
 DRAWS = 5
 
 
 def tail(prompt: str, ask: str) -> str | None:
-    """What the template appended after the ask itself, or ``None`` when the ask is not in there.
+    """What the template appended after the ask, or ``None`` when the prompt lacks the ask.
 
-    The generation prompt, found without knowing one per pick turn marker: whatever follows the
-    last of the words the driver recorded sending is what the template added on the model's behalf.
+    Found without a per-pick turn marker: whatever follows the last occurrence of the recorded ask
+    is what the template added on the model's behalf.
     """
     _, found, rest = prompt.rpartition(ask)
     return rest if found else None
 
 
 def marked(rendered: str) -> bool:
-    """Whether ``rendered`` carries a thought marker of either family this reader knows."""
+    """Whether ``rendered`` carries a thought marker of either family in ``MARKERS``."""
     return any(marker in rendered for pair in MARKERS for marker in pair)
 
 
 def closes(rendered: str) -> bool:
-    """Whether the last thought marker in ``rendered`` is a closing one."""
+    """Whether the last thought marker in ``rendered`` closes the thought rather than opening it.
+
+    No marker at all answers "open". Only a tail the switch left unchanged is owed that reading, so
+    `_tails` checks `marked` and the unswitched tail before calling this.
+    """
     opened = max(rendered.rfind(opener) for opener, _ in MARKERS)
     shut = max(rendered.rfind(closer) for _, closer in MARKERS)
     return shut > opened
 
 
 def _tails(probe: Probe, lines: list[str]) -> bool | None:
-    """Report both renderings, and answer whether the switched one closes the thought."""
+    """Report both renderings, and answer whether the switched one closes the thought.
+
+    ``None`` when the rendering cannot be placed: it lacks the ask the sample recorded, or its tail
+    carries no marker either family writes and the switch changed it.
+    """
     lines.append("  the rendering, taken after the ask itself:")
     found: dict[bool, str] = {}
     for switch in (False, True):
@@ -58,16 +69,16 @@ def _tails(probe: Probe, lines: list[str]) -> bool | None:
     lines.append(f"    the template {reads} the key ({len(plain)} chars against {len(switched)})")
     if not marked(found[True]) and found[True] != found[False]:
         lines.append(
-            "  refused: the switched tail carries no marker of either family here and is not the"
-            " tail this template renders with the key left alone, so it answered in a third"
-            " spelling and whether that thought is closed is a word this reader does not have"
+            "  refused: the switched tail carries no marker of either format here and is not the"
+            " tail this template renders with the key left alone, so it answered in an"
+            " unrecognized format and this reader cannot say whether that thought is closed"
         )
         return None
     return closes(found[True])
 
 
 def _judged(probe: Probe, lines: list[str]) -> Cell | None:
-    """The constrained cell the prediction is held against, if this sample may be read at all."""
+    """The constrained cell the prediction is held against, or ``None`` if it may not be read."""
     control, cell = probe.cell(switch=False), probe.cell(switch=True)
     if control is None or cell is None:
         lines.append(
@@ -93,7 +104,7 @@ def _judged(probe: Probe, lines: list[str]) -> Cell | None:
 
 
 def read(probe: Probe) -> tuple[list[str], int]:
-    """One tier's report and its exit code: the rendering, the cells, then the rule over both."""
+    """One tier's report and exit code: the rendering, the cells, then the rule over both."""
     lines = [f"{probe.path}: {probe.model} at {probe.endpoint}"]
     shut = _tails(probe, lines)
     if shut is None:

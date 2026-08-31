@@ -63,7 +63,7 @@ drafts survive; the overlay renders it as key→value lines and falls back to ra
 **Version skew** is fail-quiet by construction on the response side (an old brain
 debug-logs and ignores an unknown client event) but *terminal* on the request side: prost
 drops an unknown oneof member, so an old body decodes a `confirm_request` as an empty
-event and fails the turn with `TransportError::Protocol`. That only bites a mixed-version
+event and fails the turn with `TransportError::Protocol`. That reaches only a mixed-version
 deployment mid-confirm, impossible on this single-machine repo where both halves ship
 from one tree, and the slice's commits keep each tree green independently (the ADR-0021
 staging pattern).
@@ -83,15 +83,16 @@ supersedes that table (ADR-0013 carries a pointer addendum):
 
 Two reasons. First, an outbound/irreversible action should *always* be the user's explicit
 decision, so "gated" now means "the human approves each use", not "the human approves it only
-when the turn is suspicious". Second and load-bearing: on a tainted turn the model's
-arguments may themselves be injection-authored (the exfil-via-`send_email` corpus case,
-ADR-0013 harness), and a confirmation dialog showing attacker-drafted content to a user
-conditioned to click "approve" is not a boundary, since **a send demanded by injected content
-must never be merely a confirm-away**. The tainted block keeps the deterministic guarantee
-the whole untrusted-content posture rests on: after reading hostile bytes, the outbound
-surface is closed for the rest of the turn, full stop. The legitimate "read that email,
-then send a reply" flow still works: send in the next turn, because taint is turn-local, tool
-context does not persist (ADR-0013 decision 3), and the fresh turn confirms normally. The
+when the turn is suspicious". Second, and this is why the tainted row blocks rather than
+confirms: on a tainted turn the model's arguments may themselves be injection-authored (the
+exfil-via-`send_email` corpus case, ADR-0013 harness), and a confirmation dialog showing
+attacker-drafted content to a user conditioned to click "approve" is not a boundary, since
+**a send demanded by injected content must never be merely a confirm-away**. The tainted
+block keeps the deterministic guarantee the whole untrusted-content posture rests on: after
+reading hostile bytes, the outbound surface is closed for the rest of the turn. The
+legitimate "read that email, then send a reply" flow still works: send in the next turn,
+because taint is turn-local, tool context does not persist (ADR-0013 decision 3), and the
+fresh turn confirms normally. The
 cost (one extra user prompt-turn) is accepted; a confirm-with-provenance-display
 alternative for tainted turns is deferred, needing structured provenance first
 (ADR-0013/0019 deferral).

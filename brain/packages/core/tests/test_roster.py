@@ -1,5 +1,3 @@
-"""Behavior tests for the subagent roster and its ADR-0017 resolution boundary (ADR-0018)."""
-
 import pytest
 
 from cortex_core import (
@@ -48,18 +46,16 @@ def test_profile_description_defaults_empty() -> None:
     assert _profile("m").description == ""
 
 
-# The ADR-0017 matrix: any spawn path that can carry untrusted content resolves to the robust
-# default, whatever was requested; the cortex's pick is honored only clean + tool-less.
 @pytest.mark.parametrize(
     ("requested", "tainted", "tools_enabled", "expected"),
     [
-        ("fast", True, False, "robust"),  # tainted turn -> forced robust (rule 2a)
-        ("fast", False, True, "robust"),  # tools-enabled subagent -> forced robust (rule 2b)
-        ("fast", True, True, "robust"),  # both signals -> forced robust
-        ("ghost", True, False, "robust"),  # unknown + untrusted path -> still the safe default
-        ("fast", False, False, "fast"),  # clean + tool-less -> the pick is honored
-        ("", False, False, "robust"),  # no pick -> the default
-        ("robust", False, False, "robust"),  # picking the default explicitly is fine
+        ("fast", True, False, "robust"),
+        ("fast", False, True, "robust"),
+        ("fast", True, True, "robust"),
+        ("ghost", True, False, "robust"),
+        ("fast", False, False, "fast"),
+        ("", False, False, "robust"),
+        ("robust", False, False, "robust"),
     ],
 )
 def test_resolve_pins_every_untrusted_path_to_the_default(

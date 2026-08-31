@@ -90,7 +90,7 @@ def build_control_client(timeout_s: float) -> httpx.AsyncClient:
 
 
 async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None:
-    """Refuse a deployment whose model host can outlast the deadline the brain bounds it with."""
+    """Raise when the model host's worst stop can outlast the deadline the brain bounds it with."""
     if swap is None:
         return swap
     deadline_s = swap.plan.control_deadline_s

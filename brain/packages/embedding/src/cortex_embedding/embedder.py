@@ -8,13 +8,11 @@ from cortex_core import EmbedderError
 
 _EMBEDDINGS_PATH = "/v1/embeddings"
 
-# llama-server embeds with whatever model it was started with and ignores this value, but
-# the OpenAI schema requires the field; the composition root sets the logical id (ADR-0004).
 _DEFAULT_EMBED_MODEL = "embedding"
 
 
 class LlamaCppEmbedder:
-    """Embedder over a CPU llama-server's OpenAI-compatible embeddings endpoint (ADR-0008)."""
+    """Embedder over a CPU llama-server's OpenAI-compatible embeddings endpoint."""
 
     def __init__(
         self, http_client: httpx.AsyncClient, endpoint: str, *, model: str = _DEFAULT_EMBED_MODEL

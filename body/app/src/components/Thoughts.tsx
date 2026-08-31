@@ -2,11 +2,13 @@ import { useId, useState } from "react";
 
 import { Collapse } from "./Collapse";
 
-/** The settled reply's reasoning trace, as a disclosure that rolls open (ADR-0020 addendum). */
+/** The settled reply's reasoning trace, as a disclosure that rolls open. It is a button plus a
+ *  `Collapse` rather than `<details>`, which cannot animate what it reveals. The trace is model
+ *  output, so it renders as one plain text node: no markup is parsed and no URL becomes a link. */
 export function Thoughts({ trace }: { readonly trace: string }) {
   const [open, setOpen] = useState(false);
-  // The body is unlabelled on its own, so the control has to name it rather than the other way
-  // round; a generated id keeps two replies' traces from claiming the same one.
+  // `aria-controls` is set only while the body it names is in the document, and a generated id
+  // keeps two replies' traces from claiming the same one.
   const bodyId = useId();
   return (
     <div className="thoughts">

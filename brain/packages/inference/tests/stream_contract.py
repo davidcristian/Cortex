@@ -1,4 +1,4 @@
-"""Shared ``InferenceBackend`` streaming checks. Every implementation must pass all of them."""
+"""Shared ``InferenceBackend`` streaming checks, run over every implementation of the port."""
 
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
@@ -21,14 +21,8 @@ from cortex_core import (
 
 CONTRACT_MODEL = "cortex"
 
-# A logical id shaped like a tier this repo could have (ADR-0004) and hosted by neither leg's
-# deployment. Shaped that way on purpose: what the check is about is a wiring change naming a model
-# nobody serves, which reads like a real id and not like garbage.
 UNSERVED_MODEL = "scribe"
 
-# The reply a deliberating completion arrives at, the thinking it did first, and the words it says
-# before asking for a tool. Constants rather than fixture-local strings, so a check compares what
-# crossed the port against one description both implementations were built to.
 CONTRACT_REPLY = "The answer is here"
 CONTRACT_THINKING = "let me check"
 CONTRACT_ASIDE = "checking "
@@ -36,12 +30,14 @@ CONTRACT_CALL = ToolCall(id="c1", name="read", arguments={"path": "/x"})
 
 _AT = datetime(2026, 8, 16, 12, 0, 0, tzinfo=UTC)
 
+# The watchdog for the abandonment check. It says nothing about how fast an implementation
+# answers, only that the check below fails rather than parking the suite.
 _WEDGE_WATCHDOG_S = 5.0
 
 
 @dataclass(frozen=True, slots=True)
 class BackendUnderTest:
-    """One ``InferenceBackend`` implementation plus the worlds the checks arrange."""
+    """One ``InferenceBackend`` implementation plus the conditions the checks set up."""
 
     deliberating: Callable[[], InferenceBackend]
     calling: Callable[[], InferenceBackend]
@@ -102,8 +98,8 @@ async def check_a_deliberation_the_request_asked_against_still_crosses(
 async def check_a_trace_the_request_budgeted_away_still_crosses(
     subject: BackendUnderTest,
 ) -> None:
-    """Asked for a trace of zero tokens and answered with one anyway, an implementation hands
-    it over.
+    """Asked for a trace of zero tokens and answered with one anyway, an implementation hands it
+    over.
     """
     events = await events_of(subject.deliberating(), bounds=GenerationBounds(trace_tokens=0))
     assert _thinking(events) == CONTRACT_THINKING, f"the budget hid the trace: {events!r}"
@@ -164,7 +160,7 @@ async def check_an_abandoned_completion_costs_the_backend_nothing(
 async def check_a_backend_that_cannot_answer_fails_with_inference_error(
     subject: BackendUnderTest,
 ) -> None:
-    """The port has one failure channel and every implementation owes it."""
+    """A backend that cannot answer fails its caller with ``InferenceError``."""
     try:
         await events_of(subject.unreachable())
     except InferenceError:
@@ -183,7 +179,6 @@ async def check_a_backend_answers_only_for_a_model_it_serves(subject: BackendUnd
     raise AssertionError(msg)
 
 
-# One check: given an implementation plus its world builders, assert on what came out.
 type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
 
 STREAM_CHECKS: tuple[StreamCheck, ...] = (

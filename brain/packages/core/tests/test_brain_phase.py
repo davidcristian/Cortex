@@ -104,7 +104,8 @@ async def _drive(
 
 
 async def test_the_deep_model_sees_the_history_and_the_tool_loop_tail_it_never_persisted() -> None:
-    """Preamble plus history plus the tail: the turn continues where the cortex left it."""
+    """The deep model is given the preamble, the persisted history and the loop tail, so the
+    turn continues where the cortex left it."""
     tail = (
         Message(
             role=Role.ASSISTANT,
@@ -125,7 +126,8 @@ async def test_the_deep_model_sees_the_history_and_the_tool_loop_tail_it_never_p
 
 
 async def test_a_tainted_turn_stays_tainted_and_keeps_its_laundering_evidence() -> None:
-    """Taint that did not survive the swap would fail open, and the URL set is the defense."""
+    """The deep phase's guardrail runs on the record's own taint ledger, URL evidence included.
+    Taint that did not survive the swap would fail open."""
     ledger = TaintLedger()
     ledger.ingest_untrusted(
         "read http://evil.test/x", source=as_source(SourceKind.TOOL, "read_page")
@@ -162,7 +164,7 @@ async def test_a_tainted_turn_is_kept_out_of_memory_by_the_same_policy() -> None
 
 
 def _opaque_ledger() -> TaintLedger:
-    """A ledger an image-bearing untrusted result marked, the one way production marks one."""
+    """A ledger marked by an image-bearing untrusted result, the one way production marks one."""
     ledger = TaintLedger()
     ledger.observe(
         ToolResult(
@@ -177,14 +179,14 @@ def _opaque_ledger() -> TaintLedger:
 
 
 def _textual_ledger() -> TaintLedger:
-    """The control: the same taint, from untrusted TEXT that carried no URL either."""
+    """The control arm: the same taint, from untrusted TEXT that carried no URL either."""
     ledger = TaintLedger()
     ledger.ingest_untrusted("a note with nothing linkable in it", source=None)
     return ledger
 
 
 async def test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly() -> None:
-    """The first consumer, across the swap: strict redaction for a turn that read pixels."""
+    """A carried opaque bit makes the deep phase redact strictly."""
     laundered = "http://evil.test/painted-into-the-screenshot"
     _phase, _backend, _sessions, texts = await _drive(
         backend=ScriptedBrainBackend(chunks=(f"visit {laundered} now",)),
@@ -193,7 +195,7 @@ async def test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly() -> No
     )
     assert laundered not in "".join(texts)
     # Same default policy, same taint, no bit: nothing was collected from result text, so the
-    # verbatim policy has nothing to flag and the link streams. That IS the vision gap.
+    # verbatim policy has nothing to flag and the link streams. That is the gap the bit closes.
     _phase2, _backend2, _sessions2, control_texts = await _drive(
         backend=ScriptedBrainBackend(chunks=(f"visit {laundered} now",)),
         taint=_textual_ledger(),
@@ -203,7 +205,7 @@ async def test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly() -> No
 
 
 async def test_a_carried_opaque_bit_keeps_the_deep_phase_out_of_durable_memory() -> None:
-    """The second consumer, across the swap: the memory drop that outranks the record policy."""
+    """A carried opaque bit keeps the deep phase's exchange out of durable memory."""
     memory = _recaller()
     _phase, _backend, _sessions, _texts = await _drive(
         taint=_opaque_ledger(),
@@ -227,7 +229,8 @@ async def test_the_untainted_exchange_is_remembered_as_the_turn_it_was() -> None
 
 
 async def test_the_carried_budget_bounds_the_deep_phase_too() -> None:
-    """A swap must not refill the turn's allowance: the deep model gets what was left."""
+    """The deep phase resumes the carried ``DispatchBudget``, so a swap does not refill the
+    turn's allowance."""
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(_registry(), audit, SystemClock())
     backend = ScriptedBrainBackend(
@@ -280,7 +283,7 @@ async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> 
 
 
 async def test_a_session_deleted_mid_handoff_falls_back_to_the_brief() -> None:
-    """With no user message left to read, the cortex's brief is the truest ask available."""
+    """With no user message left to read, the recall query falls back to the cortex's brief."""
     memory = _recaller()
     empty = InMemorySessionStore()
     _phase, _backend, _sessions, _texts = await _drive(
@@ -291,7 +294,8 @@ async def test_a_session_deleted_mid_handoff_falls_back_to_the_brief() -> None:
 
 
 async def test_a_deep_model_that_dies_releases_what_the_guardrail_still_held() -> None:
-    """A death mid-stream still flushes the guarded carry, so no shown text is lost silently."""
+    """A stream that dies mid-flight still flushes the text the guardrail was holding, so
+    nothing already shown is dropped."""
     backend = ScriptedBrainBackend(chunks=("see http://exa", "never streamed"), fail_after=1)
     sessions = InMemorySessionStore()
     await sessions.append(
@@ -343,7 +347,7 @@ async def test_a_deep_model_that_dies_persists_its_partial_text_with_the_note() 
 
 
 async def test_the_deep_phase_fences_under_the_record_s_own_nonce() -> None:
-    """The fence id survives the swap, or the preamble stops explaining the tail's markers."""
+    """The deep phase fences its own results under the record's nonce rather than a fresh one."""
     before = wrap_untrusted("whatever the cortex read", nonce=harness.NONCE)
     tail = (
         Message(
@@ -367,12 +371,12 @@ async def test_the_deep_phase_fences_under_the_record_s_own_nonce() -> None:
     )
     fenced = [message.text for message in backend.seen if message.role is Role.TOOL]
     assert len(fenced) == 2  # the tail's block, and the one this phase's own round added
-    # One id across both, and it is the record's: the swap changed the weights, not the turn.
+    # One id across both, and it is the record's: the swap changed the weights and not the turn.
     assert set(re.findall(r"id=([0-9a-f]+)>", "".join(fenced))) == {harness.NONCE}
 
 
 async def test_closing_the_deep_phase_mid_stream_tears_its_loop_down() -> None:
-    """A consumer that walks away must not leave the deep model's round half suspended."""
+    """Closing the phase mid-stream tears the deep model's round down with it."""
     backend = ScriptedBrainBackend(chunks=("first ", "second"))
     sessions = InMemorySessionStore()
     phase = BrainPhase(sessions, backend, TickingClock(), "brain", TurnCapabilities())
@@ -433,7 +437,8 @@ def _extra(record: logging.LogRecord, field: str) -> object:
 async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numbers(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The measured spill, as the shipped instrument sees it: 17.29 tok/s against a 22 floor."""
+    """A reading under the declared floor logs one WARNING naming both numbers, here the
+    measured 17.29 tok/s against a 22 floor."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
     await _drive(backend=backend, cadence=CadenceTerms(22.0))
@@ -450,7 +455,7 @@ async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numb
 async def test_a_deep_phase_that_cleared_its_floor_says_so_without_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The healthy contrast, from the same instrument: the solo rate on the same card."""
+    """A reading above the floor is logged at INFO, here the solo rate on the same card."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=30.4, tokens=96)])
     await _drive(backend=backend, cadence=CadenceTerms(22.0))
@@ -463,7 +468,8 @@ async def test_a_deep_phase_that_cleared_its_floor_says_so_without_warning(
 async def test_a_deployment_that_declared_no_floor_still_gets_its_number(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The number is worth publishing on its own: it is what a later floor would be set from."""
+    """With no floor declared the rate is still logged, because that number is what a later
+    floor would be set from."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=3.0, tokens=96)])
     await _drive(backend=backend)
@@ -475,16 +481,16 @@ async def test_a_deployment_that_declared_no_floor_still_gets_its_number(
 async def test_a_backend_that_reports_no_timings_is_not_reported_as_healthy(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Silence must never read as a pass, which is the whole reason the port permits silence."""
+    """A backend that reported no timings logs that nothing was checked, rather than a pass."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     await _drive(backend=ScriptedBrainBackend(), cadence=CadenceTerms(22.0))
     records = _cadence_records(caplog)
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
     assert "nothing was checked" in records[0].getMessage()
-    # The other of the phase's two cadence spellings, named the same way: silence about a turn is
-    # still about that turn (ADR-0009 sixth-name addendum), and about the chat it belongs to
-    # (named-conversation addendum), so the no-reading arm is reachable by both greps too.
+    # The second of the phase's two cadence messages, named the same way: a line reporting no
+    # reading is still about that turn (ADR-0009 sixth-name addendum) and about the chat it
+    # belongs to (named-conversation addendum), so the no-reading arm is reachable by both greps.
     assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
     assert _extra(records[0], "session_id") == harness.SESSION  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -492,7 +498,8 @@ async def test_a_backend_that_reports_no_timings_is_not_reported_as_healthy(
 async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A whole handoff is watched, not a completion, and the best round is what it is judged on."""
+    """The watch covers a whole handoff and judges it on its fastest round, so one slow round of
+    a tool loop is not reported as a spill."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
     backend = ScriptedBrainBackend(
@@ -517,7 +524,8 @@ async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(
 async def test_a_failed_phase_still_reports_what_it_managed_to_observe(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A server that died mid-stream is exactly when an operator most wants the rate it managed."""
+    """A phase that raised still logs the rate it observed, which is when an operator most
+    wants it."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     backend = ScriptedBrainBackend(fail_after=1)
     with pytest.raises(InferenceError):
@@ -526,14 +534,14 @@ async def test_a_failed_phase_still_reports_what_it_managed_to_observe(
 
 
 async def test_the_cadence_never_reaches_the_turns_own_stream() -> None:
-    """How fast the machine decoded is not something the turn said, so no delta may carry it."""
+    """The cadence is not part of the model's reply, so no text delta carries it."""
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
     _phase, _backend, _sessions, deltas = await _drive(backend=backend, cadence=CadenceTerms(22.0))
     assert "".join(deltas) == "a deep answer"
 
 
 async def test_a_spilled_handoff_is_published_and_not_only_logged() -> None:
-    """The entry's whole point: the fact leaves the log for somewhere a person will meet it."""
+    """A spilled handoff publishes its verdict to the sink, and not only to the log."""
     sink = RecordingPaceSink()
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
     await _drive(backend=backend, cadence=CadenceTerms(22.0, sink))
@@ -541,10 +549,10 @@ async def test_a_spilled_handoff_is_published_and_not_only_logged() -> None:
 
 
 async def test_a_handoff_that_held_its_pace_publishes_that_too() -> None:
-    """The clearing half, and why it is published rather than skipped as uninteresting.
+    """A handoff that held its pace publishes a cleared verdict.
 
-    A tier that reached its floor is the only direct evidence there is that the card has room
-    again, so a healthy handoff has to be able to take a standing note down.
+    A tier that reached its floor is the only direct evidence that the card has room again, so a
+    healthy handoff has to be able to take a standing note down.
     """
     sink = RecordingPaceSink()
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=30.4, tokens=96)])
@@ -553,7 +561,8 @@ async def test_a_handoff_that_held_its_pace_publishes_that_too() -> None:
 
 
 async def test_a_deployment_that_declared_no_floor_publishes_no_verdict() -> None:
-    """A number is not a judgement, and a "no" for want of an opinion would clear a real note."""
+    """With no floor declared there is nothing to judge the rate against, and a cleared verdict
+    would take down a note that still stands."""
     sink = RecordingPaceSink()
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=3.0, tokens=96)])
     await _drive(backend=backend, cadence=CadenceTerms(sink=sink))
@@ -561,17 +570,16 @@ async def test_a_deployment_that_declared_no_floor_publishes_no_verdict() -> Non
 
 
 async def test_a_handoff_with_no_reading_publishes_nothing_at_all() -> None:
-    """Silence is not a pass at the port either, or a short completion would clear a spill."""
+    """A handoff with no reading publishes nothing, since a cleared verdict there would take
+    down a standing spill note."""
     sink = RecordingPaceSink()
     await _drive(backend=ScriptedBrainBackend(), cadence=CadenceTerms(22.0, sink))
     assert list(sink.verdicts) == []
 
 
 async def test_a_failed_phase_still_publishes_the_verdict_it_managed_to_reach() -> None:
-    """A server that died under the deep model is exactly when the card is worth suspecting.
-
-    The reading comes off the round before the one that died, which is the only way a failed
-    phase has one at all: a stream that raises never reports its own timings.
+    """A phase that raised still publishes the verdict it reached, which is when the card is
+    most worth suspecting.
     """
     sink = RecordingPaceSink()
     dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
@@ -639,7 +647,7 @@ async def _run_deep(
 
 
 async def test_a_deep_reply_a_token_limit_cut_says_so_and_is_persisted_saying_it() -> None:
-    """The tier with the tightest context is the one whose stump is least visible."""
+    """A deep reply the token limit cut carries the capped note, and is persisted with it."""
     texts, sessions = await _run_deep(StoppingDeepBackend(StopReason.CAPPED))
     assert texts == ["a deep ", "stump", REPLY_CAPPED_NOTE]
     history = list(await sessions.history(harness.SESSION))
@@ -653,7 +661,8 @@ async def test_a_deep_reply_that_ended_itself_gets_no_note() -> None:
 
 
 async def test_a_deep_phase_that_died_says_that_and_not_also_that_it_was_cut() -> None:
-    """One stump, one explanation: the failure note already says the answer is unfinished."""
+    """A phase that died carries only the failure note, which already says the answer is
+    unfinished."""
     texts: list[str] = []
     sessions = InMemorySessionStore()
     await sessions.append(
@@ -679,7 +688,8 @@ async def test_a_deep_phase_that_died_says_that_and_not_also_that_it_was_cut() -
 
 
 async def test_the_turns_own_bounds_continue_onto_the_deep_model() -> None:
-    """A deployment that capped a reply did not ask for the cap to lapse at the handoff."""
+    """The turn's own ``GenerationBounds`` reach the deep model, so a cap a deployment set does
+    not lapse at the handoff."""
     asked = GenerationBounds(max_tokens=4096, thinking=False)
     bounded = StoppingDeepBackend(StopReason.FINISHED)
     await _run_deep(bounded, asked)

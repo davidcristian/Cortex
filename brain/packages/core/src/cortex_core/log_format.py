@@ -6,27 +6,25 @@ from collections.abc import Callable, Mapping
 
 from cortex_core.log_fields import record_fields, redact_urls, render_fields
 
-# The two renderings, named in the module docstring's own terms.
 PLAIN_FORMAT = "plain"
 PACKED_FORMAT = "packed"
 
-# What a deployment gets when it names nothing: the rendering a person reads.
 DEFAULT_LOG_FORMAT = PLAIN_FORMAT
 
 
 class UnknownLogFormatError(ValueError):
-    """A deployment named a log rendering this build does not carry."""
+    """A deployment named a log rendering this build does not have."""
 
 
 class PlainFormatter(logging.Formatter):
-    """``levelname:name:message`` exactly as before, then the record's own fields after it."""
+    """``levelname:name:message``, the stdlib's basic format, then the record's own fields."""
 
     def __init__(self) -> None:
-        """Build on the stdlib's own basic format, so the line's first half cannot drift."""
+        """Build on the stdlib's basic format, so the first half of the line always matches it."""
         super().__init__(logging.BASIC_FORMAT)
 
     def formatMessage(self, record: logging.LogRecord) -> str:  # noqa: N802 - stdlib hook name
-        """The formatted message, with the record's fields appended when it carries any."""
+        """The formatted message, with the record's own fields appended when there are any."""
         base = super().formatMessage(record)
         fields = record_fields(record)
         if not fields:
@@ -63,7 +61,7 @@ LOG_FORMATS: Mapping[str, Callable[[], logging.Formatter]] = {
 
 
 def build_formatter(style: str) -> logging.Formatter:
-    """The formatter named ``style``, or a typed refusal naming every rendering that exists."""
+    """The formatter named ``style``, or ``UnknownLogFormatError`` naming the ones that exist."""
     build = LOG_FORMATS.get(style)
     if build is None:
         msg = f"unknown log format {style!r}; this build renders {sorted(LOG_FORMATS)}"

@@ -44,13 +44,13 @@ FEIGNED_FOLDER = "Feigned"
 FOLLOWED_SUBSCRIPTION = "Feigned/Followed"
 IMPOSSIBLE_NAMES = ("Parent/", "/Parent", "Parent//Child", "INBOX/../etc")
 # No password is checked (docker/dovecot/probe.conf), so this is a formality the IMAP dialogue
-# requires rather than a secret of anything, and it is one word because both halves of a login
-# that nothing verifies are the same nothing.
+# requires rather than a secret, and the user and the password are the same word because nothing
+# verifies either.
 PROBE_LOGIN = "probe"
 
 
 def _probe_address() -> tuple[str, int]:
-    """Where the probe answers, or a skip when the stack is not up."""
+    """Return the host and port the probe answers on, or skip when the stack is not up."""
     port = os.environ.get("CORTEX_EMAIL_PROBE_PORT", "")
     if not port:
         pytest.skip("run `just up-imap-probe`, then `just email-folder-probe` to reach the probe")
@@ -58,7 +58,7 @@ def _probe_address() -> tuple[str, int]:
 
 
 def probe_mailbox() -> ImapMailbox:
-    """The probe as `ImapMailbox` sees it. The self-signed cert is accepted as the Bridge's is."""
+    """Build an `ImapMailbox` on the probe. The self-signed cert is accepted as the Bridge's is."""
     host, port = _probe_address()
     config = EmailConfig(
         host=host,
@@ -72,7 +72,7 @@ def probe_mailbox() -> ImapMailbox:
 
 
 def probe_dialogue() -> imaplib.IMAP4:
-    """The same server over raw imaplib, for the one question imap-tools cannot be asked."""
+    """Open the same server over raw imaplib, for the one question imap-tools cannot be asked."""
     host, port = _probe_address()
     context = ssl.create_default_context()
     context.check_hostname = False
@@ -85,7 +85,7 @@ def probe_dialogue() -> imaplib.IMAP4:
 
 @pytest.mark.integration
 def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> None:
-    """The contrast case, live: the assumption the whole classification rests on."""
+    """A real mailbox an ACL has shut is refused without being typed as a missing folder."""
     mailbox = probe_mailbox()
     assert GUARDED_FOLDER in list(mailbox.list_folders())
     a_folder_that_could_not_be_opened_is_not_reported_missing(
@@ -110,7 +110,7 @@ def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> 
 
 @pytest.mark.integration
 def test_this_server_says_a_folder_is_missing_in_its_own_words_and_is_still_understood() -> None:
-    """The missing case in a second server's wording, which shares no word with the first."""
+    """A folder no mailbox has is typed as missing in this server's own wording too."""
     mailbox = probe_mailbox()
     assert INVENTED_FOLDER not in list(mailbox.list_folders())
     with pytest.raises(FolderUnknownError) as searched:
@@ -128,10 +128,10 @@ def test_this_server_says_a_folder_is_missing_in_its_own_words_and_is_still_unde
 
 @pytest.mark.integration
 def test_the_folder_the_probe_leaves_open_still_opens() -> None:
-    """The control: the login, the EXAMINE and the search path all work against this server.
+    """The login, the EXAMINE and the search path all work against this server.
 
-    Without it a refusal proves nothing, since a server that refused everything would pass
-    every other test in this file.
+    This is the control. Without it a refusal proves nothing, since a server that refused
+    everything would pass every other test in this file.
     """
     mailbox = probe_mailbox()
     assert REAL_FOLDER in list(mailbox.list_folders())
@@ -140,7 +140,7 @@ def test_the_folder_the_probe_leaves_open_still_opens() -> None:
 
 @pytest.mark.integration
 def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> None:
-    """The fix, against the server that made it necessary, and the fact underneath it."""
+    """`list_folders` drops the listed Noselect node, and its child is still offered."""
     mailbox = probe_mailbox()
     under_test = MailboxUnderTest(
         mailbox=mailbox,
@@ -156,7 +156,7 @@ def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> N
 
 @pytest.mark.integration
 def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correction() -> None:
-    """A third fact the same `NO` carries, and the second of the two answers it gets."""
+    """A name this server rejects as a mailbox name is still corrected towards `list_folders`."""
     mailbox = probe_mailbox()
     a_name_no_mailbox_could_have_is_one_no_mailbox_has(
         MailboxUnderTest(
@@ -181,7 +181,7 @@ def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correctio
 
 @pytest.mark.integration
 def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends() -> None:
-    """Where RFC 5258's `\\NonExistent` comes from on a real server, and where it does not."""
+    """A real server sends RFC 5258's `\\NonExistent`, and only to a LIST that asks for it."""
     with probe_dialogue() as conn:
         conn.xatom("LIST", "(SUBSCRIBED)", '""', '"*"')
         subscribed = _named(conn.response("LIST"))
@@ -197,7 +197,7 @@ def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends()
 
 @pytest.mark.integration
 def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing() -> None:
-    """The other half of the flag rule, which had been measured on one account and nowhere else."""
+    """A second server flags a mailbox `\\Noselect` in one listing and opens it anyway."""
     with probe_dialogue() as conn:
         subscribed_tree = _named(conn.lsub('""', '"%"'))
         plain = _named(conn.list())
@@ -206,9 +206,9 @@ def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing(
     assert "\\HasChildren" in plain_flags
     assert not plain_flags & {"\\Noselect", "\\NonExistent"}
 
-    # And the same name opens, which is what makes the flag a lie worth asking about rather than
-    # a fact worth believing. Through the port, so the offer and the open are one story: both the
-    # parent and the child that flagged it are names a caller may really be given.
+    # The same name opens, which is why the flag is treated as a question to put to the server
+    # rather than as the answer. This goes through the port, so the offer and the open are read
+    # together: both the parent and the child that flagged it are names a caller may be given.
     mailbox = probe_mailbox()
     offered = list(mailbox.list_folders())
     assert FEIGNED_FOLDER in offered
@@ -217,7 +217,7 @@ def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing(
 
 
 def _named(answer: tuple[str, Sequence[bytes | tuple[bytes, bytes] | None]]) -> dict[str, str]:
-    """The flags a LIST answered with, per name, read off the wire lines imaplib hands back."""
+    """Read the flags a LIST answered with, per name, off the wire lines imaplib hands back."""
     lines = (line.decode() for line in answer[1] if isinstance(line, bytes))
     return {line.rsplit(" ", 1)[-1]: line.split(") ", 1)[0] + ")" for line in lines}
 

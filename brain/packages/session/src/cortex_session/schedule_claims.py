@@ -1,4 +1,4 @@
-"""The RedisScheduleStore's claim path + the WATCH-fenced transition helpers (ADR-0025)."""
+"""The RedisScheduleStore's claim path and the WATCH-fenced transition helpers."""
 
 import logging
 from contextlib import suppress
@@ -36,12 +36,10 @@ WatchedState = tuple[ScheduledItem, str | None, datetime | None]
 
 
 async def ids(client: Redis, key: str, *, upto: float | None = None, limit: int = 8) -> list[str]:
-    """Members of one index ZSET, score order; score-bounded and counted when ``upto``."""
+    """Members of one index ZSET in score order, bounded by ``upto`` and capped at ``limit``."""
     if upto is None:
-        # zrange's return type is partially Any in redis-py's typing (withscores overloads).
         raw = await client.zrange(key, 0, -1)  # pyright: ignore[reportUnknownMemberType]
     else:
-        # zrangebyscore's return type is partially Any in redis-py's typing (overloads).
         raw = await client.zrangebyscore(  # pyright: ignore[reportUnknownMemberType]
             key, "-inf", upto, start=0, num=limit
         )
@@ -58,7 +56,7 @@ async def watched_state(pipe: Pipeline, item_id: str) -> WatchedState | None:
 
 
 async def release_claim(client: Redis, claim: ScheduleClaim) -> bool:
-    """Un-claim (FIRING → PENDING, due unchanged) under the token; stale/raced no-ops False."""
+    """Un-claim under the token (FIRING to PENDING, due unchanged); False when it is stale."""
     async with client.pipeline(transaction=True) as pipe:
         state = await watched_state(pipe, claim.item.id)
         if state is None:
@@ -79,7 +77,7 @@ async def release_claim(client: Redis, claim: ScheduleClaim) -> bool:
 
 
 async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
-    """Retext / re-recur a non-FIRING item under a WATCH fence; FIRING/unknown answer False."""
+    """Change a non-FIRING item's text or recurrence under a WATCH fence; False otherwise."""
     async with client.pipeline(transaction=True) as pipe:
         state = await watched_state(pipe, item_id)
         if state is None:
@@ -101,7 +99,7 @@ async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
 
 
 async def quarantine(client: Redis, item_id: str, raw: bytes | str) -> None:
-    """Dead-letter an undecodable claimed record so the pass degrades by one item."""
+    """Move an undecodable record to the dead-letter hash, so one item drops out of the pass."""
     logger.error(
         "quarantining a corrupt schedule record",
         extra={"item_id": item_id, "dead_key": DEAD_KEY},
@@ -116,16 +114,12 @@ async def quarantine(client: Redis, item_id: str, raw: bytes | str) -> None:
 
 
 def _replaced(value: bytes | str) -> str:
-    """Bytes as inspectable text (replacement characters, never a second decode crash)."""
+    """Decode bytes for inspection, substituting replacement characters instead of raising."""
     return value if isinstance(value, str) else value.decode("utf-8", errors="replace")
 
 
 async def dead_letters(client: Redis) -> tuple[DeadLetter, ...]:
-    """The quarantined records, id order: `quarantine`'s operator-facing counterpart.
-
-    Never surfaced through a model tool. The raw bytes are exactly the corrupt or hostile
-    content the codec refused, so they stay unparsed inspection data (dead-letter addendum).
-    """
+    """The quarantined records in id order, for an operator to inspect."""
     raw = await client.hgetall(DEAD_KEY)
     letters = [
         DeadLetter(item_id=_replaced(field), raw=_replaced(value)) for field, value in raw.items()
@@ -148,7 +142,7 @@ async def _claim_one(
         await pipe.watch(record_key(item_id))
         raw = await pipe.get(record_key(item_id))
         if raw is None:
-            # A dangling index entry (e.g. a crash between EXECs long past); drop it.
+            # The index still lists an item whose record is gone; drop the index entries.
             pipe.multi()
             pipe.zrem(DUE_KEY, item_id)
             pipe.zrem(FIRING_KEY, item_id)
@@ -165,6 +159,9 @@ async def _claim_one(
             await quarantine(client, item_id, raw)
             return None
         if item.status is ScheduleStatus.PENDING and item.due_at > now:
+            # A snooze, or a finish that scheduled the next occurrence, moved the item forward
+            # between the index snapshot `claim_due` read and this WATCH. WATCH only fences writes
+            # made after it, so this re-read of the record closes that window.
             await pipe.unwatch()
             return None
         firing = replace(item, status=ScheduleStatus.FIRING)

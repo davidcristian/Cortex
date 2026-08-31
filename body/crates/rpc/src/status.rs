@@ -1,18 +1,21 @@
-//! The gRPC-status → [`TransportError`] mapping shared across the seam adapters.
+//! The gRPC-status to [`TransportError`] mapping shared by the adapters in this crate.
 
 use std::time::Duration;
 
 use body_core::TransportError;
 use tonic::{Code, Status};
 
-/// Maps a non-OK [`Status`] from a seam call to the port's error taxonomy.
+/// Maps a non-OK [`Status`] to the port's error types. tonic reports a client-local transport
+/// failure as a status with a `tonic::transport::Error` on its source chain, which is how an
+/// unreachable brain is told from a status the brain itself sent.
 #[must_use]
 pub fn status_to_error(status: &Status) -> TransportError {
     announced_status_to_error(status, None)
 }
 
-/// [`status_to_error`] for a call that told the brain a deadline (`announced`, ADR-0024
-/// courtesy-header addendum), which adds exactly one answer to the taxonomy.
+/// [`status_to_error`] for a call that told the brain a deadline, which adds one case: a
+/// `DEADLINE_EXCEEDED` the brain sent back is that announcement expiring, so it becomes
+/// [`TransportError::Timeout`]. tonic's own expiry still becomes `Connection`.
 pub(crate) fn announced_status_to_error(
     status: &Status,
     announced: Option<Duration>,
@@ -29,8 +32,7 @@ pub(crate) fn announced_status_to_error(
     }
 }
 
-/// Walks `status`'s `source()` chain looking for a locally-synthesized
-/// [`tonic::transport::Error`].
+/// Walks `status`'s `source()` chain looking for a locally-synthesized [`tonic::transport::Error`].
 fn transport_source(status: &Status) -> Option<&(dyn std::error::Error + 'static)> {
     let mut cause = std::error::Error::source(status);
     while let Some(err) = cause {
@@ -42,9 +44,8 @@ fn transport_source(status: &Status) -> Option<&(dyn std::error::Error + 'static
     None
 }
 
-/// Folds `err` and its `source()` chain into one `: `-separated message, so
-/// opaque wrappers (tonic's transport-error `Display` is just "transport
-/// error") still name the root cause.
+/// Folds `err` and its `source()` chain into one `: `-separated message, so opaque wrappers
+/// (tonic's transport-error `Display` is just "transport error") still name the root cause.
 pub(crate) fn error_chain(err: &(dyn std::error::Error + 'static)) -> String {
     let mut message = err.to_string();
     let mut cause = err.source();
@@ -58,8 +59,8 @@ pub(crate) fn error_chain(err: &(dyn std::error::Error + 'static)) -> String {
 
 #[cfg(test)]
 mod tests {
-    //! Unit tests for the status→error mapping helpers, driving the chain walks over constructed
-    //! sources the end-to-end contract tests (`tests/client.rs`) cannot reach: a transport error
+    //! Unit tests for the status to error mapping helpers, driving the chain walks over constructed
+    //! sources the end-to-end contract tests in `tests/client.rs` cannot reach: a transport error
     //! nested behind a non-transport cause, and a chain with no transport error at all.
 
     use std::error::Error;
@@ -88,9 +89,8 @@ mod tests {
         }
     }
 
-    /// A real `tonic::transport::Error`, obtained through the public API
-    /// (the type has no public constructor; `Endpoint` has no `Debug` impl,
-    /// so take the error side via `Result::err`).
+    /// A real `tonic::transport::Error`, obtained through the public API, since the type has no
+    /// public constructor.
     fn transport_error() -> tonic::transport::Error {
         Endpoint::from_shared(String::from("not a valid uri"))
             .err()
@@ -105,9 +105,6 @@ mod tests {
 
     #[test]
     fn status_with_a_nested_transport_source_maps_to_connection() {
-        // The walk skips the non-transport `Wrapped` cause, finds the
-        // transport error deeper in the chain, and folds the message from
-        // the transport error onward (not from the wrapper).
         let status = Status::from_error(Box::new(Wrapped(transport_error())));
         assert_eq!(
             status_to_error(&status),
@@ -117,8 +114,6 @@ mod tests {
 
     #[test]
     fn status_without_a_transport_source_maps_to_rpc() {
-        // A source chain with no transport error anywhere means the status
-        // was not synthesized from a connection failure: it stays Rpc.
         let status = Status::from_error(Box::new(Wrapped(std::io::Error::from(
             std::io::ErrorKind::NotFound,
         ))));
@@ -156,7 +151,6 @@ mod tests {
                 message: String::from("gave up"),
             }
         );
-        // And an announcement does not turn every status into a timeout: only that one code.
         assert_eq!(
             announced_status_to_error(&Status::internal("boom"), Some(Duration::from_secs(1))),
             TransportError::Rpc {

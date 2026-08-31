@@ -233,7 +233,7 @@ Recorded in [session-history](../refinements/index.md#session-history) and
   widening of `HistoryWindow.select` alongside it, and the config. **Trigger:** it is the next
   slice in this area; nothing blocks it now.
 - **A cross-encoder rank.** Decision 7 ships the LLM-judge form of the model reranker. A
-  cross-encoder is the other form and wants a different port (a scoring model, not a chat
+  cross-encoder is the other form and needs a different port (a scoring model, not a chat
   completion), so it is a new adapter rather than a policy. **Trigger:** a measured shortfall of
   the judge on a real corpus, or a latency budget the judge cannot meet.
 - **Auditing the candidates that were dropped.** `RecallAudit` carries the kept hits and the pool

@@ -1,4 +1,4 @@
-"""The display timezone model-facing schedule datetimes render in (ADR-0025 display addendum)."""
+"""The display timezone model-facing schedule datetimes render in."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, tzinfo
@@ -35,15 +35,17 @@ class ZoneResolver(Protocol):
 
 
 class _UtcOnlyResolver:
-    """The core default: it knows only ``UTC``, since every other key reads the tz database."""
+    """The core default: it resolves only ``UTC``, since every other key reads the tz database."""
 
     def resolve(self, name: str) -> DisplayZone | None:
         return UTC_DISPLAY if name == UTC_ZONE_NAME else None
 
 
 UTC_ONLY_RESOLVER: ZoneResolver = _UtcOnlyResolver()
-"""The default ``ZoneResolver``: UTC only, so the core resolves no key it cannot without the tz
-database. The real, ``zoneinfo``-backed resolver is injected at the composition root."""
+"""The default ``ZoneResolver``, which resolves UTC and nothing else.
+
+The core has no tz database, so it can answer no other key. The real ``zoneinfo``-backed
+resolver is injected at the composition root."""
 
 
 @dataclass(frozen=True, slots=True)

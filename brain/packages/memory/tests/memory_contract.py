@@ -15,6 +15,9 @@ from cortex_core import (
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
+# More memories than the widest pool a deployment fetches (a recall of 5 times a pool factor of
+# 4), so a count that stopped at any cutoff a search applies is too low here rather than correct
+# by luck.
 _WIDER_THAN_ANY_POOL = 25
 
 
@@ -55,7 +58,7 @@ async def _refuses_typed(verb: Callable[[], Awaitable[object]], name: str) -> No
         raise AssertionError(msg) from err
     except MemoryStoreError:
         return
-    except Exception as err:  # the leak this check exists to catch can be of any type
+    except Exception as err:
         msg = f"{name} let a {type(err).__name__} through instead of MemoryStoreError"
         raise AssertionError(msg) from err
     msg = f"{name} answered normally with its backend taken away"
@@ -103,9 +106,8 @@ async def check_roundtrip_fidelity(under_test: MemoryStoreUnderTest) -> None:
     assert hit.record.id == original.id
     assert hit.record.text == original.text
     assert tuple(hit.record.embedding) == original.embedding
-    assert hit.record.scope == original.scope  # the namespace roundtrips
-    assert hit.record.tainted is True  # the untrusted-provenance marker roundtrips (ADR-0019)
-    # timestamptz normalizes to UTC, so compare the instant (not the original offset).
+    assert hit.record.scope == original.scope
+    assert hit.record.tainted is True
     assert hit.record.at == original.at
 
 
@@ -118,9 +120,9 @@ async def check_scope_filter_isolates_and_unions(under_test: MemoryStoreUnderTes
     await store.add(b)
     only_a = await store.search((1.0, 0.0, 0.0), k=10, scopes=[a.scope])
     assert a.id in {hit.record.id for hit in only_a}
-    assert b.id not in {hit.record.id for hit in only_a}  # filtered out by scope
+    assert b.id not in {hit.record.id for hit in only_a}
     both = await store.search((1.0, 0.0, 0.0), k=10, scopes=[a.scope, b.scope])
-    assert {a.id, b.id} <= {hit.record.id for hit in both}  # a union of the two scopes
+    assert {a.id, b.id} <= {hit.record.id for hit in both}
 
 
 async def check_count_candidates_sizes_the_set_a_search_ranked(
@@ -144,9 +146,9 @@ async def check_count_candidates_honours_the_same_scope_filter(
     b = make_record("scope-b memory", (0.0, 1.0, 0.0), scope=f"contract-cb-{uuid4()}")
     await store.add(a)
     await store.add(b)
-    assert await store.count_candidates(scopes=[a.scope]) == 1  # isolated
-    assert await store.count_candidates(scopes=[a.scope, b.scope]) == 2  # unioned
-    assert await store.count_candidates() == 2  # unfiltered spans every namespace
+    assert await store.count_candidates(scopes=[a.scope]) == 1
+    assert await store.count_candidates(scopes=[a.scope, b.scope]) == 2
+    assert await store.count_candidates() == 2
 
 
 async def check_count_candidates_of_nothing_is_zero(under_test: MemoryStoreUnderTest) -> None:
@@ -166,10 +168,10 @@ async def check_delete_scope_removes_a_namespace(under_test: MemoryStoreUnderTes
     for record in (*doomed, survivor):
         await store.add(record)
     removed = await store.delete_scope(scope)
-    assert removed == 2  # both memories in the scope, and only those
-    assert list(await store.search((1.0, 0.0, 0.0), k=10, scopes=[scope])) == []  # gone
+    assert removed == 2
+    assert list(await store.search((1.0, 0.0, 0.0), k=10, scopes=[scope])) == []
     kept = await store.search((1.0, 0.0, 0.0), k=10, scopes=[other])
-    assert [hit.record.id for hit in kept] == [survivor.id]  # the other namespace is untouched
+    assert [hit.record.id for hit in kept] == [survivor.id]
 
 
 async def check_delete_scope_without_matches_returns_zero(under_test: MemoryStoreUnderTest) -> None:
@@ -180,7 +182,7 @@ async def check_delete_scope_without_matches_returns_zero(under_test: MemoryStor
 async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     under_test: MemoryStoreUnderTest,
 ) -> None:
-    """The port has one failure channel and every verb that touches the backend owes it."""
+    """Every verb that touches the backend answers a lost one with ``MemoryStoreError``."""
     store = under_test.store
     scope = f"contract-broken-{uuid4()}"
     await store.add(make_record("written before the outage", (1.0, 0.0, 0.0), scope=scope))

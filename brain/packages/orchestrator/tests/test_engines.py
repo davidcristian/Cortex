@@ -124,7 +124,7 @@ async def _run(engine: TurnRunner, text: str, *, turn_id: str) -> list[TurnEvent
 
 
 def _swap_runtime() -> SwapRuntime:
-    """The process-wide handoff half the root would have built, over the in-core scripted host."""
+    """Build the process-wide handoff half the root would have built, over the scripted host."""
     runtime = build_swap_runtime(
         SwapConfig(escalation=True, modelhost_backend="scripted", brain_endpoint="http://brain"),
         BrainRuntimeConfig(),
@@ -138,10 +138,8 @@ def _swap_runtime() -> SwapRuntime:
 
 
 def _escalating(backend: _Model, swap: SwapRuntime) -> StreamEngines:
-    """The root's escalating composition: the cortex's set with eyes, the deep tier's without.
-
-    The two sets are built by the shipped builder from one body, so the only difference between
-    them is the one the root makes, which is what the deep-tier case reads back.
+    """The root's escalating composition: the cortex's set with the screen tool, the deep tier's
+    without it.
     """
     body = InMemoryBodyGateway()
     cortex_set = build_builtin_tools(
@@ -173,7 +171,7 @@ async def test_each_stream_confirms_through_its_own_overlay() -> None:
 
 
 async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
-    """Escalation off is the shipped default, and nothing below the edge changes shape for it."""
+    """Escalation is off by default, and with it off the factory returns a plain `TurnEngine`."""
     backend = _Model({"cortex": [[TextChunk("hi")]]})
     plain = _engines(backend)
     confirmer = RecordingConfirmer(answer=True)
@@ -189,7 +187,9 @@ async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
 
 
 async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() -> None:
-    """One turn across both tiers: the cortex keeps its eyes and the tier that swaps in has none."""
+    """One turn across both tiers: the cortex keeps the screen tool and the tier that swaps in
+    is not offered it.
+    """
     backend = _Model(
         {
             "cortex": [[_ESCALATE_CALL], [TextChunk("handing over. ")]],
@@ -212,7 +212,9 @@ async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() ->
 
 
 async def test_the_deployments_reply_bounds_reach_both_phases_of_a_turn() -> None:
-    """The bound rides the bundle, so the phase that continues a turn decodes under it too."""
+    """The bound travels with the capability bundle, so the phase that continues a turn decodes
+    under it too.
+    """
     bounds = GenerationBounds(max_tokens=512, thinking=False)
     backend = _Model(
         {

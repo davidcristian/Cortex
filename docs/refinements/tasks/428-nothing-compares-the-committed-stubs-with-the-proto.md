@@ -26,7 +26,7 @@ forget to, and the stub goes on stating the old number in the file a Rust reader
 the answer is a CI job rather than a registry row. It also has a real cost the committed-stub
 decision was made to avoid: checking would mean running `protoc` and `tonic` in CI, which is the
 toolchain the committed stubs exist so nobody needs, and pinning their versions closely enough that
-a codegen release does not redden the gate on a diff nobody wrote.
+a codegen release does not fail the gate on a diff nobody wrote.
 
 **What would close it.** Decide whether the check is worth its toolchain. The narrow version is a
 job that regenerates into a temporary directory and diffs, pinned to the exact `protoc`,
@@ -35,7 +35,7 @@ job that regenerates into a temporary directory and diffs, pinned to the exact `
 reader reads, the comments, which is a text comparison needing no codegen at all: every comment
 line in the proto should appear in the Rust stub. Decide also whether a stale stub is worth
 catching at all given that a wrong stub usually fails to compile against the code that uses it,
-which is the argument that the only silent case is exactly this one, a comment.
+which is the argument that the only case nothing reports is exactly this one, a comment.
 
 ## Trail
 
@@ -51,7 +51,7 @@ which is the argument that the only silent case is exactly this one, a comment.
   body's default capture edge by one digit and regenerating left all three Python files byte
   identical: the `.pyi` carries no comments and the descriptor is stripped of its source info, so
   the check would have seen only structural drift, which pyright and the Rust compile already
-  make loud. The entry's other claim held exactly: the Rust stub does carry that sentence
+  report. The entry's other claim held exactly: the Rust stub does carry that sentence
   verbatim, among 338 doc comment lines. So `scripts/stubcheck.py` plus `scripts/protocomments.py`
   hold every comment the proto body carries to still appearing in that stub, as a text comparison
   running no codegen, past the three re-spellings prost applies on the way into `///`. It lands

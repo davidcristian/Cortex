@@ -1,6 +1,8 @@
-//! Resolving a targeted capture to a window rectangle: a walk down the desktop's Z-order
-//! (ADR-0029).
-#![allow(unsafe_code)] // ADR-0029: the Z-order walk is a raw Win32 FFI surface.
+//! Resolving a targeted capture to a window rectangle by walking the desktop's Z-order.
+//!
+//! `GetForegroundWindow` is not used: the overlay is in front while a capture runs and hides
+//! itself from capture, so cropping to it would give a black or empty rectangle.
+#![allow(unsafe_code)] // The Z-order walk calls Win32 directly.
 
 use body_core::{CaptureError, TargetRect};
 use windows::Win32::Foundation::{HWND, RECT};
@@ -18,14 +20,20 @@ use windows::Win32::UI::WindowsAndMessaging::{
 const DESKTOP: HWND = HWND(std::ptr::null_mut());
 
 /// How many windows down the Z-order the walk will look before giving up.
+///
+/// A bound on the loop rather than a policy: `GetWindow` is not guaranteed to end on a list
+/// that is being reordered while it is read.
 const MAX_WALK: usize = 512;
 
 /// The topmost window worth capturing, as the OS reports its bounds.
+///
+/// # Errors
+///
+/// `NoTarget` when the walk finds nothing, `Backend` when the OS will not give the bounds.
 pub(crate) fn topmost_window() -> Result<TargetRect, CaptureError> {
     // SAFETY: three pure reads of process-wide state, no handles owned and no out-parameters.
     let (ours, shell) = unsafe { (GetCurrentProcessId(), GetShellWindow()) };
-    // SAFETY: a null handle names the desktop, whose children are the top-level windows. An
-    // error means it has none, which the walk below reports as an empty desktop.
+    // SAFETY: a null handle names the desktop, whose children are the top-level windows.
     let mut next = unsafe { GetTopWindow(DESKTOP) }.ok();
     for _ in 0..MAX_WALK {
         let Some(window) = next else { break };
@@ -40,7 +48,7 @@ pub(crate) fn topmost_window() -> Result<TargetRect, CaptureError> {
     )))
 }
 
-/// Whether `window` is the one the user is looking at, as far as anything but the user can tell.
+/// Whether `window` is the one the user is looking at, as far as the OS can tell.
 fn is_capturable(window: HWND, ours: u32, shell: HWND) -> bool {
     window != shell
         && is_visible(window)
@@ -52,15 +60,13 @@ fn is_capturable(window: HWND, ours: u32, shell: HWND) -> bool {
         && !is_hidden_from_capture(window)
 }
 
-/// Whether the OS calls the window visible. The first filter and the weakest one: a window can
-/// be visible, be nothing anyone can see, and still say yes here.
+/// Whether the OS calls the window visible.
 fn is_visible(window: HWND) -> bool {
     // SAFETY: a state read on a handle from the walk; it touches no memory of ours.
     unsafe { IsWindowVisible(window) }.as_bool()
 }
 
-/// Whether the window is minimized, which [`is_visible`] still calls visible. Its bounds while
-/// iconic are off-screen coordinates, so capturing it would answer a rectangle of nothing.
+/// Whether the window is minimized, which [`is_visible`] still calls visible.
 fn is_minimized(window: HWND) -> bool {
     // SAFETY: a state read on a handle from the walk.
     unsafe { IsIconic(window) }.as_bool()
@@ -69,8 +75,8 @@ fn is_minimized(window: HWND) -> bool {
 /// Whether DWM is hiding the window from the compositor.
 fn is_cloaked(window: HWND) -> bool {
     let mut cloaked = 0_u32;
-    // SAFETY: the out-parameter is a live `u32` of exactly the size passed, and DWM writes at
-    // most that many bytes into it.
+    // SAFETY: the out-parameter is a live `u32` of exactly the size passed, and DWM writes at most
+    // that many bytes into it.
     let asked = unsafe {
         DwmGetWindowAttribute(
             window,
@@ -89,17 +95,16 @@ fn is_tool_window(window: HWND) -> bool {
     u32::try_from(styles).unwrap_or_default() & WS_EX_TOOLWINDOW.0 != 0
 }
 
-/// Whether the window has a title at all, which is how the wallpaper host (`WorkerW`) and the
-/// untitled helper windows every desktop carries are told from real ones.
+/// Whether the window has a title, which is how the wallpaper host (`WorkerW`) and the untitled
+/// helper windows on every desktop are told from real ones.
 fn has_title(window: HWND) -> bool {
     // SAFETY: a length read on a handle from the walk; no buffer is passed, so none is written.
     let length = unsafe { GetWindowTextLengthW(window) };
     length > 0
 }
 
-/// Whether the window belongs to this process, which is the overlay and anything else the body
-/// puts on screen. Checked by process rather than by handle so a second body window, a Tauri
-/// dialog, or a web view's own child window is caught by the same rule.
+/// Whether the window belongs to this process, which is the overlay and anything else the body puts
+/// on screen.
 fn is_ours(window: HWND, ours: u32) -> bool {
     let mut owner = 0_u32;
     // SAFETY: the out-parameter is a live `u32`, which is exactly what the call writes.
@@ -108,6 +113,9 @@ fn is_ours(window: HWND, ours: u32) -> bool {
 }
 
 /// Whether the window has asked to be left out of screen captures.
+///
+/// A call that fails counts as hidden: skipping one window costs the user the next one down,
+/// while capturing a window that asked not to be captured cannot be undone.
 fn is_hidden_from_capture(window: HWND) -> bool {
     let mut affinity = 0_u32;
     // SAFETY: the out-parameter is a live `u32`, which is what the call writes.
@@ -116,6 +124,9 @@ fn is_hidden_from_capture(window: HWND) -> bool {
 }
 
 /// Where the OS says the window is, in the physical pixels the capture is in.
+///
+/// `DWMWA_EXTENDED_FRAME_BOUNDS` rather than `GetWindowRect`, which includes the invisible resize
+/// border of a composited window. `GetWindowRect` is the fallback when composition is off.
 fn bounds_of(window: HWND) -> Result<TargetRect, CaptureError> {
     let mut rect = RECT::default();
     // SAFETY: the out-parameter is a live `RECT` of exactly the size passed.

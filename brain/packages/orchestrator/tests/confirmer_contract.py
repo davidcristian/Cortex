@@ -1,4 +1,4 @@
-"""The `Confirmer` contract, run over every implementation (AGENTS.md: ports before adapters)."""
+"""The `Confirmer` contract, checked against every implementation of the port."""
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -36,17 +36,13 @@ async def an_explicit_approval_is_the_only_true(under_test: ConfirmerUnderTest) 
 
 
 async def an_explicit_refusal_blocks_the_call(under_test: ConfirmerUnderTest) -> None:
-    """A no is a no, answered rather than raised, so the turn continues and the tool does not."""
+    """A refusal is returned rather than raised, so the turn continues and the tool does not."""
     under_test.will_refuse()
     assert await under_test.confirmer.confirm(_SEND) is False
 
 
 async def a_person_who_never_answers_denies(under_test: ConfirmerUnderTest) -> None:
-    """Silence is a denial. This is the fail-closed half and the reason the port exists.
-
-    An irreversible action must never run because nobody was there to object: a confirmer that
-    defaulted to yes, or that waited forever, would turn an unattended overlay into permission.
-    """
+    """A person who never answers is read as a refusal, which is the fail-closed half."""
     under_test.will_say_nothing()
     assert await under_test.confirmer.confirm(_SEND) is False
 

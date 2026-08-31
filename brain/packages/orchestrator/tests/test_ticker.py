@@ -1,6 +1,3 @@
-"""The ScheduleTicker: fires, pushes, re-arms, releases, and survives its own passes
-(ADR-0025 decision 4). No wall-clock waits. The clock is fixed and `run` is paced to 0."""
-
 import asyncio
 import logging
 from collections.abc import Sequence
@@ -111,9 +108,6 @@ def _ticker(
     return ScheduleTicker(store, FixedClock(), _SETTINGS, spawn=spawn, body=body)
 
 
-# --- reminders: deliverable + the push ladder --------------------------------------------------
-
-
 async def test_reminder_fires_to_deliverable_without_a_body() -> None:
     store = InMemoryScheduleStore()
     await store.add(_item("r1"))
@@ -128,7 +122,7 @@ async def test_pushed_and_shown_reminder_is_acked_at_once() -> None:
     body = InMemoryBodyGateway(shown=True)
     await store.add(_item("r1", tainted=True))
     await _ticker(store, body=body).run_once()
-    assert await store.deliverable() == ()  # a toast IS delivery
+    assert await store.deliverable() == ()
     (toast,) = body.notifications
     assert toast.title == REMINDER_TITLE
     assert toast.body == "text of r1"
@@ -165,16 +159,15 @@ async def test_recurring_reminder_rearms_and_stays_deliverable() -> None:
 
 
 async def test_recurring_rearm_follows_the_snooze_anchor_grid() -> None:
-    """A snoozed recurring item re-arms on its original cadence, not due_at + every."""
     store = InMemoryScheduleStore()
-    anchor = _NOW - timedelta(minutes=90)  # grid anchor + k*1h lands next at _NOW + 30min
+    anchor = _NOW - timedelta(minutes=90)
     await store.add(
         ScheduledItem(
             id="r1",
             kind=ScheduleKind.REMINDER,
             text="text of r1",
             session_id="chat-1",
-            due_at=_NOW,  # the snoozed occurrence, deliberately off the anchor grid
+            due_at=_NOW,
             created_at=_NOW,
             every=timedelta(hours=1),
             anchor=anchor,
@@ -183,9 +176,9 @@ async def test_recurring_rearm_follows_the_snooze_anchor_grid() -> None:
     await _ticker(store).run_once()
     loaded = await store.get("r1")
     assert loaded is not None
-    # next_due(anchor, 1h, _NOW) = _NOW + 30min; a due_at-based re-arm would be _NOW + 1h.
+    # The next time on the anchor grid is 30 minutes out; counting from `due_at` would give 1 h.
     assert loaded.due_at == _NOW + timedelta(minutes=30)
-    assert loaded.anchor == anchor  # the grid origin persists across the fire
+    assert loaded.anchor == anchor
 
 
 class _CancelRacingStore(InMemoryScheduleStore):
@@ -205,10 +198,7 @@ async def test_a_fenced_off_finish_pushes_nothing() -> None:
     body = InMemoryBodyGateway(shown=True)
     await store.add(_item("r1"))
     await _ticker(store, body=body).run_once()
-    assert body.notifications == ()  # cancel stuck; the dead fire delivered nothing
-
-
-# --- tasks: the audited spawn dispatch ----------------------------------------------------------
+    assert body.notifications == ()
 
 
 async def test_task_fires_as_a_spawn_dispatch_and_records_the_outcome() -> None:
@@ -218,8 +208,6 @@ async def test_task_fires_as_a_spawn_dispatch_and_records_the_outcome() -> None:
     await _ticker(store, spawn=_dispatcher(spawn)).run_once()
     (call,) = spawn.calls
     assert call.arguments == {"instructions": [{"instruction": "text of t1", "model": "fast"}]}
-    # The stamp carries the item's stored provenance (ADR-0027): clean, and attributed to
-    # the chat that scheduled it.
     assert call.stamp == TurnStamp(session_id="chat-1", item_id="t1", tainted=False)
     loaded = await store.get("t1")
     assert loaded is not None
@@ -228,9 +216,6 @@ async def test_task_fires_as_a_spawn_dispatch_and_records_the_outcome() -> None:
 
 
 async def test_a_fires_audit_line_names_the_chat_and_no_turn() -> None:
-    # The ticker is the dispatch caller with no turn behind it (ADR-0009 named-work addendum).
-    # Its line carries the chat that scheduled the item, because that is a real attribution the
-    # store kept, and stays silent about a turn, because nothing conversational is waiting.
     store = InMemoryScheduleStore()
     sink = RecordingAuditSink()
     spawn = FakeSpawnTool()
@@ -239,9 +224,6 @@ async def test_a_fires_audit_line_names_the_chat_and_no_turn() -> None:
     await _ticker(store, spawn=dispatcher).run_once()
     (record,) = sink.records
     assert (record.session_id, record.turn_id, record.task_id) == ("chat-1", "", "")
-    # And the item it fired, which no other caller in the tree stamps (ADR-0009 named-call
-    # addendum). The call id below spells the same item, but that is the string a model gets
-    # to choose on every other dispatch, so the fact the trail states is the stamped one.
     assert record.item_id == "t1"
     assert record.call_id == "schedule-t1"
 
@@ -252,7 +234,7 @@ async def test_tainted_task_rides_the_dispatcher_stamp() -> None:
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1), tainted=True))
     await _ticker(store, spawn=_dispatcher(spawn)).run_once()
     (call,) = spawn.calls
-    assert call.stamp.tainted is True  # -> SubagentTask.tainted -> ADR-0017 pinning
+    assert call.stamp.tainted is True
 
 
 async def test_untrusted_task_result_taints_the_item() -> None:
@@ -262,7 +244,7 @@ async def test_untrusted_task_result_taints_the_item() -> None:
     await _ticker(store, spawn=_dispatcher(spawn)).run_once()
     loaded = await store.get("t1")
     assert loaded is not None
-    assert loaded.tainted is True  # fire-time taint OR'd on; the listing now fences it
+    assert loaded.tainted is True
 
 
 async def test_task_error_result_is_a_failed_outcome() -> None:
@@ -287,19 +269,16 @@ async def test_task_store_failure_is_a_failed_outcome() -> None:
 
 
 async def test_task_without_delegation_wired_fails_cleanly() -> None:
-    # A durable TASK outliving a reconfig: an ok=False outcome, not a crash or lease cycle.
     store = InMemoryScheduleStore()
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
     await _ticker(store).run_once()
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.last_outcome == "FAILED: subagent delegation is not wired"
-    assert loaded.due_at == _NOW + timedelta(hours=1)  # recurring: re-armed, not cycling
+    assert loaded.due_at == _NOW + timedelta(hours=1)
 
 
 async def test_a_shown_one_shot_task_is_delivered_then_cleaned_up() -> None:
-    # The outcome delivers as a toast; the shown push acks it, and terminal cleanup then runs at
-    # ack time rather than at finish (the outcome is no longer discarded before anyone sees it).
     store = InMemoryScheduleStore()
     body = InMemoryBodyGateway(shown=True)
     spawn = FakeSpawnTool()
@@ -308,11 +287,7 @@ async def test_a_shown_one_shot_task_is_delivered_then_cleaned_up() -> None:
     assert await store.get("t1") is None
 
 
-# --- tasks: the outcome delivers through the reminder push/pull ladder ---------------------------
-
-
 async def test_task_outcome_is_pushed_as_a_notification_and_acked() -> None:
-    """The delivery fires on finish (the outcome, under the task title) and a shown push acks it."""
     store = InMemoryScheduleStore()
     body = InMemoryBodyGateway(shown=True)
     spawn = FakeSpawnTool(content="[subagent 1] 3 emails need replies")
@@ -320,13 +295,12 @@ async def test_task_outcome_is_pushed_as_a_notification_and_acked() -> None:
     await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
     (toast,) = body.notifications
     assert toast.title == TASK_TITLE
-    assert toast.body == "[subagent 1] 3 emails need replies"  # the outcome, not the instruction
+    assert toast.body == "[subagent 1] 3 emails need replies"
     assert toast.reminder_id == "t1"
-    assert await store.deliverable() == ()  # shown push acked it; pull will not re-deliver
+    assert await store.deliverable() == ()
 
 
 async def test_task_outcome_stays_deliverable_when_the_push_fails() -> None:
-    """A body-down fire is recovered by pull, not lost: the outcome waits in the store."""
     store = InMemoryScheduleStore()
     body = InMemoryBodyGateway(fail=BodyGatewayError("unreachable"))
     spawn = FakeSpawnTool(content="[subagent 1] done")
@@ -338,8 +312,6 @@ async def test_task_outcome_stays_deliverable_when_the_push_fails() -> None:
 
 
 async def test_task_outcome_is_deliverable_without_a_body() -> None:
-    # Push-less deployment (or a one-shot before any overlay open): the outcome survives its fire
-    # for the pull path instead of being deleted at finish.
     store = InMemoryScheduleStore()
     spawn = FakeSpawnTool(content="[subagent 1] done")
     await store.add(_item("t1", kind=ScheduleKind.TASK))
@@ -355,7 +327,7 @@ async def test_a_tainted_task_outcome_badges_the_toast() -> None:
     await store.add(_item("t1", kind=ScheduleKind.TASK))
     await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
     (toast,) = body.notifications
-    assert toast.tainted is True  # fire-time taint rides the delivery as it does the listing
+    assert toast.tainted is True
 
 
 async def test_a_fenced_off_task_finish_delivers_nothing() -> None:
@@ -364,16 +336,14 @@ async def test_a_fenced_off_task_finish_delivers_nothing() -> None:
     spawn = FakeSpawnTool()
     await store.add(_item("t1", kind=ScheduleKind.TASK))
     await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
-    assert body.notifications == ()  # cancel stuck; the dead fire delivered nothing
+    assert body.notifications == ()
 
 
 async def test_a_hung_fire_is_cancelled_at_the_lease_and_released() -> None:
-    """One wedged task cannot stall scheduling: wait_for cancels it, the claim releases."""
-
     class HangingSpawnTool(FakeSpawnTool):
         async def invoke(self, call: ToolCall) -> ToolResult:
             del call
-            await asyncio.Event().wait()  # a wedged inference socket, forever
+            await asyncio.Event().wait()
             msg = "unreachable"
             raise AssertionError(msg)
 
@@ -381,14 +351,13 @@ async def test_a_hung_fire_is_cancelled_at_the_lease_and_released() -> None:
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
     settings = TickerSettings(poll_s=0.001, lease=timedelta(milliseconds=50), claim_limit=8)
     ticker = ScheduleTicker(store, FixedClock(), settings, spawn=_dispatcher(HangingSpawnTool()))
-    await asyncio.wait_for(ticker.run_once(), timeout=2.0)  # bounded, not stalled
+    await asyncio.wait_for(ticker.run_once(), timeout=2.0)
     loaded = await store.get("t1")
     assert loaded is not None
-    assert loaded.status.value == "pending"  # released: the next pass re-fires it
+    assert loaded.status.value == "pending"
 
 
 async def test_a_gated_spawn_is_hard_denied_on_the_autonomous_path() -> None:
-    """CORTEX_TOOLS_GATED covers the ticker too: no confirmer exists, so the fire denies."""
     store = InMemoryScheduleStore()
     spawn = FakeSpawnTool()
     gated = ToolDispatcher(
@@ -399,14 +368,11 @@ async def test_a_gated_spawn_is_hard_denied_on_the_autonomous_path() -> None:
     )
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
     await _ticker(store, spawn=gated).run_once()
-    assert spawn.calls == []  # never invoked, since the gate blocked it before the tool
+    assert spawn.calls == []
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.last_outcome is not None
     assert loaded.last_outcome.startswith("FAILED: ")
-
-
-# --- pass robustness ----------------------------------------------------------------------------
 
 
 class _FinishFailsStore(InMemoryScheduleStore):
@@ -436,22 +402,19 @@ async def test_a_failing_fire_releases_its_claim() -> None:
     await _ticker(store).run_once()
     assert store.released == ["r1"]
     loaded = await store.get("r1")
-    assert loaded is not None  # back to PENDING: the next pass retries
+    assert loaded is not None
 
 
 async def test_a_failing_release_is_left_to_the_lease() -> None:
     store = _FinishFailsStore()
     store.release_fails = True
     await store.add(_item("r1"))
-    await _ticker(store).run_once()  # logs; must not raise, since the lease recovers the claim
+    await _ticker(store).run_once()
 
 
 async def test_both_pass_degradation_lines_name_the_item_they_are_about(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A failed fire and a failed release each carry the id, the way the push failure beside them
-    already did.
-    """
     store = _FinishFailsStore()
     store.release_fails = True
     await store.add(_item("r1"))
@@ -494,7 +457,7 @@ async def test_run_survives_a_failing_pass_and_stops_on_signal() -> None:
     await store.add(_item("r1"))
     ticker = _ticker(store)
     task = asyncio.create_task(ticker.run())
-    await asyncio.wait_for(store.fired.wait(), timeout=1.0)  # pass 1 failed; pass 2 fired
+    await asyncio.wait_for(store.fired.wait(), timeout=1.0)
     ticker.stop()
     await asyncio.wait_for(task, timeout=1.0)
     assert store.attempts >= 2
@@ -506,13 +469,10 @@ async def test_stop_before_any_pass_ends_the_loop_immediately() -> None:
     await asyncio.wait_for(ticker.run(), timeout=1.0)
 
 
-# --- calendar recurrence: the re-arm is wall-clock, in the configured zone -------------------
-
 _BUCHAREST = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
 
 
 async def test_a_calendar_item_re_arms_on_its_wall_clock_in_the_configured_zone() -> None:
-    """The ticker re-arms from the rule, not from ``due_at`` plus an interval."""
     store = InMemoryScheduleStore()
     await store.add(_item("cal-1", rule=CalendarRule(hour=9, minute=0)))
     settings = TickerSettings(
@@ -522,11 +482,10 @@ async def test_a_calendar_item_re_arms_on_its_wall_clock_in_the_configured_zone(
     (item,) = await store.list_active()
     assert item.due_at == datetime(2026, 7, 13, 6, 0, tzinfo=UTC)
     assert _BUCHAREST.render(item.due_at) == "2026-07-13T09:00:00+03:00"
-    assert item.rule == CalendarRule(hour=9, minute=0)  # the rule survives the fire
+    assert item.rule == CalendarRule(hour=9, minute=0)
 
 
 async def test_a_calendar_task_re_arms_from_its_rule_too() -> None:
-    """The TASK fire path shares the re-arm, so both kinds follow the wall clock."""
     store = InMemoryScheduleStore()
     await store.add(_item("cal-2", kind=ScheduleKind.TASK, rule=CalendarRule(hour=9, minute=0)))
     spawn = ToolDispatcher(
@@ -541,7 +500,6 @@ async def test_a_calendar_task_re_arms_from_its_rule_too() -> None:
 
 
 async def test_the_default_settings_zone_keeps_the_utc_behavior() -> None:
-    """An unconfigured deployment re-arms exactly where it did before the zone existed."""
     store = InMemoryScheduleStore()
     await store.add(_item("cal-3", rule=CalendarRule(hour=9, minute=0)))
     await _ticker(store).run_once()

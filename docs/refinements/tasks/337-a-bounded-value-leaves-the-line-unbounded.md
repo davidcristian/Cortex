@@ -22,33 +22,32 @@ and nothing fails when a new sink attaches an eighth large field. The audit trai
 ten keys, most of them small; the recall trail carries eleven.
 
 The fix has a shape and a cost. `render_fields` is where a whole-line bound would go, since it is
-the one place that sees every pair at once, and the awkward half is the same one the per-value
-bound decided: cutting the line drops whole fields, and a reader cannot tell a dropped field from a
-field nobody attached unless a count rides along, which `render_fields` can honestly add because
-that function does own its line. The cheaper alternative is a test rather than a bound: assert that
-the widest line any shipped sink builds stays under the cliff, which catches the tenth field on the
-day it is written rather than the day it is read.
+the one place that sees every pair at once, and the awkward half is the same one the per-value bound
+decided: cutting the line drops whole fields, and a reader cannot tell a dropped field from a field
+nobody attached unless a count rides along, which `render_fields` can add because that function does
+own its line. The cheaper alternative is a test rather than a bound: assert that the widest line any
+shipped sink builds stays under the cliff, which catches the tenth field on the day it is written
+rather than the day it is read.
 
 ## Trail
 
 - 2026-08-20: The headroom this entry inherited was corrected from eight fields to seven, measured
   rather than argued (ADR-0038 cut-defeats-withholding addendum). The entry is unchanged in
-  substance: the line is still unbounded and still unmeasured, and the cheaper alternative below,
-  a test rather than a bound, is now one field cheaper to trip.
-- 2026-08-20: Opened by the close of
-  [R-324](324-a-rendered-field-has-no-bound.md), which bounded a value against a measurement of the
-  whole line and left the whole line unmeasured.
+  substance: the line is still unbounded and still unmeasured, and the cheaper alternative below, a
+  test rather than a bound, is now one field cheaper to trip.
+- 2026-08-20: Opened by the close of [R-324](324-a-rendered-field-has-no-bound.md), which bounded a
+  value against a measurement of the whole line and left the whole line unmeasured.
 - 2026-08-21: The tool audit line grew by three keys (the chat, turn and subagent task a dispatch
   was made for, ADR-0009 named-work addendum), which makes it nine keys on a line carrying all
   three. All three are short ids and none of them approaches the per-value bound, so the headroom
-  argument is unchanged in substance; what is worth noting is that this entry's count of the audit
-  trail's keys was already a claim nobody re-measured, and the line an operator reads is still
-  unmeasured at its widest.
+  argument is unchanged in substance; what matters is that this entry's count of the audit trail's
+  keys was already a claim nobody re-measured, and the line an operator reads is still unmeasured at
+  its widest.
 - 2026-08-27: the widest real line is measured at last, which is what this entry's trigger was
   stated in the absence of ([R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md),
   ADR-0038 whole-line addendum). Over 466 recall-trail lines from a live stack, the widest line the
   brain writes renders at **1,800 characters against the 16,383 cliff**, and arithmetic over the
   shipped caps puts the widest this deployment could write near 2,200. This entry is unchanged in
-  substance: the line is still unbounded and still ungated, and the fix and its cheaper
-  alternative both stand. What changed is that the cheaper one, a test asserting the widest line a
-  shipped sink builds stays under the cliff, now has a measured figure to be written against.
+  substance: the line is still unbounded and still ungated, and the fix and its cheaper alternative
+  both stand. What changed is that the cheaper one, a test asserting the widest line a shipped sink
+  builds stays under the cliff, now has a measured figure to be written against.

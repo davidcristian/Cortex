@@ -46,7 +46,7 @@ Or nothing, if the runbook's prose is judged to be about the trail rather than a
   two needles rather than one counted twice for the reason the logger's are.
   **The three options were settled by measurement rather than by taste.** A rendered sample in
   tools-mcp.md, which would have brought the whole sample gate to bear at once, was tried on the
-  committed tree first: `just check-samplecheck` refused it, because this sink builds its `extra=`
+  committed tree first: `just check-samplecheck` failed on it, because this sink builds its `extra=`
   across statements and by condition and `logcalls.py` will not read a field list off such a call.
   A line whose fields are chosen at runtime has no single field list to print, so no runbook may
   carry one of these as a held sample at all, which is a sharper answer than the entry's "costs a
@@ -57,8 +57,8 @@ Or nothing, if the runbook's prose is judged to be about the trail rather than a
   paying for one is the sample gate's own unreachability.
   **The entry's count was right and its neighbour needed relaxing.** Three places, four spellings,
   and `brain/packages/tools/tests/test_audit.py` is deliberately not a fourth: it asserts the
-  rendered line rather than writing the message, so it is loud on a rename where the level suite is
-  silent. The logger entry's needle on the level suite's asserted line used to spell this word as
+  rendered line rather than writing the message, so it fails on a rename where the level suite does
+  not. The logger entry's needle on the level suite's asserted line used to spell this word as
   fixed text, which made registry data a place restating a value it does not declare and would have
   reported a renamed message against the logger; each needle now renders its own half of
   `LEVEL:logger:message`. Opened by this close:

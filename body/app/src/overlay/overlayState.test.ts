@@ -23,11 +23,7 @@ const reminder = (reminderId: string): DueReminder => ({
 });
 
 const run = (actions: Action[]) => actions.reduce(reduce, initialState);
-/**
- * Everything an event can change *about the turn*. An arriving event also proves the brain is
- * serving, so it legitimately refreshes the connection view (ADR-0011 addendum); the no-op
- * assertions below are about the turn, and compare this instead of whole-object identity.
- */
+/** Everything an event can change *about the turn*. */
 const turnOf = ({ link: _link, ...rest }: ReturnType<typeof run>) => rest;
 const assistant = (s: ReturnType<typeof run>) => s.messages.find((m) => m.role === "assistant");
 const submit = (text: string): Action => ({ kind: "submit", text });
@@ -85,7 +81,6 @@ describe("overlayState reducer", () => {
     };
     const submitted = run([{ kind: "newChat", sessionId: "chat-9", announce: false }, submit(opening)]);
     expect(submitted.title).toBe(listed.title);
-    // And it still equals it after the list lands and the chat is reopened from the switcher.
     const refreshed = reduce(submitted, { kind: "sessionsLoaded", sessions: [listed] });
     const reopened = reduce(refreshed, {
       kind: "openSession",
@@ -111,7 +106,6 @@ describe("overlayState reducer", () => {
       status: "swapping",
       statusState: "load",
     });
-    // A non-thinking status drives the chip only; it never joins the reasoning trace.
     expect(assistant(s)?.thoughts).toBe("");
   });
 
@@ -128,7 +122,6 @@ describe("overlayState reducer", () => {
     let s = run([submit("q")]);
     s = reduce(s, { kind: "event", event: { kind: "status", state: "thinking", detail: "first" } });
     s = reduce(s, { kind: "event", event: { kind: "status", state: "thinking", detail: " second" } });
-    // `status` holds only the latest delta; `thoughts` retains the whole scrubbed trace in order.
     expect(assistant(s)).toMatchObject({ status: " second", statusState: "thinking" });
     expect(assistant(s)?.thoughts).toBe("first second");
   });
@@ -199,14 +192,14 @@ describe("overlayState reducer", () => {
     expect(fresh.switcherOpen).toBe(false);
   });
 
-  it("a chat arriving takes the console off the panel, from either tab and by either door", () => {
+  it("a chat arriving takes the console off the panel, from either tab and by either gesture", () => {
     for (const tab of ["appearance", "shortcuts"] as const) {
       const reading = reduce(run([{ kind: "open" }, submit("q")]), { kind: "openConsole", tab });
       expect(reading.consoleTab).toBe(tab);
 
       const fresh = reduce(reading, { kind: "newChat", sessionId: "new-42", announce: false });
       expect(fresh.consoleTab).toBeNull();
-      expect(fresh.messages).toEqual([]); // the empty chat is what is on screen, not behind it
+      expect(fresh.messages).toEqual([]);
       expect(fresh.mode).toBe("panel");
 
       const cycled = reduce(reading, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
@@ -233,7 +226,7 @@ describe("overlayState reducer", () => {
     expect(deleted.consoleTab).toBe("appearance");
     expect(deleted.sessionId).toBe("fresh-1");
     const adopt: Action = { kind: "adoptSession", sessionId: "chat-7", messages: [] };
-    expect(reduce(listed, adopt)).toBe(listed); // touched: the summon that reached the console
+    expect(reduce(listed, adopt)).toBe(listed);
   });
 
   it("sessionsLoaded stores the chat list and toggleSwitcher flips it open then shut", () => {
@@ -245,9 +238,6 @@ describe("overlayState reducer", () => {
   });
 
   it("says what an opened list holds, when the key opened it and the chat is on screen", () => {
-    // The defect, as state: measured over thirteen ways the switcher opens, every one left the
-    // caret where it was and raised nothing in any live region, so a reader who pressed Ctrl+K was
-    // handed silence. Reddens if the opening arm stops speaking or stops counting the rows.
     const listed = run([
       { kind: "open" },
       { kind: "sessionsLoaded", sessions: [summary("a"), summary("b")] },
@@ -258,16 +248,12 @@ describe("overlayState reducer", () => {
       .toBe(`Recent chats open. ${NO_OTHER_CHATS}.`);
   });
 
-  it("stays silent for the door that carries the state under the reader's own caret", () => {
-    // The header's chats button flips `aria-expanded` where the caret already is, so its door
-    // passes false and the region says nothing. Reddens if the flag stops being the door's.
+  it("stays silent for the gesture that carries the state under the reader's own caret", () => {
     const listed = run([{ kind: "open" }, { kind: "sessionsLoaded", sessions: [summary("a")] }]);
     expect(reduce(listed, { kind: "toggleSwitcher", announce: false }).notice).toBeNull();
   });
 
-  it("says nothing about a list closing, whichever door closed it", () => {
-    // The sentence is the contents and not the toggle: closing delivers nothing to report, and the
-    // caret landing on the chats button says it already (`overlay/sectionCaret.ts`).
+  it("says nothing about a list closing, whichever gesture closed it", () => {
     const open = run([
       { kind: "open" },
       { kind: "sessionsLoaded", sessions: [summary("a")] },
@@ -303,9 +289,6 @@ describe("overlayState reducer", () => {
   });
 
   it("a press off the chat opens rather than toggling, so a summon cannot shut an unseen list", () => {
-    // The list is open in the store and shut on the screen, which is the state the old flip made
-    // reachable and this one still has to answer: a reader who cannot see the list is asking for
-    // it, so the press shows it instead of closing it. On the chat the same press closes it.
     const sessions = [summary("a")];
     const open = run([
       { kind: "open" },
@@ -321,9 +304,6 @@ describe("overlayState reducer", () => {
   });
 
   it("carries a standing sentence through a silent toggle rather than clearing it", () => {
-    // Unlike the swap arms, which replace the panel's contents and null the notice, a toggle
-    // leaves them alone: a sentence about the chat that just arrived is still true, and carrying
-    // the same object says nothing twice, the region reporting mutations rather than values.
     const spoken = run([
       { kind: "open" },
       { kind: "sessionsLoaded", sessions: [summary("a")] },
@@ -337,7 +317,6 @@ describe("overlayState reducer", () => {
     const panel = reduce(initialState, { kind: "open" });
     const appearance = reduce(panel, { kind: "toggleConsole", tab: "appearance" });
     expect(appearance.consoleTab).toBe("appearance");
-    // Each opener owns one tab: pressing the one you are on leaves, pressing the other switches.
     expect(reduce(appearance, { kind: "toggleConsole", tab: "appearance" }).consoleTab).toBeNull();
     expect(reduce(appearance, { kind: "toggleConsole", tab: "shortcuts" }).consoleTab).toBe(
       "shortcuts",
@@ -345,9 +324,6 @@ describe("overlayState reducer", () => {
   });
 
   it("? from a tucked panel puts the shortcuts on screen instead of behind a hidden window", () => {
-    // The second key with this defect, which the entry that opened this work had not counted:
-    // measured in Chromium, ? from a tucked panel mounted the console and took the chat view
-    // `inert` and `aria-hidden` behind a panel nobody could see.
     const tuckedWithTab = reduce(reduce(initialState, { kind: "toggleConsole", tab: "shortcuts" }), {
       kind: "dismiss",
     });
@@ -372,15 +348,10 @@ describe("overlayState reducer", () => {
   it("closeConsole leaves in one step, and a dismissed panel keeps the console until it returns", () => {
     for (const tab of ["appearance", "shortcuts"] as const) {
       const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "openConsole", tab });
-      // One press, not two: there is no second sheet stacked behind this one any more.
       expect(reduce(opened, { kind: "closeConsole" }).consoleTab).toBeNull();
-      // Dismissing does NOT close it. Clearing the tab here would change the view mid-dismiss, so
-      // the panel morphed back to the chat and only then faded, which reads as the window changing
-      // its mind on the way out. It fades wearing what it had on instead.
       const gone = reduce(opened, { kind: "dismiss" });
       expect(gone.consoleTab).toBe(tab);
       expect(gone.mode).toBe("hidden");
-      // The next summon is what puts it back on the chat, so nothing re-opens onto stale tiles.
       expect(reduce(gone, { kind: "open" }).consoleTab).toBeNull();
     }
   });
@@ -429,9 +400,6 @@ describe("overlayState reducer", () => {
   });
 
   it("openSession falls back to the local derivation for a chat absent from the list", () => {
-    // A reminder deep-link can open a chat outside the loaded recency window: no summary is in
-    // hand, so the first-message derivation stands (the recorded residual of this fix, whose
-    // disagreement the switcher cannot show anyway, having no row for the out-of-window chat).
     const messages: SessionMessage[] = [
       { role: "user", text: "about dogs", turnId: "t", atUnixMs: 1 },
     ];
@@ -446,8 +414,6 @@ describe("overlayState reducer", () => {
   });
 
   it("sessionDeleted drops another chat's row without disturbing the open chat", () => {
-    // Deleting a chat that is not the current one only removes it from the switcher list; the
-    // panel, its session id, and its messages are untouched (the deleted chat was never on screen).
     const started = run([{ kind: "open" }, submit("my question")]);
     const listed = reduce(started, {
       kind: "sessionsLoaded",
@@ -458,16 +424,13 @@ describe("overlayState reducer", () => {
       sessionId: "other",
       fallbackSessionId: "unused-fresh-id",
     });
-    expect(after.sessions.map((s) => s.sessionId)).toEqual([started.sessionId]); // "other" gone
-    expect(after.sessionId).toBe(started.sessionId); // the open chat's identity is unchanged
-    expect(after.messages).toBe(started.messages); // its transcript is untouched
+    expect(after.sessions.map((s) => s.sessionId)).toEqual([started.sessionId]);
+    expect(after.sessionId).toBe(started.sessionId);
+    expect(after.messages).toBe(started.messages);
     expect(after.touched).toBe(true);
   });
 
   it("sessionDeleted on the CURRENT chat falls back to a fresh empty chat, never a deleted one", () => {
-    // The current-session hazard: deleting the open chat must not leave its transcript on screen.
-    // The panel resets to a fresh empty chat under the minted fallback id (a new-chat in place),
-    // and the deleted row leaves the list. The panel stays open so the user keeps their place.
     const started = run([{ kind: "open" }, submit("secret question")]);
     const listed = reduce(started, {
       kind: "sessionsLoaded",
@@ -478,19 +441,16 @@ describe("overlayState reducer", () => {
       sessionId: started.sessionId,
       fallbackSessionId: "fresh-99",
     });
-    expect(after.sessionId).toBe("fresh-99"); // a brand-new chat, not the deleted one
+    expect(after.sessionId).toBe("fresh-99");
     expect(after.title).toBe("New chat");
-    expect(after.messages).toEqual([]); // the deleted transcript is gone from the panel
+    expect(after.messages).toEqual([]);
     expect(after.seq).toBe(0);
-    expect(after.mode).toBe("panel"); // the panel stays open
-    expect(after.sessions.map((s) => s.sessionId)).toEqual(["keep"]); // deleted row removed
+    expect(after.mode).toBe("panel");
+    expect(after.sessions.map((s) => s.sessionId)).toEqual(["keep"]);
     expect(after.touched).toBe(true);
   });
 
-  it("openSession says which chat arrived, unless the door that opened it already named one", () => {
-    // The swap replaces the whole panel and moves no focus, so the only thing that tells a
-    // reader where they went is the notice behind the live region. What it names is the title
-    // the header takes, read off the same `headerTitle` call, so the two cannot disagree.
+  it("openSession says which chat arrived, unless the gesture that opened it already named one", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
@@ -505,8 +465,6 @@ describe("overlayState reducer", () => {
     });
     expect(cycled.notice).toEqual({ text: "Switched to Everything about cats.", count: 1 });
     expect(cycled.notice?.text).toContain(cycled.title);
-    // A switcher row is the other door and the reader pressed the title itself there, so the
-    // swap is silent AND what was said before comes down rather than standing in the region.
     const picked = reduce(cycled, {
       kind: "openSession",
       sessionId: "chat-7",
@@ -517,14 +475,10 @@ describe("overlayState reducer", () => {
   });
 
   it("counts each announcement, so two chats under one title are two things said", () => {
-    // A live region reports a mutation and not a value, so identical text landing twice is
-    // nothing landing twice. Reddens if the count stops moving: Ctrl+N over Ctrl+N is exactly
-    // the case, both arrivals being called "New chat".
     const first = reduce(initialState, { kind: "newChat", sessionId: "a", announce: true });
     const second = reduce(first, { kind: "newChat", sessionId: "b", announce: true });
     expect(first.notice).toEqual({ text: "Switched to New chat.", count: 1 });
     expect(second.notice).toEqual({ text: "Switched to New chat.", count: 2 });
-    // The header's pencil is the same arm with the flag down: its label is "New chat" already.
     expect(reduce(second, { kind: "newChat", sessionId: "c", announce: false }).notice).toBeNull();
   });
 
@@ -540,8 +494,6 @@ describe("overlayState reducer", () => {
       fallbackSessionId: "unused",
     });
     expect(other.notice).toEqual({ text: "Chat deleted. 2 chats left.", count: 1 });
-    // Down to one, which is where the plural has to change; then to none, where the region
-    // borrows the switcher's own empty line rather than inventing a second wording for it.
     const down = reduce(other, {
       kind: "sessionDeleted",
       sessionId: "also",
@@ -574,9 +526,6 @@ describe("overlayState reducer", () => {
   });
 
   it("says nothing for a delete that removed no row, on either path", () => {
-    // A repeated dispatch (a double press, a stale row) filters nothing out, and a sentence about
-    // a list that did not change is a sentence that is false. Reddens if the announcement is
-    // raised from the arm running rather than from a row actually leaving.
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [summary("keep")],
@@ -592,7 +541,6 @@ describe("overlayState reducer", () => {
       fallbackSessionId: "unused",
     });
     expect(again.notice).toBe(spoke.notice);
-    // The open-chat path still announces the arrival, which happened, without claiming a row left.
     const open = reduce(again, {
       kind: "sessionDeleted",
       sessionId: again.sessionId,
@@ -602,22 +550,15 @@ describe("overlayState reducer", () => {
   });
 
   it("counts every gesture that replaces the conversation, and nothing else, as an arrival", () => {
-    // The caret follows the conversation (`Composer`), and the count is what tells the composer a
-    // conversation arrived. Unlike the notice it is decided per ARM rather than per door, both
-    // doors on an arm wanting the same landing, so the two flag values below have to agree.
     const listed = reduce(initialState, { kind: "sessionsLoaded", sessions: [summary("chat-7")] });
     expect(listed.arrival).toBe(0);
     const row = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
     const key = reduce(row, { kind: "openSession", sessionId: "chat-7", messages: [], announce: true });
     expect([row.arrival, key.arrival]).toEqual([1, 2]);
-    // Re-selecting the chat already open is why this is a count and not the session id: the row
-    // pressed still leaves with the list, so the caret still has to be somewhere.
     expect(reduce(key, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false }).arrival).toBe(3);
     const pencil = reduce(key, { kind: "newChat", sessionId: "n-1", announce: false });
     const ctrlN = reduce(pencil, { kind: "newChat", sessionId: "n-2", announce: true });
     expect([pencil.arrival, ctrlN.arrival]).toEqual([3, 4]);
-    // The empty chat that replaces a deleted one arrives; deleting any other chat is not a swap
-    // and moves nothing, and neither is a summon, a send, or the switcher opening.
     const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
     expect(reduce(open, { kind: "sessionDeleted", sessionId: "chat-7", fallbackSessionId: "f" }).arrival).toBe(2);
     expect(reduce(open, { kind: "sessionDeleted", sessionId: "other", fallbackSessionId: "f" }).arrival).toBe(1);
@@ -625,8 +566,6 @@ describe("overlayState reducer", () => {
   });
 
   it("gives every chat its own draft: a swap parks one and hands over the other", () => {
-    // The entry this answers, reproduced as state: "half a question" typed into the fresh chat used
-    // to still be in the field, caret and all, after another conversation loaded over it.
     const listed = reduce(createInitialState("boot"), {
       kind: "sessionsLoaded",
       sessions: [summary("chat-7")],
@@ -639,11 +578,8 @@ describe("overlayState reducer", () => {
       messages: [],
       announce: true,
     });
-    // The arriving conversation shows its own field, which is empty, and the sentence it replaced
-    // is not lost: it is parked under the chat it was written in.
     expect(draftOf(arrived.drafts, "chat-7")).toBe("");
     expect(draftOf(arrived.drafts, "boot")).toBe("half a question");
-    // Typing in the new chat parks under the new chat, and going back restores the first.
     const both = reduce(arrived, { kind: "draft", text: "a second thought" });
     const back = reduce(both, { kind: "openSession", sessionId: "boot", messages: [], announce: true });
     expect(draftOf(back.drafts, "boot")).toBe("half a question");
@@ -651,9 +587,6 @@ describe("overlayState reducer", () => {
   });
 
   it("leaves a draft behind for the chat it belongs to when a fresh chat is minted", () => {
-    // The door with no draft of its own to restore: Ctrl+N and the pencil both arrive on an empty
-    // field, because a new chat has nothing parked under it. What must not happen is the sentence
-    // being carried into the new chat, and what must also not happen is it being thrown away.
     const typed = reduce(createInitialState("boot"), { kind: "draft", text: "half a question" });
     for (const announce of [true, false]) {
       const minted = reduce(typed, { kind: "newChat", sessionId: "fresh", announce });
@@ -675,12 +608,9 @@ describe("overlayState reducer", () => {
       }),
       { kind: "openSession", sessionId: "boot", messages: [], announce: false },
     );
-    // Deleting a chat that is not on screen drops only its own text.
     const other = reduce(there, { kind: "sessionDeleted", sessionId: "chat-8", fallbackSessionId: "f" });
     expect(draftOf(other.drafts, "chat-8")).toBe("");
     expect(draftOf(other.drafts, "boot")).toBe("about the open chat");
-    // Deleting the chat on screen resets the panel to a fresh empty one, and the sentence about a
-    // transcript that no longer exists goes with the transcript rather than into the new chat.
     const open = reduce(there, { kind: "sessionDeleted", sessionId: "boot", fallbackSessionId: "f" });
     expect(draftOf(open.drafts, "boot")).toBe("");
     expect(draftOf(open.drafts, "f")).toBe("");
@@ -693,19 +623,13 @@ describe("overlayState reducer", () => {
       text: "half a question",
     });
     expect(draftOf(reduce(typed, submit("half a question")).drafts, "boot")).toBe("");
-    // An example chip on the empty state sends its own words. The half-typed question beside it is
-    // the user's and was not what they pressed, so it is still there afterwards.
     const chipped = reduce(typed, submit("Summarize my unread email"));
     expect(draftOf(chipped.drafts, "boot")).toBe("half a question");
-    // And a send the reducer refuses spends nothing: a blank field, or a turn already streaming.
     expect(draftOf(reduce(typed, submit("   ")).drafts, "boot")).toBe("half a question");
     expect(draftOf(reduce(chipped, submit("half a question")).drafts, "boot")).toBe("half a question");
   });
 
   it("counts typing as touching the overlay, so a cold-start restore cannot swap under a sentence", () => {
-    // `touched` has always claimed to cover typing and never could: nothing dispatched on a
-    // keystroke. Now something does, and the claim is true. Adoption replaces the boot chat whole,
-    // so without this it could take away the conversation a half-typed line was written in.
     const typed = reduce(createInitialState("boot"), { kind: "draft", text: "half a question" });
     expect(typed.touched).toBe(true);
     const adopted = reduce(typed, { kind: "adoptSession", sessionId: "chat-7", messages: [] });
@@ -720,11 +644,7 @@ describe("overlayState reducer", () => {
     ];
     const adopted = reduce(initialState, { kind: "adoptSession", sessionId: "chat-7", messages });
     expect(adopted.mode).toBe("hidden");
-    // And says nothing while it does it: there is no gesture behind a restore to answer, and it
-    // cannot land over something already said, every door that speaks setting `touched` first.
     expect(adopted.notice).toBeNull();
-    // Nor does it move the caret, for the same reason and one more: the panel it would be moving
-    // focus inside is shut, and shut it is `inert` (`withdrawn.ts`).
     expect(adopted.arrival).toBe(0);
     expect(adopted.sessionId).toBe("chat-7");
     expect(adopted.title).toBe("about cats");
@@ -736,8 +656,6 @@ describe("overlayState reducer", () => {
   });
 
   it("adoptSession shows the most recent chat's switcher title, not a re-derived one", () => {
-    // Cold-start adoption targets `sessions[0]`, always in the loaded list, so it too carries
-    // the authoritative title: summoning lands on a header that matches the switcher's top row.
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
     ];
@@ -762,24 +680,20 @@ describe("overlayState reducer", () => {
   });
 
   it("adoptSession is a no-op once a turn was submitted", () => {
-    // The racing submit already streamed into the fresh chat; adoption must not clobber it.
     const chatting = run([{ kind: "open" }, submit("q"), { kind: "dismiss" }]);
     const adopt: Action = { kind: "adoptSession", sessionId: "chat-7", messages: [] };
     expect(reduce(chatting, adopt)).toBe(chatting);
   });
 
   it("adoptSession is a no-op on an explicitly minted fresh chat that looks pristine", () => {
-    // open → newChat → dismiss leaves {hidden, messages: [], seq: 0}: byte-identical to a
-    // pristine boot on the seq/messages/mode proxy, yet the user explicitly chose a fresh
-    // chat. The `touched` flag is what distinguishes them, so adoption must be a no-op here.
     const cleared = run([{ kind: "open" }, { kind: "newChat", sessionId: "n-2", announce: false }, { kind: "dismiss" }]);
     expect(cleared.mode).toBe("hidden");
     expect(cleared.messages).toEqual([]);
-    expect(cleared.seq).toBe(0); // the proxy the old guard used cannot tell this from boot
+    expect(cleared.seq).toBe(0);
     expect(cleared.sessionId).toBe("n-2");
     const adopt: Action = { kind: "adoptSession", sessionId: "chat-7", messages: [] };
     expect(reduce(cleared, adopt)).toBe(cleared);
-    expect(cleared.sessionId).toBe("n-2"); // the user's fresh chat survives
+    expect(cleared.sessionId).toBe("n-2");
   });
 
   it("confirmRequest raises the pending approval on a streaming turn", () => {
@@ -798,7 +712,6 @@ describe("overlayState reducer", () => {
     const stopped = run([{ kind: "open" }, submit("q"), { kind: "stop" }]);
     const after = reduce(stopped, confirmRequest);
     expect(turnOf(after)).toEqual(turnOf(stopped));
-    // Identity on the collections too: nothing was rebuilt, so nothing could have been revived.
     expect(after.messages).toBe(stopped.messages);
     expect(after.pendingConfirm).toBeNull();
   });
@@ -810,21 +723,16 @@ describe("overlayState reducer", () => {
   });
 
   it("confirmResolved closes the card the brain stopped waiting on", () => {
-    // The timeout case (ADR-0022): the brain denied on the user's behalf, so the question
-    // must leave before the user can click Approve on an answer that already happened.
     const pending = run([{ kind: "open" }, submit("send it"), confirmRequest]);
     const resolved = reduce(pending, {
       kind: "event",
       event: { kind: "confirmResolved", confirmId: "c-1", outcome: "timeout" },
     });
     expect(resolved.pendingConfirm).toBeNull();
-    // Non-terminal: the turn keeps streaming its declined reply behind the closed card.
     expect(isTurnActive(resolved)).toBe(true);
   });
 
   it("confirmResolved for another id leaves the card alone", () => {
-    // A late resolution for a question already answered and replaced, or one this overlay
-    // never showed: the same stale-id rule the answer path has.
     const pending = run([{ kind: "open" }, submit("send it"), confirmRequest]);
     const other: Action = {
       kind: "event",
@@ -861,11 +769,9 @@ describe("overlayState reducer", () => {
   it("previewFade waits out a pending approval AND a still-streaming turn", () => {
     const pending = run([{ kind: "open" }, submit("send it"), { kind: "dismiss" }, confirmRequest]);
     expect(pending.mode).toBe("preview");
-    expect(reduce(pending, { kind: "previewFade" })).toBe(pending); // a question waits to be seen
-    // The user answers, but the turn is still streaming. The preview must not fade from under it.
+    expect(reduce(pending, { kind: "previewFade" })).toBe(pending);
     const resolved = reduce(pending, { kind: "confirmAnswered", approved: true });
     expect(reduce(resolved, { kind: "previewFade" })).toBe(resolved);
-    // Only once the turn completes does the fade apply.
     const done = reduce(resolved, { kind: "event", event: { kind: "complete", turnId: "t" } });
     expect(reduce(done, { kind: "previewFade" }).mode).toBe("hidden");
   });
@@ -897,7 +803,6 @@ describe("overlayState reducer", () => {
     });
     const dismissed = reduce(loaded, { kind: "reminderDismissed", reminderId: "r-1" });
     expect(dismissed.reminders.map((r) => r.reminderId)).toEqual(["r-2"]);
-    // A double-click or a stale card re-fires the same action; the list must not change.
     const again = reduce(dismissed, { kind: "reminderDismissed", reminderId: "r-1" });
     expect(again.reminders.map((r) => r.reminderId)).toEqual(["r-2"]);
   });
@@ -911,13 +816,11 @@ describe("overlayState reducer", () => {
     expect(one.notice).toEqual({ text: "Reminder dismissed. 1 reminder left.", count: 1 });
     const none = reduce(one, { kind: "reminderDismissed", reminderId: "r-2" });
     expect(none.notice).toEqual({ text: "Reminder dismissed. No reminders left.", count: 2 });
-    // And a card that was already gone says nothing, the switcher's rule on this list.
     expect(reduce(none, { kind: "reminderDismissed", reminderId: "r-2" }).notice).toBe(none.notice);
   });
 
   it("reminders survive the turn and chat actions that clear other surfaces", () => {
     const loaded = reduce(initialState, { kind: "remindersLoaded", reminders: [reminder("r-1")] });
-    // Delivery is not conversation: a new chat empties messages but keeps what is undelivered.
     const fresh = reduce(loaded, { kind: "newChat", sessionId: "s2", announce: false });
     expect(fresh.messages).toEqual([]);
     expect(fresh.reminders.map((r) => r.reminderId)).toEqual(["r-1"]);
@@ -976,8 +879,6 @@ describe("the screen-capture indicator", () => {
   it("claims only the ask when the assistant goes for the screen", () => {
     const before = streaming();
     expect(before.capture).toBeNull();
-    // The chip the brain emits for a capture is pre-dispatch, so on its own this is all the
-    // overlay knows: that the assistant went for the screen.
     expect(capture(before).capture).toBe("asked");
   });
 
@@ -990,9 +891,6 @@ describe("the screen-capture indicator", () => {
   });
 
   it("never falls a rung mid-turn, whatever order the events arrive in", () => {
-    // The asymmetry this indicator is built around, stated as a property rather than a case:
-    // over-reporting a screen read is safe and under-reporting is not, so nothing short of the
-    // turn ending may weaken the claim.
     const rung = (state: OverlayState): number =>
       state.capture === null ? 0 : state.capture === "asked" ? 1 : 2;
     const mid: readonly TurnEvent[] = [
@@ -1015,8 +913,6 @@ describe("the screen-capture indicator", () => {
   });
 
   it("stays lit for the rest of the turn, past later tool activity", () => {
-    // The fact the user is owed is "the assistant looked at my screen during this reply", not
-    // "a tool ran for a moment", so a later chip must not put the indicator out.
     const later = reduce(capture(streaming()), {
       kind: "event",
       event: { kind: "toolActivity", toolName: "get_volume", summary: "reading" },
@@ -1026,8 +922,6 @@ describe("the screen-capture indicator", () => {
   });
 
   it("takes a read outcome even for an ask it never saw", () => {
-    // A dropped activity must not cost the stronger, truer statement: the outcome is evidence
-    // the screen WAS read, and ignoring it would under-report, which is the dangerous direction.
     expect(settle(streaming(), true).capture).toBe("read");
   });
 
@@ -1037,7 +931,6 @@ describe("the screen-capture indicator", () => {
       event: { kind: "toolActivity", toolName: "get_volume", summary: "reading" },
     });
     expect(after.capture).toBeNull();
-    // Nor does another tool's successful outcome light it: the ring is about the screen.
     expect(settleOther(after).capture).toBeNull();
   });
 

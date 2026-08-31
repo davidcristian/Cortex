@@ -40,8 +40,6 @@ describe("ConfirmCard", () => {
       />,
     );
     expect(screen.getByText("3")).toBeInTheDocument();
-    // Asserted off textContent rather than getByText, whose normalizer would collapse the
-    // newlines this is about: the payload the user consents to reads as itself, not escaped.
     const values = [...container.querySelectorAll(".confirm-row dd")].map((n) => n.textContent);
     expect(values).toContain("filename: notes.md\ncontent:\n# Week 30\n- one");
   });

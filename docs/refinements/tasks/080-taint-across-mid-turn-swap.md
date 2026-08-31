@@ -15,11 +15,11 @@ tail (the stored `Role.TOOL` messages this entry predicted provenance would ride
 behind the new `HandoffStore` port (`put`/`get`/`transition`/`delete`/`active`, with an
 in-memory fake and the Redis adapter in `cortex_session/handoffs.py` passing one contract
 suite; a live record carries no TTL so boot recovery can find it, terminal ones expire after a
-diagnosis hour). The load-bearing check is the pinned round trip the ADR named: a ledger built
+diagnosis hour). The central check is the pinned round trip the ADR named: a ledger built
 through the real `TaintLedger` API comes back from the store bit-, order-, and set-exact via
 `HandoffRecord.taint_ledger()` (claimed sources still claimed, kinds intact), mutation-proven
 (dropping `sources` or `untrusted_urls` from the codec, or the ledger copy from the slot
-snapshot, each reddens it) and observed live against the compose Redis. One correction to the
+snapshot, each makes it fail) and observed live against the compose Redis. One correction to the
 entry's guess: provenance rides the record *beside* the tail as the serialized ledger, not "on
 the stored `Role.TOOL` messages" themselves, since the brain phase needs the ledger whole
 rather than re-derived per message. Honest residue, held by the entries that already own it:

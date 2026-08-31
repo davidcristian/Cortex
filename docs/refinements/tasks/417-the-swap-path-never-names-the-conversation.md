@@ -29,7 +29,7 @@ down or to leave those lines naming the turn alone.
 is a defect a grep already fails on. This is the opposite shape: no line is wrong, and every line
 is missing a field. Adding one is a change to what eleven records carry rather than to what they
 call it, and the cadence lines in particular already carry seven fields, eight on a spill, so
-it wants its own argument about whether a conversation belongs on a line about a tier's throughput.
+it needs its own argument about whether a conversation belongs on a line about a tier's throughput.
 
 **What would close it.** Decide per line rather than per module, since the two questions differ: a
 refusal and a settle are about a turn somebody is waiting on, and the deep tier's decode rate is

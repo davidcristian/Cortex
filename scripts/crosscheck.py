@@ -19,13 +19,12 @@ from readings import Reading, relation_fault
 from registry import CONSTANTS, shape
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
-# A registry entry naming one place would agree with itself forever, which is the gate that
-# cannot fail this scan was written to remove. Two is therefore the floor, not a formality, and
-# it counts mentions: a lone declaration plus one place that spends it is a real coupling.
+# A registry entry naming one place would agree with itself forever. Two is therefore the floor,
+# and it counts mentions: a lone declaration plus one place that spends it is a real coupling.
 MIN_PLACES = 2
 
 # The floor under a pinned occurrence count. Zero would ask a mention to prove the value is
-# ABSENT, which is the opposite of a coupling, and a negative one asks nothing at all.
+# absent, which is the opposite of a coupling, and a negative count asks nothing at all.
 MIN_OCCURRENCES = 1
 
 DECLARATIONS = {

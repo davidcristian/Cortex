@@ -1,4 +1,4 @@
-"""How long one call on a remote tool seam may take, and what an overrun is reported as."""
+"""How long one call on a remote tool server may take, and what an overrun is reported as."""
 
 import asyncio
 from collections.abc import Sequence
@@ -7,18 +7,17 @@ from cortex_core.errors import ToolError
 from cortex_core.ports import ToolRegistry
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec
 
+# Far above a healthy call: the shipped filesystem sidecar answers an invoke in 154 ms and a
+# listing in 146 ms (the table in docs/runbooks/tools-mcp.md). It bounds one call, not a turn,
+# so a wedged sidecar can cost a loop several of these.
 DEFAULT_TOOL_CALL_TIMEOUT_S = 60.0
 
-# What an overrun tells the model, which is the same sentence the audit line carries as its
-# error. Each names the bound, because "the tool did not answer" without it reads as a tool that
-# refused rather than as one this brain stopped waiting for.
 LISTING_OVERRAN_MSG = "listing a tool sidecar's tools took longer than {timeout_s:g}s"
 CALL_OVERRAN_MSG = "tool {name!r} did not answer within {timeout_s:g}s"
 
 
 class BoundedToolRegistry:
-    """A ``ToolRegistry`` whose every call gives up after ``timeout_s`` (ADR-0009 bound addendum).
-    """
+    """A ``ToolRegistry`` whose every call gives up after ``timeout_s``."""
 
     def __init__(
         self, inner: ToolRegistry, *, timeout_s: float = DEFAULT_TOOL_CALL_TIMEOUT_S

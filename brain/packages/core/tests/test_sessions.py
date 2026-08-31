@@ -1,5 +1,3 @@
-"""Behavior of the pure session-summary derivation and title generation (ADR-0021)."""
-
 from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime
 
@@ -56,6 +54,9 @@ def test_single_message_session_uses_it_for_both_title_and_preview() -> None:
 
 
 def test_the_title_bound_is_forty_eight_characters() -> None:
+    # The overlay writes the same number for the title it derives before a chat is listed, so
+    # both cut at the same place. Written as a literal, since comparing it to itself would pass
+    # while the two halves differed.
     assert TITLE_MAX == 48
 
 
@@ -88,7 +89,7 @@ def test_a_title_override_replaces_the_first_message_title_but_not_the_preview()
         title_override="Cortex basics",
     )
     assert summary.title == "Cortex basics"
-    assert summary.preview == "a model"  # preview stays derived from the last message
+    assert summary.preview == "a model"
 
 
 def test_a_blank_or_whitespace_override_falls_back_to_the_first_message() -> None:
@@ -121,11 +122,11 @@ def test_clean_title_collapses_whitespace_strips_quotes_and_bounds_the_length() 
     assert clean_title('  "A  Nice\nTitle"  ') == "A Nice Title"
     assert clean_title("plain title") == "plain title"
     assert clean_title("W" * (TITLE_MAX + 5)) == "W" * TITLE_MAX
-    assert clean_title("   \n\t  ") == ""  # nothing usable comes back empty for the caller
+    assert clean_title("   \n\t  ") == ""
 
 
 class _ScriptedBackend:
-    """InferenceBackend that yields a fixed event sequence, or raises before yielding."""
+    """An InferenceBackend that yields a fixed event sequence, or raises before yielding."""
 
     def __init__(
         self, events: Sequence[InferenceEvent], *, fail: InferenceError | None = None
@@ -175,24 +176,15 @@ async def test_generate_title_propagates_an_inference_error() -> None:
 
 
 async def test_the_title_request_asks_for_no_thinking_and_a_bounded_reply() -> None:
-    """The two levers ride the request, because a title is the reply and never the thinking.
-
-    Asserted together: a cap against a model that deliberates first returns ``finish_reason:
-    "length"`` and an empty reply, so the cap alone would turn every title into the fallback.
-    """
     backend = _ScriptedBackend([TextChunk("Cat sleep habits")])
 
     await generate_title(backend, "cortex", [])
 
     assert backend.bounds == [TITLE_BOUNDS]
     assert TITLE_BOUNDS.thinking is False
-    # The count beside the switch, which is the half that holds where the engine reads it: this
-    # pass's trace is dropped before a caller sees it, so a zero costs nothing (ADR-0005
-    # request-lever addendum).
     assert TITLE_BOUNDS.trace_tokens == 0
     assert TITLE_BOUNDS.max_tokens == TITLE_MAX_TOKENS
 
 
 def test_the_title_cap_is_wider_than_the_title_that_gets_stored() -> None:
-    """Why running into the cap cannot change a stored title, stated as the number it rests on."""
     assert TITLE_MAX_TOKENS * 4 > TITLE_MAX

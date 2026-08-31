@@ -1,4 +1,4 @@
-"""Port-preserving ToolRegistry combinators (ADR-0009 refinements addendum)."""
+"""Wrappers that combine or restrict a ``ToolRegistry`` and keep the same port."""
 
 from collections.abc import Callable, Sequence
 from dataclasses import replace
@@ -37,7 +37,7 @@ class AggregateToolRegistry:
 
 
 class SkipUnavailableToolRegistry:
-    """A ``ToolRegistry`` whose unavailable inner registry lists as empty and is reported."""
+    """A ``ToolRegistry`` that reports a failing inner registry and lists none of its tools."""
 
     def __init__(
         self, inner: ToolRegistry, *, name: str, report: Callable[[str, ToolError], None]
@@ -55,22 +55,22 @@ class SkipUnavailableToolRegistry:
             return ()
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate untouched. Execution failures are never skipped, only discovery is."""
+        """Call the inner registry unchanged: only tool discovery handles a failure."""
         return await self._inner.invoke(call)
 
 
 class UngatedToolRegistry:
-    """A ``ToolRegistry`` stripped of gated tools is what a subagent may be handed (ADR-0013)."""
+    """A ``ToolRegistry`` with every tool that needs confirmation removed, for a subagent."""
 
     def __init__(self, inner: ToolRegistry) -> None:
         self._inner = inner
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
-        """The inner registry's ungated tools, inner order kept."""
+        """The inner registry's tools that need no confirmation, inner order kept."""
         return tuple(spec for spec in await self._inner.describe_tools() if not spec.gated)
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate an ungated call; refuse a gated name as not found (fail closed)."""
+        """Call a tool that needs no confirmation; any other name raises ``ToolNotFoundError``."""
         gated = {spec.name for spec in await self._inner.describe_tools() if spec.gated}
         if call.name in gated:
             msg = f"unknown tool {call.name!r}"
@@ -79,7 +79,7 @@ class UngatedToolRegistry:
 
 
 class GatedToolRegistry:
-    """A ``ToolRegistry`` whose named tools are advertised ``gated`` (ADR-0022)."""
+    """A ``ToolRegistry`` that advertises the named tools with ``gated`` set."""
 
     def __init__(self, inner: ToolRegistry, *, gated: Sequence[str]) -> None:
         if not gated:
@@ -89,14 +89,14 @@ class GatedToolRegistry:
         self._gated = frozenset(gated)
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
-        """The inner registry's tools, gated names stamped, inner order kept."""
+        """The inner registry's tools, the named ones marked ``gated``, inner order kept."""
         return tuple(
             replace(spec, gated=True) if spec.name in self._gated else spec
             for spec in await self._inner.describe_tools()
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate untouched. Enforcement is the dispatcher's, declaration is ours."""
+        """Call the inner registry unchanged; the dispatcher asks for the confirmation."""
         return await self._inner.invoke(call)
 
 
@@ -116,7 +116,7 @@ class FilteredToolRegistry:
         return tuple(spec for spec in specs if spec.name in self._allow)
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate an allowlisted call; refuse any other name as not found."""
+        """Call an allowlisted tool; any other name raises ``ToolNotFoundError``."""
         if call.name not in self._allow:
             msg = f"unknown tool {call.name!r}"
             raise ToolNotFoundError(msg)

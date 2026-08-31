@@ -111,9 +111,9 @@ def render(tasks: list[Task], group_word: str) -> str:
         if task.status.state in NEEDS_TRIGGER and task.fields.get("Trigger") == UNRECORDED
     ]
     if blank:
-        # This count exists to be driven to zero, so the sentence has to survive its own
-        # last reading: "1 of these wait" is the one number where the plural is wrong, and
-        # it is the number a reader sees on the pass that finishes the job.
+        # This count is driven to zero, so the sentence has to read correctly at one: "1 of
+        # these wait" would be the wrong plural, and one is the number a reader sees on the pass
+        # that finishes the job.
         opener = "One of these waits" if len(blank) == 1 else f"{len(blank)} of these wait"
         lines.append(
             f"{opener} on something nobody wrote down. That is a gap in the "

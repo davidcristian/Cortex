@@ -5,7 +5,7 @@
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md)
 
 Opened 2026-08-07 by the close above, which
-measured the door and declined to answer it there. The chords are deliberately live while the
+measured the path and declined to answer it there. The chords are deliberately live while the
 panel is not on screen, which is right for the ones that summon it (`Ctrl+N` and the cycle keys
 set `mode: "panel"` on their way through), and `toggleSwitcher` sets no mode at all: measured at
 900x900, `Ctrl+K` from a tucked panel mounts the list with its three rows and turns the chats
@@ -51,7 +51,7 @@ summon that lands on an already open list. Nothing blocks it.
   | `Ctrl+↑` | nothing | nothing | nothing | nothing |
   | `Ctrl+↓` | swaps chat, announced | summons, swaps, announced | console leaves, swaps, announced | console and list leave, swaps, announced |
 
-  `Ctrl+↑` doing nothing anywhere is not a fifth invisible door and is measured rather than
+  `Ctrl+↑` doing nothing anywhere is not a fifth invisible path and is measured rather than
   assumed: `cycleTarget` does not wrap (`overlay/sessionState.ts`), the demo's restored chat is at
   the newest end, and an out of range target reads back as null, so the key means "the previous
   chat" and there is not one. It mounts nothing where nobody can see it, which is the property
@@ -88,13 +88,13 @@ summon that lands on an already open list. Nothing blocks it.
   The last cell is the "summon that lands on an already open list" trace the entry asked for, and
   it is the open-rather-than-toggle rule paying for itself: the old code shut that list, so a
   reader who could not see it lost it to the press meant to show it.
-  **The mutation proof.** Five mutations, five distinct rednesses, nothing else in the 673 test
-  suite moving under any of them: stopping the helper from setting `mode` reddens three cases (the
+  **The mutation proof.** Five mutations, five distinct failures, nothing else in the 673 test
+  suite moving under any of them: stopping the helper from setting `mode` fails three cases (the
   two tucked ones and the existing open-then-shut case, which the key can only satisfy by
-  summoning); letting it leave `consoleTab` alone reddens the behind-the-console case; restoring
-  the bare `!state.switcherOpen` flip reddens the open-rather-than-toggle case; asking the console
-  toggle for the flag alone rather than the flag and the mode reddens the `?` case; and dropping
-  `touched` reddens both tucked cases.
+  summoning); letting it leave `consoleTab` alone fails the behind-the-console case; restoring
+  the bare `!state.switcherOpen` flip fails the open-rather-than-toggle case; asking the console
+  toggle for the flag alone rather than the flag and the mode fails the `?` case; and dropping
+  `touched` fails both tucked cases.
   One property is worth writing down rather than filing: on the real Win32 body a window that is
   not shown receives no keys at all, so the tucked half of this table is reachable through the orb
   and the preview, which are modes with the window up and the panel away, and through a dismissed
@@ -104,8 +104,8 @@ summon that lands on an already open list. Nothing blocks it.
 
 ## Trail
 
-- 2026-08-07: Opened by the close above, which measured the door and declined to answer it there.
+- 2026-08-07: Opened by the close above, which measured the path and declined to answer it there.
 - 2026-08-07: Landed as the first of the three shapes, the area going 11 to 10, one out and none in,
   filed about one key and answered for a table of six. The entry named one broken key where the
-  measurement found two, which is the sixth entry in this chain to undercount its own doors and this
+  measurement found two, which is the sixth entry in this chain to undercount its own paths and this
   time the sixth of a table of six. Nothing was deferred behind it.

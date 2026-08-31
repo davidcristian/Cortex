@@ -6,11 +6,11 @@
 
 Opened 2026-08-18 by the close of [292](292-slug-rule-approximates-a-renderer.md), which made
 `scripts/headingshapes.py` refuse six heading shapes whose anchor the slug rule cannot work out.
-Five of the six are recognised by a mark that is present in the heading itself. The sixth family,
-links, is recognised by a bracketed span **followed** by an opening parenthesis or an opening
-bracket, which covers an inline link, an image and a collapsed reference link, and misses the
-**shortcut** form: a bracketed label alone, which markdown resolves against a link reference
-definition somewhere else in the document.
+Five of the six are recognised by a mark that is present in the heading itself. The sixth, a link,
+is recognised by a bracketed span **followed** by an opening parenthesis or an opening bracket,
+which covers an inline link, an image and a collapsed reference link, and misses the **shortcut**
+form: a bracketed label alone, which markdown resolves against a link reference definition somewhere
+else in the document.
 
 That form disagrees the same way the others do. A renderer slugs the label's text and this rule
 slugs the brackets away too, which happens to agree, but the rendered text is the label while the

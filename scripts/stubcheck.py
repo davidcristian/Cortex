@@ -1,4 +1,4 @@
-"""Repo gate: fail when the committed Rust stub stops saying what the proto says."""
+"""Fail when the committed Rust stub stops saying what the proto says."""
 
 import argparse
 import sys
@@ -17,13 +17,9 @@ from protocomments import (
     rust_docs,
 )
 
-# The two files this gate ties together, relative to the repo root: the source of truth for the
-# seam, and the generated half that copies its prose verbatim.
 PROTO = Path("proto/body.proto")
 STUB = Path("body/crates/rpc/src/_generated/cortex.seam.v1.rs")
 
-# The floor under the reading in the success line, and the same floor `dashcheck.py` carries: a
-# side that came back empty has read nothing, and a comparison over nothing cannot fail.
 MIN_COMMENTS = 1
 MIN_DOCS = 1
 
@@ -33,7 +29,7 @@ class StubCheckError(Exception):
 
 
 class Miss(NamedTuple):
-    """One proto comment the committed stub carries fewer copies of than it is owed."""
+    """One proto comment the committed stub has fewer copies of than it needs."""
 
     line: int
     text: str
@@ -42,7 +38,7 @@ class Miss(NamedTuple):
 
 
 class Scan(NamedTuple):
-    """One comparison: what it was over, then what it could not account for."""
+    """What one comparison read, and what it could not account for."""
 
     leading: int
     trailing: int
@@ -52,7 +48,7 @@ class Scan(NamedTuple):
 
 
 def _read(root: Path, relative: Path) -> str:
-    """Read one side of the comparison, refusing a file that is absent or is not text."""
+    """Read one side of the comparison, raising when the file is absent or is not text."""
     try:
         return (root / relative).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
@@ -61,10 +57,12 @@ def _read(root: Path, relative: Path) -> str:
 
 
 def owed(comments: Iterable[Comment]) -> Counter[str]:
-    """How many copies of each normalized text the stub owes, a service comment owing two."""
+    """How many copies of each normalized comment the stub needs; a service comment needs two."""
     tally: Counter[str] = Counter()
     for comment in comments:
         text = normalize(comment.text)
+        # prost merges a banner's closing rule line into the heading above it, so the stub
+        # keeps fewer copies of that line than the proto writes.
         if text == RULE:
             tally[text] = MIN_DOCS
             continue
@@ -73,7 +71,7 @@ def owed(comments: Iterable[Comment]) -> Counter[str]:
 
 
 def shortfalls(comments: Iterable[Comment], said: Counter[str]) -> list[Miss]:
-    """Every text the stub holds fewer copies of than it owes, reported at its first proto line."""
+    """Every comment the stub has too few copies of, reported at its first line in the proto."""
     wanted = owed(comments)
     seen: set[str] = set()
     misses: list[Miss] = []
@@ -119,7 +117,7 @@ def check(root: Path) -> Scan:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any misses and return the process exit code."""
+    """Run the check; print any misses and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when a proto comment is missing from the committed Rust stub.",
     )

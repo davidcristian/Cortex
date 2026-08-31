@@ -1,8 +1,8 @@
 # Runbook: replaying the record's mutation tables
 
-A mutation table is this repo's answer to distrusting green: a change states which edits it
-reddens and how many cases each one takes down. Every one of them is a self report until somebody
-other than its author re-runs it, which is what a replay pass is for. The decision behind the
+A mutation table is how a change here proves its gate can fail: it names the edits that make the
+suite fail and how many cases each edit takes down. Every one of them is a self report until
+somebody other than its author re-runs it, which is what a replay pass is for. The decision behind the
 numbers below is the [ADR-0002](../adr/ADR-0002-toolchain-gates.md) replay-cadence addendum; this
 file is how a pass is run and where its result lands.
 
@@ -44,8 +44,8 @@ five smallest, so the sample is a function of the seed alone and reproduces off 
 For each drawn commit, read its body and its diff (`git show <sha>`). **The table is often not in
 the message.** A body is drawn for carrying the vocabulary, and on this repo's larger changes the
 table itself lives in the ADR addendum that same commit lands, so the diff is where to look for it;
-one of the five bodies drawn on 2026-08-25 said only "reddens" in passing and carried a five row
-table in the addendum it added. Then, per row:
+one of the five bodies drawn on 2026-08-25 mentioned its mutations only in passing and carried a
+five row table in the addendum it added. Then, per row:
 
 1. **Find the line the mutation perturbs.** A mutation is always a perturbation of a line the
    change itself touched, so the file and the edit come off the commit's own diff even when the
@@ -78,7 +78,8 @@ reconstruction: a row reading "a git that cannot answer treated as nothing ignor
 cases, the plant mutated the one refusal the sentence seems to name, and the suite reported one.
 The record was right and the plant was half of it, the module having two refusal sites. **A count
 that comes back lower than claimed is a partial plant until proven otherwise**, and the expected
-column, "both refusals fail", is what says so. Only then does it fall into one of three kinds, which want three different answers.
+column, "both refusals fail", is what says so. Only then does it fall into one of three kinds,
+which take three different answers.
 
 **A wrong count.** The line is there, the edit applies, the suite runs, and the number differs.
 Correct the record where the claim lives, which is the ADR addendum carrying the table, with a
@@ -86,12 +87,12 @@ dated note saying what was observed and when. Two of these are worse than a book
 are handled as defects rather than corrections:
 
 - **A count of zero**, meaning the mutant survives the suite. The row claimed the suite would have
-  caught something and it does not, so the answer is an assertion, not an edit to the number. This
-  is not hypothetical: a boundary arm landed here in August because a sweep's second row came back
-  zero and showed that the strictness a rule insists on was enforced by nothing.
+  caught something and it does not, so the answer is a new assertion rather than an edit to the
+  number. That has already happened: a boundary arm landed here in August because a sweep's second row came back
+  zero and showed that the strictness a rule declares was enforced by nothing.
 - **A count of zero that is unreachable by construction**, meaning the mutated line lives behind a
   `pragma: no cover` adapter that only a live run touches. That row is out of a replay pass's
-  reach, and it is out of it honestly; the table should say the row was killed live, and the pass
+  reach for a legitimate reason: the table should say the row was killed live, and the pass
   records it as live-only rather than as a hole. One table in this record has exactly that shape,
   seven mutants killed by the suite and an eighth killed by the live run.
 

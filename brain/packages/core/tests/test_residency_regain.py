@@ -1,5 +1,3 @@
-"""Regaining residency without a turn: the state a restore that gave up used to leave for ever."""
-
 import asyncio
 import logging
 from datetime import UTC, datetime
@@ -37,7 +35,7 @@ _REFUSED = "connection refused"
 
 
 class _FixedClock:
-    """A clock that never advances; every gate here settles on a state or on an expired bound."""
+    """A clock that never advances; every wait here ends on a state or an expired deadline."""
 
     def now(self) -> datetime:
         return datetime(2026, 8, 18, 21, 0, tzinfo=UTC)
@@ -69,7 +67,7 @@ def _manager(
 
 
 def _stalled_host(**overrides: object) -> ScriptedModelHost:
-    """A host whose cortex starts and then never serves, which is what makes a restore give up."""
+    """A host whose cortex starts and then never serves, so the restore gives up."""
     fields: dict[str, object] = {
         "running": [_CORTEX],
         "status_override": {_CORTEX: ModelHostState.FAILED},
@@ -78,12 +76,12 @@ def _stalled_host(**overrides: object) -> ScriptedModelHost:
 
 
 def _regain_log(caplog: pytest.LogCaptureFixture) -> list[str]:
-    """Only this module's own lines: every case here first drove a swap that logged its failure."""
+    """Only this module's own lines, each case having first run a swap that logged a failure."""
     return [record.msg for record in caplog.records if record.name == _REGAIN_LOGGER]
 
 
 def _regain_lines(caplog: pytest.LogCaptureFixture) -> list[str]:
-    """The same lines as an operator reads them, fields and all."""
+    """The same lines as an operator sees them, fields included."""
     return [
         PlainFormatter().format(record)
         for record in caplog.records
@@ -92,7 +90,7 @@ def _regain_lines(caplog: pytest.LogCaptureFixture) -> list[str]:
 
 
 async def _give_up(manager: SwappingModelManager) -> None:
-    """Run one handoff whose swap back fails twice, which is the state this module exists for."""
+    """Run one handoff whose swap back fails twice."""
     with pytest.raises(ResidencyRestoreError):
         async with manager.swap_scope(_DEEP):
             pass  # pragma: no cover -- a failed swap in never runs the scope's body
@@ -100,20 +98,20 @@ async def _give_up(manager: SwappingModelManager) -> None:
 
 
 async def _refuses_every_turn(manager: SwappingModelManager) -> None:
-    """The cost of the dead end, asserted rather than described: no turn can run at all."""
+    """Check the dead end: no turn can run at all."""
     with pytest.raises(ModelUnavailableError, match="resident: None"):
         async with manager.acquire(_CORTEX):
             pass  # pragma: no cover -- the acquire raises before the body runs
 
 
 async def _serves_turns_again(manager: SwappingModelManager) -> None:
-    """And the recovery, asserted the same way: the lease hands out the cortex once more."""
+    """Check the recovery: the lease hands out the cortex again."""
     async with manager.acquire(_CORTEX) as lease:
         assert lease.endpoint == _ENDPOINTS[_CORTEX]
 
 
 def _placer() -> VramBudgetPlacer:
-    """Headroom 3.0 GiB beside the cortex, so the 2.0 GiB spawn below lands on the GPU."""
+    """3.0 GiB of headroom beside the cortex, so the 2.0 GiB subagent below fits the GPU."""
     return VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
 
 
@@ -124,23 +122,21 @@ def _spawn() -> PlacementRequest:
 async def test_a_restore_that_gave_up_is_regained_by_the_next_pass_with_no_restart(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The entry's whole point: the manual recovery no longer ends by restarting the brain."""
     host = _stalled_host()
     manager = _manager(host)
     await _give_up(manager)
     await _refuses_every_turn(manager)
-    host.set_status(_CORTEX, None)  # POST /models/cortex/start, and it came up this time
+    host.set_status(_CORTEX, None)
     host.calls.clear()
     with caplog.at_level(logging.INFO, logger=_REGAIN_LOGGER):
         await manager.heal_residency()
-    assert host.calls == [("status", _CORTEX), ("status", _DEEP)]  # read, never written
+    assert host.calls == [("status", _CORTEX), ("status", _DEEP)]
     assert manager.residency() == RESIDENCY_SERVING
     await _serves_turns_again(manager)
     assert _regain_log(caplog) == [_REGAINED]
 
 
 async def test_a_serving_report_costs_the_pass_no_control_call_at_all() -> None:
-    """The common case is a healthy deployment, so it must pay nothing for this to exist."""
     host = ScriptedModelHost(running=[_CORTEX])
     manager = _manager(host)
     host.calls.clear()
@@ -150,11 +146,6 @@ async def test_a_serving_report_costs_the_pass_no_control_call_at_all() -> None:
 
 
 async def test_a_cortex_that_is_not_serving_yet_leaves_the_report_where_it_was() -> None:
-    """A pass while the machine is still broken is one status call and no verdict at all.
-
-    The deep tier is not even asked about, nothing it could be doing making a cortex that is not
-    serving into a standing residency.
-    """
     host = _stalled_host()
     manager = _manager(host)
     await _give_up(manager)
@@ -169,14 +160,13 @@ async def test_a_cortex_that_is_not_serving_yet_leaves_the_report_where_it_was()
 async def test_a_deep_model_still_on_the_card_stops_the_regain(
     deep_state: ModelHostState,
 ) -> None:
-    """A restore can give up at the stop as easily as at the start, and then both tiers are up."""
     host = _stalled_host(
         status_override={_CORTEX: ModelHostState.FAILED, _DEEP: deep_state},
         fail={("stop", _DEEP): "still resident"},
     )
     manager = _manager(host)
     await _give_up(manager)
-    host.running.add(_CORTEX)  # started by hand, against the runbook's advice
+    host.running.add(_CORTEX)
     host.set_status(_CORTEX, None)
     host.calls.clear()
     await manager.heal_residency()
@@ -186,7 +176,6 @@ async def test_a_deep_model_still_on_the_card_stops_the_regain(
 
 
 async def test_a_deep_tier_the_daemon_never_had_is_off_the_card() -> None:
-    """Nothing can be resident under a name this daemon's roster does not carry."""
     host = _stalled_host(unhosted=[_DEEP])
     manager = _manager(host)
     await _give_up(manager)
@@ -199,11 +188,6 @@ async def test_a_deep_tier_the_daemon_never_had_is_off_the_card() -> None:
 async def test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """No reading is not a reading that says yes, which is the direction that would be worse.
-
-    A pass that read a transport failure as a serving cortex would hand out leases onto a card it
-    has no evidence about, every interval, on the one path where the evidence is the whole point.
-    """
     host = ScriptedModelHost(running=[_CORTEX], fail={("status", _CORTEX): _REFUSED})
     manager = _manager(host)
     await _give_up(manager)
@@ -212,8 +196,6 @@ async def test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing(
         await manager.heal_residency()
     assert host.calls == [("status", _CORTEX)]
     assert manager.residency() == RESIDENCY_LOST
-    # The whole line, so the cause and the tier are pinned where they now print rather than in a
-    # message that used to spell them a second time.
     assert _regain_lines(caplog) == [
         f'DEBUG:{_REGAIN_LOGGER}:{_NO_CORTEX_READING} error="{_REFUSED}" model={_CORTEX}'
     ]
@@ -222,7 +204,6 @@ async def test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing(
 async def test_a_host_that_cannot_be_asked_about_the_deep_model_publishes_nothing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The same posture one reading later: an unanswered deep tier is not a cleared one."""
     host = _stalled_host(fail={("status", _DEEP): _REFUSED})
     manager = _manager(host)
     await _give_up(manager)
@@ -236,7 +217,6 @@ async def test_a_host_that_cannot_be_asked_about_the_deep_model_publishes_nothin
 
 
 async def test_a_handoff_that_begins_mid_pass_wins_the_publish() -> None:
-    """The race the guarded publish exists for, run rather than reasoned about."""
     host = ScriptedModelHost(running=[_CORTEX], pause_at=[("status", _DEEP)])
     manager = _manager(host)
     await manager.publish_boot_residency(serving=False)
@@ -253,7 +233,6 @@ async def test_a_handoff_that_begins_mid_pass_wins_the_publish() -> None:
 
 
 async def test_a_pass_sweeps_the_peers_before_it_republishes_the_resident() -> None:
-    """One pass, one reading of one machine, in the order a probe has to read it back."""
     host = _stalled_host()
     manager = _manager(host, plan=_plan(evict_models=(_TIER,)))
     await _give_up(manager)
@@ -269,12 +248,11 @@ async def test_a_pass_sweeps_the_peers_before_it_republishes_the_resident() -> N
     report = manager.residency()
     assert report.serving is True
     assert report.detail == TIERS_MISSING_DETAIL.format(models=_TIER)
-    await manager.heal_residency()  # the tier is observed serving; the resident half stands down
+    await manager.heal_residency()
     assert manager.residency() == RESIDENCY_SERVING
 
 
 async def test_a_regained_residency_charges_the_placer_for_the_cortex_again() -> None:
-    """The other half of the dead end: delegation stayed on the CPU until the process restarted."""
     placer = _placer()
     host = _stalled_host(device_memory=DeviceMemory(free_mib=20000, total_mib=24000))
     manager = _manager(host, placer, _plan(brain_vram_mib=13312))
@@ -282,18 +260,17 @@ async def test_a_regained_residency_charges_the_placer_for_the_cortex_again() ->
     assert before.target is PlacementTarget.GPU
     placer.release(before)
     await _give_up(manager)
-    assert placer.place(_spawn()).target is PlacementTarget.CPU  # the deep model holds the card
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
     host.set_status(_CORTEX, None)
     await manager.heal_residency()
     assert placer.place(_spawn()).target is PlacementTarget.GPU
 
 
 async def test_a_boot_that_could_not_confirm_the_cortex_goes_green_when_it_comes_up() -> None:
-    """The cheap half of the same hole: an amber dot nothing but a restart could ever clear."""
     host = ScriptedModelHost(running=[_CORTEX])
     manager = _manager(host)
     await manager.publish_boot_residency(serving=False)
     assert manager.residency() == RESIDENCY_BOOT_FAILED
-    await _serves_turns_again(manager)  # amber, and still leasable: the boot publish is display
+    await _serves_turns_again(manager)
     await manager.heal_residency()
     assert manager.residency() == RESIDENCY_SERVING

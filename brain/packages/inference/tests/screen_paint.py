@@ -1,4 +1,8 @@
-"""A 4K painter and a transcription of the body's own crop and downscale (ADR-0029)."""
+"""A 4K painter, and the body's own crop and downscale arithmetic repeated here.
+
+It draws a synthetic desktop at real type sizes, then puts it through what ``body_core`` does to a
+real capture, so a legibility measurement scores the picture the body would send.
+"""
 
 import struct
 import zlib
@@ -8,14 +12,13 @@ from pixel_font import GLYPH_HEIGHT, GLYPH_WIDTH, glyph
 
 Colour = tuple[int, int, int]
 
-# How many source pixels each font pixel is rasterised into before the box filter shrinks it
-# to the final size. Six is enough that the smallest cap height in the corpus (11 px, from
-# 15 px type) still averages over more than 50 source pixels per glyph pixel.
+# How many source pixels each font pixel is drawn into before the box filter shrinks it. Six is
+# enough that the corpus's smallest cap height, 11 px from 15 px type, averages over more than 50
+# source pixels per glyph pixel.
 _SUPERSAMPLE = 6
 
-# A real sans face puts its cap height at roughly 0.7 em, and this font spends 7 of its 8 rows
-# on one. Both numbers are here so a type size in the corpus means the same thing it means on a
-# desktop: 15 px type draws an 11 px cap, which is what the measured 15 px row is.
+# A real sans face puts its cap height at roughly 0.7 em, and this font spends 7 of its 8 rows on
+# one, so 15 px type draws an 11 px cap here as it would on a desktop.
 _CAP_PER_EM = 0.7
 _CELL_ROWS = GLYPH_HEIGHT
 _CAP_ROWS = 7
@@ -42,16 +45,12 @@ class Rect:
 
 
 def cap_height(size: int) -> int:
-    """The cap height a given physical type size draws, which is what legibility tracks.
-
-    Rounded half up rather than by ``round``, whose half-to-even would draw 15 px type with a
-    10 px cap where a real face draws 11.
-    """
+    """Return the cap height a given physical type size draws, which is what legibility tracks."""
     return max(1, int(size * _CAP_PER_EM + 0.5))
 
 
 def advance(size: int) -> int:
-    """The horizontal step from one character to the next at a given type size."""
+    """Return the horizontal step from one character to the next at a given type size."""
     return max(1, round(cap_height(size) * _ADVANCE_COLS / _CAP_ROWS))
 
 
@@ -100,7 +99,7 @@ class Screen:
 
 
 def _mask(value: str) -> bytearray:
-    """One byte per supersampled pixel, 255 where the glyphs are inked and 0 where they are not."""
+    """Build one byte per supersampled pixel, 255 where a glyph is inked and 0 where it is not."""
     width = len(value) * _ADVANCE_COLS * _SUPERSAMPLE
     mask = bytearray(width * _CELL_ROWS * _SUPERSAMPLE)
     ink = b"\xff" * _SUPERSAMPLE
@@ -132,7 +131,9 @@ def _shrink(mask: bytearray, source_width: int, width: int, height: int) -> byte
 
 
 def scaled_dimensions(width: int, height: int, bound: int) -> tuple[int, int]:
-    """``screen_image.rs``'s own: the size whose longest edge is at most ``bound``, floored."""
+    """Return the size whose longest edge is at most ``bound``, floored, as ``screen_image.rs``
+    computes it.
+    """
     longest = max(width, height)
     if longest <= bound:
         return (width, height)
@@ -140,11 +141,7 @@ def scaled_dimensions(width: int, height: int, bound: int) -> tuple[int, int]:
 
 
 def downscale(screen: Screen, region: Rect, bound: int) -> tuple[int, int, bytes]:
-    """``downscale``: read ``region`` out of the frame and shrink it to ``bound``.
-
-    The identity arm is the one the window target exists for: a region already inside the
-    bound is copied pixel for pixel with no averaging at all.
-    """
+    """Read ``region`` out of the frame and shrink it to ``bound``."""
     width, height = scaled_dimensions(region.width, region.height, bound)
     if (width, height) == (region.width, region.height):
         return (width, height, _copy_region(screen, region))
@@ -152,7 +149,7 @@ def downscale(screen: Screen, region: Rect, bound: int) -> tuple[int, int, bytes
 
 
 def _copy_region(screen: Screen, region: Rect) -> bytes:
-    """The unscaled arm: ``region``'s own rows, in order, at full resolution."""
+    """Return ``region``'s own rows unscaled, in order, at full resolution."""
     out = bytearray()
     for row in range(region.height):
         start = ((region.y + row) * screen.width + region.x) * 3
@@ -197,5 +194,5 @@ def encode_png(width: int, height: int, rgb: bytes) -> bytes:
 
 
 def _chunk(tag: bytes, data: bytes) -> bytes:
-    """One length-prefixed, CRC-suffixed PNG chunk."""
+    """Build one length-prefixed, CRC-suffixed PNG chunk."""
     return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))

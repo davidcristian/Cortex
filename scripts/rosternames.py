@@ -3,14 +3,12 @@
 import re
 from typing import NamedTuple
 
-# A code span, and a bullet's own text. Both are deliberately small: what a roster is written in
-# is one document's convention, and the shapes below are the whole of what this reads.
 CODE_SPAN = re.compile(r"`([^`]+)`")
 BULLET = re.compile(r"^ *[-*] +(.+)$")
 
 
 class PassageError(Exception):
-    """A document no longer carries the passage a roster is written in, or a bullet inside it."""
+    """A document no longer has the passage a roster is written in, or a bullet inside it."""
 
 
 class Bulleted(NamedTuple):
@@ -24,7 +22,7 @@ class Spelled(NamedTuple):
 
 
 class Bare(NamedTuple):
-    """Every word matching ``pattern`` is a name, for a passage that carries no code spans."""
+    """Every word matching ``pattern`` is a name, for a passage that has no code spans."""
 
     pattern: re.Pattern[str]
 
@@ -33,7 +31,7 @@ Written = Bulleted | Spelled | Bare
 
 
 def _once(text: str, phrase: str, which: str) -> int:
-    """Return where ``phrase`` starts, refusing a boundary the document does not carry once."""
+    """Return where ``phrase`` starts, raising unless the document has it exactly once."""
     found = text.count(phrase)
     if found != 1:
         msg = (
@@ -55,7 +53,7 @@ def passage(text: str, opens: str, closes: str) -> str:
 
 
 def _bulleted(text: str) -> list[str]:
-    """Return the first code span of every bullet in ``text``, refusing a bullet without one."""
+    """Return the first code span of every bullet in ``text``, raising on a bullet without one."""
     found: list[str] = []
     for line in text.splitlines():
         bullet = BULLET.match(line)
@@ -73,12 +71,12 @@ def _bulleted(text: str) -> list[str]:
 
 
 def _inside_a_word(text: str, at: int) -> bool:
-    """Whether ``text`` carries a word character at ``at``, which puts a match inside a word."""
+    """Whether ``text`` has a word character at ``at``, which puts a match inside a word."""
     return 0 <= at < len(text) and (text[at].isalnum() or text[at] == "_")
 
 
 def _bare(text: str, pattern: re.Pattern[str]) -> list[str]:
-    """Return every whole word in ``text`` matching ``pattern``, in the order it carries them."""
+    """Return every whole word in ``text`` matching ``pattern``, in the order they appear."""
     return [
         found.group(0)
         for found in pattern.finditer(text)

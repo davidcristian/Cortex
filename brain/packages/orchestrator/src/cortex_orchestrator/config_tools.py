@@ -61,8 +61,8 @@ class ToolsConfig(BaseSettings):
         if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
             msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
             raise ValueError(msg)
-        # A blank gate reason would render an empty confirm card line, a consent surface that
-        # no longer says what is being approved. Misconfiguration fails at boot, not on screen.
+        # A blank gate reason would render an empty confirm card line, leaving a consent surface
+        # that no longer says what is being approved, so it fails at boot rather than on screen.
         if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
             msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
             raise ValueError(msg)

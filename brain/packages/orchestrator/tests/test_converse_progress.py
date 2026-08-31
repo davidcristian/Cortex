@@ -1,5 +1,3 @@
-"""Progress a suspended turn cannot yield reaches the overlay over the real converse() stream."""
-
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
 
@@ -47,8 +45,7 @@ _READ_SPEC = ToolSpec(name="read", description="Read a file", parameters={})
 
 
 class _OneReadThenAnswer:
-    """Stateless subagent backend: read once, then answer (read off the messages, so a batch's
-    concurrent subagents share one instance without a counter overlap would scramble)."""
+    """Stateless subagent backend: read once, then answer."""
 
     async def stream(
         self,
@@ -86,7 +83,7 @@ class _SpawnThenReply:
 
 
 def _delegating_factory() -> EngineFactory:
-    """An engine whose cortex delegates to a tool-using subagent, per stream (ADR-0010)."""
+    """Build an engine whose cortex delegates to a tool-using subagent, one per stream."""
 
     def make(_confirmer: ConfirmerPort, progress: ProgressSink) -> TurnEngine:
         task_store = InMemoryTaskStore()
@@ -142,34 +139,24 @@ async def test_a_delegating_turn_surfaces_subagent_progress_on_the_wire() -> Non
     statuses = [e.status for e in events if e.WhichOneof("event") == "status"]
     activities = [e.tool_activity for e in events if e.WhichOneof("event") == "tool_activity"]
     names = [a.tool_name for a in activities]
-    # The batch's scale, brain-authored, reached the overlay:
     assert any(s.state == "delegating" and s.detail == "delegating 1 subtask" for s in statuses)
-    # Both the cortex's own spawn chip and the subagent's audited read step reached it, the read
-    # only reachable through the side channel (the turn was suspended inside the spawn dispatch):
     assert "spawn_subagents" in names
     assert ("read", "Read a file") in [(a.tool_name, a.summary) for a in activities]
-    # The reply still completed after the delegated work fed back.
     assert any(e.WhichOneof("event") == "turn_complete" for e in events)
 
 
 async def test_a_delegated_step_reaches_the_wire_announced_and_unsettled() -> None:
-    """The outcome pairing covers the turn's own dispatches and not this stream (ADR-0029)."""
     events = await _collect(converse(_delegating_factory(), _events_from(_user_turn("delegate"))))
     activities = [
         e.tool_activity.tool_name for e in events if e.WhichOneof("event") == "tool_activity"
     ]
     outcomes = [e.tool_outcome.tool_name for e in events if e.WhichOneof("event") == "tool_outcome"]
-    # The turn's own dispatch is the spawn, and it is settled exactly once.
     assert activities == ["spawn_subagents", "read"]
     assert outcomes == ["spawn_subagents"]
 
 
 class _AccountThenReply:
-    """Cortex backend for the fold test: an account first, then the answer.
-
-    The window drains its own call to completion before the reply's stream is opened, so the
-    two are a sequence and one stateless instance can serve both.
-    """
+    """Cortex backend for the fold test: an account first, then the answer."""
 
     async def stream(
         self,
@@ -186,7 +173,7 @@ class _AccountThenReply:
 
 
 def _folding_factory(store: InMemorySessionStore) -> EngineFactory:
-    """An engine whose history window recaps what it drops, per stream (ADR-0038)."""
+    """Build an engine whose history window recaps what it drops, one per stream."""
 
     def make(_confirmer: ConfirmerPort, progress: ProgressSink) -> TurnEngine:
         backend = _AccountThenReply()
@@ -204,7 +191,6 @@ def _folding_factory(store: InMemorySessionStore) -> EngineFactory:
 
 
 async def test_a_folding_turn_says_so_on_the_wire_before_the_reply_arrives() -> None:
-    """The fold runs inside message assembly, before the turn's generator yields anything."""
     store = InMemorySessionStore()
     at = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
     for index in range(4):
@@ -221,6 +207,5 @@ async def test_a_folding_turn_says_so_on_the_wire_before_the_reply_arrives() -> 
         s.state == "folding" and s.detail == "summarizing the earlier part of this conversation"
         for s in statuses
     )
-    # It landed BEFORE the first word of the reply, which is what makes it an explanation.
     assert kinds.index("status") < kinds.index("text_delta")
     assert any(e.WhichOneof("event") == "turn_complete" for e in events)

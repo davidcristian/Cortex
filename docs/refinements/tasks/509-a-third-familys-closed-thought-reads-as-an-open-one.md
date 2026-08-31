@@ -14,17 +14,17 @@ native family and `<|channel>thought`/`<channel|>` on gemma-4. Those are the two
 [ADR-0004](../../adr/ADR-0004-model-lineup.md)'s lineup resolves to today. A tail carrying **no**
 marker is read as an open thought, deliberately, because that is precisely the failing pick's own
 answer to the switch: drop the block, add nothing. The two cases are therefore indistinguishable
-from the outside, and the second one is a guess wearing a verdict's clothes.
+from the outside, and the second one is a guess reported as a verdict.
 
-So a pick whose template closes a thought in a third spelling reads as open, predicts "does
-nothing", and is refused as a broken prediction the moment its constrained cell holds. The refusal
+So a pick whose template closes a thought with a third pair of markers reads as open, predicts
+"does nothing", and is reported as a broken prediction the moment its constrained cell holds. The refusal
 prints the tail it read, which is what makes this recoverable by a person in about ten seconds
-rather than a mystery; it is still a red aimed at the wrong thing, and the entry it would send a
+rather than a mystery; it is still a failure aimed at the wrong thing, and the entry it would send a
 reader to is the record's eleven rows rather than this module's two pairs.
 
 **Why it was left.** Every pick this repo has ever measured is one of the two families, and a third
 one arriving is a lineup decision that comes with a person looking at it. Inventing a third state
-now, before there is a template to read, would be designing against an imagined spelling; the
+now, before there is a template to read, would be designing against an imagined marker; the
 honest version of it needs a real one.
 
 **What would close it.** A third state, `unknown`, entered when the tail carries no marker of any
@@ -48,7 +48,7 @@ template to be measured against before it is written.
   is already read on every run and the fact it turns on is already asserted, since the failing
   pick moves a system turn at the **front** and leaves its tail byte identical. So no third-family
   template had to be measured. `scripts/switchtail.py` gained `marked`, and an unmarked switched
-  tail that differs from the unswitched one is now refused as a third spelling rather than
-  published as an open door. Opened
+  tail that differs from the unswitched one is now reported as a third marker pair rather
+  than published as an open thought. Opened
   [R-517](517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md), the case the
   discriminator cannot see. Recorded as the ADR-0005 third-spelling addendum.

@@ -1,17 +1,13 @@
-"""Which scans the single gate runs, read from the two files that run them."""
+"""Which scans `just check` runs, read from the two files that run them."""
 
 import re
 from pathlib import Path
 
-# The two files that run the scans, and the recipe and job inside them that do.
 JUSTFILE = Path("justfile")
 WORKFLOW = Path(".github/workflows/ci.yml")
 GATE = "check"
 JOB = "cross-tree"
 
-# A recipe header at column zero, with or without parameters; a line of the gate recipe that runs
-# one scan and nothing else; a step of the CI job; the recipe such a step runs; and the module a
-# recipe hands to python.
 HEADER = r"^{name}(?: [^:]*)?:$"
 INVOKES = re.compile(r"^\s+just (check-[a-z-]+)$")
 STEP = re.compile(r"^\s+- run: (.+?)\s*$")
@@ -20,16 +16,16 @@ MODULE = re.compile(r"uv run python ([a-z_]+\.py)")
 
 
 class ScanReadError(Exception):
-    """The scans the gate runs cannot be read, or the two files that run them disagree."""
+    """The scans cannot be read, or the two files that run them disagree about which they are."""
 
 
 def _indent(line: str) -> int:
-    """How deep ``line`` is written, which is what says whether it is inside the block above."""
+    """How far ``line`` is indented, which is what decides whether it is inside the block above."""
     return len(line) - len(line.lstrip())
 
 
 def _block(text: str, header: re.Pattern[str], what: str) -> list[str]:
-    """Return the lines written under the first line matching ``header``, refusing to find none."""
+    """Return the lines written under the first line matching ``header``, raising when none are."""
     lines = text.splitlines()
     for number, line in enumerate(lines):
         if header.match(line) is None:
@@ -46,13 +42,13 @@ def _block(text: str, header: re.Pattern[str], what: str) -> list[str]:
 
 
 def recipe_body(text: str, recipe: str) -> list[str]:
-    """Return the body of one justfile recipe, refusing a name the justfile does not carry."""
+    """Return the body of one justfile recipe, raising on a name the justfile does not have."""
     header = re.compile(HEADER.format(name=re.escape(recipe)))
     return _block(text, header, f"the {recipe!r} recipe")
 
 
 def gate_scans(text: str) -> list[str]:
-    """Return the recipes `just check` opens with, which is the run it makes before the trees."""
+    """Return the recipes `just check` runs first, before the per-tree checks."""
     found: list[str] = []
     for line in recipe_body(text, GATE):
         invoked = INVOKES.match(line)
@@ -64,7 +60,7 @@ def gate_scans(text: str) -> list[str]:
 
 
 def job_scans(text: str) -> list[str]:
-    """Return the recipes CI's cross-tree job runs, refusing a step it was not taught."""
+    """Return the recipes CI's cross-tree job runs, raising on a step that runs anything else."""
     header = re.compile(rf"^  {re.escape(JOB)}:$")
     found: list[str] = []
     for line in _block(text, header, f"the {JOB!r} job"):
@@ -106,7 +102,7 @@ def _read(root: Path, name: Path) -> str:
 
 
 def scan_modules(root: Path) -> frozenset[str]:
-    """Every module the gate and CI both run as a cross-tree scan, refusing a disagreement."""
+    """Every module `just check` and CI both run as a cross-tree scan, raising when they differ."""
     justfile = _read(root, JUSTFILE)
     gate, job = gate_scans(justfile), job_scans(_read(root, WORKFLOW))
     if set(gate) != set(job):

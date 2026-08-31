@@ -5,7 +5,7 @@
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
 The three mid-turn failures in `converse_stream` now carry `session_id`, which is the whole of what
-the stream honestly holds when a turn dies. The `turn_id` it would rather carry is minted inside
+the stream actually holds when a turn dies. The `turn_id` that would be more useful is minted inside
 `TurnEngine` (`turn_id_factory`) and leaves the engine only on the `TurnComplete` event a failed
 turn never emits, so the handler that reports the failure has no id for the turn it was serving.
 

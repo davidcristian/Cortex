@@ -1,5 +1,3 @@
-"""Integration: real CPU llama-server subagent delegation (host-only, ADR-0010)."""
-
 import os
 
 import httpx
@@ -25,8 +23,6 @@ from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_ENDPOINT")
 _MODEL = os.environ.get("CORTEX_SUBAGENTS_MODEL", "subagent")
-# A second live server exposing the roster alternate (docker-compose.subagents-roster.yml
-# publishes it at 127.0.0.1:8083); set it to run the multi-model roster test (ADR-0018).
 _QWEN_ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_QWEN_ENDPOINT")
 
 
@@ -37,9 +33,6 @@ async def test_spawn_subagents_runs_two_subagents_on_a_real_cpu_model() -> None:
         store = InMemoryTaskStore()
         manager = SingleResidentModelManager(_MODEL, _ENDPOINT or "")
         backend = LlamaCppBackend(manager, client)
-        # This host smoke test drives one CPU server; a zero-headroom placer (cap == reservation)
-        # keeps both spawns on the CPU path (ADR-0012). The two-server GPU-first path is the user's
-        # separate host-half validation.
         resources = SubagentResources(
             backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
             scheduler=ResourceBudgetScheduler(8.0, 8.0),
@@ -62,8 +55,6 @@ async def test_spawn_subagents_runs_two_subagents_on_a_real_cpu_model() -> None:
             },
         )
         result = await tool.invoke(call)
-    # The batch ran (no dispatch error), both subagents reported, and the real model produced
-    # non-empty text for each. This is a live smoke test, so assert structure not exact wording.
     assert result.is_error is False
     assert "[subagent 1]" in result.content
     assert "[subagent 2]" in result.content
@@ -72,7 +63,6 @@ async def test_spawn_subagents_runs_two_subagents_on_a_real_cpu_model() -> None:
 
 
 def _cpu_only_profile(backend: InferenceBackend, model: str) -> SubagentProfile:
-    # Zero-headroom placer twin of the smoke test above: every spawn stays on the CPU path.
     return SubagentProfile(
         resources=SubagentResources(
             backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
@@ -89,7 +79,6 @@ def _cpu_only_profile(backend: InferenceBackend, model: str) -> SubagentProfile:
     reason="set CORTEX_SUBAGENTS_ENDPOINT and CORTEX_SUBAGENTS_QWEN_ENDPOINT to live servers",
 )
 async def test_spawn_subagents_routes_each_pick_to_its_roster_model() -> None:
-    """One spawn batch, two live models (ADR-0018): the default plus a per-item 'qwen' pick."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         store = InMemoryTaskStore()
         default = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client)
@@ -101,7 +90,7 @@ async def test_spawn_subagents_routes_each_pick_to_its_roster_model() -> None:
             },
             default=_MODEL,
         )
-        runner = SubagentRunner(store, roster, SystemClock())  # tool-less: the pick is honored
+        runner = SubagentRunner(store, roster, SystemClock())
         tool = SpawnSubagentsTool(runner, store, SystemClock())
         call = ToolCall(
             id="c1",

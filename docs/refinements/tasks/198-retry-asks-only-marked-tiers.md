@@ -4,11 +4,11 @@
 **Area:** resource-governance
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 
-The retry only asks about tiers it already believes are missing. Opened
+The retry only asks about tiers already recorded as missing. Opened
 2026-08-09 by the close above, whose record is written at exactly one site, the swap back's
 best-effort restart, and only where the host **refused**. Three shapes escape it: a peer that
 accepted its start and then failed to load (measured against the real sidecar, `200 loading`
-then `failed` with exit code 1), a peer that dies quietly between handoffs, and a peer a
+then `failed` with exit code 1), a peer that dies between handoffs and is never reported, and a peer a
 deployment never started at all. A fourth joined them on 2026-08-09 when boot recovery became a
 writer of the same record: a boot that could not reach the host marks nothing at all, by design,
 since nothing was asked to run, so a sidecar that comes up a minute later has its peers
@@ -20,7 +20,7 @@ is not built now because a sweep that may `start` a tier is a much stronger thin
 correct against a handoff in flight than one that only retries a known failure, and because
 gating the peers inside the swap back instead is the wrong end (it would spend the load bound
 per tier inside the turn the user is waiting on). The trigger is the first deployment observed
-running with a peer tier dead and nothing noticing, which is also the first one whose logs say
+running with a peer tier dead and nothing reporting it, which is also the first one whose logs say
 how often that happens.
 **A fifth shape joined on 2026-08-11**, from the opposite direction and now tellable apart at the
 port ([ADR-0030 unrostered-tier addendum](../../adr/ADR-0030-brain-handoff.md)): a peer named in
@@ -71,7 +71,7 @@ seam names the tier rather than its age. It stays in the process, and the sweep 
 that obviously right rather than merely convenient: a record re-derived from `status` every
 interval is live-resource state of the same kind as the placer's ledger, so a restart rebuilds it
 from the machine and a foreign swapper can at worst cost one interval of CPU placement instead of
-a belief nothing corrects.
+a record nothing corrects.
 
 ## Trail
 

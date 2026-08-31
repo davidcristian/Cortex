@@ -60,7 +60,8 @@ def test_scan_ignores_non_source_suffixes(tmp_path: Path) -> None:
 
 
 def test_scan_ignores_stylesheets_markup_and_the_proto(tmp_path: Path) -> None:
-    """The three uncapped file kinds, pinned so dropping one is a deliberate edit here."""
+    """The three uncapped file kinds are pinned here, so dropping one from the exemption is a
+    deliberate edit."""
     write_file(tmp_path / "overlay.css", 50)
     write_file(tmp_path / "index.html", 50)
     write_file(tmp_path / "body.proto", 50)
@@ -166,7 +167,8 @@ def test_main_prints_violations_and_exits_1(
 def test_main_prints_summary_and_exits_0(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Three different numbers, so a summary that mixed two of them up would show here."""
+    """The file count, the cap and the line total are three different numbers here, so a summary
+    that swapped two of them fails this test."""
     write_file(tmp_path / "ok.py", 7)
     exit_code = linecap.main(["--root", str(tmp_path), "--max-lines", "10"])
     assert exit_code == 0
@@ -181,7 +183,8 @@ def test_main_prints_summary_and_exits_0(
 
 
 def test_scan_counts_what_it_measured_and_not_what_it_walked_past(tmp_path: Path) -> None:
-    """The count after the exclusions: a file the cap was never applied to is in neither number."""
+    """The counts cover the files measured after the exclusions, so a file the cap was never
+    applied to is in neither number."""
     write_file(tmp_path / "one.py", 3)
     write_file(tmp_path / "nested" / "two.rs", 5)
     write_file(tmp_path / "test_three.py", 400)
@@ -195,7 +198,8 @@ def test_scan_counts_what_it_measured_and_not_what_it_walked_past(tmp_path: Path
 def test_a_tree_with_no_source_file_is_a_failure_not_a_pass(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A walk that measured nothing cannot fail, so reporting OK over one is the fail-open case."""
+    """A walk that measured nothing exits 2, since reporting OK over it would pass without the cap
+    having been applied to anything."""
     write_file(tmp_path / "test_only.py", 400)
     write_file(tmp_path / "README.md", 400)
     assert linecap.main(["--root", str(tmp_path), "--max-lines", "10"]) == 2

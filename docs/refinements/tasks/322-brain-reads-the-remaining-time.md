@@ -17,12 +17,12 @@ dropped the call first. The other half is untouched.
 That half is a handler deciding what to do with time it can measure *before* it starts. The shapes
 worth weighing, each its own small decision rather than one rule: a `ListSessions` that sees
 milliseconds left could answer `DEADLINE_EXCEEDED` immediately instead of spending a store round
-trip nobody will read; a session read whose memory cascade will not fit could return the
-transcript without it rather than nothing at all; a handler that is cancelled could log the
-abandonment as such, which today is indistinguishable in the logs from any other cancelled call.
-The remaining time also wants to travel: the model host and the MCP tool calls a handler makes are
-where the seconds actually go, and a call that inherits none of its caller's deadline can outlive
-the request that made it by an unbounded margin.
+trip nobody will read; a session read whose memory cascade will not fit could return the transcript
+without it rather than nothing at all; a handler that is cancelled could log the abandonment as
+such, which today is indistinguishable in the logs from any other cancelled call. The remaining time
+also has to be propagated: the model host and the MCP tool calls a handler makes are where the
+seconds actually go, and a call that inherits none of its caller's deadline can outlive the request
+that made it by an unbounded margin.
 
 None of this is a transport change and none of it belongs in the body. It is a per-handler
 decision about what "not enough time left" means for each RPC, in the orchestrator's tree with the

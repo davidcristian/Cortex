@@ -1,5 +1,4 @@
-"""In-memory ``PreferenceStore`` fake: the contract twin of the Redis adapter (``cortex_session``).
-"""
+"""In-memory ``PreferenceStore``, tested against the same contract as the Redis adapter."""
 
 from collections.abc import Mapping
 
@@ -7,11 +6,7 @@ from cortex_core.errors import PreferenceStoreError
 
 
 class InMemoryPreferenceStore:
-    """PreferenceStore held in a dict, for tests and single-process experiments only.
-
-    ``fail_with`` arms the next call to raise, so callers can prove their error paths against the
-    same typed error the real adapter raises without reaching for a mock.
-    """
+    """PreferenceStore held in a dict, for tests and single-process experiments only."""
 
     def __init__(self, *, initial: Mapping[str, str] | None = None) -> None:
         self._values: dict[str, str] = dict(initial or {})
@@ -27,7 +22,7 @@ class InMemoryPreferenceStore:
         return dict(self._values)
 
     async def set(self, key: str, value: str) -> None:
-        """Write one pair; an empty value clears the key, as the port dictates."""
+        """Write one pair; an empty value clears the key, as the port specifies."""
         self._check()
         if value == "":
             self._values.pop(key, None)

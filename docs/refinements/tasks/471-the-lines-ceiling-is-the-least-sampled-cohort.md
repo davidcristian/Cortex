@@ -23,7 +23,7 @@ whole range sits an order of magnitude under the number anybody cares about.
 
 **What would close it.** A corpus, or a question set, that makes the judge keep the whole of `k`,
 run through the same harness, which would put a measured line under the arithmetic rather than
-beside it. The cheaper half is to say so in the report: the harness knows the candidates a line
+beside it. The cheaper half is to say so in the report: the harness has the candidates a line
 named and could name the cohorts it never saw.
 
 ## Trail

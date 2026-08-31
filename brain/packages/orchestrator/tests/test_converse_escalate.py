@@ -1,5 +1,3 @@
-"""The escalate confirm round-trip through converse(): the swap card, then the slot (ADR-0030)."""
-
 import asyncio
 from collections.abc import AsyncIterator, Sequence
 
@@ -77,7 +75,7 @@ class _ScriptedToolBackend:
 
 
 def _escalating_factory(slot: EscalationSlot) -> EngineFactory:
-    """An engine whose model asks to escalate once, then wraps up with 'handing off'."""
+    """Build an engine whose scripted model asks to escalate once, then replies 'handing off'."""
 
     def make(confirmer: Confirmer, _progress: ProgressSink) -> TurnEngine:
         dispatcher = ToolDispatcher(
@@ -85,8 +83,6 @@ def _escalating_factory(slot: EscalationSlot) -> EngineFactory:
             RecordingAuditSink(),
             SystemClock(),
             confirmer=confirmer,
-            # The composition root's real policy: the escalate gate backstop and the
-            # app-authored per-tool card reason, exactly as the wiring builds them.
             policy=ToolsConfig().dispatch_policy,
         )
         backend = _ScriptedToolBackend(
@@ -117,7 +113,9 @@ def _answer(confirm_id: str, *, approved: bool) -> ClientEvent:
 
 
 async def _next_of(stream: AsyncIterator[ServerEvent], kind: str) -> ServerEvent:
-    """The next event of `kind`; bounded so a missing emit fails the test, not the suite."""
+    """Return the next event of `kind`, bounded so a missing emit fails this test rather than
+    hanging the suite.
+    """
     try:
         async with asyncio.timeout(5.0):
             async for event in stream:
@@ -135,35 +133,29 @@ async def _drain(stream: AsyncIterator[ServerEvent]) -> list[ServerEvent]:
 
 
 async def test_an_approved_escalation_fills_the_slot_and_snapshots_ready() -> None:
-    # The full in-process path over the real converse(): the card names the tool, shows the
-    # model's brief as the argument draft, and carries the app-authored swap reason; approval
-    # runs the tool; the slot holds the brief; and the S11.c seam produces the READY record.
     slot = EscalationSlot()
     client = _LiveClient()
     stream = converse(_escalating_factory(slot), client)
     client.send(_user_turn("solve this properly"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     assert request.tool_name == ESCALATE_TOOL_NAME
-    assert request.arguments_json == '{"brief": "go deep"}'  # the model's own words, as draft
-    assert request.reason == ESCALATE_GATE_REASON  # app-authored: the swap, not "outbound"
+    assert request.arguments_json == '{"brief": "go deep"}'
+    assert request.reason == ESCALATE_GATE_REASON
     client.send(_answer(request.confirm_id, approved=True))
     client.end()
     remaining = await _drain(stream)
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
     assert slot.brief == "go deep"
-    # What the conductor (the next handoff slice) does at this exact boundary:
     store = InMemoryHandoffStore()
     record = slot.snapshot(turn_id="t-esc", session_id="s", requested_at=SystemClock().now())
     await store.put(record)
     active = await store.active()
     assert active is not None
     assert (active.state, active.brief) == (HandoffState.READY, "go deep")
-    assert active.rounds_used == 1  # the one escalate round, read off the captured tail
+    assert active.rounds_used == 1
 
 
 async def test_a_denied_escalation_writes_no_slot_and_no_record() -> None:
-    # The user's "no" leaves nothing a later loop boundary could act on: the slot stays
-    # empty, so there is nothing to snapshot and no READY record can ever exist.
     slot = EscalationSlot()
     client = _LiveClient()
     stream = converse(_escalating_factory(slot), client)
@@ -174,4 +166,4 @@ async def test_a_denied_escalation_writes_no_slot_and_no_record() -> None:
     remaining = await _drain(stream)
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
     assert slot.brief is None
-    assert slot.refs is not None  # the turn armed the slot; only the user's "no" kept it empty
+    assert slot.refs is not None

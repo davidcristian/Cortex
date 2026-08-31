@@ -1,4 +1,4 @@
-"""Public core names for the ports themselves plus the vocabulary every one of them speaks."""
+"""Public core names for the ports themselves and the types they exchange."""
 
 from cortex_core.body import (
     CaptureTarget,

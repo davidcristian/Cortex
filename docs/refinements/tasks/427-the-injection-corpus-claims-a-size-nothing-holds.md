@@ -18,7 +18,7 @@ Two things are true of that claim now and neither is held anywhere. The brain ha
 for a **2048** px edge since the legibility pair landed, so what a shipped deployment actually
 captures is 2048x1152 and not 1600x900; the corpus is sized on the body's own default, which is
 what a request naming no edge gets and not what this stack sends. And nothing ties the fixture's
-`WIDTH` to either number, so both can move without the docstring noticing.
+`WIDTH` to either number, so both can move while the docstring goes on saying otherwise.
 
 **Why it was left.** The survey it came out of was about which prose states the body's default, and
 this is the opposite question: whether a fixture that says it copies a live size should be held to
@@ -30,7 +30,7 @@ resistance depends on the picture's size at all, which nobody has measured.
 **What would close it.** Decide what the corpus is sized on, and say it in one place. Three shapes
 are worth weighing. Track the shipped ask (2048x1152), which makes the corpus match what the cortex
 really sees and needs the registry to tie `WIDTH` to `DEFAULT_CAPTURE_MAX_EDGE`. Track the body's
-own default and keep the docstring's sentence, which is what the file says today and wants a row
+own default and keep the docstring's sentence, which is what the file says today and needs a row
 for the same reason the prose around that constant now has seventeen. Or declare the size the
 fixture's own choice, drop the "body's own output" clause, and say instead why that resolution is
 the one the defence is measured at. The third is cheapest and is only honest if the size does not
@@ -46,9 +46,9 @@ change the result, which is one live run of the image arm at both sizes to find 
   what it said they are at HEAD, and the docstring's claim is wrong before either can move it: a
   capture naming no edge comes back at the body's own default and the brain names an edge of its
   own, so no capture the shipped stack takes is the corpus's size. Tracking either number was
-  refused. Registering the sentence would freeze it against a literal beside it that is free to
-  leave, and tying the frame to the shipped ask would re-render every cell and silently break
-  comparability with the published resistance matrix. What replaces the claim is the argument that
+  rejected. Registering the sentence would freeze it against a literal beside it that is free to
+  leave, and tying the frame to the shipped ask would re-render every cell and break
+  comparability with the published resistance matrix without anything reporting it. What replaces the claim is the argument that
   was already true and unwritten: the matrix was measured in this frame, and a payload at a fixed
   glyph size fills more of a small frame, so this is the legible end and the end a defence
   measurement should err on, which the image arm's own Chromium control already measured.

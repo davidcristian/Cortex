@@ -6,9 +6,10 @@
 
 `scripts/values.py` reduces a declaration's right-hand side to something two languages can be
 compared on, and it accepts exactly three forms: a product of integer literals, a plain
-double-quoted string, and a one-line `frozenset` of those strings. A decimal literal is refused
-with everything else it will not guess at, which is the right default for a reducer (one that
-guesses is a gate that agrees with itself) but leaves a whole class of value untiable.
+double-quoted string, and a one-line `frozenset` of those strings. A decimal literal is refused with
+everything else it will not guess at, which is the right default for a reducer, because a guessed
+reduction would report two values as equal that were never compared, but it leaves a whole class of
+value untiable.
 
 The class is not hypothetical. Both deadlines on the `BodyService` seam are decimals:
 `DEFAULT_CAPTURE_TIMEOUT_S` (10.0) and `DEFAULT_CALL_TIMEOUT_S` (5.0) are declared in
@@ -20,13 +21,13 @@ which is precisely the failure the salience limit's entry in `scripts/couplings.
 catch, and it cannot be registered the same way today. `docs/runbooks/vision.md` spells both a
 third time.
 
-The work is a reducer arm plus its rendering, and the second half is where the care goes: a
-reading has to compare `5.0` to `5.0` without deciding that `5` and `5.0` are the same site (they
-are the same number and different text, and a `Mention` needs the text to find its needle). The
-honest shape is probably to reduce a decimal to its literal digits rather than to a float, so
-comparison stays textual and no site can drift into a spelling the rendered needle would miss.
-Whichever way it goes, prove it fails before trusting it: change one side of a registered decimal
-pair and watch the scan redden.
+The work is a reducer arm plus its rendering, and the second half is where the care goes: a reading
+has to compare `5.0` to `5.0` without deciding that `5` and `5.0` are the same site (they are the
+same number and different text, and a `Mention` needs the text to find its needle). The right shape
+is probably to reduce a decimal to its literal digits rather than to a float, so comparison stays
+textual and no site can drift into a spelling the rendered needle would miss. Whichever way it goes,
+prove it fails before trusting it: change one side of a registered decimal pair and watch the scan
+fail.
 
 ## Trail
 

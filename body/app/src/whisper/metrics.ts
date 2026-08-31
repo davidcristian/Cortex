@@ -1,5 +1,8 @@
 import { pxOr } from "./front";
 
+// What a whisper bubble measures about itself, and when that measurement stops being true. The
+// pose arithmetic lives here beside the measurement, so the frame loop and a later re-pose agree.
+
 /** The mist's own box (`.mist i` in overlay.css) and the room the pose leaves around it. */
 export const MIST_W = 24;
 export const MIST_H = 13;
@@ -21,9 +24,9 @@ export function measure(bubble: HTMLElement): Metrics {
   const padX = pxOr(cs.paddingLeft, 15);
   const padY = pxOr(cs.paddingTop, 10);
   const line = pxOr(cs.lineHeight, 22.5);
-  // The 0.82 restates `.bubble`'s `max-width: 82%` against the same content box; if the two
-  // ever drift, the stylesheet's own max-width still clamps the posed width, so drift shows as
-  // an early wrap rather than an overflow.
+  // The 0.82 below restates `.bubble`'s `max-width: 82%` against the same content box. If the two
+  // ever differ, the stylesheet's own max-width still clamps the posed width, so it shows up as an
+  // early wrap rather than as an overflow.
   const parent = bubble.parentElement;
   let content = 0;
   if (parent !== null) {
@@ -41,10 +44,9 @@ export function measure(bubble: HTMLElement): Metrics {
   };
 }
 
-/**
- * The box the bubble wants while the condensation front stands at the end of a letter at (`fx`,
- * `fy`).
- */
+/** The box the bubble needs while the condensation front stands at the end of a letter at
+ *  (`fx`, `fy`). On the first line the width follows the front; past the first wrap it is the
+ *  final width. The height's target steps at a wrap, and the frame loop eases it into a curve. */
 export function boxFor(
   m: Metrics,
   fx: number,
@@ -60,10 +62,9 @@ export function boxFor(
   };
 }
 
-/**
- * Watch for the wrap width the letters were laid at ceasing to be the right one, and hand back the
- * removal.
- */
+/** Call `onChange` when the wrap width the letters were laid at is no longer the right one, and
+ *  return the removal. It listens to the window's `resize` rather than observing the log, whose
+ *  height follows the bubble every frame: an observer would run per frame and re-gather. */
 export function watchWrap(
   bubble: HTMLElement,
   from: Metrics,

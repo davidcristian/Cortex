@@ -1,5 +1,3 @@
-"""What one picture costs the cortex, what the knob that changes it does, and what it can read."""
-
 import base64
 import contextlib
 import json
@@ -29,6 +27,9 @@ from cortex_core import CaptureTarget
 from cortex_model_manager import ModelHostConfig
 from cortex_orchestrator.config_body import BodyConfig
 
+# The sidecar's own image, not the base tag the injection harness runs: two of the three claims
+# below are properties of a particular llama.cpp build, and a cached ``server-cuda`` and the
+# model-host image built from it were four hundred builds apart on the machine this was written on.
 _IMAGE = os.environ.get("CORTEX_LLAMA_IMAGE", "cortex-model-host")
 _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")
 _PORT = 8080
@@ -36,12 +37,15 @@ _HEALTH_TIMEOUT_S = 180
 _CONTAINER = "cortex-budget-probe"
 
 _CONTAINER_ADDRESS = "container"
+# Where the probe answers. Under WSL mirrored networking a connection to 127.0.0.1 is routed to
+# the Windows host, where the Linux docker-proxy is not listening. ``CORTEX_PROBE_HOST=container``
+# asks the daemon for the container address instead; any other value is used as written.
 _PROBE_HOST = os.environ.get("CORTEX_PROBE_HOST", "127.0.0.1")
 _ADDRESS_FORMAT = "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}"
 
 
 def _base_url() -> str:
-    """The probe's base URL, resolved when it is needed rather than at import."""
+    """Return the probe's base URL, resolved when it is needed rather than at import."""
     if _PROBE_HOST != _CONTAINER_ADDRESS:
         return f"http://{_PROBE_HOST}:{_PORT}"
     address = subprocess.run(  # noqa: S603
@@ -53,16 +57,13 @@ def _base_url() -> str:
     return f"http://{address.stdout.strip()}:{_PORT}"
 
 
-# The cortex pick and its projector, the pair docker/docker-compose.gpu.yml names by default.
 _CORTEX = "google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf"
 _MMPROJ = "google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf"
 
-# A whole 4K desktop, which is what the capture path is bounded for. Flat colour and a little
-# text: this arm counts tokens and watches for a crash, so what the picture *says* is irrelevant
-# and a cheap one keeps the encode inside a test's patience.
 _SOURCE = (3840, 2160)
 
-# llama.cpp's own micro-batch default. A budget above it needs --ubatch-size or the decode aborts.
+# llama.cpp's own micro-batch default. A budget above it needs ``--ubatch-size`` or the decode
+# aborts.
 _ENGINE_UBATCH = 512
 
 
@@ -77,7 +78,7 @@ def _screen() -> bytes:
 
 
 def _argv_tail(budget: int, monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """The cortex tier's own argv, minus the binary, exactly as the sidecar would spawn it."""
+    """Return the cortex tier's argv, minus the binary, as the sidecar would spawn it."""
     monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/models")
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX", _CORTEX)
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", _MMPROJ)
@@ -87,7 +88,7 @@ def _argv_tail(budget: int, monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def _run_argv(args: list[str]) -> list[str]:
-    """The whole ``docker run`` command line for one probe server."""
+    """Build the whole ``docker run`` command line for one probe server."""
     return [
         "docker", "run", "-d", "--name", _CONTAINER, "--gpus", "all",
         "-p", f"127.0.0.1:{_PORT}:{_PORT}", "-v", f"{_MODELS_DIR}:/models:ro",
@@ -122,7 +123,7 @@ def _await_health() -> None:
 
 
 def _alive(*, settle_s: float = 15.0) -> bool:
-    """Whether the server is still up, given a moment to fall over."""
+    """Report whether the server is still up, given a moment to fall over."""
     deadline = time.monotonic() + settle_s
     while True:
         out = subprocess.run(  # noqa: S603
@@ -139,7 +140,7 @@ def _alive(*, settle_s: float = 15.0) -> bool:
 
 
 def _cost(png: bytes) -> int:
-    """The prompt tokens one picture adds, measured against the same ask with no picture."""
+    """Return the prompt tokens one picture adds, against the same ask with no picture."""
     ask = "Reply with the single word OK."
     bare = _prompt_tokens([{"role": "user", "content": ask}])
     parts: list[dict[str, object]] = [
@@ -170,7 +171,6 @@ def _prompt_tokens(messages: list[dict[str, object]]) -> int:
 def test_the_models_own_budget_saturates_and_the_knob_raises_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A 4K screen costs the model's declared budget; the knob buys real resolution back."""
     png = _screen()
     with _server(_argv_tail(0, monkeypatch)):
         declared = _cost(png)
@@ -192,7 +192,6 @@ def test_the_models_own_budget_saturates_and_the_knob_raises_it(
 async def test_a_window_crop_reads_what_a_shrunk_desktop_cannot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Whether pointing a capture at one window reaches the text a whole 4K screen loses."""
     edge = BodyConfig().capture_max_edge
     corpus = desktops()
     results: dict[str, list[Reading]] = {arm.name: [] for arm in ARMS}
@@ -241,7 +240,6 @@ def _transcribe(
 def test_a_raised_budget_without_the_micro_batch_aborts_the_server(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Why the knob emits two flags: split them and the process dies, rather than erroring."""
     whole = _argv_tail(1024, monkeypatch)
     assert whole[-2:] == ["--ubatch-size", "1024"]
     args = whole[:-2]

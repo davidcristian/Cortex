@@ -75,7 +75,7 @@ class MemoryRecaller:
         return ranking.memories
 
     async def _count_candidates(self, scopes: Sequence[str] | None) -> int:
-        """How many memories the read scopes hold, or ``0`` when no trail is there to read it."""
+        """How many memories the read scopes hold, or ``0`` when no audit sink is wired."""
         if self._audit is None:
             return 0
         return await self._store.count_candidates(scopes=scopes)

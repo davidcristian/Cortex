@@ -1,5 +1,4 @@
-"""Public core names for remembering and recalling, with the ranking that chooses what comes back.
-"""
+"""Public core names for remembering and recalling, and the ranking that selects what returns."""
 
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade

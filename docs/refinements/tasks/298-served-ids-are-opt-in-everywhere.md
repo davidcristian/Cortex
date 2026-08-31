@@ -8,12 +8,12 @@ Opened 2026-08-17 by the served-model answer ([R-280](280-twin-answers-for-any-m
 closed the port's silence and left the default where it found it.
 
 `InferenceBackend` says an implementation answers only for the ids it serves, and
-`ScriptedInferenceBackend` keeps that promise when it is constructed `serves=[...]`. The default is
-still `None`, which answers for anything. Everywhere else the id is discarded outright: `del model`
-appears 53 times across 18 test files under `core/tests` and `orchestrator/tests`, in backends
-hand-rolled per file rather than shared. So what was covered was that an implementation told about
-a deployment refuses an id outside it; what was not is that any test in the tree would notice a
-caller asking for the wrong one.
+`ScriptedInferenceBackend` meets that requirement when it is constructed `serves=[...]`. The default
+is still `None`, which answers for anything. Everywhere else the id is discarded outright: `del
+model` appears 53 times across 18 test files under `core/tests` and `orchestrator/tests`, in
+backends hand-rolled per file rather than shared. So what was covered was that an implementation
+told about a deployment refuses an id outside it; what was not is that any test in the tree would
+notice a caller asking for the wrong one.
 
 Of the three shapes this weighed, the cheapest landed: one test per configured caller, pinning that
 the id it asks for is the id its deployment hosts. There are three, and each renames its tiers,
@@ -32,9 +32,9 @@ reading the config, and every case that already existed left the defaults in pla
   the entries `named_roster` keys, and `SubagentRoster` refuses to be built when they disagree.
 
 Nothing in production changed and the default stays `None`, for the reason it was kept: a twin told
-nothing about a deployment has made no claim to violate, and flipping it would cost every
-hand-rolled backend a served set it has no opinion about. The two heavier shapes stay unchosen,
-and the entry that carries what is left of the exposure carries them too.
+nothing about a deployment states nothing a call could contradict, and flipping it would cost every
+hand-rolled backend a served set none of them needs. The two heavier shapes stay unchosen, and the
+entry that carries what is left of the exposure carries them too.
 
 One correction to the record this was filed with. It said three fixtures in
 `brain/packages/inference/tests` pass `serves=`; there is exactly one, the shared list's own

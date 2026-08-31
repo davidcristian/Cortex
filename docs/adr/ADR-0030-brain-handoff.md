@@ -12,7 +12,7 @@ decision 3) → the brain rehydrates from the store, works, persists → swap ba
 resumes from the store. It includes a chaos test (kill a model mid-handoff; the system resumes
 from the store) and the runbook `docs/runbooks/model-swap.md`.
 
-The design sits on what exists, not on guesses. The load-bearing facts, each read from the
+The design sits on what exists, not on guesses. The facts the design rests on, each read from the
 tree at the commit this ADR lands on:
 
 - **Almost everything is already in the stores.** The engine is a stateless function over
@@ -352,7 +352,7 @@ For every kill point it asserts convergence and no state loss:
 
 Distrust-green, per AGENTS.md: after wiring, the suite is proven fallible by mutation
 (removing the scope's `finally` restore, or skipping the record transition before the swap,
-must redden named cases; the proofs are noted in the tests as the lease-release test did).
+must make named cases fail; the proofs are noted in the tests as the lease-release test did).
 
 **Host half (host-side, runbook-driven).** On the 24 GB machine: `docker exec` into
 `model-host` and `kill -9` the brain's `llama-server` child mid-handoff (and once mid-load),
@@ -373,7 +373,7 @@ overflows, so today's GPU carries the cortex and nothing else. Every brain candi
 and none fits under the 14 GB soft cap alone at full offload.** Therefore the swap evicts
 BOTH the cortex and any GPU-placed subagent, and the v1 co-residency rule is: **while the
 brain is resident, it is alone on the GPU.** CPU subagents hold no VRAM but are drained
-anyway (decision 4): the brain's hybrid-offload fallback and its KV want the host RAM/CPU
+anyway (decision 4): the brain's hybrid-offload fallback and its KV need the host RAM/CPU
 headroom, and "brain runs alone" is one invariant instead of three special cases.
 
 The handoff window is a deliberate, user-confirmed exception to the 14 GB soft cap: the brain

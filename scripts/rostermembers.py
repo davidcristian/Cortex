@@ -31,7 +31,7 @@ class MemberError(Exception):
 
 
 def _floored(found: Iterable[str], what: str) -> frozenset[str]:
-    """Return ``found`` as a set, refusing the empty one a comparison could never fail over."""
+    """Return ``found`` as a set, raising on the empty one, which no comparison could fail over."""
     members = frozenset(found)
     if not members:
         msg = f"{what} came back empty, and a comparison over nothing cannot fail"
@@ -68,7 +68,7 @@ def ignored_tests(text: str) -> list[str]:
 
 
 def _named_after(lines: list[str], number: int) -> str:
-    """Return the name of the first function below line ``number``, or refuse to guess one."""
+    """Return the name of the first function below line ``number``, raising when there is none."""
     for line in lines[number + 1 :]:
         found = FUNCTION.match(line)
         if found is not None:

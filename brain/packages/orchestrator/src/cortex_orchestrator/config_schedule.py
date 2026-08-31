@@ -1,4 +1,4 @@
-"""Scheduling configuration (ADR-0025): env-driven, root-read only."""
+"""Scheduling configuration: env-driven, root-read only."""
 
 from typing import Literal
 
@@ -10,9 +10,6 @@ from cortex_session import ZONEINFO_RESOLVER
 
 ScheduleBackendName = Literal["none", "redis"]
 
-# Whether a deployment gets a durable schedule store when nothing says otherwise. Named for the
-# reason the zone beside it already was: the base compose file ships the same answer as a
-# substitution default, and a scan can only hold that to a declaration it can read.
 DEFAULT_SCHEDULE_BACKEND: ScheduleBackendName = "none"
 
 
@@ -26,7 +23,7 @@ def _resolve(name: str) -> DisplayZone:
 
 
 class ScheduleConfig(BaseSettings):
-    """Whether schedules exist, and the ticker's pacing knobs (ADR-0025)."""
+    """Whether schedules exist, and the ticker's pacing settings."""
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SCHEDULE_")
 
@@ -40,11 +37,7 @@ class ScheduleConfig(BaseSettings):
     @field_validator("tz")
     @classmethod
     def _known_zone(cls, value: str) -> str:
-        """Reject an unknown key at boot rather than at the model's first listing.
-
-        A typo would otherwise survive as a latent failure that only surfaces once a turn
-        renders a schedule, which is both far from the cause and inside a tool call.
-        """
+        """Raise on an unknown key at boot rather than at the model's first listing."""
         try:
             _resolve(value)
         except ValueError as err:

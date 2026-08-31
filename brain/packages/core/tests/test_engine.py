@@ -382,7 +382,9 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
 
 
 async def test_a_recall_policy_that_declines_leaves_the_turn_without_a_memory_block() -> None:
-    """What a refusal means where the turn is assembled (ADR-0038 abstention addendum)."""
+    """A recall policy that declines leaves the prompt with no memory block (ADR-0038 abstention
+    addendum).
+    """
     mem_store = InMemoryMemoryStore()
     embedder = HashEmbedder()
     await mem_store.add(
@@ -442,7 +444,9 @@ async def test_session_scope_keeps_one_conversations_memory_out_of_another() -> 
 
 
 async def test_a_dead_embedder_costs_the_turn_its_memories_and_not_the_turn() -> None:
-    """The degraded read (ADR-0008 unavailable-memory addendum), from the turn's own outside."""
+    """A dead embedder costs the turn its memories and not the turn (ADR-0008
+    unavailable-memory addendum).
+    """
     mem_store = InMemoryMemoryStore()
     embedder = HashEmbedder()
     await mem_store.add(
@@ -503,7 +507,9 @@ async def test_an_unreachable_memory_store_costs_the_turn_its_memories_and_not_t
 
 
 async def test_a_memory_row_that_will_not_decode_fails_the_turn_instead_of_thinning_it() -> None:
-    """The other side of the line the degradation drew (ADR-0008 data-defect addendum)."""
+    """A memory row that will not decode fails the turn rather than thinning it (ADR-0008
+    data-defect addendum).
+    """
     mem_store = InMemoryMemoryStore()
     mem_store.fail_with(MemoryDataError("malformed memory row in search result"))
     progress = RecordingProgressSink()
@@ -523,7 +529,7 @@ async def test_a_memory_row_that_will_not_decode_fails_the_turn_instead_of_thinn
 
 
 async def test_a_turn_answered_without_its_memory_says_so_on_the_stream() -> None:
-    """Silence is the failure mode a degraded recall would otherwise have."""
+    """A turn answered without its memory publishes one status saying so."""
     embedder = HashEmbedder()
     embedder.fail_with(EmbedderError("connection refused"))
     recaller = MemoryRecaller(InMemoryMemoryStore(), embedder, SystemClock())
@@ -541,7 +547,8 @@ async def test_a_turn_answered_without_its_memory_says_so_on_the_stream() -> Non
 
 
 async def test_a_recall_that_worked_says_nothing_on_the_stream() -> None:
-    """The status is the outage's, not recall's: a healthy turn narrates no memory at all."""
+    """The status belongs to the outage rather than to recall, so a healthy turn narrates no
+    memory at all."""
     progress = RecordingProgressSink()
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
     engine = TurnEngine(
@@ -577,7 +584,7 @@ class _BrokenRecallPolicy:
 
 
 async def test_a_programming_error_in_the_recall_path_still_fails_the_turn() -> None:
-    """The line between an outage and a defect, asserted from the side that must not move."""
+    """A defect in the recall path fails the turn instead of being degraded away."""
     recaller = MemoryRecaller(
         InMemoryMemoryStore(), HashEmbedder(), SystemClock(), policy=_BrokenRecallPolicy()
     )
@@ -601,7 +608,7 @@ class _UnwritableMemoryStore(InMemoryMemoryStore):
 
 
 async def test_a_memory_write_that_fails_leaves_the_turn_and_the_conversation_whole() -> None:
-    """The degraded write, which is a different argument from the degraded read."""
+    """A memory write that fails leaves the turn and the conversation whole."""
     recaller = MemoryRecaller(_UnwritableMemoryStore(), HashEmbedder(), SystemClock())
     store = InMemorySessionStore()
     progress = RecordingProgressSink()
@@ -628,7 +635,7 @@ def _explode() -> str:
 
 
 async def test_a_programming_error_on_the_write_path_still_fails_the_turn() -> None:
-    """The same line on the write side: only the two port errors are an outage."""
+    """The same line on the write side: only the two port errors count as an outage."""
     recaller = MemoryRecaller(
         InMemoryMemoryStore(), HashEmbedder(), SystemClock(), id_factory=_explode
     )
@@ -995,7 +1002,7 @@ async def _blocked_send(arguments: Mapping[str, object]) -> str:
 
 
 async def test_gated_tool_is_blocked_after_an_untrusted_read() -> None:
-    # The headline boundary: read untrusted content, then try a gated outbound action -> with no
+    # The central boundary: read untrusted content, then try a gated outbound action. With no
     # confirmer wired it is denied and never runs (ADR-0013).
     sink = RecordingAuditSink()
     registry = InMemoryToolRegistry(
@@ -1709,9 +1716,10 @@ def _capture_dispatcher(sink: RecordingAuditSink) -> ToolDispatcher:
 
 
 async def test_a_turn_that_looked_at_the_screen_is_never_recorded_to_memory() -> None:
-    """Through the whole engine, with recording explicitly switched on. The ADR-0019 licence for
-    recording a tainted turn rested on the raw untrusted payload never being persisted, and a
-    capture turn's assistant reply IS a transcription of the screen."""
+    """A turn that captured the screen is kept out of memory even with recording switched on.
+
+    The ADR-0019 licence for recording a tainted turn rested on the raw untrusted payload never
+    being persisted, and a capture turn's assistant reply is a transcription of the screen."""
     mem_store = InMemoryMemoryStore()
     recaller = MemoryRecaller(mem_store, HashEmbedder(), SystemClock())
     backend = ScriptedToolBackend(
@@ -1735,7 +1743,8 @@ async def test_a_turn_that_looked_at_the_screen_is_never_recorded_to_memory() ->
 
 
 async def test_a_turn_that_read_untrusted_text_is_still_recorded_with_the_flag_on() -> None:
-    """The control arm for the drop above: it is the opaque bit and not a tightening of taint."""
+    """The control arm for the drop above: the drop comes from the opaque bit rather than from a
+    tightening of taint."""
     mem_store = InMemoryMemoryStore()
     recaller = MemoryRecaller(mem_store, HashEmbedder(), SystemClock())
     backend = ScriptedToolBackend(
@@ -1787,7 +1796,7 @@ class StoppingBackend:
 
 
 async def test_a_reply_a_token_limit_cut_says_so_under_the_text_and_in_the_store() -> None:
-    """The honesty half: a user reading a stump is told it is one, and history keeps the note.
+    """A reply the token limit cut carries the note under the text, and history keeps it too.
 
     The note is persisted with the reply for ``BRAIN_FAILED_NOTE``'s reason, that it explains
     text the user can still scroll back to, and it lands after the reply rather than inside it.
@@ -1810,7 +1819,8 @@ async def test_a_reply_a_token_limit_cut_says_so_under_the_text_and_in_the_store
 
 
 async def test_a_reply_the_model_ended_itself_gets_no_note() -> None:
-    """The control arm: the note is about the limit, not about every turn that stops."""
+    """The control arm: the note is about the token limit rather than about every turn that
+    stops."""
     store = InMemorySessionStore()
     engine = TurnEngine(
         store,
@@ -1826,7 +1836,8 @@ async def test_a_reply_the_model_ended_itself_gets_no_note() -> None:
 
 
 async def test_a_backend_that_reports_no_stop_at_all_is_never_read_as_capped() -> None:
-    """Silence is not a cap: every turn written before this arm still ends without a note."""
+    """A backend that reports no stop ends without a note, as every turn written before this arm
+    does."""
     store = InMemorySessionStore()
     engine = TurnEngine(store, RecordingBackend(["quiet"]), TickingClock())
     events = await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
@@ -1834,7 +1845,7 @@ async def test_a_backend_that_reports_no_stop_at_all_is_never_read_as_capped() -
 
 
 async def test_the_deployments_reply_bounds_ride_every_completion_of_a_users_turn() -> None:
-    """What the deployment set is what the request carries; the default carries nothing."""
+    """The bounds the deployment declared reach every completion, and the default sends none."""
     bounded = StoppingBackend(StopReason.FINISHED)
     asked = GenerationBounds(max_tokens=2048, thinking=False)
     await _collect(
@@ -1890,7 +1901,9 @@ def _cut_call_engine(store: InMemorySessionStore, backend: CutCallBackend) -> Tu
 
 
 async def test_a_tool_call_a_token_limit_cut_ends_the_turn_with_the_capped_note() -> None:
-    """The turn says what it says for any capped reply, rather than failing as a dead backend."""
+    """A tool call the token limit cut ends the turn with the capped note, rather than failing
+    the turn as a dead backend would.
+    """
     store = InMemorySessionStore()
     engine = _cut_call_engine(store, CutCallBackend(StopReason.CAPPED))
 
@@ -1911,7 +1924,7 @@ async def test_a_tool_call_a_token_limit_cut_ends_the_turn_with_the_capped_note(
 
 
 async def test_a_tool_call_no_limit_explains_ends_the_turn_with_its_own_note() -> None:
-    """The other half of the pairing: the model broke its own grammar and nothing cut it.
+    """The other half of the pair: the model broke its own grammar and no limit cut it.
 
     Reporting a length limit here would send the user to shorten a question that was never too
     long, so the note names what actually happened and says nothing about a bound.
@@ -1933,7 +1946,8 @@ async def test_a_tool_call_no_limit_explains_ends_the_turn_with_its_own_note() -
 
 
 async def test_a_backend_reporting_no_stop_takes_the_unreadable_note_not_the_capped_one() -> None:
-    """Silence is not a cap here either: an unexplained fragment is reported as unexplained."""
+    """A backend reporting no stop takes the unreadable note, nothing having said a limit cut
+    the call."""
     store = InMemorySessionStore()
     engine = _cut_call_engine(store, CutCallBackend(None))
 
@@ -1972,7 +1986,8 @@ async def test_a_guardrails_held_tail_is_released_before_the_note_and_persisted_
 
 
 async def test_a_cut_tool_call_still_records_the_exchange_to_memory() -> None:
-    """The whole persist path runs, not just the session append: the turn ended, it did not fail."""
+    """The whole persist path runs, the memory write included, because the turn ended rather
+    than failed."""
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
     engine = TurnEngine(
         InMemorySessionStore(),

@@ -1,24 +1,29 @@
 //! What a 4K desktop costs in PNG bytes at the edge the brain asks for, and how much room is
-//! left before the halving ladder fires (ADR-0029's legibility addendum).
+//! left before the halving ladder fires. Ignored by default, because it is 4 s of CPU in
+//! release and 48 s unoptimized, so it is a measurement rather than a check.
 
 use std::fmt::Debug;
 
 use body_core::os::screen_policy::{DEFAULT_MAX_EDGE, MAX_CAPTURE_BYTES};
 use body_core::{Capture, CaptureRequest, CapturedFrame, RawFrame, TargetRect};
 
-/// The display the desktop fixtures are built at: one 4K screen, which is what the capture path
-/// is bounded for and the size the legibility measurement was taken on. It is the default rather
-/// than the only one, since [`WORST_DISPLAY`] costs more.
+/// The display the desktop fixtures are built at: one 4K screen, which is what the capture path is
+/// bounded for and the size the legibility measurement was taken on.
 const SOURCE: (u32, u32) = (3840, 2160);
 
 /// The body's own default edge, what a caller that asks for nothing still gets.
+///
+/// A PNG over the byte limit is halved to 1024 px rather than refused, which is worse
+/// than the 1600 px view this default replaced.
 const BODY_EDGE: u32 = DEFAULT_MAX_EDGE;
 
-/// The edge the brain asks for by default from this slice on.
+/// The edge the brain asks for by default.
+///
+/// The brain asks for a 2048 px capture by default, and a 2048 px capture costs much more
+/// than a 1600 px one: the wider edge averages fewer source pixels into each output pixel.
 const BRAIN_EDGE: u32 = 2048;
 
-/// Unwraps a fixture's result. `unwrap` is denied outside `#[test]` bodies, and these run
-/// outside one.
+/// Unwraps a fixture's result.
 fn ok<T, E: Debug>(result: Result<T, E>) -> T {
     result.unwrap_or_else(|error| panic!("the fixture failed: {error:?}"))
 }
@@ -57,8 +62,8 @@ impl Octave {
         }
     }
 
-    /// The lattice sampled at `(x, y)` of a `width x height` screen, bilinear in 8-bit fixed
-    /// point so the whole synthesis stays in integer arithmetic.
+    /// The lattice sampled at `(x, y)` of a `width x height` screen, bilinear in 8-bit fixed point
+    /// so the whole synthesis stays in integer arithmetic.
     fn sample(&self, x: usize, y: usize, width: usize, height: usize) -> i32 {
         let (fx, tx) = Self::split(x, self.cells_x, width);
         let (fy, ty) = Self::split(y, self.cells_y, height);
@@ -79,8 +84,7 @@ impl Octave {
     }
 }
 
-/// A BGRA screen under construction. Top-down, four bytes a pixel, alpha left where a blit
-/// leaves it, which is what [`RawFrame`] is documented to receive.
+/// A BGRA screen under construction.
 struct Screen {
     width: usize,
     height: usize,
@@ -104,8 +108,8 @@ impl Screen {
         self.pixels[at + 2] = clamp(red);
     }
 
-    /// Paints a photograph over the whole screen: three octaves of value noise per channel,
-    /// plus per-pixel film grain of `grain` counts either way.
+    /// Paints a photograph over the whole screen: three octaves of value noise per channel, plus
+    /// per-pixel film grain of `grain` counts either way.
     fn photograph(&mut self, grain: i32, rng: &mut Rng) {
         let channels: Vec<[Octave; 3]> = (0..3)
             .map(|_| {
@@ -139,9 +143,9 @@ impl Screen {
         }
     }
 
-    /// Paints rows of ink runs at the spatial frequency interface text has: strokes one to
-    /// three pixels wide with gaps of the same order, which is what a downscaler has to average
-    /// and what a compressor cannot predict.
+    /// Paints rows of ink runs at the spatial frequency interface text has: strokes one to three
+    /// pixels wide with gaps of the same order, which is what a downscaler has to average and what
+    /// a compressor cannot predict.
     fn text_rows(&mut self, x: usize, y: usize, width: usize, rows: usize, rng: &mut Rng) {
         for row in 0..rows {
             let top = y + row * 30;
@@ -180,8 +184,8 @@ fn grain_of(grain: i32, rng: &mut Rng) -> i32 {
     i32::from(rng.next_byte()) % (2 * grain + 1) - grain
 }
 
-/// A desktop with a photographic wallpaper and two windows of text over it, which is what a
-/// screen a person asks about usually is.
+/// A desktop with a photographic wallpaper and two windows of text over it, which is what a screen
+/// a person asks about usually is.
 fn wallpaper_desktop(grain: i32) -> RawFrame {
     let mut rng = Rng::new(0x5EED_0001);
     let mut screen = Screen::new(SOURCE);
@@ -195,14 +199,13 @@ fn wallpaper_desktop(grain: i32) -> RawFrame {
     screen.frame()
 }
 
-/// A photograph filling the display: a maximised viewer, a video still, a full-bleed page. The
-/// realistic worst case, since nothing flat is left to compress.
+/// A photograph filling the display: a maximised viewer, a video still, a full-bleed page.
 fn full_screen_photograph(grain: i32) -> RawFrame {
     full_screen_photograph_on(SOURCE, grain)
 }
 
 /// The same photograph on a display of any size, because how much grain survives the downscale is
-/// decided by the *ratio* between the display and the requested edge rather than by either number
+/// decided by the ratio between the display and the requested edge rather than by either number
 /// alone.
 fn full_screen_photograph_on(source: (u32, u32), grain: i32) -> RawFrame {
     let mut rng = Rng::new(0x5EED_0002);
@@ -223,8 +226,7 @@ fn text_desktop() -> RawFrame {
     screen.frame()
 }
 
-/// Uniform per-pixel noise: not a screen anyone has, and the incompressible bound the ladder
-/// exists for.
+/// Uniform per-pixel noise.
 fn uniform_noise() -> RawFrame {
     let mut rng = Rng::new(0x5EED_0004);
     let mut screen = Screen::new(SOURCE);
@@ -237,9 +239,8 @@ fn uniform_noise() -> RawFrame {
     screen.frame()
 }
 
-/// The size a region of `source` comes back at when the brain asks for [`BRAIN_EDGE`]: the
-/// policy's own rule, the longest edge landing on the bound and the other scaled by the same
-/// ratio and floored, written once here instead of a pair of digits per case.
+/// The size a region of `source` comes back at when the brain asks for [`BRAIN_EDGE`]: the longest
+/// edge on the bound, the other scaled by the same ratio and floored.
 fn brain_size(source: (u32, u32)) -> (u32, u32) {
     let longest = source.0.max(source.1);
     if longest <= BRAIN_EDGE {
@@ -253,8 +254,8 @@ fn brain_size(source: (u32, u32)) -> (u32, u32) {
     (scaled(source.0), scaled(source.1))
 }
 
-/// One frame through the real policy at one edge: the bytes that would cross the seam, and the
-/// size they came back at, which is how the halving ladder announces itself.
+/// One frame through the real policy at one edge: the bytes it would send, and the size they came
+/// back at, which is how a halving ladder shows up.
 fn measure(captured: &CapturedFrame, edge: u32) -> (usize, u32, u32) {
     let capture = ok(Capture::from_bgra(captured, &CaptureRequest::new(edge)));
     (capture.data().len(), capture.width(), capture.height())
@@ -293,6 +294,8 @@ fn report_window(name: &str, frame: &RawFrame, window: TargetRect) -> (usize, u3
 #[test]
 #[ignore = "byte measurement on 4K frames: run with --release -- --ignored --nocapture"]
 fn a_window_inside_the_capture_edge_crosses_at_its_own_resolution() {
+    // The same 4K desktop as the wallpaper row above: asked for whole it is resampled to 2048 px
+    // and costs megabytes, asked for as one window it crosses untouched.
     println!("\nOne window of a 4K wallpaper desktop, through the real crop and encode:");
     let frame = wallpaper_desktop(6);
     let (whole_bytes, ..) = measure(&CapturedFrame::display(frame.clone()), BRAIN_EDGE);
@@ -313,8 +316,6 @@ fn a_window_inside_the_capture_edge_crosses_at_its_own_resolution() {
         "the window costs {window_bytes} B against the desktop's {whole_bytes} B"
     );
 
-    // A maximised window is the whole display again, which is the case that must not become
-    // cheaper by accident: it is the same picture and it costs the same bytes.
     let (maximised, width, height) = report_window(
         "a maximised window",
         &frame,
@@ -366,7 +367,8 @@ fn the_ladder_still_fires_on_a_screen_no_one_has() {
     assert!(
         !report("uniform noise", uniform_noise()),
         "uniform noise now fits inside {MAX_CAPTURE_BYTES} bytes at {BRAIN_EDGE} px, so either \
-         the encoder or the ceiling moved and the margin recorded in the addendum is stale"
+         the encoder or the ceiling moved and the margin in docs/readings/vision-capture.md \
+         is stale"
     );
 }
 

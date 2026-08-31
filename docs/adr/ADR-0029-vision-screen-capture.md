@@ -5,7 +5,7 @@
 
 ## Context
 
-Slice 10 gives the cortex eyes: "what's on my screen?" answered in the overlay. The ROADMAP
+Slice 10 lets the cortex see the screen: "what's on my screen?" answered in the overlay. The ROADMAP
 scoped it as a `ScreenCapture` Windows backend plus a capture flowing brain-ward over the seam
 into the multimodal cortex. That is the third host OS capability after `AudioControl`
 (ADR-0023) and `Notify` (ADR-0025), and the first one whose *return value* is a payload rather
@@ -41,7 +41,7 @@ Six facts shape the design.
 
 The design was produced by a multi-lens design pass (six mapping agents over the affected
 subsystems, four independent designs from an architecture, security, systems, and delivery
-lens, then a synthesizing judge), and every load-bearing claim below was then re-measured
+lens, then a synthesizing judge), and every claim the decisions rest on was then re-measured
 directly against the real cortex artifact. The measurements are recorded first, because five
 decisions rest on them.
 
@@ -250,7 +250,7 @@ being chosen is whether "read this email, then look at my screen" should be poss
 An image lives on a `Role.TOOL` message in the tool loop's working list and dies with the turn.
 `Message.__post_init__` raises `ValueError` when `images` ride any role but `TOOL` (narrowed from
 "a persistable role" on 2026-07-19: SYSTEM is never persisted, but the inference adapter serialises
-images on a tool message only, so an image there would be dropped in silence). Both `SessionStore` implementations raise `SessionStoreError` on `append` of an
+images on a tool message only, so an image there would be dropped with no error). Both `SessionStore` implementations raise `SessionStoreError` on `append` of an
 image-bearing message, pinned by a new shared contract check. The Redis record schema stays at
 `v: 1`. `GetSessionMessages`, `ListSessions`, `summarize_ends`, `CharBudgetHistoryWindow`, and
 `SessionStore.delete` are untouched. Retention is zero, so there is nothing for `delete` to
@@ -336,7 +336,8 @@ pub trait ScreenCapture: Send + Sync {
 }
 ```
 
-Synchronous because the OS is, and an async signature would wrap a blocking call in a lie;
+Synchronous because the OS is, and an async signature would present a blocking call as one that
+does not block;
 getting it off the async worker is the server's job via `off_worker`. `Send + Sync` because the
 `BodyService` server holds the backend across async tasks, which is why `AudioControl` and
 `Notify` carry the bound and single-threaded `Hotkey` does not. It goes in a submodule because
@@ -620,7 +621,7 @@ which is the only side that knows what is on screen.
   inside the process holding the durable memory store, and it violates core purity.
 - **Add `display_index`, `region`, or `format` fields now, since one regeneration is cheaper than
   three.** Under proto3 an older peer silently ignores an unknown request field, so a knob the v1
-  body does not honor is a silent lie about a constraint the brain believes it set.
+  body does not honor is a constraint the brain believes it set and the body never applies.
 - **Rely on `max_edge` as the sole size defense.** Same reason: the receiver must verify after
   receipt.
 - **Raise the gRPC limit at all three call sites.** Only one direction carries pixels here.
@@ -629,7 +630,8 @@ which is the only side that knows what is on screen.
   `--mmproj` decision somewhere it can disagree with it, which is why the probe exists.
 - **Ship capture as an MCP sidecar tool.** Built-ins are cortex-only by construction; an MCP tool
   would reach subagents unless excluded by policy, and no subagent model on the mount has a
-  projector. Structure beats policy. Separately, `McpToolRegistry.invoke` joins only text blocks,
+  projector, so the built-in's structural exclusion is the stronger boundary. Separately,
+  `McpToolRegistry.invoke` joins only text blocks,
   so an image-bearing MCP result would arrive as an empty non-error string, a fail-silent defect.
 - **Hide the overlay, capture, then show it.** It flickers, blanks the window the user is typing
   into, and races the handler thread.
@@ -639,11 +641,11 @@ which is the only side that knows what is on screen.
 
 ## Risks
 
-1. **Legibility is the headline risk and is not disproved.** The projector tiles to a bounded
+1. **Legibility is the largest risk and is not disproved.** The projector tiles to a bounded
    token budget, so a 4K desktop downscaled to 1600 px may render small text unreadable. Expect
    layout-level answers to be good and small-text answers to be unreliable. The fix is region or
    window capture, not a bigger PNG, and the first ordered mitigation (`--image-max-tokens`) is a
-   deployment flag with no code change. This is the number most likely to want changing after the
+   deployment flag with no code change. This is the number most likely to need changing after the
    first real Windows session, and it is one env var.
 2. **The gating decision is a genuine fork, and the residual is same-turn.** Ungated means an
    injected tool result can drive a capture **in the very turn it arrived in**, with the injection

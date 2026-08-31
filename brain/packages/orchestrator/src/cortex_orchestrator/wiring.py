@@ -61,8 +61,8 @@ async def run_from_env(
     swap_config = SwapConfig()
     reply_bounds = ReplyBoundsConfig().bounds()
     clock = SystemClock()
-    # The settings record rides the same Redis the conversation state does: durable for the same
-    # reason (append-only + a named volume), so a choice outlives a body reinstall.
+    # The settings record is kept in the same Redis the conversation state is: durable for the
+    # same reason (append-only + a named volume), so a choice outlives a body reinstall.
     stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)
     placer = VramBudgetPlacer(
         soft_cap_gb=runtime.vram_soft_cap_gb,

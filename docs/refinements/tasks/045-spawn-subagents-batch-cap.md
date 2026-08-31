@@ -7,7 +7,7 @@
 The shared pool bounded a batch's dispatches, never its
 **model runs**, so one call could still ask for any number of subagents, each an admission slot,
 a placement, and an inference. The pool could not close this itself, because the two count
-different currencies: a tool-less subagent spends nothing from it, and
+different things: a tool-less subagent spends nothing from it, and
 `ResourceBudgetScheduler.admit` **queues** rather than refuses (ADR-0012, by design), so an array
 of fifty was never an error the cortex saw, just fifty inferences the turn sat through, two at a
 time under the default CPU budget. `MAX_SPAWN_BATCH = 8` (a constant beside `MAX_TOOL_DISPATCHES`,
@@ -24,7 +24,7 @@ affords four batches, ceiling 32 model runs), while a closing turn-wide pool wou
 turn on the first oversized batch instead of correcting it. One property fell out rather than
 being designed: a refused batch still costs its spawn price (the loop charges ahead of the
 dispatch), so retry spam is bounded at four attempts. CI-gated at 100% and mutation-proven (cap,
-comparison, advertisement; each reverted individually turns a distinct test red). Remaining behind
+comparison, advertisement; each reverted individually makes a distinct test fail). Remaining behind
 the same tool: a **`CORTEX_SUBAGENTS_MAX_BATCH` knob** if a host ever wants a different ceiling,
 and a **cost-aware batch** (a cap in placements or estimated VRAM rather than in items) if roster
 entries ever differ enough that eight of one is not eight of another.

@@ -1,4 +1,4 @@
-"""The `ToolRegistry` contract, run over every implementation (AGENTS.md: ports before adapters)."""
+"""The `ToolRegistry` contract checks, run over every implementation of the port."""
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -14,17 +14,13 @@ _SCHEMA: Mapping[str, Any] = {
 
 
 def _echo(arguments: Mapping[str, Any]) -> str:
-    """The reply a served tool gives: the arguments it was handed, rendered."""
+    """Return the reply a served tool gives: the arguments it was handed, rendered as text."""
     return f"read {arguments.get('path', '')}"
 
 
 @dataclass(frozen=True, slots=True)
 class ServedTool:
-    """One tool a fixture publishes: what the model is told, and what calling it does.
-
-    `failed` is the tool that ran and reported an error, which is the case the port's ``is_error``
-    exists for and the one no amount of result text can express on its own.
-    """
+    """One tool a fixture publishes: what the model is told, and what calling it does."""
 
     spec: ToolSpec
     reply: Callable[[Mapping[str, Any]], str] = _echo
@@ -61,7 +57,7 @@ async def every_served_tool_is_advertised_as_the_model_will_see_it(
 
 
 async def the_advertised_set_is_read_again_on_every_walk(under_test: RegistryUnderTest) -> None:
-    """Yesterday's listing is never reused, which is what the routing combinators stand on."""
+    """Each walk reads the tool set again, so an earlier listing is never reused."""
     under_test.serve([_tool("read")])
     assert [spec.name for spec in await under_test.registry.describe_tools()] == ["read"]
     under_test.serve([_tool("list"), _tool("read")])
@@ -71,7 +67,7 @@ async def the_advertised_set_is_read_again_on_every_walk(under_test: RegistryUnd
 async def a_call_comes_back_stamped_with_its_own_id_and_the_tools_text(
     under_test: RegistryUnderTest,
 ) -> None:
-    """The result carries the call's id, the tool's output, and no error flag."""
+    """The result has the call's id, the tool's output, and no error flag."""
     under_test.serve([_tool("read")])
     result = await under_test.registry.invoke(
         ToolCall(id="c-1", name="read", arguments={"path": "/etc/hosts"})
@@ -82,7 +78,9 @@ async def a_call_comes_back_stamped_with_its_own_id_and_the_tools_text(
 async def a_tool_that_ran_and_failed_is_a_result_rather_than_an_exception(
     under_test: RegistryUnderTest,
 ) -> None:
-    """A failing tool is news for the model, not an error for the turn."""
+    """A tool that ran and reported a failure comes back as a result with ``is_error`` set, rather
+    than as a raised exception.
+    """
     under_test.serve([_tool("read", failed=True)])
     result = await under_test.registry.invoke(
         ToolCall(id="c-2", name="read", arguments={"path": "/nope"})
@@ -94,7 +92,7 @@ async def a_tool_that_ran_and_failed_is_a_result_rather_than_an_exception(
 async def a_name_that_is_not_served_never_comes_back_as_success(
     under_test: RegistryUnderTest,
 ) -> None:
-    """Whatever an implementation does about an unknown name, it must not answer it green."""
+    """An unknown name comes back as an error, either raised or flagged, and never as a success."""
     under_test.serve([_tool("read")])
     call = ToolCall(id="c-3", name="ghost", arguments={"path": "/x"})
     try:
@@ -105,7 +103,7 @@ async def a_name_that_is_not_served_never_comes_back_as_success(
 
 
 async def a_backend_that_cannot_answer_raises_tool_error(under_test: RegistryUnderTest) -> None:
-    """Both verbs fail loudly through the port's one error type when the registry is unreachable."""
+    """Both verbs raise the port's one error type when the registry is unreachable."""
     under_test.serve([_tool("read")])
     under_test.break_backend()
     call = ToolCall(id="c-4", name="read", arguments={"path": "/x"})

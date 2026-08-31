@@ -1,19 +1,20 @@
-//! What one capture is pointed at, and where the backend found it (ADR-0029).
+//! What one capture is pointed at, and where the backend found it.
 
 use crate::os::screen::{CaptureError, RawFrame};
 
 /// What the body points the camera at, mirroring the wire's `CaptureTarget`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaptureTarget {
-    /// The primary display, whole. The proto3 zero, and the behaviour this seam shipped with.
+    /// The primary display, whole.
     Display,
-    /// The topmost visible top-level window that is not the body's own and is not excluded
-    /// from capture.
+    /// The topmost visible top-level window that is not the body's own and is not excluded from
+    /// capture.
     Focus,
 }
 
 /// Where the resolved target sits, in the display's own physical pixels, exactly as the OS
-/// reported it.
+/// reported it. A window may hang off an edge or sit on another monitor, and Win32 reports all
+/// of that without an error, so these numbers are signed and unchecked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TargetRect {
     left: i32,
@@ -77,9 +78,6 @@ impl CapturedFrame {
     }
 
     /// The display, with the window a [`CaptureTarget::Focus`] request resolved to.
-    ///
-    /// `window` is where the OS says that window is, unclamped. A rectangle that hangs off the
-    /// display is cropped to the part that is on it; one that misses it entirely is refused.
     #[must_use]
     pub const fn window(frame: RawFrame, window: TargetRect) -> Self {
         Self {
@@ -95,6 +93,10 @@ impl CapturedFrame {
     }
 
     /// The part of the frame this capture encodes, in the frame's own pixels.
+    ///
+    /// # Errors
+    ///
+    /// [`CaptureError::NoTarget`] when the clamped rectangle has no pixels on the display.
     pub(crate) fn region(&self) -> Result<Region, CaptureError> {
         let (width, height) = (self.frame.width(), self.frame.height());
         let Some(rect) = self.window else {
@@ -132,8 +134,8 @@ fn clamp_edge(value: i32, bound: u32) -> u32 {
     u32::try_from(value).unwrap_or(0).min(bound)
 }
 
-/// The part of a frame a capture encodes: an origin and a size, both in the frame's own pixels
-/// and both already known to be inside it.
+/// The part of a frame a capture encodes: an origin and a size, both in the frame's own pixels and
+/// both already known to be inside it.
 #[derive(Clone, Copy)]
 pub(crate) struct Region {
     x: u32,
@@ -163,8 +165,8 @@ impl Region {
         self.height
     }
 
-    /// Whether this region is the whole frame, which is what decides which of the two fixed receipt
-    /// strings the body shows: a picture of the screen, or a picture of one window.
+    /// Whether this region is the whole frame, which decides which of the two fixed receipt strings
+    /// the body shows: a picture of the screen, or a picture of one window.
     pub(crate) const fn covers(&self, width: u32, height: u32) -> bool {
         self.x == 0 && self.y == 0 && self.width == width && self.height == height
     }

@@ -76,17 +76,13 @@ class InferenceBackend(Protocol):
 
 
 class ModelManager(Protocol):
-    """Owns the single GPU: leases the resident model, serializes callers (ADR-0007)."""
+    """Owns the single GPU: leases the resident model and serializes callers."""
 
     def acquire(self, model: str) -> AbstractAsyncContextManager[ModelLease]: ...
 
 
 class Embedder(Protocol):
-    """Turns text into the vector retrieval ranks on (one stateless call, no I/O state).
-
-    ``embed`` returns the embedding of ``text``; its dimension is fixed by the deployment's
-    model (ADR-0008) and the core never assumes a value. Failures surface as ``EmbedderError``.
-    """
+    """Turns text into the vector retrieval ranks on (one stateless call, no I/O state)."""
 
     async def embed(self, text: str) -> Sequence[float]: ...
 
@@ -98,7 +94,7 @@ class Clock(Protocol):
 
 
 class Sleeper(Protocol):
-    """The only way core code may wait for wall-clock time to pass (ADR-0030 decision 4)."""
+    """The only way core code may wait for wall-clock time to pass."""
 
     async def sleep(self, seconds: float) -> None: ...
 
@@ -112,13 +108,13 @@ class TurnRunner(Protocol):
 
 
 class RecallAuditSink(Protocol):
-    """The trail that answers "why did recall return these?" (ADR-0038 decision 5)."""
+    """Where each recall is recorded, so the hits it returned can be explained later."""
 
     async def record(self, audit: RecallAudit) -> None: ...
 
 
 class SubagentScheduler(Protocol):
-    """Admits subagent spawns against a soft CPU/RAM budget. Concurrency, not the GPU (ADR-0012)."""
+    """Admits subagent spawns against a soft CPU/RAM budget."""
 
     def admit(self, request: PlacementRequest) -> AbstractAsyncContextManager[None]: ...
 

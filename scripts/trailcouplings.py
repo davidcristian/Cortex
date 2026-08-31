@@ -131,7 +131,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "in for this one, a line whose fields are built by condition being one no runbook may "
             "print as a rendered sample; the fourth place is the sink's own suite, which restates "
             "nothing and asserts the rendered line this sink emits, and so is the only thing "
-            "holding this declaration to the call handed it, the guard next door reaching a "
+            "holding this declaration to the call handed it, the logger guard reaching a "
             "logger name and no further (ADR-0009 declared-name addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
@@ -150,7 +150,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "by construction, and then asks each of those modules for this one name, so the "
             "naming is what the derivation is read by and the guard, both sinks and any third "
             "have to keep spelling it alike (ADR-0009 derived-sink addendum); a sink that renames "
-            "it reddens the guard as well as this entry, and what nothing else would notice is "
+            "it fails the guard as well as this entry, and what nothing else would notice is "
             "the guard itself going away, which takes the whole derivation with it and leaves the "
             "two declarations above tied to the documents restating them and to nothing at all "
             "saying the brain still writes through them; both module contracts name the "

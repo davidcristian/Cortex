@@ -1,4 +1,8 @@
-"""Five synthetic 4K desktops carrying 47 ground-truth strings, and the window on each."""
+"""Five synthetic 4K desktops with 47 ground-truth strings, and the focused window on each.
+
+Each desktop declares its focused window before any string is placed, so the rectangle a ``focus``
+capture would produce is fixed before the measurement.
+"""
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -24,8 +28,9 @@ _WHITE: Colour = (255, 255, 255)
 
 @dataclass(frozen=True)
 class Truth:
-    """One scored string: where it sits, what it says, its type size, and whether the crop
-    contains it."""
+    """One scored string: where it sits, what it says, its type size, and whether the crop contains
+    it.
+    """
 
     key: str
     where: str
@@ -36,7 +41,7 @@ class Truth:
 
 @dataclass(frozen=True)
 class Desktop:
-    """One rendered desktop, its focused window, and the strings it carries."""
+    """One rendered desktop, its focused window, and the strings it holds."""
 
     name: str
     screen: Screen
@@ -97,7 +102,7 @@ def _wallpaper(*, dark: bool) -> Screen:
 
 
 def _frame(screen: Screen, rect: Rect, title: str, *, dark: bool) -> None:
-    """A window: border, title bar with its title, and the client area behind its content."""
+    """Draw a window: border, title bar with its title, and the client area behind its content."""
     screen.fill(rect, (58, 62, 78) if dark else _RULE)
     bar = Rect(rect.x + 3, rect.y + 3, rect.width - 6, 54)
     screen.fill(bar, _DARK_BAR if dark else _ACCENT)

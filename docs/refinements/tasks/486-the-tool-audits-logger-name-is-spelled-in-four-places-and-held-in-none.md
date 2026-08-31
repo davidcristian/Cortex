@@ -24,8 +24,8 @@ registry holds and one it does not, in the same clause.
 sink, one entry in `scripts/trailcouplings.py` or a part beside it, and the three restatements as
 mentions. `scripts/logcalls.py` already resolves a logger named through a module constant, so
 nothing in the gate tree has to change; the audit sink's own suite pins the name the way the
-memory package's does, so the rename is loud in code and silent in the documents, which is the
-asymmetry the recall trail's entry measured.
+memory package's does, so the rename fails in code and goes unreported in the documents,
+which is the asymmetry the recall trail's entry measured.
 
 **One question to settle first**, and it is the reason this is not a copy of the entry it came
 from. Three of the four places are the trail's own instructions and one is a sibling module's
@@ -46,7 +46,7 @@ Register it as a mention like the rest, or leave it and say why, but say which.
   one**: `brain/packages/orchestrator/tests/test_config_logging.py` is a fifth place, writing a
   record under the literal name and asserting the rendered line back, because what it tests is what
   a line looks like once it leaves the process. It renames with itself, both spellings moving
-  together, so it is silent for exactly the mutation this entry was filed for, and it is registered
+  together, so it does not fire for exactly the mutation this entry was filed for, and it is registered
   as two needles rather than one counted twice. **The question this entry asked was settled by
   registering.** The docstring's claim is an argument about levels and its suite is the proof of
   that argument, and neither is an instruction to select a stream, but the registry holds places
@@ -60,5 +60,5 @@ Register it as a mention like the rest, or leave it and say why, but say which.
   [R-487](487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md) for the
   message beside this name on the same line, and
   [R-488](488-a-declared-logger-name-is-never-held-to-the-call-that-passes-it.md), which a mutation
-  written to be a red row found by measuring zero: the registry holds the declaration and never
+  written to be a failing row found by measuring zero: the registry holds the declaration and never
   asks that the sink's own call passes it.

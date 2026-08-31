@@ -1,4 +1,4 @@
-"""RedisHandoffStore: the HandoffStore port over Redis keys for the brain handoff (ADR-0030)."""
+"""RedisHandoffStore: the HandoffStore port over Redis keys for the brain handoff."""
 
 from dataclasses import replace
 from typing import cast
@@ -10,7 +10,6 @@ from cortex_core import HandoffRecord, HandoffState, HandoffStoreError
 from cortex_session.handoff_codec import ACTIVE_KEY, decode_record, encode_record, record_key
 from cortex_session.store import DEFAULT_REDIS_URL
 
-# How long a terminal (DONE/FAILED) record stays readable for diagnosis before expiring.
 _TERMINAL_TTL_SECONDS = 3600
 
 
@@ -39,7 +38,7 @@ class RedisHandoffStore:
             raise HandoffStoreError(msg) from err
 
     async def put(self, record: HandoffRecord) -> None:
-        """Persist one record and keep the active pointer true to its state."""
+        """Persist one record and leave the active pointer matching its state."""
         encoded = encode_record(record)
         key = record_key(record.handoff_id)
         try:

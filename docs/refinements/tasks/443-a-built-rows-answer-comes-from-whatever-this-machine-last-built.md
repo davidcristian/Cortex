@@ -20,10 +20,10 @@ That is the same defect [R-433](433-a-mutable-image-tag-moves-under-the-recorded
 and fixed for pulled references, arriving on the three references its fix deliberately exempted.
 It is narrower than it was, because the Dockerfile check now covers everything those two files
 declare themselves: what is left is only what a built image **inherits** from
-`python:3.12-slim-trixie` or `ghcr.io/ggml-org/llama.cpp:server-cuda`, both of them moving tags
+`python:3.12-slim-trixie` or `ghcr.io/ggml-org/llama.cpp:server-cuda`, both of them mutable tags
 with no row of their own.
 
-The absence case is already loud, and only the staleness case is silent: an image never built here
+The absence case is already reported and only the staleness case is not: an image never built here
 makes `docker image inspect` fail, and `rederive` reports the failure rather than skipping the row.
 
 **Why it was left.** The close it came out of was about the tree's own declarations, and this is

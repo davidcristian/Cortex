@@ -1,20 +1,37 @@
-/* Overlay styles follow design/overlay-ux.md. Theme tokens (--bg, --panel, --text, --accent, …) are
-   written onto :root by applyTheme(); this file consumes them. Color (the accent gradient) appears
-   only on *working* affordances (the streaming caret/glow, a live send, and the orb). */
+/* Overlay styles. Theme tokens (--bg, --panel, --text, --accent and the rest) are written onto
+   :root by applyTheme(); this file uses them. Colour appears only on controls that are working: the
+   streaming mist, a live send, and the orb. */
 
 :root {
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /* How long a section's roll takes, and the only place this file writes it. `MORPH_ROLL_MS` in
+     `overlay/morph.ts` owns the number, and the two rules that must move with a roll use this
+     token. The four other 0.3s durations here accompany no roll and stay literal. */
   --roll: 300ms;
   --font: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
   /* One utility face, for group legends in the console and nothing else. A monospace at label size
-     with wide tracking reads as a caption for what is under it rather than as content, which is the
-     job; the system stack keeps it a token swap away from a licensed face later, like `--font`. */
+     with wide tracking reads as a caption for what is under it rather than as content. */
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  /* The width every scroll container reserves for its scrollbar. Where a container's inline-end
+     padding is large enough to hold the rail it is subtracted from that padding, and where it is
+     not a full rail is added beside it. Each of those rules says which of the two it does. */
   --rail: 6px;
+  /* The height of one activity row above a bubble, measured off the live chip by
+     `overlay/measured.ts`, so the settled disclosure is the same height and completing a turn does
+     not resize the log. 24px is the chip's own box in Chromium, used until a chip has been seen. */
   --trace-row: 24px;
+  /* The height of the empty state, measured off it by `overlay/measured.ts`. `.log` takes it as a
+     minimum, so sending the first message does not shrink the panel. 185px is that measurement in
+     Chromium, and it is the value a chat restored with messages already in it uses. */
   --chat-floor: 185px;
+  /* The width every relative timestamp reserves, so a column of them holds still as the clock runs
+     under it. At 11.5px the widest bounded label is 50.9px and `9999d ago` is 61.6px, so 55px
+     covers up to three digits of days. Measure again if the label's size or face changes. */
   --time-col: 55px;
+  /* The one red in the overlay that is not a status. It marks the two controls that undo something
+     in flight, the trash on a chat row and the stop on a running turn, and only on hover. It is the
+     accent's own magenta walked to red, and both themes use it unchanged. */
   --halt: rgb(226, 75, 107);
 }
 
@@ -22,6 +39,9 @@
   box-sizing: border-box;
 }
 
+/* A theme change; `theme/themes.ts` sets this for the length of it and supplies the duration. One
+   transition on everything, so the whole surface crosses at one pace instead of each control easing
+   at the pace of its own hover. `!important` has to outrank every one of those rules. */
 [data-swapping] * {
   transition:
     color var(--theme-swap) var(--ease),
@@ -31,14 +51,16 @@
     stroke var(--theme-swap) var(--ease) !important;
 }
 
+/* Scrollbars are resting chrome: no arrows, no track, no corner, and a rounded thumb painted
+   inside a transparent border so it never sits against the text it scrolls. Every container
+   reserves the rail permanently, so nothing moves when a bar appears; `--rail` says how. */
 .stage ::-webkit-scrollbar {
   width: var(--rail);
   height: var(--rail);
 }
 .stage ::-webkit-scrollbar-track {
-  /* Held off both ends so the thumb stops short of a container's rounded corners rather than
-     being sliced by one: the switcher and the reminder stack are 16px cards, and a bar drawn
-     into that curve is the first thing that reads as a widget bolted on. */
+  /* Held off both ends so the thumb stops short of a container's rounded corners rather than being
+     sliced by one. */
   margin-block: 6px;
   background: transparent;
 }
@@ -48,6 +70,9 @@
 .stage ::-webkit-scrollbar-button {
   display: none;
 }
+/* A panel easing to a new size is briefly shorter than its target, so its scroll boxes overflow for
+   a few frames and a thumb flashes on and off. The same happens to the history while the reminder
+   stack rolls away above it. Hiding the thumb rather than the overflow keeps scrollTop. */
 .panel[data-resizing] :is(.history, .rows)::-webkit-scrollbar-thumb,
 .view:has(> .collapse.aside[data-morphing]) .history::-webkit-scrollbar-thumb {
   background: transparent;
@@ -64,6 +89,9 @@
   background: color-mix(in srgb, var(--muted) 62%, transparent);
   background-clip: padding-box;
 }
+/* Only for engines without the pseudo-elements above. Setting both makes Chromium reserve 10px
+   rather than 6, which would leave the `calc(16px - var(--rail))` arithmetic wrong by 4px. On this
+   branch the UA picks the width, so those subtractions are not exactly symmetrical either. */
 @supports not selector(::-webkit-scrollbar) {
   .stage * {
     scrollbar-width: thin;
@@ -71,6 +99,9 @@
   }
 }
 
+/* Opaque stage in v1; a transparent window is deferred. A theme change is a token swap and happens
+   in one frame: easing this ground's colour eased only the two lines that inherit it, the chat
+   title and the reminder text, leaving them 14 frames behind everything else. */
 .stage {
   position: fixed;
   inset: 0;
@@ -80,6 +111,9 @@
   overflow: hidden;
 }
 
+/* The live region that says which conversation just arrived. It is read but never seen, so it is
+   clipped to a single pixel rather than hidden: `display: none`, `visibility: hidden` and a zero
+   size would each take it out of the accessibility tree as well. */
 .announcer {
   position: absolute;
   top: 0;
@@ -92,6 +126,9 @@
   pointer-events: none;
 }
 
+/* Neutral glass at rest, scaled from the centre when closed; `.to-orb` parks the closed panel at
+   the corner instead. `bottom` and `max-height` are inline styles written by
+   `overlay/usePanelMotion.ts`, and the growth is animated there too, not by a transition here. */
 .panel {
   position: fixed;
   left: 50%;
@@ -123,26 +160,35 @@
   transform: translate(-50%, 0) scale(1);
 }
 
+/* A liquid window style hands the panel's face to the edge layers and keeps everything else. The
+   border keeps its width, since losing it would shift the layout by a pixel, and loses only its
+   colour. No backdrop blur: Chromium does not clip backdrop-filter output by a path() clip. */
 .panel.edge-live {
   background: transparent;
   border-color: transparent;
   backdrop-filter: none;
+  /* The rectangular shadow goes with the rectangular face, since cast from the border box it traced
+     the original border behind the liquid. The edge wrapper below casts the shadow instead. */
   box-shadow: none;
-  /* The edge wrapper bleeds past the border box so the liquid can swing OUTWARD around the
-     panel's real edge; hidden overflow would slice that bleed off. The content clip this
-     surrenders moves one level down, onto `.views`. */
+  /* The edge wrapper extends past the border box so the liquid can swing outward around the panel's
+     real edge. The content clip this gives up moves one level down, onto `.views`. */
   overflow: visible;
 }
-/* The content clip a liquid panel hands down: same box, same corner, so the growth reveal
-   (see `.panel`) clips here exactly as it clipped on the panel itself, and mid-ease rows still
-   resolve behind a rounded edge instead of spilling past the glass. */
+/* The content clip a liquid panel hands down: same box, same corner, so the growth reveal clips
+   here exactly as it clipped on the panel itself. */
 .panel.edge-live .views {
   overflow: hidden;
   border-radius: 28px;
 }
+/* The edge's own layers. The wrapper takes its bleed as an inline inset and each layer covers the
+   wrapper. Back to front: the clipped glass slab, the glow strokes, the content, and the crisp
+   hairline over it all. */
 .edge {
   position: absolute;
   pointer-events: none;
+  /* The liquid's own shadow follows the clipped outline frame by frame, where the panel's box-
+     shadow could only trace the rectangle. It is on the wrapper rather than the slab because
+     filters apply before clip-path on the same element, which would cut the shadow off. */
   filter: drop-shadow(0 26px 34px rgba(0, 0, 0, 0.38));
 }
 .edge-glass,
@@ -152,6 +198,8 @@
   inset: 0;
   pointer-events: none;
 }
+/* An svg clips its painting to its own viewport by default, and the glow is a blurred stroke that
+   swings within a few px of that boundary, so clipped it ended in a straight line. */
 .edge-under,
 .edge-over {
   overflow: visible;
@@ -175,6 +223,9 @@
   stroke: var(--stroke);
   stroke-width: 1;
 }
+/* The smolder: two strokes on the outline, cross-faded by opacity because gradients cannot
+   interpolate. Settled (Reverie) is neutral at rest and takes the accent while a turn runs; ember
+   (Trance) keeps the accent lit at rest, the one written exception to colour meaning activity. */
 .edge-glow-n {
   stroke: var(--muted);
   stroke-width: 7;
@@ -202,6 +253,9 @@
 .edge-ember.edge-working .edge-glow-a {
   opacity: 0.6;
 }
+/* The tile art: the liquid at swatch scale, on the current theme's own tokens, resting chrome
+   except the glow it exists to show. Reverie's two glow strokes take their opacities inline,
+   because they cross-fade on the tile's clock. */
 .edge-mini-glass {
   fill: var(--panel-solid);
 }
@@ -233,55 +287,80 @@
   opacity: 0.3;
 }
 
+/* The panel shows one view at a time and morphs between them. Only the active view is in the layout
+   flow, so it alone decides the height the panel eases to. The view being left is held for one
+   morph as `.out`, lifted out of flow so it cannot compete for the height. */
 .views {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Above the dreaming edge's glass and glow, below its hairline (see the .edge block): the
-     content never sits on the layer the animated clip re-rasterizes, which is what keeps the
-     type sharp while the glass warps (ADR-0036). */
+  /* Above the dreaming edge's glass and glow, below its hairline, so the content never sits on the
+     layer the animated clip re-rasterizes. That is what keeps the type sharp while the glass
+     warps. */
   z-index: 1;
 }
+/* The column's height is a budget and the two roll-open sections share what is left of it.
+   `--ceiling` is the panel's own `max-height`, written beside it by `overlay/panelBudget.ts`
+   because a descendant cannot read it; `--reserved` is the furniture the panel always keeps. */
 .view {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  /* How far a view travels as it arrives or leaves, read by both keyframes below. */
+  /* How far a view travels as it arrives or leaves, used by both keyframes below. */
   --rise: 7px;
+  /* The composer pill's minimum height, declared here because the budget reserves it before the
+     sections are given any, and enforced on `.composer.stacked`. The two must agree. */
   --pill-floor: 84px;
-  /* The air under a roll-open section (its own `margin-bottom`), spent out of that section's share
-     so the share bounds the OUTER box and the arithmetic below closes. */
+  /* The air under a roll-open section, taken out of that section's share so the share bounds the
+     outer box and the arithmetic below adds up. */
   --section-gap: 6px;
+  /* The furniture the panel keeps whatever else is open. The addends are read off the boxes at
+     the shipping type sizes, in the order they sit in the column. */
   --reserved: calc(2px + 54px + 10px + 11px + var(--pill-floor) + 9px + 33px);
-  /* Floored at zero, because a viewport short enough to leave the sections nothing still leaves
-     the composer, and the composer is what a panel that small is for. */
+  /* Floored at zero, because a viewport short enough to leave the sections nothing still leaves the
+     composer, and the composer is what a panel that small is for. */
   --budget: max(0px, var(--ceiling, 100vh) - var(--reserved));
+  /* A section alone with the panel may have the whole budget; the two rules below take that back
+     when it is not alone. The share is what the section's outer box may cost the column, and the
+     room is what is left for the card. Floored, because `max-height` drops a negative length. */
   --switcher-share: var(--budget);
   --reminders-share: var(--budget);
   --switcher-room: max(0px, var(--switcher-share) - var(--section-gap));
   --reminders-room: max(0px, var(--reminders-share) - var(--section-gap));
   animation: viewin 0.34s var(--ease) 0.05s both;
 }
+/* The share bounds the section's whole box, frame and all. Capping the card alone left its frame
+   outside every cap: with border-box sizing the border box still stands at 14px, plus 6px of air
+   below it, so two sections cost 20px each however little they were given. */
 .view > .collapse:not(.aside) {
   max-height: var(--switcher-share);
 }
 .view > .collapse.aside {
   max-height: var(--reminders-share);
 }
+/* Both sections open, so neither is alone with the panel, and the budget is split in the ratio of
+   the two numbers the sections are already written in. Each rule asks whether the other section is
+   going to be there, which a closing roll answers by publishing `data-morphing: 0`. */
 .view:has(> .collapse.aside:not([data-morphing="0"])) {
   --switcher-share: max(0px, calc(var(--budget) * 40 / 70));
 }
 .view:has(> .collapse:not(.aside):not([data-morphing="0"])) {
   --reminders-share: max(0px, calc(var(--budget) * 30 / 70));
 }
+/* The handover eases over the roll's own duration and curve, so the room one section gives up is
+   the room the other takes, frame for frame. The condition is both sections being open rather
+   than a roll running, which is true one style recalculation earlier. */
 .view:has(> .collapse.aside):has(> .collapse:not(.aside)) > .collapse,
 .view:has(> .collapse.aside):has(> .collapse:not(.aside)) .switcher,
 .view:has(> .collapse.aside):has(> .collapse:not(.aside)) .reminders {
   transition: max-height var(--roll) var(--ease);
 }
+/* Out of the flow so it cannot compete with the arriving view for the panel's height, and bounded
+   by the panel all the same: without the `bottom` a leaving view lays out at its own natural
+   height, which puts its composer and hint strip below the panel's clipped edge. */
 .view.out {
   position: absolute;
   top: 0;
@@ -310,6 +389,8 @@
   gap: 10px;
   padding: 15px 16px 9px;
 }
+/* Connection indicator: a small dot at the head of the button cluster, coloured by the last probe
+   and pulsing while one is out. It is deliberately tiny, the healthy case being the common one. */
 .linkdot {
   width: 7px;
   height: 7px;
@@ -327,8 +408,8 @@
 .linkdot.bad {
   background: var(--bad);
 }
-/* Mid-check: the last known colour stays and breathes, so a reconnect neither flashes green
-   nor forgets it was red. The global reduced-motion rule collapses this to a still dot. */
+/* Mid-check: the last known colour stays and breathes, so a reconnect neither flashes green nor
+   forgets it was red. The global reduced-motion rule collapses this to a still dot. */
 .linkdot.busy {
   animation: linkcheck 1.2s var(--ease) infinite;
 }
@@ -342,6 +423,9 @@
   }
 }
 
+/* The screen-capture indicator: a small open ring beside the connection dot, lit from the moment
+   the assistant looks at the screen until the turn ends. Open rather than filled, so it does not
+   read as a second connection colour, and it renders only while it means something. */
 .capturedot {
   width: 7px;
   height: 7px;
@@ -353,6 +437,9 @@
   place-items: center;
 }
 
+/* The outcome settling the call said the screen really was read, so a pupil grows inside the ring.
+   2.5px is measured: at devicePixelRatio 1 a 2px pupil is a smudge and a 3px one closes the 4px
+   hole, while 2.5px gives a three-pixel core with 0.75px of gap all the way round. */
 .capturedot::after {
   content: "";
   width: 2.5px;
@@ -366,6 +453,9 @@
   transform: scale(1);
 }
 
+/* The title's two clearances are made equal by measurement. On the header's bare padding the glyphs
+   start 17px in from the panel's outer edge and 27px down from its top; 10px more inset makes both
+   27px. Scoped to a title that starts the row, since other views open with the back chevron. */
 .head > .title:first-child {
   margin-left: 10px;
 }
@@ -392,9 +482,8 @@
   transition: 0.18s var(--ease);
 }
 
-/* The theme toggle's sun↔crescent morph, in the header's outline vocabulary: the hollow sun and
-   hollow crescent cross-fade and spin into each other, and the sun's rays retract in a morph, not
-   a glyph swap. Both forms share the same 12,12 origin so the spin reads as one transformation. */
+/* The theme toggle's sun and crescent cross-fade and spin into each other, and the sun's rays
+   retract. Both forms share the same 12,12 origin, so the spin reads as one transformation. */
 .sunmoon .sun,
 .sunmoon .moon,
 .sunmoon .rays {
@@ -430,19 +519,30 @@
   background: var(--field);
 }
 
+/* The history takes the slack, which keeps the composer against the panel's bottom edge while the
+   panel resizes. The shrink factor is an ordering rather than a ratio: it says the history yields
+   before the pill does, and flexbox has no way to say "shrink last". */
 .history {
   display: flex;
   flex-direction: column;
   flex: 1 100000 auto;
   min-height: 0;
   /* The rail is reserved out of the right padding, so a bubble ends 16px from the panel edge
-     whether the log scrolls or not, and the thumb rides in the gap the padding gave up. */
+     whether the log scrolls or not. */
   padding: 6px calc(16px - var(--rail)) 4px 16px;
   overflow-y: auto;
+  /* The gutter is reserved on the inline-end only, so a horizontal bar would take its height out of
+     the log and push every bubble up. `clip` rather than `hidden`, to avoid a second scroll box. */
   overflow-x: clip;
   scrollbar-gutter: stable;
+  /* Scroll anchoring off. A roll measures its content at full height and then animates from zero,
+     which Chromium's anchoring reads as the log shrinking: measured at 640x720, scrollTop fell 498
+     to 422 in one frame and walked back. `ChatView` and `overlay/logRide.ts` own this position. */
   overflow-anchor: none;
 }
+/* The history's inner column, packed to the bottom so a short conversation sits against the
+   composer. Its minimum height is `--chat-floor`, on the content rather than on the scroll box: a
+   minimum on `.history` cannot yield, and would push the composer past the panel's clipped edge. */
 .log {
   display: flex;
   flex-direction: column;
@@ -451,17 +551,25 @@
   gap: 11px;
   min-height: var(--chat-floor);
 }
+/* The opening screen does not scroll: there is no more of it further down, so a bar on it would
+   offer to reveal nothing. The column may shrink under its content, it centres what is left rather
+   than packing it to the bottom, and it clips, which is what stops the bar appearing. */
 .log.bare {
   flex: 1 1 auto;
   min-height: 0;
   justify-content: center;
   overflow: clip;
 }
-
+/* A section that rolls open and shut; `components/Collapse.tsx` animates this wrapper's height. The
+   clip makes it a roll rather than a squash, and stops a first child's top margin collapsing out
+   through the wrapper. */
 .collapse {
   flex: none;
   overflow: hidden;
 }
+/* A section the panel does not count when it centres itself. The reminder stack is delivery rather
+   than conversation and can be two rows or five, so the panel centres on the chat and lets the
+   stack grow it upward from there. */
 .collapse.aside {
   flex: none;
 }
@@ -474,6 +582,8 @@
   border-radius: 20px;
   white-space: pre-wrap;
   animation: bubblein 0.3s var(--ease) both;
+  /* A commit hash or a `.gguf` filename offers no break opportunity, so without this the log grows
+     a horizontal bar, which `scrollbar-gutter: stable` does not pay for. */
   overflow-wrap: anywhere;
 }
 .b-user {
@@ -492,16 +602,25 @@
   color: var(--text);
   border-bottom-left-radius: 7px;
 }
+/* The whispered reply. The clock poses the bubble's box as inline styles, eased toward the
+   condensation front each frame, so its own edge is the reveal and `overflow: hidden` clips only
+   letters that have not condensed yet. The breathing minimum holds the waiting pill open. */
 .whisper {
   position: relative;
   box-sizing: border-box;
   overflow: hidden;
+  /* The clock owns the cap: its measured maxW is `.bubble`'s own 82% against the same content box,
+     with the padding added. Leaving the class's max-width on would apply the 82% to the border box
+     instead, and the overflow clip would cut that much off every full line. */
   max-width: none;
 }
 .whisper.w-breath {
   min-width: 55px;
   min-height: 42px;
 }
+/* The letter DOM lays out once at the final wrap width, so letter positions never move after they
+   are laid. A word is an unbreakable box, and a letter is one inline span. Never inline-block: the
+   engine lays boxes on whole pixels, which rounds every letter's advance. */
 .wtxt {
   display: block;
 }
@@ -512,6 +631,9 @@
 .ch {
   opacity: 0;
 }
+/* The mist is one element for the whole lifecycle: it breathes before the first token, glides along
+   the front, and evaporates on settle. The outer span takes the clock's translate and the inner one
+   the breathing, so the two transforms never fight. */
 .mist {
   position: absolute;
   left: 0;
@@ -532,8 +654,7 @@
 .w-settled .mist i {
   animation: mistgone 0.55s var(--ease) forwards;
 }
-/* The reply as assistive tech reads it: the letter spans are presentation (aria-hidden), this
-   is the text, held to one offscreen pixel. */
+/* The reply as assistive tech reads it, held to one offscreen pixel. */
 .sr-copy {
   position: absolute;
   width: 1px;
@@ -543,14 +664,16 @@
   white-space: nowrap;
 }
 
-/* Slim inline activity chips between bubbles (tool/status, design/overlay-ux.md §3): a neutral
-   pill whose pulsing accent dot is the working signal; the text clamps to one line. */
+/* Slim inline activity chips between bubbles: a neutral pill whose pulsing accent dot is the
+   working signal. The text clamps to one line. */
 .chip {
   align-self: flex-start;
   display: flex;
   align-items: center;
   gap: 7px;
   max-width: 82%;
+  /* No minimum height here: this box is the row height, and the settled disclosure below uses it
+     through `--trace-row`, so completing a turn swaps the two in place. */
   padding: 4px 12px;
   background: var(--control);
   border: 1px solid var(--stroke);
@@ -574,8 +697,8 @@
   text-overflow: ellipsis;
 }
 
-/* A thinking status is deliberation, not action: its dot bobs (the reasoning shimmer) instead
-   of the steady tool pulse, and the label leans on the accent (ADR-0020 state-aware chip). */
+/* A thinking status is deliberation rather than action, so its dot bobs instead of using the steady
+   tool pulse, and the label leans on the accent. */
 .chip-think::before {
   animation: think 1.05s ease-in-out infinite;
 }
@@ -583,12 +706,17 @@
   color: var(--accent);
 }
 
+/* The settled reply's collapsed reasoning trace. Resting chrome only, and the body scrolls so a
+   long trace never grows the bubble. A button plus a `.collapse` rather than a `<details>`, which
+   reveals its content in one frame and cannot be made to animate it. */
 .thoughts {
   align-self: flex-start;
   max-width: 82%;
   font-size: 12px;
 }
 .thoughts-sum {
+  /* A flex box rather than the default block, so the label centres in a row taller than the line it
+     holds. `border`, `background` and `font` hand back the UA button's own defaults. */
   display: flex;
   align-items: center;
   min-height: var(--trace-row);
@@ -601,12 +729,13 @@
   user-select: none;
 }
 .thoughts-sum::before {
-  /* The empty alt text after the slash is what keeps the marker out of the button's accessible
-     name: it is a picture of the state, which `aria-expanded` already says properly, and without it
-     Chromium announces the control as "› Thoughts". */
+  /* The empty alt text after the slash keeps the marker out of the button's accessible name.
+     Without it Chromium announces the control as "› Thoughts". */
   content: "›" / "";
   display: inline-block;
   margin-right: 6px;
+  /* The marker turns over the same `--roll` the body rolls open in, so the two arrive together. At
+     the 180ms it used to take, the marker arrived and then the trace did. */
   transition: transform var(--roll) var(--ease);
 }
 .thoughts-sum[aria-expanded="true"]::before {
@@ -617,12 +746,11 @@
 }
 .thoughts-body {
   /* Inside the `.collapse` wrapper, whose `overflow: hidden` keeps this margin from collapsing out
-     through it: the gap above the trace is part of what rolls, so it opens with the text rather
-     than appearing under the row a frame early. */
+     through it, so the gap above the trace opens with the text. */
   margin-top: 4px;
   max-height: 28vh;
   /* The trace has no margin of its own to give back, so the reserved rail is padded off the text
-     instead: a long line wraps clear of the thumb rather than running under it. */
+     instead and a long line wraps clear of the thumb. */
   padding-right: var(--rail);
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -633,8 +761,9 @@
   overflow-wrap: anywhere;
 }
 
-/* The empty state (design/overlay-ux.md §3): the mark, an invitation, and tappable example
-   prompts. Resting chrome stays neutral; the mark carries the color. */
+/* The empty state: the mark, an invitation, and example prompts that can be tapped. Resting chrome
+   stays neutral and the mark is what is coloured. Its 58px of block padding is part of the height
+   the panel sizes itself to, so removing it shortened the panel by 29px as well. */
 .empty {
   margin: auto;
   display: flex;
@@ -643,6 +772,9 @@
   gap: 13px;
   padding: 32px 10px 26px;
   text-align: center;
+  /* The auto margins that centre this also size it to its content, a row of chips that refuses
+     to break. A shrinkable flex item does not make its container shrinkable, since intrinsic
+     sizing never goes below min-content, so this cap hands the shrinking back to the chips. */
   max-width: 100%;
 }
 .empty-line {
@@ -650,16 +782,21 @@
   font-size: 14.5px;
   color: var(--muted);
 }
+/* One row, always. The chips are the only part of the empty state whose height depends on the
+   panel's width, and the panel opens to that height. On a second row the empty state is 224px where
+   it is otherwise 185, so shrinking rather than wrapping keeps the width out of the arithmetic. */
 .empty-chips {
   display: flex;
   flex-wrap: nowrap;
   justify-content: center;
   gap: 8px;
-  /* Same reason as `.empty`'s cap, one level down: the row has to be told it may not exceed the
-     column, or the chips have no pressure on them to shrink. */
+  /* The same reason as `.empty`'s cap, one level down: the row has to be told it may not exceed the
+     column, or the chips have no pressure to shrink. */
   max-width: 100%;
 }
 .echip {
+  /* A flex item does not shrink below its own content unless told to, and the three rules that
+     follow are what a shrunk chip does with the label that no longer fits. */
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -680,6 +817,8 @@
   transform: translateY(-1px);
 }
 
+/* The mark doubles as its own picker, so the control sits on the thing it changes instead of adding
+   a fifth header button. The open menu draws each style live. */
 .markbtn {
   padding: 0;
   border: none;
@@ -727,6 +866,8 @@
   background: var(--field);
 }
 
+/* The approval card is the history's inline layer between bubbles. Resting chrome stays neutral and
+   the accent lives only on Approve. Keys and values render exactly as they are. */
 .confirm {
   align-self: stretch;
   padding: 12px 14px 11px;
@@ -749,11 +890,10 @@
 }
 .confirm-draft {
   margin: 9px 0 0;
-  /* What you approve is what runs, so every value stays on the card verbatim (ADR-0022).
-     An attachment is the first argument meant to be long, so the draft scrolls rather than
-     growing until Approve and Deny are pushed out of view. */
+  /* Every value stays on the card exactly as it is, and an attachment is the first argument meant
+     to be long, so the draft scrolls rather than pushing Approve and Deny out of view. */
   max-height: 42vh;
-  /* Same as the trace: no margin to give back, so the rail gets padded off the values. */
+  /* The same as the trace: no margin to give back, so the rail is padded off the values. */
   padding-right: var(--rail);
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -824,6 +964,9 @@
   color: #fff;
   box-shadow: 0 8px 20px -6px rgba(226, 75, 196, 0.6);
 }
+/* The composer is the rounded pill; the textarea flows inside it and the send button sits at the
+   bottom right. On one line they are flex siblings. Past one line the pill restacks, so the field
+   spans the pill and the button drops to its own row, which gives the text the width back. */
 .composer {
   display: flex;
   align-items: flex-end;
@@ -833,16 +976,25 @@
   background: var(--field);
   border: 1.5px solid transparent;
   border-radius: 23px;
+  /* Named properties, not `all`. The focus ring is the only thing here that should ease and the
+     restack must not: `Composer.tsx` takes the class off and puts it back inside one layout
+     effect, which an `all` transition turned into a wobble of about 2px per character. */
   transition:
     border-color 0.2s var(--ease),
     background-color 0.2s var(--ease);
 }
+/* A column: the field, then the button. The stacked pill yields before the panel's edge does,
+   because a flex item's automatic minimum is its content and a pill at the field's 120px cap
+   refused to give up a pixel. The 84px minimum is one draft row plus the button's row, measured. */
 .composer.stacked {
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
   min-height: var(--pill-floor);
 }
+/* `flex: 1` is a `flex-basis: 0%`, which in a column is the height, and it beats the height the
+   auto-grow measured: forced back on, a two-line field went 50px to 34px. So the basis stays `auto`
+   and only the shrink is given back, which lets the pill pay a deficit out of the field. */
 .composer.stacked .field {
   flex: 0 1 auto;
 }
@@ -853,6 +1005,9 @@
   border-color: var(--stroke);
   background: var(--control);
 }
+/* The draft's window. It is outgrown twice: past the 120px cap the field scrolls itself, and under
+   a deficit the field is the box that yields. `mask-image` fades the padding band at each end so a
+   cut line dissolves, and `scroll-padding-block` keeps the line being typed out of that band. */
 .field {
   --field-pad: 9px;
   flex: 1;
@@ -860,6 +1015,9 @@
   background: none;
   border: none;
   border-radius: 0;
+  /* Past its 120px cap the field scrolls itself, and that is when a draft must not re-wrap under
+     the cursor, so the rail is reserved from the first line. A full rail of padding beside the
+     reserved one, since the 2px that used to sit here is less than the rail. */
   padding: var(--field-pad) var(--rail) var(--field-pad) 13px;
   color: var(--text);
   font-family: var(--font);
@@ -898,8 +1056,8 @@
     box-shadow 0.35s var(--ease),
     transform 0.18s var(--spring);
 }
-/* The accent lives on an overlay so going live *fades* the gradient in. A gradient
-   background can't interpolate, so swapping it on .send directly would pop. */
+/* The accent lives on an overlay so going live fades the gradient in. A gradient background cannot
+   interpolate, so swapping it on `.send` directly would pop. */
 .send::before {
   content: "";
   position: absolute;
@@ -909,6 +1067,8 @@
   opacity: 0;
   transition: opacity 0.35s var(--ease);
 }
+/* The glyph moves on hover and the cap does not: the arrow goes the way the message goes. It is
+   also the only one of the four hovers tried that leaves the pill's geometry alone. */
 .send-glyph {
   position: relative;
   display: grid;
@@ -919,7 +1079,7 @@
   transform: translateY(-3px);
 }
 /* A stop has no direction to go in, so it eases shut instead of travelling: the square drawing in
-   on itself is the same gesture the arrow makes, pointed at what this button does. */
+   on itself is the same gesture the arrow makes. */
 .send.stopping:hover .send-glyph {
   transform: scale(0.84);
 }
@@ -931,7 +1091,7 @@
   color: var(--text);
   background: var(--control);
 }
-/* Color only when it's ready to fire. */
+/* Colour only when it is ready to fire. */
 .send.live {
   color: #fff;
   box-shadow: 0 8px 20px -6px rgba(226, 75, 196, 0.6);
@@ -939,16 +1099,17 @@
 .send.live::before {
   opacity: 1;
 }
-/* The live glyph is white BECAUSE the cap under it is the accent gradient, so the hover above must
-   not hand it back the text colour: on the light theme that is near black, and a near black arrow
-   on a magenta cap is the one state where hovering makes the button harder to read. */
+/* The live glyph is white because the cap under it is the accent gradient, so the hover above must
+   not hand it back the text colour: on the light theme that is a near black arrow on magenta. */
 .send.live:hover {
   color: #fff;
 }
-/* Streaming: the button is a live stop control. It is lit (not muted) so it reads as actionable. */
+/* Streaming: the button is a live stop control, lit rather than muted so it reads as usable. */
 .send.stopping {
   color: var(--text);
 }
+/* It turns red under the pointer, the one hover in the overlay that changes hue, because the button
+   has swapped what it means. `--halt` is the same red the trash on a chat row wears. */
 .send.stopping:hover {
   color: var(--halt);
   background: color-mix(in srgb, var(--halt) 13%, transparent);
@@ -966,6 +1127,9 @@
   font-size: 11.5px;
   color: var(--dim);
 }
+/* Every keycap is at least as big as the widest and tallest single key, so a row of them reads as a
+   row of caps. Both minimums are what a glyph cap measures, an outline arrow being 13px of drawing
+   against an `N` at 8.2px. A cap has to be a flex box for `min-width` to reach it. */
 .hints b,
 .row-keys b {
   display: inline-flex;
@@ -980,8 +1144,8 @@
   border-radius: 6px;
   font-size: 11px;
 }
-/* Keycaps whose glyph is an outline SVG (Enter/Shift/cycle arrows) instead of a letter: shrink
-   the icon to cap size and center it, so they read as clearly as the letter keys beside them. */
+/* Keycaps whose glyph is an outline SVG rather than a letter: shrink the icon to cap size and
+   centre it, so they read as clearly as the letter keys beside them. */
 .hints b.key,
 .row-keys b.key {
   gap: 1px;
@@ -993,17 +1157,17 @@
   width: 13px;
   height: 13px;
 }
-/* Space between two keycaps in one hint (Ctrl + N, Ctrl + cycle arrows) so they read as
-   separate keys, not one run. */
+/* Space between two keycaps in one hint, so they read as separate keys rather than one run. */
 .hints b + b {
   margin-left: 4px;
 }
+/* A cap on a shortcut card cannot wear the card's own fill, or the two merge into one rounded blob.
+   It takes the panel tone instead, which is a different plane in either theme. */
 .skey .row-keys b {
   background: var(--panel);
 }
-/* Two of the strip's caps are real buttons in keycap clothing: the sliders and the ?, each a door
-   into the console on the tab it names (ADR-0035). They dress as keys because they sit in a row of
-   keys, so the rule strips the button chrome rather than adding any. */
+/* Two of the strip's caps are real buttons styled as keycaps, each a control into the console on
+   the tab it names. The rule strips the button chrome rather than adding any. */
 .qbtn {
   padding: 0;
   border: none;
@@ -1017,17 +1181,25 @@
   color: var(--text);
 }
 
+/* The console's two tabs share one shape: groups of rows or swatches under a small heading, with
+   hairlines between. Nothing here stretches, so the list is as tall as its rows. */
 .rows {
   display: flex;
   flex-direction: column;
-  /* Groups are held apart by space, not by a rule between them: see `.swatch`. */
+  /* Groups are held apart by space, not by a rule between them; see `.swatch`. */
   gap: 18px;
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  /* Content starts on the panel's own left margin, so a group legend lines up with the header's
+     title, and the right inset is that number less the reserved rail. The bottom is read off the
+     other two: a card's left edge stands 17px from the panel's, so its bottom does too. */
   padding: 2px calc(16px - var(--rail)) 16px 16px;
 }
+/* A binding as a soft filled card, two to a row, on the same resting `--control` the keycaps sit
+   on, so a card reads as the ground a key is pressed against. `.wide` takes the whole row and is
+   used once, on the global hotkey, the widest chord and the only one that works when hidden. */
 .skeys {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1080,6 +1252,8 @@
   gap: 4px;
 }
 
+/* The console's tab strip sits in the header row beside the way back. Both tabs are mounted at once
+   and stacked, so switching them is not a view change and the enter animation has nothing to do. */
 .hspacer {
   width: 30px;
   flex: none;
@@ -1088,6 +1262,8 @@
   flex: none;
   display: flex;
   gap: 2px;
+  /* All four sides in one shorthand, and no block margin: the strip lives in the header row, whose
+     `align-items: center` puts it on the chevron's centre line. */
   margin: 0 auto;
   padding: 3px;
   background: var(--control);
@@ -1111,14 +1287,16 @@
   color: var(--text);
   background: var(--field);
 }
+/* The tab's own body, and the stack it sits in. Both tabs occupy the same grid cell, so the
+   container is as tall as the taller of them and a tab switch does not change the panel's size.
+   That holds while the two are within `TAB_SPREAD_PX`; past it the hidden pane leaves the flow. */
 .tabstack {
   display: grid;
   position: relative;
   flex: 0 1 auto;
   min-height: 0;
 }
-/* Out of the flow, so it contributes no height, and still laid out at its own so it stays
-   measurable: no `bottom`, which is what leaves the height to the content. */
+/* Out of the flow, so it adds no height, and still laid out at its own so it stays measurable. */
 .tabstack.apart .tabpane:not(.on) {
   position: absolute;
   top: 0;
@@ -1126,8 +1304,7 @@
   right: 0;
 }
 /* The pose the stack is measured in, held for one synchronous read and never painted. Stretched to
-   the cell, a pane reports the cell's height, which is the taller pane's, so the two panes read as
-   identical and the spread being measured is invisible in it. */
+   the cell a pane reports the cell's height, which hides the difference being measured. */
 .tabstack[data-measuring] .tabpane {
   align-self: start;
 }
@@ -1137,9 +1314,8 @@
   flex-direction: column;
   min-height: 0;
   opacity: 0;
-  /* `visibility` and not `opacity` alone: an invisible pane still keeps its box (that is the whole
-     point of the stack) but must not be reachable by the pointer or the tab key. Its delay is what
-     lets the fade finish before the pane is taken out. */
+  /* `visibility` and not `opacity` alone: an invisible pane still keeps its box, which is the point
+     of the stack, but must not be reachable by the pointer or the tab key. */
   visibility: hidden;
   transition:
     opacity 0.2s var(--ease),
@@ -1151,11 +1327,15 @@
   transition: opacity 0.2s var(--ease);
 }
 
+/* A group inside a tab: a small heading and whatever belongs under it, separated by space alone. A
+   hairline draws a box around the bounded cards already under the heading. */
 .swatch {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+/* The legend is the one piece of type here that is not the system sans. At 10.5px with this much
+   tracking a monospace face reads as a label for the group rather than as its first line. */
 .sect {
   margin: 0;
   font-family: var(--mono);
@@ -1165,6 +1345,9 @@
   text-transform: uppercase;
   color: var(--dim);
 }
+/* One line under a group of tiles, explaining the choice the art cannot say out loud. */
+/* Centred under the row it explains rather than ranged left, because it belongs to the whole group:
+   a line starting under the leftmost swatch reads as that swatch's caption. */
 .note {
   margin: 0;
   text-align: center;
@@ -1172,11 +1355,15 @@
   color: var(--dim);
 }
 
+/* The tiles share the width rather than bunching at the left, so a group reads as the full set of
+   what the setting can be. A registry that grows past a rowful wraps. */
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 9px;
 }
+/* Every choice is a card, and the chosen one is lifted out of the row rather than coloured in,
+   since resting chrome keeps no accent. */
 .tile {
   display: flex;
   flex-direction: column;
@@ -1205,11 +1392,13 @@
 .tile-art {
   display: block;
   position: relative;
-  /* The art sizes itself (a theme mini is a box, a mark is an SVG of a given size); the row of
-     tiles then sizes itself to the tallest, so a mark tile and a theme tile line up on their
-     labels without either number being written down twice. */
+  /* The art sizes itself; the row of tiles then sizes itself to the tallest, so a mark tile and a
+     theme tile line up on their labels without either number being written down twice. */
 }
+/* Every mark is drawn at full strength: the four styles differ only in how they move. */
 
+/* A theme, previewed as a miniature of the panel wearing it. Every colour is an inline style read
+   from that theme's own tokens, so this rule owns the shape and a new theme previews itself. */
 .mini {
   display: flex;
   width: 72px;
@@ -1218,9 +1407,8 @@
   border-radius: 9px;
   overflow: hidden;
 }
-/* The panel floats on that ground, so it carries the shadow the real one does. The shadow is the
-   one thing here NOT taken from the theme: it is shape rather than palette, and a light panel on a
-   light desktop needs an edge to sit on in any theme. */
+/* The panel floats on that ground, so it takes the shadow the real one has. The shadow is the one
+   thing here not taken from the theme: a light panel on a light desktop needs an edge. */
 .mini-panel {
   flex: 1;
   display: flex;
@@ -1237,8 +1425,7 @@
   border-radius: 2px;
   opacity: 0.75;
 }
-/* A reply, not a rule: a block on the leading edge, so the mini reads as a conversation with a
-   composer under it rather than as three stacked lines. */
+/* A reply rather than a rule, so the mini reads as a conversation with a composer under it. */
 .mini-msg {
   width: 62%;
   height: 7px;
@@ -1252,8 +1439,7 @@
   border-radius: 4px;
   opacity: 0.55;
 }
-/* Auto is the one tile that is two themes: the light one is laid over the dark one and cut on the
-   diagonal, so the tile says "whichever your system is" without a word. */
+/* Auto is two themes: the light one over the dark one, cut on the diagonal. */
 .mini-split {
   display: block;
   position: relative;
@@ -1264,6 +1450,9 @@
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
+/* The orb: the bubble mark is colourful, because it is a working state. All of its motion is inside
+   the SVG and driven by the mark's own clock, so nothing here animates. Every harmonic starts at
+   n=2, which is what keeps the centroid still while the outline moves. */
 .orb {
   position: fixed;
   right: 26px;
@@ -1278,12 +1467,15 @@
   background: none;
   cursor: pointer;
 }
-/* The bloom is painted inside the SVG in its own user units, so it scales with the mark instead
-   of being a fixed-pixel drop-shadow; it needs to paint past the viewBox. */
+/* The bloom is painted inside the SVG in its own user units, so it scales with the mark instead of
+   being a fixed-pixel drop-shadow, and it needs to paint past the viewBox. */
 .mark {
   overflow: visible;
 }
 
+/* The preview always dreams, and always in Lucid, so it hands its whole face to the edge layers
+   exactly as `.panel.edge-live` does: no border, no fill, no box-shadow of its own, and `overflow:
+   visible` because the edge extends past the box on every side. */
 .preview {
   position: fixed;
   right: 26px;
@@ -1300,7 +1492,7 @@
   overflow: visible;
   animation: previewin 0.4s var(--spring) both;
 }
-/* Above the edge's glass and glow, the same rule (and the same reason) as `.views`. */
+/* Above the edge's glass and glow, the same rule and the same reason as `.views`. */
 .preview > .pv-b,
 .preview > .bar {
   position: relative;
@@ -1326,9 +1518,7 @@
   animation-play-state: paused;
 }
 
-/* Every bubble arrives as one soft thing (ADR-0037 replaced the per-word rises, which also had
-   a history load animating every word of every bubble); the whisper's own letters carry the
-   real streaming motion. */
+/* Every bubble arrives as one soft thing; the whisper's own letters do the streaming motion. */
 @keyframes bubblein {
   from {
     opacity: 0;
@@ -1339,7 +1529,7 @@
     transform: none;
   }
 }
-/* The mist breathing, and its evaporation where the last word ends (ADR-0037). */
+/* The mist breathing, and its evaporation where the last word ends. */
 @keyframes mistbreathe {
   0%,
   100% {
@@ -1398,9 +1588,8 @@
     transform: none;
   }
 }
-/* The panel changing views: the one arriving rises into the space the panel is easing open for
-   it, the one leaving sinks out under it. Both are short, because the resize is the real motion
-   and these only stop it looking like a hard cut. */
+/* The panel changing views: the arriving one rises into the space the panel is easing open, the
+   leaving one sinks out under it. Both are short, because the resize is the real motion. */
 @keyframes viewin {
   from {
     opacity: 0;
@@ -1431,6 +1620,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* The pseudo-elements are named because `*` does not match them. Measured in Chromium with
+     reduced motion on, five transitions escaped this rule, two of them infinite: the tool chip,
+     the thinking dot, the send cap, the thoughts marker and the capture ring's pupil. */
   *,
   *::before,
   *::after {
@@ -1438,18 +1630,25 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.12s !important;
   }
-  /* No whisper clock runs (ADR-0037): letters show as they arrive (the class floor of zero
-     would otherwise hold them invisible forever), the mist rests at its breath pose, and the
-     `.w-breath` floor above holds the waiting pill without a posed box. */
+  /* No whisper clock runs: letters show as they arrive, since the class would otherwise hold them
+     invisible forever, and the mist rests at its breath pose. */
   .ch {
     opacity: 1;
   }
 }
 
+/* The chat switcher is a slim list under the header, backed by the store. Resting chrome, no
+   accent. Its enter and exit are the roll of the `.collapse` wrapper around it. */
 .switcher {
   list-style: none;
   margin: 0 12px 6px;
+  /* The card's inset is 6px, exactly the reserved rail, so on the right the rail is the inset. A
+     row's box therefore reaches the rail while the list scrolls, and the clearance between thumb
+     and title is the row's own 11px of padding, which a row may not drop without adding it back. */
   padding: 6px 0 6px 6px;
+  /* 40vh is what this list may take when nothing else competes for the column, and the room beside
+     it is what the panel actually has. With the `vh` alone, opening this list over a reminder stack
+     at 640x720 put the hint strip 29.75px past the panel's clipped edge. */
   max-height: min(40vh, var(--switcher-room));
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -1457,6 +1656,8 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
 }
+/* The empty line's slot. A roll sits between the `<li>` and the line, so everything that gives the
+   line a size has to be inside that roll. */
 .switcher-empty-slot {
   display: block;
 }
@@ -1466,9 +1667,15 @@
   color: var(--muted);
   font-size: 13px;
 }
+/* The `<li>` holds nothing but its place in the list. Everything that gives a row a size is on
+   `.switcher-row` inside it, because a roll sits between the two and a `min-height` outside that
+   roll is a minimum the roll cannot get under: the row would stand for 300ms and then vanish. */
 .switcher-slot {
   display: block;
 }
+/* A row keeps its height whatever it is showing. At rest it is two lines, and the rename box and
+   the delete confirm are each one, so without this the card went 50px to 40px when either opened.
+   The number is the resting row, so changing the type sizes means measuring it again. */
 .switcher-row {
   display: flex;
   align-items: stretch;
@@ -1492,8 +1699,7 @@
 .switcher-item.current {
   background: var(--panel);
 }
-/* The pencil sits beside the row and only ink-reveals on hover/focus, so it never competes
-   with the title for attention (ADR-0021 management addendum). */
+/* The pencil ink-reveals on hover and focus, so it never competes with the title. */
 .switcher-rename-btn {
   flex: none;
   display: flex;
@@ -1554,8 +1760,7 @@
 .switcher-rename-save:hover {
   color: var(--text);
 }
-/* The trash sits beside the pencil, ink-revealing on hover/focus like it, but its hover is the
-   destructive red so the one irreversible control reads as removal (ADR-0021 delete addendum). */
+/* The trash ink-reveals like the pencil, but its hover is the destructive red. */
 .switcher-delete-btn {
   flex: none;
   display: flex;
@@ -1581,9 +1786,8 @@
   background: color-mix(in srgb, var(--halt) 14%, transparent);
   color: var(--halt);
 }
-/* The pin sits with the pencil and trash, ink-revealing on hover/focus like them (ADR-0021
-   pinning addendum). A PINNED row is the exception: its pin stays lit in the accent and the row
-   carries a thin accent rail, so the pinned group the brain lists first reads as grouped. */
+/* The toggle ink-reveals on hover and focus like the pencil and trash beside it. A `pinned` row is
+   the exception: its toggle stays lit in the accent and the row takes a thin accent rail. */
 .switcher-pin-btn {
   flex: none;
   display: flex;
@@ -1609,6 +1813,9 @@
   background: var(--panel);
   color: var(--text);
 }
+/* A `pinned` row's toggle stays visible and lit, so full text colour is what tells it from the
+   muted ones. It asks for the text colour in as many words, because `var(--accent)` is a gradient
+   and a declaration that fails to compute becomes `inherit`. */
 .switcher-pin-btn.on {
   opacity: 1;
   color: var(--text);
@@ -1616,8 +1823,8 @@
 .switcher-row.pinned {
   border-radius: 12px;
 }
-/* The per-row "are you sure": a destructive write never fires on a single click, so the trash
-   swaps the row for an explicit confirm/cancel pair before onDelete runs (ADR-0021). */
+/* A destructive write never runs on a single click, so the trash swaps the row for an explicit
+   confirm and cancel pair first. */
 .switcher-confirm-delete {
   display: flex;
   flex: 1;
@@ -1665,6 +1872,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The row's other end. The title stands 11px inside the row's left edge, so the time stands 11px
+   inside its right edge. Its width is reserved through `--time-col` and the text is right-aligned
+   inside it. The inset is a margin, since with border-box padding would come out of 55. */
 .switcher-time {
   flex: none;
   align-self: center;
@@ -1684,12 +1894,17 @@
   text-overflow: ellipsis;
 }
 
+/* Due reminders sit between the header and the history: delivery, not conversation, so they are
+   outside the scrolling log. Resting chrome is neutral and the untrusted badge is dashed. */
 .reminders {
   list-style: none;
   margin: 0 12px 6px;
+  /* The switcher's arithmetic: the 6px right inset is the reserved rail itself, so a row's box ends
+     1px from the painted thumb while the stack scrolls. Only the box does, the hairline between two
+     rows having curved away: measured, nine untouched columns sit between them in both themes. */
   padding: 6px 0 6px 6px;
-  /* The switcher's arithmetic again, and for the same reason: 30vh is this stack with nothing else
-     competing for the column, and the room beside it is what the panel actually has (`.view`). */
+  /* The switcher's arithmetic again: 30vh is this stack with nothing else competing for the column,
+     and the room beside it is what the panel actually has. */
   max-height: min(30vh, var(--reminders-room));
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -1697,6 +1912,9 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
 }
+/* Both icons hang from the title line, so the row reads as a heading with a mark on either side.
+   The number they share is the title's optical centre, which at 13.5px is 10.5px below the top of
+   the line: the capital and lowercase bands have midpoints averaging 4.5px above the baseline. */
 .reminder {
   display: flex;
   align-items: flex-start;
@@ -1705,9 +1923,15 @@
   border-radius: 12px;
   animation: confirmin 0.3s var(--ease) both;
 }
+/* The hairline is drawn between two slots rather than between two rows, because a row sits inside
+   its own roll wrapper and two rows are therefore never siblings. The rule reads down the slot so
+   the border still arrives on the row, inside the wrapper that clips it. */
 .reminder-slot + .reminder-slot .reminder {
   border-top: 1px solid var(--stroke);
 }
+/* The bell's ink runs 1.43px to 13.9px inside its 16px box, and its mass is higher still, because
+   the box is dragged down by the thin arc of the clapper. 4px is where the dome sits on the 10.5px
+   line. */
 .reminder-mark {
   flex: none;
   display: flex;
@@ -1724,6 +1948,9 @@
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+/* Aligned on the baseline, not the centre. The pills have lopsided vertical padding so their own
+   text is optically centred, and centring the row would then put that text a pixel above the bare
+   timestamp: measured at 11.5px, the time's glyphs at y=181.25 against the pills' at 180.25. */
 .reminder-meta {
   display: flex;
   align-items: baseline;
@@ -1733,6 +1960,9 @@
   font-size: 11.5px;
   color: var(--dim);
 }
+/* The timestamp, right-aligned inside the width `--time-col` reserves, which stops the column
+   breathing as the clock ticks a card from `1m ago` to `10m ago`. The right inset matches the
+   check's padding above it, so the glyphs of the two line up on one right edge. */
 .reminder-time {
   flex: none;
   min-width: var(--time-col);
@@ -1741,17 +1971,26 @@
   font-size: 11.5px;
   color: var(--dim);
 }
+/* The vertical padding is deliberately lopsided: at this size the line box leaves about 1.5px more
+   air above the lowercase band than below it. A pixel moved from the top to the bottom re-centres
+   the band without changing the pill's height, and `.reminder-open` matches. */
 .reminder-tag {
   padding: 0 8px 2px;
   border: 1px solid var(--stroke);
   border-radius: 999px;
 }
+/* Provenance, not decoration, and not an error either: the error bubble's tint at a lower alpha,
+   with a dashed border so the signal survives without hue. Dashed alone read as just another
+   neutral pill beside `repeats`. */
 .reminder-tag.untrusted {
   border-style: dashed;
   border-color: rgba(226, 75, 107, 0.4);
   background: rgba(226, 75, 107, 0.1);
   color: var(--text);
 }
+/* The one action in the meta row, so it must not rest as another pill: no border until hover, and
+   one step brighter than the row around it. Pulled left by its own 1px border and 8px padding, so
+   the text starts on the title's column rather than the pill's box doing. */
 .reminder-open {
   margin-left: -9px;
   padding: 0 8px 2px;
@@ -1768,6 +2007,9 @@
   background: var(--panel);
   color: var(--text);
 }
+/* The row's right column. Stretched and spread, so the check keeps the title's line and the
+   timestamp keeps the meta line. It is the taller of the two by a hair, so it also sets the card's
+   height and every card stands the same height whether or not it has badges. */
 .reminder-side {
   flex: none;
   align-self: stretch;
@@ -1776,6 +2018,9 @@
   align-items: flex-end;
   justify-content: space-between;
 }
+/* The check's ink is centred in its 28px box, 14px down, and the title's optical centre is 10.5px
+   down, so the button is lifted the 3.5px between them. The hit area is not reduced to do it: the
+   padding overhangs the card's own 8px of top padding. */
 .reminder-ack {
   flex: none;
   display: flex;

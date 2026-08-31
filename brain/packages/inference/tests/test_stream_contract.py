@@ -1,5 +1,3 @@
-"""Drive the shared streaming contract over both implementations of the port."""
-
 import json
 from collections.abc import Callable
 from functools import partial
@@ -34,19 +32,12 @@ from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = "http://model-host:8080"
 
-# The completion's own decode rate, present so the pair of closing events can be observed together.
-# The numbers say nothing here; what they mean is the cadence contract's subject.
 _TPS = 24.61
 _TOKENS = 12
 
-# The deliberating world, as the wire carries it: a role-only opening chunk that says nothing, the
-# thinking, one chunk carrying the last thought beside the first word, the rest of the reply, and a
-# final chunk holding both closing facts.
 _THOUGHTS = ("let me ", "check")
 _WORDS = ("The ", "answer ", "is here")
 
-# The calling world, as the wire carries it: the model says something, then streams one function
-# call whose arguments arrive as two fragments, and the server closes on `tool_calls`.
 _ARGUMENT_FRAGMENTS = ('{"path"', ':"/x"}')
 
 
@@ -116,7 +107,7 @@ def _calling_body() -> bytes:
 
 @pytest.fixture
 def scripted() -> BackendUnderTest:
-    """The core twin, scripted with each world rather than asked to derive it."""
+    """Build the core twin, scripted with each world rather than asked to derive it."""
 
     def build(events: list[InferenceEvent]) -> ScriptedInferenceBackend:
         return ScriptedInferenceBackend([events], serves=[CONTRACT_MODEL])
@@ -153,7 +144,7 @@ def scripted() -> BackendUnderTest:
 
 @pytest.fixture
 def adapter() -> BackendUnderTest:
-    """The real adapter over a MockTransport serving the real llama-server bodies."""
+    """Build the real adapter over a MockTransport serving the real llama-server bodies."""
     clients: list[httpx.AsyncClient] = []
 
     def over(handler: Callable[[httpx.Request], httpx.Response]) -> LlamaCppBackend:
@@ -207,7 +198,6 @@ async def test_llamacpp_backend_meets_the_stream_contract(
 async def test_the_adapter_leg_really_assembles_what_the_wire_split(
     adapter: BackendUnderTest,
 ) -> None:
-    """The contract's derived half, stated once outside the shared checks."""
     body = _calling_body().decode()
     assert json.dumps(CONTRACT_CALL.arguments) not in body
     assert CONTRACT_REPLY not in _deliberating_body().decode()

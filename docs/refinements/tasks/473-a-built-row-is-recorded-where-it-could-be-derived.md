@@ -28,8 +28,8 @@ be wrong went away rather than being held.
 what that makes redundant. It also rests on a completeness claim that was measured once, on one
 host, on one docker: that a built image's `Config.Volumes` is exactly the union of its base's and
 its own `VOLUME` instructions, with no other instruction and no builder flag able to add or remove
-one. That claim is load-bearing in a way it is not today, since today it only has to be true in one
-direction. Removing rows also removes the two-directional record check over them, and a row nobody
+one. That claim would then have to hold in a way it does not today, since today it only has to be true
+in one direction. Removing rows also removes the two-directional record check over them, and a row nobody
 records is a row the `--rederive` half stops comparing, which is a real loss of an independent
 reading even where the derivation is right.
 
@@ -56,7 +56,7 @@ why the bases have rows, since a reader who follows that reasoning one step furt
   container takes an anonymous volume, which is the leak the gate exists to catch arriving through
   it rather than past it. The three readings the entry inherited held on re-derivation: a
   declaration is inherited through `FROM`, a union with a path on each side merges, a builder
-  stage's reaches no built image, and `VOLUME []` is refused rather than un-declaring. The record
+  stage's reaches no built image, and `VOLUME []` fails the build rather than un-declaring. The record
   and the derivation therefore stay two independent readings of one image, and the entry's
   suggested replacement is not stronger: it is the same single reading with the tree's side
   computed from a claim now known false. The reading also upgrades both one-directional rules from

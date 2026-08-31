@@ -11,40 +11,34 @@ import {
 import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
-  /**
-   * The field itself, held by the view above so that the panel's other surfaces can hand the caret
-   * back to the conversation.
-   */
+  /** The field itself, held by the view above so that the panel's other surfaces can hand the caret
+   *  back to the conversation. */
   readonly field: MutableRefObject<HTMLTextAreaElement>;
   readonly busy: boolean;
-  /** What this conversation is holding, unsent. */
+  /** What this conversation is holding, unsent. The field is controlled by this rather than
+   *  keeping its own copy, so a chat swap hands it that chat's text in the same commit. */
   readonly draft: string;
-  /** Every keystroke, parked under the chat on screen. Called with the field's raw value. */
+  /** Every keystroke, parked under the chat on screen. */
   readonly onDraft: (text: string) => void;
-  /**
-   * Which conversation this field is sitting in (`OverlayState.arrival`), or null while the panel
-   * is shut or the console is over the chat.
-   */
+  /** Which conversation this field belongs to, or null while the panel is shut or the console is
+   *  over the chat. The field takes focus on every change. */
   readonly arrival: number | null;
   readonly onSubmit: (text: string) => void;
   readonly onStop: () => void;
-  /** Called when the pill's own height changes, before the frame that shows it. The pill is a flex
-   *  sibling of the scrolling log, so its growth is the log's loss and the container has to react
-   *  to it. Must be stable, since it is a dependency of the measurement below. */
+  /** Called when the pill's own height changes, before the frame that shows it. Must be stable:
+   *  it is a dependency of the measurement below. */
   readonly onResize: () => void;
 }
 
-/** The auto-grow ceiling, matching the field's CSS max-height (a few lines, §3). */
+/** The tallest the field grows to, matching its CSS max-height. */
 const FIELD_MAX_PX = 120;
 
 /** The class that turns the pill into two rows: the field across it, the button on its own row
- *  beneath. The layout itself is entirely CSS (`.composer.stacked` in overlay.css). */
+ *  beneath. */
 const STACKED = "stacked";
 
-/**
- * The prompt input: Enter sends, Shift+Enter newlines, and the field grows with its content up to
- * a few lines.
- */
+/** The prompt input: Enter sends, Shift+Enter newlines, and the field grows with its content up to
+ *  a few lines. */
 export function Composer({
   field: fieldRef,
   busy,
@@ -56,41 +50,35 @@ export function Composer({
   onResize,
 }: ComposerProps) {
   const [stacked, setStacked] = useState(false);
-  // Both are always mounted with the panel, so the refs are set before any effect runs. The field's
-  // is the view's (see the prop), the pill's is this component's own.
   const pillRef = useRef<HTMLDivElement>(null!);
-  // The pill's last measured height, so the container hears about a resize and not about a
-  // keystroke. Starts at 0, which the first measurement is free to disagree with.
+  // The pill's last measured height, so a resize is reported and a keystroke is not. It starts at
+  // 0, so the first measurement always reports.
   const pillHeight = useRef(0);
 
   useEffect(() => {
     if (arrival !== null) {
+      // Without `preventScroll` the engine scrolls the panel to bring the field into view, and
+      // the whole panel's contents slide with it while the panel is still easing to its height.
       fieldRef.current.focus({ preventScroll: true });
     }
   }, [arrival]);
 
-  // Both questions below are asked of the text AND of the width it is laid out at, so this is a
-  // function rather than an effect body: a keystroke is not the only thing that can change the
-  // answer. `useCallback` because it is the dependency of the two effects that call it.
   const measure = useCallback(() => {
     const field = fieldRef.current;
     const pill = pillRef.current;
+    // The layout is always chosen at the inline width: a stacked field is 44px wider, so deciding
+    // at the width in use would unstack a draft that just wrapped and then stack it again. The
+    // pill's height is held meanwhile, or the log beside it grows and Chromium clamps its scroll.
     pill.style.minHeight = `${pill.offsetHeight}px`;
     pill.classList.remove(STACKED);
-    // Auto-grow starts here too: the field is collapsed once, and stays collapsed until the last
-    // line, so both readings below are of the content rather than of the box's last size.
     field.style.height = "auto";
-    // A `rows={1}` textarea's auto height IS one row, so its client height is the one-line height,
-    // measured rather than assumed: no font metric, line height or padding is restated here, and a
-    // wrapped long line counts exactly like a typed newline because both overflow one row.
+    // A `rows={1}` textarea's auto height is one row, so this compares against the measured
+    // one-line height and a wrapped long line counts exactly like a typed newline.
     const wraps = field.scrollHeight > field.clientHeight;
-    // Applied before the height is taken, because the height belongs to the layout that will be on
-    // screen: a stacked field is wider and may need fewer lines than the decision above did.
-    // React's own render (from `setStacked`) writes the same class back, so nothing flickers.
+    // Applied before the height is read, because a stacked field is wider and may need fewer lines
+    // than the decision above did.
     pill.classList.toggle(STACKED, wraps);
     setStacked(wraps);
-    // Now follow the content's scroll height up to the ceiling; past it the field scrolls
-    // internally (the CSS max-height is the same bound).
     field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
     pill.style.minHeight = "";
     const height = pill.offsetHeight;
@@ -100,16 +88,19 @@ export function Composer({
     }
   }, [onResize]);
 
+  // A layout effect, not a paint-time one: the measurement both chooses a layout and sizes the
+  // field, so it has to run before the frame that shows the new character.
   useLayoutEffect(measure, [draft, measure]);
 
+  // The width changes the answer too, and the width can move while the draft stands still. Only
+  // the draft re-runs the measurement, so without this both readings stay at the old width.
   useEffect(() => {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [measure]);
 
-  // The field is emptied by the state that holds it, not from here: a turn actually starting is what
-  // spends a draft, so a send the controller refuses (a blank field, a turn already streaming) leaves
-  // the text where it is instead of quietly eating it (`overlay/turnState.ts`).
+  // The state that holds the draft empties the field, not this component, so a send that the turn
+  // state rejects leaves the text where it is.
   const submit = () => {
     if (busy) {
       return;
@@ -128,6 +119,9 @@ export function Composer({
 
   return (
     <div ref={pillRef} className={`composer${stacked ? ` ${STACKED}` : ""}`}>
+      {/* The caret ends up at the end of a restored draft: assigning a textarea's value puts the
+          selection there, and a chat swap is the only thing that changes the value React writes.
+          A keystroke's value already matches, so a caret typing mid-sentence stays put. */}
       <textarea
         ref={fieldRef}
         className="field"

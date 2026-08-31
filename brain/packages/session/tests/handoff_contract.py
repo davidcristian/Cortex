@@ -133,7 +133,7 @@ async def check_record_round_trips_field_for_field(store: HandoffStore) -> None:
 
 
 async def check_tainted_ledger_round_trips_exactly(store: HandoffStore) -> None:
-    """THE pinned round trip (ADR-0030 decision 2): bit, sources order, kinds, URL set."""
+    """The taint bit, the source order, the kinds and the URL set all survive a round trip."""
     ledger = tainted_ledger()
     record = make_record(_handoff_id())
     await store.put(record)
@@ -156,7 +156,7 @@ async def check_tainted_ledger_round_trips_exactly(store: HandoffStore) -> None:
 
 
 async def check_the_opaque_bit_round_trips_both_ways(store: HandoffStore) -> None:
-    """The unfenceable-content bit survives the store, set and unset (ADR-0029/0030 decision 2)."""
+    """The unfenceable-content bit survives the store, both set and unset."""
     clean = make_record(_handoff_id())
     assert clean.opaque is False
     await store.put(clean)
@@ -167,7 +167,7 @@ async def check_the_opaque_bit_round_trips_both_ways(store: HandoffStore) -> Non
     await store.delete(clean.handoff_id)
 
     record = make_record(_handoff_id(), opaque=True)
-    assert record.opaque is True  # snapshotted off a ledger an image-bearing result marked
+    assert record.opaque is True
     await store.put(record)
     loaded = await store.get(record.handoff_id)
     assert loaded is not None
@@ -175,7 +175,7 @@ async def check_the_opaque_bit_round_trips_both_ways(store: HandoffStore) -> Non
     assert loaded.opaque is True
     restored = loaded.taint_ledger()
     assert restored.opaque is True
-    assert restored == opaque_ledger()  # the whole ledger, not just the bit
+    assert restored == opaque_ledger()
     await store.delete(record.handoff_id)
 
 
@@ -226,7 +226,7 @@ async def check_the_settled_reason_outlives_the_process(store: HandoffStore) -> 
     )
     record = make_record(_handoff_id())
     await store.put(record)
-    assert record.failure is None  # a snapshot carries none: nothing has failed yet
+    assert record.failure is None
     assert await store.transition(record.handoff_id, HandoffState.FAILED, failure=reason) is True
     loaded = await store.get(record.handoff_id)
     assert loaded is not None
@@ -236,7 +236,7 @@ async def check_the_settled_reason_outlives_the_process(store: HandoffStore) -> 
 
 
 async def check_a_reasonless_transition_leaves_no_reason_behind(store: HandoffStore) -> None:
-    """A state written without a reason carries none, whatever the record said before."""
+    """A state written without a reason has none, whatever the record said before."""
     record = make_record(_handoff_id())
     await store.put(record)
     assert await store.transition(record.handoff_id, HandoffState.FAILED, failure="a bad swap")
@@ -259,7 +259,7 @@ async def check_delete_removes_and_releases(store: HandoffStore) -> None:
 
 
 async def check_a_terminal_put_is_never_active(store: HandoffStore) -> None:
-    """Persisting an already-terminal record (boot recovery's write) claims nothing."""
+    """Persisting an already-terminal record leaves the active slot empty."""
     record = make_record(_handoff_id(), state=HandoffState.FAILED)
     await store.put(record)
     assert await store.active() is None
@@ -268,11 +268,7 @@ async def check_a_terminal_put_is_never_active(store: HandoffStore) -> None:
 
 
 async def check_the_last_nonterminal_put_wins_the_slot(store: HandoffStore) -> None:
-    """The pointer follows the newest in-flight record; deleting another leaves it alone.
-
-    The store does not referee concurrent handoffs (the conductor checks ``active()``
-    before snapshotting, and it is the one writer); it only keeps the pointer coherent.
-    """
+    """The pointer follows the newest in-flight record; deleting another leaves it alone."""
     first = make_record(_handoff_id())
     second = make_record(_handoff_id())
     await store.put(first)

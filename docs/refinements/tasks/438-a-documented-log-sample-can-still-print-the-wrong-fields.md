@@ -10,7 +10,7 @@ the one verbatim log sample this repo prints and left its membership unpinned.
 
 `docs/runbooks/model-swap.md` prints the failed-settle line verbatim, and
 `scripts/logcouplings.py` now anchors the conversation's needle on the message plus the field that
-sorts in front of it, so the three fields cannot be rearranged without the constant scan noticing.
+sorts in front of it, so the three fields cannot be rearranged without the constant scan failing.
 What the anchor says nothing about is which fields belong on the line. If `swap_settle.fail`
 stopped attaching `reason`, the sample would go on printing it and the scan would go on agreeing,
 because every needle it holds would still be found. If the call site started attaching a field
@@ -34,7 +34,7 @@ ADR-0009 bare-id addendum, so this entry is the place to reopen it if a second v
 ever appears and makes the bill worth paying.
 
 **What would close it.** Either a way for a needle to say "these fields and no others follow this
-message", which means teaching the scan to read a call site's `extra=` keys, or a written argument
+message", which means extending the scan to read a call site's `extra=` keys, or a written argument
 that one sample with its order held is a small enough exposure to leave, with the audit
 transcripts explicitly declared evidence rather than contract.
 

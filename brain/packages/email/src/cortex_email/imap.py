@@ -26,7 +26,7 @@ _LIBRARY_FAILURES = (ImapToolsError, IMAP4.error, OSError)
 
 @contextmanager
 def _translated(action: str) -> Generator[None, None, None]:
-    """Cross whatever the IMAP stack raises while ``action`` runs into a `MailboxError`."""
+    """Wrap whatever the IMAP stack raises while ``action`` runs as a `MailboxError`."""
     try:
         yield
     except _LIBRARY_FAILURES as err:
@@ -38,15 +38,15 @@ _FOLDER_MISSING_PHRASES = ("no such mailbox", "mailbox doesn't exist")
 
 _FOLDER_MISSING_CODES = ("[nonexistent]", "[cannot]")
 
-# One tuple because `_select` asks one question of it: the halves differ in what kind of
-# evidence they are, not in what a caller is owed once either of them appears.
+# One tuple because `_select` asks one question of it: the halves differ in what kind of evidence
+# they are, but a caller gets the same answer once either of them appears.
 _FOLDER_MISSING_ANSWERS = (*_FOLDER_MISSING_PHRASES, *_FOLDER_MISSING_CODES)
 
 _NOT_A_MAILBOX = frozenset({"\\noselect", "\\nonexistent"})
 
 
 def _select(box: BaseMailBox, folder: str) -> None:
-    """Open ``folder`` read-only (EXAMINE), saying which thing a refusal of it means."""
+    """Open ``folder`` read-only (EXAMINE), classifying which failure a rejection of it is."""
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
     except MailboxFolderSelectError as err:
@@ -71,7 +71,7 @@ def _opens(box: BaseMailBox, folder: str) -> bool:
 
 
 def _search_failure(query: str, err: IMAP4.error) -> MailboxError:
-    """Say which of the two things imaplib means by an error raised out of a SEARCH."""
+    """Classify an error raised out of a SEARCH into the two things imaplib means by one."""
     if isinstance(err, IMAP4.abort):
         msg = "the mailbox connection dropped during that search"
         return MailboxError(msg)

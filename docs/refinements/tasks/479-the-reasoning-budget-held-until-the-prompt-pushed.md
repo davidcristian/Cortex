@@ -24,7 +24,7 @@ Read against what the tree already knows, this is plausible rather than surprisi
 is worth measuring rather than dismissing. The mechanism section of the ADR-0005 switch-is-advisory
 addendum found that llama.cpp's gemma-4 handler does not force a thought open under a grammar, it
 **holds** it open as the only continuation that admits prose. If a firmer instruction is what stops
-prose from being admissible inside `reply`, then the door that handler leaves open is exactly where
+prose from being admissible inside `reply`, then the opening that handler leaves is exactly where
 the prose goes, and a budget of zero would be one more thing the grammar outranks. That is a
 hypothesis and not a reading.
 
@@ -32,7 +32,7 @@ hypothesis and not a reading.
 is undecided ([R-476](476-the-envelopes-answer-rate-is-an-instruction.md)). The claim it would
 amend is stated in three places, the compose override's command block,
 [ADR-0010](../../adr/ADR-0010-subagents.md) and the thinking-lever addendum, and amending a shipped
-claim on three draws is the mistake the sibling entries around this one were opened to refuse.
+claim on three draws is the mistake the sibling entries around this one were opened to prevent.
 
 **What would close it.** The committed probe
 (`brain/packages/inference/tests/test_thinking_switch_live.py`) already draws each cell several
@@ -56,7 +56,7 @@ would be the obvious repair if the flag really is conditional.
 - 2026-08-28: the instruction was decided and shipped
   ([R-476](476-the-envelopes-answer-rate-is-an-instruction.md)), and its re-measurement gives this
   entry three things it was waiting for without closing it. **A rate**: 8 of 96 constrained draws
-  against 1 of 96 with the sentence stripped and 0 of 96 unconstrained, so the door exists without
+  against 1 of 96 with the sentence stripped and 0 of 96 unconstrained, so the opening exists without
   the prompt pushing on it and the push makes it about eight times as likely. **More than one body
   and more than one shape**: the eight fall on two of the four report bodies and on all three
   subtask shapes, including a one-fact lookup whose whole answer is two words, so these are not one
@@ -79,8 +79,8 @@ would be the obvious repair if the flag really is conditional.
   already set, and 20 draws carrying it on top of both flags still produced one. **And the
   mechanism is the opposite of this entry's hypothesis**: an unflagged twin of the same server
   deliberated on 8 draws of 8 in ordinary, well formed prose and on 0 of 8 with the key, where 11
-  of the flagged server's 13 traces open with a garbled channel marker, so the budget is not being
-  outranked by a grammar but firing and having its forced close mis-parsed. Two corrections to this
+  of the flagged server's 13 traces open with a garbled channel marker, so the budget is firing and
+  having its forced close mis-parsed rather than being outranked by a grammar. Two corrections to this
   entry's own text on the way past: `test_thinking_switch_live.py` cannot take the cell it names,
   its control asserting that the no-switch arm deliberated, and the runbook already carried the
   sentence this entry says all three documents owe. What the close leaves is the attribution and a

@@ -13,7 +13,6 @@ describe("CaptureDot", () => {
     expect(dot).toHaveAttribute("aria-label", ASKED);
     expect(dot).toHaveAttribute("title", ASKED);
     expect(dot.getAttribute("aria-label")).not.toContain("looked at your screen");
-    // Ring only: the eye is shut until the dispatch says otherwise.
     expect(dot.className).toBe("capturedot");
   });
 
@@ -22,10 +21,7 @@ describe("CaptureDot", () => {
     const dot = screen.getByRole("status");
     expect(dot).toHaveAttribute("aria-label", READ);
     expect(dot).toHaveAttribute("title", READ);
-    // And it no longer hedges: the seam proved the pixels reached the model.
     expect(dot.getAttribute("aria-label")).not.toContain("asked");
-    // The ring opens its eye rather than filling in, which would make it the connection dot's
-    // amber twin sitting right beside it.
     expect(dot.className).toBe("capturedot read");
   });
 

@@ -24,9 +24,9 @@ export function Message({
 
   return (
     <>
-      {/* Both chips carry the ref that publishes their row height for the disclosure below to
-          match (overlay/measured.ts): they are the same box, and whichever the turn shows is on
-          screen well before the settled trace that has to be as tall as it. */}
+      {/* Both chips take the ref that publishes their row height for the disclosure below to
+          match. They are the same box, and whichever one the turn shows is on screen well before
+          the settled trace that has to be as tall as it. */}
       {message.streaming && message.tool !== null ? (
         <span className="chip" ref={traceRowRef}>
           <span className="chip-t">{message.tool}</span>

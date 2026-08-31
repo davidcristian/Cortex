@@ -1,9 +1,8 @@
 import { type Theme, resolveTheme } from "../theme/themes";
 
-/**
- * A miniature of the panel wearing one theme: the desktop ground it floats on, the glass panel
- * itself, and three bars standing in for the title, a reply and the composer.
- */
+/** A miniature of the panel drawn in one theme: the desktop ground, the glass panel, and three
+ *  bars for the title, a reply and the composer. Every colour is read from the theme's own tokens,
+ *  so a theme added to `THEMES` previews itself. */
 export function ThemeMini({ theme }: { readonly theme: Theme }) {
   const t = theme.tokens;
   return (
@@ -17,7 +16,9 @@ export function ThemeMini({ theme }: { readonly theme: Theme }) {
   );
 }
 
-/** The Auto tile's art: one mini split diagonally between the two themes Auto can land on. */
+/** The Auto tile's art: one mini split diagonally between the two themes Auto can resolve to.
+ *  Which two comes from the resolver rather than being named here, so it stays right when the
+ *  defaults change. */
 export function AutoMini() {
   return (
     <span className="mini-split">

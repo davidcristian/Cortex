@@ -1,4 +1,4 @@
-"""Repo gate: fail when a document's roster stops naming the set it describes."""
+"""Fail when a roster in a document stops listing the set it describes."""
 
 import argparse
 import sys
@@ -10,8 +10,6 @@ from rostermembers import MemberError
 from rosternames import PassageError
 from rosters import ROSTERS, Roster
 
-# A gate over no roster at all would report success forever, which is the one thing every scan
-# here refuses. The per-roster floors are `rostermembers.py`'s.
 MIN_ROSTERS = 1
 
 
@@ -20,7 +18,7 @@ class RosterCheckError(Exception):
 
 
 class Fault(NamedTuple):
-    """One roster that does not name the set it describes, and what is wrong with it."""
+    """One roster that does not list the set it describes, and what is wrong with it."""
 
     document: str
     label: str
@@ -28,7 +26,7 @@ class Fault(NamedTuple):
 
 
 class Scan(NamedTuple):
-    """One comparison: what it was over, then what it could not account for."""
+    """What one comparison read, and what it could not account for."""
 
     rosters: int
     documents: int
@@ -37,7 +35,7 @@ class Scan(NamedTuple):
 
 
 def _read(root: Path, document: Path) -> str:
-    """Read one document a roster is written on, naming it when it is absent or is not text."""
+    """Read one document a roster is written in, naming it when it is absent or is not text."""
     try:
         return (root / document).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
@@ -46,7 +44,7 @@ def _read(root: Path, document: Path) -> str:
 
 
 def _fault(roster: Roster, detail: str) -> Fault:
-    """One fault against ``roster``, carrying the reason its two sides have to agree."""
+    """One fault against ``roster``, with the reason its two sides must agree."""
     return Fault(
         document=roster.document.as_posix(), label=roster.label, detail=f"{detail}; {roster.why}"
     )
@@ -99,7 +97,7 @@ def check(root: Path, rosters: tuple[Roster, ...] | None = None) -> Scan:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any faults and return the process exit code."""
+    """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when a document's roster stops naming the set it describes.",
     )

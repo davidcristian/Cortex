@@ -25,22 +25,13 @@ from cortex_session.store_codec import (
     title_key,
 )
 
-# The dictated connection default; deployments override via CORTEX_REDIS_URL, which is
-# read by the composition root (the orchestrator's settings), never by this adapter.
 DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
 
-# The recency index for `list_sessions` (ADR-0021): a sorted set of session ids scored
-# by last-activity unix time, maintained on `append` alongside the per-session list.
 _SESSIONS_KEY = "cortex:sessions"
 
-# The pinned set for `list_sessions` (ADR-0021 pinning addendum): the session ids the user
-# pinned. A listing unions these with the recency window so a pinned chat lists even after it
-# ages out of the top-N by recency; `set_pinned` maintains it and `delete` clears its member.
 _PINNED_KEY = "cortex:sessions:pinned"
 
-# What one listed session costs `list_sessions`: its first record, its last record, its
-# length (the tail's index, so a corrupt tail is still named precisely), and its stored
-# title (a brain-generated override, or absent for the first-message derivation).
+# Reads queued per listed session, in this order: head, tail, length, title.
 _ENDS_READS = 4
 
 
@@ -74,7 +65,6 @@ class RedisSessionStore:
     @classmethod
     def from_url(cls, url: str = DEFAULT_REDIS_URL) -> "RedisSessionStore":
         """Build a store owning a client for ``url``; close it via ``aclose()``."""
-        # redis-py types from_url's **kwargs as Unknown; this call passes none of them.
         return cls(Redis.from_url(url))  # pyright: ignore[reportUnknownMemberType]
 
     async def aclose(self) -> None:
@@ -86,7 +76,7 @@ class RedisSessionStore:
             raise SessionStoreError(msg) from err
 
     async def append(self, session_id: str, message: Message) -> None:
-        """Persist one message and refresh the session's recency-index score (ADR-0021)."""
+        """Persist one message and refresh the session's recency-index score."""
         refuse_images(message)
         try:
             await self._client.rpush(messages_key(session_id), encode_message(message))
@@ -105,7 +95,7 @@ class RedisSessionStore:
         return tuple(decode_message(item, index) for index, item in enumerate(raw))
 
     async def set_title(self, session_id: str, title: str) -> None:
-        """Persist a brain-generated display title under the session's title key (ADR-0021)."""
+        """Persist a brain-generated display title under the session's title key."""
         try:
             await self._client.set(title_key(session_id), title)
         except RedisError as err:
@@ -127,8 +117,8 @@ class RedisSessionStore:
         except RedisError as err:
             msg = f"recap read for session {session_id!r} failed"
             raise SessionStoreError(msg) from err
-        # Decoding sits outside the wrapping above so a corrupt document is named as such
-        # rather than relabelled as a read failure, exactly as `history` treats a record.
+        # Decoding is outside the try above so a corrupt document is reported as corrupt rather
+        # than as a read failure.
         return None if raw is None else decode_recap(cast("bytes", raw), session_id)
 
     async def delete(self, session_id: str) -> None:
@@ -146,7 +136,7 @@ class RedisSessionStore:
             raise SessionStoreError(msg) from err
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
-        """Pin or unpin a chat by toggling its membership in the pinned set (pinning addendum)."""
+        """Add the chat to the `pinned` set, or remove it from it."""
         try:
             if pinned:
                 await self._client.sadd(_PINNED_KEY, session_id)
@@ -157,20 +147,14 @@ class RedisSessionStore:
             raise SessionStoreError(msg) from err
 
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
-        """Return the newest ``limit`` chats unioned with every pinned chat, pinned-first."""
+        """Return the newest ``limit`` chats plus every `pinned` chat, the `pinned` ones first."""
         try:
             async with self._client.pipeline(transaction=True) as pipe:
-                # zrevrange's return type is a partially-Any union (scores/without-scores
-                # overloads); this no-scores call yields members, cast to bytes below.
                 pipe.zrevrange(_SESSIONS_KEY, 0, limit - 1)  # pyright: ignore[reportUnknownMemberType]
                 pipe.smembers(_PINNED_KEY)
                 recency_raw, pinned_raw = await pipe.execute()
-            # Members come back as bytes (this client leaves decode_responses off, as the
-            # message reads rely on); the casts pin that so decoding needs no type branch.
             recency_ids = [raw.decode("utf-8") for raw in cast("list[bytes]", recency_raw)]
             pinned_ids = {raw.decode("utf-8") for raw in cast("set[bytes]", pinned_raw)}
-            # The union: the recency window, then every pinned chat outside it (sorted for a
-            # deterministic fetch order; `merge_pinned` re-sorts, so the order only pins the index).
             ids = recency_ids + sorted(pinned_ids - set(recency_ids))
             async with self._client.pipeline(transaction=True) as pipe:
                 for session_id in ids:
@@ -183,8 +167,8 @@ class RedisSessionStore:
         except RedisError as err:
             msg = "listing sessions failed"
             raise SessionStoreError(msg) from err
-        # Decoding sits outside the wrapping above: a corrupt record is a SessionStoreError
-        # already, named by _decode, and must not be relabelled as a listing failure.
+        # Decoding is outside the try above so a corrupt record keeps the error decode_message
+        # already raised instead of being reported as a listing failure.
         summaries = (
             _summarize_ends(session_id, reads, at, pinned=session_id in pinned_ids)
             for at, session_id in enumerate(ids)

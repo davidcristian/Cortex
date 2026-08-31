@@ -15,7 +15,7 @@ now registry entries, and each is held to the places that state it. **The orderi
 nothing.** `scripts/couplings.py` has a `Relation.ORDERED` for exactly this shape, but it orders
 the sites of ONE entry, and these are three entries in three modules. The boot-time check in
 `brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py` covers one of the two
-orderings the sentence claims (`run_timeout_s <= stall_timeout_s` is refused) and says nothing
+orderings the sentence claims (`run_timeout_s <= stall_timeout_s` fails validation) and says nothing
 about the run deadline against the admission wait, which the comment there notes is deliberate for
 the zero setting.
 
@@ -24,7 +24,7 @@ is caught nowhere, and the sentence asserting all three go on being green either
 
 **Why it was left.** Each close in this run was about one value, and an ordering is about three.
 Expressing it needs a decision the registry has never had to make: whether an entry may name a
-site another entry also names, which is the same new edge the misattribution close refused for a
+site another entry also names, which is the same new edge the misattribution close rejected for a
 different reason.
 
 **What would close it, and what to check first.** Re-derive before designing. The cheap shape is a
@@ -43,12 +43,12 @@ side that is not Python.
   a third, all re-derived from the tree. The second ordering is not caught nowhere: the close that
   landed it three hours before this file was written added
   `_the_run_deadline_must_fit_inside_the_queue_for_it` beside the older ceiling validator, so
-  `SubagentsConfig` refuses both relations, and every bare construction of that class reads all
+  `SubagentsConfig` raises on both misorderings, and every bare construction of that class reads all
   three declarations, which makes a retune inverting either one fail the orchestrator suite on the
   commit that types it. The zero-wait note this file read as an absence is the carve-out inside
   that validator. And `Relation.ORDERED` is non-decreasing, so the fourth entry proposed here
   would have gone green on the three bounds set equal, which is the misordering both validators
-  exist to refuse. What is left of the observation, that the registry cannot express an ordering
+  exist to catch. What is left of the observation, that the registry cannot express an ordering
   over decimals and cannot express a strict one at all, is
   [R-367](367-the-shipped-ordering-of-two-bounds-is-ungated.md), which records both halves and
   covers a pair no settings class validates. The stale sentence this file quoted is corrected in

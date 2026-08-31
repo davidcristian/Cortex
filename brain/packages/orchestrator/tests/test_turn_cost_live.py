@@ -1,5 +1,3 @@
-"""What does a whole recalling turn cost, end to end over the seam, in ONE recall arm?"""
-
 import json
 import os
 import time
@@ -19,19 +17,15 @@ from cortex_memory import PgVectorMemoryStore
 from cortex_seam import SEAM_TOKEN_HEADER, BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 
 _SEAM_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
-# The loopback publishes of the memory override (docs/runbooks/memory-pgvector.md). The DSN
-# default is that runbook's own, the one the live MemoryStore contract run also starts from.
 _DSN = os.environ.get("CORTEX_MEMORY_DSN", "postgresql://cortex:cortex@127.0.0.1:5432/cortex")
 _EMBEDDER = os.environ.get("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://127.0.0.1:8081")
 
-# Which arm this block measures. It is a LABEL on the sample file and not a control: the brain
-# container is already running in some arm and this process cannot change that. Setting it wrong
-# mislabels a block, which is why the recipe sets it in the same command that sets the container's.
+# A label on the sample file rather than a setting: the brain container is already running in
+# one configuration and this process cannot change that, so a wrong value mislabels a block.
 _ARM = os.environ.get("CORTEX_TURN_COST_ARM", "unnamed")
 _REPS = int(os.environ.get("CORTEX_TURN_COST_REPS", "8"))
 _OUT = os.environ.get("CORTEX_TURN_COST_OUT", "")
 
-# One question per category, the first of each in corpus order.
 _QUESTIONS: tuple[tuple[str, Category], ...] = tuple(
     (next(q for q, (_, probed) in QUESTIONS.items() if probed is category), category)
     for category in Category
@@ -46,7 +40,7 @@ def _metadata() -> tuple[tuple[str, str], ...] | None:
 
 @dataclass(frozen=True, slots=True)
 class _Turn:
-    """One measured turn: what was asked, and the two latencies the addendum reports."""
+    """One measured turn: what was asked, and the two latencies the measurement reports."""
 
     question: str
     category: str
@@ -104,7 +98,7 @@ async def _seed(
 
 
 def _sample(turns: list[_Turn]) -> str:
-    """The block's sample as JSON text: the only thing this process produces for the report."""
+    """Return the block's sample as JSON text, the only output this process leaves behind."""
     return (
         json.dumps(
             {
@@ -156,11 +150,10 @@ async def test_one_turn_cost_block_over_the_live_seam() -> None:
                 if rep >= 0:
                     turns.append(_Turn(question, category.name, rep, ttft, wall, len(answer)))
     finally:
-        for scope in scopes:  # idempotent: the loop above already emptied every scope it reached
+        for scope in scopes:
             await store.delete_scope(scope)
         await store.aclose()
     assert len(turns) == _REPS * len(_QUESTIONS), "the block did not run the protocol it claims"
     out.parent.mkdir(parents=True, exist_ok=True)
-    # ASYNC240: one small write on an idle loop, after the last timed turn is already over.
     out.write_text(_sample(turns), encoding="utf-8")  # noqa: ASYNC240
     print(f"\n{_ARM} block: {len(turns)} turns over {len(_QUESTIONS)} questions -> {out}")  # noqa: T201

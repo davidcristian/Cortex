@@ -42,8 +42,6 @@ describe("EDGES", () => {
   });
 
   it("uses only integer wave orders of two or higher, which close the loop and pin the centre", () => {
-    // A non-integer order tears the outline at its seam; an order of one would translate the
-    // whole window. Everything else about a style is taste; this is the invariant.
     for (const edge of EDGES) {
       for (const wave of edge.waves) {
         expect(Number.isInteger(wave.waves)).toBe(true);
@@ -66,8 +64,6 @@ describe("EDGES", () => {
     expect(REVERIE.waves).toEqual(LUCID.waves);
     expect(REVERIE.edgeShare).toBe(LUCID.edgeShare);
     expect(REVERIE.depthBoost).toBe(LUCID.depthBoost);
-    // And the glow really is a difference: Lucid keeps the color story fully strict. This line
-    // is what caught the two shipping identical in the first visual pass.
     expect(LUCID.glow).toBe("none");
     expect(REVERIE.glow).toBe("settled");
     expect(TRANCE.glow).toBe("ember");

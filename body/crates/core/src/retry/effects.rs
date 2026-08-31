@@ -1,17 +1,18 @@
-//! The two effects the retry loop injects: [`Sleeper`] (the clock) and [`Randomness`] (the
-//! jitter draw), plus the [`jittered`] arithmetic that spends them.
+//! The two effects the retry loop injects: [`Sleeper`] (the clock) and [`Randomness`] (the jitter
+//! draw), plus the [`jittered`] arithmetic that spends them.
 
 use std::future::Future;
 use std::time::Duration;
 
-/// A timer effect, asked two ways: **wait this long** ([`Sleeper::sleep`], the backoff between
-/// attempts) and **give up after this long** ([`Sleeper::bounded`], the deadline on one attempt).
+/// A timer effect with two methods: [`Sleeper::sleep`] waits a given duration, which is the backoff
+/// between attempts, and [`Sleeper::bounded`] gives up on a call after one, which is the deadline
+/// on a single attempt.
 pub trait Sleeper: Send + Sync {
     /// Resolves after `duration` has elapsed.
     fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send;
 
     /// Runs `call`, giving up on it after `deadline`: `Some(output)` when the call finished in
-    /// time, **`None` when the deadline won** and the call was dropped.
+    /// time, `None` when the deadline expired first and the call was dropped.
     fn bounded<F>(
         &self,
         deadline: Duration,
@@ -22,13 +23,9 @@ pub trait Sleeper: Send + Sync {
         F::Output: Send;
 }
 
-/// A randomness effect: one unit-interval draw per backoff, the seam jitter needs (ADR-0024
-/// addendum). Mirrors [`Sleeper`]: the real adapter lives in the ungated shell, tests inject
-/// a scripted fake, and [`FullDelay`] (the constant-1 source) turns jitter off structurally.
+/// A randomness effect: one draw in `[0, 1]` per backoff, which is what jitter needs.
 pub trait Randomness: Send + Sync {
-    /// A value in `[0, 1]`. The retry loop sanitizes it defensively (out-of-range clamped, a
-    /// non-finite draw treated as the full delay), so a misbehaving source degrades the spread
-    /// rather than panicking the `Duration` math.
+    /// A value in `[0, 1]`.
     fn unit(&self) -> f64;
 }
 

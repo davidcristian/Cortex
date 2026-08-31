@@ -22,7 +22,7 @@ pool (the one hard rule).
   the module as `_LOGGER_NAME` rather than spelled inside the `getLogger` call, because this
   sentence and the two runbooks that turn the trail on and name it restate that name and none of
   them can import it: `scripts/crosscheck.py` ties all three to the declaration, so a rename here
-  reddens the gate rather than leaving three documents telling an operator to select a trail
+  fails that gate rather than leaving three documents telling an operator to select a trail
   nothing writes (ADR-0038 named-logger addendum). A line with no hits is read through its basis
   and logs no separate
   flag for one (ADR-0038 abstention addendum): `"basis": "demur"` is the model having read a pool
@@ -32,14 +32,15 @@ pool (the one hard rule).
   - The drops ride that line as `dropped`, one `{"id", "score"}` per candidate the store offered and
     the rank did not keep, plus `dropped_omitted`, how many more the bound left out (ADR-0038
     dropped-candidate addendum). `score` is the store's raw cosine and there is no rank key beside
-    it, a rank having no opinion on record about what it passed over, so the pair answers "was this
-    memory even a candidate?" and never "why did the rank decline it?". The sink decides none of
-    that: the core's `dropped_candidates` takes the difference and applies the bound, and `record`
-    only spells it out.
+    it, because the rank records no reason for a candidate it passed over, so the pair answers
+    "was this memory even a candidate?" and never "why was it not kept?". The sink computes none
+    of that: the core's `dropped_candidates` takes the difference and applies the bound, and
+    `record` only writes it out.
   - `available` beside `pool` is how many candidates there were, against how many came back
-    (ADR-0038 candidate-count addendum). Equal, the pool was the whole readable store and an id on
-    neither list was never written or was written outside the read scopes; unequal, the pool was cut
-    at its requested width and an absent memory may only have ranked under the cut. That reading
+    (ADR-0038 candidate-count addendum). When the two are equal, the pool was the whole readable
+    store, so an id on neither list was either never written or written outside the read scopes.
+    When they differ, the pool was cut at its requested width, so a missing memory may simply have
+    ranked below the cut. That reading
     needs nothing of the deployment's pool factor, which is why the requested width is not logged
     beside it: where it would matter it equals `pool`, and where it would not it explains nothing.
 - `PgVectorMemoryStore(db: Database)` is a `MemoryStore`.
@@ -53,9 +54,10 @@ pool (the one hard rule).
     adds `WHERE scope = ANY($3)` to filter candidates to those namespaces before ranking (ADR-0008
     scoping addendum); `None` ranks over every memory.
   - `count_candidates(*, scopes=None)` → `SELECT count(*) AS total FROM memories`, plus the same
-    `WHERE scope = ANY($1)` a scoped `search` applies, so the two describe one candidate set. The
-    server's own count and never a `len` over rows this adapter fetched, which is the distinction
-    the verb exists to draw (ADR-0038 candidate-count addendum). Deliberately a second statement
+    `WHERE scope = ANY($1)` a scoped `search` applies, so the two describe one candidate set. It
+    reports the server's own count and never a `len` over the rows this adapter fetched, which is
+    the distinction the verb exists to draw (ADR-0038 candidate-count addendum). It is
+    deliberately a second statement
     rather than a `count(*) OVER ()` on the ranked `SELECT`: the window function must buffer every
     candidate row, embeddings included, before the `LIMIT` can apply, measured at 2.85x the plain
     search over 100k rows, while this costs a small fraction of it because `memories_scope_idx`
@@ -67,7 +69,8 @@ pool (the one hard rule).
     n` command tag (0 when the scope holds none, a malformed tag wrapped as `MemoryStoreError`). A
     hard delete, not a tombstone: `search` is a stateless top-k scan with no in-flight read of one id
     to fail cleanly, so a removed row simply drops from the candidate pool (ADR-0008 delete-scope
-    addendum). The forget primitive a session-delete cascade and per-scope eviction each named.
+    addendum). It is the forget primitive that both the session-delete cascade and per-scope
+    eviction call.
   - `aclose()` → releases the pool.
   - `PgVectorMemoryStore.connect(dsn)` (classmethod) → builds a store owning a fresh asyncpg
     pool for `dsn`.
@@ -85,14 +88,15 @@ two arrive as disjoint exception types, asyncpg's own family against a `KeyError
 out of `_to_scored`, so neither `except` classifies anything; a bad embedding from the core lands
 on the data side too, `_to_literal` sitting inside the `try`, which is the same side of the line
 as a bad value from the table. A
-count that fails fails the recall that asked for it, rather than degrading to a number that is
-not the store's: the trail's own sink already fails a recall the same way, and an audit line that
-quietly invents a figure is worse than one that stops. What a failed recall no longer does is fail
-the **turn**: the core catches `MemoryStoreError` where a turn is assembled and where its exchange
-is recorded, and answers without its notes (ADR-0008 unavailable-memory addendum). What a
-`MemoryDataError` does is fail the turn anyway, `_recalled_context` naming it ahead of that catch
-and re-raising, because an outage heals on its own and stored state that disagrees with the code
-reading it does not, so degrading around it would answer thinly for ever. The adapter is
+count that fails fails the recall that asked for it, rather than degrading to a number the store
+never returned; the trail's own sink already fails a recall the same way, because an audit line
+carrying a figure the adapter invented would misreport the candidate set. A failed recall no
+longer fails the **turn**: the core catches `MemoryStoreError` where a turn is assembled and where
+its exchange is recorded, and answers without its notes (ADR-0008 unavailable-memory addendum). A
+`MemoryDataError` does fail the turn, `_recalled_context` naming it ahead of that catch
+and re-raising, because an outage clears on its own while stored state that disagrees with the
+code reading it does not, so degrading around it would answer without memory indefinitely. The
+adapter is
 unchanged by that and must stay so, since the same store serves the session-delete cascade, where
 `SessionServicer` aborts `UNAVAILABLE` and a swallowed failure would be a privacy defect.
 
@@ -123,7 +127,7 @@ stores float4, so embeddings roundtrip at single precision (irrelevant to simila
   does and never touches the brain's memories, which the two checks asserting over the whole table
   (`check_empty_search`, `check_ranks_by_similarity`) used to require by luck. The database is
   bootstrapped from this same schema by `docker/postgres/live-contract-db.sql` through the compose,
-  and the run refuses to start rather than falling back when it is absent (ADR-0002 addendum on the
+  and the run stops rather than falling back when that database is absent (ADR-0002 addendum on the
   live pgvector database).
 - The shared checks in `tests/memory_contract.py` now drive **both** implementations rather than
   only the live one: `tests/test_memory_store_contract.py` runs the same file over
@@ -135,9 +139,9 @@ stores float4, so embeddings roundtrip at single precision (irrelevant to simila
   awaited `break_backend`, so the port's failure channel is checked where its values are: the
   eleventh check breaks the backend and requires `add`, `search`, `count_candidates` and
   `delete_scope` each to raise `MemoryStoreError` rather than the driver's own exception, and not
-the `MemoryDataError` subclass either, an outage that read as a defect failing the turn the
-degradation exists to save. The other direction is not a shared check and is not meant to be: the
-in-memory twin decodes nothing, so only the arm with rows can meet a row it cannot read, and
+the `MemoryDataError` subclass either, since an outage misread as a data defect would fail the
+very turn the degradation exists to save. The other direction is deliberately not a shared check:
+the in-memory twin decodes nothing, so only the arm with rows can meet a row it cannot read, and
 `test_pgvector.py` holds that half. The fake
   is scripted with `fail_with`; the live arm passes the adapter's own `aclose`, so the real pool
   closes and asyncpg's `InterfaceError` crosses this adapter's own wrapping (ADR-0008 addendum on

@@ -23,13 +23,14 @@ which is why this is filed with that as its trigger rather than closed as decide
 
 Two cheaper answers exist and neither needs a bundle. One is a test that enumerates the identity
 fields of `TurnStamp` and asserts each reaches `ToolInvocation` and each survives the task record,
-so a field added to one and forgotten at another hop reddens without anyone writing a case for it.
+so a field added to one and forgotten at another hop makes a test fail without anyone having
+written a case for it.
 The other is to leave it and keep paying a per-identity end-to-end case, which is what the item's
 own arrival paid. Read both against the cost of the next arrival before choosing.
 
 The measurement to weigh them against is in the ADR's own sweep: of the five mutations that landed
-the fired item, three reddened nothing but that single end-to-end case, one reddened the store's
-contract and one the codec's corrupt-record case. So the per-identity case does hold the chain
+the fired item, three made no test fail but that single end-to-end case, one made the store's
+contract fail and one the codec's corrupt-record case. So the per-identity case does hold the chain
 today, and what it does not hold is an identity nobody wrote a case for.
 
 ## Trail

@@ -1,4 +1,4 @@
-"""The subagent roster: candidate models, their resources, and the ADR-0017 boundary."""
+"""The subagent roster: the candidate models and the resources each one runs with."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -9,9 +9,7 @@ from cortex_core.ports import InferenceBackend, SubagentPlacer, SubagentSchedule
 
 @dataclass(frozen=True, slots=True)
 class SubagentResources:
-    """One subagent entry's placement machinery, bundled so the runner takes it as a unit
-    (ADR-0012).
-    """
+    """One subagent entry's placement machinery, bundled so the runner takes it as a unit."""
 
     backends: Mapping[PlacementTarget, InferenceBackend]
     scheduler: SubagentScheduler
@@ -29,7 +27,7 @@ class SubagentProfile:
 
 @dataclass(frozen=True, slots=True)
 class SubagentRoster:
-    """The candidate subagent models, keyed by advertised name, with the forced-robust default."""
+    """The candidate subagent models, keyed by advertised name, plus the default entry."""
 
     entries: Mapping[str, SubagentProfile]
     default: str
@@ -43,7 +41,7 @@ class SubagentRoster:
             raise ValueError(msg)
 
     def resolve(self, requested: str, *, tainted: bool, tools_enabled: bool) -> str | None:
-        """The entry to run is ADR-0017's boundary, then the cortex's choice, else ``None``."""
+        """Pick the entry to run: the default for a restricted task, then the cortex's choice."""
         if tainted or tools_enabled:
             return self.default
         if not requested:

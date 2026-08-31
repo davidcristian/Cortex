@@ -34,8 +34,8 @@ rather than against an idle box.
 
 **What would close it.** Take that measurement, and then decide between the two honest answers.
 Either the bounds move to cover a busy machine, which means the run deadline first and the
-admission wait behind it, since the wait is held at three deadlines and the pair is refused at boot
-if it is not; or the bounds stay and the runbook says outright that delegation on a saturated host
+admission wait behind it, since the wait is held at three deadlines and the pair fails validation at
+boot if it is not; or the bounds stay and the runbook says outright that delegation on a saturated host
 is expected to hit them, which makes the refusal readable instead of misleading. A third option
 worth pricing while the numbers are in hand is pinning the tier's thread count to its quota
 (`--threads` alongside `--cpus`), since oversubscribing 24 threads onto a 4 CPU quota is part of

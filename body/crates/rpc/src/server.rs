@@ -1,5 +1,5 @@
-//! The body-side `BodyService` server: the brain's OS-action calls, translated to the
-//! `body_core` OS ports (ADR-0023) in the first brain→body direction of the seam.
+//! The body-side `BodyService` server: the brain's OS-action calls, translated onto the
+//! `body_core` OS ports. Translation only, and no state.
 
 use std::sync::Arc;
 
@@ -27,9 +27,6 @@ pub struct OsService<A: AudioControl, N: Notify, S: ScreenCapture> {
 
 impl<A: AudioControl, N: Notify, S: ScreenCapture> OsService<A, N, S> {
     /// Wraps `audio`, `notifier`, and `screen` as the `BodyService` handlers.
-    ///
-    /// `receipts` is the host's `CORTEX_HOST_CAPTURE_NOTIFY` switch, resolved by the shell:
-    /// with it on (the default) every successful capture shows a body-authored notice.
     #[must_use]
     pub fn new(audio: A, notifier: N, screen: S, receipts: bool) -> Self {
         Self {
@@ -71,9 +68,7 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
         }))
     }
 
-    /// Reads the display, or the window the request pointed at, for the cortex (ADR-0029). The
-    /// pixels never touch this file: the whole crop, downscale, encode, and byte-ceiling policy
-    /// is pure core, and the receipt that tells the user it happened is body-authored.
+    /// Reads the display, or the window the request pointed at, for the cortex.
     async fn capture_screen(
         &self,
         request: Request<CaptureScreenRequest>,
@@ -104,9 +99,7 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
         ))
     }
 
-    /// Shows a fired reminder on the host (ADR-0025 decision 6). `shown=false` is a state
-    /// report the brain reads exactly like a failure (the reminder stays deliverable for the
-    /// overlay's pull path), so it stays in the reply rather than becoming a status.
+    /// Shows a fired reminder on the host.
     async fn notify(
         &self,
         request: Request<NotifyRequest>,
@@ -126,7 +119,8 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
 }
 
 /// Runs one synchronous OS call on tokio's blocking pool and awaits its answer, mapping a
-/// backend failure with `to_status` (ADR-0023's deferred `spawn_blocking`).
+/// backend failure with `to_status`. Both OS ports are synchronous because COM is, and a COM
+/// call may park its thread, which must never be an async worker. A panic answers `Internal`.
 pub(crate) async fn off_worker<T, E>(
     call: impl FnOnce() -> Result<T, E> + Send + 'static,
     to_status: impl FnOnce(&E) -> Status,
@@ -165,9 +159,8 @@ fn notify_error_to_status(error: &NotifyError) -> Status {
     }
 }
 
-/// Builds the `BodyService` server over `audio`, `notifier`, and `screen`, fronted by the
-/// seam-token validator (ADR-0016/0023): an empty `token` makes the validator a pass-through, so a
-/// tokenless deployment is byte-for-byte the tokenless server.
+/// Builds the `BodyService` server over `audio`, `notifier`, and `screen`, behind the token
+/// validator. An empty `token` makes the validator pass every call through.
 pub fn body_service<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>(
     audio: A,
     notifier: N,

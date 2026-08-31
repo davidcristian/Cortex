@@ -1,9 +1,3 @@
-"""One behavior suite over BOTH PreferenceStore implementations, plus the adapter's error paths.
-
-The in-memory fake and the Redis adapter (backed by fakeredis) must be observably interchangeable
-behind the port. This is the ports-before-adapters gate for the user's settings record.
-"""
-
 from collections.abc import Awaitable, Callable
 
 import preference_contract
@@ -42,7 +36,6 @@ async def test_backend_failure_wraps_into_preference_store_error(operation: str)
     ops: dict[str, Callable[[], Awaitable[object]]] = {
         "all": store.all,
         "set": lambda: store.set("overlay.theme", "midnight"),
-        # The clear path is a different Redis command (HDEL), so it needs its own proof.
         "clear": lambda: store.set("overlay.theme", ""),
     }
     with pytest.raises(PreferenceStoreError) as excinfo:
@@ -75,7 +68,6 @@ def test_from_url_builds_its_own_client() -> None:
 
 
 async def test_decodes_fields_a_configured_client_returns_as_text() -> None:
-    """A client built with decode_responses answers str, not bytes; both must read the same."""
     client = FakeAsyncRedis(server=FakeServer(), decode_responses=True)
     store = RedisPreferenceStore(client)
     await store.set("overlay.mark", "wobble")
@@ -83,7 +75,6 @@ async def test_decodes_fields_a_configured_client_returns_as_text() -> None:
 
 
 async def test_the_fake_can_be_armed_to_fail() -> None:
-    """The fake's error arm raises the same typed error, so callers can prove their handling."""
     store = InMemoryPreferenceStore(initial={"overlay.mark": "foam"})
     store.fail_with = "store is down"
     with pytest.raises(PreferenceStoreError):

@@ -18,7 +18,7 @@ ninth, which is a running tally in prose of exactly the kind the close removed e
 
 **Why it was left.** The close was about the shape a mutation table opens by stating, and that
 shape is over places rather than files. Widening it to count parts means either counting the
-imports (which `shape` cannot see, being handed a tuple) or having each part announce itself, which
+imports (which `shape` cannot see, being handed a tuple) or having each part declare its own name, which
 is a change to what a part IS.
 
 **What would close it.** Decide first whether the part count is worth having at all. The honest
@@ -46,8 +46,8 @@ prose, but the ordinals counting them are.
   that notices a lost part is already on the line and a part count beside it would have moved from
   nine to eight and changed no verdict. The mapping's second benefit was weighed on its own and
   also lost: a fault naming its part saves one grep, every label being distinct, and costs the
-  property that the scan never asks which file an entry came from, which would make a coupling
-  moving house a change to the gate's output. **What landed instead is the prose being held.** The
+  property that the scan never asks which file an entry came from, which would make moving a
+  coupling between parts a change to the gate's output. **What landed instead is the prose being held.** The
   running tally is out of `registry.py`'s docstring, the list of parts stays and is now the whole
   answer to what the registry is written in, and
   `test_registry_names_every_part_in_the_order_it_reads_them` requires that list to be exactly the

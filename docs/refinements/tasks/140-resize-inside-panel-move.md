@@ -5,7 +5,7 @@
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md)
 
 Opened 2026-08-03 with the panel's watch on its own box
-([ADR-0035](../../adr/ADR-0035-console-and-motion.md), the 2026-08-03 addendum). The watch refuses a
+([ADR-0035](../../adr/ADR-0035-console-and-motion.md), the 2026-08-03 addendum). The watch takes no
 reading while the panel's own ease is running, because answering one would cancel that ease to
 measure the natural box and start another, once per frame, which is the mid-stream retarget the
 entry below is about arriving sixty times a second instead of once per token. So a keystroke that
@@ -18,8 +18,8 @@ changed), the frame that hands the element back reads 168, the frame after reads
 residue eases 40px to 128 over about 120ms, monotonic, with no step anywhere. The wait is bounded
 by the 380ms move ceiling ([ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 7) and is
 usually far shorter, and during a stream the panel's own renders cover most of it, a token landing
-about every 55ms. The fix is not a second observer but whatever answers the mid-stream retarget
-below, since both want a move that can be redirected from where it is without being restarted;
+about every 55ms. The fix is whatever answers the mid-stream retarget below rather than a second
+observer, since both want a move that can be redirected from where it is without being restarted;
 taken separately, this one would simply reintroduce that harm.
 - **LANDED 2026-08-06 with the entry below, as the pair it said it was**
   ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). The entry reproduced at HEAD

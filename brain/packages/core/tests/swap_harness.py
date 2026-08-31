@@ -62,7 +62,7 @@ SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL
 
 
 class TickingClock:
-    """Advances one second per reading: monotone, deterministic, and free."""
+    """A clock that advances one second per reading, monotone and deterministic, with no wait."""
 
     def __init__(self) -> None:
         self._ticks = 0
@@ -84,7 +84,7 @@ class Gate:
         await self.release.wait()
 
     async def arrived(self) -> None:
-        """Wait for the boundary to be reached; a bound, so a miss fails instead of hanging."""
+        """Wait for the boundary, under a timeout so a miss fails the test instead of hanging."""
         async with asyncio.timeout(5.0):
             await self.reached.wait()
 
@@ -423,7 +423,7 @@ async def run_handoff(
 
 
 def assert_the_window_announced_real_progress(live: Harness) -> None:
-    """Every swap-window status, checked against the work IT announces (ADR-0030 decision 6)."""
+    """Every swap-window status, checked against the work it announces (ADR-0030 decision 6)."""
     seen = [witness.detail for witness in live.statuses]
     assert seen == SWAP_WINDOW[: len(seen)]
     for witness in live.statuses:
@@ -447,11 +447,11 @@ def _loading_was_true(live: Harness, seen: StatusWitness) -> None:
 
 
 def _working_was_true(live: Harness, seen: StatusWitness) -> None:
-    """ "The deep model is working on this": the one claim about the GPU, so witnessed hardest."""
+    """ "The deep model is working on this": the one status claiming the GPU already moved."""
     assert ("start", live.residency.brain_model) in seen.host_ops
     assert ("status", live.residency.brain_model) in seen.host_ops  # it health-gated, too
     assert seen.record_states[-1] is HandoffState.BRAIN_ACTIVE
-    assert seen.deep_calls == 0  # about to work; a claim of work already done would be a lie
+    assert seen.deep_calls == 0  # about to work; a round already run would make the status wrong
 
 
 def _restoring_was_true(live: Harness, seen: StatusWitness) -> None:

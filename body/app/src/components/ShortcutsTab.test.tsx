@@ -31,13 +31,8 @@ describe("ShortcutsTab", () => {
 
   it("is a wall of cards, the same object as the appearance tab beside it", () => {
     const { container } = render(<ShortcutsTab />);
-    // Nine bindings, nine tiles, and no hairline-separated rows left over: a list of full-width
-    // rules next to a grid of swatches read as two different screens.
     expect(container.querySelectorAll(".skey")).toHaveLength(9);
     expect(container.querySelectorAll(".row")).toHaveLength(0);
-    // Exactly one card takes the whole row, and it is the global hotkey: the widest chord here,
-    // and the only binding that works while the overlay is not on screen. Every other binding gets
-    // a shorter label rather than more width, or the wall turns back into a list.
     const wide = [...container.querySelectorAll(".skey")].filter((t) =>
       t.className.includes("wide"),
     );
@@ -54,7 +49,6 @@ describe("ShortcutsTab", () => {
       "Alt",
       "Space",
     ]);
-    // Modifier and key are separate caps even when both are drawn glyphs.
     expect(card("New line").querySelectorAll("b")).toHaveLength(2);
     expect(card("Previous").querySelectorAll("b")).toHaveLength(2);
   });
@@ -63,14 +57,11 @@ describe("ShortcutsTab", () => {
     render(<ShortcutsTab />);
     for (const label of ["Send", "New line", "Previous"]) {
       for (const cap of card(label).querySelectorAll("b.key")) {
-        // One glyph per cap, and it is an SVG from `icons.tsx` rather than a character.
         expect(cap.querySelectorAll("svg")).toHaveLength(1);
         expect(cap.textContent).toBe("");
       }
     }
     expect(card("Send").querySelectorAll("b.key")).toHaveLength(1);
-    // Shift is a word like Ctrl; the drawn glyph left is the one key with no name worth
-    // writing, which is return.
     expect(card("New line").querySelectorAll("b.key")).toHaveLength(1);
     expect(card("New line").querySelector("b")?.textContent).toBe("Shift");
   });

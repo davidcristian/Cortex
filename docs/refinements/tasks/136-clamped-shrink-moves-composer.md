@@ -13,7 +13,7 @@ thing the maintainer asked never to happen. Centring the summon (decision 8) too
 rare: measured at a 900px viewport, a correctly pinned panel has to grow 615px before the ceiling
 binds at all, and acking a reminder, the pencil on a chat with a full reply in it, and a switcher
 round trip now all move the composer 0px where they moved it 40, 13 and 3 before. A long
-conversation still reaches the ceiling, and there it is a real choice, not a bug to be found: the
+conversation still reaches the ceiling, and there it is a real choice rather than a bug to be found: the
 alternative design re-pins to the clamped edge on every content change (so the composer never
 moves) and saves the pre-roll edge PER SECTION to hand back when that section rolls shut (so the
 switcher's round trip stays reversible), at the cost of a panel that keeps whatever low edge its
@@ -57,7 +57,7 @@ though it were merely unasked, and the rarity is what makes waiting cheap.
   `clamped` verbatim, and re-running the same scenario: the panel arrives 546 tall at an 88px edge
   with the composer at 541, and acking one reminder settles it at 483. That is the 58px the entry
   describes, through a 96px excursion (541 down to 445 across the roll, back up to 483), and the
-  edge walks 88 to 184 to 146. The change was reverted immediately and every green number above
+  edge walks 88 to 184 to 146. The change was reverted immediately and every number above
   was re-taken afterwards and reproduced.
 - **Why it stood for seventeen days**, which is the part worth keeping. Nobody re-derived the
   entry after the same evening's fix, and two later sittings measured the answer and read it as a
@@ -67,8 +67,8 @@ though it were merely unasked, and the rarity is what makes waiting cheap.
   both viewports". 493 is this panel's composer bottom at 640x720 exactly, and both readings are
   the closure above. Each concluded only that the undecided preference was "not settled here by
   accident", which was true of those changes and was also the answer to an entry sitting in the
-  same file. An entry restated from its own text rather than from the code will survive any number
-  of measurements taken alongside it.
+  same file. Restating an entry from its own text rather than from the code is what let it survive
+  those measurements.
 - **The rarity number it was restated with is wrong, and wrongly reassuring.** "A correctly pinned
   panel has to grow 615px at a 900px viewport before the ceiling binds at all" reads 615 as a
   growth delta when it is the CEILING'S VALUE for a 546px panel centred at 900px. Headroom is
@@ -89,8 +89,8 @@ though it were merely unasked, and the rarity is what makes waiting cheap.
   which the sitting recorded as a third outcome.
 - 2026-08-06: Closed as moot with no code written and nothing for the user to pick. The mechanism it
   argues about was deleted thirty two minutes after the entry was written, the clamp moving off the
-  pinned edge and onto the height, and the reading was reddened first by restoring the deleted
-  clamp. The area went 13 to 12, and this closed the last entry here whose blocker was a preference
+  pinned edge and onto the height, and the reading was proved able to fail first by restoring the
+  deleted clamp. The area went 13 to 12, and this closed the last entry here whose blocker was a preference
   rather than work. It was also a closing species this backlog had not held before: entries here had
   been wrong about a cause, a size, a fix and a cost, and this one was wrong about whether its
   subject was still in the tree.

@@ -79,7 +79,7 @@ _NOT_CRITERIA = frozenset({"IMAP", "SEARCH", "OR", "NOT"})
 
 @pytest.mark.integration
 def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
-    """The guard on what `search_emails` tells a model: only criteria that work may be named."""
+    """Every criterion `SEARCH_QUERY_HELP` names is run against the live Bridge and accepted."""
     config = EmailConfig()
     if not config.user:
         pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
@@ -101,7 +101,7 @@ def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
 
 @pytest.mark.integration
 def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> None:
-    """The live half of the unknown-folder classification, and the premise it rests on."""
+    """A name no mailbox has raises `FolderUnknownError`, and every offered name opens."""
     config = EmailConfig()
     if not config.user:
         pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
@@ -122,7 +122,7 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
 
 
 def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
-    """The other direction of the same promise, which only the server's own LIST can settle."""
+    """Assert that every name this server opens is one `list_folders` offers."""
     offered = set(mailbox.list_folders())
     # Reaching past the port is deliberate, hence both suppressions: what this asks about is
     # precisely the names the port did not return, which nothing on the port can show.
@@ -142,7 +142,7 @@ def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
 
 @pytest.mark.integration
 def test_send_round_trips_between_the_two_test_addresses() -> None:
-    """The ADR-0022 live send: SMTP out over the Bridge, arrival verified over IMAP."""
+    """Send one message over SMTP through the Bridge and read its arrival back over IMAP."""
     smtp_config = SmtpConfig()
     to = os.environ.get("CORTEX_EMAIL_LIVE_SEND_TO", "")
     if not (smtp_config.enabled and to):

@@ -1,4 +1,4 @@
-//! [`within_gaps`]: a turn's stream, bounded by its **silence** (ADR-0024 idle-gap addendum).
+//! [`within_gaps`]: a turn's stream, bounded by its silence (ADR-0024 idle-gap addendum).
 
 use std::future::poll_fn;
 use std::pin::pin;
@@ -11,10 +11,10 @@ use crate::retry::effects::Sleeper;
 use crate::retry::plan::{RetryPlan, SeamMethod};
 use crate::transport::{TransportError, TurnEvent};
 
-/// How long a turn may be silent **before its first event**, in milliseconds.
+/// How long a turn may be silent before its first event, in milliseconds.
 pub const DEFAULT_TURN_FIRST_GAP_MS: u64 = 600_000;
 
-/// How long a turn may be silent **between two of its events**, in milliseconds.
+/// How long a turn may be silent between two of its events, in milliseconds.
 pub const DEFAULT_TURN_IDLE_GAP_MS: u64 = 7_200_000;
 
 /// The two silences one streamed turn runs under: the wait for its first event, and the wait
@@ -28,7 +28,7 @@ pub struct TurnGaps {
 }
 
 impl TurnGaps {
-    /// The gaps that never fire, which is what "no bound" means to a clock.
+    /// The gaps that never expire, which is how an unbounded stream is spelled here.
     pub const UNBOUNDED: Self = Self {
         first: Duration::MAX,
         idle: Duration::MAX,
@@ -46,7 +46,7 @@ impl Default for TurnGaps {
 }
 
 impl RetryPlan {
-    /// The silences `method`'s stream runs under, or **`None` when it is not a stream**.
+    /// The silences `method`'s stream runs under, or `None` when the method is not a stream.
     #[must_use]
     pub fn gaps_for(&self, method: SeamMethod) -> Option<TurnGaps> {
         match method {
@@ -65,9 +65,9 @@ impl RetryPlan {
     }
 }
 
-/// Which silence a turn is spending, and what its stream does next. Pure state, no clock, no
-/// stream: the decorator hands it what the clock saw and it answers with the item to yield or
-/// nothing at all.
+/// Which silence a turn is spending, and what its stream does next. It holds pure state and
+/// touches no clock and no stream: the decorator hands it what the clock saw, and it returns the
+/// item to yield or nothing.
 struct GapClock {
     gaps: TurnGaps,
     /// Whether an event has arrived, which is what separates the two gaps.

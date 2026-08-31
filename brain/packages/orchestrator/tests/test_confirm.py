@@ -1,9 +1,3 @@
-"""Behavior of SeamConfirmer: emit one ConfirmRequest, await the answer, fail closed.
-
-The stream-level round-trips (a real gated tool through converse()) live in
-test_converse_confirm.py; these tests pin the adapter's own contract.
-"""
-
 import asyncio
 from datetime import UTC, datetime
 
@@ -34,7 +28,6 @@ def _resolutions(emitted: list[ServerEvent]) -> list[tuple[str, str]]:
 
 
 async def _emitted_id(emitted: list[ServerEvent]) -> str:
-    # The confirm task emits on its first step; a single scheduler yield lets it run.
     for _ in range(100):
         if emitted:
             return emitted[0].confirm_request.confirm_id
@@ -65,8 +58,6 @@ async def test_denial_resolves_false() -> None:
 async def test_timeout_denies_and_tells_the_overlay_the_card_is_dead() -> None:
     confirmer, emitted = _collecting_confirmer(timeout_s=0.01)
     assert await confirmer.confirm(_REQUEST) is False
-    # The request went out, the answer never came, and the resolution closes the card
-    # ahead of the model's declined reply (ADR-0022 resolution addendum).
     assert len(emitted) == 2
     assert _resolutions(emitted) == [(emitted[0].confirm_request.confirm_id, OUTCOME_TIMEOUT)]
 
@@ -75,7 +66,7 @@ async def test_an_unknown_confirm_id_is_ignored() -> None:
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirm_id = await _emitted_id(emitted)
-    confirmer.resolve("not-a-real-id", approved=True)  # a stale/forged answer resolves nothing
+    confirmer.resolve("not-a-real-id", approved=True)
     confirmer.resolve(confirm_id, approved=False)
     assert await ask is False
 
@@ -85,7 +76,7 @@ async def test_a_second_answer_to_the_same_request_is_ignored() -> None:
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirm_id = await _emitted_id(emitted)
     confirmer.resolve(confirm_id, approved=False)
-    confirmer.resolve(confirm_id, approved=True)  # the first answer stands (future is done)
+    confirmer.resolve(confirm_id, approved=True)
     assert await ask is False
 
 
@@ -93,14 +84,10 @@ async def test_close_denies_the_pending_request_and_every_later_ask() -> None:
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirm_id = await _emitted_id(emitted)
-    confirmer.close()  # client input ended: no answer can ever arrive
+    confirmer.close()
     assert await ask is False
-    # The half-close ends the client's ability to answer, not the server's to report:
-    # the asked question is resolved on the wire so the card closes.
     assert _resolutions(emitted) == [(confirm_id, OUTCOME_UNAVAILABLE)]
-    assert await confirmer.confirm(_REQUEST) is False  # closed: denied without emitting
-    # An ask refused after close emitted no request, so it must emit no resolution either:
-    # there is no card to close, and a resolution for an unknown id is noise.
+    assert await confirmer.confirm(_REQUEST) is False
     assert len(emitted) == 2
 
 
@@ -109,15 +96,12 @@ async def test_close_is_idempotent_over_an_answered_request() -> None:
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=True)
     assert await ask is True
-    confirmer.close()  # nothing pending; must not blow up
     confirmer.close()
-    # The user answered, so the client closed its own card: no resolution is owed.
+    confirmer.close()
     assert _resolutions(emitted) == []
 
 
 async def test_close_skips_a_future_already_resolved_but_not_yet_collected() -> None:
-    # resolve() then close() before the awaiting task runs: close sees a done future and
-    # must leave it alone (the done-future branch of the close loop).
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=True)
@@ -138,23 +122,17 @@ async def test_an_undumpable_argument_is_stringified_never_a_crash() -> None:
 
 
 async def test_cancellation_deregisters_the_pending_request() -> None:
-    # The turn dying mid-confirm (Cancel / stream teardown) propagates out of confirm();
-    # the request deregisters, so a late answer is a stale id and resolves nothing.
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirm_id = await _emitted_id(emitted)
     ask.cancel()
     await asyncio.wait([ask])
     assert ask.cancelled()
-    confirmer.resolve(confirm_id, approved=True)  # ignored: nothing pending anymore
-    # No resolution either: the turn is dying, and its terminal event (or the stream's
-    # death) is what closes the card. Reporting into a stream nobody will read is noise.
+    confirmer.resolve(confirm_id, approved=True)
     assert _resolutions(emitted) == []
 
 
 async def test_an_answered_request_is_never_resolved_on_the_wire() -> None:
-    # The client authored the answer and closed its own card, so an echo would be a
-    # redundant event; the resolution exists only for endings the client cannot see.
     confirmer, emitted = _collecting_confirmer()
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=True)

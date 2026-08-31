@@ -1,5 +1,3 @@
-"""The control API's wire shape: four routes, two refusal codes, and the lifespan's two duties."""
-
 import logging
 from http import HTTPStatus
 from typing import Any, cast
@@ -20,8 +18,6 @@ from cortex_model_manager import (
 )
 
 _TINY = 0.05
-# Deliberately different from the grace, so an app that reported the three bounds in the wrong
-# order would be caught rather than pass on a coincidence.
 _TINY_REAP = 0.07
 _TINY_PROBE = 0.03
 
@@ -50,7 +46,6 @@ def _body(response: httpx.Response) -> dict[str, Any]:
 
 
 async def test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_with() -> None:
-    """The compose healthcheck's route, and the first thing an operator asks the sidecar."""
     client, supervisor, _ = _wired()
     try:
         response = await client.get("/health")
@@ -60,24 +55,16 @@ async def test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_
     assert _body(response) == {
         "status": "ok",
         "models": [CORTEX, DEEP],
-        # Read off the supervisor for the same reason the bounds are: a route that minted its own
-        # would name a boot nothing in the process shares, and the brain compares this against
-        # what it was told last rather than against anything it can derive.
         "boot_id": supervisor.boot_id,
         "probe_timeout_s": _TINY_PROBE,
         "stop_grace_s": _TINY,
         "reap_timeout_s": _TINY_REAP,
-        # A daemon wired with no device probe says so rather than omitting the fields, because
-        # the brain reads their absence as "cannot see a card" and refuses a checked handoff on
-        # it; a missing key and a null must not be two different answers.
         "device_free_mib": None,
         "device_total_mib": None,
     }
 
 
 async def test_health_reports_what_the_card_has_free_for_the_brains_fit_check() -> None:
-    """The reading the brain's swap compares against, on the one route that takes no model lock."""
-
     class _Card:
         async def read(self) -> DeviceMemory | None:
             return DeviceMemory(free_mib=22484, total_mib=24463)
@@ -109,7 +96,6 @@ async def test_start_then_status_then_stop_answer_the_state_each_left_behind() -
 async def test_an_unknown_id_is_a_404_on_every_route(
     path: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An id outside the roster is refused as absent, never as a sick host."""
     client, _, _ = _wired()
     method = client.get if path.endswith("ghost") else client.post
     try:
@@ -127,7 +113,6 @@ async def test_an_unknown_id_is_a_404_on_every_route(
 async def test_a_supervisor_failure_is_a_503_logged_once_and_loudly(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A child that survives SIGKILL is the one failure a stop can report, and it reports it."""
     client, supervisor, _ = _wired(FakeChildProcesses(exits_on=None))
     try:
         await supervisor.start(CORTEX)
@@ -141,13 +126,10 @@ async def test_a_supervisor_failure_is_a_503_logged_once_and_loudly(
         (logging.WARNING, "a model process ignored SIGTERM; killing it"),
         (logging.ERROR, "a model-host request failed"),
     ]
-    # The whole sentence rides the field, which is what makes the second printing of it
-    # unnecessary rather than merely noisy: nothing about the failure is lost by dropping it.
     assert "survived SIGKILL" in str(record_fields(caplog.records[1])["error"])
 
 
 async def test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_way_down() -> None:
-    """ADR-0030's boot default: a stack that never escalates comes up with the cortex serving."""
     processes = FakeChildProcesses()
     probe = FakeProbe()
     supervisor = ModelSupervisor(
@@ -171,7 +153,6 @@ async def test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_wa
 async def test_a_boot_start_that_fails_is_logged_and_the_api_still_serves(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A crash loop under compose's restart policy would hide the cause; an answering API cannot."""
     processes = FakeChildProcesses()
     supervisor = ModelSupervisor(contract_roster(), processes, FakeProbe())
     app = build_app(supervisor, boot_model="ghost")
@@ -185,9 +166,6 @@ async def test_a_boot_start_that_fails_is_logged_and_the_api_still_serves(
         await client.aclose()
     assert response.status_code == HTTPStatus.OK
     assert processes.spawned == []
-    # Names the tier it failed on: the boot default is configurable, so "a model" is not an answer.
-    # Read off the rendered line rather than `caplog.text`, which carries no field: the tier rides
-    # this record as one, and the traceback the formatter appends stays below the fields.
     (record,) = caplog.records
     assert (
         PlainFormatter()

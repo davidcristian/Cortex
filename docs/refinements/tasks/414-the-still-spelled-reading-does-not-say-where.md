@@ -17,8 +17,8 @@ yes or a no. It never says which line the yes came from.
 Measured live while R-398 was being closed, by retuning `DEFAULT_STOP_GRACE_S` to `11.0`:
 [modules/brain-model-manager.md](../../modules/brain-model-manager.md) answered that it does still
 spell `11` as a token of its own. Its only `11` is `~11 GB` in a sentence about how much VRAM a
-still-dying cortex holds, a hundred lines from anything about the grace. The reading is not lying,
-the docstring already calls its conclusion a maybe, and a two-digit number is exactly the kind of
+still-dying cortex holds, a hundred lines from anything about the grace. The reading is correct as
+written, the docstring already calls its conclusion a maybe, and a two-digit number is exactly the kind of
 value a document spells twice under two meanings. But a reader who is told a value is still
 somewhere in a file, and not where, confirms or dismisses it with a grep, which is the work the
 fault was supposed to save.

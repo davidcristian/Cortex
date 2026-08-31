@@ -31,7 +31,7 @@ struct GapSleeper {
 }
 
 impl GapSleeper {
-    /// A sleeper that grants every wait: the stream is bounded and the bound never wins.
+    /// A sleeper that grants every wait, so the stream is bounded and no bound ever expires.
     fn granting() -> Self {
         Self {
             gaps: Arc::new(Mutex::new(Vec::new())),
@@ -40,8 +40,8 @@ impl GapSleeper {
         }
     }
 
-    /// A sleeper whose `index`-th wait (0-based) expires, so a scripted stall lands exactly where
-    /// the scenario wants it rather than wherever the schedule happens to reach.
+    /// A sleeper whose `index`-th wait (0-based) expires, so a scripted stall lands where the
+    /// scenario places it rather than wherever the schedule happens to reach.
     fn expiring_at(index: usize) -> Self {
         Self {
             expire_at: index,
@@ -96,7 +96,9 @@ const GAPS: TurnGaps = TurnGaps {
     idle: Duration::from_secs(90),
 };
 
-/// One streamed delta, in the `Result` shape a turn's items have.
+/// One streamed delta, in the `Result` shape a turn's items have. That shape is what an item is,
+/// so the lint about a function that always succeeds is allowed rather than followed: a helper
+/// returning a bare event would be wrapped by every one of its callers.
 #[allow(clippy::unnecessary_wraps)]
 fn delta(text: &str) -> TurnItem {
     Ok(TurnEvent::Delta(String::from(text)))
@@ -163,6 +165,9 @@ async fn the_first_event_is_measured_against_one_gap_and_every_later_one_against
 
 #[tokio::test]
 async fn a_turn_that_never_starts_ends_on_the_first_event_gap() {
+    // The failure this bound was written for: the brain accepted the turn and sent nothing. One
+    // item comes back, the timeout carrying the gap that expired, so the overlay has something
+    // to settle a streaming reply with instead of a thinking indicator that never resolves.
     let sleeper = GapSleeper::expiring_at(0);
     let items = drain(Some(GAPS), &sleeper, stalling(Vec::new())).await;
     assert_eq!(
@@ -174,9 +179,9 @@ async fn a_turn_that_never_starts_ends_on_the_first_event_gap() {
 
 #[tokio::test]
 async fn a_turn_that_stops_mid_reply_keeps_what_arrived_and_ends_on_the_idle_gap() {
-    // The other half: everything that did arrive is delivered, then the timeout, and the gap it
-    // carries is the mid-stream one rather than the first-event one. The partial reply survives,
-    // which is what lets the overlay settle the bubble on the words it already has.
+    // Everything that did arrive is delivered, then the timeout, and the gap it carries is the
+    // mid-stream one rather than the first-event one. The partial reply survives, which is what
+    // lets the overlay settle the bubble on the words it already has.
     let sleeper = GapSleeper::expiring_at(2);
     let items = drain(
         Some(GAPS),
@@ -205,9 +210,9 @@ async fn an_expired_gap_ends_the_stream_rather_than_waiting_again() {
 
 #[tokio::test]
 async fn a_stream_with_no_gaps_at_all_is_bounded_by_a_clock_that_never_wins() {
-    // The exemption is spelled as a duration rather than branched on (the `within_deadline`
-    // precedent), so a caller with no policy still runs one code path and the timer is simply
-    // never first. `Duration::MAX` is what reaches the clock, which is what proves it.
+    // The exemption is spelled as a duration rather than as a branch, following
+    // `within_deadline`, so a caller with no policy still runs one code path and the timer never
+    // expires first. `Duration::MAX` is what reaches the clock.
     let sleeper = GapSleeper::granting();
     let items = drain(None, &sleeper, finished(vec![delta("only")])).await;
     assert_eq!(items, vec![delta("only")]);
@@ -231,7 +236,8 @@ fn the_shipped_gaps_are_the_two_constants_and_the_idle_one_is_the_longer() {
 }
 
 /// A transport whose turn stalls after one event, so the decorator can be driven through the port
-/// rather than through `within_gaps` directly. Every unary method is unreachable here and says so.
+/// rather than through `within_gaps` directly. Every unary method is unreachable here and returns
+/// an error saying so.
 struct StallingTransport;
 
 impl BrainTransport for StallingTransport {
@@ -295,9 +301,9 @@ impl BrainTransport for StallingTransport {
 
 #[tokio::test]
 async fn the_decorator_hands_the_turn_the_plan_s_own_gaps() {
-    // End to end through the port: the plan is the single door for this clock exactly as it is
-    // for the retry schedule and the per-attempt deadline, so what bounds the turn is what
-    // `gaps_for` answered and nothing composed at the call site.
+    // End to end through the port: the plan sets this clock exactly as it sets the retry
+    // schedule and the per-attempt deadline, so what bounds the turn is what `gaps_for`
+    // answered rather than anything composed at the call site.
     let sleeper = GapSleeper::expiring_at(1);
     let plan = RetryPlan {
         turn_gaps: GAPS,

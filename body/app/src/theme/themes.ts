@@ -1,13 +1,15 @@
+// The overlay's themes. A theme is a named set of design tokens, and adding one to `THEMES` makes
+// it selectable. `accent` and `spark` are used only on controls that are working (thinking,
+// streaming, the orb); the status trio `ok`/`warn`/`bad` belongs to the connection indicator.
 
 export type Scheme = "light" | "dark";
 
-/** The token contract every theme provides. The whole palette surface lives here. */
+/** The tokens every theme provides. */
 export interface ThemeTokens {
   readonly bg: string;
   readonly panel: string;
-  /** The panel's face when a liquid edge carries it (ADR-0036): the same ground, nearly opaque,
-   *  because a path-clipped panel cannot keep its backdrop blur (Chromium composites the blur
-   *  un-clipped) and a hair more opacity is the honest trade. */
+  /** The panel's face behind a liquid edge: the same ground, nearly opaque. Chromium composites
+   *  a backdrop blur un-clipped, so a path-clipped panel loses it and opacity stands in. */
   readonly panelSolid: string;
   readonly stroke: string;
   readonly text: string;
@@ -53,9 +55,6 @@ export const MIDNIGHT: Theme = {
     bubbleAi: "rgba(255, 255, 255, 0.045)",
     field: "rgba(255, 255, 255, 0.06)",
     control: "rgba(255, 255, 255, 0.05)",
-    // The status trio is drawn from the user's own eight-hue palette (the rings' gradient
-    // stops), so the indicator belongs to the design language instead of importing a
-    // traffic-light green from nowhere.
     ok: "#43D675",
     warn: "#FFB347",
     bad: "#FF5F6D",
@@ -79,8 +78,7 @@ export const DAYLIGHT: Theme = {
     bubbleAi: "rgba(20, 16, 40, 0.03)",
     field: "rgba(20, 16, 40, 0.04)",
     control: "rgba(20, 16, 40, 0.05)",
-    // The same three hues, deepened: the palette's own values are tuned for a dark ground and
-    // wash out on a light panel, and a status colour that cannot be read is not a status.
+    // The same three hues, deepened: the dark theme's values wash out on a light panel.
     ok: "#1EA95C",
     warn: "#C07408",
     bad: "#D93B4A",
@@ -128,17 +126,17 @@ export function toCssVars(theme: Theme): Record<string, string> {
   };
 }
 
-/**
- * How long a theme takes to cross, and the only place the number lives: `applyTheme` writes it to
- * the root as `--theme-swap`, and `[data-swapping] *` in overlay.css is what reads it.
- */
+/** How long a theme takes to cross, and the only place the number lives. `applyTheme` writes it
+ *  to the root as `--theme-swap`, which `[data-swapping] *` in overlay.css reads. */
 export const THEME_SWAP_MS = 400;
 
-/** The swap in flight, so a second toggle inside the first one's window does not have the first
- *  one's timer end its fade early. */
+/** The swap in flight, so a second toggle inside the first one's window is not ended early by
+ *  the first one's timer. */
 let crossing: ReturnType<typeof setTimeout> | undefined;
 
-/** Apply a theme to an element: write its CSS custom properties + the scheme dataset. */
+/** Apply a theme: write its CSS custom properties and the scheme dataset. `data-swapping` goes on
+ *  before the tokens, because a transition starts from the changed style, and comes off on a timer,
+ *  because removing it in the same task would leave nothing to ease. */
 export function applyTheme(theme: Theme, root: HTMLElement): void {
   if (root.dataset.theme !== undefined) {
     root.style.setProperty("--theme-swap", `${THEME_SWAP_MS}ms`);

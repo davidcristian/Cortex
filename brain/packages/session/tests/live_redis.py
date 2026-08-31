@@ -9,12 +9,10 @@ from redis.asyncio import Redis
 
 from cortex_session import DEFAULT_REDIS_URL
 
-# Redis serves 16 logical databases (0..15) out of the box and this repo's production
-# configuration selects 0, so the live runs take the far end. Nothing they write is state the
-# brain reads, and nothing they flush is state the brain owns.
+# Redis has 16 logical databases (0 to 15) and this repo's deployments select 0, so the live
+# runs take the last one and never share a keyspace with the brain's own state.
 LIVE_DB = 15
 
-# The URL schemes that carry the database index in the path component, the rewrite below.
 _TCP_SCHEMES = frozenset({"redis", "rediss"})
 
 
@@ -34,8 +32,6 @@ def live_redis_url() -> str:
 
 async def reset(client: Redis) -> None:
     """Empty the live database, so the next check starts where the fakeredis fixture starts."""
-    # redis-py types both of these as partially Unknown (the pool's kwargs bag, and flushdb's
-    # **kwargs); the cast pins what this file actually reads out of the first.
     opened = cast(
         "dict[str, object]",
         client.connection_pool.connection_kwargs,  # pyright: ignore[reportUnknownMemberType]

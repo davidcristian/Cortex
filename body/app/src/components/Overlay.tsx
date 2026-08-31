@@ -10,6 +10,10 @@ import { Orb } from "./Orb";
 import { Panel } from "./Panel";
 import { Preview } from "./Preview";
 
+// The mode router: the panel is always mounted, while the orb and preview mount only in their
+// modes. It also owns the global keys, which stay live while the panel is off screen. A field with
+// focus may take a press first, which the switcher's rename editor does and the composer does not.
+
 interface OverlayProps {
   readonly controller: OverlayController;
   readonly dark: boolean;
@@ -22,10 +26,9 @@ interface OverlayProps {
   readonly onToggleTheme: () => void;
 }
 
-/**
- * Whether a key landed in a field somebody is writing in, which is where `?` is a character and
- * not a shortcut.
- */
+/** Whether a key arrived in a field somebody is writing in, where `?` is a character rather than
+ *  a shortcut. Both element types are tested rather than a list of selectors, so the next field
+ *  added to the overlay is covered without a change here. */
 function typing(target: EventTarget | null): boolean {
   return target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement;
 }
@@ -66,13 +69,10 @@ export function Overlay({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      // What counts as a chord is asked of `overlay/fieldKeys.ts` rather than restated here,
-      // because the fields that stand in front of this listener answer the same question and the
-      // two must not drift into disagreeing about one key.
+      // What counts as a chord comes from `overlay/fieldKeys.ts` rather than being restated here,
+      // because the fields that take keys before this listener ask the same question.
       const mod = chord(event);
       if (event.key === "Escape") {
-        // One press out of the console, whichever tab is up: it is one view now, not a settings
-        // sheet stacked on a shortcut sheet, so nothing is left behind to press Esc at again.
         if (state.consoleTab !== null) {
           closeConsole();
         } else if (state.mode !== "hidden") {
@@ -86,8 +86,8 @@ export function Overlay({
         newChat(true);
       } else if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        // Announced, for the reason the fresh chat's own two doors differ by: a key names nothing
-        // and moves nothing, so an opened list would arrive in silence (`overlay/notice.ts`).
+        // Announced: a key has no label and moves no caret, so the opened list would otherwise
+        // arrive silently.
         toggleSwitcher(true);
       } else if (mod && event.key === "ArrowUp") {
         event.preventDefault();
@@ -133,8 +133,8 @@ export function Overlay({
         onStop={stop}
         onDismiss={dismiss}
         onNewChat={() => newChat(false)}
-        // Silent: the chats button carries `aria-expanded`, and the caret that pressed it is
-        // standing on it, so the state is read back where the reader already is.
+        // Not announced: the chats button has `aria-expanded` and keeps the caret that pressed
+        // it, so the state is read back where the reader already is.
         onToggleSwitcher={() => toggleSwitcher(false)}
         onSelectSession={openSession}
         onRenameSession={renameSession}

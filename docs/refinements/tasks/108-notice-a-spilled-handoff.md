@@ -7,7 +7,7 @@
 Opened 2026-08-07 by the fit check's own landing
 ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) fit-check addendum). The check compares the deep
 tier's declared cost against what the card reports free immediately before the load, which is the
-only instant at which free memory means anything. Two things stay invisible to it. A deployment
+only instant at which free memory means anything. Two things stay outside what it can detect. A deployment
 that **under-declares** passes the check and spills anyway, because nothing here measures a
 model. And memory taken **during** the load (this machine's idle floor moved between 1529 and
 2836 MiB inside one session, Windows owning the difference) can turn a fit into a spill after the
@@ -34,8 +34,8 @@ engine reports one (and legitimately omits when it does not, so silence never re
 `stream_tool_loop` absorbs it into an optional `CadenceWatch` on the loop context and yields
 nothing, a decode rate being a fact about the machine rather than something the turn said; the
 watch is pure policy that ignores samples under 32 tokens and judges on the **fastest**
-qualifying one, so a briefly busy card cannot convict and a tier that never once reached its
-floor is convicted; the floor is `CORTEX_SWAP_BRAIN_DECODE_TPS` on `ResidencyPlan`, unset meaning
+qualifying one, so a briefly busy card cannot trigger it and a tier that never once reached
+its floor does; the floor is `CORTEX_SWAP_BRAIN_DECODE_TPS` on `ResidencyPlan`, unset meaning
 report and judge nothing; and the deep phase says so once per handoff, at WARNING when it
 collapsed and INFO when it did not. Port + contract test driven over both the scripted twin and
 the real adapter + fakes, CI-gated at 100%, and the split the cap forced was `backend.py` into

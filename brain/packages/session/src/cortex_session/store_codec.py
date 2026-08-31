@@ -7,14 +7,10 @@ from typing import cast
 from cortex_core import Message, Role, SessionStoreError
 from cortex_core.sessions import HistoryRecap
 
-# The record schema this writer emits and the ONLY combination this reader accepts.
-# Records missing the markers decode as this combination (pre-versioning writers).
+# A record written before these markers existed has neither key, and decodes as this pair.
 RECORD_KIND = "message"
 RECORD_VERSION = 1
 
-# The recap record's own kind, under the same versioning escape hatch as a message record
-# (ADR-0038 decision 9). It is a JSON document rather than a plain string because a recap is
-# a pair (the text and the boundary it covers) and half of it would be worse than none.
 RECAP_KIND = "recap"
 
 
@@ -44,7 +40,7 @@ def encode_message(message: Message) -> str:
 
 
 def refuse_images(message: Message) -> None:
-    """Raise if ``message`` carries pixels. See ``RedisSessionStore.append``."""
+    """Raise when ``message`` contains images."""
     if message.images:
         msg = "a session store never persists images: pixels are turn-local"
         raise SessionStoreError(msg)
@@ -68,25 +64,21 @@ def decode_message(raw: bytes | str, index: int) -> Message:
             at=datetime.fromisoformat(fields["at"]),
             turn_id=fields["turn_id"],
         )
+    # AttributeError: a JSON document that is not an object has no .get.
     except (AttributeError, KeyError, TypeError, ValueError) as err:
-        # AttributeError: a JSON document that is not an object has no .get.
         msg = f"corrupt session record at index {index}"
         raise SessionStoreError(msg) from err
 
 
 def encode_recap(recap: HistoryRecap) -> str:
-    """The recap document: the text the model wrote and the boundary it accounts for.
-
-    Both halves go on the wire because a reader with the text alone could not tell a current
-    recap from a stale one, and would prepend the wrong paragraph for the rest of the session.
-    """
+    """The recap document: the text the model wrote and the boundary it accounts for."""
     return json.dumps(
         {"v": RECORD_VERSION, "kind": RECAP_KIND, "text": recap.text, "covers": recap.covers}
     )
 
 
 def decode_recap(raw: bytes | str, session_id: str) -> HistoryRecap:
-    """Decode the stored recap document, failing loudly on anything this reader cannot read."""
+    """Decode the stored recap document, raising on anything this reader cannot read."""
     try:
         fields = cast("dict[str, object]", json.loads(raw))
         kind = fields.get("kind", RECAP_KIND)
@@ -99,6 +91,5 @@ def decode_recap(raw: bytes | str, session_id: str) -> HistoryRecap:
             raise SessionStoreError(msg)
         return HistoryRecap(text=cast("str", fields["text"]), covers=cast("int", fields["covers"]))
     except (AttributeError, KeyError, TypeError, ValueError) as err:
-        # ValueError also covers HistoryRecap's own rejection of a blank text / zero boundary.
         msg = f"corrupt recap for session {session_id!r}"
         raise SessionStoreError(msg) from err

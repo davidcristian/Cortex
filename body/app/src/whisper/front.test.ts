@@ -19,8 +19,6 @@ import {
 describe("advance", () => {
   it("sprints a deep backlog at the capped pace, easing the velocity toward it", () => {
     const one = advance(RESTING_FRONT, 100, 0.016);
-    // Backlog 100 wants 100 / 0.35 ≈ 286 letters/s; the cap holds it to MAX_PACE, and the
-    // velocity blends toward that rather than jumping.
     expect(one.velocity).toBeCloseTo(MAX_PACE * 0.016 * 6, 5);
     expect(one.at).toBeCloseTo(one.velocity * 0.016, 5);
   });
@@ -34,15 +32,12 @@ describe("advance", () => {
   it("runs an in-between backlog at exactly what it warrants", () => {
     const front = { at: 0, velocity: 0 };
     const one = advance(front, 20, 1 / 6);
-    // 20 letters over 0.35s is ~57/s, inside both clamps; dt * gain is exactly 1 here, so the
-    // velocity lands on the target in one step (the saturated blend).
     expect(one.velocity).toBeCloseTo(20 / 0.35, 5);
   });
 
   it("stops at the goal and aims at nothing beyond it", () => {
     const arrived = advance({ at: 5, velocity: 150 }, 5, 0.016);
     expect(arrived.at).toBe(5);
-    // Backlog is zero, so the target pace is zero and the velocity decays.
     expect(arrived.velocity).toBeLessThan(150);
   });
 
@@ -82,7 +77,6 @@ describe("rampAt", () => {
   });
 
   it("smoothsteps the letters inside the band", () => {
-    // Halfway through the band is exactly half condensed, with no corner at either end.
     expect(rampAt(BAND_LETTERS / 2, 0)).toBeCloseTo(0.5, 5);
     expect(rampAt(2, 0)).toBeGreaterThan(0);
     expect(rampAt(2, 0)).toBeLessThan(0.5);
@@ -145,7 +139,6 @@ describe("tokenize", () => {
     const smileys = "🙂".repeat(CHUNK_LETTERS + 1);
     const tokens = tokenize(smileys);
     expect(tokens.map((t) => [...t.text].length)).toEqual([CHUNK_LETTERS, 1]);
-    // Every chunk still holds whole smileys, not broken halves.
     expect(tokens.every((t) => [...t.text].every((p) => p === "🙂"))).toBe(true);
   });
 });

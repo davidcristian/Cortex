@@ -1,5 +1,3 @@
-"""The whole handoff over the real ``Converse`` stream: one turn, two models, one completion."""
-
 import asyncio
 from collections.abc import AsyncIterator, Callable, Sequence
 
@@ -96,7 +94,7 @@ def _escalating_factory(
     host: ScriptedModelHost,
     backend: _ScriptedModel,
 ) -> EngineFactory:
-    """The composition root's escalating wiring, in miniature: wrapper + conductor + phase."""
+    """Build the composition root's escalating wiring in miniature: wrapper, conductor, phase."""
     manager = SwappingModelManager(host, _ENDPOINTS, _PLAN, SystemClock(), RecordingSleeper())
     handoffs = InMemoryHandoffStore()
 
@@ -153,7 +151,9 @@ def _answer(confirm_id: str, *, approved: bool) -> ClientEvent:
 
 
 async def _next_of(stream: AsyncIterator[ServerEvent], kind: str) -> ServerEvent:
-    """The next event of `kind`; bounded so a missing emit fails the test, not the suite."""
+    """Return the next event of `kind`, bounded so a missing emit fails this test rather than
+    hanging the suite.
+    """
     try:
         async with asyncio.timeout(5.0):
             async for event in stream:
@@ -181,7 +181,6 @@ def _reply(events: Sequence[ServerEvent]) -> str:
 
 
 async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> None:
-    """The user-visible shape: approve, cortex wraps up, swap, deep answer, one completion."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     client = _LiveClient()
@@ -196,14 +195,11 @@ async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> 
     events = await _drain(stream)
 
     assert _reply(events) == "handing this over. the deep answer"
-    # Exactly one completion, and it is last: the turn is not over when the cortex stops talking.
     assert _kinds(events).count("turn_complete") == 1
     assert _kinds(events)[-1] == "turn_complete"
-    # The swap window reported itself on the same stream the user already held.
     swapping = [e.status for e in events if e.WhichOneof("event") == "status"]
     assert [status.state for status in swapping] == ["swapping"] * len(swapping)
     assert len(swapping) == 4
-    # Both models answered under one turn id, and the machine is back on the cortex.
     history = [(m.role.value, m.text, m.turn_id) for m in await store.history("s")]
     assert history == [
         ("user", "prove this properly", "t-esc-1"),
@@ -214,7 +210,6 @@ async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> 
 
 
 async def test_a_second_turn_sent_during_the_swap_runs_after_it() -> None:
-    """The stream's own queue is what keeps a mid-handoff turn from failing or interleaving."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     backend = _ScriptedModel(
@@ -234,17 +229,16 @@ async def test_a_second_turn_sent_during_the_swap_runs_after_it() -> None:
     client.send(_user_turn("prove this properly"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.send(_answer(request.confirm_id, approved=True))
-    client.send(_user_turn("and what about the corollary"))  # arrives mid-handoff
+    client.send(_user_turn("and what about the corollary"))
     client.end()
     events = await _drain(stream)
 
     assert _reply(events) == "handing over. the deep answerand now the follow-up"
-    assert _kinds(events).count("turn_complete") == 2  # the handoff turn, then the queued one
+    assert _kinds(events).count("turn_complete") == 2
     assert host.running == {"cortex"}
 
 
 async def test_a_handoff_killed_mid_swap_ends_the_stream_honestly_and_the_next_turn_works() -> None:
-    """The chaos case at the seam: the deep model will not load, and the user is told so."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM at load"})
     backend = _ScriptedModel(
@@ -268,17 +262,14 @@ async def test_a_handoff_killed_mid_swap_ends_the_stream_honestly_and_the_next_t
     client.end()
     events = await _drain(stream)
 
-    # Honest, not silent: the turn completes with text saying the deep model was not loaded.
     assert "the deep model could not be loaded" in _reply(events).lower()
     assert _kinds(events)[-1] == "turn_complete"
     assert "error" not in _kinds(events)
-    # And the stream is still usable: the queued turn ran on the restored cortex.
     assert _reply(events).endswith("carrying on myself")
     assert host.running == {"cortex"}
 
 
 async def test_a_denied_escalation_leaves_the_turn_exactly_as_it_was() -> None:
-    """The gate is the consent surface: a refused card means no record and no swap at all."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     client = _LiveClient()
@@ -293,7 +284,7 @@ async def test_a_denied_escalation_leaves_the_turn_exactly_as_it_was() -> None:
 
     assert _reply(events) == "handing this over. "
     assert _kinds(events).count("turn_complete") == 1
-    assert host.calls == []  # nothing was ever unloaded
+    assert host.calls == []
     assert [m.text for m in await store.history("s")] == [
         "prove this properly",
         "handing this over. ",

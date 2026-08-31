@@ -20,7 +20,7 @@ Two adapters already work around this one at a time. `LoggingRecallSink` seriali
 the message as well as onto the record, saying in its own docstring that a plain stdlib formatter
 shows only the message and that the tool audit's adapter learned the same thing; the rank fallback
 in `rerank_judge.py` spells `capped=` and `chars=` into its message for exactly that reason. Three
-hand-rolled renderings are two more than the problem deserves, and every one of them is a second
+hand-rolled renderings are two more than the problem needs, and every one of them is a second
 spelling of a field that is already on the record.
 
 The fix is one formatter at the entry point, not a fourth rendering: a `logging.Formatter` that

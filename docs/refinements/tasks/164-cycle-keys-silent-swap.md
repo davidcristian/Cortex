@@ -15,10 +15,10 @@ only live region on the page is the link indicator's `role="status"`, which read
 health and says nothing about the chat. A sighted user sees the panel change; a reader is told
 nothing. The listbox shape would have answered this by moving focus, and that shape was rejected,
 so what fits is a polite live region naming the chat that arrived (`state.title` already holds
-it) rather than a focus move. It wants a look at the other doors into the same swap, a switcher
+it) rather than a focus move. It wants a look at the other paths into the same swap, a switcher
 row and a cold-start restore, so a reader is not read back a title it just clicked. Nothing
 blocks it.
-- **LANDED 2026-08-04, as the live region this asked for, and the doors were seven rather than
+- **LANDED 2026-08-04, as the live region this asked for, and the paths were seven rather than
   two** ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). Everything above was
   measured true again at 900x900 before anything was written: the same three titles in the same
   order, focus on the chats button throughout, the switcher closing under the first press, and
@@ -31,17 +31,17 @@ blocks it.
   about a chat, so the conclusion stands and the count does not. "`state.title` already holds it"
   holds only AFTER the swap: a history load can fail and its `.catch` leaves the current chat in
   place, so a notice raised at the keypress would name a chat that never arrived, and what ships
-  is the title the reducer arm computes off the same `headerTitle` the header takes. The doors
-  are not "a switcher row and a cold-start restore" but seven, and two of the ones it missed have
+  is the title the reducer arm computes off the same `headerTitle` the header takes. The paths
+  are seven rather than "a switcher row and a cold-start restore", and two of the ones it missed have
   the identical defect: `Ctrl+N` replaces the conversation with an empty one just as silently,
   and so does the fresh chat that lands when the open chat is deleted (both measured). And the
-  rule cannot be decided in the reducer arm at all, because one arm serves two doors each
+  rule cannot be decided in the reducer arm at all, because one arm serves two paths each
   (`openSession` is the row and the keys; `newChat` is the pencil and `Ctrl+N`), so the flag
-  travels with the action from the door that raised it. What speaks: the cycle keys, `Ctrl+N`, a
+  travels with the action from the path that raised it. What speaks: the cycle keys, `Ctrl+N`, a
   reminder's "open chat", and the chat replacing a deleted one. What does not: a switcher row and
   the header's pencil, each already carrying the arriving title as its own accessible name, and
   cold-start adoption, which has no gesture to answer and runs only while `touched` is false.
-  Two things the entry did not have. **A silent door CLEARS the notice** rather than leaving it,
+  Two things the entry did not have. **A path that says nothing CLEARS the notice** rather than leaving it,
   since a removal is not announced under the default `aria-relevant` and the region should hold
   only what was last actually said. **And a title said twice is not said twice**: a live region
   reports a mutation and not a value, so `overlay/notice.ts` carries a count and the region's
@@ -49,7 +49,7 @@ blocks it.
   removal, an addition of the identical string) where an unkeyed child mutates nothing the second
   time. The region lives at the overlay's root and not in the panel, which is the placement a
   test pins: the panel is `inert` while dismissed and the cycle keys are global, so a region
-  inside it would enter the accessibility tree in the same commit as the words it wants read.
+  inside it would enter the accessibility tree in the same commit as the words it announces.
 
 ## Trail
 

@@ -1,5 +1,3 @@
-"""Drive the shared decode-cadence contract over both implementations of the port."""
-
 import json
 from datetime import UTC, datetime
 from functools import partial
@@ -29,8 +27,8 @@ from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = "http://model-host:8081"
 
-# One llama-server streaming body, verbatim in shape from a live run: three content deltas and a
-# final chunk whose `choices` are present but empty of delta, carrying the timings object.
+# One llama-server streaming body, the shape of a live run: three content deltas and a final
+# chunk whose ``choices`` are present but empty of delta, holding the timings object.
 _DELTAS = ("the ", "measured ", "answer")
 _TIMINGS = json.dumps(
     {
@@ -57,7 +55,7 @@ def _body(*, cadence: bool) -> bytes:
 
 @pytest.fixture
 def scripted() -> BackendUnderTest:
-    """The core twin, scripted with the world-condition rather than asked to derive it."""
+    """Build the core twin, scripted with the world-condition rather than asked to derive it."""
 
     def build(*, cadence: bool) -> InferenceBackend:
         events: list[InferenceEvent] = [TextChunk(delta) for delta in _DELTAS]
@@ -77,7 +75,7 @@ def scripted() -> BackendUnderTest:
 
 @pytest.fixture
 def adapter() -> BackendUnderTest:
-    """The real adapter over a MockTransport serving the real llama-server body."""
+    """Build the real adapter over a MockTransport serving the real llama-server body."""
     clients: list[httpx.AsyncClient] = []
 
     def build(*, cadence: bool) -> InferenceBackend:
@@ -122,7 +120,6 @@ async def test_llamacpp_backend_meets_the_cadence_contract(
 async def test_the_adapter_leg_really_parses_the_servers_own_json(
     adapter: BackendUnderTest,
 ) -> None:
-    """The contract's derived half, stated once outside the shared checks."""
     body = _body(cadence=True).decode()
     assert '"predicted_per_second"' in body
     assert '"timings"' in body

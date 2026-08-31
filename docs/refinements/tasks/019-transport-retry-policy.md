@@ -25,7 +25,7 @@ decorator's private loop is extracted as `retry_with(policy, sleeper, randomness
 fallible async factory, which `converse.rs` composes around its **eager** dial (safe because the
 non-idempotent turn has not begun until the dial succeeds; the terminal-turn contract is
 untouched, and a lazy-constructor config gate keeps a bad URI or token fail-fast rather than
-retried). `connect_with_token` stays fail-fast; patience is composed where wanted. Remaining
+retried). `connect_with_token` stays fail-fast; the retrying wrapper is composed where it is needed. Remaining
 behind the same `BrainTransport`/`Sleeper` seams (ADR-0024 deferred):
 **safe `converse` reconnect-before-first-event** (needs a replayable request + a signature
 change); a **per-method / per-error-code policy**; and a **retry budget /

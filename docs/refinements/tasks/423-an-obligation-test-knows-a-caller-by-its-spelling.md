@@ -20,7 +20,8 @@ Each carries a floor against the emptiest version of that, naming three gates an
 must be found, so a search that matched nothing at all fails. The floor does not cover the case
 that matters: a fifth module that runs git through `subprocess.run(cmd)` with the argv built
 above, or a walk that prunes with `dirnames.remove(...)` or filters a `glob`, is not a caller as
-far as either test can tell, and the obligation quietly does not apply to it.
+far as either test's search reaches, and the obligation does not apply to it, with nothing
+reporting the omission.
 
 **Why it was left.** Both tests were written to hold a trigger that a shared module cannot hold by
 existing, and they do hold the shapes this tree actually writes: every git call here is a fixed

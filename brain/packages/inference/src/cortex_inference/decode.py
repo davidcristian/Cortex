@@ -1,4 +1,7 @@
-"""Reading one llama-server streaming response back into core values (ADR-0005)."""
+"""Read one llama-server streaming response back into core values.
+
+How a malformed answer is handled, which differs by field, is in docs/modules/brain-inference.md.
+"""
 
 import json
 from collections.abc import Mapping
@@ -18,20 +21,25 @@ __all__ = [
     "raise_for_status",
 ]
 
+# llama.cpp's finish-reason words mapped onto the core's closed set. All three were read off a
+# running server; any other word becomes ``StopReason.UNKNOWN``.
 _STOP_REASONS = {
     "stop": StopReason.FINISHED,
     "length": StopReason.CAPPED,
     "tool_calls": StopReason.CALLED,
 }
 
-# How much of llama-server's error body to quote back. Long enough for its own message (a
-# missing multimodal projector reads as its own hint rather than a bare 500) and short enough
-# that a server which answers HTML never floods the log.
+# Long enough for llama-server's own message (a missing multimodal projector reads as its own
+# hint rather than a bare 500) and short enough that a server answering HTML cannot flood the log.
 _ERROR_EXCERPT_CHARS = 300
 
 
 async def raise_for_status(response: httpx.Response, model: str) -> None:
-    """Raise on a non-2xx, quoting a bounded excerpt of the body."""
+    """Raise on a non-2xx, quoting a bounded excerpt of the body.
+
+    Reading the body here is safe because the request has already failed, so nothing the stream
+    still needs is consumed.
+    """
     if not response.is_error:
         return
     body = (await response.aread()).decode("utf-8", errors="replace").strip()
@@ -51,8 +59,9 @@ class PendingCall:
 
 
 def _require_text(value: object, field: str) -> str | None:
-    """A delta text field is a string or absent; anything else fails loud (a non-string is a
-    protocol violation, never silently dropped, matching the store adapter's stance)."""
+    """A delta text field is a string or absent; anything else raises, a non-string being a protocol
+    violation that must not be dropped.
+    """
     if value is None:
         return None
     if not isinstance(value, str):
@@ -69,7 +78,7 @@ def _non_negative(value: object) -> float | None:
 
 
 def _cadence(data: Mapping[str, object]) -> DecodeCadence | None:
-    """The completion's decode rate off llama.cpp's own ``timings``, or ``None`` (ADR-0030)."""
+    """The completion's decode rate off llama.cpp's own ``timings``, or ``None``."""
     raw = data.get("timings")
     if not isinstance(raw, dict):
         return None
@@ -82,7 +91,7 @@ def _cadence(data: Mapping[str, object]) -> DecodeCadence | None:
 
 
 def _stop(choice: Mapping[str, object]) -> DecodeStop | None:
-    """The completion's stop reason off llama.cpp's ``finish_reason``, or ``None`` (ADR-0005)."""
+    """The completion's stop reason off llama.cpp's ``finish_reason``, or ``None``."""
     raw = choice.get("finish_reason")
     if raw is None:
         return None
@@ -93,7 +102,7 @@ def _stop(choice: Mapping[str, object]) -> DecodeStop | None:
 
 @dataclass(frozen=True, slots=True)
 class ChunkRead:
-    """Everything one streamed chunk had to say, each field ``None`` when it said nothing of it."""
+    """What one streamed chunk held, each field ``None`` when the chunk had nothing for it."""
 
     content: str | None = None
     reasoning: str | None = None

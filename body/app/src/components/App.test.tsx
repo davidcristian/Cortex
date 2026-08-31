@@ -26,7 +26,7 @@ describe("App", () => {
     requestActivation();
     await renderApp(bridge);
     expect(screen.getByRole("dialog").className).toContain("open");
-    // …and it was consumed, so a remount does not summon a second time.
+    // The pending request was consumed, so a remount does not summon a second time.
     expect(takePendingActivation()).toBe(false);
   });
 
@@ -64,10 +64,10 @@ describe("App", () => {
     // Inside the panel the press bubbles up with a different target and passes through.
     fireEvent.mouseDown(screen.getByLabelText("Message"));
     expect(screen.getByRole("dialog", { name: "Cortex" }).className).toContain("open");
-    // The bare stage around the panel is the click-away surface.
+    // The bare stage around the panel is what dismisses on a press.
     fireEvent.mouseDown(stage);
     expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
-    // Hidden already: another stage press is a no-op.
+    // With the panel already hidden, another stage press does nothing.
     fireEvent.mouseDown(stage);
     expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
   });
@@ -85,7 +85,7 @@ describe("App", () => {
       },
     ];
     await renderApp(bridge);
-    // Nothing is pulled into a window nobody is looking at (the body sits resident in the tray).
+    // Nothing is read into a window that is not on screen, the body sitting resident in the tray.
     expect(bridge.reminderListCalls).toBe(0);
 
     activate();
@@ -93,9 +93,9 @@ describe("App", () => {
     expect(screen.getByText("Stand-up in 10 minutes")).toBeTruthy();
     expect(screen.getByText("repeats")).toBeTruthy();
 
-    // The ack rides the bridge in the frame the check is pressed. Nothing the user asked for
-    // waits on an animation: the card's own roll is what lags, and the stack holds the row for
-    // the length of it (`overlay/usePresence.ts`).
+    // The ack crosses the bridge in the frame the check is pressed, so no write waits on an
+    // animation. Only the card's roll lags, and the stack holds the row for the length of it
+    // (`overlay/usePresence.ts`).
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));
     expect(bridge.acks).toEqual(["r-1"]);
     await act(async () => {});
@@ -103,9 +103,9 @@ describe("App", () => {
   });
 
   it("lands the caret in the composer when a chat arrives on a row that leaves with it", async () => {
-    // The whole path, door to caret: the row is pressed, the switcher rolls shut, the row stops
-    // existing, and the browser has nowhere to put focus but `<body>`, one Tab from the top of the
-    // page. The chat that arrived takes it instead (`overlayState`'s arrival, `Composer`).
+    // The whole path from press to caret: the row is pressed, the switcher rolls shut, the row
+    // stops existing, and the browser has nowhere to put focus but `<body>`, one Tab from the top
+    // of the page. The chat that arrived takes it instead (`overlayState`'s arrival, `Composer`).
     const bridge = new FakeBridge();
     bridge.sessions = [
       { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
@@ -139,7 +139,7 @@ describe("App", () => {
     await act(async () => {});
     fireEvent.click(screen.getByLabelText("Recent chats"));
     fireEvent.click(screen.getByLabelText("Delete About swaps"));
-    // The confirm opens on its cancel, not on the trash that would delete on one more press.
+    // The confirm opens with focus on cancel rather than on the control that would delete.
     expect(document.activeElement).toBe(screen.getByLabelText("Cancel delete"));
     fireEvent.click(screen.getByLabelText("Confirm delete About swaps"));
     expect(document.activeElement).toBe(screen.getByLabelText("Delete About rain"));
@@ -150,9 +150,9 @@ describe("App", () => {
   });
 
   it("hands the caret to the chats button when the reader closes the list from inside it", async () => {
-    // The third landing, and the whole path to it: nothing arrives and no row moves, the section
-    // the caret is standing in simply goes. Measured at 900x900 before the rule, the caret rode the
-    // 300ms roll on the pencil and read `<body>` at 353ms, one Tab from the top of the document.
+    // The third case, end to end: no chat arrives and no row moves, the section the caret is in is
+    // simply removed. Measured at 900x900 before the rule, the caret stayed on the pencil through
+    // the 300ms roll and read `<body>` at 353ms, one Tab from the top of the document.
     const bridge = new FakeBridge();
     bridge.sessions = [
       { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
@@ -168,8 +168,8 @@ describe("App", () => {
     await act(async () => {});
     expect(pencil).not.toBeInTheDocument();
     expect(document.activeElement).toBe(screen.getByLabelText("Recent chats"));
-    // And the caret came back out of the list, not into the conversation: the composer is the
-    // arrival rule's landing and nothing arrived here.
+    // The caret came back out of the list rather than into the conversation, because the composer
+    // receives it only when a chat arrives and none did here.
     expect(document.activeElement).not.toBe(screen.getByLabelText("Message"));
   });
 
@@ -194,18 +194,18 @@ describe("App", () => {
     await act(async () => {});
     expect(chats.getAttribute("aria-expanded")).toBe("true");
     expect(region?.textContent).toBe("Recent chats open. 2 chats.");
-    // And the caret is exactly where it was: the sentence is what moved, not the reader.
+    // The caret is where it was, since only the live region changed.
     expect(document.activeElement).toBe(screen.getByLabelText("Message"));
-    // Closing again says nothing: what the region carries is the contents, not the toggle.
+    // Closing announces nothing, because the region carries what the list holds and not its state.
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
     await act(async () => {});
     expect(region?.textContent).toBe("Recent chats open. 2 chats.");
   });
 
   it("hands the caret to the field when an example prompt takes the empty state away", async () => {
-    // The same rule reached from the other side: a chip is a control its own press unmounts, and it
-    // is in no list, so there is no heir and nothing to look inside afterwards. Measured at 900x900
-    // before it, the caret read `<body>` at 39ms, the reminder stack leaving in the same commit.
+    // The same rule from the other side: pressing a chip unmounts the chip, and it is in no list,
+    // so there is no next row to take the caret. Measured at 900x900 before this, the caret read
+    // `<body>` at 39ms, with the reminder stack removed in the same commit.
     const bridge = new FakeBridge();
     await renderApp(bridge);
     activate();
@@ -222,8 +222,8 @@ describe("App", () => {
 
   it("closes the list under a half-typed sentence without touching the caret in it", async () => {
     // The other half of that rule. Ctrl+K is a global key, so it is pressed as often from the
-    // composer as from the list, and a reader who is writing must not be pulled out of the sentence
-    // to be told that a list they were not standing in has gone.
+    // composer as from the list, and a reader who is writing must not be taken out of the sentence
+    // to be told that a list they had no caret in has closed.
     const bridge = new FakeBridge();
     bridge.sessions = [
       { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
@@ -270,18 +270,18 @@ describe("App", () => {
     await act(async () => {});
     expect(screen.getByText("about swaps")).toBeTruthy();
     expect(field().value).toBe("");
-    // A sentence started here belongs here, and Ctrl+N is the door with nothing of its own to
-    // restore: the fresh chat arrives empty and neither sentence has followed it in.
+    // A sentence started here stays with this chat, and Ctrl+N has no stored draft to restore, so
+    // the fresh chat arrives empty and neither sentence follows it in.
     fireEvent.change(field(), { target: { value: "and a thought about swaps" } });
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     await act(async () => {});
     expect(field().value).toBe("");
-    // Both are waiting where they were written, reached by either door.
+    // Both drafts are still with the chats they were written in, whichever way those are reopened.
     await openRow("About swaps");
     expect(field().value).toBe("and a thought about swaps");
     await openRow("About cats");
     expect(field().value).toBe("half a question");
-    // And sending it spends it: coming back a second time, the field is clean.
+    // Sending a draft spends it, so the field is empty on the next visit to that chat.
     fireEvent.keyDown(field(), { key: "Enter" });
     await act(async () => {});
     expect(bridge.calls.at(-1)).toEqual({ sessionId: "s1", text: "half a question" });
@@ -302,14 +302,14 @@ describe("App", () => {
         sessionId: "",
       },
     ];
-    // A real mint per chat: with one pinned id the session never changes and the swap under test
-    // (the stack keyed to the chat it belongs to) could not happen at all.
+    // A distinct id per new chat: with one pinned id the session never changes, so the remount
+    // under test (the stack keyed to the chat it belongs to) could not happen.
     let minted = 0;
     render(<App bridge={bridge} newSessionId={() => `s${++minted}`} />);
     await act(async () => {});
     activate();
     await act(async () => {});
-    // A conversation on screen: the stack is shut behind it.
+    // With a conversation on screen the stack is shut behind it.
     fireEvent.change(screen.getByLabelText("Message"), { target: { value: "hi" } });
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "Enter" });
     await act(async () => {});

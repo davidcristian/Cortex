@@ -173,7 +173,9 @@ async def test_an_order_of_only_junk_falls_back() -> None:
 
 
 async def test_a_model_that_picks_nothing_is_believed_rather_than_overruled() -> None:
-    """The one judgement no geometric policy can make: nothing here helps (ADR-0038)."""
+    """A model that picks nothing is believed, which is the one judgement no geometric policy can
+    make (ADR-0038).
+    """
     fallback = _CountingFallback()
     policy = JudgeRecallPolicy(
         _ScriptedBackend(json.dumps({"order": []})), "cortex", pool_factor=4, fallback=fallback
@@ -187,7 +189,8 @@ async def test_a_model_that_picks_nothing_is_believed_rather_than_overruled() ->
 
 
 async def test_a_declined_rank_is_not_the_same_event_as_an_unreachable_model() -> None:
-    """Both hand the turn a ranking; only one of them means memory had nothing to say."""
+    """Both hand the turn a ranking, and only the declined one means memory had nothing to
+    say."""
     declined, _ = _judge(json.dumps({"order": []}))
     unreachable, _ = _judge(error=True)
 
@@ -215,7 +218,9 @@ async def test_the_fallback_policy_is_swappable() -> None:
 
 
 async def test_every_fallback_hands_on_the_recall_it_was_given() -> None:
-    """A fallback that reports would otherwise be blinded by the policy wrapping it."""
+    """Every exit that consults a fallback forwards the session id, so a fallback that reports is
+    not blinded by the policy wrapping it.
+    """
     fallback = _CountingFallback()
     unreachable = JudgeRecallPolicy(
         _ScriptedBackend(error=True), "cortex", pool_factor=4, fallback=fallback
@@ -237,7 +242,7 @@ def test_a_pool_factor_below_one_is_refused() -> None:
 
 
 def test_parse_order_drops_bad_elements_without_voiding_the_answer() -> None:
-    """A hallucinated note number costs that element, never the whole rank."""
+    """A note number the model invented costs that element and never the whole rank."""
     raw = json.dumps({"order": [2, 99, 2, -1, True, "1", 0]})
     assert parse_order(raw, pool_size=3, k=5) == (2, 0)  # deduped, in range, and `True` is not 1
 
@@ -261,12 +266,13 @@ def test_parse_order_returns_none_for_anything_unusable(raw: str) -> None:
 
 
 def test_parse_order_tells_an_empty_pick_apart_from_an_unusable_reply() -> None:
-    """The whole point of the three-outcome return: `[]` is an answer, not a parse failure."""
+    """The three-outcome return exists for this: `[]` is an answer rather than a parse
+    failure."""
     assert parse_order(json.dumps({"order": []}), pool_size=3, k=2) == ()
 
 
 async def test_the_rank_request_asks_for_no_thinking_and_room_for_k_picks() -> None:
-    """The two levers ride the request, and the cap is sized from the reply the schema permits.
+    """The request asks for no thinking and caps the reply at the width the schema permits.
 
     Asserted together because a cap against a model that deliberates first comes back empty, and
     an empty reply here is a silent fall back to the cosine this policy exists to beat.
@@ -285,7 +291,8 @@ async def test_the_rank_request_asks_for_no_thinking_and_room_for_k_picks() -> N
 
 
 def test_the_rank_cap_grows_with_how_many_picks_were_asked_for() -> None:
-    """A fixed cap would truncate the day a deployment recalls more, which is what this pins."""
+    """The cap grows with the number of picks asked for, since a fixed one would truncate the
+    day a deployment recalls more."""
     wider = rank_bounds(20).max_tokens
     narrower = rank_bounds(5).max_tokens
     assert wider is not None
@@ -294,7 +301,9 @@ def test_the_rank_cap_grows_with_how_many_picks_were_asked_for() -> None:
 
 
 async def test_a_reply_cut_off_by_the_cap_falls_back_like_any_other_unusable_one() -> None:
-    """What running into the cap degrades to: the fallback's ranking, and its basis on the trail."""
+    """A reply the cap cut degrades to the fallback's ranking, with the fallback's basis on the
+    trail.
+    """
     policy, _ = _judge('{"order":')
     ranking = await policy.select(_pool(), query="q", now=_NOW, k=2)
     assert [ranked.hit.record.id for ranked in ranking.hits] == ["noise", "answer"]
@@ -354,10 +363,8 @@ def _own_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
 async def test_an_unreachable_model_and_an_unreadable_reply_are_two_different_lines(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Both hand the turn the same geometric ranking; only the line says which repair to reach for.
-
-    Before this, neither said anything at all, so a deployment whose judge had never once answered
-    read exactly like one where it answers every turn.
+    """Both hand the turn the same geometric ranking, and only the log line says which repair to
+    reach for.
     """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     unreachable = await _fell_back(caplog, error=True)
@@ -406,7 +413,8 @@ async def test_a_recall_that_named_no_session_says_so_rather_than_leaving_the_fi
 async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The identity is an id, and the two things beside it in ``select`` are conversation content.
+    """Neither line carries the question or the memories, because the only other things ``select``
+    is handed are conversation content.
     """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     unreachable = PlainFormatter().format(await _fell_back(caplog, error=True, session_id="conv-7"))
@@ -423,7 +431,9 @@ async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
 async def test_a_cut_order_and_a_mangled_one_are_told_apart(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The reason the rank carries a stop ledger at all, asserted as a difference not a string."""
+    """A cut order and a mangled one are told apart by ``capped``, which is why the rank carries
+    a stop ledger at all.
+    """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     cut = await _fell_back(caplog, stop=StopReason.CAPPED)
     mangled = await _fell_back(caplog, stop=StopReason.FINISHED)
@@ -442,8 +452,8 @@ async def test_a_cut_order_and_a_mangled_one_are_told_apart(
 async def test_a_backend_that_reports_no_reason_reads_as_uncut_rather_than_as_cut(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Silence is not a cap: a build that reports nothing must not send its reader after a token
-    budget that was never the problem."""
+    """A backend that reports no stop reason reads as uncut, so it does not send its reader after
+    a token budget that was never the problem."""
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     assert _extra(await _fell_back(caplog, stop=None), "capped") is False
 
@@ -477,7 +487,9 @@ async def test_the_length_splits_a_silent_model_from_one_that_wrote_the_wrong_sh
 async def test_a_refusal_is_not_reported_as_a_fallback(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The judge answering "none of these help" is a judgement, not a failure to reach one."""
+    """A refusal writes no line, because the judge answering that none of these help is a
+    judgement rather than a failure to reach one.
+    """
     caplog.set_level(logging.DEBUG, logger=_JUDGE_LOGGER)
     policy, _ = _judge(json.dumps({"order": []}))
 
@@ -490,7 +502,7 @@ async def test_a_refusal_is_not_reported_as_a_fallback(
 async def test_an_empty_pool_falls_back_without_a_word(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The no-op stays quiet even at the most verbose level: nothing was asked, so nothing broke.
+    """An empty pool stays quiet even at the most verbose level, nothing having been asked.
 
     It is the one fallback of the three that reports nothing, and deliberately: it would fire on
     every turn a deployment recalls nothing on, diluting the two lines that mean a rank was lost.

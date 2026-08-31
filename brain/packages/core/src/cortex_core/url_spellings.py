@@ -1,5 +1,4 @@
-r"""Every way one URL *separator character* may be spelled, behind the output guardrail (ADR-0015).
-"""
+r"""Every way one URL separator character may be written, behind the output guardrail."""
 
 import re
 
@@ -21,9 +20,11 @@ _ENTITY_NAMES = {":": "colon", "/": "sol", "\\": "bsol", ".": "period"}
 
 
 def _entity_forms(char: str) -> tuple[str, ...]:
-    """Every HTML character reference *one rendering pass* resolves to ``char`` (regex fragments).
-    """
+    """Every HTML character reference one rendering pass resolves to ``char`` (regex fragments)."""
     point = ord(char)
+    # The semicolon-less branches refuse a following `;` as well as a following digit. HTML
+    # always ends a reference at the `;`, so admitting both readings let `data&#58;the results`
+    # match `&#58` and hand the `;` to the data anchor, redacting ordinary prose.
     return (
         rf"&#0*{point}(?:;|(?![0-9;]))",
         rf"&#x0*{point:x}(?:;|(?![0-9a-f;]))",
@@ -41,6 +42,9 @@ COLON_SPELLING = _spellings(_COLONS)
 SOLIDUS_SPELLING = _spellings(_SOLIDI)
 DOT_SPELLING = _spellings(_DOTS)
 
+# Every character NFKC folds to a space, so a host split by a no-break, thin or ideographic
+# space reads exactly like one split by a plain space. A test regenerates this from the Unicode
+# database, so a later version adding one fails there instead of opening a way through.
 NFKC_SPACES = (
     "\u00a0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"
 )
@@ -52,9 +56,6 @@ SPACED_DOT = (
 
 DOT_TOKENS = (DOT_WORD, *_DOTS)
 
-# The *defanged* separators, the one family that is a bracketed token rather than a respelling of
-# the character. Held apart from the plain forms because the matcher composes the plain ones out of
-# the per-character alternations above while the streaming hold-back needs them all as literal text.
 DEFANGED_AUTHORITY_SEPS = tuple(
     f"{lo}{tok}{hi}{tail}" for lo, hi in _BRACKETS for tok, tail in (("://", ""), (":", "//"))
 )

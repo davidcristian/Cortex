@@ -1,5 +1,3 @@
-"""Integration: the VramBudgetPlacer's GPU arm against a real placement (ADR-0012)."""
-
 import os
 from collections import Counter
 from collections.abc import AsyncIterator, Sequence
@@ -36,9 +34,6 @@ from cortex_orchestrator.config_subagents import SubagentsConfig
 _ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_ENDPOINT")
 _GPU_ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_GPU_ENDPOINT")
 
-# Two DISTINCT endpoints, because the whole point is which one answered: the subagents override
-# defaults the GPU endpoint to the CPU server, and against that default this suite would assert
-# nothing (docs/refinements/index.md#resource-governance).
 _needs_both_tiers = pytest.mark.skipif(
     not (_ENDPOINT and _GPU_ENDPOINT and _GPU_ENDPOINT != _ENDPOINT),
     reason="set CORTEX_SUBAGENTS_ENDPOINT and a distinct CORTEX_SUBAGENTS_GPU_ENDPOINT",
@@ -51,7 +46,9 @@ _INSTRUCTIONS = [
 
 
 class _PlacedOn:
-    """Spy over one target's real backend: notes the placement, then forwards to it verbatim."""
+    """Spy over one target's real backend: it records the placement, then forwards the call
+    unchanged.
+    """
 
     def __init__(
         self, target: PlacementTarget, inner: InferenceBackend, seen: list[PlacementTarget]
@@ -74,7 +71,9 @@ class _PlacedOn:
 
 
 def _headroom(runtime: BrainRuntimeConfig) -> float:
-    """The subagent GPU allowance the placer fit-tests against: the soft cap minus the cortex."""
+    """Return the subagent GPU allowance the placer fits an ask against: the soft cap minus the
+    cortex reservation.
+    """
     return runtime.vram_soft_cap_gb - runtime.cortex_reservation_gb
 
 
@@ -84,7 +83,7 @@ def _roster(
     client: httpx.AsyncClient,
     seen: list[PlacementTarget],
 ) -> SubagentRoster:
-    """The deployment's own single-entry roster, its two live backends behind placement spies."""
+    """Build the deployment's own single-entry roster, with its two live backends behind spies."""
     resources = SubagentResources(
         backends={
             PlacementTarget.GPU: _PlacedOn(
@@ -126,14 +125,13 @@ async def _spawn_two(seen: list[PlacementTarget]) -> ToolResult:
 
 
 def _bodies(result: ToolResult) -> list[str]:
-    """Each subagent's answer text out of the aggregated tool result."""
+    """Return each subagent's answer text out of the aggregated tool result."""
     return [section.split("] ", 1)[1].strip() for section in result.content.split("\n\n")]
 
 
 @pytest.mark.integration
 @_needs_both_tiers
 async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
-    """One ask fits the headroom, the next does not: GPU then CPU, decided by the ledger."""
     config = SubagentsConfig()
     headroom = _headroom(BrainRuntimeConfig())
     if not config.vram_gb <= headroom < 2 * config.vram_gb:
@@ -151,7 +149,6 @@ async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
 @pytest.mark.integration
 @_needs_both_tiers
 async def test_a_spawn_over_the_headroom_never_reaches_the_gpu_tier() -> None:
-    """The other arm: no fit, so nothing is placed on the GPU and both spawns overflow to CPU."""
     config = SubagentsConfig()
     headroom = _headroom(BrainRuntimeConfig())
     if config.vram_gb <= headroom:

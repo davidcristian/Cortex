@@ -1,4 +1,4 @@
-"""Memory scoping policy: which namespace a turn writes to, and reads from (ADR-0008 addendum)."""
+"""Memory scoping policy: which namespace a turn writes to, and reads from."""
 
 from collections.abc import Sequence
 from typing import Protocol
@@ -15,19 +15,15 @@ class MemoryScope(Protocol):
 
 
 class GlobalMemoryScope:
-    """One shared space: write to ``GLOBAL_SCOPE``, recall across every memory (the v1 default).
-
-    ``read_scopes`` returns ``None`` (no filter) so recall stays cross-session. This is the founding
-    memory feature (ADR-0008 decision 3). The ``session_id`` is irrelevant to a global policy.
-    """
+    """One shared space: write to ``GLOBAL_SCOPE``, recall across every memory (the v1 default)."""
 
     def write_scope(self, session_id: str) -> str:
-        """Every memory lands in the one global namespace."""
-        del session_id  # a global space ignores which conversation wrote the memory
+        """Every memory is written to the one global namespace."""
+        del session_id
         return GLOBAL_SCOPE
 
     def read_scopes(self, session_id: str) -> Sequence[str] | None:
-        """No filter. Rank over all memories, whatever conversation they came from."""
+        """No filter."""
         del session_id
         return None
 
@@ -44,6 +40,4 @@ class SessionMemoryScope:
         return (session_id,)
 
 
-# The default policy instance is stateless and immutable, so one shared singleton is safe and
-# lets ``MemoryRecaller``'s default argument be a plain value (no per-call construction).
 GLOBAL_MEMORY_SCOPE = GlobalMemoryScope()

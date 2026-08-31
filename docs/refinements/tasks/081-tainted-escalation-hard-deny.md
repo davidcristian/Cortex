@@ -22,7 +22,7 @@ ahead of it: ADR-0029 is designed and unimplemented, `Message` carries no pixels
 `opaque` bit exists, so a refusal keyed on them has nothing to check and faking one would be a
 gate that cannot fail. It lands with (or immediately after) the vision slice's pixel-taint
 increment, as a typed refusal in `escalate.py` telling the model to ask the user to retry in a
-fresh message, keeping escalation from quietly widening pixel persistence (the ADR-0029 store
+fresh message, keeping escalation from widening pixel persistence (the ADR-0029 store
 invariant the handoff record already honors).
 
 **Closed 2026-07-18 with the vision slice's pixel-taint increment
@@ -30,10 +30,10 @@ invariant the handoff record already honors).
 bit, set by `observe` when an UNTRUSTED result carries images, and `EscalateToBrainTool`
 refuses an opaque turn ahead of every other validation with a typed message telling the model
 to answer what it can and ask the user to retry in a fresh message. Two corrections to what
-the entry expected. **The refusal keys on the bit, not on image-bearing messages**, and that
-is load-bearing rather than cosmetic: the handoff record's message codec enumerates fields by
-name, so a `Message.images` would have been silently dropped on encode, and a refusal that
-hunted for images in the loop tail would therefore have been checking the one thing that
+the entry expected. **The refusal keys on the bit, not on image-bearing messages**, and the
+difference matters rather than being cosmetic: the handoff record's message codec enumerates fields by
+name, so a `Message.images` would have been dropped on encode, and a refusal that
+searched the loop tail for images would therefore have been checking the one thing that
 cannot survive the trip. The bit stays true exactly where the pixels cannot travel. **The
 structural backstop landed with it**: `EscalationSlot.snapshot` now raises on an image-bearing
 loop tail, the same rule both session stores enforce, so even a caller that bypassed the tool

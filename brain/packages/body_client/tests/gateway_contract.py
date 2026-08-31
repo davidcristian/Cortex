@@ -1,4 +1,4 @@
-"""The `BodyGateway` contract, run over every implementation (AGENTS.md: ports before adapters)."""
+"""The `BodyGateway` contract checks, run over every implementation of the port."""
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -14,15 +14,11 @@ from cortex_core import (
     SentNotification,
 )
 
-# A four-pixel PNG. Bigger than one pixel on purpose: a bound check needs a capture that can be
-# over a bound, and a one-pixel picture is under every bound worth asking for.
 _SQUARE_PNG = bytes.fromhex(
     "89504e470d0a1a0a0000000d4948445200000002000000020802000000fdd49a"
     "730000001849444154789c6360a03d00006c0018f4b1a5ea0000000049454e44ae426082"
 )
 
-# The capture every fixture's body answers, whatever it is asked for. It is a DISPLAY picture, so
-# a check can ask for FOCUS and read back what the body actually pointed at.
 CONTRACT_CAPTURE = ScreenCapture(
     image=ImagePart(data=_SQUARE_PNG, mime_type="image/png", width=2, height=2),
     source_width=8,
@@ -34,7 +30,7 @@ CONTRACT_CAPTURE = ScreenCapture(
 
 @dataclass(frozen=True, slots=True)
 class GatewayUnderTest:
-    """One implementation, the two ways a check may change the body, and what the body heard."""
+    """One implementation, the two ways a check may change the body, and what the body received."""
 
     gateway: BodyGateway
     decline_notifications: Callable[[], None]
@@ -54,7 +50,7 @@ async def volume_reads_back_the_state_the_body_holds(under_test: GatewayUnderTes
 
 
 async def a_write_touches_only_the_field_it_was_given(under_test: GatewayUnderTest) -> None:
-    """An unset field is left alone, which is the whole reason both are optional."""
+    """An unset field is left alone, which is why both fields are optional."""
     await under_test.gateway.set_volume(level=0.5, mute=False)
     muted = await under_test.gateway.set_volume(mute=True)
     assert (muted.level, muted.muted) == (0.5, True)
@@ -63,17 +59,13 @@ async def a_write_touches_only_the_field_it_was_given(under_test: GatewayUnderTe
 
 
 async def a_write_reports_the_state_after_it(under_test: GatewayUnderTest) -> None:
-    """The answer is ground truth, never the ask echoed back.
-
-    The volume tool reads its sentence off this value, so an implementation replying with what it
-    was asked for would report a change the host refused as though it had happened.
-    """
+    """A write answers the state the host now holds, rather than echoing the ask."""
     written = await under_test.gateway.set_volume(level=0.75, mute=False)
     assert written == await under_test.gateway.get_volume()
 
 
 async def a_level_outside_the_range_comes_back_inside_it(under_test: GatewayUnderTest) -> None:
-    """The port's range is [0.0, 1.0] and something on the path holds it, whichever end."""
+    """A level above 1.0 comes back as 1.0 and one below 0.0 comes back as 0.0."""
     loud = await under_test.gateway.set_volume(level=3.0)
     assert loud.level == 1.0
     silent = await under_test.gateway.set_volume(level=-2.0)
@@ -83,7 +75,7 @@ async def a_level_outside_the_range_comes_back_inside_it(under_test: GatewayUnde
 async def a_notification_reaches_the_body_verbatim_taint_included(
     under_test: GatewayUnderTest,
 ) -> None:
-    """Every field crosses, and the taint bit crosses with them."""
+    """Every field of a notification reaches the body, ``tainted`` included."""
     shown = await under_test.gateway.notify(
         title="Reminder", body="stand up", reminder_id="r-1", tainted=True
     )
@@ -96,11 +88,7 @@ async def a_notification_reaches_the_body_verbatim_taint_included(
 async def a_declined_notification_is_an_answer_rather_than_an_error(
     under_test: GatewayUnderTest,
 ) -> None:
-    """A body that was reached and said no answers False; it does not raise.
-
-    The ticker reads that boolean and leaves the reminder deliverable for the pull path. An
-    implementation raising here would turn "notifications are switched off" into a failed tick.
-    """
+    """A body that was reached and declined the notification returns False rather than raising."""
     under_test.decline_notifications()
     assert await under_test.gateway.notify(title="t", body="b", reminder_id="r-2") is False
 
@@ -108,7 +96,9 @@ async def a_declined_notification_is_an_answer_rather_than_an_error(
 async def a_capture_reports_what_the_body_pointed_at_not_what_was_asked(
     under_test: GatewayUnderTest,
 ) -> None:
-    """The target on the answer is the body's reading, and the ask still reaches the body."""
+    """The target on the answer is what the body captured, and the asked-for target still reaches
+    the body.
+    """
     capture = await under_test.gateway.capture_screen(target=CaptureTarget.FOCUS)
     assert capture.target is CaptureTarget.DISPLAY
     assert capture.image.width == CONTRACT_CAPTURE.image.width
@@ -116,7 +106,7 @@ async def a_capture_reports_what_the_body_pointed_at_not_what_was_asked(
 
 
 async def a_capture_over_the_bound_it_asked_for_is_refused(under_test: GatewayUnderTest) -> None:
-    """A non-zero bound is a bound on the reply, not a hint that may be quietly overrun."""
+    """A reply over a non-zero bound raises rather than being handed back."""
     try:
         await under_test.gateway.capture_screen(max_edge=1)
     except BodyGatewayError:
@@ -133,7 +123,7 @@ async def a_capture_over_the_bound_it_asked_for_is_refused(under_test: GatewayUn
 
 
 async def a_capture_is_attempted_exactly_once(under_test: GatewayUnderTest) -> None:
-    """One ask, one photograph. A retry would picture a different screen."""
+    """One call reaches the body exactly once, so a capture is never retried."""
     await under_test.gateway.capture_screen(max_edge=64, max_bytes=4096)
     assert list(under_test.captures()) == [
         CaptureAsk(max_edge=64, max_bytes=4096, target=CaptureTarget.DISPLAY)
@@ -141,10 +131,8 @@ async def a_capture_is_attempted_exactly_once(under_test: GatewayUnderTest) -> N
 
 
 async def a_body_that_has_gone_away_fails_every_verb(under_test: GatewayUnderTest) -> None:
-    """One error type for the whole port, so a caller has one thing to catch.
-
-    The volume and capture tools catch ``BodyGatewayError`` and word a recoverable result from it.
-    Anything else escaping a verb kills the turn instead of failing the action.
+    """Every verb raises ``BodyGatewayError`` when the body is unreachable, so a caller has one
+    exception type to catch.
     """
     under_test.break_body()
     attempts: Sequence[Callable[[], Awaitable[object]]] = (

@@ -1,5 +1,3 @@
-"""Behavior tests for the seam token interceptor (assumption 5, ADR-0016)."""
-
 import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -43,7 +41,7 @@ def _engine_and_store() -> tuple[EngineFactory, InMemorySessionStore]:
 
 @pytest.fixture
 async def token_server() -> AsyncIterator[str]:
-    """A BrainService requiring the seam token, on an ephemeral loopback port."""
+    """Serve a BrainService that requires the `seam` token, on an ephemeral loopback port."""
     config = SeamServerConfig(host="127.0.0.1", port=0, token=_TOKEN)
     server, port = create_server(config, *_engine_and_store())
     await server.start()
@@ -73,7 +71,6 @@ async def test_health_with_a_wrong_token_is_unauthenticated(token_server: str) -
 
 
 async def test_converse_without_the_token_is_unauthenticated(token_server: str) -> None:
-    # The streaming RPC shape: the rejection must arrive as a status, before any turn runs.
     async with aio.insecure_channel(token_server) as channel:
         await asyncio.wait_for(channel.channel_ready(), timeout=10)
         stub = BrainServiceStub(channel)
@@ -96,9 +93,6 @@ async def test_converse_with_the_token_streams_a_turn(token_server: str) -> None
         await call.done_writing()
         events = [event async for event in call]
     assert events[-1].WhichOneof("event") == "turn_complete"
-
-
-# --- unit level: the interceptor's metadata walk, via the public intercept_service -----
 
 
 @dataclass(frozen=True)
@@ -133,7 +127,6 @@ async def _passes_through(details: grpc.HandlerCallDetails) -> bool:
 
 
 async def test_bytes_metadata_values_authorize() -> None:
-    # gRPC metadata values may surface as bytes; the compare must not assume str.
     assert await _passes_through(_details((SEAM_TOKEN_HEADER, _TOKEN.encode()))) is True
 
 
@@ -148,7 +141,6 @@ async def test_absent_metadata_is_rejected() -> None:
 
 
 async def test_intercept_passes_through_an_unserviced_method() -> None:
-    # The continuation may resolve to None (no such method); nothing to guard, propagate it.
     interceptor = SeamTokenInterceptor(_TOKEN)
 
     async def continuation(details: grpc.HandlerCallDetails) -> None:

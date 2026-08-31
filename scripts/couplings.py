@@ -1,20 +1,15 @@
-"""The vocabulary the registry `crosscheck.py` reads is written in: what a coupling may say."""
+"""The types a registry entry for `crosscheck.py` is written with."""
 
 from enum import Enum
 from typing import NamedTuple
 
-# What a mention's template substitutes. A template rendering neither this nor the name below
-# would tie nothing and is refused.
 PLACEHOLDER = "{value}"
 
-# What a mention's template substitutes for the name the far side spends the value under. A
-# template may render the value, the name, or both; a mention carries a name exactly when its
-# template renders one, either half of that being dead data the scan refuses.
 NAME_PLACEHOLDER = "{name}"
 
 
 class Relation(Enum):
-    """How the values at a constant's sites must stand to each other."""
+    """How the values at a constant's sites must relate to each other."""
 
     EQUAL = "identical"
     ORDERED = "non-decreasing in registry order"
@@ -30,7 +25,7 @@ class Spelling(Enum):
 
     @property
     def lossy(self) -> bool:
-        """Whether two declared values may render alike, which is what needs a reading beside it."""
+        """Whether two different declared values can render as the same text."""
         return self is Spelling.WHOLE
 
 
@@ -42,7 +37,7 @@ class Site(NamedTuple):
 
 
 class Mention(NamedTuple):
-    """One place that spends a value without declaring it, and the shape it appears in."""
+    """One place that uses a value without declaring it, and the form it appears in."""
 
     path: str
     template: str

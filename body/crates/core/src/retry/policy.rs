@@ -4,9 +4,8 @@ use std::time::Duration;
 
 use crate::transport::TransportError;
 
-/// Whether a failed seam call is worth retrying: transient reachability/backend conditions
-/// (`Connection`, and the gRPC-conventional `Rpc{Unavailable}`) are; a genuine application
-/// answer (any other `Rpc` status), uninterpretable wire data (`Protocol`), or an expired
+/// Whether a failed call is worth retrying: a `Connection` failure and the gRPC `Unavailable`
+/// status are; any other status, unreadable wire data, and an expired deadline are not.
 #[must_use]
 pub fn is_transient(error: &TransportError) -> bool {
     match error {
@@ -17,8 +16,7 @@ pub fn is_transient(error: &TransportError) -> bool {
 }
 
 /// A bounded exponential-backoff schedule (pure, `Copy`): the number of tries and the growing,
-/// capped delay between them (ADR-0024 decision 4). Jitter is applied on top by the retry loop
-/// (ADR-0024 addendum), so the schedule this describes is the unjittered worst case.
+/// capped delay between them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RetryPolicy {
     /// Total attempts including the first; `0` or `1` disables retry (one try only).
@@ -44,7 +42,7 @@ impl Default for RetryPolicy {
 }
 
 impl RetryPolicy {
-    /// The schedule that cannot retry: one attempt, no wait, nothing to compute.
+    /// The schedule that cannot retry: one attempt and no wait.
     pub const ONCE: Self = Self {
         max_attempts: 1,
         base_delay: Duration::ZERO,
@@ -52,8 +50,8 @@ impl RetryPolicy {
         max_delay: Duration::ZERO,
     };
 
-    /// The wait before retry `index` (0-based): `min(base · multiplierⁱⁿᵈᵉˣ, max_delay)`,
-    /// grown by saturating multiply and clamped every step so no overflow escapes the cap.
+    /// The wait before retry `index` (0-based): `min(base · multiplierⁱⁿᵈᵉˣ, max_delay)`, grown by
+    /// saturating multiply and clamped every step so no overflow escapes the cap.
     #[must_use]
     pub fn delay(&self, index: u32) -> Duration {
         let mut delay = self.base_delay.min(self.max_delay);
@@ -63,8 +61,8 @@ impl RetryPolicy {
         delay
     }
 
-    /// The backoff to apply after `attempt` failures (0-based), or `None` to give up: retry
-    /// only while an attempt remains *and* the error is [`is_transient`].
+    /// The backoff to apply after `attempt` failures (0-based), or `None` to give up: it retries
+    /// only while an attempt remains and the error is [`is_transient`].
     #[must_use]
     pub fn backoff(&self, attempt: u32, error: &TransportError) -> Option<Duration> {
         if attempt + 1 < self.max_attempts && is_transient(error) {
@@ -74,9 +72,8 @@ impl RetryPolicy {
         }
     }
 
-    /// The longest this schedule can spend waiting: the sum of every backoff it would use
-    /// before giving up, unjittered (equal jitter only ever shortens a wait, never lengthens
-    /// one).
+    /// The longest this schedule can spend waiting: the sum of every backoff it would use before
+    /// giving up, unjittered (equal jitter only ever shortens a wait, never lengthens one).
     #[must_use]
     pub fn worst_case_backoff(&self) -> Duration {
         (0..self.max_attempts.saturating_sub(1)).fold(Duration::ZERO, |total, index| {
@@ -85,8 +82,8 @@ impl RetryPolicy {
     }
 
     /// This schedule with its attempts trimmed until the whole run fits `budget`, counting each
-    /// attempt as costing up to `attempt` and every backoff between them, and leaving the
-    /// delays themselves untouched.
+    /// attempt as costing up to `attempt` and every backoff between them, and leaving the delays
+    /// themselves untouched.
     #[must_use]
     pub fn within(self, budget: Duration, attempt: Duration) -> Self {
         let mut spent = attempt;

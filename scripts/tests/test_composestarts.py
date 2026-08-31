@@ -1,5 +1,3 @@
-"""Behaviour of the reader that answers what a service starts with and what environment it gets."""
-
 from pathlib import Path
 
 import pytest
@@ -41,25 +39,22 @@ services:
 
 
 def _one(text: str) -> Started:
-    """The only service one fixture declares, so a test can assert on it without indexing twice."""
+    """Return the one service a fixture declares, asserting the count so a test can use it."""
     starts = read_starts(text)
     assert len(starts) == 1, starts
     return starts[0]
 
 
 def _named(text: str, service: str) -> Started:
-    """The one service of ``text`` called ``service``, which several fixtures declare two of."""
+    """Return the service of ``text`` named ``service``, for the fixtures that declare two."""
     found = [started for started in read_starts(text) if started.service == service]
     assert len(found) == 1, found
     return found[0]
 
 
 def _service(body: str) -> str:
-    """One service written under a services block, which is the shape most fixtures need."""
+    """Wrap ``body`` as one service under a services block, which is what most fixtures need."""
     return f"services:\n  one:\n{body}"
-
-
-# ── what a service is started with ─────────────────────────────────────────────
 
 
 def test_a_command_written_as_a_block_of_items_is_read_in_order() -> None:
@@ -71,14 +66,11 @@ def test_a_command_written_as_a_block_of_items_is_read_in_order() -> None:
 
 
 def test_a_command_written_as_an_inline_list_is_read_the_same_way() -> None:
-    """The base file and the email sidecar both write one, so both spellings are one answer."""
     started = _one(_service('    command: ["redis-server", "--appendonly", "yes"]\n'))
     assert started.command == ("redis-server", "--appendonly", "yes")
 
 
 def test_a_service_that_declares_no_command_says_so_rather_than_saying_nothing() -> None:
-    """None and an empty command are different answers: an override re-opening a service runs
-    the base file's container, and a command with no items would be a container started bare."""
     assert _named(BLOCKS, "brain").command is None
 
 
@@ -92,30 +84,22 @@ def test_a_trailing_comment_on_the_command_key_does_not_become_a_command() -> No
     )
 
 
-# ── what environment a service is given ────────────────────────────────────────
-
-
 def test_an_environment_entry_is_read_with_its_quotes_dropped() -> None:
     assert _named(BLOCKS, "brain").environment[0] == ("CORTEX_ONE", "first")
     assert _named(BLOCKS, "brain").environment[2] == ("CORTEX_TWO", "second")
 
 
 def test_an_environment_value_folded_over_several_lines_is_read_as_one_value() -> None:
-    """The roster override writes one JSON object this way, which is the only way to write one."""
     folded = dict(_named(BLOCKS, "brain").environment)["CORTEX_FOLDED"]
     assert folded == '{"endpoint": "http://elsewhere:9000", "note": "over two lines"}'
 
 
 def test_a_block_under_some_other_service_key_is_not_read_as_environment() -> None:
-    """`depends_on:` opens a block of its own, and nothing in it is a value the service gets."""
     assert [key for key, _ in _named(BLOCKS, "brain").environment] == [
         "CORTEX_ONE",
         "CORTEX_FOLDED",
         "CORTEX_TWO",
     ]
-
-
-# ── the shapes it refuses rather than guesses at ───────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -142,21 +126,15 @@ def test_a_shape_this_reader_was_not_taught_is_raised(text: str, detail: str) ->
 
 
 def test_an_inline_list_that_is_not_a_list_at_all_is_raised() -> None:
-    """`command: [` opens a flow collection JSON cannot finish, which is neither shape."""
     with pytest.raises(ComposeStartError, match="not an inline list"):
         read_starts("services:\n  one:\n    command: [\n")
 
 
 def test_a_key_outside_the_services_block_declares_no_service() -> None:
-    """A top-level block of its own is stepped over, which `volumes:` and the anchors are."""
     assert read_starts("volumes:\n  data:\n    driver: local\n") == ()
 
 
-# ── the same reader, against the tree it is written for ────────────────────────
-
-
 def test_every_committed_compose_file_is_a_shape_this_reader_can_read() -> None:
-    """A reader that only ever met its own fixtures would be a gate over nothing."""
     read = [
         started
         for path in compose_files(REPO_ROOT)
@@ -168,7 +146,6 @@ def test_every_committed_compose_file_is_a_shape_this_reader_can_read() -> None:
 
 
 def test_unquote_leaves_an_unquoted_or_half_quoted_word_alone() -> None:
-    """One layer, matching, or nothing: a lone quote is part of the word rather than a wrapper."""
     assert unquote('  "quoted"  ') == "quoted"
     assert unquote("'quoted'") == "quoted"
     assert unquote('"half') == '"half'

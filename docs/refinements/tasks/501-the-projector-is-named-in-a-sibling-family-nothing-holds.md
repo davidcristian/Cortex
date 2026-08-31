@@ -22,7 +22,7 @@ sibling of `CORTEX_MODEL_FILE_CORTEX`: `CORTEX_`, the kind, `_FILE`, the tier. I
 because it was written beside its neighbours and not because any rule asked for it, which is
 exactly the state the naming rule was built to leave behind for the chat artifacts. A second
 projector, or a second artifact of some third kind, would be spelled however its author felt and
-would redden nothing. The close this entry comes out of found the embedder in that state and it
+would fail no gate. The close this entry comes out of found the embedder in that state and it
 had drifted; this one has not drifted yet.
 
 **What would close it.** Decide what the family actually is, because the current rule answers with
@@ -40,8 +40,8 @@ kind of artifact costs:
 
 Either way the reader has to grow, since finding the artifact is the harder half: `--mmproj` is
 one more flag in `artifactnames.spends`, but the hosted side means reading a tier's `extra` for
-artifact-shaped items, and that tail is assembled by a call `hostedtiers.py` deliberately refuses
-to approximate. Weigh whether the settings side should be read from the alias declarations
+artifact-shaped items, and that tail is assembled by a call `hostedtiers.py` deliberately does
+not approximate. Weigh whether the settings side should be read from the alias declarations
 instead, which would find every artifact variable the sidecar declares regardless of which keyword
 carries it into the argv, and would need its own answer for what makes a field an artifact.
 

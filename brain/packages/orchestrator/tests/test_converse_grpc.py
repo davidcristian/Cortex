@@ -1,9 +1,3 @@
-"""The Converse contract over a real loopback grpc.aio server (CI-safe, no network).
-
-Includes THE Slice 3 acceptance test: a fresh server over the SAME store keeps the
-conversation counting, because state lives only in the session store, never in the process.
-"""
-
 import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import cast
@@ -51,9 +45,6 @@ from cortex_seam import (
     UserTurn,
 )
 from cortex_session import RedisSessionStore
-
-# The generated stub's attributes are untyped wire code (gate-exempt, ADR-0002 d4);
-# this helper pins the real call type once so every test below stays fully typed.
 
 
 def _open_converse(stub: BrainServiceStub) -> aio.StreamStreamCall[ClientEvent, ServerEvent]:
@@ -134,7 +125,7 @@ class FailingStore:
 
 
 class BlockingFirstTurnBackend:
-    """First call: one delta, then blocks until cancelled. Later calls: the echo script."""
+    """First call: one delta, then blocks until cancelled."""
 
     def __init__(self) -> None:
         self._echo = EchoInferenceBackend()
@@ -172,10 +163,10 @@ async def test_full_turn_streams_deltas_then_turn_complete() -> None:
     finally:
         await server.stop(grace=None)
     deltas = _delta_texts(events)
-    assert len(deltas) >= 3  # the dictated contract: streamed in at least 3 deltas
+    assert len(deltas) >= 3
     assert "".join(deltas) == "reply 1: hello"
     assert _completions(events) == [events[-1].turn_complete.turn_id]
-    assert events[-1].turn_complete.turn_id  # a real id, not proto's empty default
+    assert events[-1].turn_complete.turn_id
 
 
 async def test_second_turn_in_the_same_session_counts_up() -> None:
@@ -190,8 +181,7 @@ async def test_second_turn_in_the_same_session_counts_up() -> None:
 
 
 async def test_conversation_survives_a_server_and_deps_restart() -> None:
-    """THE slice acceptance: instance B over the SAME store continues instance A's count."""
-    redis_state = FakeServer()  # plays the role of the redis process: it alone survives
+    redis_state = FakeServer()
 
     def fresh_deps() -> tuple[TurnEngine, RedisSessionStore]:
         store = RedisSessionStore(FakeAsyncRedis(server=redis_state))
@@ -201,11 +191,8 @@ async def test_conversation_survives_a_server_and_deps_restart() -> None:
     try:
         events_a = await _run_turn_over_grpc(address_a, "e2e", "hello")
     finally:
-        await server_a.stop(grace=None)  # instance A (server + store + engine) is gone
+        await server_a.stop(grace=None)
 
-    # Between the instances: verify AND seed via a bare store handle (no engine, no
-    # server), so instance B can only be right by READING the store. Hidden
-    # in-process state carried across the simulated restart would still count 1.
     bare = RedisSessionStore(FakeAsyncRedis(server=redis_state))
     assert [m.text for m in await bare.history("e2e")] == ["hello", "reply 1: hello"]
     now = SystemClock().now()
@@ -221,7 +208,7 @@ async def test_conversation_survives_a_server_and_deps_restart() -> None:
     finally:
         await server_b.stop(grace=None)
     assert "".join(_delta_texts(events_a)) == "reply 1: hello"
-    assert "".join(_delta_texts(events_b)) == "reply 3: again"  # counted across the restart
+    assert "".join(_delta_texts(events_b)) == "reply 3: again"
 
 
 async def test_cancel_mid_generation_keeps_the_stream_usable() -> None:
@@ -242,7 +229,6 @@ async def test_cancel_mid_generation_keeps_the_stream_usable() -> None:
             events = [event async for event in responses]
     finally:
         await server.stop(grace=None)
-    # The cancelled turn's user message was persisted (so n=2); its reply was dropped.
     assert "".join(_delta_texts(events)) == "reply 2: second"
     assert len(_completions(events)) == 1
     assert [(m.role, m.text) for m in await store.history("s")] == [
@@ -259,8 +245,8 @@ async def test_store_failure_yields_seam_error_and_ends_the_stream_cleanly() -> 
         async with aio.insecure_channel(address) as channel:
             call = _open_converse(BrainServiceStub(channel))
             await call.write(_user_turn("s", "hello"))
-            events = await _read_remaining(call)  # ends without done_writing: server closes
-            assert await call.code() is grpc.StatusCode.OK  # clean end, not an RPC error
+            events = await _read_remaining(call)
+            assert await call.code() is grpc.StatusCode.OK
     finally:
         await server.stop(grace=None)
     (only,) = events
@@ -285,7 +271,8 @@ async def _events_until_complete(
     call: aio.StreamStreamCall[ClientEvent, ServerEvent],
 ) -> list[ServerEvent]:
     """Read via read() until the turn completes, because grpc.aio forbids mixing read() with the
-    iterator API on one call, and the untyped EOF sentinel stays out of the picture."""
+    iterator API on one call, and the untyped EOF sentinel stays out of the picture.
+    """
     events: list[ServerEvent] = []
     while True:
         event = cast("ServerEvent", await call.read())
@@ -295,7 +282,7 @@ async def _events_until_complete(
 
 
 class _SendOnceBackend:
-    """Step 1: call the gated 'send' tool; step 2: reply 'done' (per stream call count)."""
+    """Step 1: call 'send', which needs approval; step 2: reply 'done' (per stream call count)."""
 
     def __init__(self) -> None:
         self._calls = 0
@@ -318,7 +305,7 @@ class _SendOnceBackend:
 
 
 def _gated_engine_factory(ran: list[str]) -> EngineFactory:
-    """A per-stream engine whose gated 'send' tool records approved runs (ADR-0022)."""
+    """A per-stream engine whose 'send' tool needs approval and records the runs it was given."""
 
     async def send(arguments: Mapping[str, object]) -> str:
         ran.append(str(arguments["to"]))
@@ -342,7 +329,6 @@ def _gated_engine_factory(ran: list[str]) -> EngineFactory:
 
 
 async def test_confirm_round_trips_over_the_real_wire() -> None:
-    """THE ADR-0022 wire proof: ConfirmRequest out and ConfirmResponse back over real gRPC."""
     ran: list[str] = []
     server, port = create_server(
         SeamServerConfig(host="127.0.0.1", port=0),

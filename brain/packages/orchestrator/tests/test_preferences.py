@@ -1,5 +1,3 @@
-"""The preference RPCs over a real loopback grpc.aio server (CI-safe)."""
-
 from collections.abc import Mapping
 from typing import cast
 
@@ -25,8 +23,6 @@ from cortex_seam import (
 )
 
 
-# The generated stub attributes are untyped wire code (gate-exempt, ADR-0002 d4); these
-# helpers pin the reply types once so the tests below stay fully typed.
 async def _get(stub: BrainServiceStub) -> GetPreferencesReply:
     method = stub.GetPreferences  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     return cast("GetPreferencesReply", await method(GetPreferencesRequest()))
@@ -54,7 +50,7 @@ async def _serve(preferences: PreferenceStore | None) -> tuple[aio.Server, str]:
 async def _round_trip(
     preferences: PreferenceStore | None, writes: list[tuple[str, str]]
 ) -> Mapping[str, str]:
-    """Apply `writes`, then read the record back through the seam."""
+    """Apply `writes`, then read the record back over gRPC."""
     server, address = await _serve(preferences)
     try:
         async with aio.insecure_channel(address) as channel:
@@ -75,7 +71,6 @@ async def test_a_written_preference_reads_back_through_the_seam() -> None:
 
 
 async def test_an_empty_value_clears_the_key_over_the_wire() -> None:
-    """The port's clear convention has to survive the seam, or a reset would store ""."""
     stored = await _round_trip(
         InMemoryPreferenceStore(), [("overlay.theme", "daylight"), ("overlay.theme", "")]
     )
@@ -83,7 +78,6 @@ async def test_an_empty_value_clears_the_key_over_the_wire() -> None:
 
 
 async def test_pairs_come_back_in_a_stable_order() -> None:
-    """Sorted by key, so a reply is comparable run to run rather than dict-order dependent."""
     server, address = await _serve(
         InMemoryPreferenceStore(initial={"b.two": "2", "a.one": "1", "c.three": "3"})
     )
@@ -96,7 +90,6 @@ async def test_pairs_come_back_in_a_stable_order() -> None:
 
 
 async def test_an_unwired_store_reads_empty_and_accepts_a_write() -> None:
-    """No capability is indistinguishable from an empty record; a write is dropped, not refused."""
     stored = await _round_trip(None, [("overlay.mark", "ping")])
     assert stored == {}
 

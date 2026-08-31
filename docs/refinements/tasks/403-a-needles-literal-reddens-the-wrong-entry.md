@@ -26,12 +26,12 @@ than to its data, and it was not going to be designed inside a taxonomy decision
 The cheap one is a better fault. When a rendered needle is unfound, the scan already has the
 template and the file; it could report which **span** of the rendered needle the file does not
 carry, or simply the longest prefix that still matches, which points at the literal that moved
-without knowing anything about values. That is a message change and a few branches.
+without reference to values at all. That is a message change and a few branches.
 
 The expensive one removes the shadow instead of explaining it: let a template render a **registered
 neighbour's** value, so ``"{value}:{value}"`` on the compose publish becomes a needle over two
 entries and each side is read from its own declaration. Read the cost before writing it. It makes
-one mention depend on another entry, which is a new edge in a registry that has none, and it wants
+one mention depend on another entry, which is a new edge in a registry that has none, and it needs
 an answer for what happens when the neighbour's own entry is the one that is failing. The cheap
 shape may make the expensive one unnecessary, which is the order to try them in.
 
@@ -41,7 +41,7 @@ shape may make the expensive one unnecessary, which is the order to try them in.
   [R-396](396-the-seam-host-rides-inside-the-ports-needles.md), which measured the misattribution
   while settling that a value carried as a needle's literal is shadowed rather than held.
 - 2026-08-23: landed as the cheap shape, in a new `scripts/needles.py` holding the mention's side
-  of the scan. **The expensive shape was not deferred, it was refused**: both measured neighbours
+  of the scan. **The expensive shape was rejected rather than deferred**: both measured neighbours
   are unregistered on purpose, the close that filed this having counted `127.0.0.1` as five values
   and held one, so a template rendering a registered neighbour could not have reached either case
   without first registering four values that ruling had just declined. **And this entry's own

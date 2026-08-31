@@ -1,5 +1,3 @@
-"""SeamProgressSink: best-effort, credit-balanced progress onto the Converse queue (ADR-0010)."""
-
 import asyncio
 
 from cortex_core import StatusUpdate, ToolActivity, TurnEvent
@@ -43,20 +41,17 @@ async def test_a_status_event_maps_onto_the_wire() -> None:
 
 
 async def test_a_successful_emit_takes_a_buffer_credit() -> None:
-    # It rides the data path: the credit it takes is what `events()` releases on dequeue, so the
-    # bound stays exact. An unconditional control-path `put` would leave the credit untouched here.
     sink, emitted, sem = _sink(1)
     await sink.emit(ToolActivity(tool_name="read", summary="x"))
     assert len(emitted) == 1
-    assert sem.locked()  # the one credit is now taken
+    assert sem.locked()
 
 
 async def test_drops_when_no_credit_is_free_instead_of_blocking() -> None:
-    # A stalled consumer exhausts the buffer; the sink drops the cosmetic event rather than
-    # stalling the subagent behind it. A blocking acquire would hang here (hence the timeout).
+    # A blocking acquire would hang here, so the timeout is what makes a regression fail.
     sink, emitted, sem = _sink(1)
-    await sem.acquire()  # exhaust the buffer
+    await sem.acquire()
     async with asyncio.timeout(5.0):
         await sink.emit(ToolActivity(tool_name="read", summary="x"))
-    assert emitted == []  # dropped, best-effort
-    assert sem.locked()  # and no credit was conjured
+    assert emitted == []
+    assert sem.locked()

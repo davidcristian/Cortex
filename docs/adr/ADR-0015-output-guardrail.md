@@ -36,7 +36,7 @@ appending a link, plus any future model swap silently re-opening the gap.
    the user pasting a link and getting it quoted back is not laundering. Identity is
    `extract_urls`-normalized on both sides (scheme+authority lowercased, trailing prose
    punctuation dropped, path/query case kept): laundering is *verbatim reproduction*, so
-   exact-but-case-normalized matching kills it without redacting the model's own legitimate
+   exact-but-case-normalized matching stops it without redacting the model's own legitimate
    links (docs it cites from its own knowledge stay intact, unlike a redact-all-URLs mode).
 4. **Streaming-safe by construction.** The filter carries the only ambiguous suffix of the
    stream (a URL match touching the buffer end, or a trailing prefix of `http(s)://`) until a
@@ -50,7 +50,7 @@ appending a link, plus any future model swap silently re-opening the gap.
    through `feed` (an emptied delta emits no event), the flush tail is emitted last, and
    `full_text` (the `TurnCompleted` payload and the persisted assistant message) is the
    sanitized text: the reply on record is the reply that was shown, so a later history replay
-   cannot resurrect the link. Applied at the cortex turn only: it is the one user-facing seam
+   cannot restore the link. Applied at the cortex turn only: it is the one user-facing seam
    (subagent output is taint-contained upstream, and scrubbing it there would hide evidence the
    cortex may legitimately describe).
 6. **On by default, one knob.** `CORTEX_OUTPUT_GUARDRAIL=redact|off` (default `redact`, built by
@@ -87,7 +87,7 @@ appending a link, plus any future model swap silently re-opening the gap.
   in part by the 2026-07-06 addendum below: `mailto:` is now in scope; bare addresses/domains and
   other schemes remain out.)*
 - **Over-redaction on legitimate quoting** (above). Deliberate: a missing link degrades a
-  reply; a delivered phishing link ends a user.
+  reply, while a delivered phishing link can cost the user their credentials or their money.
 
 ## Deferred (behind the unchanged `OutputGuardrail`/`TaintLedger` seams)
 

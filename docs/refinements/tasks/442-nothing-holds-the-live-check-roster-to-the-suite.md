@@ -22,8 +22,8 @@ in backticks under one heading of one document, which is a narrower question tha
 answers and a different one from the anchors `backlogcheck.py` resolves. It is a new scan or a new
 mode of an existing one, for a document that goes stale on a schedule measured in months.
 
-**What would close it.** A scan holding the two name sets equal, with the prose free to say
-whatever it likes about each. The cheapest home is the anchor pass in `backlogcheck.py`, which
+**What would close it.** A scan holding the two name sets equal, with the prose beside each name
+free to say anything. The cheapest home is the anchor pass in `backlogcheck.py`, which
 already reads documents for the pointers they carry, or a small dedicated scan if that one's
 subject should stay pointers. The count in the opening sentence should then be rendered from the
 same set or dropped, since a tally restated by hand is the half that drifted first here.

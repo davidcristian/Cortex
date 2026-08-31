@@ -23,8 +23,8 @@ the first, as the compose comment says: it turns the first off.
 flag the **Qwen** half of the roster's template reads, and the lineup's own reading is that no Qwen
 entry writes to that channel at all, so a change made for the gemma pick has to say what it does to
 the other family. `scripts/flagcheck.py` holds every subagent server to the pair, so the gate has to
-learn "this flag, on this family" before the tree can express the change at all, and a gate that
-learns a per family rule needs the family to be a thing it can read rather than a name in a table.
+carry "this flag, on this family" before the tree can express the change at all, and a gate with a
+per family rule needs the family to be something it can read rather than a name in a table.
 And the E4B pick's measured injection robustness was taken with thinking off, so the arm that says
 the pick is still safe without the kwarg does not exist yet.
 

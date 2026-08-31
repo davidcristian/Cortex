@@ -7,7 +7,7 @@ export interface BridgeCase {
   /** The implementation every check below runs against. */
   readonly bridge: BrainBridge;
   /**
-   * Put a chat in this implementation's catalog, the way this implementation comes by one: the
+   * Put a chat in this implementation's catalog, by whatever route that implementation has: the
    * demo bridge remembers a chat it was spoken in, the fake serves the table its test assigns.
    */
   addChat(sessionId: string, firstMessage: string): void;
@@ -34,10 +34,9 @@ async function settled<T>(under: BridgeCase, pending: Promise<T>): Promise<T> {
   return pending;
 }
 
-/**
- * A sink that records whatever it is handed, by either door, so a check can ask what a turn
- * delivered without first deciding which kind of thing it is asking about.
- */
+/** A sink that records events and errors into one array, so a check can ask what a turn delivered
+ *  without splitting the two channels. The array's own `push` is the handler, because a check whose
+ *  claim is that nothing arrived would otherwise ship a handler no run of it ever executes. */
 function recorder(): { delivered: (TurnEvent | TransportError)[]; sink: TurnSink } {
   const delivered: (TurnEvent | TransportError)[] = [];
   const record = delivered.push.bind(delivered);
@@ -51,8 +50,8 @@ async function listedIds(under: BridgeCase): Promise<string[]> {
 }
 
 /** One chat's listed row, projected onto `field`, as a one-element array when it is listed at
- *  all: comparing the projection rather than reaching into a row keeps a missing row a failure
- *  instead of an `undefined` that quietly satisfies a "not the old title" assertion. */
+ *  all. Comparing the projection rather than indexing into a row keeps a missing row a failure,
+ *  where indexing would return `undefined` and satisfy a "not the old title" assertion. */
 async function listedField<K extends "title" | "pinned">(
   under: BridgeCase,
   sessionId: string,
@@ -132,8 +131,8 @@ async function checkARenameShowsInTheNextListing(under: BridgeCase): Promise<voi
 /**
  * An empty title clears the override rather than storing one.
  *
- * What the row then falls back TO is each implementation's own business (the brain derives one
- * from the first message), so the shared claim is that the custom title is gone.
+ * What the row then falls back to is each implementation's own choice (the brain derives a title
+ * from the first message), so the shared claim is only that the custom title is gone.
  */
 async function checkAnEmptyRenameClearsTheCustomTitle(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
@@ -174,8 +173,9 @@ async function checkAPinGroupsAChatAboveAnUnpinnedOne(under: BridgeCase): Promis
 }
 
 /**
- * A chat's stored history answers well-formed messages, and a chat nobody has spoken in answers
- * rather than rejecting: an empty stage is a normal chat, not a failure the panel has to render.
+ * A chat's stored history answers well-formed messages, and a chat nobody has spoken in answers an
+ * empty list rather than rejecting, since an empty chat is a normal state and not a failure the
+ * panel has to render.
  */
 async function checkAHistoryAnswersRatherThanRejecting(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
@@ -192,7 +192,7 @@ async function checkAHistoryAnswersRatherThanRejecting(under: BridgeCase): Promi
 /**
  * A due reminder acks true and an id nobody was told about acks false.
  *
- * `false` is "there was nothing to clear", never a failure (`types.ts`), so an implementation
+ * `false` means there was nothing to clear rather than a failure (`types.ts`), so an implementation
  * that answered true for an unknown id would report a delivery it never made.
  */
 async function checkADueReminderAcksTrueAndAnUnknownIdFalse(under: BridgeCase): Promise<void> {
@@ -229,8 +229,8 @@ async function checkASettingRoundTripsAndAnEmptyValueClears(under: BridgeCase): 
 /**
  * Answering a confirmation nobody is waiting for resolves rather than rejecting.
  *
- * The card can close under the user's hand (the brain's own timeout, ADR-0022), so a click
- * landing behind it must be absorbed, and absorbed without running the gated call.
+ * The card can close while the user is reaching for it (the brain's own timeout, ADR-0022), so a
+ * click landing after it closed is absorbed without running the gated call.
  */
 async function checkAStaleConfirmAnswerIsAbsorbed(under: BridgeCase): Promise<void> {
   await expect(under.bridge.respondConfirm("contract-nobody-asked", true)).resolves.toBeUndefined();

@@ -1,4 +1,4 @@
-"""The real ``ModelHost``: the port's six verbs over the supervisor's control API (ADR-0030 d3)."""
+"""The real ``ModelHost``: the port's six verbs over the supervisor's control API."""
 
 import logging
 from http import HTTPStatus
@@ -86,7 +86,7 @@ class HttpModelHost:
         return boot
 
     async def _act(self, model: str, verb: str) -> None:
-        """Run a lifecycle verb and read the state it left behind, for the log."""
+        """Run a lifecycle verb and read the state it left the model in, for the log."""
         payload = await self._request(
             "POST", f"{self._model_path(model)}/{verb}", _about(model), tier=True
         )
@@ -128,7 +128,7 @@ class HttpModelHost:
         return cast("dict[str, Any]", body)
 
     def _read(self, model: str, payload: dict[str, Any]) -> ModelHostState:
-        """The state word from a control answer, refusing anything this version cannot name."""
+        """The state word from a control answer, raising on anything this version cannot decode."""
         raw = payload.get("state")
         try:
             state = ModelHostState(raw)

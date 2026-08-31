@@ -6,22 +6,18 @@ from typing import NamedTuple, cast
 
 from composetargets import FLOW_OPENERS, KEY
 
-# The two service keys this reader takes an answer from, and the block that collects them.
 COMMAND_KEY = "command"
 ENVIRONMENT_KEY = "environment"
 BLOCK_KEYS = frozenset({COMMAND_KEY, ENVIRONMENT_KEY})
 SERVICES_KEY = "services"
 
-# What opens a block scalar, which is one value written over the lines under its own opener. What
-# opens a flow collection, which is the inline `["a", "b"]` spelling of a command, is
-# `composetargets.FLOW_OPENERS`, the same pair its own reader refuses a mount written in.
 BLOCK_SCALARS = ("|", ">")
 
 _ITEM = re.compile(r"^[ \t]*-[ \t]*(?P<rest>.*)$")
 
 
 class ComposeStartError(Exception):
-    """A compose file carries a shape this reader will not guess at."""
+    """A compose file has a form this reader cannot read."""
 
 
 class Started(NamedTuple):
@@ -34,7 +30,7 @@ class Started(NamedTuple):
 
 
 def _flow_items(number: int, written: str) -> list[str]:
-    """Read a command written as an inline list, which is JSON in every spelling this tree has."""
+    """Read a command written as an inline list, which is JSON in every form this tree has."""
     try:
         loaded: object = json.loads(written)
     except json.JSONDecodeError as err:
@@ -51,7 +47,7 @@ def _flow_items(number: int, written: str) -> list[str]:
 
 
 def unquote(text: str) -> str:
-    """Drop one layer of matching quotes, which is how a scalar spells a word with spaces in."""
+    """Drop one layer of matching quotes, which is how a scalar writes a word with spaces."""
     stripped = text.strip()
     for quote in ('"', "'"):
         if len(stripped) > 1 and stripped.startswith(quote) and stripped.endswith(quote):
@@ -79,7 +75,7 @@ class _Reader:
         self.fold_indent = -1
 
     def open_fold(self, key: str, depth: int) -> None:
-        """Begin a block scalar. ``key`` names the environment entry, and is empty for an item."""
+        """Begin a block scalar."""
         self.folding, self.fold_key, self.folded, self.fold_indent = True, key, [], depth
 
     def close_fold(self) -> None:
@@ -193,7 +189,7 @@ class _Reader:
             self.top(number, line.strip())
             return
         if not self.in_services:
-            return  # the body of some other top-level block, which declares no service
+            return
         if self.service_indent < 0:
             self.service_indent = depth
         if depth < self.service_indent:

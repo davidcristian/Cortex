@@ -29,8 +29,8 @@ and answering it inside a close about misattribution would have buried it.
 per line and report the best one with the line number, which would have said `"1` and line 59 in
 the case above. That is more useful and it is also a different claim, because the best line is
 chosen by a heuristic (the longest run) rather than read off anything: a needle spanning two lines
-has no best line at all, and this scan does render multi-line templates nowhere yet but is not
-built to refuse them. So the change wants a decision about whether a mention is a claim about a
+has no best line at all, and this scan renders no multi-line template today and is not
+built to reject one either. So the change needs a decision about whether a mention is a claim about a
 file or about a line, and that decision reaches `Mention.occurrences`, which counts over a file
 today. Re-derive before starting: this description is a reading of `scripts/needles.py` and
 `scripts/crosscheck.py` as they stood the day it was written.

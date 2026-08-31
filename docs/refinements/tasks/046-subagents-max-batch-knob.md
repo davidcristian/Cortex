@@ -26,7 +26,7 @@ in [scheduler.py](../../../brain/packages/core/src/cortex_core/scheduler.py) is 
 this constant: its comment derives the bound from one full batch of eight against the shipped
 budget, two admitted at a time, 200 to 300 s per CPU subtask, doubled to cover the serialized
 placement, and [brain-core.md](../../modules/brain-core.md) restates that derivation. A per-host
-ceiling therefore silently invalidates a second default unless the admission wait is retuned in
+ceiling therefore invalidates a second default unless the admission wait is retuned in
 the same step, and nothing gates that pairing. A knob whose honest form is two knobs is worth
 more thought than "a host wants a different number".
 

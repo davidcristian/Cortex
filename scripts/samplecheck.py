@@ -14,8 +14,8 @@ from skippeddirs import SKIPPED_DIRS
 # a claim about what the code prints today, argued in the module docstring.
 RUNBOOKS = Path("docs/runbooks")
 
-# The floors under the reading in the success line, and the same floors `stubcheck.py` carries: a
-# side that came back empty has read nothing, and a comparison over nothing cannot fail.
+# The floors under the reading in the success line: a side that came back empty has read nothing,
+# and a comparison over nothing cannot fail.
 MIN_SAMPLES = 1
 MIN_LOGGERS = 1
 MIN_MESSAGES = 1
@@ -48,7 +48,7 @@ class Scan(NamedTuple):
 
 
 def _read(path: Path, shown: str) -> str:
-    """Read one runbook, refusing one that is absent or is not text."""
+    """Read one runbook, raising when it is absent or is not text."""
     try:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:

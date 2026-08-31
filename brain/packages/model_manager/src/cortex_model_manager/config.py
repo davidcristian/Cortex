@@ -155,7 +155,7 @@ class ModelHostConfig(BaseSettings):
         return ("--mmproj", path, *self._image_budget())
 
     def _reasoning(self, budget: int) -> tuple[str, ...]:
-        """A tier's thinking budget, in llama.cpp's own flag, or nothing at all when unrestricted.
+        """A tier's reasoning budget, in llama.cpp's own flag, or nothing at all when unrestricted.
         """
         if budget == _UNRESTRICTED_REASONING:
             return ()
@@ -164,8 +164,8 @@ class ModelHostConfig(BaseSettings):
     def _image_budget(self) -> tuple[str, ...]:
         """The per-image token budget, with the micro-batch a raised budget forces beside it.
 
-        Zero emits nothing at all, so turning the default off restores an argv the engine's own
-        defaults decide, rather than one that names them back at it.
+        Zero emits nothing at all, so turning the default off leaves the engine on its own
+        defaults rather than passing those same values back to it as flags.
         """
         budget = self.cortex_image_max_tokens
         if not budget:

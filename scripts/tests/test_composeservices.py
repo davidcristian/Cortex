@@ -1,5 +1,3 @@
-"""Behaviour of the compose service reader, which answers what a service runs and what it covers."""
-
 from pathlib import Path
 
 import pytest
@@ -34,13 +32,10 @@ services:
 
 
 def _one(text: str):  # noqa: ANN202 -- the single service under test, whatever shape it took
-    """The only service one fixture declares, so a test can assert on it without indexing twice."""
+    """Return the one service a fixture declares, asserting the count so a test can use it."""
     services = read_services(text).services
     assert len(services) == 1, services
     return services[0]
-
-
-# ── what a service runs ────────────────────────────────────────────────────────
 
 
 def test_an_image_is_read_with_its_quotes_dropped() -> None:
@@ -49,7 +44,6 @@ def test_an_image_is_read_with_its_quotes_dropped() -> None:
 
 
 def test_an_unquoted_image_is_read_whole() -> None:
-    """`redis:8-alpine` carries a colon of its own, which the key regex must not eat."""
     assert _one("services:\n  redis:\n    image: redis:8-alpine\n").image == "redis:8-alpine"
 
 
@@ -59,7 +53,6 @@ def test_a_service_that_only_builds_names_no_image_but_still_defines_one() -> No
 
 
 def test_a_service_naming_neither_an_image_nor_a_build_is_a_fragment() -> None:
-    """Every override here re-opens `brain:` to add environment; the container is the base's."""
     service = _one("services:\n  brain:\n    environment:\n      A: b\n    depends_on:\n      x:\n")
     assert (service.image, service.builds, service.defines) == (None, False, False)
 
@@ -73,18 +66,13 @@ def test_every_service_in_a_file_is_read_in_order() -> None:
     assert [service.name for service in read_services(text).services] == ["a", "b"]
 
 
-# ── where a service is built from ──────────────────────────────────────────────
-
-
 def test_a_short_build_names_its_context_and_takes_the_default_dockerfile() -> None:
-    """`build: ./brain` is what the base file and the email override both write."""
     assert _one("services:\n  brain:\n    build: ./brain\n").build == Build(
         "./brain", DEFAULT_DOCKERFILE
     )
 
 
 def test_a_build_block_names_both_halves() -> None:
-    """The GPU override's shape: a second Dockerfile in the context the brain image builds from."""
     text = "services:\n  host:\n    build:\n      context: ./brain\n      dockerfile: D.model\n"
     assert _one(text).build == Build("./brain", "D.model")
 
@@ -100,7 +88,6 @@ def test_both_halves_of_a_build_are_read_with_their_quotes_dropped() -> None:
 
 
 def test_a_nested_block_inside_a_build_names_no_dockerfile() -> None:
-    """`args:` and its like sit inside the stanza and say nothing about which file builds it."""
     text = "services:\n  h:\n    build:\n      context: ./b\n      args:\n        TAG: '1'\n"
     assert _one(text).build == Build("./b", DEFAULT_DOCKERFILE)
 
@@ -111,7 +98,6 @@ def test_a_build_key_this_reader_takes_no_answer_from_changes_nothing() -> None:
 
 
 def test_a_key_after_a_build_block_ends_it() -> None:
-    """A service key at its own indent closes the stanza, so `image:` is not read as a build key."""
     text = "services:\n  h:\n    build:\n      context: ./b\n    image: pinned:1\n"
     service = _one(text)
     assert (service.build, service.image) == (Build("./b", DEFAULT_DOCKERFILE), "pinned:1")
@@ -126,11 +112,7 @@ def test_a_service_that_does_not_build_carries_no_build_at_all() -> None:
     assert _one("services:\n  r:\n    image: r\n").build is None
 
 
-# ── what a service covers ──────────────────────────────────────────────────────
-
-
 def test_a_long_syntax_mount_covers_its_target_whatever_its_type_is() -> None:
-    """A named volume, a bind and a tmpfs all leave docker's declaration nothing to anonymise."""
     text = (
         "services:\n  db:\n    image: pg\n    volumes:\n"
         "      - type: volume\n        source: data\n        target: /var/lib/pg\n"
@@ -156,8 +138,6 @@ def test_a_tmpfs_entry_covers_the_path_it_names() -> None:
 
 
 def test_a_tmpfs_entry_written_through_an_anchor_is_resolved() -> None:
-    """The probe writes its mail root once and aliases it; a reader taking `*mail-root` for a path
-    would report the one file in the tree that got this right as the one leaking a volume."""
     assert _one(PROBE).covered == ("/probe.conf", "/srv/mail", "/etc/dovecot")
 
 
@@ -168,8 +148,6 @@ def test_a_long_syntax_target_may_be_an_alias_too() -> None:
 
 
 def test_a_flush_list_is_read_rather_than_walked_past() -> None:
-    """Compose accepts a sequence at its key's own indent, and a reader that closed the block at
-    the first line no deeper would read none of it, silently."""
     text = "services:\n  r:\n    image: r\n    volumes:\n    - type: bind\n      source: ./x\n"
     text += "      target: /x\n    - cache:/cache\n"
     assert _one(text).covered == ("/x", "/cache")
@@ -195,20 +173,15 @@ def test_a_key_after_a_volumes_block_ends_it() -> None:
 
 
 def test_a_top_level_key_after_a_volumes_block_ends_the_service_too() -> None:
-    """The named-volume declarations at the foot of a compose file are not a service's mounts."""
     text = "services:\n  r:\n    image: r\n    volumes:\n      - type: bind\n"
     text += "        source: ./x\n        target: /x\nvolumes:\n  cache:\n"
     assert _one(text).covered == ("/x",)
 
 
 def test_a_deeper_block_under_an_unrelated_key_covers_nothing() -> None:
-    """`deploy:` nests three levels and ends in a list; none of it is a mount."""
     text = "services:\n  g:\n    image: g\n    deploy:\n      resources:\n        reservations:\n"
     text += "          devices:\n            - capabilities: [gpu]\n"
     assert _one(text).covered == ()
-
-
-# ── the project name ───────────────────────────────────────────────────────────
 
 
 def test_the_project_name_is_read_when_the_file_pins_one() -> None:
@@ -221,9 +194,6 @@ def test_a_file_pinning_no_project_says_so() -> None:
 
 def test_a_bare_name_key_pins_nothing() -> None:
     assert read_services("name:\nservices:\n  r:\n    image: r\n").project is None
-
-
-# ── failing closed ─────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -249,14 +219,11 @@ def test_a_bare_name_key_pins_nothing() -> None:
     ],
 )
 def test_a_shape_the_reader_was_not_taught_is_refused(text: str, message: str) -> None:
-    """Every one of these is raised rather than skipped: a reader that quietly walked past the one
-    mount a new override adds is a gate that cannot fail."""
     with pytest.raises(ComposeServiceError, match=message):
         read_services(text)
 
 
 def test_an_unclosed_mount_entry_at_the_end_of_a_file_is_still_refused() -> None:
-    """The last entry is closed by the walk finishing, not by a line after it."""
     with pytest.raises(ComposeServiceError, match="no target"):
         read_services("services:\n  r:\n    volumes:\n      - type: bind\n        source: ./x\n")
 
@@ -268,7 +235,6 @@ def test_a_mount_key_outside_any_entry_is_refused() -> None:
 
 
 def test_an_anchor_that_carries_no_scalar_is_not_recorded_and_its_alias_is_refused() -> None:
-    """Only a scalar anchor is recorded, so a block anchor fails loudly rather than resolving."""
     text = "x-common: &common\n  a: b\nservices:\n  r:\n    tmpfs:\n      - *common\n"
     with pytest.raises(ComposeServiceError, match="names no anchor"):
         read_services(text)
@@ -283,11 +249,7 @@ def test_a_trailing_comment_beside_a_key_is_not_read_as_a_value() -> None:
     assert _one(text).covered == ("/a",)
 
 
-# ── the tree this reader is pointed at ─────────────────────────────────────────
-
-
 def test_the_real_compose_files_are_all_readable() -> None:
-    """A guard on every fixture above: the shapes it agrees with have to be the tree's shapes."""
     files = sorted((REPO_ROOT / "docker").glob("docker-compose*.yml"))
     read = {path.name: read_services(path.read_text(encoding="utf-8")) for path in files}
     assert len(read) >= 8, sorted(read)
@@ -297,8 +259,6 @@ def test_the_real_compose_files_are_all_readable() -> None:
 
 
 def test_the_real_build_stanzas_are_read_in_both_spellings() -> None:
-    """The mapping the record is checked against, and the tree writes it both ways: the base and
-    the email override with a short `build:`, the GPU override with a block naming a second file."""
     files = sorted((REPO_ROOT / "docker").glob("docker-compose*.yml"))
     read = {path.name: read_services(path.read_text(encoding="utf-8")) for path in files}
     builds = {
@@ -315,7 +275,6 @@ def test_the_real_build_stanzas_are_read_in_both_spellings() -> None:
 
 
 def test_the_probe_file_really_covers_dovecots_two_declarations_through_its_anchors() -> None:
-    """The anchor case is the tree's, not the fixture's, and it is the one false red to avoid."""
     text = (REPO_ROOT / "docker" / "docker-compose.imap-probe.yml").read_text(encoding="utf-8")
     probe = read_services(text).services[0]
     assert {"/srv/mail", "/etc/dovecot"} <= set(probe.covered)

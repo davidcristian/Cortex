@@ -3,9 +3,9 @@ export type TurnEvent =
   | { readonly kind: "delta"; readonly text: string }
   | { readonly kind: "toolActivity"; readonly toolName: string; readonly summary: string }
   /**
-   * How a dispatch the `toolActivity` above announced ENDED (ADR-0029 outcome addendum). The
-   * brain emits exactly one per activity on the turn's own stream, on every path out of the
-   * dispatch, so a surface lit by an activity has something honest to settle it with.
+   * How a dispatch the `toolActivity` above announced ended (ADR-0029 outcome addendum). The brain
+   * emits exactly one per activity on the turn's own stream, on every path out of the dispatch, so
+   * a surface an activity switched on has an event that switches it off.
    */
   | { readonly kind: "toolOutcome"; readonly toolName: string; readonly ok: boolean }
   | { readonly kind: "status"; readonly state: string; readonly detail: string }
@@ -17,8 +17,8 @@ export type TurnEvent =
       readonly reason: string;
     }
   /**
-   * A `confirmRequest` the brain stopped waiting on (ADR-0022), so the card can close before it
-   * becomes a lie.
+   * A `confirmRequest` the brain stopped waiting on (ADR-0022), so the card can close rather than
+   * offer an answer nothing is listening for.
    */
   | { readonly kind: "confirmResolved"; readonly confirmId: string; readonly outcome: string }
   | { readonly kind: "complete"; readonly turnId: string }

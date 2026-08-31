@@ -1,4 +1,4 @@
-"""The advertised ``spawn_subagents`` tool spec, built from the runner's roster (ADR-0010/0018)."""
+"""The advertised ``spawn_subagents`` tool spec, built from the runner's roster."""
 
 from typing import Any
 
@@ -7,6 +7,8 @@ from cortex_core.tools import ToolSpec
 
 SPAWN_TOOL_NAME = "spawn_subagents"
 
+# Sized above plausible delegation, which is two to five subtasks at once, and far below
+# fan-out spam. A batch of fifty was fifty model runs the turn waited on.
 MAX_SPAWN_BATCH = 8
 
 _DESCRIPTION = (
@@ -48,7 +50,7 @@ def _model_property(roster: SubagentRoster) -> dict[str, Any]:
 
 
 def build_spawn_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
-    """The advertised spec, built from the roster and honest about the wiring (ADR-0018)."""
+    """The advertised spec, built from the roster and matching the wiring."""
     item_properties: dict[str, Any] = {
         "instruction": {"type": "string", "description": "The self-contained subtask."},
         "context": {

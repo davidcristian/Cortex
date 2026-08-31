@@ -12,10 +12,8 @@ async function flush(): Promise<void> {
   await act(async () => {});
 }
 
-/**
- * Render the hook over a mode the test can move, feeding its dispatches through the **real**
- * reducer and the resulting link back into it.
- */
+/** Render the hook over a mode the test can move, feeding its dispatches through the real reducer
+ *  and the resulting link back into it. */
 function harness(bridge: FakeBridge, initialMode: Mode = "hidden") {
   const actions: Action[] = [];
   const seen = { link: INITIAL_LINK as LinkView };
@@ -39,8 +37,6 @@ function harness(bridge: FakeBridge, initialMode: Mode = "hidden") {
 
 describe("useLink", () => {
   beforeEach(() => {
-    // Plain fake timers: the recovery cadence is the thing under test, and every probe here
-    // resolves on a microtask, so nothing needs the clock to move on its own.
     vi.useFakeTimers();
   });
   afterEach(() => {
@@ -48,7 +44,6 @@ describe("useLink", () => {
   });
 
   it("probes nothing while hidden, then once when the overlay opens", async () => {
-    // Nothing is on screen to be honest about, and the body is resident for days.
     const bridge = new FakeBridge();
     const { rerender, actions } = harness(bridge);
     await flush();
@@ -95,8 +90,6 @@ describe("useLink", () => {
   });
 
   it("costs nothing while a ready link is on screen", async () => {
-    // The steady state of a working system: one probe on summon, then silence. A liveness
-    // poll would spend a request here every few seconds, forever.
     const bridge = new FakeBridge();
     harness(bridge, "panel");
     await flush();
@@ -109,8 +102,6 @@ describe("useLink", () => {
   });
 
   it("keeps re-checking an unhealthy link until it answers ready", async () => {
-    // The red dot has to be able to go green on its own: nothing streams while the panel sits
-    // open, and dismissing to re-summon is not a recovery mechanism.
     const bridge = new FakeBridge();
     bridge.link = { state: "down", detail: "refused" };
     const { view } = harness(bridge, "panel");
@@ -132,7 +123,6 @@ describe("useLink", () => {
     expect(bridge.linkCalls).toBe(3);
     expect(view()).toEqual({ state: "ready", detail: "back", probing: false });
 
-    // Recovered, so the cadence stops of its own accord.
     await act(async () => {
       vi.advanceTimersByTime(LINK_RECHECK_MS * 3);
     });
@@ -164,8 +154,6 @@ describe("useLink", () => {
   });
 
   it("holds the last known state when the probe itself cannot be delivered", async () => {
-    // The command answers a state even for a dead brain, so a rejection is the body's own
-    // plumbing failing. That is not evidence about the brain, and must not overwrite evidence.
     const bridge = new FakeBridge();
     bridge.link = { state: "degraded", detail: "store down" };
     const { view } = harness(bridge, "panel");
@@ -178,13 +166,10 @@ describe("useLink", () => {
     });
     await flush();
     expect(bridge.linkCalls).toBe(2);
-    // What was last proven still stands, and the view is not stuck mid-probe.
     expect(view()).toEqual({ state: "degraded", detail: "store down", probing: false });
   });
 
   it("keeps at most one probe outstanding across a hide and a re-summon", async () => {
-    // A hanging probe plus a fast dismiss/summon would otherwise leave two answers racing,
-    // and the loser could overwrite the newer state.
     const bridge = new FakeBridge();
     bridge.linkHangs = true;
     const { rerender, view } = harness(bridge, "panel");

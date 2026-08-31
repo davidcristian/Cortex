@@ -37,8 +37,8 @@ When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri
     that `async with` and frees the lock before the next turn leases it. Proven by
     `test_cancelling_mid_stream_frees_the_model_lease` (`brain/packages/inference/tests/test_backend.py`):
     it suspends a turn mid-stream with the lease held, cancels it, and asserts a fresh acquire
-    returns at once. Distrust-green: releasing the lock outside a `finally` (so a mid-`yield`
-    cancel skips it) deadlocks the re-acquire and reddens the test. No partial reply is persisted
+    returns at once. Proved able to fail: releasing the lock outside a `finally` (so a
+    mid-`yield` cancel skips it) deadlocks the re-acquire and makes the test fail. No partial reply is persisted
     on cancel (`TurnEngine.handle_turn`'s `finally: await loop.aclose()` drops the in-flight
     generation; `test_aclose_mid_generation_keeps_user_and_drops_partial_reply`, `test_engine.py`).
   - **What is genuinely deferred is body-side and coupled.** The `BrainTransport::converse` port
@@ -48,7 +48,7 @@ When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri
     half-close ends the body stream **with no terminal event** (the server emits none for a
     cancelled turn), which `converse_turn` maps to `TransportError::Protocol("converse stream
     ended before the turn completed")`. So client `Cancel` needs either multi-turn-within-one-stream
-    (keep the stream and send the next `UserTurn`, the case it earns its keep) or a new terminal
+    (keep the stream and send the next `UserTurn`, the case that makes it worth having) or a new terminal
     cancelled-ack (a server-semantics change), and multi-turn-within-one-stream carries the
     per-turn-confirm-keying knock-on above.
   - **Today's Stop is UI-only in the Tauri embedding, and that is why the deferral is
@@ -59,7 +59,7 @@ When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri
     until the turn ends naturally. Drop-to-cancel therefore behaves as "stop showing me this
     turn", not "abort the compute", and the overlay can show a truncated reply while the store
     keeps the full one. That is adequate at loopback personal scale where compute is cheap; a real
-    abort (release the lease, drop the partial, keep the store consistent) earns its keep only when
+    abort (release the lease, drop the partial, keep the store consistent) is worth building only when
     Slice 11's real model swap makes mid-turn compute expensive and evictable, the same trigger
     the reconnect and streamed-brain-status deferrals wait on. The clean v1 fix for one-turn-per-call
     is a real drop-to-cancel: make the Tauri command abort its RPC on Stop (a body-local signal, no

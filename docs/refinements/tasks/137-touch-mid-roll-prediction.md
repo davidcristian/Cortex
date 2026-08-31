@@ -15,7 +15,7 @@ the reminder stack predicts 550px where it lands on 546, and a switcher round tr
 or 300ms after the summon leaves the panel's bottom edge 725px down the viewport against a true
 centre of 722.9, where one started after the roll had finished lands on 723 exactly. It is 2.1px, it is stable rather than
 drifting, and it is the same 4px prediction error that the entry below is about from the other
-end. The fix is the same `ResizeObserver` that entry wants, which would make the roll's real
+end. The fix is the same `ResizeObserver` that entry needs, which would make the roll's real
 height available continuously rather than at its end.
 - **LANDED 2026-08-03, and the entry was wrong about the cause, the size and the fix**
   ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). The prediction cannot be wrong in
@@ -31,7 +31,7 @@ height available continuously rather than at its end.
   the roll re-centred it to 324, so the panel's bottom edge travelled 97px down the viewport
   across the roll and came back at the end of it, and a key pressed inside the arrival window,
   which is what stops that placement re-centring, left the session pinned 97px low for the rest of
-  it. That is 97px and a visible excursion, not 2.1px of stable error. The ride-along now counts
+  it. That is 97px and a visible excursion rather than 2.1px of stable error. The ride-along now counts
   its prediction through `centringHeight` itself, bounded at `openHeight` before the aside comes
   off because that is the order the measurement happens in, so the arrival and the placement agree
   by construction: the bottom edge holds at 676 for every frame of that roll and settles there

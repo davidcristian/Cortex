@@ -1,4 +1,4 @@
-"""Run one model call to its end and let go of the GPU, deterministically (ADR-0038 decision 8)."""
+"""Run one model call to its end and release the GPU lease at a fixed point."""
 
 import logging
 from collections.abc import AsyncGenerator, Sequence

@@ -1,4 +1,4 @@
-"""One pass over every peer of the standing residency, not only the doubted ones (ADR-0030)."""
+"""One pass over every peer tier of the cortex, not only the ones already recorded down."""
 
 import logging
 
@@ -14,20 +14,16 @@ _logger = logging.getLogger(__name__)
 async def sweep_tiers(
     host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers, fence: Fence
 ) -> None:
-    """Ask what every evictable peer is doing, record it, and start the ones that are not.
-
-    Never raises: a tier the host cannot answer about must not stop the others being swept, which
-    is the same rule the pass this replaces kept for the same reason.
-    """
+    """Ask what every evictable peer is doing, record it, and start the ones that are not."""
     for model in plan.evict_models:
         await _sweep_one(host, model, tiers, fence)
 
 
 async def _sweep_one(host: ModelHost, model: str, tiers: StandingTiers, fence: Fence) -> None:
-    """Read one tier's state and act on it, or say why the reading could not be taken."""
+    """Read one tier's state and act on it, or log why the reading could not be taken."""
+    # A daemon's roster is read once at its own boot, so this answer cannot change until the
+    # daemon is replaced, and a replacement rebuilds the whole record.
     if tiers.fault_of(model) is TierFault.UNHOSTED:
-        # The answer is this daemon's env, read once at its own boot, so no pass will ever get a
-        # different one. A replacement daemon rebuilds the whole record (``residency_watch.py``).
         return
     try:
         state = await host.status(model)
@@ -59,8 +55,8 @@ async def _act_on(
             "work runs on the CPU until it is serving again",
             extra={"model": model, "state": state.value},
         )
-    # Before the start, deliberately: the placer must stop sending spawns at that tier whether or
-    # not this start is fenced out, and whether or not it succeeds.
+    # Before the start, deliberately: the placer must stop sending spawns at that tier
+    # whether or not this start happens, and whether or not it succeeds.
     tiers.mark_missing(model)
     if not fence():
         return
@@ -71,11 +67,7 @@ async def _act_on(
 
 
 def _unhosted(model: str, tiers: StandingTiers, err: ModelHostError) -> None:
-    """Record a tier this daemon's roster never had, and say so once rather than every pass.
-
-    Said once because the pass never comes back: a tier with this fault is skipped at the top of
-    every later pass, so this line is written where the belief changes and nowhere else.
-    """
+    """Record a tier this daemon's roster never had, and log it once rather than every pass."""
     _logger.error(
         "the model host does not serve this model at all, so this tier will not be asked about "
         "again until the daemon is replaced: name an artifact for it or drop it from "
@@ -85,8 +77,10 @@ def _unhosted(model: str, tiers: StandingTiers, err: ModelHostError) -> None:
     tiers.mark_unhosted(model)
 
 
+# ``verb`` is interpolated into the message rather than attached as a field because
+# docs/runbooks/model-swap.md tells an operator to grep for the whole sentence.
 def _unanswered(model: str, verb: str, err: ModelHostError) -> None:
-    """A host that could not answer leaves the record alone, so a blip cannot close the pool."""
+    """A host that did not respond leaves the record alone, so a blip cannot close the pool."""
     _logger.warning(
         "a tier of the standing residency could not be %s",
         verb,

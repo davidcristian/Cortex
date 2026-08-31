@@ -1,4 +1,4 @@
-"""Boot recovery: what a restart owes a handoff that a crash interrupted (ADR-0030 d4)."""
+"""Boot recovery: what a restart owes a handoff that a crash interrupted."""
 
 import logging
 
@@ -50,7 +50,9 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
 async def converge_residency(
     host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers, *, clock: Clock, sleeper: Sleeper
 ) -> bool:
-    """Clear the GPU, settle the cortex on it, put the standing residency back, and report."""
+    """Clear the GPU, settle the cortex on it, put the usual residency back, and report."""
+    # The tiers a swap evicts are stopped first and restarted last, because a crash can leave
+    # one holding the VRAM the cortex needs before the cortex itself can load.
     for peer in plan.evict_models:
         await _clear_peer(host, peer)
     try:
@@ -114,7 +116,7 @@ async def _clear_peer(host: ModelHost, model: str) -> None:
 async def _settle_cortex(
     host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
 ) -> bool:
-    """Make sure the cortex is serving, say so loudly when it will not be, and answer which."""
+    """Make sure the cortex is serving, log an error when it is not, and return which."""
     if await host.status(plan.cortex_model) is ModelHostState.READY:
         return True
     await host.start(plan.cortex_model)

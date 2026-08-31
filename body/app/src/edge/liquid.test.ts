@@ -23,8 +23,6 @@ describe("edgePath", () => {
     const early = edgePath(STILL, 560, 480, 0, 0);
     expect(edgePath(STILL, 560, 480, 99.7, 1)).toBe(early);
     expect(early).toContain(`A${CORNER_RADIUS} ${CORNER_RADIUS}`);
-    // The neutral line sits exactly one bleed inside the wrapper, which the component aligns
-    // with the panel's own border: the liquid breathes around the REGULAR edge, not inside it.
     expect(early.startsWith(`M${BLEED + CORNER_RADIUS} ${BLEED}`)).toBe(true);
   });
 
@@ -35,8 +33,6 @@ describe("edgePath", () => {
   });
 
   it("never leaves the box, which is the invariant the panel's layout relies on", () => {
-    // Swept rather than spot-checked: amplitudes, weights and the depth scale are constructed to
-    // bound the displacement by the reach the outline is inset by, and this is that proof run.
     for (const style of [LUCID, TRANCE]) {
       for (const seconds of [0, 1.7, 6.3, 21.9]) {
         for (const depth of [0, 0.5, 1]) {
@@ -61,11 +57,8 @@ describe("edgePath", () => {
   });
 
   it("falls back to the plain rectangle when the box cannot carry the liquid", () => {
-    // A width too small for two arcs and a run, then a height: both are start-up and test-DOM
-    // shapes (a zero-size box before the first layout), not error states, so they draw calmly.
     expect(edgePath(LUCID, 80, 480, 1, 0)).toContain("A");
     expect(edgePath(LUCID, 560, 80, 1, 0)).toContain("A");
-    // Smaller than its own inset, the box degenerates to a point rather than negative arcs.
     expect(edgePath(LUCID, 10, 10, 1, 0)).toContain("H");
   });
 

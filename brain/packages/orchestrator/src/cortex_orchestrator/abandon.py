@@ -1,4 +1,4 @@
-"""The line a call leaves behind when the caller stopped waiting for it (ADR-0024)."""
+"""Logging the calls whose caller stopped waiting for them."""
 
 import asyncio
 import logging
@@ -13,11 +13,10 @@ _TResponse = TypeVar("_TResponse")
 
 _logger = logging.getLogger(__name__)
 
-# What an abandoned call prints, as a constant so the suite asserts the line an operator greps
-# for. It says who stopped rather than what expired, because the fields say which of the two
-# it was and this sentence is true of both.
 ABANDONED_MESSAGE = "the caller stopped waiting; this call was abandoned mid-flight"
 
+# Declared here because ``grpc-stubs`` types ``RpcMethodHandler.unary_unary`` with the
+# synchronous server's signature, which returns the reply rather than a coroutine yielding it.
 type _UnaryBehavior = Callable[[object, aio.ServicerContext[object, object]], Awaitable[object]]
 
 
@@ -28,8 +27,6 @@ def _watched(behavior: _UnaryBehavior, method: str) -> _UnaryBehavior:
         try:
             return await behavior(request, context)
         except asyncio.CancelledError:
-            # Re-raised, always: a cancelled coroutine that swallows its cancellation is a task
-            # that outlives the request. This arm only makes the abandonment visible.
             _logger.warning(
                 ABANDONED_MESSAGE,
                 extra={"method": method, "time_remaining": context.time_remaining()},

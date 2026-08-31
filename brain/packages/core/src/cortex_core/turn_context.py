@@ -121,7 +121,7 @@ async def _recalled_context(
 async def _report_forgone_memory(
     caps: TurnCapabilities, context: ToolLoopContext, err: Exception
 ) -> None:
-    """Say, twice over, that this turn is being answered without the memory it should have had."""
+    """Report twice that this turn is being answered without the memory it should have had."""
     _logger.warning(
         "memory recall unavailable; answering this turn without its recalled notes",
         extra={"session_id": context.session_id, "turn_id": context.turn_id},

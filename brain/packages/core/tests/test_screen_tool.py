@@ -1,8 +1,3 @@
-"""Behaviour tests for the capture_screen built-in and the pixel boundary it stands on
-(ADR-0029): the spec, the stand-in text, the trust stamps, and the inheritance that matters
-most, which is that a capture taints the turn through the ordinary machinery so the existing
-"""
-
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
@@ -62,7 +57,7 @@ async def _send(_arguments: Mapping[str, object]) -> str:
 
 
 def _email_dispatcher(confirmer: RecordingConfirmer) -> tuple[ToolDispatcher, RecordingAuditSink]:
-    """A dispatcher over one gated tool, the shape both gate arms below drive."""
+    """A dispatcher over one tool that needs approval, used by both cases below."""
     spec = ToolSpec(name="send_email", description="send", parameters={}, gated=True)
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(
@@ -84,7 +79,6 @@ async def test_the_spec_is_ungated_and_makes_the_model_name_a_target() -> None:
 
 
 def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> None:
-    """The one half of the enum coupling a gate can hold, held."""
     schema = CaptureScreenTool(InMemoryBodyGateway()).spec.parameters
     target = schema["properties"]["target"]
     assert target["enum"] == [member.value for member in CaptureTarget]
@@ -92,7 +86,6 @@ def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> N
 
 
 def test_the_steer_promises_only_what_the_window_crop_measurement_supports() -> None:
-    """The description is a model-facing contract, so it is held to the measurement."""
     spec = CaptureScreenTool(InMemoryBodyGateway()).spec
     help_text = str(spec.parameters["properties"]["target"]["description"])
 
@@ -148,9 +141,6 @@ async def test_the_target_the_model_named_reaches_the_body() -> None:
 
 
 async def test_a_window_capture_is_described_as_a_crop_and_not_as_a_shrunk_screen() -> None:
-    """The reply's own answer picks the sentence, so the model is never told about a desktop it
-    was not shown. A window fitting the capture edge was not resampled at all, and even one that
-    was is not a view of the whole 2560x1440 display."""
     windowed = _capture(width=1720, height=1200, target=CaptureTarget.FOCUS)
     result = await CaptureScreenTool(InMemoryBodyGateway(capture=windowed)).invoke(_call("focus"))
 
@@ -164,9 +154,6 @@ async def test_a_window_capture_is_described_as_a_crop_and_not_as_a_shrunk_scree
 
 
 async def test_a_window_that_filled_the_screen_is_described_as_the_screen() -> None:
-    """The body reads the reply's target off what it encoded rather than off the ask, and the
-    receipt the user sees is picked by the same predicate, so a maximised window cannot make the
-    two surfaces disagree. Asking for the window and being told "display" is not a failure."""
     body = InMemoryBodyGateway(capture=_capture(target=CaptureTarget.DISPLAY))
     result = await CaptureScreenTool(body).invoke(_call("focus"))
 
@@ -175,7 +162,6 @@ async def test_a_window_that_filled_the_screen_is_described_as_the_screen() -> N
 
 
 async def test_a_capture_with_no_target_is_refused_without_taking_a_picture() -> None:
-    """Refused rather than defaulted, and the reason is not tidiness."""
     body = InMemoryBodyGateway(capture=_capture())
     result = await CaptureScreenTool(body).invoke(
         ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
@@ -192,9 +178,6 @@ async def test_a_capture_with_no_target_is_refused_without_taking_a_picture() ->
 async def test_a_target_outside_the_vocabulary_is_a_tool_error_and_never_a_raise(
     named: str,
 ) -> None:
-    """The model chose it and the model can correct it, so this is a result rather than an
-    exception that would kill the turn. The match is exact on purpose: accepting ``DISPLAY``
-    beside ``display`` would add a whole call identity that takes pictures."""
     body = InMemoryBodyGateway(capture=_capture())
     result = await CaptureScreenTool(body).invoke(_call(named))
 
@@ -216,8 +199,6 @@ async def test_a_target_that_is_not_a_string_is_refused_like_a_missing_one() -> 
 
 
 async def test_an_unreachable_body_is_a_trusted_error_with_no_pixels() -> None:
-    # Deliberately asymmetric: nothing untrusted arrived, so tainting here would close the
-    # user's gated tools for the rest of a turn in which nothing was read.
     body = InMemoryBodyGateway(fail=BodyGatewayError("body down", kind=BodyFailure.UNREACHABLE))
     result = await CaptureScreenTool(body).invoke(_call())
 
@@ -228,7 +209,6 @@ async def test_an_unreachable_body_is_a_trusted_error_with_no_pixels() -> None:
 
 
 async def test_the_shipping_default_reads_as_a_refusal_and_not_as_a_dead_body() -> None:
-    """The one row of the failure table an untouched install actually hits."""
     disabled = BodyGatewayError(
         "body capture_screen failed: screen capture is disabled on this host",
         kind=BodyFailure.REFUSED,
@@ -243,9 +223,6 @@ async def test_the_shipping_default_reads_as_a_refusal_and_not_as_a_dead_body() 
 
 
 async def test_a_capture_too_large_to_send_is_not_reported_as_a_broken_backend() -> None:
-    """The other half of the same defect: a picture that was taken and will not fit is a
-    different thing from a body whose backend broke, and the two used to be one sentence behind
-    one status code."""
     oversize = BodyGatewayError(
         "body capture_screen failed: the capture is too large for the seam: 6291457 bytes",
         kind=BodyFailure.OVERSIZE,
@@ -270,6 +247,8 @@ async def test_a_capture_taints_the_turn_through_the_ordinary_ledger() -> None:
 
 
 def test_the_default_bounds_ask_the_body_for_its_own_defaults() -> None:
+    # Zero means "your own default" on the wire, not "no bound": proto3 cannot tell an unset
+    # uint32 from an explicit zero. Written as literals so a changed default fails here.
     assert (CaptureBounds().max_edge, CaptureBounds().max_bytes) == (0, 0)
 
 
@@ -281,7 +260,6 @@ async def test_a_failed_capture_leaves_the_turn_clean() -> None:
 
 
 async def test_a_gated_call_after_a_capture_is_denied_without_asking_the_user() -> None:
-    """The inheritance this whole slice rests on, proven rather than assumed."""
     confirmer = RecordingConfirmer(answer=True)
     dispatcher, audit = _email_dispatcher(confirmer)
     ledger = TaintLedger()
@@ -289,9 +267,6 @@ async def test_a_gated_call_after_a_capture_is_denied_without_asking_the_user() 
     body = InMemoryBodyGateway(capture=_capture())
     ledger.observe(await CaptureScreenTool(body).invoke(_call()))
 
-    # The turn's stamp is a dispatch keyword, not a field the call carries: the dispatcher
-    # overwrites a call-borne stamp precisely so a model-forged one feeds nothing. This is how
-    # the tool loop passes it, rebuilt per dispatch, which is what makes the bit flip mid-loop.
     blocked = await dispatcher.dispatch(
         ToolCall(id="c2", name="send_email", arguments={"to": "x@example.com"}),
         stamp=TurnStamp(tainted=ledger.tainted),
@@ -306,8 +281,6 @@ async def test_a_gated_call_after_a_capture_is_denied_without_asking_the_user() 
 
 
 async def test_the_same_gated_call_is_confirmed_when_nothing_was_captured() -> None:
-    """The control arm: without the capture the very same call reaches the confirmer and runs,
-    so the test above is measuring the taint and not some unrelated refusal."""
     confirmer = RecordingConfirmer(answer=True)
     dispatcher, _audit = _email_dispatcher(confirmer)
 
@@ -321,7 +294,6 @@ async def test_the_same_gated_call_is_confirmed_when_nothing_was_captured() -> N
 
 
 async def test_the_audit_line_carries_no_image_bytes_on_either_path() -> None:
-    """Pixels ride beside ``content``, never inside it, so the audit trail stays text."""
     for body in (
         InMemoryBodyGateway(capture=_capture()),
         InMemoryBodyGateway(fail=BodyGatewayError("body down")),
@@ -331,7 +303,6 @@ async def test_the_audit_line_carries_no_image_bytes_on_either_path() -> None:
 
 
 async def test_two_captures_per_target_is_what_a_loop_gets_now() -> None:
-    """The bound the target argument moved, said out loud rather than left to be discovered."""
     salience = RepeatSalience()
     rounds: list[list[ToolCall]] = []
     admitted: list[tuple[str, bool]] = []
@@ -356,8 +327,6 @@ async def test_two_captures_per_target_is_what_a_loop_gets_now() -> None:
 
 
 async def test_a_second_identical_target_in_one_round_is_refused_outright() -> None:
-    """The within-a-round clause is absolute, and it is what stops one round from spending the
-    whole per-target allowance on the same picture twice before either result is read."""
     salience = RepeatSalience()
     first_round: list[list[ToolCall]] = [[]]
 
@@ -368,14 +337,13 @@ async def test_a_second_identical_target_in_one_round_is_refused_outright() -> N
 
 
 def test_the_tool_name_is_the_one_the_owner_puts_in_the_gated_list() -> None:
-    # The documented zero-code opt-in is CORTEX_TOOLS_GATED=send_email,capture_screen, so the
-    # advertised name has to be exactly this string.
+    # The documented opt-in is CORTEX_TOOLS_GATED=send_email,capture_screen, so the advertised
+    # name has to be exactly this string.
     assert CAPTURE_SCREEN_TOOL_NAME == "capture_screen"
 
 
 @pytest.mark.parametrize("mime", ["image/png", "image/jpeg"])
 async def test_the_tool_passes_the_bodys_encoding_through_untouched(mime: str) -> None:
-    # The body may swap encoders behind the seam; nothing here re-encodes or re-checks pixels.
     capture = ScreenCapture(
         image=ImagePart(data=_PNG, mime_type=mime, width=64, height=64),
         source_width=64,

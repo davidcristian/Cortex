@@ -26,8 +26,8 @@ it does nothing about local processes.
    present and future, so no per-method discipline) must carry the token as
    `x-cortex-seam-token` metadata or is aborted `UNAUTHENTICATED` before any servicer code
    runs, through a rejection handler matching the method's own streaming shape. The compare is
-   constant-time (`secrets.compare_digest`); the denial does not reveal whether the token was
-   absent or wrong.
+   constant-time (`secrets.compare_digest`), and the denial is identical for an absent token and a
+   wrong one.
 3. **The body attaches it in a tonic client interceptor** (`BrainSeamClient::connect_with_token`;
    plain `connect` sends none). The interceptor holds the parsed metadata value and is
    deliberately not `Debug`. Combined with tonic printing interceptors by type name, the

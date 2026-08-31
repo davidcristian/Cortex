@@ -1,6 +1,6 @@
 # Runbook for Slice 9.5: scheduling & reminders
 
-Slice 9.5 (ADR-0025) gives the brain a sense of time: durable schedules in Redis, five
+Slice 9.5 (ADR-0025) gives the brain scheduling: durable schedules in Redis, five
 cortex-only tools (`schedule_task` / `list_scheduled` / `cancel_scheduled` /
 `snooze_scheduled` / `edit_scheduled`; `snooze_scheduled` postpones the next fire by
 `for_seconds` from now, moving only the next occurrence of a recurring item and pinning its
@@ -23,7 +23,7 @@ CORTEX_SCHEDULE_BACKEND=redis docker compose --project-directory . \
 ```
 
 Schedules live in the same append-only, named-volume Redis as sessions. That is the durability
-class the one hard rule already trusts. Knobs (all `CORTEX_SCHEDULE_*`): `POLL_S` (pass
+class the one hard rule already requires. Knobs (all `CORTEX_SCHEDULE_*`): `POLL_S` (pass
 interval, default 5), `LEASE_S` (default 300, to be **kept above the slowest expected task
 fire**: a task outrunning its lease is re-claimed and runs twice, the documented
 at-least-once trade), `CLAIM_LIMIT` (batch cap per pass, default 8), `MAX_ACTIVE`
@@ -86,7 +86,8 @@ zone governs the rule (its own `in_zone`, else `CORTEX_SCHEDULE_TZ`). Because a 
 time rather than an instant, **changing `CORTEX_SCHEDULE_TZ` moves existing calendar schedules
 that did not name their own `in_zone`** to the new zone's 09:00, while a rule that pinned an
 `in_zone`, and every interval and one-shot item (stored as UTC instants), only re-render. That is
-deliberate: a zone-less 09:00 reminder follows its user, a pinned one stays put.
+deliberate: a zone-less 09:00 reminder moves with the deployment's zone, and a pinned one stays
+at the wall time it was set to.
 
 `edit_scheduled` changes recurrence in place in either direction: `at_time` (with an optional
 `on_days`, `on_month_days`, or `on_dates`, so a rule can also switch between weekly, monthly,
@@ -103,8 +104,8 @@ With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers
 audited `spawn_subagents` path (`confirmer=None`, so gated tools stay structurally
 unreachable; a tainted-created task is refused at creation outright). That dispatch writes one
 audit line carrying `item_id`, which is how `docker compose logs brain | grep item_id=` answers
-"what fired, and what did it do?" for the one caller nobody is watching (ADR-0009 named-call
-addendum). A finished task's
+"what fired, and what did it do?" for a dispatch that runs with no user present (ADR-0009
+named-call addendum). A finished task's
 **outcome delivers as a notification** the same way a reminder's text does (ADR-0025 task-outcome
 addendum): the outcome (not the standing instruction) becomes the toast body under a `Cortex task`
 title and, if the push does not land, waits in the store for the overlay's next pull. So a one-shot
@@ -133,12 +134,12 @@ cd brain && uv run pytest -m integration --no-cov \
 
 - `test_schedule_live.py` replays the full fenced-protocol contract suite against live
   Redis (it **skips if real schedules exist**, because the checks assert exact global views and
-  claim whatever is due, and refuse to disturb a live deployment's items).
+  claim whatever is due, and would otherwise disturb a live deployment's items).
 - `test_schedule_live_seam.py` proves the loop end to end: it seeds a due reminder into
   the store, waits for the brain's ticker to fire it, reads it back over
   `ListDueReminders`, acks it over `AckReminder` (second ack: a no-op), and cleans up.
 - `just seam-health` confirms the rewired turn path still converses. It needs the brain served
-  with a seam token and the same value in its own environment, and refuses to start without one
+  with a seam token and the same value in its own environment, and fails to start without one
   ([local-dev-wsl.md](local-dev-wsl.md) says why).
 
 ## Host-only half on Windows

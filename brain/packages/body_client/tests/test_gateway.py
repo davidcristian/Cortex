@@ -1,8 +1,3 @@
-"""Contract tests for GrpcBodyGateway (ADR-0023): a fake BodyService on loopback (127.0.0.1:0,
-CI-safe) drives the adapter's mappings end to end over the happy get/set with every optional-field
-combination, the token attached and its absence rejected, and gRPC failures → BodyGatewayError.
-"""
-
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -34,16 +29,15 @@ from cortex_seam import (
 from cortex_seam import CaptureTarget as CaptureTargetPb
 from cortex_seam import VolumeState as VolumeStatePb
 
-_TOKEN = "sekrit-seam-token"  # noqa: S105 - test seam token, not a real secret
+_TOKEN = "sekrit-seam-token"  # noqa: S105 - a test value, not a real secret
 
 
 class FakeBody(BodyServiceServicer):
-    """A scripted fake BodyService: reports/records volume state, optionally requires the token
-    or fails a call with a gRPC status. Records which SetVolume fields crossed the wire so the
-    adapter's proto explicit-presence handling can be asserted.
+    """A scripted fake BodyService: reports/records volume state, optionally requires the token or
+    fails a call with a gRPC status.
     """
 
-    def __init__(  # noqa: PLR0913 - a scripted fake of a five-RPC service, one knob per behaviour
+    def __init__(  # noqa: PLR0913 - a scripted fake of a five-RPC service, one flag per behaviour
         self,
         *,
         level: float = 0.5,
@@ -60,13 +54,9 @@ class FakeBody(BodyServiceServicer):
         self.level = level
         self.muted = muted
         self.blob = blob
-        # Typed as the wire enum, which is an int on this generated surface, so a body naming a
-        # target this brain does not know can still be scripted the way a newer body sends one.
         self.resolved_target = resolved_target
         self.no_image = no_image
         self.capture_delay_s = capture_delay_s
-        # What a wedged COM call looks like from here: the handler accepted the request and
-        # never answers. `off_worker` on the body side is why that is the shape to fake.
         self.call_delay_s = call_delay_s
         self.captured: CaptureScreenRequest | None = None
         self.shown = shown
@@ -175,7 +165,6 @@ async def _gateway(
 
 
 async def test_get_volume_maps_the_reply() -> None:
-    # The wire level is a 32-bit float, so compare it with approx (0.3 → 0.30000001…).
     async with _gateway(FakeBody(level=0.3, muted=True)) as gateway:
         state = await gateway.get_volume()
     assert state.level == pytest.approx(0.3)
@@ -246,7 +235,6 @@ async def test_notify_not_shown_comes_back_false() -> None:
 
 
 async def test_notify_unimplemented_maps_to_body_gateway_error() -> None:
-    # The body's shape-now answer until its toast lands (ADR-0025): a push failure.
     async with _gateway(FakeBody(fail=grpc.StatusCode.UNIMPLEMENTED)) as gateway:
         with pytest.raises(BodyGatewayError, match="notify failed"):
             await gateway.notify(title="t", body="b", reminder_id="r1")
@@ -258,7 +246,6 @@ async def test_token_is_attached_when_configured() -> None:
 
 
 async def test_missing_token_is_rejected_as_body_gateway_error() -> None:
-    # The gateway is built without a token (the empty-metadata branch); the body demands one.
     async with _gateway(FakeBody(require_token=_TOKEN)) as gateway:
         with pytest.raises(BodyGatewayError, match="invalid or missing seam token"):
             await gateway.get_volume()
@@ -312,9 +299,6 @@ async def test_the_target_reaches_the_wire_as_the_enum_the_body_reads() -> None:
 
 
 async def test_what_the_body_says_it_pointed_at_is_what_the_capture_reports() -> None:
-    """The one thing on this reply the receiver cannot re-derive from the payload: a crop and a
-    shrunk screen are the same blob, and `source_width`/`source_height` are the display's on
-    both paths. So the answer is read off the reply and never off the ask."""
     fake = FakeBody(blob=_blob(), resolved_target=CaptureTargetPb.CAPTURE_TARGET_FOCUS)
     async with _gateway(fake) as gateway:
         capture = await gateway.capture_screen(target=CaptureTarget.DISPLAY)
@@ -322,8 +306,6 @@ async def test_what_the_body_says_it_pointed_at_is_what_the_capture_reports() ->
 
 
 async def test_a_body_that_names_no_target_reads_as_the_whole_display() -> None:
-    """A body predating the field leaves the proto3 zero, which is DISPLAY, and that is a
-    reading rather than a guess: the only picture such a body can take is the whole display."""
     fake = FakeBody(blob=_blob())
     async with _gateway(fake) as gateway:
         capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)
@@ -331,9 +313,6 @@ async def test_a_body_that_names_no_target_reads_as_the_whole_display() -> None:
 
 
 async def test_a_target_this_brain_does_not_know_reads_as_the_whole_display() -> None:
-    """Proto3's own rule for an unrecognized enum, spent here rather than raising: a newer body
-    naming a third target still sent a picture, and the honest thing this brain can say about it
-    is the screen it came off."""
     fake = FakeBody(blob=_blob(), resolved_target=cast("CaptureTargetPb", 99))
     async with _gateway(fake) as gateway:
         capture = await gateway.capture_screen()
@@ -348,8 +327,6 @@ async def test_a_capture_at_the_display_size_is_not_downscaled() -> None:
 
 
 async def test_a_body_that_omits_the_source_size_reports_the_image_size() -> None:
-    # An older body leaves the new fields at their proto3 zeros; reporting 0x0 as the display
-    # size would make the tool tell the model it is looking at a shrunk view of nothing.
     fake = FakeBody(blob=_blob(width=640, height=360, source_width=0, source_height=0))
     async with _gateway(fake) as gateway:
         capture = await gateway.capture_screen()
@@ -382,7 +359,6 @@ async def test_a_blob_with_an_impossible_size_is_refused() -> None:
 
 
 async def test_a_body_that_ignores_the_edge_hint_is_refused_on_receipt() -> None:
-    """The hint is an optimization; the bound is what the receiver checks."""
     fake = FakeBody(blob=_blob(width=3840, height=2160))
     async with _gateway(fake) as gateway:
         with pytest.raises(
@@ -392,8 +368,6 @@ async def test_a_body_that_ignores_the_edge_hint_is_refused_on_receipt() -> None
 
 
 async def test_a_body_that_ignores_the_byte_hint_is_refused_on_receipt() -> None:
-    """The same for the byte budget: a reply inside the 6 MiB domain ceiling but over the number
-    this deployment configured is a bound the body did not honour, and the brain holds it."""
     fake = FakeBody(blob=_blob(data_size=2_000_000))
     async with _gateway(fake) as gateway:
         with pytest.raises(
@@ -403,8 +377,6 @@ async def test_a_body_that_ignores_the_byte_hint_is_refused_on_receipt() -> None
 
 
 async def test_asking_for_no_bounds_holds_the_reply_to_the_domain_ceiling_alone() -> None:
-    """The control arm, and the reason the check reads the request rather than a constant: a zero
-    asked for the body's own default, so the very same full-resolution reply is legitimate."""
     fake = FakeBody(blob=_blob(width=3840, height=2160, data_size=2_000_000))
     async with _gateway(fake) as gateway:
         capture = await gateway.capture_screen()
@@ -412,9 +384,6 @@ async def test_asking_for_no_bounds_holds_the_reply_to_the_domain_ceiling_alone(
 
 
 async def test_a_bound_the_wire_cannot_carry_fails_the_capture_rather_than_the_turn() -> None:
-    """``BodyGatewayError`` is this port's only failure channel, and the request is built inside
-    it: a bound outside uint32 used to escape as a bare ``ValueError``, which neither the tool
-    nor the dispatcher catches, so a misconfigured deployment killed the whole stream."""
     async with _gateway(FakeBody(blob=_blob())) as gateway:
         with pytest.raises(BodyGatewayError, match="a bound the wire cannot carry"):
             await gateway.capture_screen(max_edge=-1)
@@ -433,15 +402,15 @@ async def test_an_unimplemented_capture_maps_to_body_gateway_error() -> None:
 
 
 # A wedged handler parks far longer than either deadline under test, so whichever fires is
-# production's and never the fake running out of sleep.
+# production's. The test's own patience is twenty times the deadline it drives and a fiftieth
+# of the park, so a dropped ``timeout=`` fails the suite instead of hanging it.
 _WEDGED_S = 5.0
-# The deadline the gateway is driven at: short enough that a suite notices nothing.
 _IMPATIENT_S = 0.05
-# How long a deadline test may take before the TEST fails, twenty times production's deadline and
-# a fiftieth of the fake's park. It exists so a dropped ``timeout=`` reddens the suite instead of
-# hanging it: an unbounded call is a test that never returns, which reports nothing to anyone.
 _TEST_PATIENCE_S = 1.0
 
+# The kinds that mean the body answered and said something. A deadline that expired on this
+# side must never be classified into this set: grpc-python raises DEADLINE_EXCEEDED, but only a
+# run establishes that, since tonic expires as a sourceless Cancelled that reads as a reply.
 _THE_BODY_ANSWERED = (
     BodyFailure.REFUSED,
     BodyFailure.UNSUPPORTED,
@@ -459,9 +428,6 @@ async def test_a_wedged_body_hits_the_capture_deadline() -> None:
     assert caught.value.kind is BodyFailure.UNREACHABLE
 
 
-# The three calls that carry the short deadline, each as the name its failure message spells and
-# the one-liner that drives it. Annotated rather than inferred: the parameter's type is what the
-# lambdas are read against, and without it every method access under them is unknown.
 _SHORT_DEADLINE_CALLS: tuple[tuple[str, Callable[[GrpcBodyGateway], Awaitable[object]]], ...] = (
     ("get_volume", lambda gateway: gateway.get_volume()),
     ("set_volume", lambda gateway: gateway.set_volume(level=0.5)),
@@ -473,10 +439,6 @@ _SHORT_DEADLINE_CALLS: tuple[tuple[str, Callable[[GrpcBodyGateway], Awaitable[ob
 async def test_a_wedged_body_hits_the_call_deadline_on_every_other_call(
     name: str, call: Callable[[GrpcBodyGateway], Awaitable[object]]
 ) -> None:
-    """The three calls that used to have no deadline at all now have one, and the reason is the
-    body's own design: every handler runs on ``spawn_blocking`` because Core Audio and the toast
-    manager are COM, and a COM call parks its thread for as long as the host takes.
-    """
     async with _gateway(FakeBody(call_delay_s=_WEDGED_S), call_timeout_s=_IMPATIENT_S) as gateway:
         async with asyncio.timeout(_TEST_PATIENCE_S):
             with pytest.raises(BodyGatewayError, match=f"body {name} failed") as caught:
@@ -486,7 +448,6 @@ async def test_a_wedged_body_hits_the_call_deadline_on_every_other_call(
 
 
 async def test_the_short_deadline_does_not_bound_a_capture() -> None:
-    """Two knobs rather than one, and this is the difference between them."""
     fake = FakeBody(blob=_blob(), capture_delay_s=_IMPATIENT_S * 4)
     async with _gateway(fake, call_timeout_s=_IMPATIENT_S) as gateway:
         capture = await gateway.capture_screen()
@@ -494,13 +455,12 @@ async def test_the_short_deadline_does_not_bound_a_capture() -> None:
 
 
 def test_the_raised_receive_limit_is_the_number_it_claims_to_be() -> None:
+    # Compared against the literal, because every other assertion about this option compares
+    # the constant to itself and so would not notice it moving.
     assert MAX_RECEIVE_BYTES == 16777216
 
 
 async def test_an_oversized_reply_crosses_the_transport_and_is_refused_by_the_domain() -> None:
-    # The distrust-green proof, in two halves. This reply is 8 MiB: over grpc's own 4 MiB
-    # receive default (so the raised channel option is doing work), and over the 6 MiB domain
-    # budget (so the bound that refuses it is the one the cortex can be told about).
     oversized = MAX_IMAGE_BYTES + 2 * 1024 * 1024
     assert 4 * 1024 * 1024 < oversized < MAX_RECEIVE_BYTES
     fake = FakeBody(blob=_blob(data_size=oversized))
@@ -510,9 +470,6 @@ async def test_an_oversized_reply_crosses_the_transport_and_is_refused_by_the_do
 
 
 async def test_the_unraised_default_would_have_killed_that_reply_in_the_transport() -> None:
-    # The other half: the same reply against a channel left at grpc's default is refused by the
-    # transport with a message about bytes, not about screens. Without the option the domain
-    # bound above could never run, so the two tests together pin why the option exists.
     oversized = MAX_IMAGE_BYTES + 2 * 1024 * 1024
     fake = FakeBody(blob=_blob(data_size=oversized))
     endpoint, server = await _serve(fake)
@@ -526,9 +483,6 @@ async def test_the_unraised_default_would_have_killed_that_reply_in_the_transpor
         await server.stop(grace=None)
 
 
-# Every status the body's own handlers can send, with the sentence they send it with, taken from
-# `body/crates/rpc/src/screen.rs`, `server.rs` and `auth.rs`. The kind column is what the cortex's
-# wording is chosen from, so this table is the classification contract in one place.
 _BODY_STATUSES = [
     pytest.param(
         grpc.StatusCode.PERMISSION_DENIED,
@@ -585,7 +539,7 @@ _BODY_STATUSES = [
 async def test_every_status_the_body_sends_is_classified(
     code: grpc.StatusCode, detail: str, kind: BodyFailure
 ) -> None:
-    del detail  # the fake writes its own sentence; the classification is what is under test
+    del detail
     async with _gateway(FakeBody(fail=code)) as gateway:
         with pytest.raises(BodyGatewayError) as caught:
             await gateway.capture_screen()
@@ -596,8 +550,6 @@ async def test_every_status_the_body_sends_is_classified(
 async def test_the_volume_and_notify_calls_classify_the_same_way(
     code: grpc.StatusCode, detail: str, kind: BodyFailure
 ) -> None:
-    """One classifier, four calls. A per-call copy of the table is how the volume built-in ends
-    up wording a failure differently from the capture built-in for the same wire status."""
     del detail
     async with _gateway(FakeBody(fail=code)) as gateway:
         for call in (
@@ -611,8 +563,6 @@ async def test_the_volume_and_notify_calls_classify_the_same_way(
 
 
 async def test_a_body_that_is_not_there_is_the_only_unreachable_one() -> None:
-    """The row the old prefix was true for, and the reason UNAVAILABLE is now reserved: nothing
-    the body writes spends that code, so a synthesized one means the call never arrived."""
     gateway, close = await GrpcBodyGateway.connect("127.0.0.1:1", capture_timeout_s=0.2)
     try:
         with pytest.raises(BodyGatewayError) as caught:
@@ -623,9 +573,6 @@ async def test_a_body_that_is_not_there_is_the_only_unreachable_one() -> None:
 
 
 async def test_a_brain_side_refusal_is_a_fault_and_never_an_unreachable_body() -> None:
-    """The four refusals that never touch a status code (a reply with no image, an unusable
-    image, a reply outside the bound asked for, a bound the wire cannot carry) take the default,
-    and the default must not be the claim this change exists to remove."""
     async with _gateway(FakeBody(no_image=True)) as gateway:
         with pytest.raises(BodyGatewayError) as caught:
             await gateway.capture_screen()

@@ -17,7 +17,7 @@ throws away work the user did. It wants the user's answer before either. Nothing
 - **LANDED 2026-08-06 as the first of those two shapes, on the user's answer**
   ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). A draft per chat, taken over
   clearing on swap, because a half-typed question is work and swapping away is not a decision to
-  discard it. **The entry's claim held, and at more doors than it named.** Reproduced at 900x900
+  discard it. **The entry's claim held, and at more paths than it named.** Reproduced at 900x900
   at HEAD: `{"value":"half a question","caret":15}` came through `Ctrl+↓`, a switcher row,
   `Ctrl+N`, the header's pencil, a delete confirm on the open chat and a reminder card's open
   control, every one of them, with the arriving chat's title in the header. One correction to its
@@ -25,7 +25,7 @@ throws away work the user did. It wants the user's answer before either. Nothing
   characters, so it recorded where the caret already was rather than a caret held mid-sentence
   (one parked at offset 2 also survived, as it happens). And cold-start adoption could not be
   reproduced in the browser at all: the build self-summons, `open` sets `touched`, and adoption is
-  guarded on it, so the attempt is refused before a field exists to type into. It is covered in
+  guarded on it, so the attempt is blocked before a field exists to type into. It is covered in
   the reducer instead.
   **`OverlayState.drafts` keys the unsent text by session id and the composer is a controlled
   field over the entry for the chat on screen** (`overlay/drafts.ts`), so the arriving conversation
@@ -61,5 +61,5 @@ throws away work the user did. It wants the user's answer before either. Nothing
   and it was then the only entry anywhere whose blocker was a decision rather than work.
 - 2026-08-06: Landed the same day on the user's answer, and the count of entries waiting on a
   decision rather than on work went to zero, where it had never been. The entry's claim held at
-  every door and not only the two it named, which is worth recording in a backlog whose standing
+  every path and not only the two it named, which is worth recording in a backlog whose standing
   warning is that entries go stale. Nothing opened behind it.

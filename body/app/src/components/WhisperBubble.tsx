@@ -4,6 +4,10 @@ import type { Message as MessageModel } from "../overlay/overlayState";
 import { confirmedOf, letterCountOf, tokenize } from "../whisper/front";
 import { useWhisperClock } from "../whisper/useWhisperClock";
 
+// The assistant bubble that streams its reply in letter by letter. A message already settled when
+// this instance mounts renders as one plain text node instead. The letter boxes are `aria-hidden`
+// behind a hidden copy of the text, so a screen reader reads a reply, not one-letter spans.
+
 export function WhisperBubble({
   message,
   onGrow,
@@ -18,8 +22,8 @@ export function WhisperBubble({
   return <LiveWhisper message={message} onGrow={onGrow} />;
 }
 
-/** The streaming (or once-streamed) bubble: letters, mist, and the clock that drives both. Its
- *  own component so the plain-history path above pays for none of these hooks. */
+/** The streaming (or once-streamed) bubble: letters, mist, and the clock that drives both. It is
+ *  a separate component so that the plain-history path above runs none of these hooks. */
 function LiveWhisper({
   message,
   onGrow,

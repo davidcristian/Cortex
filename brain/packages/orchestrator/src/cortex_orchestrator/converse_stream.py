@@ -28,18 +28,12 @@ from cortex_seam import ToolOutcome as WireToolOutcome
 
 EngineFactory = Callable[[Confirmer, ProgressSink], TurnRunner]
 
-# SeamError.code values are part of the seam contract (the overlay switches on these).
 ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
 ERROR_CODE_INFERENCE_FAILED = "inference_failed"
 ERROR_CODE_INTERNAL = "internal"
 
-# Default bound on buffered-but-unread ServerEvents per stream: generous for a live
-# consumer (a whole short reply fits), small enough that a stalled one caps the brain's
-# memory at a few tens of KB of deltas. Env override: CORTEX_SEAM_CONVERSE_BUFFER.
 DEFAULT_MAX_BUFFERED_EVENTS = 256
 
-# Default wait for the user's answer to a ConfirmRequest before the gated call is denied
-# (fail-closed, ADR-0022). Env override: CORTEX_SEAM_CONFIRM_TIMEOUT_S.
 DEFAULT_CONFIRM_TIMEOUT_S = 120.0
 
 TurnIdFactory = Callable[[], str]
@@ -63,7 +57,11 @@ def to_server_event(event: TurnEvent) -> ServerEvent:
 
 
 class ConverseStream:
-    """One Converse stream: a pump task dispatches client events into turn tasks."""
+    """One Converse stream: a pump task dispatches client events into turn tasks.
+
+    Child tasks are awaited with ``asyncio.wait``, never a bare ``await`` under a suppressed
+    ``CancelledError``: that swallowed the pump's own cancellation and hung ``aclose()``.
+    """
 
     def __init__(
         self,
@@ -78,8 +76,6 @@ class ConverseStream:
             raise ValueError(msg)
         self._out: asyncio.Queue[ServerEvent | None] = asyncio.Queue()
         self._credits = asyncio.Semaphore(max_buffered_events)
-        # This stream's confirmer rides the control path via put_nowait (see the class
-        # docstring on credits); the factory wires it into the stream's own engine.
         self._confirmer = SeamConfirmer(self._out.put_nowait, timeout_s=confirm_timeout_s)
         self._progress = SeamProgressSink(
             self._out.put_nowait, self._credits, to_wire=to_server_event
@@ -100,9 +96,6 @@ class ConverseStream:
                 self._credits.release()
                 yield event
         finally:
-            # Runs on normal end, RPC cancellation, and client disconnect alike:
-            # neither the pump, the in-flight turn, nor anything queued may outlive
-            # this stream (see the class docstring for why asyncio.wait, not await).
             pump.cancel()
             await asyncio.wait([pump])
             await self._cancel_turn()
@@ -126,9 +119,12 @@ class ConverseStream:
                         "ignoring client event without a known payload",
                         extra={"session_id": event.session_id, "kind": kind},
                     )
+            # Input ended, so no answer can ever arrive and anything awaiting confirmation is
+            # denied at once. The only place that closes the confirmer: on teardown the
+            # in-flight turn is cancelled instead, so a disconnect audits no spurious decline.
             self._confirmer.close()
             await self._drain_turns()
-        except Exception as err:  # deliberately broad: nothing may escape the seam unhandled
+        except Exception as err:  # deliberately broad: nothing may escape this stream unhandled
             _logger.exception("Converse client stream failed")
             self._fail(ERROR_CODE_INTERNAL, str(err))
         finally:
@@ -149,13 +145,11 @@ class ConverseStream:
     async def _drain_turns(self) -> None:
         """Client input ended: wait until the in-flight turn and the queue are done."""
         while (turn := self._turn) is not None:
-            # The finishing turn's cleanup chains the next queued one before the
-            # task completes, so each wait observes either None or a fresh task.
             await asyncio.wait([turn])
 
     async def _cancel_turn(self) -> None:
         """Stop the in-flight turn and drop the queued ones; the stream stays open."""
-        self._pending.clear()  # the user asked to stop: nothing not-yet-started runs
+        self._pending.clear()
         turn = self._turn
         if turn is None:
             return
@@ -174,10 +168,12 @@ class ConverseStream:
         except InferenceError as err:
             _logger.exception("inference failed mid-turn", extra=fields)
             self._fail(ERROR_CODE_INFERENCE_FAILED, str(err))
-        except Exception as err:  # deliberately broad: nothing may escape the seam unhandled
+        except Exception as err:  # deliberately broad: nothing may escape this stream unhandled
             _logger.exception("unexpected failure handling a turn", extra=fields)
             self._fail(ERROR_CODE_INTERNAL, str(err))
         finally:
+            # Synchronous, so it runs under cancellation and completes before the task reads as
+            # done: whoever awaits the task sees exact bookkeeping.
             self._turn = None
             self._start_next_turn()
 
@@ -186,13 +182,10 @@ class ConverseStream:
         events = self._engine.handle_turn(session_id, text, turn_id=turn_id)
         try:
             async for event in events:
-                # Backpressure: block here (suspending generation) until the consumer
-                # frees a credit; cancellation while blocked tears down cleanly below.
+                # Backpressure: suspends generation here until the consumer frees a credit.
                 await self._credits.acquire()
                 self._out.put_nowait(to_server_event(event))
         finally:
-            # Cancellation lands while suspended inside handle_turn; closing the
-            # engine's generator keeps its cleanup guarantees (partial reply dropped).
             await events.aclose()
 
     def _fail(self, code: str, message: str) -> None:

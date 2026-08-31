@@ -1,28 +1,25 @@
 // What the panel remembers about its own position between one placement and the next, and how it
-// reads its own box. Shared by `panelPlacement` (where the panel belongs) and `panelRide` (the
-// slide it makes alongside a section's roll), which are the only two things that write to it.
+// reads its own box. Written only by `panelPlacement` and `panelRide`.
 
 import type { Geometry } from "./panelGeometry";
 
-/**
- * How long a summon owns the panel's geometry, matching `.panel`'s own 0.44s transform transition
- * in overlay.css. It ends early the moment the user touches the panel (see `touched`).
- */
+/** How long a summon owns the panel's geometry, matching `.panel`'s own 0.44s transform transition
+ *  in overlay.css, and ended early by `touched`. Whatever happens inside it belongs to the panel
+ *  arriving: the summon's reminder stack, for one, settles 340ms after the summon. */
 const ARRIVAL_MS = 440;
 
 export interface Memory {
   /** The geometry currently on screen, or null before the first measurement. */
   shown: Geometry | null;
-  /**
-   * The height the panel was last placed FOR: what its content asked of it, under the cap it was
-   * given.
-   */
+  /** The height the panel was last placed for: what its content asked of it, under the cap it was
+   *  given. The watch compares against this rather than against the box, because a move of the
+   *  panel's own walks the box past it every frame while this stands still. */
   placedFor: number;
   running: Animation | null;
   /** Where `running` is taking the panel. Meaningless while `running` is null or finished. */
   aim: Geometry;
-  /** When `running` is due to land, as `Date.now()`. A re-render that leaves the destination
-   *  unchanged RESUMES the move over the time left of this rather than restarting its clock. */
+  /** When `running` is due to arrive, as `Date.now()`. A re-render that leaves the destination
+   *  unchanged resumes the move over the time left of this rather than restarting its clock. */
   lands: number;
   /** The view the panel last settled into; anything else moves it. */
   view: string;
@@ -30,11 +27,11 @@ export interface Memory {
   open: boolean;
   /** When the panel was last summoned, as `Date.now()`; 0 before the first one. */
   arrived: number;
-  /** The bottom edge the panel is pinned to, UNCLAMPED: what it wants, not what fits. */
+  /** The bottom edge the panel is held to, unclamped: what it asks for, not what fits. */
   pinned: number;
-  /** The bottom edge last written to the DOM, which is `pinned` after the ceiling had its say. */
+  /** The bottom edge last written to the DOM, which is `pinned` after the ceiling has its say. */
   applied: number;
-  /** The chat's pinned edge, held while another view is on screen; null until it first leaves. */
+  /** The chat's own edge, kept while another view is on screen; null until it first leaves. */
   parked: number | null;
   /** The height a section inside is currently rolling to, or null when none is. */
   rolling: number | null;
@@ -73,16 +70,17 @@ export interface Placement {
   readonly recentre: boolean;
 }
 
-/** How tall the element is, in layout pixels, sub-pixels included. */
+/** How tall the element is, in layout pixels, sub-pixels included. `getBoundingClientRect` reports
+ *  the box after transforms and the panel is scaled through a summon, where it read 327.5px against
+ *  a layout height of 356. An element with no layout box reports 0. */
 export function heightOf(element: HTMLElement): number {
   const used = Number.parseFloat(getComputedStyle(element).height);
   return Number.isNaN(used) ? 0 : used;
 }
 
-/**
- * How tall the element would be right now if nothing were animating it, read WITHOUT cancelling
- * the move in the air.
- */
+/** How tall the element would be right now if nothing were animating it, read without cancelling
+ *  the move in the air. A height animation overrides the used height, so an `!important` inline
+ *  declaration hands the height back to layout, along with the cap the placement wrote. */
 export function naturalHeightOf(element: HTMLElement): number {
   const style = element.style;
   const height = style.getPropertyValue("height");
@@ -96,9 +94,9 @@ export function naturalHeightOf(element: HTMLElement): number {
   return natural;
 }
 
-/** Where the element is right now, mid-animation: what the eye actually sees. The bottom edge is
- *  read from the rect, which is exact even mid-summon, the panel's `transform-origin` being its own
- *  bottom edge; only the height above it is scaled. */
+/** Where the element is right now, mid-animation: what the eye actually sees. The bottom edge
+ *  comes from the rect, which is exact even mid-summon, the panel's `transform-origin` being its
+ *  own bottom edge; only the height above it is scaled. */
 export function measure(element: HTMLElement, viewport: number): Geometry {
   return { height: heightOf(element), bottom: viewport - element.getBoundingClientRect().bottom };
 }
@@ -108,11 +106,9 @@ export function arriving(memory: Memory, at: Placement): boolean {
   return at.open && Date.now() - memory.arrived < ARRIVAL_MS;
 }
 
-/**
- * The user reached for the panel, which ends the summon's ownership of its geometry however much
- * of the window is left: what changes from here is the session's, and the session GROWS from its
- * pinned edge rather than re-centring.
- */
+/** The user reached for the panel, which ends the summon's ownership of its geometry: what changes
+ *  from here grows from the edge the panel is held to rather than re-centring. Input that arrives
+ *  while the panel is still shut is what summoned it, so it does not count. */
 export function touched(memory: Memory): void {
   if (memory.open) {
     memory.arrived = 0;

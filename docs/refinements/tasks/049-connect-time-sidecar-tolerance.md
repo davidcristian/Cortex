@@ -4,8 +4,8 @@
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
-Skip mode covered a sidecar
-dying *after* connect; a sidecar down *at brain startup* still failed `McpToolRegistry.connect`
+Skip mode covered a sidecar that
+failed *after* connect; a sidecar down *at brain startup* still failed `McpToolRegistry.connect`
 in the wiring, with no re-dial. A Docker/uv probe against the real `mcp`/`httpx`/`anyio` stack
 found the held-`AsyncExitStack` `connect` was the problem. Its anyio task-group cancel scopes
 are task-bound (close-from-another-task errors) and a refused boot dial surfaced as a bare

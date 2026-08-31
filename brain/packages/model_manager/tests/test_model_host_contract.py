@@ -1,6 +1,3 @@
-"""One behaviour suite over BOTH ``ModelHost`` implementations: the core fake and the real adapter.
-"""
-
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import httpx
@@ -23,21 +20,13 @@ from cortex_model_manager import (
 
 _BIN = "/app/llama-server"
 _ENDPOINT = "http://model-host:9300"
-# Three distinct sub-second bounds, so a host that reported them in the wrong order, or that
-# published the shipped defaults instead of what it was built with, cannot pass on a coincidence.
 _BOUNDS = ControlBounds(probe_timeout_s=0.5, stop_grace_s=1.0, reap_timeout_s=1.5)
-# The twin is told which boot it is; the supervisor mints its own, so that leg reads it back off
-# the daemon rather than declaring it, which is the difference the contract is driven over both to
-# expose (a fixture that supplied both sides of the comparison would assert nothing).
 _SCRIPTED_BOOT = "scripted-daemon"
-# An id neither fixture's host carries: the supervisor's roster is built from ``CONTRACT_MODELS``
-# and never sees it, and the twin is told. It is named for the deployment that produces the
-# condition, escalation turned on with no artifact declared for the deep tier.
 _UNROSTERED = "tier-with-no-artifact"
 
 
 def contract_roster() -> dict[str, ModelSpec]:
-    """A roster naming exactly the contract's two ids, on the ADR's cortex and deep-tier ports."""
+    """Build a roster naming the contract's two ids, on the ADR's cortex and deep-tier ports."""
     return build_roster(
         tier_spec(
             _BIN,
@@ -55,7 +44,7 @@ def contract_roster() -> dict[str, ModelSpec]:
 
 
 class _FakeCard:
-    """The daemon's device seam, standing in for a GPU the gated suite may not touch."""
+    """The daemon's device probe, in place of a GPU this suite may not have."""
 
     def __init__(self) -> None:
         self._reading: DeviceMemory | None = None
@@ -68,7 +57,7 @@ class _FakeCard:
 
 
 def _scripted_subject() -> HostUnderTest:
-    """The core's scriptable twin: the world's conditions are its status overrides."""
+    """Build the core's scriptable twin, whose status overrides supply the world's conditions."""
     host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT, unhosted=[_UNROSTERED])
 
     def serving(model: str, *, serving: bool) -> None:
@@ -93,7 +82,7 @@ def _scripted_subject() -> HostUnderTest:
 
 
 def _supervisor_subject() -> HostUnderTest:
-    """The real adapter over the real daemon: fake children, fake probe, everything else real."""
+    """Build the real adapter over the real daemon: fake children, fake probe, the rest real."""
     roster = contract_roster()
     processes = FakeChildProcesses()
     probe = FakeProbe()
@@ -105,8 +94,6 @@ def _supervisor_subject() -> HostUnderTest:
         reap_timeout_s=_BOUNDS.reap_timeout_s,
         probe_timeout_s=_BOUNDS.probe_timeout_s,
     )
-    # ASGITransport speaks only the http scope, so the app's lifespan (and therefore its boot
-    # start and its shutdown stop) never runs here; test_api.py drives that half directly.
     device = _FakeCard()
     app = build_app(supervisor, boot_model=model_host_contract.CORTEX, device=device)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app))
@@ -131,7 +118,7 @@ def _supervisor_subject() -> HostUnderTest:
 
 @pytest.fixture(params=["scripted", "supervisor"])
 async def subject(request: pytest.FixtureRequest) -> AsyncIterator[HostUnderTest]:
-    """A fresh implementation of each kind; every shared check runs against both."""
+    """Build a fresh implementation of each kind, so every shared check runs against both."""
     made = _scripted_subject() if request.param == "scripted" else _supervisor_subject()
     try:
         yield made

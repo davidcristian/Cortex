@@ -1,5 +1,4 @@
-"""The ``cancel_scheduled`` / ``snooze_scheduled`` / ``edit_scheduled`` lifecycle verbs (ADR-0025).
-"""
+"""The ``cancel_scheduled`` / ``snooze_scheduled`` / ``edit_scheduled`` lifecycle verbs."""
 
 from dataclasses import replace
 from datetime import datetime
@@ -40,13 +39,13 @@ def error_result(call_id: str, message: str) -> ToolResult:
 
 def effective_zone(rule: CalendarRule | None, default_zone: DisplayZone) -> DisplayZone:
     """The zone a calendar item's due time renders in: the rule's own if it has one, else the
-    deployment default (ADR-0025 per-rule addendum, shared with ``schedule_tools``).
+    deployment default.
     """
     return rule.zone if rule is not None and rule.zone is not None else default_zone
 
 
 class CancelScheduledTool:
-    """Built-in ``cancel_scheduled``: delete a schedule outright. It sticks mid-fire too."""
+    """Built-in ``cancel_scheduled``: delete a schedule outright, mid-fire included."""
 
     def __init__(self, store: ScheduleStore) -> None:
         self._store = store
@@ -79,7 +78,7 @@ class CancelScheduledTool:
 
 
 class SnoozeScheduledTool:
-    """Built-in ``snooze_scheduled``: postpone a schedule's next fire from now (snooze addendum)."""
+    """Built-in ``snooze_scheduled``: postpone a schedule's next fire from now."""
 
     def __init__(
         self, store: ScheduleStore, clock: Clock, *, zone: DisplayZone = UTC_DISPLAY
@@ -215,8 +214,6 @@ class EditScheduledTool:
             return error_result(call.id, correction)
         content = f"edited {item_id}"
         if edit.rule is not None:
-            # Only the rule branch moves the timing, so only it owes the new due time, rendered in
-            # the rule's own zone when it named one (ADR-0025 per-rule addendum).
             zone = effective_zone(edit.rule.rule, self._zone)
             content = f"{content}: now due {zone.render(edit.rule.due_at)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)

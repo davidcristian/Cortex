@@ -1,4 +1,4 @@
-"""Argument parsing for the schedule *lifecycle* verbs (ADR-0025): validate, never raise."""
+"""Argument parsing for the schedule lifecycle verbs: validate, never raise."""
 
 from collections.abc import Mapping
 from datetime import datetime, timedelta
@@ -29,11 +29,7 @@ _BAD_EDIT_EVERY = (
 
 
 def parse_for_seconds(arguments: Mapping[str, Any]) -> timedelta | str:
-    """The validated ``snooze_scheduled`` delay, or a correction string (snooze addendum).
-
-    Snooze is relative by meaning ("from now"), so only ``for_seconds`` exists; its bounds
-    mirror the creation policy (the 60 s floor and the ten-year ceiling).
-    """
+    """The validated ``snooze_scheduled`` delay, or a correction string."""
     seconds = parse_number(arguments.get("for_seconds"))
     if seconds is None or not MIN_EVERY_SECONDS <= seconds <= MAX_EVERY_SECONDS:
         return _BAD_FOR

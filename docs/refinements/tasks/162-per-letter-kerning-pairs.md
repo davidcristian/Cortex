@@ -9,7 +9,7 @@ A whispered message's letters are one box each
 inside an unbreakable word box (ADR-0037 decision 6), so kerning inside a word is lost while
 that message's DOM is on screen (it re-renders plain only when its chat is next loaded).
 Checked by eye at 13.5px in the system stack in both themes and invisible there. Trigger:
-the overlay adopting a licensed face (overlay-ux.md §2 keeps that door open), whose kerning
+the overlay adopting a licensed face (overlay-ux.md §2 leaves that option open), whose kerning
 is worth re-checking against a settled reply's plain rendering side by side.
 Placed here 2026-07-21.
 

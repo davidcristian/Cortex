@@ -1,4 +1,4 @@
-"""Shared ``InferenceBackend`` stop-reason checks. Every implementation must pass all of them."""
+"""Shared ``InferenceBackend`` stop-reason checks, run over every implementation of the port."""
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -44,28 +44,21 @@ def _text(events: Sequence[InferenceEvent]) -> str:
 
 
 async def check_a_cut_completion_says_it_was_cut(subject: BackendUnderTest) -> None:
-    """A completion a token limit ended reports exactly one stop, carrying ``CAPPED``.
-
-    This is the whole point of the arm: without it a reply that stopped where the count ran out is
-    a reply that stopped where the answer did, and no consumer can tell.
-    """
+    """A completion a token limit ended reports exactly one stop, with ``CAPPED``."""
     events = await events_of(subject.capped())
     assert _stops(events) == [DecodeStop(StopReason.CAPPED)], f"expected one cap, got {events!r}"
 
 
 async def check_a_finished_completion_is_not_a_cut_one(subject: BackendUnderTest) -> None:
-    """A model that ended its own turn reports ``FINISHED``, which is the other half of the pair.
-
-    A backend that answered ``CAPPED`` for everything would pass the check above and fail here, so
-    the two together are what make the distinction real rather than a constant.
-    """
+    """A model that ended its own turn reports ``FINISHED``, which is the other half of the pair."""
     events = await events_of(subject.finished())
     assert _stops(events) == [DecodeStop(StopReason.FINISHED)], f"expected one end, got {events!r}"
 
 
 async def check_the_stop_follows_the_text_it_explains(subject: BackendUnderTest) -> None:
-    """The stop arrives after the reply text, why a completion ended being unknowable before it
-    has."""
+    """The stop arrives after the reply text, since why a completion ended is not known until the
+    text has been produced.
+    """
     events = await events_of(subject.capped())
     text_at = [index for index, event in enumerate(events) if isinstance(event, TextChunk)]
     stop_at = next(index for index, event in enumerate(events) if isinstance(event, DecodeStop))
@@ -74,17 +67,12 @@ async def check_the_stop_follows_the_text_it_explains(subject: BackendUnderTest)
 
 
 async def check_silence_is_a_legal_answer(subject: BackendUnderTest) -> None:
-    """A backend whose engine reports no reason emits no stop, and nothing else changes.
-
-    The port permits this, so a consumer may never read the absence of a stop as a model that
-    finished; this check is what keeps that permission real rather than a sentence in a docstring.
-    """
+    """A backend whose engine reports no reason emits no stop, and nothing else changes."""
     events = await events_of(subject.silent())
     assert not _stops(events), f"expected no stop at all, got {events!r}"
     assert _text(events) == _text(await events_of(subject.finished()))
 
 
-# One check: given an implementation plus its world-condition builders, assert on what came out.
 type StopCheck = Callable[[BackendUnderTest], Awaitable[None]]
 
 STOP_CHECKS: tuple[StopCheck, ...] = (

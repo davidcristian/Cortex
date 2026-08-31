@@ -18,12 +18,12 @@ running on every constrained reply, which is a defect whose only symptom is a sl
 
 **Why it was left.** The entry that added the flag had a live measurement to take and a deadline,
 and a new coupling in `scripts/crosscheck.py` is a gate change, which owes a mutation table proving
-it reddens on a violation. Adding it in the same pass would have been the gate landing untested
+it fails on a violation. Adding it in the same pass would have been the gate landing untested
 beside the fix it was meant to hold.
 
 **What would close it.** A coupling in `subagentcouplings.py`, which already holds this tier's
-budgets, tying the flag pair as a value across the three files, so a server started without it is a
-red rather than a slow subagent. The reading it has to survive is that two of the three spellings
+budgets, tying the flag pair as a value across the three files, so a server started without it
+fails the gate rather than producing a slow subagent. The reading it has to survive is that two of the three spellings
 are YAML list items and the third a Python tuple, which is the "second spelling a far side's own
 syntax forces" case the cross-language addendum already covers.
 

@@ -1,12 +1,10 @@
-"""The `Embedder` contract, run over every implementation (AGENTS.md: ports before adapters)."""
+"""The ``Embedder`` contract checks, run over every implementation of the port."""
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
 from cortex_core import Embedder, EmbedderError
 
-# One text embedded twice, and a second one embedded between them: enough to tell an
-# implementation that answers from the text apart from one that answers from a counter.
 _TEXT = "the sky is blue"
 _OTHER = "a fact worth remembering"
 
@@ -49,7 +47,7 @@ async def the_same_text_embeds_the_same_way(under_test: EmbedderUnderTest) -> No
 async def a_backend_that_cannot_answer_raises_embedder_error(
     under_test: EmbedderUnderTest,
 ) -> None:
-    """The port has one failure channel and every implementation owes it."""
+    """A backend that cannot answer raises `EmbedderError`, from every implementation."""
     under_test.break_backend()
     try:
         await under_test.embedder.embed(_TEXT)

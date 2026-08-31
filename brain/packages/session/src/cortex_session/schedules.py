@@ -68,7 +68,7 @@ class RedisScheduleStore:
             raise ScheduleStoreError(msg) from err
 
     async def get(self, item_id: str) -> ScheduledItem | None:
-        """Return the item with ``item_id`` (None when unknown); corrupt records fail loudly."""
+        """Return the item with ``item_id`` (None when unknown); a corrupt record raises."""
         try:
             raw = await self._client.get(record_key(item_id))
         except RedisError as err:
@@ -82,8 +82,8 @@ class RedisScheduleStore:
     async def list_active(self) -> Sequence[ScheduledItem]:
         """PENDING/FIRING items plus fired-but-undelivered ones, due order.
 
-        A dangling index id (its record deleted) is skipped, the ``list_sessions``
-        tolerance; a present-but-corrupt record fails loudly via ``decode``.
+        A dangling index id (its record deleted) is skipped, the same tolerance
+        ``list_sessions`` has; a present-but-corrupt record raises through ``decode``.
         """
         try:
             found: list[str] = []
@@ -101,8 +101,8 @@ class RedisScheduleStore:
         return tuple(sorted(items, key=lambda item: item.due_at))
 
     async def cancel(self, item_id: str) -> bool:
-        """Delete record + every index entry (False for unknown); never decodes, so a
-        corrupt record is cancellable too. Cancel sticks through an in-flight fire."""
+        """Delete the record and every index entry (False for unknown). It never decodes, so a
+        corrupt record is cancellable too, and a cancel holds through an in-flight fire."""
         try:
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.zrem(DUE_KEY, item_id)

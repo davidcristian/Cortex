@@ -18,8 +18,6 @@ const down = view({ state: "down", detail: "connection refused" });
 
 describe("link state", () => {
   it("starts claiming nothing at all", () => {
-    // The honest opening position: an indicator that says "ready" before it has asked is the
-    // decoration the v1 dot was.
     expect(INITIAL_LINK).toEqual({ state: "unknown", detail: "", probing: false });
   });
 
@@ -37,7 +35,6 @@ describe("link state", () => {
   });
 
   it("an undelivered probe clears the wait and changes nothing else", () => {
-    // The IPC failed, not the brain. Calling it down would point at the wrong machine.
     expect(linkProbeEnded({ ...down, probing: true })).toEqual(down);
   });
 
@@ -51,8 +48,6 @@ describe("link state", () => {
   });
 
   it("a streamed event keeps a detail earned while already ready, and the same view with it", () => {
-    // Identity matters here: every token of every reply runs through this, and a new object
-    // per token would re-render the header for nothing.
     expect(linkServing(ready)).toBe(ready);
   });
 
@@ -66,12 +61,9 @@ describe("link state", () => {
       detail: "refused",
       probing: false,
     });
-    // Answered, so reachable: amber, not red. The token is wrong, the brain is not missing.
     expect(linkFailed(ready, rpc).state).toBe("degraded");
     expect(linkFailed(ready, protocol).state).toBe("degraded");
     expect(linkFailed(ready, rpc).detail).toBe("Unauthenticated: bad token");
-    // A deadline that expired proves nothing answered, so it is red like an unreachable brain
-    // and never amber: amber would claim a reply the seam never got.
     expect(linkFailed(ready, timeout)).toEqual({
       state: "down",
       detail: "no reply within 5s",
@@ -132,8 +124,6 @@ describe("describeLink", () => {
   });
 
   it("does not make a healthy link look busy for a routine refresh", () => {
-    // The summon probe fires on every open. If that read as "checking", the steady state of a
-    // working system would be a blinking dot.
     expect(describeLink({ ...ready, probing: true })).toEqual({
       tone: "ok",
       busy: false,

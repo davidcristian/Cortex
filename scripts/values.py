@@ -1,4 +1,4 @@
-"""What a value IS to the scans that compare one, and the spelling a mention may write one in."""
+"""Reduce a declaration's right-hand side to a value two languages can be compared on."""
 
 import re
 from typing import NamedTuple
@@ -10,11 +10,14 @@ from couplings import PLACEHOLDER, Constant, Spelling
 # arrives here.
 COMMENT_MARKER = "#"
 
+# A product of integer literals, which may open with a minus. The sign belongs to the whole
+# expression and never to a factor, since `2 * -3` appears nowhere here. A leading `+` is refused
+# because `str(1)` is `1`, so a mention would render a needle the site's own `+1` does not contain.
 INTEGER_PRODUCT = re.compile(r"^-?\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
 
-# The two words a boolean may be declared with, and the whole of that form. They are Python's own
-# casing because Python declares every registered boolean; another language's are reached by
-# `Spelling.LOWERED` at a mention rather than accepted at a site.
+# The two words a boolean may be declared with. They are Python's casing because Python declares
+# every registered boolean; another language's casing is reached by `Spelling.LOWERED` at a
+# mention rather than accepted at a site.
 BOOLEANS = ("True", "False")
 
 COLLECTION_PREFIX = "frozenset("
@@ -25,22 +28,30 @@ DECIMAL = re.compile(r"^\d+(?:_\d+)*\.\d+(?:_\d+)*$")
 
 
 class Digits(NamedTuple):
-    """A decimal literal, held as the digits it is written with rather than as a number."""
+    """A decimal literal, held as the digits it is written with rather than as a number.
+
+    Its own type rather than a bare ``str``, so a decimal never compares equal to a string literal
+    with the same characters.
+    """
 
     written: str
 
     def __repr__(self) -> str:
-        """Render as the digits themselves, which is what a needle and a fault both want."""
+        """Render as the digits themselves, which is what a needle and a fault are built from."""
         return self.written
 
 
 class Truth(NamedTuple):
-    """A boolean literal, held as the word it is written with rather than as a truth value."""
+    """A boolean literal, held as the word it is written with rather than as a truth value.
+
+    Its own type for the reason ``Digits`` is, and because a Python `bool` is an `int`: a bare
+    `False` would compare equal to a site declaring `0` and would sort under an ordering.
+    """
 
     written: str
 
     def __repr__(self) -> str:
-        """Render as the word itself, which is what a needle and a fault both want."""
+        """Render as the word itself, which is what a needle and a fault are built from."""
         return self.written
 
 
@@ -52,7 +63,7 @@ class CrossCheckError(Exception):
 
 
 def _expression(text: str) -> str:
-    """A right-hand side with any trailing comment cut off it, which no value form reads."""
+    """A right-hand side with any trailing comment removed, no value form reading one."""
     return text.partition(COMMENT_MARKER)[0].strip()
 
 
@@ -140,7 +151,11 @@ def whole_spelling(value: Value) -> str:
 
 
 def _lowered_spelling(value: Value) -> str:
-    """A boolean in the lower case the other language writes the same answer in."""
+    """A boolean in the lower case the other language writes the same answer in.
+
+    Only a boolean, because only a boolean's casing is one language's own spelling of an answer
+    both languages hold. Folding a string would tie two literals differing in case alone.
+    """
     if not isinstance(value, Truth):
         msg = f"a lowered spelling needs a boolean, and this constant declares {value!r}"
         raise CrossCheckError(msg)

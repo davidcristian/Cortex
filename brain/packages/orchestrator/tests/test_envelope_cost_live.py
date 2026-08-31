@@ -223,7 +223,7 @@ class _Recording:
 
 
 def _roster(backend: InferenceBackend) -> SubagentRoster:
-    """The shipped entry's own numbers, with every spawn kept on the CPU path.
+    """Build a roster from the shipped entry's own numbers, with every spawn kept on the CPU path.
 
     A zero-headroom placer is what a closed GPU tier leaves, and it is what the batch behind the
     whole-subtask interval used, so these readings sit beside that one.
@@ -240,7 +240,7 @@ def _roster(backend: InferenceBackend) -> SubagentRoster:
 async def _one(
     client: httpx.AsyncClient, name: str, body: str, *, arm: str, draw: int
 ) -> dict[str, Any]:
-    """Run one body on one shape through the real runner and say what came back."""
+    """Run one body on one shape through the real runner and report what came back."""
     schema = _SCHEMAS[arm]
     recorder = _Recording(
         LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client),
@@ -316,8 +316,8 @@ async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None
         f"  just envelope-floor {written}",
         flush=True,
     )
-    # The measurement is the numbers printed and written above; what must hold whatever the model
-    # decides is that every arm answered over the same bodies, which is what makes them pairable.
+    # The measurement is the numbers printed and written above. What has to hold whatever the
+    # model decides is that every arm answered over the same bodies, which is what pairs them.
     asked = [[(turn["question"], turn["draw"]) for turn in seen] for seen in turns.values()]
     assert all(seen == asked[0] for seen in asked), f"the arms asked different bodies: {asked}"
     everything = [turn for seen in turns.values() for turn in seen]

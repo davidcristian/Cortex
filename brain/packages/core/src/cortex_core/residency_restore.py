@@ -1,4 +1,4 @@
-"""The swap back's own two guarantees: it is retried, and it finishes (ADR-0030 decision 4)."""
+"""The two guarantees of the swap back: it is retried, and it finishes."""
 
 import asyncio
 import logging
@@ -17,9 +17,6 @@ from cortex_core.residency_state import (
 )
 from cortex_core.residency_tiers import StandingTiers
 
-# How many times the swap back brings the cortex back before it gives up loudly: the first
-# attempt plus the one retry ADR-0030 decision 4 step 3 specifies. A third would not be a
-# different experiment; past two, the host itself is gone and only the runbook helps.
 _RESTORE_ATTEMPTS = 2
 
 _logger = logging.getLogger(__name__)
@@ -33,33 +30,32 @@ async def restore_with_retries(
     publish: ResidencyPublisher,
     tiers: StandingTiers,
 ) -> None:
-    """Bring the cortex back, retrying once; give up loudly rather than silently."""
+    """Bring the cortex back, retrying once; raise rather than returning quietly on failure."""
     cortex = plan.cortex_model
     await publish(None, RESIDENCY_RESTORING)
-    # The floor the give-up below needs to be typed: the attempt count is a positive constant, so
-    # the loop always runs and always rebinds this, and what stands here is exactly what both
-    # sentences said before an attempt could name the tier it failed on.
+    # Rebound on every attempt, since the loop always runs at least once; this initial value
+    # is what makes the failure path below typed.
     failed = cortex
     for attempt in range(1, _RESTORE_ATTEMPTS + 1):
         failed = await restore_standing(host, plan, model, gate, tiers)
         if failed is None:
             await publish(cortex, RESIDENCY_SERVING)
-            # Only here, where the cortex is genuinely serving again. A restore that gave up
-            # leaves the handoff's charge standing, so spawns keep overflowing to the CPU rather
-            # than being admitted onto a card nobody can describe.
+            # Charged only here, where the cortex is genuinely serving again. A restore that
+            # stopped retrying leaves the handoff's charge in place, so spawns keep going to
+            # the CPU rather than onto a card nothing can describe.
             charge_standing(tiers.placer)
             return
         _logger.warning(
             "restoring the cortex failed; retrying",
             extra={"model": cortex, "failed_model": failed, "attempt": attempt},
         )
-    # Nothing is resident and no retry is left, so the report stops claiming a restore is under
-    # way: Health goes on saying so until boot recovery converges residency again.
     await publish(None, RESIDENCY_LOST)
     _logger.error(
         "could not restore the cortex after a model swap; the GPU serves nothing",
         extra={"model": cortex, "failed_model": failed, "attempts": _RESTORE_ATTEMPTS},
     )
+    # The tier goes in the text as well as in the field beside it, because this string is also
+    # the exception's message, read on a stream where no log formatter runs.
     msg = (
         f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts, the last of which "
         f"failed on {failed!r}; manual recovery is needed (docs/runbooks/model-swap.md)"
@@ -75,14 +71,14 @@ async def restore_uninterruptibly(restore: Awaitable[None]) -> None:
         try:
             await asyncio.shield(task)
         except asyncio.CancelledError as err:
+            # Raised below instead of here, so a restore failure cannot hide it: the caller
+            # is being torn down and that is the more important thing to tell it about.
             cancelled = err
         except ResidencyRestoreError:
-            # Raised below instead, so that a cancellation delivered first still wins: the
-            # caller is being torn down and that is the graver thing to tell it about.
             pass
     if cancelled is not None:
-        # Retrieved so asyncio does not warn about it; a restore failure has already been
-        # logged loudly inside, and the cancellation is what the caller must see.
+        # Retrieved so asyncio does not warn about an unretrieved exception; the restore
+        # failure was already logged inside, and the cancellation is what the caller must see.
         task.exception()
         raise cancelled
     await task

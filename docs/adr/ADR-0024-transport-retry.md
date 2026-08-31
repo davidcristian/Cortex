@@ -16,8 +16,8 @@ The concrete failure the refinement targets: the brain is *briefly* unavailable,
 restarting after a model swap, or a momentary loopback blip drops the connection, and a
 read the overlay makes (`list_sessions` for the switcher) fails hard when a retry a beat
 later would have succeeded. The brain is a supervised local process that comes back within
-seconds; a single automatic retry with backoff turns a user-visible error into a hidden
-hiccup.
+seconds; a single automatic retry with backoff turns a user-visible error into a short delay
+nobody sees.
 
 Constraints from AGENTS.md the design must respect:
 
@@ -72,7 +72,7 @@ Constraints from AGENTS.md the design must respect:
    `TokioSleeper` (a one-line `tokio::time::sleep`), lives in the ungated Tauri shell (the
    composition root, host-validated), keeping the timer effect out of the gated crates.
 
-6. **A lazy channel makes the decorator load-bearing for the dial too.** The existing eager
+6. **A lazy channel lets the decorator cover the dial too.** The existing eager
    `BrainSeamClient::connect[_with_token]` fails immediately when the brain is down, so the
    decorator would never get a turn. So `body_rpc` gains
    `connect_lazy_with_token`, which builds the client over tonic's `Channel::connect_lazy`:

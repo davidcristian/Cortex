@@ -14,8 +14,6 @@ from cortex_core import (
     ModelNotHostedError,
 )
 
-# Two ids, so the swap-shaped check can watch one go down as the other comes up. Both fixtures
-# declare exactly these.
 CORTEX = "cortex"
 DEEP = "deep-model"
 CONTRACT_MODELS = (CORTEX, DEEP)
@@ -79,19 +77,13 @@ async def check_a_failed_model_is_restarted_without_being_stopped_first(
     await subject.host.start(DEEP)
     subject.die(DEEP)
     assert await subject.host.status(DEEP) is ModelHostState.FAILED
-    # The world lets it come up again (whatever killed it is gone). The implementation still owes
-    # the recovery: replacing the dead process rather than remembering its exit.
     subject.serving(DEEP, serving=True)
     await subject.host.start(DEEP)
     assert await subject.host.status(DEEP) is ModelHostState.READY
 
 
 async def check_stopping_a_model_that_already_died_settles_it(subject: HostUnderTest) -> None:
-    """A stop settles a slot whose process is already gone, waiting for no signal nobody can send.
-
-    What the swap back does to a deep model that crashed mid answer: it stops it anyway, and that
-    must complete rather than block on a corpse.
-    """
+    """A stop settles a slot whose process is already gone, without waiting for a signal."""
     subject.serving(DEEP, serving=True)
     await subject.host.start(DEEP)
     subject.die(DEEP)
@@ -100,7 +92,7 @@ async def check_stopping_a_model_that_already_died_settles_it(subject: HostUnder
 
 
 async def check_a_swap_leaves_only_the_model_it_swapped_in(subject: HostUnderTest) -> None:
-    """The sequence ``swap_in`` performs: the standing resident down, the deep model up."""
+    """The sequence ``swap_in`` performs: the resident model down, the deep model up."""
     subject.serving(CORTEX, serving=True)
     subject.serving(DEEP, serving=True)
     await subject.host.start(CORTEX)
@@ -129,11 +121,7 @@ async def check_an_unhosted_refusal_is_still_a_model_host_error(subject: HostUnd
 
 
 async def check_a_host_with_no_card_reports_no_device_memory(subject: HostUnderTest) -> None:
-    """``None`` is an answer the port defines, not a failure: most deployments have no GPU.
-
-    The swap is what decides that an absent reading refuses a handoff, and it can only decide
-    that if every implementation says "none" the same way instead of raising.
-    """
+    """``None`` is an answer the port defines, not a failure: most deployments have no GPU."""
     subject.card(None)
     assert await subject.host.device_memory() is None
 
@@ -141,11 +129,7 @@ async def check_a_host_with_no_card_reports_no_device_memory(subject: HostUnderT
 async def check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is(
     subject: HostUnderTest,
 ) -> None:
-    """The reading the fit check compares against, carried whole rather than as one number.
-
-    Both figures, because the refusal an operator reads has to say how much of the card was free
-    out of how much there is; a free figure alone cannot tell a small card from a busy one.
-    """
+    """The reading the fit check compares against, reported whole rather than as one number."""
     subject.card(DeviceMemory(free_mib=20033, total_mib=24463))
     assert await subject.host.device_memory() == DeviceMemory(free_mib=20033, total_mib=24463)
 

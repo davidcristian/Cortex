@@ -1,5 +1,3 @@
-"""Integration: does this deployment's engine read a per-request trace budget, and does it hold?"""
-
 import json
 import os
 import time
@@ -25,16 +23,13 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 _ENDPOINT = os.environ.get("CORTEX_TRACE_ENDPOINT", "http://127.0.0.1:8080")
 _MODEL = os.environ.get("CORTEX_TRACE_MODEL", "cortex")
-# Generous rather than snug, for the switch probe's reason: what is read is whether a trace ran at
-# all, and a cap tight enough to cut one leaves every cell looking the same.
+# Generous rather than snug, for the switch probe's reason: what is read is whether a trace ran
+# at all, and a cap tight enough to cut one leaves every cell looking the same.
 _CAP = int(os.environ.get("CORTEX_TRACE_MAX_TOKENS", "256"))
-# How many draws the budgeted cell is. One by default so the command above answers in a coffee
-# break; anything quoted as a tier's behaviour is drawn five or more, and the leak count wants
-# twenty, being a rate rather than a verdict.
 _REPEATS = int(os.environ.get("CORTEX_TRACE_REPEATS", "1"))
 
-# The same deliberation-inviting question the switch probe asks, deliberately: the two files
-# measure two levers on one cell, and a different prompt would make their tables incomparable.
+# The same question the switch probe asks, deliberately: the two files measure two settings on
+# one cell, and a different prompt would make their tables incomparable.
 _ASK = (
     "Three friends split a bill. Ana pays twice what Bo pays, and Cy pays 4 less than Ana. "
     "The bill is 51. What does each of them pay?"
@@ -75,7 +70,7 @@ class _Draw:
 
 
 async def _draw(backend: LlamaCppBackend, bounds: GenerationBounds) -> _Draw:
-    """One constrained completion through the shipped adapter, both halves counted."""
+    """Run one constrained completion through the shipped adapter, counting both halves."""
     drawn = _Draw()
     messages = [Message(role=Role.USER, text=_ASK, at=datetime.now(UTC), turn_id="t-trace")]
     started = time.monotonic()
@@ -94,13 +89,13 @@ async def _draw(backend: LlamaCppBackend, bounds: GenerationBounds) -> _Draw:
 
 
 async def _arm(backend: LlamaCppBackend, label: str, bounds: GenerationBounds) -> list[_Draw]:
-    """One cell, drawn ``_REPEATS`` times, printed as it goes."""
+    """Draw one cell ``_REPEATS`` times, printing each draw as it arrives."""
     print(f"{label}, {_REPEATS} draws:")  # noqa: T201
     return [await _draw(backend, bounds) for _ in range(_REPEATS)]
 
 
 def _verdict(label: str, draws: list[_Draw]) -> None:
-    """What a cell did, in the two counts this file exists to report."""
+    """Print what a cell did, in the two counts this file exists to report."""
     thought = sum(1 for drawn in draws if drawn.deliberated)
     leaked = sum(1 for drawn in draws if drawn.leaked)
     print(  # noqa: T201
@@ -110,14 +105,10 @@ def _verdict(label: str, draws: list[_Draw]) -> None:
 
 
 async def test_a_per_request_trace_budget_reaches_the_shape_the_switch_loses() -> None:
-    """The capability read, then three cells of one request shape, through the shipped adapter."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         lever = await reads_a_trace_budget(_ENDPOINT, _MODEL, client)
     print(f"\n{_MODEL} at {_ENDPOINT}: engine reads a per-request trace budget: {lever}")  # noqa: T201
     if not lever:
-        # Said out loud rather than left for a reader to work out. With no lever the adapter sends
-        # no key, so the last cell is the middle one drawn again and a budget that "did not hold"
-        # is a build that never saw one.
         print("  so the last cell is the middle one again, and says nothing about a budget")  # noqa: T201
     manager = SingleResidentModelManager(_MODEL, _ENDPOINT)
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:

@@ -6,15 +6,15 @@
 
 Opened 2026-08-30 by the close of
 [R-505](505-the-spill-line-a-runbook-describes-and-never-prints.md), which set out to print the
-lines a reader had just been taught to find and could print only one of them.
+lines the reader had just become able to find and could print only one of them.
 
 `logcalls._keys` reads a field list off `extra=` when that keyword's value is a dict written out at
-the call, and refuses every other spelling. Three of the brain's log calls are written another way:
+the call, and raises on every other form. Three of the brain's log calls are written another way:
 `cortex_core/brain_phase.py` builds one `extra` above the two lines that carry the decode reading
 and hands it over, the warning as `extra | {"shortfall": reading.shortfall}` and the reading as the
 bare name, and `cortex_tools/audit.py` composes its `fields` across statements and by condition. A
 fenced sample of any of the three fails `check-samplecheck` with `extra= is not a mapping written
-out at the call`, which is a gate refusing a document nothing is wrong with, the same shape as the
+out at the call`, which is a gate failing on a document nothing is wrong with, the same shape as the
 message fault that was fixed this morning and a different cause.
 
 **What it costs today.** The spill warning is the one line the swap runbook exists to explain, its
@@ -28,7 +28,7 @@ the name resolution beside it. A tractable middle is the two shapes actually in 
 name bound to a dict literal in the same function, and that name unioned with a dict literal at the
 call. Both are read without executing anything and both stop at the function they are written in.
 Weigh against that what happens when the reader is nearly right: a field list read from a branch
-that does not run would hold a document to a line nothing prints, which is worse than refusing.
+that does not run would hold a document to a line nothing prints, which is worse than raising.
 `audit.py` is the case that argues for refusing rather than guessing, its `fields` gaining keys
 under conditions, and it may stay unquotable on purpose.
 

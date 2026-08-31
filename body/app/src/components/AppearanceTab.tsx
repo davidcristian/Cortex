@@ -27,11 +27,7 @@ interface TileProps {
   readonly children: ReactNode;
 }
 
-/**
- * One choice, shown rather than named: its art above, its name under it. The chosen tile is
- * lifted out of the row (a fill and a hairline); the rest rest. No accent anywhere, because a
- * swatch is resting chrome even when the thing it draws is not (design/overlay-ux.md §1).
- */
+/** One choice, shown rather than named: its art above, its name under it. */
 function Tile({ label, checked, hint, onPick, children }: TileProps) {
   return (
     <button
@@ -48,10 +44,9 @@ function Tile({ label, checked, hint, onPick, children }: TileProps) {
   );
 }
 
-/**
- * The console's appearance tab (ADR-0032): the two choices that decide how the overlay looks, each
- * made by looking at the thing rather than reading its name.
- */
+/** The console's appearance tab: the choices that decide how the overlay looks, each made by
+ *  looking at the thing rather than reading its name. Every row maps over its registry (`THEMES`,
+ *  `MARKS`, `EDGES`), so a new theme, mark or edge needs no change here. */
 export function AppearanceTab({
   themeName,
   mark,
@@ -63,11 +58,12 @@ export function AppearanceTab({
 }: AppearanceTabProps) {
   return (
     <div className="rows">
-      {/* The three legends name the dimension each row varies along, in the one anatomy: the
-          face has a light, an iris, and a dream. */}
+      {/* The three legends are the console's own names for what each row changes. */}
       <section className="swatch">
         <h3 className="sect">Light</h3>
         <div className="tiles" role="radiogroup" aria-label="Light">
+          {/* Auto comes first because it is the only choice the header's toggle cannot set: that
+              toggle names the opposite theme and can only reach one of the two. */}
           <Tile label="Auto" checked={themeName === null} onPick={() => onPickTheme(null)}>
             <AutoMini />
           </Tile>
@@ -103,16 +99,15 @@ export function AppearanceTab({
             </Tile>
           ))}
         </div>
-        {/* The chosen style's own note, under the row it belongs to: what moves is the thing being
-            chosen, and one line of it beats four labels nobody can tell apart. */}
+        {/* The chosen style's own note. What differs between the four styles is how they move,
+            which a label cannot show. */}
         <p className="note">{mark.note}</p>
       </section>
       <section className="swatch">
         <h3 className="sect">Dream</h3>
         <div className="tiles" role="radiogroup" aria-label="Dream">
-          {/* The registry's own order is the ladder, Still to Trance, so the row explains
-              intensity without a caption (ADR-0036). A map over the registry, like the rows
-              above: a fifth edge appears here with no change to this view. */}
+          {/* The registry's order, Still to Trance, is increasing intensity, so the row needs no
+              caption. */}
           {EDGES.map((choice) => (
             <Tile
               key={choice.name}

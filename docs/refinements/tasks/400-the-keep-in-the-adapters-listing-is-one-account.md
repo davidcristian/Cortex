@@ -30,8 +30,9 @@ Dovecot 2.3.21 is not it, and the next thing to try is not another Dovecot setti
 server. Courier and Cyrus compute LIST attributes differently and one of them may list a namespace
 root that selects; failing that, a small scripted IMAP responder in the probe stack, saying exactly
 the two lines this needs, would pin the adapter's own branch at the cost of no longer being a real
-server, which is the trade the two-server addendum spent a fixture avoiding. Weigh that honestly
-before building one: a stub that says what it was told says nothing the stand-in does not.
+server, which is the trade the two-server addendum spent a fixture avoiding. Weigh that
+before building one: a stub answering with the two lines it was given proves no more than the
+stand-in already does.
 
 ## Trail
 

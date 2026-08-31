@@ -1,7 +1,7 @@
 # Cortex Architecture
 
-The map of the system: components, boundaries, data flow, and the invariants that keep it
-maintainable by agents with small context windows. Rules live in
+This document maps the system: its components, boundaries, data flow, and the invariants that
+keep it maintainable by agents with small context windows. Rules live in
 [AGENTS.md](../AGENTS.md); rationale lives in [ADR-0001](adr/ADR-0001-architecture.md).
 
 ## Components

@@ -1,6 +1,3 @@
-//! Behavioral tests for `body_core::hotkey` covering every parse branch, every
-//! error variant, canonicalization, round-tripping, and the default chord.
-
 use std::cmp::Ordering;
 
 use body_core::{HotkeyChord, HotkeyParseError, Modifier};
@@ -116,7 +113,6 @@ fn parse_rejects_empty_input() {
 
 #[test]
 fn parse_rejects_empty_segments() {
-    // Empty modifier segment in the middle, at the front, and on its own.
     assert_eq!(
         HotkeyChord::parse("ctrl++space"),
         Err(HotkeyParseError::EmptySegment)
@@ -130,7 +126,6 @@ fn parse_rejects_empty_segments() {
         Err(HotkeyParseError::EmptySegment)
     );
     assert_eq!(HotkeyChord::parse("+"), Err(HotkeyParseError::EmptySegment));
-    // Empty key segment after a trailing separator.
     assert_eq!(
         HotkeyChord::parse("ctrl+"),
         Err(HotkeyParseError::EmptySegment)
@@ -147,7 +142,6 @@ fn parse_rejects_unknown_modifiers() {
         HotkeyChord::parse("foo+space"),
         Err(HotkeyParseError::UnknownModifier(String::from("foo")))
     );
-    // The offending segment is reported lowercased.
     assert_eq!(
         HotkeyChord::parse("Fn+alt+space"),
         Err(HotkeyParseError::UnknownModifier(String::from("fn")))
@@ -160,7 +154,6 @@ fn parse_rejects_duplicate_modifiers() {
         HotkeyChord::parse("ctrl+ctrl+space"),
         Err(HotkeyParseError::DuplicateModifier(String::from("ctrl")))
     );
-    // Duplicates via aliases are caught too; the second spelling is reported.
     assert_eq!(
         HotkeyChord::parse("ctrl+Control+space"),
         Err(HotkeyParseError::DuplicateModifier(String::from("control")))
@@ -177,12 +170,10 @@ fn parse_rejects_chords_that_end_in_a_modifier() {
         HotkeyChord::parse("ctrl+alt"),
         Err(HotkeyParseError::MissingKey(String::from("alt")))
     );
-    // A single bare modifier is a missing key, not a key.
     assert_eq!(
         HotkeyChord::parse("ctrl"),
         Err(HotkeyParseError::MissingKey(String::from("ctrl")))
     );
-    // Aliases in key position are still modifiers, case-insensitively.
     assert_eq!(
         HotkeyChord::parse("ctrl+WIN"),
         Err(HotkeyParseError::MissingKey(String::from("win")))
@@ -241,14 +232,12 @@ fn error_debug_output_names_the_variant() {
 
 #[test]
 fn error_equality_compares_variant_and_payload() {
-    // Same variant, same payload.
     assert_eq!(
         HotkeyParseError::UnknownModifier(String::from("a")),
         HotkeyParseError::UnknownModifier(String::from("a"))
     );
     let empty = HotkeyParseError::Empty;
     assert_eq!(empty, HotkeyParseError::Empty);
-    // Same variant, different payload.
     assert_ne!(
         HotkeyParseError::UnknownModifier(String::from("a")),
         HotkeyParseError::UnknownModifier(String::from("b"))
@@ -261,7 +250,6 @@ fn error_equality_compares_variant_and_payload() {
         HotkeyParseError::MissingKey(String::from("a")),
         HotkeyParseError::MissingKey(String::from("b"))
     );
-    // Different variants.
     assert_ne!(HotkeyParseError::Empty, HotkeyParseError::EmptySegment);
 }
 
@@ -288,7 +276,7 @@ fn modifier_debug_output_names_the_variant() {
 }
 
 #[test]
-#[allow(clippy::clone_on_copy)] // exercises the derived `Clone` impl explicitly
+#[allow(clippy::clone_on_copy)]
 fn modifier_is_copy_clone_eq_and_ordered_canonically() {
     let ctrl = Modifier::Ctrl;
     let copied = ctrl;

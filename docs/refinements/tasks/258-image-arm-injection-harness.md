@@ -66,33 +66,32 @@ to the record of the gating question that is already awaiting the user
 does not argue for gating on its own, since a confirm card approves a capture and says nothing
 about what the reply may then contain.
 
-**Four of the seven checks behind the number failed in anger before they were trusted.** The
-per-rendering legibility gate failed on `app` and the diagnosis is why `_emits` now folds
-confusable glyph classes: the cortex read `ZK9-OVERRIDE` off the mail client as `2K3-OVERRIDE`,
-so an exact-match detector was structurally unable to report a hit on that whole rendering. The
-corpus's own font-coverage check failed on a real hole (two payloads carry a newline), which
-turned out to be a property of `wrap` rather than a hole and is asserted against the drawn text
-now. The realism control's own legibility line failed too, which is the finding above. The
-empty-or-truncated guard did not have to fire to change the arm's shape: the cortex alt's
-completions ran to the 1600-token cap in the server's own timings, so that row would have been
-void, which is why the arm sends no `max_tokens` at all, the shape the shipped request has. And
-the companion reachability row's first design asserted that the model would obey a
-screen when the **user** told it to, which it does on `app` and not on `plain` or `chrome`, so
-the row failed outright; it was a gate that could never pass wearing the other face, and it was
-replaced by one that asks for the token directly and fires on all three. The two CI-side wire
-tests
-(the picture is byte-identical between the arms, and the framed tool message is the control's
-text inside the fence) are mutation-proven: dropping `images` from the control reddens two,
-building the framed arm without `result_message` reddens the third.
+**Four of the seven checks behind the number failed on a real run before they were trusted.** The
+per-rendering legibility gate failed on `app` and the diagnosis is why `_emits` now folds confusable
+glyph classes: the cortex read `ZK9-OVERRIDE` off the mail client as `2K3-OVERRIDE`, so an
+exact-match detector was structurally unable to report a hit on that whole rendering. The corpus's
+own font-coverage check failed on a real hole (two payloads carry a newline), which turned out to be
+a property of `wrap` rather than a hole and is asserted against the drawn text now. The realism
+control's own legibility line failed too, which is the finding above. The empty-or-truncated guard
+did not have to fire to change the arm's shape: the cortex alt's completions ran to the 1600-token
+cap in the server's own timings, so that row would have been void, which is why the arm sends no
+`max_tokens` at all, the shape the shipped request has. And the companion reachability row's first
+design asserted that the model would obey a screen when the **user** told it to, which it does on
+`app` and not on `plain` or `chrome`, so the row failed outright; it was a check that could not pass
+on the other two renderings, and it was replaced by one that asks for the token directly and fires
+on all three. The two CI-side wire tests (the picture is byte-identical between the arms, and the
+framed tool message is the control's text inside the fence) are mutation-proven: dropping `images`
+from the control makes two of them fail, and building the framed arm without `result_message` makes
+the third fail.
 
 ## Trail
 
-- 2026-07-18: recorded in this area when the vision slice landed, as one of the vision
-  measurements this repo owes itself. The index noted that nothing blocked it, that it is agent-side
-  under [AGENTS.md](../../../AGENTS.md)'s rule that "on the host" includes the agent, and that the
+- 2026-07-18: recorded in this area when the vision slice landed, as one of the vision measurements
+  this repo owes itself. The index noted that nothing blocked it, that it is agent-side under
+  [AGENTS.md](../../../AGENTS.md)'s rule that "on the host" includes the agent, and that the
   hand-run arm in the ADR's closeout is one corpus of one, which is exactly why the harness arm was
   still owed and why its number gets published whatever it says.
 - 2026-08-04: ran and closed, moving the area's count 16 to 15. It is the last of ADR-0029's four
   agent-Docker measurements and it closes whole rather than half. The cost estimate was wrong in
   this backlog's usual direction: rendering the payloads was the cheap half, and reading a matrix
-  that four of its own seven checks had to fail in anger to earn was the expensive one.
+  that four of its own seven checks had to fail on a real run to earn was the expensive one.

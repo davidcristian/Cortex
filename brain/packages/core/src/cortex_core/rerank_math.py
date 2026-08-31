@@ -1,4 +1,4 @@
-"""The scoring machinery the heuristic recall policies share (ADR-0008, ADR-0038)."""
+"""Scoring helpers shared by the heuristic recall policies."""
 
 from collections.abc import Callable, Sequence
 from datetime import datetime
@@ -27,10 +27,7 @@ def recency_blend(
 
 
 def redundancy(hit: ScoredMemory, kept: Sequence[ScoredMemory]) -> float:
-    """A hit's greatest embedding cosine to an already-kept hit; 0.0 for an empty kept set.
-
-    A zero-magnitude embedding is cosine 0.0 to everything (``cosine``), so it is never redundant.
-    """
+    """A hit's greatest embedding cosine to an already-kept hit; 0.0 for an empty kept set."""
     return max(
         (cosine(hit.record.embedding, other.record.embedding) for other in kept),
         default=0.0,

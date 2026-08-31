@@ -23,8 +23,8 @@ about. A reply that narrates the subtask rather than doing it is well formed, ac
 and not an echo, and it **stands**. On the shipped constrained path of the default pick, 23 of 24
 bare non-deliveries were `ok=True` narrations of precisely that kind. A lookup answered `Fortnite
 18` stands too. The floor is therefore sound in the direction that matters, `stood` bounding
-`delivered` from above so a refusal is always honest, and blind in the other: a control arm could
-narrate every one of its 96 runs and clear the floor.
+`delivered` from above so a refusal is always honest, and it does not see the other case: a control
+arm could narrate every one of its 96 runs and clear the floor.
 
 **It was demonstrated on real replies the day the floor landed**, and by accident. A four-run probe
 of the lookup shape on Qwen3.5-0.8B Q8_0, at a 256-token cap on CPU, published `stood on 4 of 4`
@@ -50,13 +50,13 @@ publishes `stood` alone and says so. That keeps a run with a hand-typed instruct
 the three shapes this arc actually sweeps a machine-checked `delivered`, and would let the floor be
 held on the rate the tables really quote. The arbitrations are the part to be careful with: they
 are readings and not rules, so a judge that hard-codes the charitable comma or the strict cap
-reading has quietly changed what the record's columns mean, and each needs to be a stated column
+reading has changed what the record's columns mean with nothing saying so, and each needs to be a stated column
 rather than a default.
 
 Worth deciding at the same time: whether `delivered`, once a machine computes it, should carry its
 own floor or stay a printed number. The argument for a floor is that it is the rate the record
 quotes; the argument against is that it is the rate under measurement on every arm but one, and an
-instrument that reddens on its own subject is not an instrument.
+instrument that fails on its own subject is not an instrument.
 
 ## Trail
 

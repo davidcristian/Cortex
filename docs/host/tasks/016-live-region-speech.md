@@ -25,9 +25,9 @@ region on the page, its `live`, `atomic` and `relevant` values, the exact text i
 after each gesture, and the fact that each gesture mutates exactly one of them, were all measured in
 Chromium over `Accessibility.getFullAXTree` plus a `MutationObserver`, and the numbers are in the
 [ADR-0035](../../adr/ADR-0035-console-and-motion.md) addendum of 2026-08-07. What is left is the half a
-tree cannot hold: **speech**. A polite region is a request to the reader, and each reader decides on
-its own terms whether to voice it, when, and what to do when something else is competing for the
-same moment.
+tree cannot hold: **speech**. A polite region is a request to the reader, and each reader applies
+its own rules for whether to voice it, when, and what to do when something else is competing for
+the same moment.
 
 One case is the reason this is a sitting rather than a curiosity. **Deleting the chat that is open
 shrinks the list and swaps the conversation in one commit**, and the same commit moves the caret
@@ -77,10 +77,10 @@ The four questions the transcript answers:
    which order, and is any part of it lost.
 3. **Is the whole sentence read**, or does a reader cut a three-clause polite update short.
 4. **Does anything speak twice**, which would mean the region and some other channel are both
-   reporting the same change. There is one door where the design expects it and accepts it: `Ctrl+K`
+   reporting the same change. There is one case where the design expects it and accepts it: `Ctrl+K`
    pressed with the caret parked on the chats button, where the button's own `expanded` flips under
    the reader and the sentence lands as well. If a reader stutters there, note it; the alternative
-   is asking the DOM where the caret is from inside a reducer, which this ADR refused.
+   is asking the DOM where the caret is from inside a reducer, which this ADR rejected.
 
 Three things to note in passing while a reader is on the overlay, since the bring-up is the expensive
 part: whether the switcher reads as a list of rows with their four buttons per row (the listbox role

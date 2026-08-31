@@ -35,13 +35,13 @@ producer mismatch naming `''` and exits 1.
 **What shields the quiet half is not the standing probe.** This entry argued that reaching an empty
 relay needs the recipe's standing `rustc +nightly --version` line to succeed and the identical
 substitution four lines later to yield nothing. That line runs in `body/` in a shell of its own, so
-it is the weaker half of the argument. The load-bearing half is that both relays are filled on one
-recipe line by two command substitutions in one shell, one working directory and one toolchain
-resolution, so the quiet half is shielded by the loud one rather than by the probe above it.
-Measured against a toolchain name that does not resolve: both substitutions come back empty together
-and the gate exits 1 on the producer mismatch. An empty `--rustc` arriving alone therefore needs
-nightly cargo-llvm-cov to answer while nightly rustc prints nothing, in the same shell, seconds
-apart.
+it is the weaker half of the argument. The half that carries the argument is that both relays are
+filled on one recipe line by two command substitutions in one shell, one working directory and one
+toolchain resolution, so the quiet half is shielded by the loud one rather than by the probe above
+it. Measured against a toolchain name that does not resolve: both substitutions come back empty
+together and the gate exits 1 on the producer mismatch. An empty `--rustc` arriving alone therefore
+needs nightly cargo-llvm-cov to answer while nightly rustc prints nothing, in the same shell,
+seconds apart.
 
 **So the validator would be one more gate of a shape this origin has declined at least three
 times**, the dated pin twice on its expiry cost and the compiler-in-export comparison once on being

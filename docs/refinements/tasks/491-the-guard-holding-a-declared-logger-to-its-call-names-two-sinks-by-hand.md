@@ -14,13 +14,13 @@ What holds a sink's `_LOGGER_NAME` to the name its `getLogger` call really recei
 `cortex_tools/audit.py` and `cortex.memory.recall` to `cortex_memory/audit.py`, and that reader
 answers with the name the CALL carries, so a sink binding one name and passing another fails those
 lookups. The close registered both spellings as couplings, so the guard can no longer be retargeted
-or deleted in silence.
+or deleted without a gate reporting it.
 
 **Both names are written out by hand.** A third self-named sink is guarded by nothing until
 somebody remembers to add a line, which is the shape
 [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)'s addendum on deriving the set a rule runs
-over is against, and which `flagcheck.py` already solves next door by deriving its servers from the
-stack's own wiring rather than reading a list. The set here is derivable the same way:
+over is against, and which `flagcheck.py` already solves for another rule by deriving its servers from
+the stack's own wiring rather than reading a list. The set here is derivable the same way:
 `logcalls.loggers` already returns every logger the brain declares against the file declaring it,
 and a self-named sink is exactly a module whose top level binds a string that its own `getLogger`
 call is handed. Nothing but the hand-written pair says which those are.
@@ -51,7 +51,7 @@ today.
   set is read by and is therefore held rather than assumed.
   **The first thing this entry asked to weigh was decided against the reader**: `logcalls.py` reads
   any tree and its one rule is about an ambiguity in the reading, where this is a claim about the
-  committed brain, and a reader refusing a bare literal would legislate over every fixture it
+  committed brain, and a reader failing on a bare literal would impose a rule over every fixture it
   walks, breaking the one written a slice ago to keep such a call readable. The 300-line cap did
   not decide it.
   **The second was answered by what the documents were tied to all along**: they are tied to

@@ -19,16 +19,16 @@ library's type no longer crosses the port, which was the whole of the gate-5 pro
 sentence the model reads is still imap-tools describing a command status to a caller who never
 sent a command, and the folder it refused is not in the message at all.
 
-**What would close it.** The same design one type further: a `FolderUnknownError` (name it with
-the port's family in mind) beside `SearchRefusedError`, raised where the select fails, carrying
-the folder it was given and telling the model to call `list_folders` rather than guess again.
-Two questions want deciding rather than assuming, both answerable only against a real Bridge. A
-`NO` to `SELECT` is not always a missing folder, so what distinguishes "no such mailbox" from a
-folder that exists and could not be opened has to be read off the response rather than inferred
-from the fact that a select failed; and `read_email` takes a folder too, so whatever is raised
-must read sensibly out of both tools. The refused-search slice left the two shared test modules
-(`mailbox_fake.py`, `imap_stub.py`) and the port contract (`mailbox_contract.py`) in place, so the
-cost here is the classification and its live pass rather than any new scaffolding.
+**What would close it.** The same design one type further: a `FolderUnknownError` (name it in
+keeping with the port's other error types) beside `SearchRefusedError`, raised where the select
+fails, carrying the folder it was given and telling the model to call `list_folders` rather than
+guess again. Two questions want deciding rather than assuming, both answerable only against a real
+Bridge. A `NO` to `SELECT` is not always a missing folder, so what distinguishes "no such mailbox"
+from a folder that exists and could not be opened has to be read off the response rather than
+inferred from the fact that a select failed; and `read_email` takes a folder too, so whatever is
+raised must read sensibly out of both tools. The refused-search slice left the two shared test
+modules (`mailbox_fake.py`, `imap_stub.py`) and the port contract (`mailbox_contract.py`) in place,
+so the cost here is the classification and its live pass rather than any new scaffolding.
 
 ## Trail
 

@@ -16,7 +16,7 @@ class ComposeSearchError(Exception):
 
 
 def compose_files(root: Path) -> list[Path]:
-    """Return every compose file under ``root``, refusing to report success on none."""
+    """Return every compose file under ``root``, raising rather than reporting success on none."""
     found: list[Path] = []
     for directory, dirnames, filenames in root.walk():
         dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)

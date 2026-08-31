@@ -19,7 +19,7 @@ Converse stream's `_cancel_turn` awaits the
 turn task, so a `Cancel` or a disconnect during a handoff holds the RPC's teardown for as long as the
 restore takes, which is seconds against the scripted host and minutes against real weights. The
 alternative is to detach the restore (fire it, return, and let boot recovery be the backstop),
-which trades a bounded wait for a window where the process believes nothing is resident while a
+which trades a bounded wait for a window where the process records nothing as resident while a
 restore it no longer tracks is still running. The trigger is a real deployment where a
 disconnect during a swap holds a teardown long enough to matter; the fix belongs with the
 in-flight-turn lifecycle above, not on its own.

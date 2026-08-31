@@ -39,7 +39,7 @@ async def ack_reminder(schedules: ScheduleStore | None, reminder_id: str) -> Ack
     """Mark one reminder delivered; `acked=false` for unknown/not-deliverable/scheduling-off.
 
     Idempotent by construction (the store's `ack` no-ops `False` on a cleared slot), so a
-    retried ack is harmless, which is why this narrow write may ride the read-heavy seam.
+    retried ack is harmless, which is why this narrow write may sit on the read-heavy seam.
     """
     if schedules is None:
         return AckReminderReply(acked=False)

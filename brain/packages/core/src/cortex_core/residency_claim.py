@@ -1,4 +1,4 @@
-"""The one-GPU-one-handoff rule, held as a claim rather than read as a precondition (ADR-0030)."""
+"""The one-GPU-one-handoff rule, taken as a claim rather than checked as a precondition."""
 
 import asyncio
 from collections.abc import AsyncGenerator
@@ -8,11 +8,7 @@ from cortex_core.errors import HandoffInProgressError
 
 
 class HandoffClaim:
-    """Whether a handoff already owns the swap sequence, claimed and released as a scope.
-
-    Takes the manager's own condition rather than a lock of its own, so a claim and a residency
-    scope can never be deciding about the same GPU at the same instant.
-    """
+    """Whether a handoff already owns the swap sequence, claimed and released as a scope."""
 
     def __init__(self, condition: asyncio.Condition) -> None:
         self._condition = condition
@@ -25,11 +21,7 @@ class HandoffClaim:
 
     @asynccontextmanager
     async def held(self) -> AsyncGenerator[None, None]:
-        """Own the whole swap sequence for this block, or refuse at once because someone does.
-
-        Releasing is a bare assignment on the way out, deliberately taking no lock: the release
-        is owed even to a cancelled caller, and nothing waits on this claim to be woken.
-        """
+        """Own the whole swap sequence for this block, or raise at once because another does."""
         async with self._condition:
             if self._claimed:
                 msg = (

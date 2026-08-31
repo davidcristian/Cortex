@@ -48,13 +48,13 @@ def _audit(
 
 
 def _logged(caplog: pytest.LogCaptureFixture) -> dict[str, object]:
-    """The fields the line carries, read off the record exactly as the formatter reads them."""
+    """Return the fields the line carries, read off the record as the formatter reads them."""
     (record,) = caplog.records
     return record_fields(record)
 
 
 def _rendered(caplog: pytest.LogCaptureFixture) -> str:
-    """The whole line an operator reads, through the formatter a process entry installs."""
+    """Render the whole line an operator reads, through the formatter a process entry installs."""
     (record,) = caplog.records
     return PlainFormatter().format(record)
 
@@ -183,7 +183,7 @@ async def test_a_dropped_candidates_text_stays_out_of_the_line_too(
 async def test_the_fields_reach_the_line_an_operator_actually_reads(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The trail's whole value is that it prints, and the sink no longer spells it twice."""
+    """The fields reach both the record and the rendered line, spelled once by the sink."""
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit())
     (record,) = caplog.records

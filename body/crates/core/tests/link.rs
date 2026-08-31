@@ -22,7 +22,8 @@ enum Script {
 }
 
 /// A `BrainTransport` whose `health` follows a script and counts its calls. The other methods
-/// answer empty: the probe must never reach them, and a panic body would hide it if it did.
+/// count the call and answer empty, so a probe that reached one shows up in the count the tests
+/// assert on rather than as a panic from inside the port.
 struct ScriptedTransport {
     script: Script,
     health_calls: AtomicUsize,
@@ -158,7 +159,7 @@ async fn a_ready_brain_probes_ready_and_carries_its_own_detail() {
 
 #[tokio::test]
 async fn a_brain_that_reports_itself_not_ready_is_degraded_not_down() {
-    // The brain answered, so it is reachable; it says it cannot serve. Those are different
+    // The brain answered, so it is reachable, and it says it cannot serve. Those are different
     // facts and the indicator shows different colours for them.
     let (status, ..) = probe(Script::NotReady("loading the brain-tier model")).await;
     assert_eq!(
@@ -185,7 +186,7 @@ async fn an_unreachable_brain_probes_down_with_the_dial_failure() {
 #[tokio::test]
 async fn a_non_ok_status_is_degraded_because_the_brain_answered_it() {
     // A rejected seam token (ADR-0016) is the everyday case: reporting "cannot reach the brain"
-    // would send the user looking at the wrong thing entirely.
+    // would send the user looking at the wrong thing.
     let (status, ..) = probe(Script::Rpc("Unauthenticated", "invalid seam token")).await;
     assert_eq!(
         status,

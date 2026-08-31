@@ -1,4 +1,4 @@
-"""Watching a tier's decode cadence for the one failure a memory reading cannot see (ADR-0030)."""
+"""Decode-cadence policy: whether a tier ran at the rate its deployment measured for it."""
 
 from dataclasses import dataclass
 
@@ -13,12 +13,14 @@ __all__ = [
     "CadenceWatch",
 ]
 
+# Below this many decoded tokens a reported rate describes the server start rather than the
+# card: a spilled and a healthy deep-model rate differ by only about 10 tokens per second.
 MIN_CADENCE_TOKENS = 32
 
 
 @dataclass(frozen=True, slots=True)
 class CadenceReading:
-    """What a watch has to say once the completions it watched are done."""
+    """The result of one watch, once the completions it observed are done."""
 
     observed: DecodeCadence
     floor: float
@@ -27,18 +29,14 @@ class CadenceReading:
 
     @property
     def verdict(self) -> bool | None:
-        """Whether the tier spilled, or ``None`` when there was nothing to judge it against."""
+        """Whether the tier ran below the floor, or ``None`` when no floor was set."""
         if self.floor <= 0:
             return None
         return self.observed.tokens_per_second < self.floor
 
     @property
     def collapsed(self) -> bool:
-        """Whether the tier never reached the rate its deployment measured for it.
-
-        False whenever no floor was declared, because a watch with nothing to compare against
-        cannot find a shortfall; that deployment gets the number and no verdict.
-        """
+        """Whether the tier never reached the rate its deployment measured for it."""
         return self.verdict is True
 
     @property
@@ -83,13 +81,10 @@ class CadenceWatch:
 
 @dataclass(frozen=True, slots=True)
 class CadenceTerms:
-    """The terms one deep phase's watch runs under: what the tier is held to, and who hears it."""
+    """What one deep phase's watch runs under: the floor to compare against, and where to report."""
 
     floor_tps: float = 0.0
     sink: PaceSink | None = None
 
 
-# The watch that judges nothing and tells nobody: the default a phase is built with when its
-# caller says nothing about cadence at all. Shared because it is frozen, exactly as the seam's
-# empty port bundle is.
 NO_CADENCE_TERMS = CadenceTerms()

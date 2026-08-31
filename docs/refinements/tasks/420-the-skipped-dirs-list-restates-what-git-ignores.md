@@ -5,8 +5,8 @@
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
 Opened 2026-08-24 by the close of
-[R-411](411-the-dash-ban-reads-a-working-tree-not-a-commit.md), which taught the dash ban to ask
-git what it ignores and left `SKIPPED_DIRS` beside the answer.
+[R-411](411-the-dash-ban-reads-a-working-tree-not-a-commit.md), which made the dash ban ask git
+what it ignores and left `SKIPPED_DIRS` beside the answer.
 
 `dashcheck.SKIPPED_DIRS` names ten directory components. Measured on the day the ignore consult
 landed, git ignores nine of them wherever they appear in this tree, and the tenth is `.git`, which
@@ -17,7 +17,7 @@ The list is read in three places, which is why it did not simply go away: `linec
 own copy plus `tests` and `_generated`, held to this one by
 `test_skipped_dirs_match_dashcheck_plus_tests_and_generated`, and `backloganchors.py` imports this
 one directly. Two of those three walks do not ask git anything, so the list cannot shrink to `.git`
-without either teaching them to ask or accepting that they walk more than the dash ban does.
+without either making them ask or accepting that they walk more than the dash ban does.
 
 **Why it was left.** The close was about the dash ban's collection, and shrinking a list two other
 walks read is a change to theirs. Keeping the list also keeps the walk cheap in the ordinary case,
@@ -25,7 +25,7 @@ pruning before any question is asked.
 
 **What would close it.** Decide whether the other two walks should ask git as well. If they should,
 the list collapses to `.git` everywhere and `.gitignore` becomes the one place a skipped tree is
-named, at the cost of making the line cap and the anchor scan refuse a root git cannot answer
+named, at the cost of making the line cap and the anchor scan fail on a root git cannot answer
 about, which is a real narrowing of both. If they should not, the honest close is the opposite one:
 say in the module contract that the list is deliberately independent of `.gitignore`, and consider
 holding the overlap to it the way the two gates' lists are already held to each other.
@@ -33,8 +33,8 @@ holding the overlap to it the way the two gates' lists are already held to each 
 ## Trail
 
 - 2026-08-24: opened by the close of
-  [R-411](411-the-dash-ban-reads-a-working-tree-not-a-commit.md), which taught the dash ban to ask
-  git what it ignores and left the hand-written list beside the answer.
+  [R-411](411-the-dash-ban-reads-a-working-tree-not-a-commit.md), which made the dash ban ask git
+  what it ignores and left the hand-written list beside the answer.
 - 2026-08-24: landed as the second of the two closes this entry offered, the collapse declined.
   **Two of the three measurements above had moved.** The overlap is **eight** of ten and not nine:
   `coverage` is ignored only under `body/app/`, by that tree's own `.gitignore`, so a `coverage/`
@@ -44,7 +44,7 @@ holding the overlap to it the way the two gates' lists are already held to each 
   to anything, so the drift feared here was already in the tree. There were four walks and four
   lists, `composefiles.py` keeping a shorter one of its own. The collapse was declined on the two
   real names and on the cost: the line cap, the anchor scan and the compose walk have no rule that
-  mentions the repository, so making them refuse a root git cannot answer about would stop
+  mentions the repository, so making them fail on a root git cannot answer about would stop
   `just check` running outside a git working tree, which is a large narrowing to remove eight
   cheap names. What landed instead is the opposite close this entry named: `scripts/skippeddirs.py`
   holds the list and the argument, all four walks read it, the cap composes its two extra names in

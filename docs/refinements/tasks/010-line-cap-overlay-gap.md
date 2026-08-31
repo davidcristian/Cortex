@@ -9,7 +9,7 @@ fail is a defect in its own right, whatever it happens to have missed. `scripts/
 `SOURCE_SUFFIXES = {".py", ".rs"}` from the day it was written, which was correct then:
 [ADR-0001](../../adr/ADR-0001-architecture.md) open question 6 scoped both the coverage gate and the
 300-line cap to `.py`/`.rs` while the overlay was "kept minimal". ADR-0011's 2026-07-01 addendum
-reversed that for coverage and said so; nothing reversed it for the cap, and nothing noticed,
+reversed that for coverage and said so; nothing reversed it for the cap, and nothing reported the gap,
 because the gate kept passing. **How long, and what it let through:** thirty-three days from the
 overlay's first gated component to 2026-08-03, over a tree that reached 107 TypeScript files, 65
 of them the non-test sources the cap would have been measuring the whole time.
@@ -18,13 +18,13 @@ and both drifted. `bridge/demoBridge.ts` was recorded at 326 on the day it alrea
 and it was still 351 fourteen days later; `overlay/panelPlacement.ts` crossed the cap the day
 after the entry that called demoBridge the only one over it, reached 371, and sat there for
 thirteen days until an unrelated ResizeObserver change took it to 295 by accident. Neither the
-false claim nor the stale number cost anything beyond themselves, which is the point: the failure
-of an unenforced rule is silent by construction, and it was found by a review rather than by a
+false claim nor the stale number cost anything beyond themselves. An unenforced rule fails
+without reporting anything, which is why this was found by a review rather than by a
 gate. **Landed the day it was found**, so this entry is a record rather than a deferral: the scan
 now covers `.ts`/`.tsx`, `demoBridge.ts` was split rather than exempted, and the whole decision
 including what stays outside the cap is in the ADR-0011 line-cap addendum. Proven able to fail
-before being trusted, planted file by planted file, per the same distrust-green rule that turned
-this up.
+before being trusted, planted file by planted file, under the same rule against trusting a passing gate
+that turned this up.
 
 ## Trail
 

@@ -1,22 +1,23 @@
-//! The notification port: proactive delivery on the host (ADR-0025), the second OS action
-//! the brain drives over `BodyService` after [`AudioControl`](super::AudioControl).
+//! The notification port: how the brain shows the user a native notification.
 
+/// The longest raw title or body a [`Notification`] keeps, in characters. Longer text is truncated
+/// rather than refused, because the OS rejects an oversized payload whole.
 pub const MAX_TEXT_CHARS: usize = 200;
 
 /// The provenance line a backend renders beneath a reminder the brain does not trust.
 ///
-/// Fixed and body-authored: the badge that describes untrusted text may never itself be
-/// built from that text.
+/// The string is fixed and written by the body, so the warning about untrusted text is never
+/// built out of that text.
 pub const UNTRUSTED_ATTRIBUTION: &str = "from an untrusted source";
 
-/// Why showing a native notification failed. See [`Notify`].
+/// Why showing a native notification failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum NotifyError {
-    /// No notification service is reachable (no notifier for the app identity, the OS
-    /// service is not running). `0` is a backend detail.
+    /// No notification service is reachable (no notifier for the app identity, the OS service is
+    /// not running).
     #[error("no notification service is available: {0}")]
     Unavailable(String),
-    /// The notification backend refused or failed the call. `0` is a backend detail.
+    /// The notification backend refused or failed the call.
     #[error("the notification backend failed: {0}")]
     Backend(String),
 }
@@ -32,9 +33,6 @@ pub struct Notification {
 
 impl Notification {
     /// Builds a notification from the wire values, making `title` and `body` inert.
-    ///
-    /// `reminder_id` is brain-minted correlation, never user or model text, so it is kept
-    /// verbatim for logs and for a backend that wants to replace its own earlier toast.
     #[must_use]
     pub fn new(title: &str, body: &str, reminder_id: &str, tainted: bool) -> Self {
         Self {
@@ -51,7 +49,7 @@ impl Notification {
         &self.title
     }
 
-    /// The notification's message, inert. For a reminder this is the stored text.
+    /// The notification's message, inert.
     #[must_use]
     pub fn body(&self) -> &str {
         &self.body
@@ -80,9 +78,9 @@ impl Notification {
     }
 }
 
-/// Makes one line of untrusted text inert: every control character becomes a space (a replacement,
-/// not a deletion, so two words never fuse across a stripped newline), and the result is bounded at
-/// [`MAX_TEXT_CHARS`] with a trailing ellipsis marking the cut.
+/// Makes one line of untrusted text inert: every control character becomes a space, and the
+/// result is bounded at [`MAX_TEXT_CHARS`] with a trailing ellipsis marking the cut. A control
+/// character is replaced rather than deleted so two words never fuse across a stripped newline.
 fn inert(raw: &str) -> String {
     let mut text: String = raw
         .chars()
@@ -118,9 +116,12 @@ pub fn escape_xml(text: &str) -> String {
     escaped
 }
 
-/// The port a notification backend implements (`os_windows` real; other platforms are stubs until
-/// built, per ADR-0011).
+/// The port a notification backend implements. Only `os_windows` is real; the others are stubs.
 pub trait Notify: Send + Sync {
-    /// Shows `notification` on the host.
+    /// Shows `notification`, and reports whether the OS displayed it rather than declining it.
+    ///
+    /// # Errors
+    ///
+    /// [`NotifyError`] if no notification service is available or the backend fails.
     fn show(&self, notification: &Notification) -> Result<bool, NotifyError>;
 }

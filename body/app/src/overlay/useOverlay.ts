@@ -32,7 +32,7 @@ export interface OverlayController extends SessionCatalog {
   newChat(announce: boolean): void;
   /**
    * Open or shut the chat switcher, on the chat: pressed from a tucked panel or from behind the
-   * console the key summons and OPENS, since a reader who cannot see the list has none to shut
+   * console the key summons and opens, since a reader who cannot see the list has none to shut
    * (`chromeState.ts`).
    */
   toggleSwitcher(announce: boolean): void;

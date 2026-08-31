@@ -13,14 +13,14 @@ first exposed.
 
 The user answered the pitch that ends [ADR-0034](ADR-0034-panel-views.md) decision 8. Three
 directions for the panel's non-chat faces had gone out as a live artifact; the plainest shipped and
-two richer ones were left open (theme choices as thumbnails of the panel wearing them, and one
-tabbed console instead of two destinations). The answer was **both at once**, which is decision 1
-below and is a component change on plumbing that did not move, exactly as the deferral predicted.
+two richer ones were left open (theme choices as thumbnails of the panel drawn in each theme, and
+one tabbed console instead of two destinations). The answer was **both at once**, which is decision
+1 below and is a component change on plumbing that did not move, exactly as the deferral predicted.
 
 Then the maintainer watched the running overlay, and named five things by hand:
 
 - **"There is no animation when expanding thoughts."** The settled reasoning trace was a
-  `<details>`, which reveals its content in one frame and cannot be talked into easing it.
+  `<details>`, which reveals its content in one frame and offers no way to ease that reveal.
 - **The chat switcher's list flashed back** for a split second at the end of every close.
 - **The scrollbars** "look absolutely terrible and disturb the look of the application and also
   push elements around."
@@ -40,7 +40,7 @@ a trace, which is why every claim below carries the measurement it rests on.
 
 1. **The two other views became one console with a tab strip, so
    [ADR-0034](ADR-0034-panel-views.md) decision 1's three views are now two.** The pitch that ends
-   that ADR's decision list (thumbnails of the panel wearing each theme; one tabbed console
+   that ADR's decision list (thumbnails of the panel drawn in each theme; one tabbed console
    instead of two destinations) went to the user as a live artifact and came back as both at
    once: the swatch look, with the tab strip integrated. So `shortcuts` and `settings` are gone as
    separate destinations, and `chat` plus `console:appearance` / `console:shortcuts` are the
@@ -59,8 +59,8 @@ a trace, which is why every claim below carries the measurement it rests on.
      bottom 655) and the shortcut list 571px (top 164, bottom 735), and the switch moves both
      edges 80px in opposite directions over about 150ms, the paced duration for that distance,
      with the return trip landing back on 244/655 exactly. No second animation was written.
-   - **A theme is chosen by looking at it.** Each tile is a miniature of the panel wearing that
-     theme, drawn from that theme's own tokens (`components/ThemeMini.tsx`), and the Auto tile is
+   - **A theme is chosen by looking at it.** Each tile is a miniature of the panel drawn in that
+     theme, from that theme's own tokens (`components/ThemeMini.tsx`), and the Auto tile is
      the two themes `resolveTheme(null, …)` resolves to, split on the diagonal. Both rows are a
      map over their registry (`THEMES`, `MARKS`), so the plug-and-play property both modules claim
      survives this view: a fifth theme or mark appears here with no change to it. The marks are the
@@ -92,7 +92,7 @@ a trace, which is why every claim below carries the measurement it rests on.
      selection onto the arriving pane's selected tab, and leaving the console returns it to the
      composer, which is where a summon puts it and where the draft still is. The rest of the tab
      list pattern (a roving `tabindex` and arrow keys along the strip) and a leaving pane that is
-     untabbable as well as unannounced (which wants `inert`, and so React 19) are deferred and
+     untabbable as well as unannounced (which needs `inert`, and so React 19) are deferred and
      written down in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay). **Both landed
      on 2026-08-03**, in the addendum below on the strip's keyboard, which also records that the
      React 19 half of that parenthesis was wrong: only the type is missing from React 18.
@@ -146,8 +146,9 @@ a trace, which is why every claim below carries the measurement it rests on.
    the top edge 61px in a single frame with nothing animating it. Composing the residual on top of
    the `auto` height would be neater and is not available: measured in Chrome, an additive `height`
    animation over an `auto` height is silently demoted to replacing it. The end event stays: the
-   prediction is one section's word, and re-measuring is what keeps it honest, including when the
-   panel was resized by something else (a token landing mid-roll) while its height was being driven.
+   prediction comes from the section alone, and re-measuring is what keeps it honest, including when
+   the panel was resized by something else (a token landing mid-roll) while its height was being
+   driven.
 
 6. **A closing roll holds its collapsed height until React removes it.** With the Web Animations
    default `fill: "none"` the section snapped back to full size the instant the roll ended and
@@ -199,16 +200,16 @@ a trace, which is why every claim below carries the measurement it rests on.
    ride-along inside the window re-pins, and a section the user opens is a height they are about
    to hand back: traced at 60Hz, `Ctrl+K` 410ms into a summon wrote a pinned edge of 117px for the
    666px the panel would be with the list open, and closing the list left a 546px panel on that
-   same edge, 60px below its own centre, for the rest of the session. Nothing washes a pinned edge
-   out; a trip to the console and back parks the bad one and hands it straight back. So a
+   same edge, 60px below its own centre, for the rest of the session. Nothing clears a pinned edge
+   on its own; a trip to the console and back parks the bad one and hands it straight back. So a
    `pointerdown`, a `keydown` or a bare `click` anywhere in the window ends the arrival, in the
-   capture phase so that no handler in between can hide the user's hand by stopping the event.
-   Input that lands while the panel is still SHUT is what summoned it (the orb click is a real
-   press a beat before the panel appears) and is not a touch, which is checked against the panel's
-   own open state rather than against a timestamp, there being no race in it either way. Measured
-   after, as the panel's bottom edge down a 900px viewport, where a true centre is 722.9: a
-   switcher round trip started 100, 300, 450, 600 or 1500ms after the panel appeared now settles
-   at 723 to 725, where the first two settled at 730 and 783 before.
+   capture phase so that no handler in between can conceal the press by stopping the event. Input
+   that lands while the panel is still SHUT is what summoned it (the orb click is a real press a
+   beat before the panel appears) and is not a touch, which is checked against the panel's own open
+   state rather than against a timestamp, there being no race in it either way. Measured after, as
+   the panel's bottom edge down a 900px viewport, where a true centre is 722.9: a switcher round
+   trip started 100, 300, 450, 600 or 1500ms after the panel appeared now settles at 723 to 725,
+   where the first two settled at 730 and 783 before.
 
    Two costs, both measured rather than reasoned about. A token that arrives inside the window and
    is not preceded by any input still centres instead of growing upward, which is a few pixels
@@ -253,7 +254,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     is about how the panel moves and not about when it should not, and the user found the case:
     sending the first message *shrank* the window. The empty state (the mark, "Ask me anything", two example
     chips) is 185px of content, and a user bubble with a thinking bubble under it is less, so the
-    panel dutifully eased down at the exact moment the chat began. Traced at 60Hz on the body's
+    panel eased down at the exact moment the chat began. Traced at 60Hz on the body's
     720px window: 546px to 457px over 150ms, the top edge falling 89px. The chat's column of
     bubbles therefore carries a `min-height` of that same 185px, measured off the empty state
     rather than chosen, so the first exchange cannot leave the panel smaller than the invitation
@@ -318,12 +319,12 @@ a trace, which is why every claim below carries the measurement it rests on.
     which was true while every section was part of the panel's own chrome and opened on overlay
     state. The user's "there is no animation when expanding thoughts" broke that assumption twice
     over. Rebuilding the trace's disclosure on `Collapse` (a button carrying `aria-expanded` over a
-    rolling section, since `<details>` reveals its content in one frame and cannot be talked into
-    animating it) put a rolling section inside a message, and a message's disclosure owns its open
+    rolling section, since `<details>` reveals its content in one frame and offers no way to
+    animate it) put a rolling section inside a message, and a message's disclosure owns its open
     state locally: clicking it renders that message and nothing above it. Traced at 60Hz at a 900px
     viewport, the trace rolled open over its 300ms with the panel's `auto` height following it, and
-    then the panel, hearing only the end and placing itself from the geometry it had remembered
-    from before the roll, snapped back to its old height for a frame and eased 76px up and 43px
+    then the panel, receiving only the end event and placing itself from the geometry it had
+    recorded before the roll, snapped back to its old height for a frame and eased 76px up and 43px
     down a second time. So `Collapse` now dispatches a bubbling `cortex:morphstart` as well, after
     the attribute is set. That ordering is the whole of what the panel depends on: the attribute is
     where the roll publishes the height it is going to, and a listener arriving before it finds
@@ -338,10 +339,10 @@ a trace, which is why every claim below carries the measurement it rests on.
     nothing, there being no roll to ride along with. The panel reads what it is placing FOR out of a
     ref assigned during the render rather than out of each handler's closure, because this event
     alone arrives from inside a layout effect, before any passive effect of that render has
-    re-subscribed: the handler that hears a roll announced mid-commit is the PREVIOUS render's, so a
-    closure over its props would place the panel for the render before the one on screen. The case
-    that makes that reachable is one commit that both summons the panel and rolls a section, which
-    `newChat` and `openSession` produce by setting `mode: "panel"` and `switcherOpen: false`
+    re-subscribed: the handler that receives a roll announced mid-commit is the PREVIOUS render's,
+    so a closure over its props would place the panel for the render before the one on screen. The
+    case that makes that reachable is one commit that both summons the panel and rolls a section,
+    which `newChat` and `openSession` produce by setting `mode: "panel"` and `switcherOpen: false`
     together: Ctrl+N or a chat cycled to while the panel is minimized with the switcher list open.
     Reverting the ref to a closure and tracing that at 60Hz in a 900px viewport shows what is at
     stake: the list rolls shut over its full 300ms with the panel's bottom edge pinned where the
@@ -488,7 +489,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     the history is already down to its own padding (10px) and a draft pasted to the field's 120px
     ceiling had nowhere left to take from: the pill's bottom edge cleared the panel's clipped edge
     by 12.75px and the whole hint strip by 54.75px, so the writer lost the send button and every
-    shortcut at once. This is decision 12's failure mode arriving by the other door, and the
+    shortcut at once. This is decision 12's failure mode arriving from the other side, and the
     restack widened it: the same field height posed in the pre-restack inline layout (the button
     beside the field, no button row) leaves a 130px pill inside the panel with the hint strip
     clipped by 14.75px, so the restack turned "half the hint strip" into "the pill and all of it".
@@ -498,7 +499,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     The draft's window is the right thing to spend, because it is the one box here that already
     scrolls: past 120px the field scrolls itself, so a shorter window shows fewer lines of the same
     text and loses nothing, where the alternative is chrome that is not on screen. Three
-    declarations, and each one is load bearing:
+    declarations, and each one is needed:
 
     - **The stacked pill gets an explicit `min-height` of 84px, which REPLACES its automatic
       minimum** (a flex item's automatic minimum is its content, which is why it could not yield a
@@ -549,18 +550,18 @@ a trace, which is why every claim below carries the measurement it rests on.
     more text. Two declarations on `.field` answer it, and they are a pair:
 
     - **`mask-image` fades the field's own padding band at each end**, so a line the window cuts
-      dissolves into the pill instead of being guillotined, and the fade says the true thing about
-      why it is there. The band IS the padding, which is what makes it free: with the text inside
-      its window those 9px hold nothing but padding, so there is nothing for the mask to act on.
-      Diffed in Chromium against the same paint with the rules off, an empty pill is bit-identical
-      and a one-line pill moves by at most 7 of 255 on 0.6% of its pixels, which is the composited
-      layer's antialiasing rather than the fade.
+      dissolves into the pill instead of ending in a hard horizontal cut, and the fade says the true
+      thing about why it is there. The band IS the padding, which is what makes it free: with the
+      text inside its window those 9px hold nothing but padding, so there is nothing for the mask to
+      act on. Diffed in Chromium against the same paint with the rules off, an empty pill is
+      bit-identical and a one-line pill moves by at most 7 of 255 on 0.6% of its pixels, which is
+      the composited layer's antialiasing rather than the fade.
     - **`scroll-padding-block` keeps the writer's line out of that band.** Chromium scrolls a caret
       flush to the edge it moved toward, so without it the line being typed is the line being
       faded. Declaring the field's own padding as its scroll padding moves the reading above to 26
       with the caret on the last line, and to 0 rather than 9 with the caret walked back to the
-      first, so the caret's line always keeps its padding and the fade only ever eats text that is
-      genuinely outside the window.
+      first, so the caret's line always keeps its padding and the fade only ever falls on text that
+      is genuinely outside the window.
 
     The fade is about the scroll and not about the line it lands on, which is worth saying because
     it is visible: a line that happens to sit fully inside the window with more text below it is
@@ -600,8 +601,8 @@ a trace, which is why every claim below carries the measurement it rests on.
 
 22. **A scrollbar is reserved chrome, and it never borrows the content's width.** Only `.history`
     was styled at all, and its 7px thumb took real layout width, so the log jumped sideways the
-    first time a reply overflowed; the other six scroll regions wore the platform default. All
-    seven now wear one quiet rail (`--rail`, 6px) and, more importantly, **reserve** it permanently
+    first time a reply overflowed; the other six scroll regions used the platform default. All
+    seven now carry one quiet rail (`--rail`, 6px) and, more importantly, **reserve** it permanently
     (`scrollbar-gutter: stable`), so overflowing changes nothing about where content sits. Each
     container funds the rail out of its own inline-end padding, subtracted where there was enough
     to spare and added beside it where there was not, so no resting margin moved. This is
@@ -657,12 +658,13 @@ a trace, which is why every claim below carries the measurement it rests on.
   ([ADR-0034](ADR-0034-panel-views.md)'s first consequence); what is new is that there is one thing
   to leave rather than two stacked, so Esc closes it in a single press and the header's chevron is
   the visible way back.
-- **Three doors close the console and a fourth walks past it.** Esc, the chevron and `dismiss` all
-  clear `consoleTab`; `newChat` does not, so Ctrl+N mints the session and empties the chat behind a
-  console that stays on screen (measured at 900x900 after the merge, and true of the two sheets the
-  merge replaced, neither of which `newChat` cleared either). The merge neither caused it nor fixed
-  it, and which way it should go is a question for the user rather than a defect, so it is recorded
-  in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
+- **Three gestures close the console and a fourth leaves it standing.** Esc, the chevron and
+  `dismiss` all clear `consoleTab`; `newChat` does not, so Ctrl+N mints the session and empties the
+  chat behind a console that stays on screen (measured at 900x900 after the merge, and true of the
+  two sheets the merge replaced, neither of which `newChat` cleared either). The merge neither
+  caused it nor fixed it, and which way it should go is a question for the user rather than a
+  defect, so it is recorded in
+  [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 - **The panel's geometry went from one hook to four modules beside it.** `overlay/panelGeometry.ts`
   is the pure arithmetic (the clamp, the centre, the whole-pixel ceiling and the pacing, no DOM in
   any of it), `overlay/panelMemory.ts` is what the panel remembers between placements and how it
@@ -683,7 +685,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   pinned panel has to grow 615px at a 900px viewport before the ceiling binds at all: measured
   after it, acking a reminder, the pencil on a chat with a full reply in it, and a switcher round
   trip all move the composer 0px, where before decision 8 they moved it 40, 13 and 3. It still
-  bites on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
+  happens on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
   clamped edge, and saving the pre-roll edge per section to hand back when it rolls shut) is a
   design the user has not been asked for. Recorded in `docs/refinements/index.md#body-overlay`.
   - **This consequence was already false when it was written, and its rarity number was wrong on
@@ -764,5 +766,5 @@ a trace, which is why every claim below carries the measurement it rests on.
   unchanged, and the cost is that a row's box reaches the reserved band, the painted thumb clearing
   the right-most child box by 1px. Only the box does: the hairline between two reminders is a
   border-top on a 12px-radius row, so it curves away and fades out nine columns clear of the thumb,
-  and text and controls stay 9px to 11px clear on the rows' own padding. It bites if a row ever
+  and text and controls stay 9px to 11px clear on the rows' own padding. It matters if a row ever
   drops that padding, or if the maintainer reads the rail as touching the chrome.

@@ -125,8 +125,8 @@ pub trait BrainTransport: Send + Sync {
     ) -> impl Future<Output = Result<Vec<(String, String)>, TransportError>> + Send;
 
     /// Writes one setting (`BrainService.SetPreference`): `key` is a namespaced name the caller
-    /// owns, `value` an opaque short string, and an EMPTY value CLEARS the key so the reader's
-    /// own default applies again (the `rename_session` empty-title convention).
+    /// owns, `value` an opaque short string, and an empty value clears the key so the reader's
+    /// own default applies again, following the `rename_session` empty-title convention.
     fn set_preference(
         &self,
         key: &str,

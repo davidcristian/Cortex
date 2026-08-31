@@ -10,8 +10,9 @@ rather than an oversight. `body/app/src/overlay.css` was **2420 lines** the day 
 when it was re-measured on 2026-08-08, and is **2700** as of 2026-08-09, by a wide margin the longest
 hand-written file in the repo, and no gate measures it. It is excluded on the argument that the cap's remedy is
 "split by responsibility", which presumes a module with a public contract, while a stylesheet is
-one cascade whose ordering is load-bearing: splitting it trades a long file for `@import` ordering
-that nothing checks and that fails visually rather than loudly. That argument is honest about the
+one cascade in which order decides which rule applies: splitting it trades a long file for
+`@import` ordering that nothing checks and that fails by changing what is drawn rather than by
+reporting an error. That argument is honest about the
 remedy and evasive about the problem, since a file this long is exactly the cognitive load the cap
 exists to bound, and it has grown with every overlay slice, by 280 lines since the entry was
 filed. That growth is also why the number above is now measured rather than quoted: an entry that

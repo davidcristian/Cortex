@@ -12,13 +12,13 @@ the mark's size, the invitation's font, or the number of example chips and the t
 and the panel dips again by the difference, too high and the empty state gains that much dead
 space around the chips, split above and below by its `margin: auto`. Neither is dangerous at the few-px
 scale, and the CSS comment carries the arithmetic so the check is possible by hand; what is
-missing is that anything does it. Viewport *width* used to be one input the number quietly had,
+missing is that anything does it. Viewport *width* used to be one input the number had without stating it,
 since `.empty-chips` was `flex-wrap: wrap`: measured across widths, the two chips sat on one row
 at 580px and above (185px) and took a second row at 560px and below (224px), so a first send in a
 560px window cost the panel 39px. **That half was closed on 2026-07-20**, not because the window
 became reachable but because a finer sweep showed the margin was thin: the labels wrap at a 526px
 panel and the shipping 640px window gives them a 560px one, so the clearance is 32px of label
-width, which the same string in Segoe UI could eat. The chips are now held to one row and shrink
+width, which the same string in Segoe UI could consume. The chips are now held to one row and shrink
 to an ellipsis rather than wrapping (`.empty-chips`, `flex-wrap: nowrap` with the caps that make
 the shrinking reach them), measured at 185px at every width from 700px down to 440px with no
 horizontal overflow, so the number no longer depends on width in any engine. The engine is still
@@ -88,6 +88,6 @@ stylesheet can defend.
   numbers were audited and neither had drifted; `--trace-row` was retired with it and the rail was
   not. A startup probe could not have done it, so the real elements are measured as React attaches
   them. The index read this close as the sharpest instance yet of its standing warning about an
-  entry's own text, and sharpened that warning on it: the lesson is not about estimating cost, but
-  that an entry describing a line of code is stale the moment that line moves and nothing in the
-  process re-reads one.
+  entry's own text, and sharpened that warning on it: the lesson is about staleness rather than cost
+  estimates: an entry describing a line of code is stale the moment that line moves and nothing in
+  the process re-reads one.

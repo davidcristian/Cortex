@@ -14,8 +14,8 @@ use crate::generated::{
 use crate::status::status_to_error;
 
 /// The one-turn client request: a single `UserTurn`, then one `confirm_response` per decision, then
-/// end-of-stream when `decisions` ends (ADR-0022 defines the caller's sender going away as the
-/// half-close).
+/// end-of-stream when `decisions` ends, since ADR-0022 defines the caller's sender going away as
+/// the half-close.
 fn turn_request(
     session_id: String,
     text: String,
@@ -37,8 +37,8 @@ fn turn_request(
     }))
 }
 
-/// Maps one `ServerEvent` to a `TurnEvent` (or a `Protocol` error for an empty
-/// event) plus whether it is terminal for the turn (stop reading after it).
+/// Maps one `ServerEvent` to a `TurnEvent` (or a `Protocol` error for an empty event) plus whether
+/// it is terminal for the turn (stop reading after it).
 fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
     match event.event {
         Some(server_event::Event::TextDelta(delta)) => (Ok(TurnEvent::Delta(delta.text)), false),
@@ -101,8 +101,8 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
     }
 }
 
-/// Runs one turn against the brain and yields typed `TurnEvent`s. See the
-/// module docs and `BrainTransport::converse` for the contract.
+/// Runs one turn against the brain and yields typed `TurnEvent`s. See the module docs and
+/// `BrainTransport::converse` for the contract.
 pub(crate) fn converse_turn(
     mut client: BrainServiceClient<SeamChannel>,
     session_id: String,

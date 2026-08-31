@@ -44,7 +44,7 @@ def build_schedule(
     """The durable ScheduleStore, or None when scheduling is disabled (the default).
 
     ``store_factory`` exists so tests substitute a fakeredis-backed store; production
-    always dials ``CORTEX_REDIS_URL``, which is the same append-only Redis the sessions trust.
+    always dials ``CORTEX_REDIS_URL``, the same append-only Redis the sessions use.
     """
     if config.backend != "redis":
         return None, noop_aclose
@@ -64,8 +64,8 @@ def build_schedule_tools(
         return []
     zone = config.display_zone()
     # The zoneinfo-backed resolver validates a per-rule ``in_zone`` at creation/edit; it is the
-    # same instance the codec decodes stored zones with (ADR-0025 per-rule addendum). It rides a
-    # ``ZoneContext`` beside the default zone so the two parsing tools take one collaborator.
+    # same instance the codec decodes stored zones with (ADR-0025 per-rule addendum). It is passed
+    # in a ``ZoneContext`` beside the default zone so the two parsing tools take one collaborator.
     zones = ZoneContext(default=zone, resolver=ZONEINFO_RESOLVER)
     return [
         ScheduleTaskTool(
@@ -120,7 +120,7 @@ def start_ticker(ticker: ScheduleTicker | None) -> "asyncio.Task[None] | None":
     """Start the loop beside ``serve`` (the pump-task discipline); None stays None.
 
     The done-callback logs an unexpected death as an error (the ADR-0025 supervision
-    posture). With the loop's own pass guard it should never fire, which is the point.
+    posture). With the loop's own pass guard it should never fire.
     """
     if ticker is None:
         return None

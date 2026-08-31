@@ -1,4 +1,4 @@
-"""One ``llama-server`` child per logical model: start, stop, and say what is true (ADR-0030 d3)."""
+"""One ``llama-server`` child per logical model: start it, stop it, and report its state."""
 
 import asyncio
 import logging
@@ -11,24 +11,29 @@ from cortex_model_manager.children import ChildProcess, ChildProcesses
 from cortex_model_manager.probe import HealthProbe
 from cortex_model_manager.spec import ModelSpec
 
+# Measured on the dev GPU: an idle llama-server exits on SIGTERM in 0.14 s to 0.40 s, while one
+# with a request in flight ignores SIGTERM entirely and is killed, costing the whole grace
+# (10.09 s and 10.90 s end to end). Shortening it would SIGKILL a model mid answer.
 DEFAULT_STOP_GRACE_S = 10.0
 
-# How long a SIGKILLed child gets to be reaped before the stop is reported as failed. A killed
-# process only lingers in uninterruptible I/O, which on the model mount is possible, so this is a
-# bound rather than an unbounded wait: the swap must be told rather than hang.
+# A killed process only lingers in uninterruptible I/O, which the model mount can produce, so
+# the wait is bounded: a swap must be told rather than hang.
 DEFAULT_REAP_TIMEOUT_S = 30.0
 
+# The readiness probe's own client deadline. It is still one of this daemon's three bounds,
+# because `status` probes inside the same per-model lock a `stop` takes: measured, a status
+# against a SIGSTOPped child took 5.80 s and the stop queued behind it 15.70 s.
 DEFAULT_PROBE_TIMEOUT_S = 5.0
 
 _logger = logging.getLogger(__name__)
 
 
 class SupervisorError(RuntimeError):
-    """A model process could not be started or stopped. Crosses the wire as a 503."""
+    """A model process could not be started or stopped."""
 
 
 class UnknownModelError(SupervisorError):
-    """No such logical model in this daemon's roster. Crosses the wire as a 404."""
+    """No such logical model in this daemon's roster."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +46,7 @@ class ModelStatus:
 
 
 class ModelSupervisor:
-    """Runs at most one child per logical model, and reports honestly on each."""
+    """Runs at most one child per logical model, and reports the state of each."""
 
     def __init__(
         self,
@@ -56,24 +61,20 @@ class ModelSupervisor:
         self._roster = dict(roster)
         self._processes = processes
         self._probe = probe
-        # All three, although only two are spent here: the probe's deadline belongs to the client
-        # behind ``probe``, and this is the one object that can state the whole worst case of its
-        # own slowest call, which is what the brain checks its control deadline against.
         self._bounds = ControlBounds(
             probe_timeout_s=probe_timeout_s,
             stop_grace_s=stop_grace_s,
             reap_timeout_s=reap_timeout_s,
         )
+        # Random rather than counted: a counter in a process that restarted begins again at
+        # exactly the number a reader compares against to detect the restart.
         self._boot_id = uuid4().hex
-        # A model is present here from the moment it is spawned until a stop has reaped it. A
-        # present child with an exit code died unasked, which is the difference between FAILED
-        # and STOPPED; the roster's own keys are the only ids that ever reach this dict.
         self._children: dict[str, ChildProcess] = {}
         self._locks = {model: asyncio.Lock() for model in self._roster}
 
     @property
     def models(self) -> tuple[str, ...]:
-        """The logical ids this daemon serves, in roster order. Nothing can add to them."""
+        """The logical ids this daemon serves, in roster order."""
         return tuple(self._roster)
 
     @property
@@ -93,8 +94,6 @@ class ModelSupervisor:
             running = self._children.get(model)
             if running is not None and running.returncode is None:
                 return
-            # A child that died on its own is replaced rather than kept, so a FAILED tier can be
-            # restarted: boot recovery and the swap back both start a model that may have failed.
             try:
                 child = await self._processes.spawn(spec.argv)
             except OSError as err:
@@ -114,9 +113,8 @@ class ModelSupervisor:
             if child is None:
                 return
             if child.returncode is None:
-                # Deliberately before the delete: a child that will not die is still ours and
-                # still holds VRAM, so it must keep being reported rather than vanish into
-                # STOPPED. The caller's retry then tries again on the same process.
+                # Before the delete: a child that has not exited still holds VRAM, so it must
+                # keep being reported rather than recorded as STOPPED.
                 await self._end(model, child)
             del self._children[model]
             _logger.info("stopped a model process", extra={"model": model, "pid": child.pid})
@@ -148,7 +146,7 @@ class ModelSupervisor:
                 )
 
     def _spec(self, model: str) -> ModelSpec:
-        """The roster entry, or the typed refusal every verb shares."""
+        """The roster entry, or the typed error every verb raises for an id not in the roster."""
         spec = self._roster.get(model)
         if spec is None:
             msg = f"unknown model {model!r}; this host serves {', '.join(self._roster) or 'none'}"
@@ -167,6 +165,8 @@ class ModelSupervisor:
         child.kill()
         if await self._reaped(child, self._bounds.reap_timeout_s):
             return
+        # Raised and not also logged: both callers of `stop` log what they catch, so a line here
+        # would print the same event and the same numbers twice.
         msg = (
             f"model {model!r} (pid {child.pid}) survived SIGKILL for "
             f"{self._bounds.reap_timeout_s}s; "

@@ -1,4 +1,4 @@
-"""The image a Dockerfile in this tree stands on, and the lines every reader of one here joins."""
+"""The image a Dockerfile in this tree is built from, and the line joining its readers share."""
 
 import re
 from collections.abc import Iterable, Mapping
@@ -7,24 +7,14 @@ from typing import NamedTuple
 from composetargets import normalize
 from imagevolumes import RECORD_PATH, Row
 
-# The instruction a stage opens with, matched case-insensitively the way docker matches it.
 INSTRUCTION = "FROM"
 
-# What separates the image a stage stands on from the name that stage is given, again however it
-# is cased. A stage name is what a later `FROM` may stand on instead of an image.
 STAGE = "AS"
 
-# The one base that is not an image. A stage standing on it inherits nothing, so no row answers
-# for it and none is asked for.
 SCRATCH = "scratch"
 
-# What a flag on the instruction opens with. `--platform` is the only one docker offers here, it
-# says nothing about what the named image declares, and dropping it lets a file carrying one still
-# answer rather than being refused for a token that changes no answer.
 FLAG = "--"
 
-# What ends a line that continues onto the next, in the default escape character. A file choosing
-# another one is refused below rather than read under the wrong rule.
 CONTINUES = "\\"
 
 _ESCAPE = re.compile(r"^#[ \t]*escape[ \t]*=", re.IGNORECASE)
@@ -45,11 +35,11 @@ _UNINHERITED = (
 
 
 class DockerfileError(Exception):
-    """A Dockerfile carries a shape the readers of one in this tree will not guess at."""
+    """A Dockerfile has a form the readers in this tree cannot read."""
 
 
 class Inheritance(NamedTuple):
-    """One Dockerfile's base as the gate found it: what it stands on, and what its row lacks."""
+    """One Dockerfile's base: the image it is built from, and what its recorded row lacks."""
 
     bases: tuple[str, ...]
     triggers: tuple[str, ...]
@@ -81,7 +71,7 @@ def logical(text: str) -> list[tuple[int, str]]:
 
 
 def _stage(number: int, argument: str) -> tuple[str | None, str]:
-    """One FROM as it names things: the stage name it gives, if any, and the image it stands on."""
+    """One FROM: the stage name it gives, if any, and the image or stage it is built from."""
     if "$" in argument:
         msg = f"line {number}: FROM {argument!r} carries an expansion only a build can resolve"
         raise DockerfileError(msg)
@@ -95,7 +85,7 @@ def _stage(number: int, argument: str) -> tuple[str | None, str]:
 
 
 def read_base(text: str) -> str | None:
-    """The image the final stage of one Dockerfile stands on, or None when it stands on nothing."""
+    """The image the final stage of one Dockerfile is built from, or None when there is none."""
     stages: list[tuple[str | None, str]] = []
     for number, line in logical(text):
         head, _, argument = line.partition(" ")
@@ -124,7 +114,7 @@ def inherited(
     carried: Iterable[str],
     records: Mapping[str, Row],
 ) -> Inheritance:
-    """The base this file stands on, and every path its row carries that the built row lacks."""
+    """The base this file is built from, and every path in its row that the built row lacks."""
     base = read_base(text)
     if base is None:
         return Inheritance((), (), ())

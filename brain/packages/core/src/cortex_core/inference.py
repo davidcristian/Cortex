@@ -6,9 +6,8 @@ from enum import Enum
 
 from cortex_core.tools import ToolCall
 
-# A JSON Schema handed to the backend for constrained decoding (ADR-0028). Open-shaped like a
-# tool's parameters, so the value is round-tripped to the model server, never introspected by
-# the core; ``object`` values keep it free of an unjustified ``Any``.
+# ``object`` values rather than ``Any``: the schema is passed to the model server unchanged
+# and the core never reads inside it.
 type JsonSchema = Mapping[str, object]
 
 
@@ -21,18 +20,14 @@ class TextChunk:
 
 @dataclass(frozen=True, slots=True)
 class ReasoningChunk:
-    """One delta of a reasoning model's thinking trace (``reasoning_content``, ADR-0020).
-
-    Ephemeral: surfaced as live status while the model thinks, never part of the persisted
-    reply and never fed back into the model's context on a later tool-loop step.
-    """
+    """One delta of a reasoning model's thinking trace (``reasoning_content``)."""
 
     text: str
 
 
 @dataclass(frozen=True, slots=True)
 class DecodeCadence:
-    """How fast the server decoded one completion, as that server reports it (ADR-0030)."""
+    """How fast the server decoded one completion, as that server reports it."""
 
     tokens_per_second: float
     tokens: int
@@ -47,9 +42,7 @@ class DecodeCadence:
 
 
 class StopReason(Enum):
-    """Why one completion ended, in this core's words rather than an engine's (ADR-0005
-    finish-reason addendum).
-    """
+    """Why one completion ended, in this core's own vocabulary rather than an engine's."""
 
     FINISHED = "finished"
     CAPPED = "capped"
@@ -59,7 +52,7 @@ class StopReason(Enum):
 
 @dataclass(frozen=True, slots=True)
 class DecodeStop:
-    """Why the server stopped decoding one completion, as that server reports it (ADR-0005)."""
+    """Why the server stopped decoding one completion, as that server reports it."""
 
     reason: StopReason
 
@@ -69,7 +62,7 @@ type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence | De
 
 @dataclass(frozen=True, slots=True)
 class GenerationBounds:
-    """How far one request lets the model go before it must answer (ADR-0020's deferred levers)."""
+    """How far one request lets the model go before it must answer."""
 
     max_tokens: int | None = None
     thinking: bool = True

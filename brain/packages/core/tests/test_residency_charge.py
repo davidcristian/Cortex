@@ -1,5 +1,3 @@
-"""The handoff window as the subagent placer sees it: who is charged while the deep model runs."""
-
 import asyncio
 from datetime import UTC, datetime
 
@@ -21,6 +19,9 @@ from cortex_core import (
 
 _ENDPOINTS = {"cortex": "http://model-host:8080", "brain": "http://model-host:8081"}
 
+# The measured deep tier is 19125 MiB. A 23.0 GiB cap beside an 11.3 GiB cortex reservation
+# leaves 11.7 GiB free normally and 4.32 GiB during a handoff, so the 5.5 GiB spawn fits on one
+# side of the swap and not the other. These numbers are a scenario, not the shipped defaults.
 _DEEP_MIB = 19125
 _SPAWN_GB = 5.5
 _SOFT_CAP_GB = 23.0
@@ -29,7 +30,7 @@ _CARD = DeviceMemory(free_mib=22800, total_mib=24463)
 
 
 class _FixedClock:
-    """A clock that never advances; every bound here is either generous or already expired."""
+    """A clock that never advances; every deadline here is either generous or already passed."""
 
     def now(self) -> datetime:
         return datetime(2026, 8, 7, 6, 0, tzinfo=UTC)
@@ -75,7 +76,6 @@ def _host(**overrides: object) -> ScriptedModelHost:
 
 
 async def test_a_spawn_inside_the_handoff_is_fit_tested_against_the_deep_model() -> None:
-    """The whole point: the same spawn, the same placer, opposite answers either side of a swap."""
     placer = _placer()
     manager = _manager(_host(), placer)
     assert placer.place(_peer_spawn()).target is PlacementTarget.GPU
@@ -85,7 +85,6 @@ async def test_a_spawn_inside_the_handoff_is_fit_tested_against_the_deep_model()
 
 
 async def test_the_cortex_is_charged_again_once_it_is_genuinely_serving() -> None:
-    """The reversal, and it is not a flag flip: the standing figure has to come back exactly."""
     placer = _placer()
     manager = _manager(_host(), placer)
     async with manager.swap_scope("brain"):
@@ -94,7 +93,6 @@ async def test_the_cortex_is_charged_again_once_it_is_genuinely_serving() -> Non
 
 
 async def test_the_window_opens_before_the_fit_check_reads_the_card() -> None:
-    """Ordering, against the one hazard the fit check cannot see on its own."""
     host = _host(pause_at=[("start", "brain")])
     placer = _placer()
     manager = _manager(host, placer)
@@ -109,7 +107,6 @@ async def test_the_window_opens_before_the_fit_check_reads_the_card() -> None:
 async def test_a_restore_that_gave_up_keeps_charging_the_model_that_may_still_hold_the_card() -> (
     None
 ):
-    """The safe direction on the one path where nobody knows what is resident."""
     placer = _placer()
     manager = _manager(_host(fail={("start", "cortex"): "no such device"}), placer)
     with pytest.raises(ResidencyRestoreError):
@@ -119,7 +116,6 @@ async def test_a_restore_that_gave_up_keeps_charging_the_model_that_may_still_ho
 
 
 async def test_a_deployment_that_declared_no_figure_keeps_the_arithmetic_it_always_had() -> None:
-    """No declared cost is not a licence to charge nothing: that would credit the evicted cortex."""
     placer = _placer()
     manager = _manager(_host(), placer, _plan(coresident=False, brain_vram_mib=0))
     async with manager.swap_scope("brain"):
@@ -129,7 +125,6 @@ async def test_a_deployment_that_declared_no_figure_keeps_the_arithmetic_it_alwa
 
 
 async def test_a_swap_with_no_placer_at_all_still_swaps() -> None:
-    """A deployment with no subagent pool: the edges are written to nobody and nothing breaks."""
     host = _host()
     manager = _manager(host, None)
     async with manager.swap_scope("brain"):
@@ -138,11 +133,6 @@ async def test_a_swap_with_no_placer_at_all_still_swaps() -> None:
 
 
 async def test_a_spawn_placed_before_the_window_keeps_its_reservation_across_both_edges() -> None:
-    """The ledger is not the resident: a running spawn's VRAM did not move when the card did.
-
-    Charging the window must not double-count or forget what is already placed, or the release
-    that follows the spawn would credit the budget an amount it never debited.
-    """
     placer = _placer()
     manager = _manager(_host(), placer)
     placed = placer.place(_peer_spawn())
@@ -150,13 +140,12 @@ async def test_a_spawn_placed_before_the_window_keeps_its_reservation_across_bot
     async with manager.swap_scope("brain"):
         pass
     placer.release(placed)
-    # Back to a full standing headroom: 23.0 - 11.3 leaves room for the peer and then some.
     assert placer.place(PlacementRequest("peer", vram_gb=11.7, cpus=1.0, memory_gb=2.0)).target is (
         PlacementTarget.GPU
     )
 
 
 async def _hold_scope(manager: SwappingModelManager) -> None:
-    """Enter and leave the scope, so a paused swap can be observed from the outside."""
+    """Enter and leave the scope, so a paused swap can be watched from the outside."""
     async with manager.swap_scope("brain"):
         pass

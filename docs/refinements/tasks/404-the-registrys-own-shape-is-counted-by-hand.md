@@ -44,7 +44,7 @@ version of "the tally goes stale" may be to stop writing the tally in prose at a
   while it was being written**: the same sentence said "seventeen registered mentions are counted"
   and "seven the prose sorts added" over a list of eight, the run that bumped the first number
   having left the second alone. A fourth number was therefore printed as well, how many mentions
-  pin a count, since that is the tally that keeps rotting and it is the same walk. **Nothing
+  pin a count, since that is the tally that keeps going stale and it is the same walk. **Nothing
   asserts any of them**, per this file's own reading: a gate over
   [modules/repo-gates.md](../../modules/repo-gates.md) would tie the gate's prose to the gate's
   data, the exclusion that document has carried since the legibility sort. The suite pins that the

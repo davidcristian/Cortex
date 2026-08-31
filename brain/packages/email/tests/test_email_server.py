@@ -197,7 +197,8 @@ async def _tool_names(server: FastMCP) -> set[str]:
 
 
 async def test_without_a_sender_only_the_read_tools_register() -> None:
-    # The Slice 6 read-only-by-construction property, preserved by default (ADR-0022).
+    # Building without a sender registers no write tool at all, which is the read-only-by-
+    # construction default the send path preserved (ADR-0022).
     server = build_server(EmailReader(FakeMailbox()))
     assert await _tool_names(server) == {"list_folders", "search_emails", "read_email"}
 
@@ -283,9 +284,9 @@ async def test_the_search_tool_names_the_dialect_its_query_is_written_in() -> No
 
 
 async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
-    # The sibling guess in the same tools, and the cheaper one to get wrong: a folder name is
-    # taken verbatim, so an invented one is an error rather than an empty result. Both tools that
-    # take a folder say so, from one constant, which is what stops the two drifting apart.
+    # A folder name is taken verbatim, so an invented one is an error rather than an empty
+    # result. Both tools that take a folder say so, from one constant, which is what stops the
+    # two descriptions drifting apart.
     server = build_server(EmailReader(FakeMailbox()))
     tools = {t.name: t for t in await server.list_tools()}
     for name in ("search_emails", "read_email"):
@@ -296,8 +297,9 @@ async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
 
 
 async def test_the_search_limit_says_which_matches_it_keeps() -> None:
-    # A limit that silently means "the oldest N" is a trap the schema can close: the fetch is
-    # ascending-uid, so raising it is not how a model finds a recent message.
+    # A limit that means "the oldest N" without saying so misleads the model, so the description
+    # says it: the fetch is ascending-uid, and raising the limit is not how a recent message is
+    # found.
     server = build_server(EmailReader(FakeMailbox()))
     (tool,) = [t for t in await server.list_tools() if t.name == "search_emails"]
     limit = tool.inputSchema["properties"]["limit"]

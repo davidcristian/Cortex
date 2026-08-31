@@ -21,7 +21,7 @@ import { ThemeIcon } from "./ThemeIcon";
 
 export interface ChatViewProps {
   readonly state: OverlayState;
-  /** The column the panel renders this view into, where the log hears a roll in the chrome. */
+  /** The column the panel renders this view into, where the log listens for a roll in the chrome. */
   readonly column: RefObject<HTMLElement | null>;
   readonly open: boolean;
   readonly dark: boolean;
@@ -36,8 +36,9 @@ export interface ChatViewProps {
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  /** Load a chat. Whether the swap is announced belongs to the door, and this view holds both of
-   *  them: a switcher row and a reminder's open control answer it differently (`notice.ts`). */
+  /** Load a chat. Whether the swap is announced depends on which control opened it, and this view
+   *  holds both: a switcher row passes false and a reminder's open control passes true
+   *  (`notice.ts`). */
   readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
@@ -74,8 +75,8 @@ export function ChatView({
   onRespondConfirm,
   onDismissReminder,
 }: ChatViewProps) {
-  // The chat is the view on screen while no console tab is up, which is the one thing the log's
-  // scroll position cannot look after itself through (`useLogScroll`).
+  // The chat is the view on screen while no console tab is up, and a view change is the one thing
+  // the log's scroll position cannot survive on its own (`useLogScroll`).
   const showing = state.consoleTab === null;
   const log = useLogScroll(showing, column);
 
@@ -117,13 +118,13 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
-          // The list answers for its own closing as well as for its own rows, and both answers are
-          // the anchor below (`overlay/sectionCaret.ts`); `arrival` is how it stands down for the
+          // The list places the caret for its own closing as well as for its own rows, and both
+          // land on the anchor below (`overlay/sectionCaret.ts`). `arrival` is how it skips the
           // closings that are really chat swaps.
           open={state.switcherOpen}
           arrival={state.arrival}
           anchor={chatsButton}
-          // Silent: the row IS the chat's name, so announcing would read the label back.
+          // Not announced: the row's own label is the chat's name, so announcing would read it back.
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
           onRename={onRenameSession}
           onDelete={onDeleteSession}
@@ -140,22 +141,23 @@ export function ChatView({
           currentId={state.sessionId}
           anchor={field}
           onDismiss={onDismissReminder}
-          // Announced: "open chat" names the act and not the chat, so the title is news.
+          // Announced: the control is labelled "open chat" rather than with the chat's name, so the
+          // title the reader lands on has not been read out yet.
           onOpen={(sessionId) => onSelectSession(sessionId, true)}
         />
       </Collapse>
       <div className="history" ref={log.ref} onScroll={log.onScroll}>
         <div className={`log${state.messages.length === 0 && state.pendingConfirm === null ? " bare" : ""}`}>
           {state.messages.length === 0 ? (
-            // The ref is that floor, measured: this element stands for the whole life of an empty
-            // chat and leaves as the first message lands (overlay/measured.ts).
+            // The floor is measured off this element, which is present for the whole life of an
+            // empty chat and is removed as the first message lands (overlay/measured.ts).
             <div className="empty" ref={chatFloorRef}>
               <button
                 className="markbtn"
                 onClick={() => onToggleConsole("appearance")}
-                // Named for where it lands, which is the console's appearance tab: the settings
-                // sheet this used to open is gone, and a label naming a view that no longer
-                // exists is the one part of a rename a screen reader would still be reading out.
+                // Named for where it lands, the console's appearance tab. The settings sheet this
+                // used to open is gone, and an accessible name is the one place a stale view name
+                // would still be read out after a rename.
                 aria-label={`Mark: ${mark.label}. Open appearance`}
                 type="button"
               >
@@ -179,9 +181,9 @@ export function ChatView({
               </div>
             </div>
           ) : null}
-          {/* The whisper's drain outlives the turn's last render (ADR-0037), so a streamed
-              bubble reports its growth and the tail pin answers exactly as it does for a new
-              message: pinned readers follow, a reader who scrolled up holds their place. */}
+          {/* The whisper's drain outlives the turn's last render (ADR-0037), so a streamed bubble
+              reports its growth and the tail pin responds as it does for a new message: a pinned
+              reader follows, and a reader who scrolled up holds their place. */}
           {state.messages.map((message) => (
             <Message key={message.id} message={message} onGrow={log.toTail} />
           ))}

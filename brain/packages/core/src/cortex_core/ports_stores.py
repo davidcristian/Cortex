@@ -34,9 +34,7 @@ class SessionStore(Protocol):
 
 
 class MemoryStore(Protocol):
-    """Durable, cross-session memory: append a record, retrieve the top-k, size the candidate
-    set, forget a namespace.
-    """
+    """Durable, cross-session memory: add, retrieve, size the candidate set, forget a namespace."""
 
     async def add(self, record: MemoryRecord) -> None: ...
 

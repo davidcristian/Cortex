@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useTravel } from "./useTravel";
 
-/** Where each row sits, by the label it carries. jsdom has no layout, so the test IS the layout. */
+/** Where each row is, by its label. */
 const places = new Map<string, number>();
 
 /** The travels played, in order: which row, the offset it started from, and on what terms. */
@@ -93,8 +93,6 @@ describe("useTravel", () => {
     at({ a: 0, b: 50, c: 100 });
     const view = render(<List rows={["a", "b", "c"]} />);
     expect(travels).toEqual([]);
-    // A pin regroups the list: c is lifted to the top and the two above it are pushed down. Every
-    // row is where it belongs the moment the commit lands, so what is animated is the way back.
     at({ c: 0, a: 50, b: 100 });
     view.rerender(<List rows={["c", "a", "b"]} />);
     expect(travels.map((travel) => [travel.row, travel.from, travel.to])).toEqual([
@@ -102,8 +100,6 @@ describe("useTravel", () => {
       ["a", "translateY(-50px)", "translateY(0px)"],
       ["b", "translateY(-50px)", "translateY(0px)"],
     ]);
-    // The vocabulary is the roll's: same 300ms, same curve, so a row leaving and the rows moving
-    // around it read as one movement rather than two.
     expect(travels[0]?.options).toEqual({
       duration: 300,
       easing: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -119,9 +115,6 @@ describe("useTravel", () => {
     view.rerender(<List rows={["b", "a"]} />);
     at({ a: 0, b: 50 });
     view.rerender(<List rows={["a", "b"]} />);
-    // A second regrouping mid-travel finds the row visually between two places and structurally at
-    // the second one. Cancelling the first animation would drop whatever of it was still in the
-    // air; added, the two offsets sum to the gap the eye has and both decay to nothing.
     expect(travels).toHaveLength(4);
     expect(travels.every((travel) => travel.options.composite === "add")).toBe(true);
   });
@@ -130,7 +123,6 @@ describe("useTravel", () => {
     const { travels } = stubBrowser();
     at({ a: 0, b: 50 });
     const view = render(<List rows={["a"]} />);
-    // b arrives where it arrives: a row that was not on screen has nowhere to travel from.
     view.rerender(<List rows={["a", "b"]} />);
     expect(travels).toEqual([]);
   });
@@ -167,17 +159,12 @@ describe("useTravel", () => {
     const { travels, frames, tick } = stubBrowser();
     at({ a: 0, b: 50 });
     const view = render(<List rows={["a", "b"]} />);
-    // A row starts rolling out above b. No commit happens while it rolls: the row below simply
-    // travels up 50px by layout, frame by frame, and the record follows it.
     view.rerender(<List rows={["a", "b"]} rolling />);
     expect(frames()).toBe(1);
     at({ a: 0, b: 25 });
     tick();
     at({ a: 0, b: 0 });
     tick();
-    // The roll ends and the row it held is dropped, which is the next commit. Measured against
-    // where the record last saw b, nothing moved; measured against where the last COMMIT left it,
-    // b would be answered with a 50px travel back down a distance it had already covered.
     view.rerender(<List rows={["a", "b"]} />);
     expect(travels).toEqual([]);
   });
@@ -187,13 +174,12 @@ describe("useTravel", () => {
     at({ a: 0, b: 50 });
     const view = render(<List rows={["a", "b"]} rolling />);
     expect(frames()).toBe(1);
-    // A commit landing mid-roll finds the loop already running and leaves it alone.
     view.rerender(<List rows={["a", "b"]} rolling />);
     expect(frames()).toBe(1);
-    tick(); // still rolling: another frame
+    tick();
     expect(frames()).toBe(2);
     view.rerender(<List rows={["a", "b"]} />);
-    tick(); // the roll is gone: this is the last one
+    tick();
     expect(frames()).toBe(2);
   });
 
@@ -202,11 +188,8 @@ describe("useTravel", () => {
     at({ a: 0 });
     const quiet = render(<List rows={["a"]} />);
     quiet.unmount();
-    // Nothing was following, so nothing is called off.
     expect(cancelled).toEqual([]);
     const rolling = render(<List rows={["a"]} rolling />);
-    // Selecting a chat closes the switcher, which unmounts this list with a roll still running
-    // inside it; the callback would go on reading a tree that is no longer on the page.
     rolling.unmount();
     expect(cancelled).toEqual([1]);
   });

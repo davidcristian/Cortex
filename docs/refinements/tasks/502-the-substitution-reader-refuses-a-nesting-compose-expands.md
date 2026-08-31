@@ -27,20 +27,20 @@ something outside the repo depends on. The close that opened this entry took the
 the shim, on the argument that nothing off this machine reads that key; a key where that is not
 true would need this, and would need it in the same commit as the rename.
 
-**What would close it.** Teach `composedefaults.py` the nested form, and answer for each rule what
+**What would close it.** Make `composedefaults.py` read the nested form, and answer for each rule what
 a nested default reduces to. Three shapes to weigh, cheapest first:
 
 - **Read it and report the chain**, a `Substitution` whose argument is itself a list of
-  substitutions with a literal at the end. Then each rule decides: `defaultcheck.py` compares the
+  substitutions with a literal at the end. Then the rules diverge: `defaultcheck.py` compares the
   literal tail, which is what two files spelling the same chain must agree on; `bindcheck.py`
   resolves the tail as the path a `docker compose up` would land on with nothing set;
   `volumecheck.py` and `composetargets.py` do the same for a container path.
-- **Read it and refuse to value it**, returning the spend so the name is visible to
+- **Read it and report no value**, returning the spend so the name is visible to
   `artifactnames.py` and `subagentservers.py` while any rule asking for a value still raises. This
   is the smallest change that unblocks a rename shim, since those two readers want the variable
   name and never its default.
-- **Keep refusing**, and say so as a decision rather than as a limit, which is where the sentence
-  stands after the correction.
+- **Keep raising on it**, and say so as a decision rather than as a limit, which is where the
+  sentence stands after the correction.
 
 Note that the readers of a spend's *name* and the readers of its *value* are already different
 callers, so the second shape is a real middle and not a fudge. Weigh also whether a chain longer

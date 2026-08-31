@@ -24,7 +24,7 @@ heading it is refusing. Neither half tells the author what to write instead.
 because [R-334](334-a-heading-that-means-its-brackets.md) is the entry that has not decided what the
 answer is: rewriting the heading, an escape the rule honours, or a per line allow marker. A remedy
 that names an escape before one exists is worse than a remedy that fits badly. So the two move
-together, and the smallest honest version of this is a per shape remedy, replacing one shared
+together, and the smallest defensible version of this is a per shape remedy, replacing one shared
 constant with one sentence per refusal, which is what the constants were already shaped for.
 
 **What would close it.** Either a remedy per shape, where the bracketed one says what a heading that

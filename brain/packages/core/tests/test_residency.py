@@ -201,7 +201,8 @@ async def test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it(
 async def test_a_tier_that_will_not_restart_does_not_make_the_cortex_look_gone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The evicted tier's restart is best effort, because the note for a failed restore lies here.
+    """The evicted tier's restart is best effort, because a failed-restore note would be
+    inaccurate here.
     """
     host = ScriptedModelHost(
         running=["cortex", "subagent-gpu"], fail={("start", "subagent-gpu"): "no such device"}
@@ -285,7 +286,7 @@ async def test_the_restore_waits_for_the_new_resident_s_own_round() -> None:
 
 
 async def test_a_second_scope_is_refused_because_there_is_one_gpu() -> None:
-    """And refused as a handoff already in flight, never as a swap that broke.
+    """A second scope is refused as a handoff already in flight rather than as a swap that broke.
 
     The distinction is what the user is told: a broken swap means nothing is loaded and the
     cortex is back, which is the opposite of what is true while another handoff holds the GPU.
@@ -445,7 +446,8 @@ async def test_a_card_with_exactly_the_room_is_a_fit_and_one_mib_short_is_not() 
 
 
 async def test_a_host_that_can_see_no_card_refuses_a_swap_that_asked_for_a_fit() -> None:
-    """Fail closed: a deployment that asked to be checked and cannot be is refused, not run."""
+    """The swap fails closed: a deployment that asked to be checked and cannot be is refused
+    rather than run."""
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host, _plan(brain_vram_mib=19125))
     with pytest.raises(SwapFailedError, match="reports no device memory"):
@@ -668,7 +670,8 @@ async def test_the_report_tracks_the_swap_window_from_load_to_deep_work_and_back
 
 
 async def test_the_report_says_the_usual_assistant_is_coming_back_while_it_restores() -> None:
-    """The swap back is its own answer: nothing is resident either way, and they read apart."""
+    """The swap back publishes a report of its own: nothing is resident either way, and the two
+    reports read differently."""
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
     manager = _manager(host)
     scope = _OpenScope(manager)
@@ -683,7 +686,7 @@ async def test_the_report_says_the_usual_assistant_is_coming_back_while_it_resto
 
 
 async def test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring() -> None:
-    """The one honest answer that outlives its turn: nothing is resident and no retry is left.
+    """A restore that gave up reports that nothing is resident and no retry is left.
 
     Reporting the restore as still under way would tell the user to wait for a thing that
     already stopped happening, and the runbook's manual recovery is what clears it.
@@ -715,7 +718,7 @@ async def test_the_report_answers_at_an_instant_when_the_gpu_cannot_be_leased() 
 
 
 async def test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_serves() -> None:
-    """The drain window is deliberately green: nothing is unloaded and turns still run."""
+    """The drain window still reports serving: nothing is unloaded and turns still run."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     async with manager.handoff_claim():
         assert manager.residency() == RESIDENCY_SERVING
@@ -801,7 +804,7 @@ async def test_a_boot_that_could_not_reach_the_host_leaves_the_first_handoff_rec
 async def test_a_sidecar_that_restarted_since_the_boot_publish_is_reconciled_before_the_swap(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The entry's own case: a fresh daemon under a brain that never restarted."""
+    """The case the backlog entry described: a fresh daemon under a brain that never restarted."""
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"], boot_id="daemon-a")
     manager = _manager(host, _plan(evict_models=("subagent-gpu",), coresident=True))
     await manager.publish_boot_residency(serving=True)

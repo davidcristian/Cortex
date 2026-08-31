@@ -13,8 +13,8 @@ for one that is short; `residency_watch` twice, for the daemon that could not be
 the fresh sidecar whose worst stop the deadline no longer clears; and `swap_builders`, for the
 deadline pairing the composition root refuses to serve on.
 
-The two demands are genuinely opposed and both are real. A log message wants to be constant so a
-`grep` matches every instance of it and the varying parts sit in fields; an exception message wants
+The two demands are genuinely opposed and both are real. A log message needs to be constant so a
+`grep` matches every instance of it and the varying parts sit in fields; an exception message needs
 to be self-contained so the reply, the traceback and the runbook all say which numbers refused.
 Nothing here is wrong; it is one value read twice on one line, on lines that fire rarely and are
 read closely.

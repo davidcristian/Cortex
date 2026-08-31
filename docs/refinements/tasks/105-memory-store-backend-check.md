@@ -32,15 +32,15 @@ the fake is scripted with `fail_with`, and the live pgvector arm passes the adap
 `InterfaceError('pool is closed')` is raised inside each verb, leaving the adapter's own
 wrapping as the only thing between it and the check. That made the live driver build a store per
 check, since one check ends by destroying its own, and `aclose` is idempotent so the broken arm
-still closes exactly once. Both arms are green and neither implementation leaked, which is the
+still closes exactly once. Both arms pass and neither implementation leaked, which is the
 honest outcome for a port whose two implementations were each already tested for this in their
 own suite; what the list ends is that they were tested for it twice rather than once. Proven
 able to fail on both arms before being trusted: `InMemoryMemoryStore._guard` rewritten to raise
-`RuntimeError` reddened the fake arm alone (`add let a RuntimeError through instead of
+`RuntimeError` made the fake arm fail alone (`add let a RuntimeError through instead of
 MemoryStoreError`, one failed and ten passed), and `PgVectorMemoryStore.search` narrowed to
-catch only `asyncpg.PostgresError` reddened the live arm alone (`search let a InterfaceError
+catch only `asyncpg.PostgresError` made the live arm fail alone (`search let a InterfaceError
 through instead of MemoryStoreError`, the ten checks before it having passed against real
-Postgres), each restored and each re-run green. **Nothing opened in its place**, and the one
+Postgres), each restored and each re-run passing. **Nothing opened in its place**, and the one
 bound worth stating is that the live knob is a closed pool, so what it exercises is the
 `InterfaceError` arm of the adapter's `_WRAPPED`: the socket-level `OSError` arm is held by the
 stopped-container run recorded at [ADR-0008](../../adr/ADR-0008-memory-v1.md) and the server-side

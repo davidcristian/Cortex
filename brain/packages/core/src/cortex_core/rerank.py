@@ -42,7 +42,8 @@ class RawRecallPolicy:
     ) -> Ranking:
         """Keep the store's order, truncated to ``k`` (only ``k`` matters to raw recall)."""
         # Raw recall reads neither the question nor the age, and reports nothing, so it has
-        # nothing to name a session on; the parameter is the port's shape, not this policy's need.
+        # nothing to name a session on; the parameter is the port's shape rather than this
+        # policy's need.
         del query, now, session_id
         return Ranking(
             hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:k]),

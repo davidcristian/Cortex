@@ -16,7 +16,7 @@ time, and the record grew a habit of quoting it as a constant rather than as a r
 
 It is not a constant. Qwen3.5-0.8B answered 93 of 96 unconstrained and Qwen3.5-4B 92 of 96, and both
 losses are the entry failing the subtask rather than the envelope taking an answer away: a cap
-runaway on an extraction, a lookup answered `Fortnite 18`. Nothing in the harness noticed. Its only
+runaway on an extraction, a lookup answered `Fortnite 18`. Nothing in the harness reported it. Its only
 assertions are that every arm saw the same bodies in the same order and that every run reported
 timings, so a pick whose raw arm collapsed to 40 of 96 would still produce a tidy table, and a
 reader would price the envelope for a failure that belongs to the pick.
@@ -31,7 +31,7 @@ asserts, or at minimum records and prints, the raw arm's delivered rate per shap
 that a cell below the floor prices the pick and not the envelope. That needs the judging the addenda
 do by hand to move into the harness, which is the real cost here and is worth weighing against
 leaving the floor as a sentence in the module docstring that a reader has to honour. Either is
-better than the present silence, and the cheap half of it is one line in the docstring naming the
+better than saying nothing, and the cheap half of it is one line in the docstring naming the
 condition every published rate rests on.
 
 ## Trail
@@ -53,10 +53,10 @@ condition every published rate rests on.
   refusing only when a cell's whole interval lies under the floor: 25 of 32 on a swept cell, 80 of
   96 pooled, and a four-run probe only once half of it has failed. What a run **stood** is deliberately weaker than what a
   reply **delivered**, being the runner's acceptance, a non-empty reply and a reply that is not the
-  ask handed back, so it bounds the judged rate from above and a red is always honest.
+  ask handed back, so it bounds the judged rate from above and a refusal is always honest.
   The reading is the [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) control-arm
   addendum, with the tool's contract in [repo-gates](../../modules/repo-gates.md) and the operator
-  half in the subagent runbook. Twelve mutations of the new module were each red against its
+  half in the subagent runbook. Twelve mutations of the new module each failed against its
   29-test suite; the table is in that addendum. **No sweep was re-run and no rate in the record
   moved**: every rate quoted is the row addendum's, re-read. The instrument itself was run against
   synthetic samples in the driver's own format and then twice against a live Qwen3.5-0.8B Q8_0 on

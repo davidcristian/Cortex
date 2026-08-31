@@ -60,9 +60,9 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    without declaring it ([ADR-0029](ADR-0029-vision-screen-capture.md)
    cross-language-constant addendum); and `bindcheck.py` reads the compose bind mounts against
    `.gitignore` and against what git tracks ([ADR-0026](ADR-0026-prose-style-gates.md) bind
-   addendum). Each is precisely what no single-toolchain job can do. Otherwise a Rust-only,
-   overlay-only or docs-only change would skip them. Locally they stay the fail-early first
-   steps of `just check`.
+   addendum). Each of those scans reads more than one tree, which no single-toolchain job does,
+   so gating them on one toolchain's paths would let a Rust-only, overlay-only or docs-only
+   change skip them. Locally they stay the fail-early first steps of `just check`.
 2. **Cancellation is PR-only**: `concurrency` with `cancel-in-progress` applies only to
    `pull_request` events. Superseded PR pushes cancel (the churny case), but every
    master commit keeps its CI verdict, because a bisectable history matters for a

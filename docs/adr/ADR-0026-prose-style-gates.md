@@ -21,8 +21,8 @@ neither. A rule with no gate is a defect by the repo's own standard.
 
 The rules are also easy to enforce *wrongly*. During the sweep, the ad-hoc verifier
 raised false positives twice: once on an en dash inside a numeric range, once on the SQL
-comment marker at the head of a line. Both are correct text that a naive scan condemns. A
-gate that cries wolf gets disabled, so the boundary needs to be exact.
+comment marker at the head of a line. Both are correct text that a naive scan reports. A
+gate that fails on correct text gets disabled, so the boundary needs to be exact.
 
 ## Decision
 
@@ -44,8 +44,8 @@ the line cap) and extend `scripts/commitlint.py` from the header to the whole me
    spelling.
 
 2. **ASCII `--` is banned in a commit message and allowed in a file.** The two are
-   different registers. A commit message is pure prose, so ` -- ` there is an em dash in
-   ASCII clothing. A source file uses `--` as this repo's inline-reason idiom
+   different registers. A commit message is pure prose, so ` -- ` there is an em dash
+   written in ASCII. A source file uses `--` as this repo's inline-reason idiom
    (`# noqa: DTZ001 -- the naive value under test`, `# pragma: no cover -- reason`), which
    the escape-hatch rule effectively requires and which appears across 13 files. Banning
    it in files would mean either abandoning that idiom or an unrequested second sweep.
@@ -92,8 +92,8 @@ the line cap) and extend `scripts/commitlint.py` from the header to the whole me
   outright. A commit that genuinely edits the plan must describe what it changed rather
   than name the file. That is the intent, and it is the rule's sharpest edge.
 - The dash rule is not retroactively enforceable on anything outside this repo's history,
-  and the one allowed exemption is load-bearing: if the HTML entity test moves, its pragma
-  moves with it.
+  and the one allowed exemption has to travel with its subject: if the HTML entity test
+  moves, its pragma moves with it.
 
 ## Deferred
 

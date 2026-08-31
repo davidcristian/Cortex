@@ -19,12 +19,12 @@ The echo really happens, verbatim from the probe:
     EXAMINE "no such mailbox"    NO Mailbox doesn't exist: no such mailbox (0.001 + 0.000 secs).
     EXAMINE "[CANNOT] thing"     NO Mailbox doesn't exist: [CANNOT] thing (0.001 + 0.000 secs).
 
-The direction that could hurt is the fail-safe one, a mailbox that is really there and shut being
-reported missing, and reaching it needs a refusal that both declines a real mailbox and echoes the
-name. Dovecot's is `[NOPERM] Permission denied` with no name in it, and the Bridge cannot produce a
-shut mailbox at all. In the other direction the echo changes nothing: a name no mailbox has is
-answered `Mailbox doesn't exist: <name>` whatever the name spells, so the phrase that matches is the
-server's own either way.
+The direction that could cause harm is the fail-safe one, a mailbox that is really there and shut
+being reported missing, and reaching it needs a refusal that both declines a real mailbox and
+echoes the name. Dovecot's is `[NOPERM] Permission denied` with no name in it, and the Bridge
+cannot produce a shut mailbox at all. In the other direction the echo changes nothing: a name no
+mailbox has is answered `Mailbox doesn't exist: <name>` whatever the name is, so the phrase that
+matches is the server's own either way.
 
 **What would close it.** Reading the response code and the text out of the refused command's data
 rather than out of a rendered exception message, which is where the boundary between what the

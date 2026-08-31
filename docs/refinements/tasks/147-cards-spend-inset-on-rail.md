@@ -32,7 +32,7 @@ file ever did.
 **One thing the close had to fix.** Both card comments, and two other comments in the same
 stylesheet, pointed at `docs/refinements/body-overlay.md`, a file deleted when the backlog became
 one file per task. Nothing gates a bare path inside a CSS comment, so four dead pointers had sat
-there unnoticed. They now name the decision and the design rule the cards actually spend, the
+there unreported. They now name the decision and the design rule the cards actually spend, the
 rail-width entry, and the host sitting for the transparent-window pass.
 
 ## Trail

@@ -12,47 +12,47 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
 (The "same seam" half of this line is wrong for `CaptureScreen`; see the dated closure below.)
 
 The reasons are no consumer and no refresh story ([ADR-0023
-addendum](../../adr/ADR-0023-body-gateway-volume.md)). The remaining
-`BodyService` RPCs in this entry (`CaptureScreen`, `InjectInput`) stay open with their slices;
-only the overlay half is declined. **`CaptureScreen` closed 2026-07-18 with the vision slice
+addendum](../../adr/ADR-0023-body-gateway-volume.md)). The remaining `BodyService` RPCs in this
+entry (`CaptureScreen`, `InjectInput`) stay open with their slices; only the overlay half is
+declined. **`CaptureScreen` closed 2026-07-18 with the vision slice
 ([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)), and the entry's own cost estimate was
-wrong in the way this index warns about:** it promised the remaining RPCs "behind the same
-seam", and the seam changed. `proto/body.proto` gained five fields, `CaptureScreenRequest.
-max_edge` and `max_bytes` plus `ImageBlob.source_width`, `source_height` and
-`captured_at_unix_ms`, and the brain-side port grew a method returning a new pure-core value.
-Two of those were not in the design either: `max_bytes` exists because a fixed byte ceiling made
-the shrink ladder's give-up arm unreachable, and putting the budget on the request is what makes
-the brain's bound and the body's ceiling one number rather than two constants coupled by prose.
-`InjectInput` stays open, and is now the only unbuilt `BodyService` RPC, which is why the index
-**holds this area at 6** rather than decrementing it: half an entry closing does not close the
-entry, and a count moved for a half-closed one is how an open deferral gets lost. **That 6 is
-this sentence's own moment, 2026-07-18, and the area has read 5 since the next day**, when the
-host-Windows validation above moved to [docs/host/](../../host/index.md) and took its name off the
-count. Corrected 2026-08-10 by a pass reading every entry against both counts: the rule the
+wrong in the way this index warns about:** it promised the remaining RPCs "behind the same seam",
+and the seam changed. `proto/body.proto` gained five fields, `CaptureScreenRequest. max_edge` and
+`max_bytes` plus `ImageBlob.source_width`, `source_height` and `captured_at_unix_ms`, and the
+brain-side port grew a method returning a new pure-core value. Two of those were not in the design
+either: `max_bytes` exists because a fixed byte ceiling made the shrink ladder's give-up arm
+unreachable, and putting the budget on the request is what makes the brain's bound and the body's
+ceiling one number rather than two constants coupled by prose. `InjectInput` stays open, and is now
+the only unbuilt `BodyService` RPC, which is why the index **holds this area at 6** rather than
+decrementing it: half an entry closing does not close the entry, and a count moved for a half-closed
+one is how an open deferral gets lost.
+**That 6 is this sentence's own moment, 2026-07-18, and the area has read 5 since the next day**,
+when the host-Windows validation above moved to [docs/host/](../../host/index.md) and took its name
+off the count. Corrected 2026-08-10 by a pass reading every entry against both counts: the rule the
 sentence states is untouched, and only the number it happened to be illustrating had moved on.
-**Recorded at its origin ADR on 2026-07-19, closing a two-of-three gap
-([ADR-0023 capture-closure addendum](../../adr/ADR-0023-body-gateway-volume.md)).** The closure and
-the wrong cost claim had been written here and on the index while ADR-0023 still listed
-`CaptureScreen` as deferred to its slice in three separate paragraphs, which is the ADR a reader
-of that deferral reaches first. The same pass gave `InjectInput` its own line in the index's
-dead-until-a-consumer bucket, where it had been counted since the extraction but never placed.
-Three findings, in the order they killed it. **The entry
-names the wrong seam.** `GetVolume` is a `BodyService` RPC, and the body is its *server*: the
-overlay is inside the body, so it would never call that RPC. Surfacing volume there means a
-new Tauri command over `AudioControl` plus a new overlay port, since `BrainBridge` is by its
-own definition the overlay's port *to the brain* and a host-local fact does not belong on it.
-So "behind the unchanged seams" is false for this half. **Nothing would read it.** No overlay
-affordance changes volume, none is designed, and ADR-0023 chose volume precisely as a spoken,
-reversible action. **And it could not stay true.** The summon-edge latch that keeps the
-connection dot honest works there because a turn's own events refresh it for free and a probe
-answers the exact question; volume changes from hardware keys and other apps with nothing to
-tell the overlay, so a number latched at summon is wrong seconds later, next to an OS tray
-icon that is always right. That is the always-green dot ADR-0011 removed in 2026-07-03, in
-another form: chrome earns its place by meaning something. **Reopens** when the overlay gains
-a control that *changes* volume (the number then has a job and a reason to be fresh), or when
-a host-side change event exists to push it (`IAudioEndpointVolumeCallback` is the producer
-that would make it a status rather than a snapshot). Either way it is a new body-local port,
-not this entry's "unchanged seam".
+**Recorded at its origin ADR on 2026-07-19, closing a two-of-three gap ([ADR-0023 capture-closure
+addendum](../../adr/ADR-0023-body-gateway-volume.md)).** The closure and the wrong cost claim had
+been written here and on the index while ADR-0023 still listed `CaptureScreen` as deferred to its
+slice in three separate paragraphs, which is the ADR a reader of that deferral reaches first. The
+same pass gave `InjectInput` its own line in the index's dead-until-a-consumer bucket, where it had
+been counted since the extraction but never placed. Three findings, in the order that settled it.
+**The entry names the wrong seam.** `GetVolume` is a `BodyService` RPC, and the body is its
+*server*: the overlay is inside the body, so it would never call that RPC. Surfacing volume there
+means a new Tauri command over `AudioControl` plus a new overlay port, since `BrainBridge` is by its
+own definition the overlay's port *to the brain* and a host-local fact does not belong on it. So
+"behind the unchanged seams" is false for this half.
+**Nothing would read it.** No overlay affordance changes volume, none is designed, and ADR-0023
+chose volume precisely as a spoken, reversible action.
+**And it could not stay true.** The summon-edge latch that keeps the connection dot accurate works
+there because a turn's own events refresh it for free and a probe answers the exact question; volume
+changes from hardware keys and other apps with nothing to tell the overlay, so a number latched at
+summon is wrong seconds later, next to an OS tray icon that is always right. That is the
+always-green dot ADR-0011 removed in 2026-07-03, in another form, an indicator whose value nothing
+keeps current.
+**Reopens** when the overlay gains a control that *changes* volume (the number then has a job and a
+reason to be fresh), or when a host-side change event exists to push it
+(`IAudioEndpointVolumeCallback` is the producer that would make it a status rather than a snapshot).
+Either way it is a new body-local port, not this entry's "unchanged seam".
 
 ## Trail
 

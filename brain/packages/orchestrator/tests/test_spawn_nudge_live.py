@@ -1,5 +1,3 @@
-"""Integration: does a live cortex spread independent subtasks across roster models (ADR-0018)?"""
-
 import json
 import os
 from collections.abc import Mapping, Sequence
@@ -45,26 +43,19 @@ from cortex_orchestrator.config import BrainRuntimeConfig
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 
 _INFERENCE = os.environ.get("CORTEX_INFERENCE_ENDPOINT")
-# Read from the raw environment rather than from `SubagentsConfig`, so collecting this file
-# cannot fail on a half-configured deployment the run would skip anyway.
 _ALTERNATES = [name for name in os.environ if name.startswith("CORTEX_SUBAGENTS_ROSTER__")]
 
-# A one-entry roster advertises no `model` knob at all (`build_spawn_spec`), so there would be
-# nothing to spread across and the observation would be empty.
 _needs_a_cortex_and_a_multi_entry_roster = pytest.mark.skipif(
     not (_INFERENCE and _ALTERNATES),
     reason="set CORTEX_INFERENCE_ENDPOINT and at least one CORTEX_SUBAGENTS_ROSTER__<name>",
 )
 
-# Independent subtasks, no delegation language of any kind: what a user would simply type.
 _ASK_PROSE = (
     "I am putting together notes for a talk tomorrow and I need three short write-ups. One on "
     "what a hash table is, one on what a bloom filter is, and one on what a skip list is. Two or "
     "three sentences each, plain enough for someone new to the subject. None of them depends on "
     "the others."
 )
-# The same work with delegation invited in the user's own words. It names no tool, no model and
-# no parallelism, so the model pick is the only thing left for the cortex to decide.
 _ASK_INVITED = (
     "I need three separate things written and I would rather you farm them out than write them "
     "all yourself. One: two or three sentences on what a hash table is. Two: two or three "
@@ -90,7 +81,7 @@ def _profile(
     scheduler: SubagentScheduler,
     placer: SubagentPlacer,
 ) -> SubagentProfile:
-    """One roster entry as the composition root builds it: its own backend pair and ask."""
+    """Build one roster entry as the composition root does, with its own backend pair and ask."""
     return SubagentProfile(
         resources=SubagentResources(
             backends={
@@ -112,7 +103,7 @@ def _profile(
 def _spawn_tool(
     config: SubagentsConfig, runtime: BrainRuntimeConfig, client: httpx.AsyncClient
 ) -> SpawnSubagentsTool:
-    """The deployment's own spawn tool: every roster entry, one shared budget and ledger."""
+    """Build the deployment's own spawn tool over every roster entry, with one budget and ledger."""
     scheduler = ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb)
     placer = VramBudgetPlacer(
         soft_cap_gb=runtime.vram_soft_cap_gb,
@@ -132,7 +123,7 @@ def _spawn_tool(
 
 
 def _advertised_models(spec: ToolSpec) -> list[str]:
-    """The `model` enum the spec publishes, dug out of the JSON Schema it carries."""
+    """Return the `model` enum the spec publishes, read out of its JSON Schema."""
     properties = cast("Mapping[str, object]", spec.parameters["properties"])
     instructions = cast("Mapping[str, object]", properties["instructions"])
     items = cast("Mapping[str, object]", instructions["items"])
@@ -178,8 +169,6 @@ async def _one_turn(ask: str) -> _Observed:
     observed = _Observed(reply="".join(reply), reasoning="".join(reasoning))
     for message in working:
         for call in message.tool_calls:
-            # A malformed `instructions` is the tool's own `is_error` to answer, not this
-            # observation's to crash on, so a call that carries no array simply records nothing.
             raw: object = call.arguments.get("instructions")
             if not isinstance(raw, list):
                 continue
@@ -190,7 +179,7 @@ async def _one_turn(ask: str) -> _Observed:
 
 
 def _pick_of(item: object, default: str) -> str:
-    """Which roster entry one instructions item asked for; the default when it named none."""
+    """Return the roster entry an instructions item asked for, or the default when it named none."""
     if isinstance(item, Mapping):
         chosen = cast("Mapping[str, object]", item).get("model", "")
         return cast("str", chosen) if chosen else default
@@ -198,7 +187,7 @@ def _pick_of(item: object, default: str) -> str:
 
 
 def _report(label: str, observed: _Observed) -> None:
-    """Print the observation. It is the point of the run and it is never an assertion."""
+    """Print the observation, which is the output of the run rather than an assertion."""
     print(  # noqa: T201
         f"\n[{label}] batches={observed.batches} picks={observed.picks} "
         f"distinct_models={len(set(observed.picks))} reply_chars={len(observed.reply)} "
@@ -207,7 +196,7 @@ def _report(label: str, observed: _Observed) -> None:
 
 
 def _assert_the_choice_is_well_formed(observed: _Observed, config: SubagentsConfig) -> None:
-    """What must hold whatever the cortex decided, delegation or none."""
+    """Assert what holds whatever the cortex decided, delegation or none."""
     assert observed.reply.strip(), "the turn produced no reply at all"
     for size in observed.batches:
         assert 0 < size <= MAX_SPAWN_BATCH, f"a batch of {size} is outside the advertised cap"
@@ -218,16 +207,10 @@ def _assert_the_choice_is_well_formed(observed: _Observed, config: SubagentsConf
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
 async def test_the_spawn_tool_offers_the_knob_and_the_trade_off_it_is_meant_to_take() -> None:
-    """The armed check: a run that never spreads must not be a spec that never offered to.
-
-    Deterministic and model-free, so it is the evidence the two observation arms lean on.
-    """
     config = SubagentsConfig()
     runtime = BrainRuntimeConfig()
     async with httpx.AsyncClient() as client:
         spec = _spawn_tool(config, runtime, client).spec
-    # Asserted before the enum is read, because a one-entry roster publishes no `model` property
-    # at all and digging for one would raise where a sentence should explain.
     assert len(config.named_roster) > 1, "a one-entry roster has nothing to spread across"
     assert sorted(_advertised_models(spec)) == sorted(config.named_roster)
     assert "spread independent subtasks across models" in spec.description
@@ -238,7 +221,6 @@ async def test_the_spawn_tool_offers_the_knob_and_the_trade_off_it_is_meant_to_t
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
 async def test_a_prose_only_ask_carrying_independent_subtasks() -> None:
-    """Observation: given no delegation language, does the cortex reach for delegation at all?"""
     config = SubagentsConfig()
     observed = await _one_turn(_ASK_PROSE)
     _report("prose-only", observed)
@@ -248,7 +230,6 @@ async def test_a_prose_only_ask_carrying_independent_subtasks() -> None:
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
 async def test_an_ask_that_invites_delegation_in_the_users_own_words() -> None:
-    """Observation: given delegation, does the cortex spread the batch or pile it on one entry?"""
     config = SubagentsConfig()
     observed = await _one_turn(_ASK_INVITED)
     _report("invited", observed)

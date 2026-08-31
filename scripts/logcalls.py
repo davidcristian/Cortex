@@ -17,6 +17,9 @@ SOURCE_DIR = "src"
 # The keyword a call attaches its fields under, which is the stdlib's own name for them.
 EXTRA = "extra"
 
+# The one logging method whose level is an argument rather than its own name, and where its
+# message sits when it is. The model host switches between a warning and an error that way, and a
+# line written through it has no level a sample could be held to.
 DYNAMIC_LEVEL = "log"
 DYNAMIC_MESSAGE = 1
 
@@ -49,7 +52,7 @@ class LogCall(NamedTuple):
 
 
 def read(path: Path, shown: str) -> str:
-    """Read one brain source file, refusing one that is absent or is not text."""
+    """Read one brain source file, raising when it is absent or is not text."""
     try:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:

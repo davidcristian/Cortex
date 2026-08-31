@@ -12,12 +12,12 @@ had both become expensive: answering either meant reading an area doc end to end
 reading the index's running ledger for the corrections the area doc had not picked up.
 
 The failure mode is not a guess. This backlog documented it against itself, three times, and each
-account is worth keeping because each is the same defect wearing different clothes:
+account is worth keeping because each is the same defect in a different form:
 
 - A status was written in three places: the entry itself, its area doc's `**Open items:**`
   header, and the area's cell in the index table. Keeping three restatements true by hand is the
   whole job, and it was not done.
-- **A count that is right by cancellation hides both of its errors.** The body-overlay Open-items
+- **A count that is right by cancellation shows neither of its errors.** The body-overlay Open-items
   line had drifted twice in opposite directions: it still named an entry that had landed and had
   never picked up one that opened. Eleven names either way, so the header and its cell agreed at
   every moment, and the agreement was worth nothing. A reader following it would have opened a
@@ -50,7 +50,7 @@ a gate failure, because a title that says `landed 2026-08-06` is a fourth place 
 **4. The two states that are defined by waiting must name what they wait for.** `fix when it
 bites` and `dead until a consumer` each require a `**Trigger:**` line. Both states mean somebody
 decided not to act, and without a written trigger that is indistinguishable from a task quietly
-dropped. The gate refuses the file otherwise.
+dropped. The gate rejects the file otherwise.
 
 **5. An index is two documents in one file.** Above the marker a person writes what the backlog
 is and how to work it. Between the markers `backlogindex.py` writes what is in it: the open set
@@ -76,8 +76,8 @@ read past them.
 
 ## The work stream
 
-The point of all of the above is that finishing a task is one edit and the index follows. In
-full, and this is the whole procedure:
+The point of all of the above is that finishing a task is one edit and the index follows. The
+whole procedure:
 
 1. **Pick.** Read `## What remains` at the top of the index. It is generated, so it is complete.
    Buckets are ordered by what unblocks them, not by priority.
@@ -120,8 +120,8 @@ reading volume, which is the complaint that started this. A 2,279-line file with
 header is still a 2,279-line file.
 
 **Number within an area (`memory-01`).** Rejected. A task's area is a fact about it that can
-change, and an identity that changes when the fact does is not an identity. Global numbers cost
-one lookup and never move.
+change, so an identifier built from the area stops resolving the moment the area changes. Global
+numbers cost one lookup and never move.
 
 **YAML frontmatter instead of bolded field lines.** Rejected. The field lines parse exactly as
 well and still read as prose to a person opening the file, and every other doc in this repo is

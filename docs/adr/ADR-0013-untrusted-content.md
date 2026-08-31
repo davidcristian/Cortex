@@ -21,7 +21,7 @@ provenance **framing** (tool output is data, not instructions), capability **gat
 (irreversible/outbound actions need explicit confirmation once untrusted content is in
 context), and an optional **screening subagent** (weighed and deferred).
 
-The threat model is a single-user local assistant. The load-bearing invariant is **framing
+The threat model is a single-user local assistant. The governing invariant is **framing
 is necessary but not sufficient**. A model can be jailbroken, so the deterministic boundary
 is the *gate*, which makes an obeyed injection non-catastrophic: an outbound action cannot
 fire on a tainted turn without an out-of-band confirmation the model cannot forge. Framing
@@ -31,7 +31,7 @@ Two existing facts constrain the design. The MCP adapter (`McpToolRegistry.invok
 registry.py) builds every `ToolResult` generically from a remote server, so it **cannot
 annotate per-tool trust**. And `stream_tool_loop` is shared by the cortex turn *and* every
 subagent (ADR-0010), so a boundary placed there covers both; a subagent that reads a
-malicious email must be as protected as the cortex, and its taint must ride home.
+malicious email must be as protected as the cortex, and its taint must travel back with its result.
 
 ## Decision
 
@@ -41,7 +41,7 @@ A two-value enum in `tools.py` (`Trust.TRUSTED` / `Trust.UNTRUSTED`) carried on
 `ToolResult.trust`, **default `UNTRUSTED`**. Trust travels *with the content* that re-enters
 the loop, so `_result_message` reads it directly. The distinction is binary because the
 boundary only ever acts on one question (is this text data or instructions), so a third
-"tainted" grade would behave identically to UNTRUSTED and earns nothing.
+"tainted" grade would behave identically to UNTRUSTED and add nothing.
 
 Because the default is fail-closed, **the MCP adapter and its `InMemoryToolRegistry` twin
 need no change**: any result they return is UNTRUSTED, which is exactly right for external
@@ -80,8 +80,8 @@ rule, and the rule must be stated once regardless:
   `</untrusted-tool-output …>` cannot close the frame, because the attacker, authoring a
   file before the turn, cannot predict the turn's nonce, so the forged closer never carries
   the matching id and the real nonce'd closer still bounds the whole hostile blob. The nonce
-  is fresh per turn and dies with it. We reject content-mangling (stripping delimiters from
-  the payload) as it corrupts data the user may need; the unpredictable nonce is the
+  is fresh per turn and is discarded when the turn ends. We reject content-mangling (stripping
+  delimiters from the payload) as it corrupts data the user may need; the unpredictable nonce is the
   mitigation.
 
 Provenance is written to the audit trail: `ToolInvocation.trust` records whether each
@@ -215,13 +215,14 @@ Docker-validatable by the agent; the Windows overlay is the user's.
   prove the model honors the "content in markers is data" rule (no GPU in CI). But the agent
   can and should verify it via Docker against real gemma-4-12B (see the Agent GPU validation
   above); it is not a host-only item. It is exactly why the *gate* (deterministic) is the real
-  boundary and framing (probabilistic) is the reducer: even if the GPU check shows the model
-  occasionally obeying an injection, the gate still mechanically stops the outbound action.
+  boundary while framing (probabilistic) only reduces how often the gate is reached: even if the
+  GPU check shows the model occasionally obeying an injection, the gate still mechanically stops
+  the outbound action.
 - **Talk-only exfiltration to the user's own screen.** An obeyed injection can still make the
   cortex *say* something misleading in its reply (no tool call, no gate). Accepted: the single
   user is the only audience and there is no outbound channel without a gated tool.
-- **Confirmation fatigue** once a real gated tool exists, since a turn that read any email then
-  legitimately wants to send one will prompt. Mitigation is host-side UX (a clear reason
+- **Confirmation fatigue** once a real gated tool exists, since a turn that read any email and
+  then legitimately needs to send one will prompt. Mitigation is host-side UX (a clear reason
   string, the action shown); flagged for Slice 9/10 host validation, not solvable in the pure
   core.
 - **A built-in mis-declared `TRUSTED`.** A future author wrongly stamping a tool that returns

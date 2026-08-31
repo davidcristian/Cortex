@@ -1,5 +1,5 @@
 //! The Windows [`Notify`] backend: a native toast (`WinRT` `ToastNotificationManager`).
-#![allow(unsafe_code)] // ADR-0025: WinRT activation needs a COM-initialized thread.
+#![allow(unsafe_code)] // Activating a WinRT factory needs a COM-initialized thread.
 
 use body_core::os::escape_xml;
 use body_core::{Notification, Notify, NotifyError};
@@ -10,15 +10,16 @@ use windows::UI::Notifications::{
 use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx};
 use windows::core::{Error as WinError, HSTRING};
 
-/// The Windows toast backend. Stateless apart from the app identity it shows under, so a
-/// notification-settings change between calls is picked up (the one hard rule: the body
-/// server holds no state).
+/// The Windows toast backend.
 pub struct WindowsNotify {
     app_id: String,
 }
 
 impl WindowsNotify {
     /// Creates the backend for `app_id`, the `AppUserModelID` the toast is attributed to.
+    ///
+    /// Windows shows an unpackaged app's toasts only when a Start Menu shortcut has this
+    /// identity; see `docs/runbooks/scheduling.md`.
     #[must_use]
     pub fn new(app_id: &str) -> Self {
         Self {
@@ -29,19 +30,15 @@ impl WindowsNotify {
 
 impl Notify for WindowsNotify {
     fn show(&self, notification: &Notification) -> Result<bool, NotifyError> {
-        // The same split the volume backend maps its COM failures on: a notification service
-        // we cannot reach at all is transient, anything else is a backend fault.
         let unreachable = |error: WinError| NotifyError::Unavailable(error.message());
         let failed = |error: WinError| NotifyError::Backend(error.message());
         unsafe {
-            // Idempotent per thread; a prior initialization returns a non-fatal status we ignore.
+            // Initializing COM again on this thread returns a non-fatal status, which is ignored.
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
         let notifier =
             ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&self.app_id))
                 .map_err(unreachable)?;
-        // The user (or policy) can switch notifications off. That is an answer, not a
-        // failure: the reminder stays deliverable and the overlay's pull path shows it.
         if notifier.Setting().map_err(failed)? != NotificationSetting::Enabled {
             return Ok(false);
         }
@@ -55,9 +52,9 @@ impl Notify for WindowsNotify {
     }
 }
 
-/// Renders the notification into a `ToastGeneric` payload: the title, the message, and (for a
-/// reminder the brain does not trust) the fixed provenance line, each escaped so injected
-/// text lands as characters rather than markup.
+/// Renders the notification into a `ToastGeneric` payload: the title, the message, and, for a
+/// reminder the brain does not trust, the fixed provenance line. Each is escaped, so injected
+/// text shows as characters rather than markup.
 fn toast_xml(notification: &Notification) -> String {
     let title = escape_xml(notification.title());
     let body = escape_xml(notification.body());

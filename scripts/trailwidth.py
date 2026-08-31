@@ -14,7 +14,7 @@ from contrast import DEFAULT_RESAMPLES, DEFAULT_SEED, bootstrap
 # a capture. Matched where the formatter puts a message rather than anywhere in the line, by the
 # pattern below, since the logger this sink writes through ends in the same word.
 TRAIL_MESSAGE = "memory.recall"
-# The field whose width is the subject. Spelled once and spent in the pattern below.
+# The field whose width is the subject. Written once and spent in the pattern below.
 TRAIL_FIELD = "dropped"
 _VALUE = re.compile(rf" {TRAIL_FIELD}=(?P<value>.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|$)")
 # What `cortex_core.CUT` renders as, anchored at the end, since that is the only place it can sit
@@ -98,7 +98,7 @@ def readings(text: str) -> tuple[Reading, ...]:
 
 
 def load(path: Path) -> Block:
-    """Read one capture into a block, refusing a file that holds no trail line at all."""
+    """Read one capture into a block, raising on a file that holds no trail line at all."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as err:

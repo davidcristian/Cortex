@@ -5,7 +5,7 @@
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** an MTP or draft artifact for a shipped tier that this build of llama.cpp loads at all, since no argv, compose file or env in this tree can name one today.
 
-Deferred until they earn their keep, per
+Deferred until the latency they save justifies the memory they cost, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
 
 ## Trail
@@ -16,7 +16,7 @@ Deferred until they earn their keep, per
   artifacts, and the card has the room on the deep tier: gemma-4-31B alone reads 20671 to 20723
   MiB, a 2878 MiB peer beside it reads 23555 to 23642 MiB with about 908 MiB free, and the deep
   model's decode is unharmed at 28.92 to 29.82 tok/s against 25.07 to 33.28 alone. It is fatal
-  only for the cortex-plus-deep pairing, which wants 29139 MiB against 24463 and pays for the
+  only for the cortex-plus-deep pairing, which needs 29139 MiB against 24463 and pays for the
   overcommit in decode. **The stated condition has arguably already arrived**, since a deep turn
   spends 3800 to 4500 tokens at about 31 tok/s, which is roughly two minutes of generation on top
   of a 99.6 s load, so decode is the larger half of what a user waits for on that tier and "revisit

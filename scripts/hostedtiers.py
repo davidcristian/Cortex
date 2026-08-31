@@ -14,9 +14,6 @@ MODEL_MANAGER = Path("brain/packages/model_manager/src/cortex_model_manager")
 ARGV_MODULE = "tiers.py"
 TIER_MODULE = "config.py"
 
-# What is read out of the two. The builder every tier's command comes from and the splat a tier's
-# own tail rides on; the settings class, the dataclass a tier is declared as, the keyword carrying
-# the artifact path that says which setting a tier belongs to, and the keyword carrying its tail.
 ARGV_FUNCTION = "llama_server_argv"
 TIER_CLASS = "TierArgs"
 TIER_EXTRA = "extra"
@@ -26,9 +23,9 @@ SETTINGS_FIELD = "Field"
 SETTINGS_ALIAS = "validation_alias"
 SELF = "self"
 
-# An argv item this reader cannot reduce to a string. It is spelled so that no flag name and no
-# required value can ever equal it, its whole job being to occupy a position without satisfying
-# anything a rule might require at one.
+# An argv item this reader cannot reduce to a string. It is written so that no flag name and no
+# required value can equal it, its job being to occupy a position without satisfying anything a
+# rule might require at one.
 UNREADABLE = "<computed>"
 
 # A tree declaring no tier at all, or a settings class naming no environment variable, is a
@@ -51,7 +48,7 @@ class Tier(NamedTuple):
 
 
 def parse_module(root: Path, name: str) -> ast.Module:
-    """One of the sidecar's modules, with the syntax reader's refusal carried out this door."""
+    """One of the sidecar's modules, with the syntax reader's error re-raised as this module's."""
     try:
         return parse(root / MODEL_MANAGER / name, (MODEL_MANAGER / name).as_posix())
     except ModuleReadError as err:
@@ -59,7 +56,7 @@ def parse_module(root: Path, name: str) -> ast.Module:
 
 
 def _returned(module: ast.Module) -> ast.Tuple:
-    """The tuple the argv builder returns, refusing a shape this reader cannot splice into."""
+    """The tuple the argv builder returns, raising on a shape this reader cannot splice into."""
     for statement in module.body:
         if not isinstance(statement, ast.FunctionDef) or statement.name != ARGV_FUNCTION:
             continue
@@ -159,7 +156,7 @@ def _tail(
     strings: Mapping[str, str],
     tuples: Mapping[str, tuple[str | None, ...]],
 ) -> tuple[str, ...]:
-    """The flags one subagent tier adds to the shared command, refused when it cannot be read."""
+    """The flags one subagent tier adds to the shared command, raising when it cannot be read."""
     written = [keyword.value for keyword in call.keywords if keyword.arg == TIER_EXTRA]
     tail = items(written[0], strings, tuples) if written else ()
     if tail is None or any(item is None for item in tail):

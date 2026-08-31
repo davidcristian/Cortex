@@ -10,20 +10,20 @@ emits `choices[0].delta.reasoning_content` (its private deliberation) *before* t
 `delta.content` that is the reply. This was found during the Slice 6.5 GPU validation
 ([ADR-0013 addendum](ADR-0013-untrusted-content.md)) and recorded as a Slice-4 deferral:
 `LlamaCppBackend` reads only `content`, so a delta carrying only `reasoning_content` is silently
-dropped, and, because the cortex compose (unlike the subagent tier) does **not** pass
-`enable_thinking=false`. A long deliberation streams *nothing* to the overlay until it concludes.
-Fine for an ordinary prompt; a latency/opacity risk under a heavy think (the overlay looks frozen).
+dropped. The cortex compose, unlike the subagent tier, does **not** pass `enable_thinking=false`,
+so a long deliberation streams *nothing* to the overlay until it concludes. That is acceptable for
+an ordinary prompt, but under a long deliberation the overlay appears frozen.
 
 The deferral named three options behind the unchanged `InferenceBackend`: (a) disable thinking for
 the cortex (the subagent twin), (b) **surface `reasoning_content` as a "thinking" status**, or (c)
-budget enough tokens. This ADR picks (b), because the whole rest of the status path is already
-built but dark: the proto has `ServerEvent.StatusUpdate{state, detail}` (Slice 2), the body's
+budget enough tokens. This ADR picks (b), because the rest of the status path is already built and
+never exercised: the proto has `ServerEvent.StatusUpdate{state, detail}` (Slice 2), the body's
 `body_rpc` adapter maps it to `TurnEvent::Status`, and the overlay reducer folds a `status` event
 into the streaming message (the "thinking" affordance in [overlay-ux.md](../design/overlay-ux.md)).
-The brain is the **only** side that never emits a `StatusUpdate`. Surfacing reasoning both fixes
-the silent-think problem (progress is visible as it thinks) and lights up that path end to end,
-where (a) would merely hide the reasoning and (c) does not address opacity. Thinking stays **on**
-for the cortex. We surface it, not suppress it.
+The brain is the **only** side that never emits a `StatusUpdate`. Surfacing reasoning fixes the
+silent-think problem, because progress becomes visible during deliberation, and it exercises that
+path end to end. Option (a) would hide the reasoning and option (c) does not address opacity.
+Thinking stays **on** for the cortex, and the trace is shown rather than suppressed.
 
 ## Decision
 
@@ -59,8 +59,8 @@ for the cortex. We surface it, not suppress it.
 
 5. **Subagents drop reasoning (`runner.py`).** The subagent tier runs `enable_thinking=false`
    (ADR-0010) and has no status channel; the `SubagentRunner` ignores a `ReasoningDelta` rather
-   than folding it into the answer. Defensive (no reasoning is expected there) but keeps the loop
-   contract honest for both callers.
+   than folding it into the answer. Defensive (no reasoning is expected there) but keeps one loop
+   contract for both callers.
 
 ## Consequences
 
@@ -77,8 +77,8 @@ for the cortex. We surface it, not suppress it.
 
 - **Reasoning is model output shown transiently.** It is the same trust level as the reply (both are
   the model's own tokens, not verbatim tool content), surfaced as status and never persisted. The
-  output guardrail (ADR-0015) scrubs laundered untrusted URLs from the *reply*; it does not see the
-  reasoning status. A model could in principle echo an injected URL into its reasoning trace, which
+  output guardrail (ADR-0015) scrubs laundered untrusted URLs from the *reply*; it does not run over
+  the reasoning status. A model could in principle echo an injected URL into its reasoning trace, which
   the overlay would display transiently. Extending the guardrail over reasoning status is deferred
   below. The guardrail's streaming `feed` is built around the single reply stream, and reasoning is
   ephemeral and unpersisted, so v1 keeps it out of scope deliberately.
@@ -96,9 +96,9 @@ for the cortex. We surface it, not suppress it.
   overlay's inline chips gave the thinking status a rendered surface, so the deferral's "if
   displaying reasoning proves an exfiltration surface" condition came true.
 - **`state`-aware overlay treatment landed 2026-07-13** (third addendum below): a `"thinking"`
-  status chip now reads distinctly (its dot bobs with the reasoning shimmer, its label leans on
-  the accent) from a generic status or tool chip. **The richer collapsed "thoughts" section landed
-  2026-07-16** (fourth addendum below), over the same reducer field.
+  status chip now renders differently from a generic status or tool chip, with its dot on the
+  reasoning bob animation and its label tinted with the accent. **The richer collapsed "thoughts"
+  section landed 2026-07-16** (fourth addendum below), over the same reducer field.
 - **Disable-thinking / token-budget alternatives** stay available for the cortex behind the same
   seams if a runaway trace or latency floor argues for capping rather than only surfacing.
 - **Reasoning persistence / summarization declined 2026-07-16** (fourth addendum below): keeping a

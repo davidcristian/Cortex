@@ -32,7 +32,7 @@ cd brain && CORTEX_MEMORY_DSN=postgresql://cortex:cortex@127.0.0.1:5432/cortex \
   uv run pytest -m integration --no-cov packages/memory
 ```
 
-`--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run.
+`--no-cov` matters, since the 100% gate in the workspace addopts would otherwise fail the run.
 This runs the full `MemoryStore` contract (empty search, cosine ranking, top-k, roundtrip
 fidelity including the `scope`, and scope-filter isolation/union) against real pgvector,
 proving the adapter's SQL, which CI's canned-row fake cannot.
@@ -40,13 +40,13 @@ proving the adapter's SQL, which CI's canned-row fake cannot.
 **Give it the DSN of the brain's database, not of its own.** The run redirects onto
 `cortex_contract` itself (`brain/packages/memory/tests/live_postgres.py`), which it empties before
 the suite and after every check, so your memories are never read, written, or deleted and the two
-checks that assert over the whole table (`check_empty_search` wants `search(k=5)` empty,
+checks that assert over the whole table (`check_empty_search` asserts `search(k=5)` is empty,
 `check_ranks_by_similarity` an exact top-2) hold however much the brain has remembered. That is
 the Redis suites' logical database in the form Postgres has for it (ADR-0002 addendum on the live
 pgvector database). Pointing `CORTEX_MEMORY_DSN` at `cortex_contract` fails the run rather than
 running there, since that would aim the brain at the database the suite empties.
 
-**If the run refuses to start** with `the cortex_contract database is missing or unbootstrapped`,
+**If the run fails at startup** with `the cortex_contract database is missing or unbootstrapped`,
 your data dir predates that database: an initdb script never re-runs on an existing volume. Create
 it once, with the same bootstrap file, which stays mounted in the container after init:
 
@@ -99,7 +99,8 @@ never recalled in another (`search` filters on `scope = ANY(read-scopes)`). It a
 `judge` **is the default** since the ADR-0038 turn-cost addendum: the model rank hands the
 over-fetched pool to the resident cortex and takes back an ordering, so a recalling turn spends one
 bounded cortex generation before it answers and the GPU stack has to be up. It falls back to raw
-cosine whenever the model cannot be reached or believed, and the fallback is visible rather than
+cosine whenever the model cannot be reached or its reply cannot be read as an order, and the
+fallback is visible rather than
 silent, because the trail records the basis that actually ranked. **What it costs, measured over 48
 real turns an arm on the 24 GB card:** the rank alone is 0.877 s at the pool a turn asks for (`k` 5
 at `pool_factor` 4, so 20 candidates), and a turn's time to first token rises 0.515 s (95% CI 0.116
@@ -127,8 +128,9 @@ empty pool, which shows the ranking policy's own basis. The geometric policies h
 decline: they always return their nearest `k`, so under `raw` a question memory cannot answer still
 recalls the three least-unrelated notes it holds. **That is a property of ranking by distance and
 not a gap waiting to be filled**, so setting `CORTEX_MEMORY_RECALL=raw` is an opt-out of the
-refusal as much as of the rank. A similarity floor was the obvious way to give geometry a refusal
-and was calibrated on the real embedder before being declined (ADR-0038 relevance-floor addendum):
+abstention as much as of the rank. A similarity floor was the obvious way to give the geometric
+policies an abstention, and it was calibrated on the real embedder before being declined
+(ADR-0038 relevance-floor addendum):
 over the 41-note corpus the questions memory can answer and the questions it cannot overlap on
 cosine, so every floor that silences the second silences the first, worst of all where a note
 answers in words the question never used. Reproduce or reopen it behind another embedding model
@@ -171,7 +173,7 @@ in the shipped brain does. Both of them and the trail spelled it `session` until
 on one name per work identity (ADR-0009 one-vocabulary addendum), so the same grep now also reaches
 the turn's own failure lines and its audited tool calls, which always spelled it this way.
 
-Silence means the rank is working. A pool the model ordered and a pool it read and declined both
+No such line means the rank is working. A pool the model ordered and a pool it read and declined both
 pass without a line, the second showing as the `demur` basis on the trail below, and so does an
 empty pool, there being nothing to rank.
 
@@ -193,13 +195,14 @@ an id that appears there was read and passed over while an id in neither `hits` 
 never a candidate at all. That distinction matters most under the shipped default, since a judge
 rank returns about one note where the cosine returned five, so most of the pool disappears on a
 normal turn. Two things to read carefully. A dropped candidate carries **no rank key**, because a
-rank has an opinion only about what it kept and the judge leaves an unhelpful note out of its order
-rather than scoring it low, so the line says what was available and not why the rank declined it.
+rank key is assigned only to what the rank kept and the judge leaves an unhelpful note out of its
+order rather than scoring it low, so the line says what was available and not why the rank
+declined it.
 And the list is bounded at 20, which is the whole pool a default deployment ever fetches (a recall
 of five at a pool factor of four): `dropped_omitted` says how many more there were, and it reads 0
 unless you have widened `CORTEX_MEMORY_RECALL_POOL_FACTOR` past what ships.
 
-`available` is what turns "never a candidate" from a name into a reading. It is the store's own
+`available` is what makes "never a candidate" readable off the line. It is the store's own
 count of the namespaces this recall was allowed to read, so compare it with `pool`:
 
 | Line | What it means | Where to look next |
@@ -209,8 +212,8 @@ count of the namespaces this recall was allowed to read, so compare it with `poo
 
 That is also how to answer "is my pool wide enough": `available` says what share of the readable
 store a recall actually looks at, and a deployment that has widened its factor can watch the gap
-close. The requested width itself is not logged, because it needs no line of its own: where it
-matters it is exactly `pool`, and where it does not it explains nothing.
+close. The requested width itself is not logged: where it matters it equals `pool`, and where it
+does not it explains nothing.
 
 The count is a second statement against Postgres rather than part of the ranked `SELECT`, and it
 is issued **only** when this trail is on, so leaving the audit off costs a recall nothing at all.
@@ -282,8 +285,9 @@ out. Read the two ranges together rather than one after the other: the widest fi
 line are not the same line, a rank that keeps three notes writing a narrower `dropped` and a wider
 line than one that keeps none.
 
-Two blocks by default, because the claim under test is about a maximum and one sample of a maximum
-can only grow with `n`. `just recall-width 1 2 0` is the quick shape to reach for when the harness
+The harness runs two blocks by default, because the claim under test is about a maximum and one
+sample of a maximum can only grow with `n`. `just recall-width 1 2 0` is the quick shape to reach
+for when the harness
 itself is what is in doubt: one block, two passes, no turns. The captures land in `measurements/`
 and are gitignored for the reason the turn-cost samples are.
 
@@ -330,10 +334,10 @@ cd brain && CORTEX_EMBEDDING_ENDPOINT=http://127.0.0.1:8081 \
 ```
 
 - **Renamed on 2026-08-30:** this variable was `CORTEX_EMBED_MODEL_FILE` until the CPU
-  embedder's artifact was brought into the family every model artifact this tree names is
-  spelled in, `CORTEX_MODEL_FILE_<tier>` (`scripts/flagcheck.py` now holds this one too;
+  embedder's artifact was brought under the naming convention every model artifact this tree
+  names follows, `CORTEX_MODEL_FILE_<tier>` (`scripts/flagcheck.py` now holds this one too;
   ADR-0029's addendum on a non-chat artifact naming itself in the family). Nothing reads the
-  old spelling, so a `.env` that still sets it runs the shipped nomic pick instead of the
+  old name, so a `.env` that still sets it runs the shipped nomic pick instead of the
   override, which matters only to a deployment that had named the `v2-moe` alternative below:
   rename the key there and the stack loads what it did before. Recreate `llama-embed` after
   changing it, and note that the column is dimension-agnostic, so a wrong pick is a silent

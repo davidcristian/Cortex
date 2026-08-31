@@ -1,4 +1,8 @@
-"""Public core names for the tool registry, its dispatch loop, and the built-in tools."""
+"""Public core names for the tool registry, its dispatch loop, and the built-in tools.
+
+Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
+stays ``cortex_core``. ``__all__`` is this file's contract.
+"""
 
 from cortex_core.aggregate import (
     AggregateToolRegistry,

@@ -40,10 +40,8 @@ describe("themes", () => {
       for (const token of [theme.tokens.ok, theme.tokens.warn, theme.tokens.bad]) {
         expect(token).toMatch(/^#[0-9A-F]{6}$/u);
       }
-      // Three distinct hues, because the indicator's whole job is telling them apart.
       expect(new Set([theme.tokens.ok, theme.tokens.warn, theme.tokens.bad]).size).toBe(3);
     }
-    // Light and dark do not share them: the palette's own values wash out on a light panel.
     expect(DAYLIGHT.tokens.ok).not.toBe(MIDNIGHT.tokens.ok);
   });
 
@@ -70,27 +68,19 @@ describe("themes", () => {
     vi.useFakeTimers();
     const el = document.createElement("div");
 
-    // The first application is not a crossing: there is nothing on screen to cross from, and easing
-    // the tokens in would be the overlay fading up into its own colours on boot.
     applyTheme(DAYLIGHT, el);
     expect(el.dataset.swapping).toBeUndefined();
 
-    // A change is. One transition goes on everything for the duration, because a theme moves the
-    // same colour every control eases for its own hover: left alone they crossed at three different
-    // speeds, which reads as the window coming apart and going back together.
     applyTheme(MIDNIGHT, el);
     expect(el.dataset.swapping).toBe("");
     expect(el.style.getPropertyValue("--theme-swap")).toBe(`${THEME_SWAP_MS}ms`);
     expect(el.style.getPropertyValue("--bg")).toBe(MIDNIGHT.tokens.bg);
 
-    // It comes off only once the colours have arrived, or the fade is cut short.
     vi.advanceTimersByTime(THEME_SWAP_MS - 1);
     expect(el.dataset.swapping).toBe("");
     vi.advanceTimersByTime(1);
     expect(el.dataset.swapping).toBeUndefined();
 
-    // A second toggle inside the first one's window keeps its own full crossing: the timer that
-    // would have ended it belongs to a swap that is over.
     applyTheme(DAYLIGHT, el);
     vi.advanceTimersByTime(THEME_SWAP_MS - 1);
     applyTheme(MIDNIGHT, el);

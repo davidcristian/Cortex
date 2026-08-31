@@ -1,8 +1,3 @@
-"""Contract tests for the TaskStore port via its in-memory fake (ADR-0010).
-
-The Redis adapter (Slice 7 CI half) must pass this same contract. The fake is its twin.
-"""
-
 from datetime import UTC, datetime
 
 from cortex_core import InMemoryTaskStore, SubagentResult, SubagentTask

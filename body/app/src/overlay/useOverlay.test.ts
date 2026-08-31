@@ -82,7 +82,6 @@ describe("useOverlay", () => {
     expect(isTurnActive(result.current.state)).toBe(true);
     act(() => result.current.stop());
     expect(isTurnActive(result.current.state)).toBe(false);
-    // The stream was cancelled: late events no longer reach the (ended) message.
     act(() => bridge.emit({ kind: "delta", text: "late" }));
     expect(result.current.state.messages.at(-1)?.content).toBe("");
     expect(result.current.state.mode).toBe("panel");
@@ -108,7 +107,7 @@ describe("useOverlay", () => {
 
   it("newChat cancels any in-flight turn, clears, and mints a fresh session id", async () => {
     const bridge = new FakeBridge();
-    const nextId = idFactory(); // one stable factory across renders
+    const nextId = idFactory();
     const { result } = renderHook(() => useOverlay(bridge, nextId));
     await flush();
     expect(result.current.state.sessionId).toBe("s0");
@@ -116,7 +115,6 @@ describe("useOverlay", () => {
     act(() => result.current.newChat(false));
     expect(result.current.state.messages).toEqual([]);
     expect(result.current.state.sessionId).toBe("s1");
-    // The cancelled turn's late events no longer reach the (cleared) state.
     act(() => bridge.emit({ kind: "delta", text: "late" }));
     expect(result.current.state.messages).toEqual([]);
   });
@@ -135,9 +133,6 @@ describe("useOverlay", () => {
   });
 
   it("refreshes the chat list on each summon, so a list that failed while hidden fills in", async () => {
-    // The other two triggers can both be arbitrarily old by the time anyone looks: mount
-    // happens once for a tray-resident body, and the last turn may have been days ago. This
-    // is also the recovery path for a list that could not load while the brain was down.
     const bridge = new FakeBridge();
     bridge.listFails = true;
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
@@ -161,8 +156,6 @@ describe("useOverlay", () => {
     await flush();
     expect(bridge.listCalls).toBe(2);
 
-    // Mid-turn dismiss parks the overlay as the orb, and tapping it reopens the panel. The
-    // overlay never hid, so neither is a summon.
     act(() => result.current.submit("q"));
     act(() => result.current.dismiss());
     expect(result.current.state.mode).toBe("orb");
@@ -170,8 +163,6 @@ describe("useOverlay", () => {
     await flush();
     expect(bridge.listCalls).toBe(2);
 
-    // Hiding for real re-arms the latch. (Ending the turn refreshes on its own, which is the
-    // pre-existing trigger, so the summon is asserted as the increment on top of it.)
     act(() => result.current.stop());
     await flush();
     const afterTurn = bridge.listCalls;
@@ -187,7 +178,6 @@ describe("useOverlay", () => {
     bridge.link = { state: "degraded", detail: "store down" };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    // Nothing is on screen to be honest about yet, so nothing is claimed.
     expect(result.current.state.link).toEqual({ state: "unknown", detail: "", probing: false });
     expect(bridge.linkCalls).toBe(0);
 
@@ -209,14 +199,11 @@ describe("useOverlay", () => {
     expect(result.current.state.link.state).toBe("down");
     const probes = bridge.linkCalls;
 
-    // A streamed event is proof the brain is serving: the dot goes green without asking.
     act(() => result.current.submit("q"));
     act(() => bridge.emit({ kind: "delta", text: "hi" }));
     expect(result.current.state.link).toEqual({ state: "ready", detail: "", probing: false });
     expect(bridge.linkCalls).toBe(probes);
 
-    // And a turn that dies at the transport is the failure the user is watching, so the
-    // indicator learns it at the same moment the reply does.
     act(() => bridge.fail({ kind: "connection", message: "brain went away" }));
     expect(result.current.state.link).toEqual({
       state: "down",
@@ -236,8 +223,6 @@ describe("useOverlay", () => {
 
   it("adopts the most recent chat on cold start, staying hidden, with its switcher title", async () => {
     const bridge = new FakeBridge();
-    // The switcher row for "recent" carries a renamed/generated title distinct from its first
-    // message; the adopted header must match that row, not the locally re-derived first message.
     bridge.sessions = [
       { sessionId: "recent", title: "Everything about cats", preview: "p", lastActivityUnixMs: 1000, pinned: false },
       summary("older"),
@@ -264,18 +249,18 @@ describe("useOverlay", () => {
   it("attempts cold-start adoption once: a later newest-session change re-fetches nothing", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [summary("recent")];
-    bridge.messagesFail = true; // the cold-start attempt fails but still spends the latch
+    bridge.messagesFail = true;
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    expect(bridge.messagesCalls).toEqual(["recent"]); // the one attempt
+    expect(bridge.messagesCalls).toEqual(["recent"]);
 
     bridge.messagesFail = false;
-    act(() => result.current.submit("q")); // the user acts; a turn runs on s1
-    bridge.sessions = [summary("fresh"), summary("recent")]; // its session becomes newest
+    act(() => result.current.submit("q"));
+    bridge.sessions = [summary("fresh"), summary("recent")];
     act(() => bridge.emit({ kind: "complete", turnId: "t" }));
     await flush();
-    expect(bridge.messagesCalls).toEqual(["recent"]); // the latch blocked a second adopt fetch
-    expect(result.current.state.sessionId).toBe("s1"); // no surprise session swap
+    expect(bridge.messagesCalls).toEqual(["recent"]);
+    expect(result.current.state.sessionId).toBe("s1");
   });
 
   it("a submit racing the cold-start restore wins; adoption backs off", async () => {
@@ -285,7 +270,6 @@ describe("useOverlay", () => {
       recent: [{ role: "user", text: "stored", turnId: "t", atUnixMs: 1 }],
     };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
-    // No flush yet: the user summons and submits before the chat list ever resolves.
     act(() => result.current.open());
     act(() => result.current.submit("racing turn"));
     await flush();
@@ -300,7 +284,7 @@ describe("useOverlay", () => {
     };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    act(() => result.current.submit("q")); // an in-flight turn openSession must cancel
+    act(() => result.current.submit("q"));
     act(() => result.current.openSession("chat-2", false));
     await flush();
     expect(result.current.state.sessionId).toBe("chat-2");
@@ -308,7 +292,7 @@ describe("useOverlay", () => {
   });
 
   it("opening a session with no stored history falls back to a fresh panel", async () => {
-    const bridge = new FakeBridge(); // messagesBySession empty → resolves []
+    const bridge = new FakeBridge();
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     act(() => result.current.openSession("ghost", false));
@@ -330,7 +314,6 @@ describe("useOverlay", () => {
 
   it("renameSession writes the label and re-lists so the switcher shows the new title", async () => {
     const bridge = new FakeBridge();
-    // Two chats, so the write relabels the target and leaves the other untouched.
     bridge.sessions = [summary("chat-2"), summary("chat-3")];
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
@@ -338,11 +321,10 @@ describe("useOverlay", () => {
     act(() => result.current.renameSession("chat-2", "Everything about cats"));
     await flush();
     expect(bridge.renames).toEqual([{ sessionId: "chat-2", title: "Everything about cats" }]);
-    // The write returns no title, so the overlay re-lists; the fake reflects the new label.
     expect(bridge.listCalls).toBe(listsBefore + 1);
     const relisted = result.current.state.sessions;
     expect(relisted.find((s) => s.sessionId === "chat-2")?.title).toBe("Everything about cats");
-    expect(relisted.find((s) => s.sessionId === "chat-3")?.title).toBe("title chat-3"); // untouched
+    expect(relisted.find((s) => s.sessionId === "chat-3")?.title).toBe("title chat-3");
   });
 
   it("a failed rename is swallowed and leaves the chat list unchanged", async () => {
@@ -355,7 +337,6 @@ describe("useOverlay", () => {
     act(() => result.current.renameSession("chat-2", "new"));
     await flush();
     expect(bridge.renames).toEqual([{ sessionId: "chat-2", title: "new" }]);
-    // The rejection does not re-list, so the previously loaded title is untouched.
     expect(bridge.listCalls).toBe(listsBefore);
     expect(result.current.state.sessions.find((s) => s.sessionId === "chat-2")?.title).toBe(
       "title chat-2",
@@ -368,16 +349,14 @@ describe("useOverlay", () => {
     const nextId = idFactory();
     const { result } = renderHook(() => useOverlay(bridge, nextId));
     await flush();
-    // Cold start adopts the most recent chat "a"; delete the OTHER chat "b".
     expect(result.current.state.sessionId).toBe("a");
     const listsBefore = bridge.listCalls;
     act(() => result.current.deleteSession("b"));
     await flush();
     expect(bridge.deletes).toEqual(["b"]);
-    // The write returns nothing, so the overlay re-lists; the fake dropped the row.
     expect(bridge.listCalls).toBe(listsBefore + 1);
     expect(result.current.state.sessions.map((s) => s.sessionId)).toEqual(["a"]);
-    expect(result.current.state.sessionId).toBe("a"); // the open chat is untouched
+    expect(result.current.state.sessionId).toBe("a");
   });
 
   it("deleteSession on the open chat denies a pending confirm, cancels its turn, and resets", async () => {
@@ -386,17 +365,15 @@ describe("useOverlay", () => {
     const nextId = idFactory();
     const { result } = renderHook(() => useOverlay(bridge, nextId));
     await flush();
-    expect(result.current.state.sessionId).toBe("open"); // adopted as the current chat
+    expect(result.current.state.sessionId).toBe("open");
     act(() => result.current.open());
     act(() => result.current.submit("a question"));
-    act(() => bridge.emit(confirmRequest("c-9"))); // a gated call now awaits approval
+    act(() => bridge.emit(confirmRequest("c-9")));
     expect(result.current.state.pendingConfirm?.confirmId).toBe("c-9");
     act(() => result.current.deleteSession("open"));
     await flush();
-    // Deleting the open chat denies the pending confirm (walking away is a deny) and deletes it.
     expect(bridge.confirms).toEqual([{ confirmId: "c-9", approved: false }]);
     expect(bridge.deletes).toEqual(["open"]);
-    // The panel reset to a fresh chat (the minted fallback id), never the deleted transcript.
     expect(result.current.state.sessionId).not.toBe("open");
     expect(result.current.state.messages).toEqual([]);
     expect(result.current.state.pendingConfirm).toBeNull();
@@ -415,14 +392,12 @@ describe("useOverlay", () => {
     act(() => result.current.deleteSession("b"));
     await flush();
     expect(bridge.deletes).toEqual(["b"]);
-    // The rejection does not re-list or drop the row; the list is exactly as before.
     expect(bridge.listCalls).toBe(listsBefore);
     expect(result.current.state.sessions).toBe(sessionsBefore);
   });
 
   it("setSessionPinned writes the pin and re-lists so the switcher re-groups pinned-first", async () => {
     const bridge = new FakeBridge();
-    // "old" is older than "recent"; pinning it must lift it above "recent" on the re-list.
     bridge.sessions = [
       { ...summary("recent"), lastActivityUnixMs: 2000 },
       { ...summary("old"), lastActivityUnixMs: 1000 },
@@ -433,10 +408,9 @@ describe("useOverlay", () => {
     act(() => result.current.setSessionPinned("old", true));
     await flush();
     expect(bridge.pins).toEqual([{ sessionId: "old", pinned: true }]);
-    // The write returns nothing, so the overlay re-lists; the fake re-groups pinned-first.
     expect(bridge.listCalls).toBe(listsBefore + 1);
     const relisted = result.current.state.sessions;
-    expect(relisted.map((s) => s.sessionId)).toEqual(["old", "recent"]); // pinned sorts to the top
+    expect(relisted.map((s) => s.sessionId)).toEqual(["old", "recent"]);
     expect(relisted[0]?.pinned).toBe(true);
   });
 
@@ -451,7 +425,6 @@ describe("useOverlay", () => {
     act(() => result.current.setSessionPinned("a", true));
     await flush();
     expect(bridge.pins).toEqual([{ sessionId: "a", pinned: true }]);
-    // The rejection does not re-list, so the switcher keeps its old grouping.
     expect(bridge.listCalls).toBe(listsBefore);
     expect(result.current.state.sessions).toBe(sessionsBefore);
   });
@@ -465,20 +438,16 @@ describe("useOverlay", () => {
     };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    // Cold start already adopted the most recent saved chat, so cycling starts there.
     expect(result.current.state.sessionId).toBe("newest");
-    // From the newest, next → oldest; prev → back to newest.
     act(() => result.current.cycleNext());
     await flush();
     expect(result.current.state.sessionId).toBe("oldest");
     act(() => result.current.cyclePrev());
     await flush();
     expect(result.current.state.sessionId).toBe("newest");
-    // At the newest end, cyclePrev is a no-op (session unchanged).
     act(() => result.current.cyclePrev());
     await flush();
     expect(result.current.state.sessionId).toBe("newest");
-    // At the oldest end, cycleNext is likewise a no-op.
     act(() => result.current.cycleNext());
     await flush();
     act(() => result.current.cycleNext());
@@ -495,7 +464,6 @@ describe("useOverlay", () => {
     };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    // The cold-start restore that put "newest" on screen said nothing on its way in.
     expect(result.current.state.notice).toBeNull();
     act(() => result.current.cycleNext());
     await flush();
@@ -504,7 +472,6 @@ describe("useOverlay", () => {
     act(() => result.current.cyclePrev());
     await flush();
     expect(result.current.state.notice).toEqual({ text: "Switched to title newest.", count: 2 });
-    // The switcher's own door, over the same controller call.
     act(() => result.current.openSession("oldest", false));
     await flush();
     expect(result.current.state.sessionId).toBe("oldest");
@@ -538,14 +505,14 @@ describe("useOverlay", () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    act(() => result.current.respondConfirm("c-0", true)); // nothing pending
+    act(() => result.current.respondConfirm("c-0", true));
     expect(bridge.confirms).toHaveLength(0);
     act(() => result.current.submit("send it"));
     act(() => bridge.emit(confirmRequest("c-1")));
-    act(() => result.current.respondConfirm("c-9", true)); // a different (stale) id
+    act(() => result.current.respondConfirm("c-9", true));
     expect(bridge.confirms).toHaveLength(0);
     act(() => result.current.respondConfirm("c-1", true));
-    act(() => result.current.respondConfirm("c-1", true)); // the double-click no-op
+    act(() => result.current.respondConfirm("c-1", true));
     expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: true }]);
   });
 
@@ -572,7 +539,7 @@ describe("useOverlay", () => {
     act(() => result.current.submit("send it"));
     act(() => bridge.emit(confirmRequest("c-1")));
     act(() => result.current.respondConfirm("c-1", true));
-    await flush(); // the rejection lands in the hook's swallow-and-continue catch
+    await flush();
     expect(result.current.state.pendingConfirm).toBeNull();
   });
 
@@ -622,7 +589,7 @@ describe("useOverlay", () => {
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     act(() => result.current.submit("plain turn"));
-    act(() => result.current.stop()); // no confirm was pending
+    act(() => result.current.stop());
     expect(bridge.confirms).toHaveLength(0);
   });
 
@@ -635,18 +602,18 @@ describe("useOverlay", () => {
     act(() => bridge.emit(confirmRequest("c-1")));
     expect(result.current.state.mode).toBe("preview");
     act(() => vi.advanceTimersByTime(60_000));
-    expect(result.current.state.mode).toBe("preview"); // a question waits to be seen
+    expect(result.current.state.mode).toBe("preview");
     act(() => result.current.respondConfirm("c-1", false));
     act(() => vi.advanceTimersByTime(60_000));
-    expect(result.current.state.mode).toBe("preview"); // the turn is still streaming, so no fade
+    expect(result.current.state.mode).toBe("preview");
     act(() => bridge.emit({ kind: "complete", turnId: "t" }));
     act(() => vi.advanceTimersByTime(6000));
-    expect(result.current.state.mode).toBe("hidden"); // completed, then faded
+    expect(result.current.state.mode).toBe("hidden");
   });
 
   it("defaults the session id to a freshly minted uuid", async () => {
     const bridge = new FakeBridge();
-    const { result } = renderHook(() => useOverlay(bridge)); // no factory → the default
+    const { result } = renderHook(() => useOverlay(bridge));
     await flush();
     expect(result.current.state.sessionId).not.toBe("");
     expect(typeof result.current.state.sessionId).toBe("string");
@@ -683,10 +650,10 @@ describe("useOverlay", () => {
     expect(result.current.state.mode).toBe("preview");
     act(() => result.current.previewHover(true));
     act(() => vi.advanceTimersByTime(60_000));
-    expect(result.current.state.mode).toBe("preview"); // held under the pointer
+    expect(result.current.state.mode).toBe("preview");
     act(() => result.current.previewHover(false));
     act(() => vi.advanceTimersByTime(5999));
-    expect(result.current.state.mode).toBe("preview"); // a fresh, full countdown
+    expect(result.current.state.mode).toBe("preview");
     act(() => vi.advanceTimersByTime(1));
     expect(result.current.state.mode).toBe("hidden");
   });
@@ -699,7 +666,7 @@ describe("useOverlay", () => {
     act(() => result.current.dismiss());
     act(() => bridge.emit({ kind: "complete", turnId: "t" }));
     act(() => result.current.previewHover(true));
-    act(() => result.current.open()); // clicked through: the hover never got its mouseleave
+    act(() => result.current.open());
     await flush();
     act(() => result.current.submit("again"));
     act(() => result.current.dismiss());

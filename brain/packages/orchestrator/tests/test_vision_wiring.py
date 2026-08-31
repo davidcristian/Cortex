@@ -1,5 +1,3 @@
-"""The composition root's vision decisions, driven through ``run_from_env`` itself (ADR-0029)."""
-
 import asyncio
 import os
 import signal
@@ -98,14 +96,9 @@ def _record(monkeypatch: pytest.MonkeyPatch, root: _Root, vision_answers: tuple[
         return built
 
     def recording_phase(*args: object) -> object:
-        # The capabilities bundle by position, not from the end: the spill watch's declared floor
-        # now rides after it (ADR-0030 spill-watch addendum).
         root.deep_capabilities.append(cast("TurnCapabilities", args[4]))
         return real_phase(*args)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
-    # Two of the four are patched where the per-stream factory reads them (`engines.py`): the
-    # root assembles the two built-in sets and probes for vision, and the factory is what turns
-    # a set into a dispatcher and hands the deep tier's bundle to its phase.
     monkeypatch.setattr(wiring, "build_builtin_tools", recording_builtins)
     monkeypatch.setattr(wiring, "build_vision", recording_vision)
     monkeypatch.setattr(engines, "build_cortex_tools", recording_tools)
@@ -181,8 +174,6 @@ _ESCALATION = {
 async def test_the_probes_answer_decides_whether_the_screen_is_offered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Discovered, not declared: the same env, the same body, and only the probe's verdict differs.
-    """
     seeing = await _compose(
         monkeypatch,
         env={**_BODY, "CORTEX_VISION": "auto", "CORTEX_INFERENCE_ENDPOINT": "http://cortex:8080"},
@@ -205,7 +196,6 @@ async def test_the_probes_answer_decides_whether_the_screen_is_offered(
 async def test_a_capture_the_model_can_no_longer_read_reads_no_pixels(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The reproduced failure, refused at the root: advertised honestly, then the server changed."""
     root = await _compose(
         monkeypatch,
         env={**_BODY, "CORTEX_VISION": "auto", "CORTEX_INFERENCE_ENDPOINT": "http://cortex:8080"},
@@ -213,7 +203,6 @@ async def test_a_capture_the_model_can_no_longer_read_reads_no_pixels(
     )
     assert CAPTURE_SCREEN_TOOL_NAME in await root.offered(), "honest when it was advertised"
     assert root.scripted is not None
-    # The model host is recreated without its projector, under a brain that never restarts.
     root.scripted.rescript([False])
 
     result = await root.dispatchers[0].dispatch(
@@ -228,7 +217,6 @@ async def test_a_capture_the_model_can_no_longer_read_reads_no_pixels(
 async def test_the_owners_off_switch_needs_no_server_to_be_believed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``off`` is resolved by the real ``build_vision``, so no tool lands and nothing is probed."""
     root = await _compose(monkeypatch, env={**_BODY, "CORTEX_VISION": "off"})
     assert root.builds == [("off", "")]
     assert CAPTURE_SCREEN_TOOL_NAME not in root.names(0)
@@ -238,7 +226,6 @@ async def test_the_owners_off_switch_needs_no_server_to_be_believed(
 async def test_without_a_body_nothing_is_built_to_probe_with(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No body, no capture, so there is no reason to ask a model server anything."""
     root = await _compose(monkeypatch, env={"CORTEX_VISION": "on"})
     assert root.builds == [("on", "")]
     assert CAPTURE_SCREEN_TOOL_NAME not in root.names(0)
@@ -247,7 +234,6 @@ async def test_without_a_body_nothing_is_built_to_probe_with(
 async def test_the_capture_bounds_the_tool_asks_for_come_from_body_config(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The knobs, asserted at the far end: what the body was actually asked for."""
     root = await _compose(
         monkeypatch,
         env={
@@ -269,7 +255,6 @@ async def test_the_capture_bounds_the_tool_asks_for_come_from_body_config(
 async def test_the_deep_tier_is_never_offered_the_screen(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The tier that swaps in is text-only by construction, so it must not be offered eyes."""
     root = await _compose(
         monkeypatch,
         env={**_BODY, **_ESCALATION, "CORTEX_VISION": "on"},

@@ -15,24 +15,24 @@ become wrong when it moves. Only the first is held, and because a
 mention is a presence check the second could drift to any number with the gate green, leaving one
 line naming two different shipped edges.
 
-The same shape closed on the neighbouring value rather than opening here, because that one had a
+The same shape closed on the other value rather than opening here, because that one had a
 structural needle available: the GPU runbook's Example cell holds nothing but the number, and cell
-walls pin a value without pinning a word of the sentence. The vision runbook's second spelling has
-no such walls. Every needle that reaches it has to carry four words of an explanation, which is
-exactly what the survey's own rule forbids: a gate reddening because somebody reworded a sentence
-that never moved.
+boundaries pin a value without pinning a word of the sentence. The vision runbook's second spelling
+has no such boundaries. Every needle that reaches it has to carry four words of an explanation,
+which is exactly what the survey's own rule forbids: a gate failing because somebody reworded a
+sentence while the value it names never moved.
 
 **Why it was left.** The three ways out are each a decision rather than a row. Counting the line's
 occurrences ties the Default cell and the sentence into one set, which is true here and would be
 false the moment a third spelling arrives for a different reason. Rewriting the sentence to reach
-the value through a shape the registry already pins is the gate editing the prose it watches.
-Teaching a mention to pin a value's occurrences **within one line** is a change to `couplings.py`
+the value through a shape the registry already pins means editing the prose to suit the gate.
+Extending a mention to pin a value's occurrences **within one line** is a change to `couplings.py`
 and to the scan, and is the only one of the three that generalises.
 
 **What would close it.** Decide which of the three the repo wants, and say why in the ADR rather
 than in a row. Read the population first: this entry names one line, and a scan for a registered
 value appearing twice on a line whose first spelling is held would say whether it is one line or
-twenty. If it is one, a count is honest and cheap; if it is many, the scan change earns itself.
+twenty. If it is one, a count is honest and cheap; if it is many, the scan change is worth its cost.
 
 ## Trail
 
@@ -45,10 +45,11 @@ twenty. If it is one, a count is honest and cheap; if it is many, the scan chang
   identifier spelling a string value, two lines held jointly by two needles, a bounded integer
   inside a decimal), leaving five. **One of the five is not a far side**: the vision runbook's
   second `auto` says what that mode does rather than which mode ships, and stays true after another
-  becomes the default. That single case refuses both mechanisms this entry proposed, since counting
-  a value's occurrences on a line cannot be told that one of them makes no claim about the default,
-  and rewording was refused as the gate editing what it watches. **The entry's premise was also
-  wrong**: a needle carrying words of a sentence is not forbidden, the tree having held
+  becomes the default. That single case rules out both mechanisms this entry proposed, since
+  counting a value's occurrences on a line has no way to exclude the one that makes no claim about
+  the default, and rewording was rejected because it would mean editing the prose to suit the gate.
+  **The entry's premise was also wrong**: a needle carrying words of a sentence is not forbidden,
+  the tree having held
   `` `1024` is the default, paired with `` since the legibility sort, so the four became four
   needles. Two of them are the shape this entry did not predict, where the registry held the
   Meaning cell's explanation and left the **Default cell** free, on the GPU runbook's layer row and

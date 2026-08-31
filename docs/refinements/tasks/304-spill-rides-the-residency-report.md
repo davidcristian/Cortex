@@ -7,10 +7,9 @@
 Opened 2026-08-18 by the close of [109](109-spill-does-not-latch.md), which declined the automatic
 latch and left one half of that entry's trigger genuinely unanswered: the deployment whose operator
 is not reading logs. The decode watch settles once per handoff and its whole consequence is a
-`warning` record
-([brain_phase.py](../../../brain/packages/core/src/cortex_core/brain_phase.py)); nothing else in
-the process, and nothing at the seam, is any the wiser. A spill therefore looks exactly like a fit
-to anyone who is not tailing the container.
+`warning` record ([brain_phase.py](../../../brain/packages/core/src/cortex_core/brain_phase.py));
+nothing else in the process, and nothing at the seam, records it. A spill therefore looks exactly
+like a fit to anyone who is not tailing the container.
 
 The cheap surface already exists and is proven on a neighbouring fact. `StandingTiers.note_on`
 annotates a **serving** residency report with a detail naming what is down
@@ -28,17 +27,17 @@ read. It also needs a rule for how long such a note stands, since a spill is a f
 handoff while the tier record it would ride is a fact about now, and a note that never clears is a
 second way to be wrong about the card. Re-derive both against the tree before starting.
 
-**What landed, and what the re-derivation found.** Both costs stood. The deep phase really does
-hold no residency (the wiring hands it the declared rate and nothing else), so the writer is a
-port: `PaceSink`, one method, a verdict and never a reading, synchronous because the phase calls it
+**What landed, and what the re-derivation found.** Both costs stood. The deep phase really does hold
+no residency (the wiring hands it the declared rate and nothing else), so the writer is a port:
+`PaceSink`, one method, a verdict and never a reading, synchronous because the phase calls it
 between its stream ending and its reply being persisted. The record behind it is
 [residency_pace.py](../../../brain/packages/core/src/cortex_core/residency_pace.py), held by the
 manager beside the peer record and composed into a **serving** report as it is read, which is the
 constraint above respected rather than rediscovered. The standing rule is that a later handoff
 decides the note in both directions and, failing one, it lapses after an hour; the two notes join
 rather than compete, through one shared `with_note`, since a down peer and a spilled handoff have
-different remedies. One cost the entry did not name turned up: `residency.py` was one line under
-the cap, so the honesty surface moved out as `ResidencyProbeMixin`.
+different remedies. One cost the entry did not name turned up: `residency.py` was one line under the
+cap, so the reporting surface moved out as `ResidencyProbeMixin`.
 
 ## Trail
 

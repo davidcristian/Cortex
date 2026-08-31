@@ -1,4 +1,4 @@
-"""In-memory ``SessionStore`` fake: the contract twin of the Redis adapter (``cortex_session``)."""
+"""In-memory ``SessionStore``, tested against the same contract as the Redis adapter."""
 
 from collections.abc import Sequence
 
@@ -13,11 +13,7 @@ from cortex_core.sessions import (
 
 
 class InMemorySessionStore:
-    """SessionStore held in dicts/sets and meant for tests and single-process experiments only.
-
-    It intentionally does NOT survive a process restart; the Redis adapter is the
-    runtime store precisely because this one cannot prove the hard rule.
-    """
+    """SessionStore held in dicts/sets and meant for tests and single-process experiments only."""
 
     def __init__(self) -> None:
         self._sessions: dict[str, list[Message]] = {}
@@ -37,7 +33,7 @@ class InMemorySessionStore:
         return tuple(self._sessions.get(session_id, ()))
 
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
-        """Return recent chats plus every pinned chat, pinned-first (ADR-0021 pinning addendum)."""
+        """Return the recent chats plus every ``pinned`` chat, those first."""
         summaries = [
             summarize_session(
                 session_id,
@@ -58,22 +54,18 @@ class InMemorySessionStore:
         return merge_pinned([*window, *pinned_extra])
 
     async def set_title(self, session_id: str, title: str) -> None:
-        """Persist a brain-generated display title, preferred by ``list_sessions`` (ADR-0021)."""
+        """Persist a brain-generated display title, preferred by ``list_sessions``."""
         self._titles[session_id] = title
 
     async def delete(self, session_id: str) -> None:
-        """Hard-delete a session's history, title, pin and recap, idempotently (delete addendum)."""
+        """Idempotently delete a chat for good: messages, title, ``pinned`` flag and recap."""
         self._sessions.pop(session_id, None)
         self._titles.pop(session_id, None)
         self._pinned.discard(session_id)
         self._recaps.pop(session_id, None)
 
     async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
-        """Persist the summarizing window's recap of this session's dropped prefix.
-
-        Last write wins, as for the Redis twin: a recap is re-derived whenever the window's
-        boundary moves, and the newer one covers strictly more of the same append-only log.
-        """
+        """Persist the summarizing window's recap of this session's dropped prefix."""
         self._recaps[session_id] = recap
 
     async def recap(self, session_id: str) -> HistoryRecap | None:
@@ -81,7 +73,7 @@ class InMemorySessionStore:
         return self._recaps.get(session_id)
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
-        """Pin or unpin a chat (ADR-0021 pinning addendum); idempotent by value."""
+        """Set or clear a chat's ``pinned`` flag; idempotent by value."""
         if pinned:
             self._pinned.add(session_id)
         else:

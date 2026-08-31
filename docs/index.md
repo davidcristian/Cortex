@@ -502,29 +502,38 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).
   - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
     host-native Tauri shell (`cortex-body`).
-  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`, whose **cross-tree scans** are
-    `linecap.py`, `dashcheck.py`, `crosscheck.py`
-    (with its `couplings` vocabulary and the two registry halves written in it), `bindcheck.py`
-    (with its `composemounts` reader), `defaultcheck.py` (with its `composedefaults` reader),
-    `volumecheck.py` (with the `imagevolumes` record of what each
-    pinned image declares and would declare for a child, the `imagedrift` call that asks a real
-    docker for both, the `dockerfilevolumes` reading of what a Dockerfile here declares and of the
-    triggers a base's row carries, and the `dockerfilebases` reading of the image its last stage
-    stands on),
-    `stubcheck.py` (with its `protocomments` reader), `samplecheck.py` (with the `logsamples`
-    reading of
-    what a runbook's log line claims and the `logcalls` reading of what the call really
-    attaches), `rostercheck.py` (with the `rosters` registry of which lists a document keeps, the
-    `rosternames` reading of what a page names, the `rostermembers` reading of what the tree
-    holds and the `scanrecipes` reading of which scans this repo actually runs),
-    `flagcheck.py` (with the `subagentservers` derivation of which servers a composed stack
-    starts as subagents, the `composestarts` reading of what each service is started with, the
-    `hostedtiers` reading of the one tier the model host starts itself, the `moduleconstants`
-    reading of what a Python module's top level binds underneath it and the `artifactnames`
-    reading of every model artifact this tree names, which is what the membership of both sets
-    is decided from)
-    and `backlogcheck.py` (with the `backlog` grammar, the `backlogindex` renderer, the
-    `backloganchors` pointer reader and the `headingshapes` refusals under it). **Beside them**
+  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`, whose **cross-tree scans** are the eleven
+    that run on every change:
+
+    - `linecap.py`, the 300-line cap.
+    - `dashcheck.py`, the ban on a dash used as punctuation.
+    - `crosscheck.py`, one value spelled in several places, with its `couplings` vocabulary and
+      the two registry halves written in it.
+    - `bindcheck.py`, compose bind mounts, with its `composemounts` reader.
+    - `defaultcheck.py`, one variable's defaults, with its `composedefaults` reader.
+    - `volumecheck.py`, declared image volumes, with the `imagevolumes` record of what each
+      pinned image declares and would declare for a child, the `imagedrift` call that asks a real
+      docker for both, the `dockerfilevolumes` reading of what a Dockerfile here declares and of
+      the triggers a base's row carries, and the `dockerfilebases` reading of the image its last
+      stage stands on.
+    - `stubcheck.py`, the committed Rust stub against the proto, with its `protocomments` reader.
+    - `samplecheck.py`, documented log lines against their call sites, with the `logsamples`
+      reading of what a runbook's line claims and the `logcalls` reading of what the call attaches.
+    - `rostercheck.py`, a document's roster against the real set, with the `rosters` registry of
+      which lists a document keeps, the `rosternames` reading of what a page names, the
+      `rostermembers` reading of what the tree holds, and the `scanrecipes` reading of which scans
+      this repo actually runs.
+    - `flagcheck.py`, subagent server flags, with the `subagentservers` derivation of which
+      servers a composed stack starts as subagents, the `composestarts` reading of what each
+      service is started with, the `hostedtiers` reading of the one tier the model host starts
+      itself, the `moduleconstants` reading of what a Python module's top level binds, and the
+      `artifactnames` reading of every model artifact this tree names, which is what the
+      membership of both sets is decided from.
+    - `backlogcheck.py`, backlog indexes and anchors, with the `backlog` grammar, the
+      `backlogindex` renderer, the `backloganchors` pointer reader and the `headingshapes`
+      rules under it.
+
+    **Beside them**
     sit the coverage gate, the CI path classifier, the commit-message CLI, and the contrast
     reading `just turn-cost` prints.
 

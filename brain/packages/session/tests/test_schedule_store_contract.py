@@ -159,7 +159,7 @@ async def test_unknown_kind_or_version_fails_loudly_naming_the_reader() -> None:
 
 
 async def test_a_monthly_rule_still_decodes_as_monthly_beside_the_yearly_key() -> None:
-    """The present-key contract holds for THREE variants, not just for the original two."""
+    """The present-key contract holds for all THREE rule variants, not only the original two."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("monthly")
@@ -172,7 +172,7 @@ async def test_a_monthly_rule_still_decodes_as_monthly_beside_the_yearly_key() -
 
 
 async def test_a_malformed_year_date_pair_fails_loudly_like_any_corrupt_field() -> None:
-    """A stored pair that is not a pair is corruption, not a shape to guess at."""
+    """A stored year-date pair that is not a pair is corruption, so the decoder raises."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("bent")
@@ -184,7 +184,7 @@ async def test_a_malformed_year_date_pair_fails_loudly_like_any_corrupt_field() 
 
 
 async def test_a_stored_unknown_zone_fails_loudly_naming_the_key() -> None:
-    """A per-rule zone the tz database no longer resolves is a corrupt record, not a fallback."""
+    """A per-rule zone the tz database no longer resolves raises instead of falling back."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("gone-zone")
@@ -196,7 +196,7 @@ async def test_a_stored_unknown_zone_fails_loudly_naming_the_key() -> None:
 
 
 async def test_a_stored_non_string_zone_fails_loudly() -> None:
-    """A stored zone that is not even a string is corruption, not a shape to guess at."""
+    """A stored zone that is not a string is corruption, so the decoder raises on it too."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("bent-zone")
@@ -267,8 +267,7 @@ async def test_claim_path_quarantines_a_corrupt_record() -> None:
 async def test_the_quarantine_lines_carry_the_id_and_the_key_as_fields(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The only record of an item leaving the working set names it where a reader can select on it.
-    """
+    """Both quarantine lines attach the item id as a field a reader can select on."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     await _seed_raw(client, "poison", "not json")
@@ -416,7 +415,7 @@ async def test_ack_racing_a_concurrent_transition_is_fenced(
 async def test_edit_racing_a_cancel_is_fenced_not_resurrected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A cancel landing between edit's guard read and its write wins; nothing resurrects."""
+    """A cancel landing between edit's guard read and its write wins; nothing is written back."""
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     store = RedisScheduleStore(client)
@@ -455,7 +454,7 @@ async def test_dead_letters_lists_in_id_order_and_purges_one_scope() -> None:
     survivor = schedule_contract.make_item("survivor", due_at=_NOW - timedelta(minutes=1))
     await store.add(survivor)
     claims = await store.claim_due(_NOW, lease=_LEASE, limit=8)
-    assert [claim.item.id for claim in claims] == ["survivor"]  # the pass degraded by two
+    assert [claim.item.id for claim in claims] == ["survivor"]  # the pass skipped both bad records
     assert await store.dead_letters() == (
         DeadLetter(item_id="alpha", raw="junk-a"),
         DeadLetter(item_id="zeta", raw="junk-z"),
@@ -491,7 +490,7 @@ async def test_dead_letter_operations_wrap_backend_failure() -> None:
 async def test_snooze_racing_a_cancel_is_fenced_not_resurrected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A cancel landing between snooze's guard read and its write wins; nothing resurrects."""
+    """A cancel landing between snooze's guard read and its write wins; nothing is written back."""
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     store = RedisScheduleStore(client)

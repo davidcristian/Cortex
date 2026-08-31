@@ -160,7 +160,8 @@ def test_escalation_is_off_by_default() -> None:
 
 
 def test_escalation_without_a_model_host_fails_at_boot() -> None:
-    """Nothing could evict or load a model, so the tool could only ever refuse: say so loudly."""
+    """Nothing could evict or load a model, so the config raises at boot rather than serving a
+    tool that could only refuse."""
     with pytest.raises(ValueError, match="CORTEX_MODELHOST_BACKEND must name a model host"):
         SwapConfig(escalation=True)
 
@@ -200,7 +201,9 @@ def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
 
 
 def test_co_residency_on_the_real_host_without_a_measured_fit_fails_at_boot() -> None:
-    """The flag is a claim about a card, and this is the only thing that ever tests it."""
+    """The co-residency flag is a claim about a specific card, and this boot check is the only
+    place it is tested.
+    """
     with pytest.raises(ValueError, match="CORTEX_SWAP_BRAIN_VRAM_MIB is required"):
         _enabled(
             modelhost_backend="supervisor",
@@ -360,7 +363,7 @@ async def test_the_closer_is_a_clean_no_op_when_nothing_was_built() -> None:
 
 
 def _with_bounds(bounds: ControlBounds | None) -> SwapRuntime:
-    """The scripted runtime, holding a host that claims ``bounds`` for its own control calls."""
+    """Build the scripted runtime, holding a host that reports ``bounds`` for its control calls."""
     runtime = build_swap_runtime(
         _enabled(),
         BrainRuntimeConfig(),
@@ -429,16 +432,13 @@ async def test_a_refused_pairing_releases_what_the_runtime_already_holds(
 async def test_a_deadline_that_clears_the_worst_stop_is_wired_and_says_so(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The shipped pair, which must pass: a check that refused this would refuse every stack."""
+    """The shipped pair passes, since a check that rejected it would reject every stack."""
     runtime = _with_bounds(
         ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
     )
     with caplog.at_level(logging.INFO):
         await check_control_deadline(runtime)
     assert "clears the model host's worst stop" in caplog.text
-    # The two numbers ride the record rather than the message, so the pair an operator greps for
-    # is read off the line the shipped formatter renders. ``caplog.text`` carries the message
-    # alone, and asserting the pair against it would pass only while the values were printed twice.
     assert "deadline_s=60.0 worst_s=45.0" in PlainFormatter().format(_only(caplog))
     await swap_closer(runtime)()
 
@@ -626,7 +626,9 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
 async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Boot recovery's own observation reaches the report, or the first probe is a lie."""
+    """Boot recovery's own observation reaches the report, so the first probe answers what
+    recovery found.
+    """
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))

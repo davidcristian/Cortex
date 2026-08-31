@@ -37,7 +37,7 @@ class ModelSpec:
 
 
 def build_roster(specs: Iterable[ModelSpec]) -> dict[str, ModelSpec]:
-    """Index specs by logical id, refusing a duplicate id or two models sharing a port."""
+    """Index specs by logical id, raising on a duplicate id or on two models sharing a port."""
     roster: dict[str, ModelSpec] = {}
     ports: dict[int, str] = {}
     for spec in specs:

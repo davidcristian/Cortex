@@ -1,24 +1,24 @@
-"""Structured provenance: *where* a turn's untrusted content came from (ADR-0027 addendum)."""
+"""Structured provenance: where a turn's untrusted content came from."""
 
 import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 
-# A source is a short label (an address, a locator, a tool name), never a document: one line, hard
-# capped, so attacker-chosen text cannot grow a turn's provenance into a channel for smuggling
-# prose onto a card or into a store. The overflow marker matches `sessions._one_line`.
+# A source is a short label (an address, a locator, a tool name), never a document, so that
+# attacker-chosen text cannot turn a turn's provenance into a way to smuggle prose onto a
+# card or into a store.
 MAX_SOURCE_CHARS = 96
 
-# How many distinct sources one turn keeps (`TaintLedger`). A turn reads a handful of things; the
-# cap is what stops a flood of results (or, later, a mail search's every sender) from accumulating
-# without bound. First come first kept, so the earliest real source survives a later flood.
 MAX_TURN_SOURCES = 8
 
+# Angle brackets are dropped rather than escaped: the untrusted fence is written as
+# <untrusted-tool-output id=...>, so a value that cannot contain < or > cannot forge a
+# marker or any other bracketed structure wherever it is later rendered.
 _DROPPED_MARKUP = str.maketrans({"<": None, ">": None})
 
 
 class SourceKind(Enum):
-    """What kind of source a ``Provenance`` names, and (via ``attested``) whose word it is."""
+    """What kind of source a ``Provenance`` names, and who authored its value (``attested``)."""
 
     TOOL = "tool"
     MEMORY = "memory"
@@ -31,8 +31,6 @@ class SourceKind(Enum):
         return self in _ATTESTED_KINDS
 
 
-# Kinds whose value the brain authored. Held next to the enum rather than as a member attribute so
-# the enum's values stay the wire-ish strings every other core enum uses.
 _ATTESTED_KINDS = frozenset({SourceKind.TOOL, SourceKind.MEMORY})
 
 
@@ -67,11 +65,13 @@ def as_source(kind: SourceKind, raw: str | None) -> Provenance | None:
     return Provenance(kind=kind, value=raw)
 
 
+# Derived from `attested` so the two stay in step. An attested kind names a value the brain
+# itself wrote, so letting a sidecar declare one would let it forge a trusted-looking label.
 _DECLARABLE_KINDS = {kind.value: kind for kind in SourceKind if not kind.attested}
 
 
 def claimed_source(kind: object, value: object) -> Provenance | None:
-    """A sidecar's declared source as a *claimed* ``Provenance``, or ``None`` when undeclarable."""
+    """A sidecar's declared source as a claimed ``Provenance``, or ``None`` when undeclarable."""
     if not isinstance(kind, str) or not isinstance(value, str):
         return None
     declared = _DECLARABLE_KINDS.get(kind)

@@ -1,4 +1,4 @@
-"""The GPU's residency: lease the resident model, and swap which model that is (ADR-0030 d5)."""
+"""The GPU's residency: lease the resident model, and swap which model that is."""
 
 import asyncio
 from collections.abc import AsyncGenerator, Mapping
@@ -23,7 +23,7 @@ from cortex_core.residency_watch import BootWatch
 
 
 class SwappingModelManager(ResidencyProbeMixin):
-    """ModelManager v2: one resident model at a time, swapped only inside a residency scope."""
+    """One resident model at a time, swapped only inside a residency scope."""
 
     def __init__(
         self,
@@ -40,15 +40,11 @@ class SwappingModelManager(ResidencyProbeMixin):
         self._clock = clock
         self._sleeper = sleeper
         self._placer = placer
-        # Which peers of the cortex the standing residency is missing (``residency_tiers.py``),
-        # written wherever a start was refused and read by the seam and by the retry.
         self._tiers = StandingTiers(placer)
         self._pace = HandoffPace(clock)
-        # Which supervisor daemon every belief below was formed against (``residency_watch.py``).
-        # It is asked once per handoff, because a daemon replaced under this process leaves all of
-        # them describing a machine that no longer exists, the peer record included.
         self._boot = BootWatch(host, plan, self._tiers, clock=clock, sleeper=sleeper)
-        # The GPU lease, with v1's discipline unchanged: one holder, waiters queue on the lock.
+        # Two locks, not one: an acquire must never hold the lease while it waits for a scope
+        # to end, because a swap takes the lease first and the two would deadlock.
         self._lock = asyncio.Lock()
         self._board = ResidencyBoard(plan.cortex_model)
         self._handoff_claim = HandoffClaim(self._board.condition)
@@ -61,11 +57,11 @@ class SwappingModelManager(ResidencyProbeMixin):
             yield ModelLease(endpoint=endpoint)
 
     async def unhosted(self, model: str) -> bool:
-        """Whether the daemon answering right now carries no such logical model at all."""
+        """Whether the daemon answering right now has no such logical model at all."""
         return await is_unhosted(self._host, model)
 
     def handoff_claim(self) -> AbstractAsyncContextManager[None]:
-        """Own the whole swap sequence for this block, or refuse at once (``residency_claim``)."""
+        """Own the whole swap sequence for this block, or raise at once."""
         return self._handoff_claim.held()
 
     @asynccontextmanager
@@ -77,8 +73,6 @@ class SwappingModelManager(ResidencyProbeMixin):
             yield
         finally:
             try:
-                # Uninterruptible by contract (``residency_restore.py``): a cancelled turn must
-                # not be able to abandon the recovery path halfway.
                 await restore_uninterruptibly(self._restore(model))
             finally:
                 await self._board.leave_scope()
@@ -96,19 +90,14 @@ class SwappingModelManager(ResidencyProbeMixin):
         return endpoint
 
     async def _swap_in(self, model: str) -> None:
-        """Wait out the in-flight round, then make ``model`` the resident (moves, then bookkeeping).
-
-        The lease is taken first and held across the whole move, which is what "swaps happen
-        only at lease-free boundaries" means in code: v1 never preempts a round in flight.
-        """
+        """Wait out the in-flight round, then make ``model`` the resident."""
         async with self._lock:
-            # First of all, and before anything is evicted: everything below is about to be spent
-            # against a daemon this process may not have spoken to since it restarted, and a
-            # handoff run on beliefs formed against its predecessor is the one that is lost.
+            # Before anything is evicted: a daemon replaced since this process last spoke to
+            # it leaves every piece of residency state describing a machine that is gone.
             await self._boot.reconcile(self._board.publish)
             await self._board.publish(None, RESIDENCY_LOADING)
-            # Before the move, not after it: the fit check inside ``swap_in`` reads what the card
-            # has free, and a spawn placed between that reading and the load would spend it.
+            # Before the load: ``swap_in`` checks the free device memory, and a subagent
+            # spawned between that check and the load would take the room it found.
             charge_handoff(self._placer, self._plan)
             await swap_in(self._host, self._plan, model, self._gate)
             await self._board.publish(model, RESIDENCY_DEEP)
@@ -132,7 +121,7 @@ class SwappingModelManager(ResidencyProbeMixin):
             )
 
     async def _gate(self, model: str) -> ModelHostState:
-        """This manager's readiness gate: poll ``model`` until it settles or the bound elapses."""
+        """Poll ``model`` until it settles or the plan's load bound runs out."""
         return await await_model_ready(
             self._host, model, clock=self._clock, sleeper=self._sleeper, plan=self._plan
         )

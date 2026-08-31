@@ -1,4 +1,4 @@
-"""The supervisor's HTTP control API: the wire behind the ``ModelHost`` port (ADR-0030 d3)."""
+"""The supervisor's HTTP control API: the wire behind the ``ModelHost`` port."""
 
 import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -34,31 +34,23 @@ def build_app(
     close: Callable[[], Awaitable[None]] = nothing_to_close,
     device: DeviceMemoryProbe | None = None,
 ) -> Starlette:
-    """The ASGI app driving ``supervisor``, starting ``boot_model`` when it comes up.
-
-    ``device`` reads the card this daemon's children load onto; omitted, the daemon answers that
-    it has none, which is what a CPU-only deployment truthfully has.
-    """
+    """The ASGI app driving ``supervisor``, starting ``boot_model`` when it comes up."""
     card: DeviceMemoryProbe = NoDeviceMemory() if device is None else device
 
     async def health(request: Request) -> Response:
         del request
         bounds = supervisor.control_bounds
-        # Deliberately on this route and not a new one: it takes no per-model lock, so a caller
-        # asking how much room is left can never queue behind a stop the way a `status` can, and
-        # the brain reads it inside a swap step where that would cost a whole grace period.
         memory = await card.read()
         return JSONResponse(
             {
                 "status": "ok",
                 "models": list(supervisor.models),
                 "boot_id": supervisor.boot_id,
-                # All three terms of the pairing rule, in the order the rule states them: a
-                # reader given only the two stop bounds can tune to a compliant-looking sum that
-                # the queued probe then carries past the brain's deadline.
                 "probe_timeout_s": bounds.probe_timeout_s,
                 "stop_grace_s": bounds.stop_grace_s,
                 "reap_timeout_s": bounds.reap_timeout_s,
+                # On this route rather than one of its own: it takes no per-model lock, so a
+                # caller asking how much room is left never queues behind a stop.
                 "device_free_mib": None if memory is None else memory.free_mib,
                 "device_total_mib": None if memory is None else memory.total_mib,
             }
@@ -87,7 +79,7 @@ def build_app(
 def model_host_lifespan(
     supervisor: ModelSupervisor, boot_model: str, close: Callable[[], Awaitable[None]]
 ) -> Callable[[Starlette], AbstractAsyncContextManager[None]]:
-    """Start the standing resident on the way up; stop every child on the way down."""
+    """Start the resident model on the way up; stop every child on the way down."""
 
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncGenerator[None]:
@@ -95,9 +87,8 @@ def model_host_lifespan(
         try:
             await supervisor.start(boot_model)
         except SupervisorError:
-            # Serve anyway, loudly. Failing to come up would crash-loop under compose's restart
-            # policy and hide the cause; a control API that answers can be asked what went wrong,
-            # and the brain's own boot recovery starts the standing resident again regardless.
+            # Serve anyway: failing to come up would crash-loop under compose's restart policy
+            # and bury the cause, and the brain's boot recovery starts the resident again.
             _logger.exception(
                 "the boot-default model could not be started; serving without it",
                 extra={"model": boot_model},
@@ -105,8 +96,7 @@ def model_host_lifespan(
         try:
             yield
         finally:
-            # Children first: the probe client is what tells a stop whether a child is still
-            # serving, so closing it before the last stop would blind the shutdown.
+            # Children first: `close` shuts the probe client the supervisor was wired with.
             await supervisor.stop_all()
             await close()
 
@@ -114,7 +104,7 @@ def model_host_lifespan(
 
 
 def _then_status(supervisor: ModelSupervisor, action: Callable[[str], Awaitable[None]]) -> _Action:
-    """Run a verb, then report what it left behind, so a caller sees one state per request."""
+    """Run a verb, then report the state it left the model in, so one request yields one state."""
 
     async def act(model: str) -> ModelStatus:
         await action(model)
@@ -138,7 +128,7 @@ async def _answer(action: _Action, request: Request) -> Response:
 
 
 def _refused(model: str, err: SupervisorError, code: HTTPStatus) -> Response:
-    """Encode a typed refusal, logged with the id that asked for it (never a stack per request)."""
+    """Encode a typed failure, logged with the id that asked for it (never a stack per request)."""
     level = logging.ERROR if code >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING
     _logger.log(level, "a model-host request failed", extra={"model": model, "error": str(err)})
     return JSONResponse({"error": str(err)}, status_code=code)

@@ -1,11 +1,10 @@
-"""Readable text from an HTML email body (ADR-0009 refinements addendum)."""
+"""Readable text from an HTML email body."""
 
 import re
 from html.parser import HTMLParser
 
 # Containers whose text content is not prose; everything inside them is dropped.
 _DROP = frozenset({"head", "script", "style", "template", "title"})
-# Tags that bound a line of prose: opening or closing one breaks the line.
 _BREAK = frozenset(
     {
         "address",
@@ -41,15 +40,15 @@ _BREAK = frozenset(
         "ul",
     }
 )
-# Cells on one table row stay on one line, separated by spaces; the row tag breaks it.
 _CELL = frozenset({"td", "th"})
-# Any whitespace run inside character data (including source newlines) is one space;
-# only markup (the _BREAK tags) may produce a line break in the output.
+
+# Any whitespace run inside character data, source newlines included, becomes one space, so
+# only the _BREAK tags can produce a line break in the output.
 _WS = re.compile(r"\s+")
 
 
 class _TextExtractor(HTMLParser):
-    """Collect prose chunks; ``convert_charrefs`` (the default) decodes entities for us."""
+    """Collect prose chunks; ``convert_charrefs`` (the default) decodes character entities."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -65,7 +64,7 @@ class _TextExtractor(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         if tag in _DROP:
-            # A stray closing tag must not unbalance the counter below zero.
+            # A stray closing tag must not take the counter below zero.
             self._drop_depth = max(0, self._drop_depth - 1)
         else:
             self._boundary(tag)

@@ -19,12 +19,12 @@ mid-turn deadlocks the turn that spawned it.
 summarization-audit addendum](../../adr/ADR-0014-history-windowing.md)).** The
 audit priced the async port change and re-derived the lease hazard from the lock code; both are
 milder than the entry above reads, but a third cost binds, so it stays deferred. **The async
-widening is clean and contained, not a call-chain migration.** `HistoryWindow.select` has one
+widening is clean and contained rather than a call-chain migration.** `HistoryWindow.select` has one
 production caller, `_inference_messages` (`engine.py`), already an `async` method, so widening
-`select` to `async` adds one `await` and cascades no colour upward; the only implementer is
+`select` to `async` adds one `await` and requires no caller above it to change; the only implementer is
 `CharBudgetHistoryWindow`. An `async def select` with a synchronous body is gate-clean here (the
 `unused-async` lint, `RUF029`, is preview-only and this repo runs ruff without preview), so every
-heuristic selector wraps its body unchanged. **The lease hazard is navigable, not structural.**
+heuristic selector wraps its body unchanged. **The lease hazard is navigable rather than structural.**
 `SingleResidentModelManager` guards a non-reentrant `asyncio.Lock` (`model.py`) held for the whole
 stream generator's lifetime (`backend.py`), but selection runs in `_inference_messages`, which
 `handle_turn` awaits to completion **before** it opens the reply stream (`stream_tool_loop`), so at
@@ -33,22 +33,22 @@ call is a sequential acquire, exactly the discipline the title generator already
 (`generate_title`, run at turn end). Verified against the real manager: a drained acquire then a
 second acquire succeeds, while a summarizer stream held open across the reply's acquire deadlocks.
 So the hazard is the abandoned-stream case this entry named, a discipline requirement on the future
-selector, not the reply already holding the lease. **What stays deferred is the model pass
+selector, rather than the reply already holding the lease. **What stays deferred is the model pass
 itself, and its stated blocker was wrong (corrected 2026-07-19).** This read "a summarizing window
 cannot be behavior-validated on the 8 GB dev GPU, where the cortex tier (gemma-12B) does not fit".
 The cortex does fit that card: [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md) ran it there
 beside its vision projector at `-ngl 99 --ctx-size 4096 --parallel 1`, and
 [ADR-0030](../../adr/ADR-0030-brain-handoff.md) records the model alone taking 7715 of that card's
 8188 MiB. Judging whether a summary keeps what the next turn needs is not a 16K question. What is unresolved
-is the design: the cache-versus-recompute-per-turn decision this entry named is a choice, not a
-wrapper. So the honest slice still lands the async widening together with the summarizer rather
+is the design: the cache-versus-recompute-per-turn decision this entry named is a choice rather
+than a wrapper. So the honest slice still lands the async widening together with the summarizer rather
 than the widening alone as an empty async layer, and what it waits on is that decision plus the
 shared `select` widening, not the 24 GB card.
 
 **The two open design questions closed 2026-08-06
 ([ADR-0038](../../adr/ADR-0038-ranked-recall.md)); the summarizer itself stays deferred, now on
 nothing but implementation.** The audit above kept this deferred on "the cache-versus-recompute
-decision plus the shared `select` widening", and both are now answered. **Cache, not recompute,
+decision plus the shared `select` widening", and both are now answered. **Cache rather than recompute,
 and the reason is that history is append-only.** A summary lives in Redis behind `SessionStore`,
 beside the messages and the title it derives from, never in `MemoryStore` (a summary is one
 conversation's working context, and pgvector would make it recallable into other conversations,
@@ -89,9 +89,9 @@ reason stronger than proximity, since a recap is as private as the transcript an
 chat" must take it in the same write; and the fallback is structural rather than a policy, the
 window being able only to PREPEND to the shipped window's selection, so losing a word the user
 wrote is not reachable from any state of the summarizer. The lease test had to be fixed before
-it meant anything: asserting the reply's acquire succeeds did not redden when the drain was
-removed, because generator finalization tidied the abandoned stream first; it now asserts the
-acquire block was left with no `await` in between, which the collector cannot rescue.
+it meant anything: asserting the reply's acquire succeeds did not fail when the drain was
+removed, because generator finalization closed the abandoned stream first; it now asserts the
+acquire block was left with no `await` in between, which the collector cannot repair.
 Measured against the window it wraps, on the real cortex through the gpu stack: over a
 23-message conversation whose opening facts had dropped out, the shipped window sent 295
 characters and could not answer "remind me of my booking reference" at all, while the recap

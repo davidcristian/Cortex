@@ -1,5 +1,3 @@
-"""Integration: the per-round cap against a real model and a real tool sidecar (ADR-0009)."""
-
 import os
 from collections.abc import Sequence
 from functools import partial
@@ -39,7 +37,7 @@ pytestmark = pytest.mark.skipif(
 
 
 async def _readable_files(registry: ReconnectingMcpToolRegistry) -> list[str]:
-    """The sidecar's own listing of the mounted directory, as absolute paths it will read."""
+    """Return the sidecar's own listing of the mounted directory, as absolute paths it can read."""
     listing = await registry.invoke(
         ToolCall(id="live-ls", name="list_directory", arguments={"path": _ROOT})
     )
@@ -74,14 +72,10 @@ async def _one_turn(
 
 
 def _assert_the_round_is_bounded_and_answerable(working: list[Message]) -> None:
-    """The bound and the well-formedness it must preserve, asserted on every attempt."""
+    """Assert the round's bound and the well-formedness it preserves, on every attempt."""
     rounds = [message for message in working if message.tool_calls]
     assert rounds, "the model called no tools at all, so nothing below is meaningful"
-    # No round records more than the cap plus the one slot that carries the refusal, so what a
-    # round can add to the context is a number rather than whatever the model felt like emitting.
     assert max(len(message.tool_calls) for message in rounds) <= MAX_CALLS_PER_ROUND + 1
-    # An OpenAI-compatible backend needs one tool message per recorded call id. Re-inference
-    # worked above, but assert the shape rather than trusting that it did.
     recorded = [call.id for message in rounds for call in message.tool_calls]
     answered = [message.tool_call_id for message in working if message.role is Role.TOOL]
     assert recorded == answered
@@ -102,8 +96,6 @@ async def test_a_real_model_asking_for_too_many_files_is_truncated_and_recovers(
             if any(record.detail == ROUND_OVERSIZED_MSG for record in records):
                 break
 
-    # Observability plus recovery, which is why truncation is not silent: the model was told, and
-    # went on to read files it had not got rather than stalling or re-asking for the same ones.
     notices = [record for record in records if record.detail == ROUND_OVERSIZED_MSG]
     assert notices, f"no round wider than the cap in {_ATTEMPTS} attempts over {len(paths)} files"
     after_the_notice = records[records.index(notices[0]) + 1 :]

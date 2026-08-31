@@ -1,21 +1,17 @@
-"""Image parts: the only way pixels are expressed anywhere in the brain (ADR-0029)."""
+"""Image parts: the only way pixels are represented anywhere in the brain."""
 
 import base64
 from dataclasses import dataclass
 
-# The most bytes one image part may carry, 6 MiB. Matches the body's MAX_CAPTURE_BYTES: a
-# worst-case incompressible screen encodes to 4.33 MB at the body's 1600 px default edge, so a
-# tighter bound here would refuse ordinary photographic screens the body legitimately produced.
+# 6 MiB, the same as the body's MAX_CAPTURE_BYTES: a worst-case incompressible screen encodes
+# to 4.33 MB at the body's 1600 px default edge, so a tighter bound would reject real screens.
 MAX_IMAGE_BYTES = 6 * 1024 * 1024
 
-# The largest edge, in pixels, a declared image size may name. Far above anything the capture
-# path produces (the body clamps at 4096); it exists to refuse a nonsense declaration, since
-# the dimensions are metadata the core never verifies against the bytes.
+# Well above anything the capture path produces, since the body clamps at 4096. Width and
+# height are declared metadata the core never checks against the bytes, so this only rejects
+# a nonsense declaration.
 MAX_IMAGE_EDGE = 8192
 
-# The encodings an image part may declare. PNG is all the capture path emits today; JPEG and
-# WebP are listed because the seam may swap the body's encoder without touching this value,
-# and an allow-list that has to grow for every such change would be a second decision point.
 ALLOWED_MIME_TYPES = frozenset({"image/png", "image/jpeg", "image/webp"})
 
 
@@ -25,11 +21,7 @@ class ImageError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ImagePart:
-    """One encoded image, validated at construction and immutable after it.
-
-    Carried beside (never inside) a ``ToolResult``'s text, so a failed tool call can never put
-    megabytes into the audit log and no fence, URL scan, or guardrail ever runs over pixels.
-    """
+    """One encoded image, validated at construction and immutable after it."""
 
     data: bytes
     mime_type: str
@@ -37,11 +29,7 @@ class ImagePart:
     height: int
 
     def __post_init__(self) -> None:
-        """Reject anything that is not a plausible, in-budget image.
-
-        Raises ``ImageError``. The dimensions are checked as *declarations*: they say what the
-        producer claims, and nothing here opens the bytes to confirm it, which is deliberate.
-        """
+        """Reject anything that is not a plausible, in-budget image."""
         if not self.data:
             msg = "an image part carries no bytes"
             raise ImageError(msg)
@@ -58,9 +46,6 @@ class ImagePart:
 
 
 def data_uri(part: ImagePart) -> str:
-    """Render ``part`` as a ``data:`` URI, the form an OpenAI content-parts array takes.
-
-    Standard-library base64 only. This is the whole of the brain's image processing.
-    """
+    """Render ``part`` as a ``data:`` URI, the form an OpenAI content-parts array takes."""
     encoded = base64.b64encode(part.data).decode("ascii")
     return f"data:{part.mime_type};base64,{encoded}"

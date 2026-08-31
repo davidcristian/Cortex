@@ -1,5 +1,3 @@
-"""Does the history fold still let go of the GPU when several Converse streams overlap?"""
-
 import asyncio
 import os
 import time
@@ -44,14 +42,13 @@ _ENDPOINT = os.environ.get("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:8080")
 _REDIS = os.environ.get("CORTEX_REDIS_URL", DEFAULT_REDIS_URL)
 _AT = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
 
+# Small on purpose: what matters is the ratio of window to conversation, and a short corpus
+# keeps each stream to one fold and one reply.
 _BUDGET = 350
 
-# How many streams overlap. Two prove contention; three make the queue behind a held lease
-# visible, which is what "under load" is actually asking about.
+# Two streams prove contention; three make the queue behind a held lease visible.
 _STREAMS = 3
 
-# One planted fact per stream, distinct enough that a reply carrying the wrong one is
-# unmistakable. The question at the end depends on it and nothing after the opening repeats it.
 _REFERENCES = ("QH7-4412", "ZB2-8830", "LM5-6017")
 _QUESTION = "remind me of my booking reference"
 
@@ -66,14 +63,9 @@ _FILLER = [
     ("what plug voltage do they run?", "Two hundred and thirty volts."),
 ]
 
-# Which acquisition a lease record belongs to. The fold is the only call in a turn carrying
-# RECAP_BOUNDS, so the phase is read off the request rather than guessed from ordering.
 _FOLD = "fold"
 _REPLY = "reply"
 
-# The stream a lease belongs to. Set once per driving coroutine; every task converse creates
-# below it (the pump, then each turn) copies the context, so the backend reads the right label
-# from inside handle_turn without anything being threaded through the ports.
 _LABEL: ContextVar[str] = ContextVar("cortex_fold_load_stream", default="?")
 
 
@@ -120,7 +112,7 @@ def _holds(log: Sequence[_Lease]) -> list[_Hold]:
 
 
 class _RecordingManager:
-    """The real manager, timestamped for ONE call. Delegates the lock, so the lock is real."""
+    """The real manager, timestamped for ONE call."""
 
     def __init__(self, inner: ModelManager, record: _Lease, granted: asyncio.Event) -> None:
         self._inner = inner
@@ -146,8 +138,6 @@ class _RecordingBackend:
         self._manager = manager
         self._client = client
         self.log: list[_Lease] = []
-        # Fires on every grant, so a test that must start one stream only once another is
-        # really on the GPU waits for the lock rather than polling for it.
         self.granted = asyncio.Event()
 
     def stream(
@@ -195,7 +185,7 @@ class _Run:
 
 
 def _corpus(reference: str) -> list[Message]:
-    """A conversation whose opening carries ``reference`` and whose middle buries it."""
+    """A conversation whose opening states ``reference``, with enough after it to push it out."""
     opening = [
         (f"my booking reference is {reference} and the flight lands at 06:20", "Noted."),
         ("the hotel is the Marlow on Gilbert Street, checking in late", "The Marlow, late."),
@@ -337,10 +327,8 @@ async def _harness() -> AsyncGenerator[_Harness, None]:
 
 
 def _blockers(record: _Lease, holds: Sequence[_Hold]) -> list[str]:
-    """Whose holds this acquisition sat behind: the load cost, attributed rather than totalled.
-
-    A reply naming another stream's FOLD here is the interleaving the argument never denied and
-    nothing had ever measured, so it is printed by name instead of disappearing into a mean.
+    """Return the holds this acquisition sat behind, which attributes the load cost per holder
+    rather than totalling it.
     """
     if record.granted is None:
         return []
@@ -354,7 +342,7 @@ def _blockers(record: _Lease, holds: Sequence[_Hold]) -> list[str]:
 
 
 def _report(runs: Sequence[_Run], log: Sequence[_Lease], origin: float) -> str:
-    """The evidence, as one block: every lease interval and every stream's own timings."""
+    """Render the evidence as one block: every lease interval and every stream's own timings."""
     holds = _holds(log)
     lines = ["lease timeline (seconds from the first acquisition request):"]
     for record in sorted(log, key=lambda r: r.requested):
@@ -384,7 +372,6 @@ def _context_is_uncrossed(runs: Sequence[_Run]) -> None:
 
 @pytest.mark.integration
 async def test_a_fold_keeps_letting_go_of_the_gpu_when_streams_overlap() -> None:
-    """The measurement: concurrent Converse streams, each folding, over one real cortex."""
     async with _harness() as harness:
         sessions = [f"fold-load-{index}" for index in range(_STREAMS)]
         solo_session = "fold-load-solo"
@@ -414,14 +401,11 @@ async def test_a_fold_keeps_letting_go_of_the_gpu_when_streams_overlap() -> None
                 f"\ncontentions (a stream asked while another held): {len(_contentions(log))}"
             )
             assert [record.phase for record in solo_log] == [_FOLD, _REPLY]
-            # The folds really happened: one per stream, and each said so on its own stream.
             folded = sorted(record.stream for record in log if record.phase == _FOLD)
             assert folded == [f"s{index}" for index in range(_STREAMS)]
             for run in runs:
                 assert run.statuses.count(RECAP_PROGRESS_STATE) == 1
-            # The overlap really happened. Without this the run is a null result dressed green.
             assert _contentions(log), "the streams never contended; this run measured nothing"
-            # And the argument held: no nesting, no shared lease, fold before reply.
             assert _sequencing_violations(log) == []
             _context_is_uncrossed(runs)
             for session, reference in zip(sessions, _REFERENCES, strict=True):
@@ -435,7 +419,6 @@ async def test_a_fold_keeps_letting_go_of_the_gpu_when_streams_overlap() -> None
 
 @pytest.mark.integration
 async def test_two_streams_on_one_session_do_not_hand_each_other_the_wrong_context() -> None:
-    """The other concurrency: two turns of the SAME session in flight at once."""
     async with _harness() as harness:
         session = "fold-load-shared"
         try:
@@ -458,10 +441,8 @@ async def test_two_streams_on_one_session_do_not_hand_each_other_the_wrong_conte
             )
             assert _contentions(log), "the two turns never overlapped; this run measured nothing"
             assert _sequencing_violations(log) == []
-            # Both turns answered from their own session, and the reference is the session's.
             for run in runs:
                 assert _REFERENCES[0] in run.answer, f"{run.label} lost the session's reference"
-            # Both turns are on record, and the recap names a prefix that really exists.
             assert len(history) == len(_corpus(_REFERENCES[0])) + 4
             assert recap is not None
             assert 1 <= recap.covers <= len(history)
@@ -469,19 +450,14 @@ async def test_two_streams_on_one_session_do_not_hand_each_other_the_wrong_conte
             await harness.store.delete(session)
 
 
-# How long the stalled consumer below stops reading for, and the bound its stream runs at. One
-# credit so the stall becomes backpressure on the first event rather than 256 events later; the
-# stall is several times a normal reply's hold, so a wait it causes cannot be read as one.
+# One credit, so the stall becomes backpressure on the first event rather than 256 events later.
+# The stall is several times a normal reply's hold, so a wait it causes cannot be read as one.
 _STALL_S = 12.0
 _STALL_BUFFER = 1
 
 
 async def _wait_for_reply_lease(backend: _RecordingBackend, label: str) -> None:
-    """Block until ``label`` is actually generating, so the next stream really queues behind it.
-
-    The clear-then-wait is safe because nothing between the test and the clear awaits, so no
-    grant can slip through the gap on a single-threaded loop.
-    """
+    """Block until ``label`` is actually generating, so the next stream really queues behind it."""
     while not any(
         record.stream == label and record.phase == _REPLY and record.granted is not None
         for record in backend.log
@@ -492,7 +468,6 @@ async def _wait_for_reply_lease(backend: _RecordingBackend, label: str) -> None:
 
 @pytest.mark.integration
 async def test_a_consumer_that_stops_reading_holds_the_gpu_a_later_fold_needs() -> None:
-    """What a stalled reader costs every other stream, which is a number and not an argument."""
     async with _harness() as harness:
         sessions = ["fold-load-stall-0", "fold-load-stall-1"]
         try:
@@ -524,8 +499,6 @@ async def test_a_consumer_that_stops_reading_holds_the_gpu_a_later_fold_needs() 
                 f"\n{_report(runs, log, min(r.requested for r in log))}"
             )
             assert _sequencing_violations(log) == []
-            # The stall really landed inside the reply's hold, and the later fold really waited
-            # it out. Both bounds are well clear of what an unstalled reply holds for here.
             assert reply.held > _STALL_S
             assert fold.wait > _STALL_S / 2
             assert "stalled/reply" in _blockers(fold, _holds(log))
@@ -534,8 +507,7 @@ async def test_a_consumer_that_stops_reading_holds_the_gpu_a_later_fold_needs() 
                 await harness.store.delete(session)
 
 
-# How long a stream gets before the deliberately broken arm below is called deadlocked. Well
-# past a fold plus a reply on this corpus, which the runs above measure at a few seconds each.
+# Well past a fold plus a reply on this corpus, which the runs above measure at a few seconds.
 _DEADLOCK_TIMEOUT_S = 30.0
 
 
@@ -574,7 +546,6 @@ class _LeakyWindow:
 
 @pytest.mark.integration
 async def test_the_timeline_catches_a_fold_that_holds_the_lease_across_the_reply() -> None:
-    """Distrust green: break the sequencing and show the same helper reddening."""
     async with _harness() as harness:
         session = "fold-load-leak"
         leaky = _LeakyWindow(harness.window, harness.backend)
@@ -597,7 +568,6 @@ async def test_the_timeline_catches_a_fold_that_holds_the_lease_across_the_reply
 
 @pytest.mark.integration
 async def test_the_overlap_proof_finds_nothing_when_the_streams_do_not_overlap() -> None:
-    """Distrust green, the other half: prove the overlap check can come back empty."""
     async with _harness() as harness:
         sessions = [f"fold-load-serial-{index}" for index in range(2)]
         try:
@@ -610,7 +580,6 @@ async def test_the_overlap_proof_finds_nothing_when_the_streams_do_not_overlap()
             print(  # noqa: T201 -- the proof IS this test's output
                 f"\nserial arm: {len(log)} leases, {len(_contentions(log))} contentions"
             )
-            # Every acquisition still happened, and every one of them was uncontended.
             assert sorted(record.phase for record in log) == [_FOLD, _FOLD, _REPLY, _REPLY]
             assert _sequencing_violations(log) == []
             assert _contentions(log) == []

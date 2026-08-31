@@ -1,5 +1,3 @@
-"""Behavior tests for the ToolRegistry combinators (ADR-0009 refinements addendum)."""
-
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
@@ -35,7 +33,7 @@ def _registry(label: str, *names: str) -> InMemoryToolRegistry:
 
 
 class FailingRegistry:
-    """A ToolRegistry whose listing always fails (the dead-sidecar case)."""
+    """A ToolRegistry whose listing always fails, as a dead sidecar's would."""
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         msg = "listing MCP tools failed"
@@ -66,7 +64,7 @@ async def test_describe_dedups_first_wins() -> None:
     aggregate = AggregateToolRegistry([first, shadowed])
     specs = await aggregate.describe_tools()
     assert len(specs) == 1
-    assert specs[0].description == ""  # the first registry's spec, not the shadowed one
+    assert specs[0].description == ""
 
 
 async def test_invoke_routes_to_the_advertising_registry() -> None:
@@ -94,7 +92,6 @@ async def test_a_dead_registry_fails_describe_loudly() -> None:
 
 
 async def test_a_dead_registry_fails_invoke_routing_loudly() -> None:
-    # The dead sidecar is walked before the user is found. The failure propagates.
     aggregate = AggregateToolRegistry([FailingRegistry(), _registry("mail", "send")])
     with pytest.raises(ToolError, match="listing MCP tools failed"):
         await aggregate.invoke(ToolCall(id="c4", name="send", arguments={}))
@@ -121,7 +118,6 @@ async def test_skip_unavailable_passes_a_healthy_inner_through_untouched() -> No
 
 
 async def test_skip_unavailable_softens_only_discovery_never_execution() -> None:
-    # A direct invoke on the dead inner fails loudly and unreported: only listing is skipped.
     reports: list[tuple[str, str]] = []
     skip = SkipUnavailableToolRegistry(
         FailingRegistry(), name="mail", report=lambda n, e: reports.append((n, str(e)))
@@ -132,7 +128,6 @@ async def test_skip_unavailable_softens_only_discovery_never_execution() -> None
 
 
 async def test_aggregate_over_a_skipped_dead_sidecar_serves_the_healthy_ones() -> None:
-    """The degraded mode end to end: healthy sidecars serve, the dead one is reported per walk."""
     reports: list[tuple[str, str]] = []
     dead = SkipUnavailableToolRegistry(
         FailingRegistry(), name="mail", report=lambda n, e: reports.append((n, str(e)))
@@ -141,15 +136,13 @@ async def test_aggregate_over_a_skipped_dead_sidecar_serves_the_healthy_ones() -
     assert [spec.name for spec in await aggregate.describe_tools()] == ["read"]
     result = await aggregate.invoke(ToolCall(id="c10", name="read", arguments={}))
     assert result.content == "from fs"
-    # A tool only the dead sidecar had fails closed. It is unadvertised, so not found.
     with pytest.raises(ToolNotFoundError, match="unknown tool 'search_emails'"):
         await aggregate.invoke(ToolCall(id="c11", name="search_emails", arguments={}))
-    # One report per live walk (describe + each invoke's routing walk): degraded, never silent.
     assert [name for name, _ in reports] == ["mail", "mail", "mail"]
 
 
 def _mixed_registry() -> InMemoryToolRegistry:
-    """One ungated read tool next to one gated send tool (the subagent hand-off case)."""
+    """One open read tool next to one send tool that needs approval."""
     return InMemoryToolRegistry(
         {
             "read": (ToolSpec(name="read", description="", parameters={}), _replies("fs")),
@@ -173,7 +166,6 @@ async def test_ungated_delegates_an_ungated_call() -> None:
 
 
 async def test_ungated_refuses_a_gated_call_the_inner_would_run() -> None:
-    # The inner registry HAS the gated tool; the exclusion is a real layer, not advisory.
     ungated = UngatedToolRegistry(_mixed_registry())
     with pytest.raises(ToolNotFoundError, match="unknown tool 'send'"):
         await ungated.invoke(ToolCall(id="g2", name="send", arguments={}))
@@ -204,14 +196,12 @@ async def test_filter_delegates_an_allowlisted_call() -> None:
 
 
 async def test_filter_refuses_a_call_outside_the_allowlist() -> None:
-    # The inner registry HAS the tool; the filter is a real layer, not advisory.
     filtered = FilteredToolRegistry(_registry("fs", "read", "write"), allow=["read"])
     with pytest.raises(ToolNotFoundError, match="unknown tool 'write'"):
         await filtered.invoke(ToolCall(id="c6", name="write", arguments={}))
 
 
 async def test_filter_only_restricts_never_grants() -> None:
-    # An allowlisted name the inner registry lacks: unadvertised, and the inner not-found surfaces.
     filtered = FilteredToolRegistry(_registry("fs", "read"), allow=["read", "ghost"])
     assert [spec.name for spec in await filtered.describe_tools()] == ["read"]
     with pytest.raises(ToolNotFoundError, match="unknown tool 'ghost'"):
@@ -224,8 +214,6 @@ def test_gated_overlay_requires_a_non_empty_name_set() -> None:
 
 
 async def test_gated_overlay_stamps_named_tools_and_leaves_the_rest() -> None:
-    # The composition-root declaration (ADR-0022): the remote spec arrives gated=False and
-    # leaves gated=True; unnamed tools ride through untouched, inner order kept.
     inner = _registry("mail", "read_email", "send_email")
     overlay = GatedToolRegistry(inner, gated=["send_email"])
     specs = {spec.name: spec.gated for spec in await overlay.describe_tools()}
@@ -233,23 +221,18 @@ async def test_gated_overlay_stamps_named_tools_and_leaves_the_rest() -> None:
 
 
 async def test_gated_overlay_tolerates_a_name_that_never_appears() -> None:
-    # The fail-closed default set may name tools no sidecar serves. That is harmless.
     overlay = GatedToolRegistry(_registry("fs", "read"), gated=["send_email"])
     specs = {spec.name: spec.gated for spec in await overlay.describe_tools()}
     assert specs == {"read": False}
 
 
 async def test_gated_overlay_delegates_invocation_untouched() -> None:
-    # Enforcement is the dispatcher's; the overlay only declares.
     overlay = GatedToolRegistry(_registry("mail", "send_email"), gated=["send_email"])
     result = await overlay.invoke(ToolCall(id="c8", name="send_email", arguments={}))
     assert result.content == "from mail"
 
 
 async def test_gated_overlay_composes_with_the_subagent_strip() -> None:
-    # The end-to-end property (ADR-0022 decision 4): stamp at the shared root, and the
-    # subagent-facing UngatedToolRegistry strips the stamped tool. A subagent never sees
-    # send_email at all, not merely a gate denial.
     root = GatedToolRegistry(_registry("mail", "read_email", "send_email"), gated=["send_email"])
     subagent_view = UngatedToolRegistry(root)
     assert [spec.name for spec in await subagent_view.describe_tools()] == ["read_email"]

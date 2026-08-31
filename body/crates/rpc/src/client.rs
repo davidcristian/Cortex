@@ -22,8 +22,9 @@ pub struct BrainSeamClient {
     plan: Option<RetryPlan>,
 }
 
-/// Redacting by construction: the token is a shared secret (ADR-0016) and the only thing here that
-/// must never reach a log, so it is printed as its presence and never as its value.
+/// The token is a shared secret (ADR-0016) and the only field here that must never reach a log,
+/// so this prints whether it is present and never its value. It is written out rather than
+/// derived for that reason, since the derive printed the `MetadataValue` itself.
 impl fmt::Debug for BrainSeamClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BrainSeamClient")
@@ -56,7 +57,7 @@ impl BrainSeamClient {
         Ok(Self::with_token(channel, token))
     }
 
-    /// Like [`BrainSeamClient::connect_with_token`], but over a **lazy** channel
+    /// Like [`BrainSeamClient::connect_with_token`], but over a lazy channel
     /// (`Channel::connect_lazy`): construction never dials, so it only fails on a
     /// bad URI or a non-ASCII token (never on reachability), and each RPC
     pub fn connect_lazy_with_token(
@@ -140,7 +141,7 @@ impl BrainTransport for BrainSeamClient {
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         // The one method that announces nothing, because it is the one the plan gives no
         // deadline: a turn is long by design, and a header would hand tonic a clock to end it
-        // with. Its statuses therefore map through the plain classifier.
+        // with. Its statuses therefore map through the classifier that reads no announcement.
         crate::converse::converse_turn(
             self.call(SeamMethod::Converse).client(),
             session_id.to_owned(),

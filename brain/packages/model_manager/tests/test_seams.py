@@ -1,5 +1,3 @@
-"""The daemon's two OS seams: the asyncio child wrapper and the HTTP health probe."""
-
 import asyncio
 from http import HTTPStatus
 from typing import cast
@@ -53,20 +51,17 @@ async def test_the_wrapper_passes_the_process_through_verbatim() -> None:
 
 @pytest.mark.parametrize("signal_name", ["terminate", "kill"])
 async def test_signalling_a_child_that_already_exited_is_not_a_failure(signal_name: str) -> None:
-    """Ending a process that ended itself is the outcome the caller wanted, not an error."""
     process = _StandInProcess(pid=4242, lookup_error=True)
     getattr(_wrapped(process), signal_name)()
     assert process.calls == [signal_name]
 
 
 async def test_the_spawner_execs_the_argv_it_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The one real OS write, asserted as the argv that reached ``create_subprocess_exec``."""
     seen: list[tuple[str, ...]] = []
     spawned: list[_StandInProcess] = []
 
     async def fake_exec(*argv: str) -> _StandInProcess:
         seen.append(argv)
-        # A different pid from the other test's, so the wrapper cannot pass both on a literal.
         spawned.append(_StandInProcess(pid=4243))
         return spawned[-1]
 
@@ -82,8 +77,6 @@ def _probe(handler: httpx.MockTransport) -> HttpHealthProbe:
 
 
 async def test_a_two_hundred_is_serving_and_a_five_oh_three_is_not() -> None:
-    """The measured shape of a real load: 503 ``Loading model`` for minutes, then 200 ``ok``."""
-
     def loading(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(
@@ -100,8 +93,6 @@ async def test_a_two_hundred_is_serving_and_a_five_oh_three_is_not() -> None:
 
 
 async def test_a_socket_that_refuses_is_not_serving_rather_than_an_error() -> None:
-    """The first fraction of a second of every start, and the whole of a dead one."""
-
     def refused(request: httpx.Request) -> httpx.Response:
         msg = "connection refused"
         raise httpx.ConnectError(msg, request=request)

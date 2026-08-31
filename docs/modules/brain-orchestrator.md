@@ -205,49 +205,52 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   and a deployment that turned the level down would silently empty a record it is obliged to keep.
   A rendering this build does not carry raises `UnknownLogFormatError` at the entry rather than
   falling back to one nobody asked for.
-- `SwapConfig` uses env prefix `CORTEX_` (`config_swap.py`, ADR-0030), the brain handoff's one
-  switch and the topology it enables: `escalation: bool = False` (`CORTEX_ESCALATION`) gates the
-  whole capability, so CI and the GPU-less loop are byte for byte what they were without it;
-  `modelhost_backend: "none" | "scripted" | "supervisor" = "none"`
-  (`CORTEX_MODELHOST_BACKEND`) says who owns the model processes, where `scripted` is the in-core
-  `ScriptedModelHost` (honest residency, no process started, no weights moved) and `supervisor`
-  is the real `HttpModelHost` over the `model-host` sidecar's control API at
-  `CORTEX_MODELHOST_ENDPOINT` (required with it, and the one thing that makes a swap move actual
-  weights, [brain-model-manager.md](brain-model-manager.md)); `modelhost_timeout_s`
-  (`CORTEX_MODELHOST_TIMEOUT_S`, 60 s) bounds one control call and must stay **above** the
-  sidecar's own `stop` worst case (its readiness-probe deadline, its SIGTERM grace and its SIGKILL
-  reap bound, since a stop answers only once the child is reaped and can queue behind a `status`
-  that probes inside the same lock), which `check_control_deadline` now enforces at boot rather
-  than leaving to the runbook; `brain_model` (`CORTEX_MODEL_BRAIN`, default `brain`) and
-  `brain_endpoint`
-  (`CORTEX_BRAIN_ENDPOINT`) are the deep tier's logical id and base URL; `evict_models`
-  (`CORTEX_SWAP_EVICT_MODELS`) names further hosted tiers a swap must stop first (while the deep
-  model is resident it is alone on the GPU) and start again on the way back, since those tiers
-  are part of the standing residency every exit path converges to; `coresident`
-  (`CORTEX_SWAP_CORESIDENT`, **off**) reverses that one rule, leaving those tiers serving through
-  the handoff and skipping the drain window entirely, which is the deployment asserting its card
-  holds the pair (ADR-0030's co-residency addendum has the measurement); `brain_vram_mib`
-  (`CORTEX_SWAP_BRAIN_VRAM_MIB`, 0) is the free device memory that deep tier needs, measured on
-  the deployment's own card, which the swap compares against the model host's reading immediately
-  before the load and refuses the handoff when it is short; `brain_decode_tps`
-  (`CORTEX_SWAP_BRAIN_DECODE_TPS`, 0.0) is the after-the-fact half of that same claim, the tokens
-  per second the deep tier reaches when the card really does hold it, which the deep phase
-  compares a real completion against, logs a warning when it never cleared (ADR-0030
-  spill-watch addendum), and publishes to the manager's own record so a spilled handoff reaches
-  the connection tooltip and not only the log (ADR-0030 spill-note addendum); `swap_drain_timeout_s` (60 s) and
-  `swap_load_timeout_s` (300 s) are the swap's two bounds; `swap_tier_heal_s`
-  (`CORTEX_SWAP_TIER_HEAL_S`, 30 s) paces the sweep of every `CORTEX_SWAP_EVICT_MODELS` tier,
-  which the swap back's own restart is best effort about and which can also die with nobody
-  asking, so a reading taken every interval is what the record rests on (ADR-0030 tier-outage and
-  tier-sweep addenda). Enabling escalation without a model
-  host or without a brain endpoint **fails at boot**, rather than advertising a tool that could
-  only refuse, and so does co-residency on the `supervisor` host with no measured VRAM figure,
-  since that flag is a claim about a card and this is the only thing that ever tests it (the
-  card itself is read at the swap, being a number that moves while the machine runs). The decode
-  figure is deliberately **not** required the same way: it guards no decision, so an unmeasured
-  deployment is better served by the observed number in its log than by a boot failure, and that
-  number is what a floor would later be set from. `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the
-  conductor, and boot recovery all read.
+- `SwapConfig` uses env prefix `CORTEX_` (`config_swap.py`, ADR-0030). It holds the brain
+  handoff's one switch and the topology that switch enables:
+  - `escalation: bool = False` (`CORTEX_ESCALATION`) gates the whole capability, so CI and the
+    GPU-less loop are byte for byte what they were without it.
+  - `modelhost_backend: "none" | "scripted" | "supervisor" = "none"`
+    (`CORTEX_MODELHOST_BACKEND`) says who owns the model processes. `scripted` is the in-core
+    `ScriptedModelHost` (honest residency, no process started, no weights moved); `supervisor`
+    is the real `HttpModelHost` over the `model-host` sidecar's control API at
+    `CORTEX_MODELHOST_ENDPOINT` (required with it, and the one setting that makes a swap move
+    actual weights, [brain-model-manager.md](brain-model-manager.md)).
+  - `modelhost_timeout_s` (`CORTEX_MODELHOST_TIMEOUT_S`, 60 s) bounds one control call and must
+    stay **above** the sidecar's own `stop` worst case (its readiness-probe deadline, its SIGTERM
+    grace and its SIGKILL reap bound, since a stop answers only once the child is reaped and can
+    queue behind a `status` that probes inside the same lock). `check_control_deadline` enforces
+    that at boot rather than leaving it to the runbook.
+  - `brain_model` (`CORTEX_MODEL_BRAIN`, default `brain`) and `brain_endpoint`
+    (`CORTEX_BRAIN_ENDPOINT`) are the deep tier's logical id and base URL.
+  - `evict_models` (`CORTEX_SWAP_EVICT_MODELS`) names further hosted tiers a swap must stop first
+    (while the deep model is resident it is alone on the GPU) and start again on the way back,
+    since those tiers are part of the standing residency every exit path converges to.
+  - `coresident` (`CORTEX_SWAP_CORESIDENT`, **off**) reverses that one rule, leaving those tiers
+    serving through the handoff and skipping the drain window entirely, which is the deployment
+    asserting that its card holds the pair (ADR-0030's co-residency addendum has the measurement).
+  - `brain_vram_mib` (`CORTEX_SWAP_BRAIN_VRAM_MIB`, 0) is the free device memory the deep tier
+    needs, measured on the deployment's own card. The swap compares it against the model host's
+    reading immediately before the load, and the handoff fails when the reading is short.
+  - `brain_decode_tps` (`CORTEX_SWAP_BRAIN_DECODE_TPS`, 0.0) is the after-the-fact half of that
+    same claim, the tokens per second the deep tier reaches when the card really does hold it. The
+    deep phase compares a real completion against it, logs a warning when it never cleared
+    (ADR-0030 spill-watch addendum), and publishes it to the manager's own record, so a spilled
+    handoff reaches the connection tooltip and not only the log (ADR-0030 spill-note addendum).
+  - `swap_drain_timeout_s` (60 s) and `swap_load_timeout_s` (300 s) are the swap's two bounds.
+  - `swap_tier_heal_s` (`CORTEX_SWAP_TIER_HEAL_S`, 30 s) paces the sweep of every
+    `CORTEX_SWAP_EVICT_MODELS` tier. The swap back's own restart is best effort about those tiers,
+    and a tier can also die with nobody asking, so the record rests on a reading taken every
+    interval (ADR-0030 tier-outage and tier-sweep addenda).
+
+  Enabling escalation without a model host or without a brain endpoint **fails at boot**, rather
+  than advertising a tool that could only fail, and so does co-residency on the `supervisor` host
+  with no measured VRAM figure, since that flag is a claim about a card and this is the only check
+  that ever tests it (the card itself is read at the swap, being a number that moves while the
+  machine runs). The decode figure is deliberately **not** required the same way: it guards no
+  decision, so an unmeasured deployment is better served by the observed number in its log than by
+  a boot failure, and that number is what a floor would later be set from.
+  `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the conductor, and boot
+  recovery all read.
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
@@ -670,8 +673,9 @@ The service:
   (`ticker.py`, ADR-0025) is the stateless firing loop. `TickerSettings` carries the pacing
   (`poll_s`, `lease`, `claim_limit`) plus the `zone: DisplayZone` a calendar item re-arms on
   (`CORTEX_SCHEDULE_TZ`, defaulting to `UTC_DISPLAY`): a wall-clock re-arm is zone arithmetic,
-  so creation and firing must read one zone (ADR-0025 calendar addendum). Each `run_once` pass claims what is due each `run_once` pass claims what is due
-  (under the fencing lease), fires the batch concurrently, and persists each outcome; the
+  so creation and firing must read one zone (ADR-0025 calendar addendum). Each `run_once`
+  pass claims what is due (under the fencing lease), fires the batch concurrently, and
+  persists each outcome; the
   ticker holds nothing but its loop (the one hard rule, live). Both kinds deliver through one
   best-effort `_deliver` ladder (`BodyGateway.notify`; shown → acked at once so pull will not
   re-show it, declined/failed/absent body → the item stays deliverable and the pull path delivers,
@@ -726,54 +730,58 @@ The service:
   reported as a runaway subtask; it promises nothing about the run finishing, a run making many
   dispatches. The config is handed straight back, so the root gates on the way through, and it is
   gated at the env read before any adapter is built, so a refusal releases nothing.
-- `run_from_env() -> None` (async) is the composition root: reads the env configs, gates the
+- `run_from_env() -> None` (async) is the composition root. It reads the env configs, gates the
   delegation config through `check_tool_call_deadline` as it reads it, and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
   the default-on history window (`build_history_window`, ADR-0014, recapping what it drops since
   ADR-0038's cheap-fold addendum) and output guardrail (`build_output_guardrail`, ADR-0015),
   and four opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
-  external-service-free: **memory** (`build_memory`, in `memory_builders.py` split from
-  `builders.py`, ADR-0008; returns the `MemoryRecaller` for the engine, a `SessionMemoryCascade`
-  for `DeleteSession` over the same store+scope, and the closer, all `None`/no-op when off),
-  **tools** (`build_tool_registry`
-  builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one lazy
-  `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at startup, so
-  boot-tolerant, ADR-0009 boot-tolerance addendum), wrapped **innermost** in a
-  `BoundedToolRegistry` carrying `config.call_timeout_s` (ADR-0009 bound addendum, so the bound
-  covers the dial and the call and reaches no built-in), then in a `FilteredToolRegistry` where an
-  allowlist is set, in a `SkipUnavailableToolRegistry` reporting through a structured warning when
-  `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several. No session
-  is held between calls, so `build_tool_registry` is synchronous and its closer is a no-op),
-  **subagents**
-  (`build_subagents(config, tools, redis_url, clock, *, placer, task_store_factory)`,
-  in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the
-  `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
-  per entry its own GPU + CPU `LlamaCppBackend` pair (one shared httpx client) and
-  `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` (carrying
-  `config.admission_wait_s` as the bound on queuing for room, ADR-0012) and one
-  `config.attempt_bounds` on the runner, so every delegated run carries the deployment's token cap
-  and its own deadline (ADR-0005 total-cap addendum; on the runner rather than the shared client
-  because a token cap is request-side and a deadline has to cover the tool dispatches between a
-  run's completions, which no HTTP client can see), and the ONE
-  `VramBudgetPlacer` built once at the root from the runtime VRAM knobs and handed to both this
-  builder and `build_swap_runtime` (one budget, one ledger, per ADR-0012, and one object, since
-  the residency scope tells that same ledger which model holds the card during a handoff), a Redis `TaskStore`, GPU-first placement with CPU overflow,
-  ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; `tools` is the subagent
-  dispatcher, pre-assembled at the root by
-  `build_subagent_tools(tool_registry, clock, policy=CORTEX_TOOLS_*)`: the shared
-  registry wrapped in `UngatedToolRegistry`, so a subagent is never handed a gated/outbound
-  tool (ADR-0013 subagent-exclusion addendum), with the user's gated names as the
-  dispatcher's authoritative backstop, which `confirmer=None` turns into a hard deny even if
-  the skip-mode advertisement window ever resurfaced a stripped name, ADR-0022), **body** (`build_body_gateway`, ADR-0023, opening the opt-in
-  `GrpcBodyGateway` dial to the host `BodyService`, off by default, closed in the `finally`),
-  and **schedules** (`build_schedule(config, redis_url, *, store_factory)`, in
-  `schedule_builders.py`, ADR-0025, giving the durable `RedisScheduleStore` or `None`; its
-  built-ins come from `build_schedule_tools(config, schedules, clock, tasks_enabled=...)`
-  and its firing loop from `build_ticker(config, schedules, clock, spawn_tool=..., body=...,
-  policy=...)`,
-  started beside `serve` via `start_ticker` (a named task with the death-logging callback)
-  and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
-  `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
+  external-service-free:
+  - **memory** (`build_memory`, in `memory_builders.py` split from
+    `builders.py`, ADR-0008; returns the `MemoryRecaller` for the engine, a `SessionMemoryCascade`
+    for `DeleteSession` over the same store+scope, and the closer, all `None`/no-op when off).
+  - **tools** (`build_tool_registry`
+    builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one lazy
+    `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at startup, so
+    boot-tolerant, ADR-0009 boot-tolerance addendum), wrapped **innermost** in a
+    `BoundedToolRegistry` carrying `config.call_timeout_s` (ADR-0009 bound addendum, so the bound
+    covers the dial and the call and reaches no built-in), then in a `FilteredToolRegistry` where an
+    allowlist is set, in a `SkipUnavailableToolRegistry` reporting through a structured warning when
+    `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several. No session
+    is held between calls, so `build_tool_registry` is synchronous and its closer is a no-op).
+  - **subagents**
+    (`build_subagents(config, tools, redis_url, clock, *, placer, task_store_factory)`,
+    in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the
+    `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
+    per entry its own GPU + CPU `LlamaCppBackend` pair (one shared httpx client) and
+    `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` (carrying
+    `config.admission_wait_s` as the bound on queuing for room, ADR-0012) and one
+    `config.attempt_bounds` on the runner, so every delegated run carries the deployment's token cap
+    and its own deadline (ADR-0005 total-cap addendum; on the runner rather than the shared client
+    because a token cap is request-side and a deadline has to cover the tool dispatches between a
+    run's completions, which no HTTP client can see), and the ONE
+    `VramBudgetPlacer` built once at the root from the runtime VRAM knobs and handed to both this
+    builder and `build_swap_runtime` (one budget, one ledger, per ADR-0012, and one object, since
+    the residency scope tells that same ledger which model holds the card during a handoff), a
+    Redis `TaskStore`, GPU-first placement with CPU overflow,
+    ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; `tools` is the subagent
+    dispatcher, pre-assembled at the root by
+    `build_subagent_tools(tool_registry, clock, policy=CORTEX_TOOLS_*)`: the shared
+    registry wrapped in `UngatedToolRegistry`, so a subagent is never handed a gated/outbound
+    tool (ADR-0013 subagent-exclusion addendum), with the user's gated names as the
+    dispatcher's authoritative backstop, which `confirmer=None` turns into a hard deny even if
+    the skip-mode advertisement window ever resurfaced a stripped name, ADR-0022).
+  - **body** (`build_body_gateway`, ADR-0023, opening the opt-in
+    `GrpcBodyGateway` dial to the host `BodyService`, off by default, closed in the `finally`).
+  - **schedules** (`build_schedule(config, redis_url, *, store_factory)`, in
+    `schedule_builders.py`, ADR-0025, giving the durable `RedisScheduleStore` or `None`; its
+    built-ins come from `build_schedule_tools(config, schedules, clock, tasks_enabled=...)`
+    and its firing loop from `build_ticker(config, schedules, clock, spawn_tool=..., body=...,
+    policy=...)`,
+    started beside `serve` via `start_ticker` (a named task with the death-logging callback)
+    and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
+    `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
+
   The sixth opt-in adapter is the **brain handoff** (`build_swap_runtime(swap, runtime,
   inference, clock, sleeper, placer, handoff_store_factory)` in `swap_builders.py`, ADR-0030,
   `placer` being the pool's own so the swap's two edges can recharge it, ADR-0030 handoff-window
@@ -785,29 +793,37 @@ The service:
   backend leases through (hence `build_inference_backend(..., manager=...)`) and the residency
   scope the conductor drives, the Redis `HandoffStore`, the `ResidencyPlan`, and the `TierHealer`
   that retries a peer tier the swap back could not restart. With it wired,
-  `run_from_env` runs `recover_handoffs` before serving (a handoff cannot outlive its process),
-  handing it `swap.manager.standing_tiers` so a peer tier that will not run is written into the
-  manager's own record rather than into that answer (ADR-0030 boot-verdict addendum),
-  and publishes what it observed about the **cortex** onto the manager with
-  `publish_boot_residency(serving=…)`, so a boot
-  that could not settle the cortex is amber from the first probe instead of green over a GPU
-  serving nothing, while a boot whose only casualty is a delegation tier stays green and names
-  that tier; starts that healer in the same call, after the publish, since a pass run
-  first would be retrying against beliefs the seed had not replaced yet (and a boot that marked a
-  tier is exactly the case its first pass has work to do on), and stops it in the
-  runtime's own `close`, before the store and the control client it spends;
-  registers `escalate_to_brain`; hands that same manager to `serve` inside
-  `SeamPorts` as the seam's `residency` reporter (which is what makes `Health` honest mid
-  handoff, ADR-0030 decision 6); and rides into `StreamEngines` as its `DeepTier`, which is what
-  makes `for_stream` answer an `EscalatingTurnEngine`: a
-  fresh slot and inner engine per turn, and a `SwapConductor` over a dispatcher built from THIS
-  stream's confirmer, whose `BrainPhase` is handed
-  `CadenceTerms(swap.plan.brain_decode_tps, swap.manager.handoff_pace)`, which is the one place
-  the deep phase's decode watch is joined to the record a probe reads, so the deep model's phase runs the same audited tools the cortex phase did,
-  with no slot of its own and **without `capture_screen`** (ADR-0029: the root builds a second
-  built-in set with `vision=None` for the deep tier, because the probe asked the cortex's endpoint
-  and no brain-tier candidate on the mount carries a projector, so registration follows the tier
-  that will actually answer rather than the one that was probed). The runtime is gated on its way out of the builder by `check_control_deadline(swap)`,
+  `run_from_env` does six further things:
+
+  - It runs `recover_handoffs` before serving (a handoff cannot outlive its process), handing it
+    `swap.manager.standing_tiers` so a peer tier that will not run is written into the
+    manager's own record rather than into that answer (ADR-0030 boot-verdict addendum).
+  - It publishes what it observed about the **cortex** onto the manager with
+    `publish_boot_residency(serving=…)`, so a boot
+    that could not settle the cortex is amber from the first probe instead of green over a GPU
+    serving nothing, while a boot whose only casualty is a delegation tier stays green and names
+    that tier.
+  - It starts that healer in the same call, after the publish, since a pass run
+    first would be retrying against a record the seed had not replaced yet (and a boot that marked
+    a tier is exactly the case its first pass has work to do on), and it stops it in the
+    runtime's own `close`, before the store and the control client it spends.
+  - It registers `escalate_to_brain`.
+  - It hands that same manager to `serve` inside
+    `SeamPorts` as the seam's `residency` reporter, which is what makes `Health` honest mid
+    handoff (ADR-0030 decision 6).
+  - It passes the runtime into `StreamEngines` as its `DeepTier`, which is what
+    makes `for_stream` answer an `EscalatingTurnEngine`: a
+    fresh slot and inner engine per turn, and a `SwapConductor` over a dispatcher built from THIS
+    stream's confirmer, whose `BrainPhase` is handed
+    `CadenceTerms(swap.plan.brain_decode_tps, swap.manager.handoff_pace)`, which is the one place
+    the deep phase's decode watch is joined to the record a probe reads. The deep model's phase
+    therefore runs the same audited tools the cortex phase did,
+    with no slot of its own and **without `capture_screen`** (ADR-0029: the root builds a second
+    built-in set with `vision=None` for the deep tier, because the probe asked the cortex's
+    endpoint and no brain-tier candidate on the mount carries a projector, so registration follows
+    the tier that will actually answer rather than the one that was probed).
+
+  The runtime is gated on its way out of the builder by `check_control_deadline(swap)`,
   which asks the host for its own `ControlBounds` and raises `ControlDeadlineError`
   when `CORTEX_MODELHOST_TIMEOUT_S` does not strictly clear their sum, releasing what the runtime
   already holds first because the shutdown hook is not armed that early (ADR-0030's

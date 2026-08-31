@@ -10,7 +10,7 @@ worth so little.
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads,
-which the abandonment interceptor logs and nothing else notices. The shape asked for is a handler
+which the abandonment interceptor logs and nothing else records. The shape asked for is a handler
 that sees milliseconds left and answers `DEADLINE_EXCEEDED` at once rather than spending a Redis
 round trip on it.
 

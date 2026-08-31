@@ -1,5 +1,3 @@
-"""Boot recovery: what a restart owes a handoff the process did not survive."""
-
 import logging
 
 import pytest
@@ -25,7 +23,7 @@ _TIER = "subagent-gpu"
 
 
 def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[str, dict[str, object]]]:
-    """What each line says and what it carries, read the way the formatter reads a record."""
+    """What each line says and what fields it has, read the way the formatter reads a record."""
     return [(record.message, record_fields(record)) for record in caplog.records]
 
 
@@ -52,11 +50,10 @@ def _stranded() -> object:
 
 
 async def test_a_clean_boot_touches_nothing(caplog: pytest.LogCaptureFixture) -> None:
-    """The usual case: no handoff was in flight and the cortex is already serving."""
     host = ScriptedModelHost(running=["cortex"])
     handoffs = RecordingHandoffStore()
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_recovery"):
-        assert await _recover(handoffs, host) is True  # what the seam then publishes as ready
+        assert await _recover(handoffs, host) is True
     assert [call for call in host.calls if call[0] != "status"] == []
     assert host.running == {"cortex"}
     assert caplog.records == []
@@ -65,7 +62,6 @@ async def test_a_clean_boot_touches_nothing(caplog: pytest.LogCaptureFixture) ->
 async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A live record would make ``active()`` refuse every later escalation forever."""
     host = ScriptedModelHost(running=["cortex"])
     handoffs = RecordingHandoffStore()
     await handoffs.put(_stranded())  # pyright: ignore[reportArgumentType]
@@ -74,7 +70,7 @@ async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
     assert await handoffs.active() is None
     failed = await handoffs.get(harness.TURN)
     assert failed is not None
-    assert failed.state is HandoffState.FAILED  # kept, not deleted: it is the diagnosis
+    assert failed.state is HandoffState.FAILED
     assert _said(caplog) == [
         (
             "a handoff did not survive the restart; marking it failed",
@@ -88,7 +84,6 @@ async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
 
 
 async def test_a_deep_model_left_resident_by_a_crash_is_stopped() -> None:
-    """The GPU is converged to where the conductor's finally would have left it."""
     host = ScriptedModelHost(running=["brain"])
     assert await _recover(RecordingHandoffStore(), host) is True
     assert host.running == {"cortex"}
@@ -97,11 +92,6 @@ async def test_a_deep_model_left_resident_by_a_crash_is_stopped() -> None:
 
 
 async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> None:
-    """The order is the conductor's: clear the GPU, settle the cortex, restore the rest.
-
-    A crash can leave a tier holding VRAM the cortex needs, so it goes first; but the standing
-    residency includes it, so a boot that left it stopped would silently shrink the machine.
-    """
     host = ScriptedModelHost(running=[_TIER, "brain", "cortex"])
     tiers = StandingTiers()
     settled = await converge_residency(
@@ -118,13 +108,12 @@ async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> N
         ("start", _TIER),
     ]
     assert host.running == {"cortex", _TIER}
-    assert tiers.missing == ()  # a peer that came back is nothing to record
+    assert tiers.missing == ()
 
 
 async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Recovery cannot fix a host that will not serve, so it says so instead of pretending."""
     host = ScriptedModelHost(status_override={"cortex": ModelHostState.LOADING})
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
         settled = await recover_handoffs(
@@ -135,7 +124,7 @@ async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
             clock=TickingClock(),
             sleeper=RecordingSleeper(),
         )
-    assert settled is False  # the answer the composition root turns into an amber dot
+    assert settled is False
     assert [record.message for record in caplog.records] == [
         "the cortex is not serving after boot recovery; turns will fail until it is"
     ]
@@ -144,7 +133,6 @@ async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
 async def test_an_unreachable_host_does_not_fail_the_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A dead supervisor is logged and served around: the brain still starts and answers RPCs."""
     host = ScriptedModelHost(
         fail={
             ("status", "brain"): "supervisor unreachable",
@@ -156,20 +144,16 @@ async def test_an_unreachable_host_does_not_fail_the_boot(
         settled = await _recover(
             RecordingHandoffStore(), host, tiers, harness.plan(evict_models=(_TIER,))
         )
-    # Nothing was observed about the cortex, and the honest report of an unobserved GPU is amber.
     assert settled is False
     assert _said(caplog) == [
         ("the model host failed while clearing the deep model at boot", {"model": "brain"})
     ]
-    # And nothing was observed about the peers either: a host that could not be reached was never
-    # asked to run one, and this record's one rule is that only a refusal marks.
     assert tiers.missing == ()
 
 
 async def test_a_peer_that_will_not_start_is_recorded_and_not_counted(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The whole fix: a delegation tier that is broken is not the usual assistant being gone."""
     host = ScriptedModelHost(running=["cortex"], fail={("start", _TIER): "no such device"})
     tiers = StandingTiers()
     with caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"):
@@ -190,7 +174,6 @@ async def test_a_peer_that_will_not_start_is_recorded_and_not_counted(
 async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The reachable misconfiguration, and the reason the clearing phase is peer-tolerant too."""
     host = ScriptedModelHost(
         running=["cortex"],
         fail={("status", _TIER): "unknown model", ("start", _TIER): "unknown model"},
@@ -215,7 +198,6 @@ async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
 async def test_a_deep_tier_the_daemon_does_not_serve_is_a_config_fault_not_an_amber_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The whole of this fix: escalation declared with no artifact behind it is not an outage."""
     host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_recovery"):
         settled = await _recover(RecordingHandoffStore(), host)
@@ -233,14 +215,11 @@ async def test_a_deep_tier_the_daemon_does_not_serve_is_a_config_fault_not_an_am
 async def test_a_deep_model_that_really_will_not_stop_still_fails_the_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The failure the fix must not introduce: a real outage reading as a configuration choice."""
     host = ScriptedModelHost(running=["brain", "cortex"], fail={("stop", "brain"): "wedged"})
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is False
     assert ("status", "cortex") not in host.calls
-    # The wedged tier is the deep model, and the line says so: the cortex was never even asked
-    # about here, so a failure naming it would be an invention.
     assert _said(caplog) == [
         ("the model host failed while clearing the deep model at boot", {"model": "brain"})
     ]
@@ -249,13 +228,10 @@ async def test_a_deep_model_that_really_will_not_stop_still_fails_the_boot(
 async def test_a_cortex_the_daemon_does_not_serve_is_amber_and_says_which_it_is(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The same distinction pointing the other way, which must not turn green."""
     host = ScriptedModelHost(unhosted=["cortex"])
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is False
-    # The one arm that could always name its model, and now the only call it wraps is the
-    # cortex's, so the name is structural rather than a fact read out of another function.
     assert _said(caplog) == [
         (
             "the model host does not serve the cortex this brain names, so nothing can",
@@ -267,19 +243,17 @@ async def test_a_cortex_the_daemon_does_not_serve_is_amber_and_says_which_it_is(
 async def test_a_host_that_fails_at_the_cortex_names_the_cortex_and_not_the_deep_model(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The other half of the narrowing, and the case the old single ``try`` could not tell apart."""
     host = ScriptedModelHost(fail={("status", "cortex"): "supervisor unreachable"})
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is False
-    assert ("status", "brain") in host.calls  # the clearing really did run and really did pass
+    assert ("status", "brain") in host.calls
     assert _said(caplog) == [
         ("the model host was unreachable during boot recovery", {"model": "cortex"})
     ]
 
 
 async def test_a_cortex_that_will_not_settle_still_asks_for_its_peers_back() -> None:
-    """The two verdicts are independent in both directions, not only the interesting one."""
     host = ScriptedModelHost(running=[_TIER], status_override={"cortex": ModelHostState.LOADING})
     tiers = StandingTiers()
     tiers.mark_missing(_TIER)
@@ -298,8 +272,6 @@ async def test_a_cortex_that_will_not_settle_still_asks_for_its_peers_back() -> 
 async def test_an_unreadable_handoff_store_does_not_fail_the_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Same posture for the store: log it, converge residency anyway, keep serving."""
-
     class _Unreadable(RecordingHandoffStore):
         async def active(self) -> None:
             msg = "redis is down at boot"
@@ -307,7 +279,7 @@ async def test_an_unreadable_handoff_store_does_not_fail_the_boot(
 
     host = ScriptedModelHost(running=["cortex"])
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
-        assert await _recover(_Unreadable(), host) is True  # the GPU is fine; only redis was not
+        assert await _recover(_Unreadable(), host) is True
     assert [record.message for record in caplog.records] == [
         "could not read or fail a stranded handoff at startup"
     ]

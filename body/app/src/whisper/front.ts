@@ -1,3 +1,5 @@
+// The pure half of the whispered streaming: the condensation front, and the token boxes the
+// bubble lays out. Arithmetic over numbers and strings only; the clock is `useWhisperClock.ts`.
 
 /** How many letters the condensation band spans: a letter clears over this much front travel. */
 export const BAND_LETTERS = 9;
@@ -5,17 +7,17 @@ export const BAND_LETTERS = 9;
 /** The time the front aims to trail arrivals by; velocity is backlog over this. */
 export const CATCHUP_SECONDS = 0.35;
 
-/** The front never crawls slower than this while it has anywhere to go (letters per second). */
+/** The front never moves slower than this while it has anywhere to go (letters per second). */
 export const MIN_PACE = 20;
 
-/** ...and never sprints faster than this, so a burst reads as flow rather than a teleport. */
+/** The front never moves faster than this, so a burst reads as flow rather than a jump. */
 export const MAX_PACE = 150;
 
 /** How fast the velocity eases toward its target (per second of gain). */
 export const VELOCITY_GAIN = 6;
 
 /** A run of non-whitespace longer than this is split into boxes the bubble can break between,
- *  which is what keeps `overflow-wrap: anywhere`'s promise inside a streamed 64-char hash. */
+ *  so `overflow-wrap: anywhere` still works inside something like a streamed 64-char hash. */
 export const CHUNK_LETTERS = 24;
 
 export interface Front {
@@ -26,7 +28,8 @@ export interface Front {
 
 export const RESTING_FRONT: Front = { at: 0, velocity: 0 };
 
-/** One frame of front travel toward `goal` letters, `dt` seconds after the last one. */
+/** One frame of front travel toward `goal` letters, `dt` seconds after the last one. The front
+ *  never moves backward: pulling it back would un-condense letters that already stand. */
 export function advance(front: Front, goal: number, dt: number): Front {
   const backlog = goal - front.at;
   const target =
@@ -35,15 +38,15 @@ export function advance(front: Front, goal: number, dt: number): Front {
   return { at: Math.max(front.at, Math.min(goal, front.at + velocity * dt)), velocity };
 }
 
-/** Where the front is headed: the confirmed letters while streaming, and one whole band past
- *  the last letter on the drain, because a letter only finishes once the front is a full band
- *  beyond it (without the overshoot the tail never solidifies). */
+/** Where the front is headed: the confirmed letters while streaming, and one whole band past the
+ *  last letter once draining. A letter finishes only when the front is a full band beyond it, so
+ *  without that overshoot the tail never sets. */
 export function goalOf(letters: number, confirmed: number, draining: boolean): number {
   return draining ? letters + BAND_LETTERS : Math.min(confirmed, letters);
 }
 
-/** The band as a ramp: how condensed letter `index` is under a front at `at`, 0 (mist) to 1
- *  (ink), smoothstepped so both ends of a letter's fade arrive without a corner. */
+/** The band as a ramp: how condensed letter `index` is under a front at `at`, from 0 (mist) to 1
+ *  (ink). Smoothstepped, so both ends of a letter's fade arrive without a corner. */
 export function rampAt(at: number, index: number): number {
   const p = (at - index) / BAND_LETTERS;
   if (p <= 0) {
@@ -55,13 +58,13 @@ export function rampAt(at: number, index: number): number {
   return p * p * (3 - 2 * p);
 }
 
-/** Exponential tracking toward a target: the box's and the mist's per-frame ease. Framerate
- *  independent enough for a gain-per-second, and it never jumps or overshoots. */
+/** Exponential tracking toward a target: the box's and the mist's per-frame ease. It is
+ *  frame-rate independent for a gain per second, and never jumps or overshoots. */
 export function approach(value: number, target: number, dt: number, gain: number): number {
   return value + (target - value) * Math.min(1, dt * gain);
 }
 
-/** A CSS length like "22.475px", or a fallback when the engine offers nothing usable (jsdom
+/** A CSS length like "22.475px", or `fallback` when the engine offers nothing usable (jsdom
  *  answers "" for everything). Values under 4 are rejected too: a unitless line-height would
  *  parse as its multiplier and pose the box a couple of pixels tall. */
 export function pxOr(raw: string, fallback: number): number {
@@ -74,10 +77,9 @@ export interface Token {
   readonly text: string;
 }
 
-/**
- * The reply as the bubble lays it: unbreakable word boxes and verbatim whitespace gaps (`pre-wrap`
- * renders the gaps, so newlines survive exactly as they always did).
- */
+/** The reply as the bubble lays it out: unbreakable word boxes and whitespace gaps kept as they
+ *  are, since `pre-wrap` renders them. Splitting is by code point, so a surrogate pair never ends
+ *  up half in one box, and appending only grows the last token, which keeps React's keys stable. */
 export function tokenize(content: string): readonly Token[] {
   const tokens: Token[] = [];
   for (const run of content.split(/(\s+)/)) {
@@ -107,10 +109,9 @@ export function letterCountOf(tokens: readonly Token[]): number {
   return count;
 }
 
-/**
- * The letters the front may reveal while the turn still streams: everything up to the last
- * COMPLETED word.
- */
+/** The letters the front may reveal while the turn still streams: everything up to the last
+ *  completed word. A trailing word has no whitespace after it yet, so it can still grow and
+ *  re-wrap; holding its letters at zero means only invisible letters ever move. */
 export function confirmedOf(tokens: readonly Token[]): number {
   const last = tokens[tokens.length - 1];
   const total = letterCountOf(tokens);

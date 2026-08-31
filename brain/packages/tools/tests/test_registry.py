@@ -91,7 +91,7 @@ async def test_invoke_renders_text_content_and_skips_non_text() -> None:
 
 
 async def test_invoke_reads_a_sidecar_declared_sender_from_result_meta() -> None:
-    # The declaration channel (ADR-0027/0009): a source in the result `_meta` rides in as a CLAIMED
+    # The declaration channel (ADR-0027/0009): a source in the result `_meta` arrives as a CLAIMED
     # ToolResult.source, sanitized, while the readable content the model consumes is untouched.
     result = CallToolResult(
         content=[TextContent(type="text", text="From: A <a@x.com>\n\nbody")],
@@ -230,7 +230,7 @@ async def test_reconnecting_registry_lists_tools_from_a_fresh_session() -> None:
     opener = ScriptedOpener(FakeSession(tools=tools))
     specs = await ReconnectingMcpToolRegistry(opener).describe_tools()
     assert [s.name for s in specs] == ["read"]
-    assert opener.opens == 1  # dialed on demand, not at construction
+    assert opener.opens == 1  # the session is opened on demand, not at construction
 
 
 async def test_reconnecting_registry_invokes_through_a_fresh_session() -> None:
@@ -251,7 +251,7 @@ async def test_reconnecting_registry_maps_a_refused_dial_to_tool_error() -> None
 
 
 async def test_reconnecting_registry_unwraps_an_exception_group_open_failure() -> None:
-    # anyio delivers a refused dial inside an ExceptionGroup; except* must unwrap it.
+    # anyio delivers a refused connection inside an ExceptionGroup, which `except*` unwraps.
     group = ExceptionGroup("open failed", [httpx.ConnectError("refused")])
     opener = ScriptedOpener(group)
     with pytest.raises(ToolError, match="MCP sidecar unavailable"):
@@ -267,7 +267,7 @@ async def test_reconnecting_registry_redials_a_recovered_sidecar() -> None:
     registry = ReconnectingMcpToolRegistry(opener)
     with pytest.raises(ToolError):
         await registry.describe_tools()
-    specs = await registry.describe_tools()  # re-dials the recovered sidecar
+    specs = await registry.describe_tools()  # opens a new session to the recovered sidecar
     assert [s.name for s in specs] == ["read"]
     assert opener.opens == 2
 

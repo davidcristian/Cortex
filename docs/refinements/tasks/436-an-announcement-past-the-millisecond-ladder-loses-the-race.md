@@ -17,7 +17,7 @@ race.
 tonic picks the most precise unit that fits in eight digits and truncates
 (`duration_to_grpc_timeout`, `tonic-0.14.6/src/request.rs`): nanoseconds below 0.1 s, microseconds
 below 100 s, milliseconds below 99,999,999 ms, which is about 27.8 hours, and whole seconds past
-that. Below that last step the loss is under a millisecond and the 250 ms margin swallows it. Above
+that. Below that last step the loss is under a millisecond and the 250 ms margin covers it. Above
 it the step is a second: with `announced = enforced + 250 ms`, the decoded header falls below the
 enforced bound whenever `announced` has a millisecond remainder over 250, which is three
 announcements in four, and it can fall as much as 749 ms short. tonic's timer then fires **first**,
@@ -41,14 +41,14 @@ guarantee, so `MAX_ANNOUNCED_DEADLINE` becomes the millisecond ladder's own ceil
 call announces nothing, which is already what this adapter does with an unspellable deadline and
 already the argued answer to "announce something shorter and lose the race on purpose". The
 alternative is to keep announcing and widen the margin above a second, which pays for a
-configuration nobody wants with a margin every call spends. Either way the change wants a wire case
+configuration nobody wants with a margin every call spends. Either way the change needs a wire case
 beside `a_deadline_the_header_cannot_spell_is_dropped_rather_than_sent`
 (`body/crates/rpc/tests/client.rs`) at a deadline in the seconds band, and a mutation table proving
-it reddens, since a filter with the wrong bound is green in both directions today.
+it fails, since a filter with the wrong bound is green in both directions today.
 
 Note before starting that the ceiling would then be a duration the adapter asserts and the core
-does not know, which is the seam this repo ties with `scripts/crosscheck.py` when two trees spell
-one value; check whether the registry should learn it.
+does not carry, which is the seam this repo ties with `scripts/crosscheck.py` when two trees spell
+one value; check whether the registry should carry it.
 
 ## Trail
 

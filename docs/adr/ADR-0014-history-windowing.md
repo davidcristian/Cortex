@@ -1,77 +1,104 @@
-# ADR-0014: Session-history windowing as a char-budget tail behind a `HistoryWindow` seam
+# ADR-0014: Session-history windowing as a character budget behind a `HistoryWindow` port
 
-- **Status:** Accepted (Slice 3 deferred refinement, landed 2026-07-03)
-- **Date:** 2026-07-03
+**Status:** Accepted (2026-08-06)
 
 ## Context
 
-`TurnEngine` reads a session's **full** history from the `SessionStore` every turn and hands
-all of it to the backend. That is correct under the one hard rule (the store is the sole source of
-truth), but unbounded toward the model: a long-lived conversation eventually exceeds the
-resident cortex's context window (`CORTEX_CTX_SIZE`, 16K tokens on the deployed gemma-4-12B,
-ADR-0004/0007), at which point llama-server truncates or errors and the turn degrades
-unpredictably. The gap was recorded at Slice 3 in the ROADMAP deferred-refinements list
-("windowing / truncation / summarization"). This is distinct from **memory** (ADR-0008),
-which is durable *cross-session* recall. This ADR is about the *in-context* history of the
-current session only.
+`TurnEngine` reads a session's **full** history from the `SessionStore` every turn. That is right
+under the one hard rule (the store is the sole source of truth), but unbounded toward the model: a
+long-lived conversation eventually exceeds the resident cortex's context window
+(`CORTEX_CTX_SIZE`, 16K tokens on the deployed gemma-4-12B, [ADR-0004](ADR-0004-model-lineup.md)),
+at which point llama-server truncates or errors and the turn degrades unpredictably. This is
+separate from **memory** ([ADR-0008](ADR-0008-memory-v1.md)), which is durable cross-session
+recall; this ADR is about the in-context history of the current session only.
 
 ## Decision
 
-1. **A pure `HistoryWindow` seam in the core (`windowing.py`), injected via
-   `TurnCapabilities.window`.** `select(history) -> Sequence[Message]` returns the slice of
-   the stored history one turn sends to the model; `None` (the default) keeps today's
-   full-history behavior byte for byte. The window applies at **inference-message assembly
-   only**. Persistence is untouched: the store keeps every message, the window is derived
-   fresh each turn, never stored, nothing to rehydrate (the one hard rule is unaffected).
-   Like `memory` and `tools`, the capability slot keeps the engine's constructor within its
-   dependency ceiling, and any future policy (summarization above all) drops into the same
-   seam without touching `SessionStore` or `TurnEngine`.
-2. **The shipped policy is `CharBudgetHistoryWindow(max_chars)`, which is a turn-aligned contiguous
-   tail.** Selection groups messages into turns (consecutive `turn_id`), walks from the
-   newest turn backward, and stops at the first turn that would overflow the budget:
-   - **turns are kept or dropped whole**, so the model never sees an assistant reply without
-     the user message it answered;
-   - **the kept slice is a contiguous tail** because the walk stops at the first overflow rather
-     than sieving old small turns past a big one, because a gap mid-history confuses the
-     model more than honest truncation;
+1. **A pure `HistoryWindow` port in the core (`windowing.py`), injected through
+   `TurnCapabilities.window`.** `async select(history, *, session_id, progress=None)` returns what
+   one turn sends to the model; `None` in the slot keeps full-history behaviour byte for byte. The
+   window applies at inference-message assembly only (its one caller is
+   `assemble_inference_messages` in `turn_context.py`): the store keeps every message, and the
+   window is computed fresh each turn, never stored, so there is nothing to rehydrate. A window
+   returns a subsequence of the history in order and may additionally **prepend** derived context
+   of its own, but may never drop or alter a message the window it wraps kept. `select` is `async`
+   and takes `session_id` because a window may consult the store or the model, and a cached recap
+   belongs to one session; `progress` is the stream's `ProgressSink`, passed per call because a
+   sink belongs to one `Converse` stream while a window is a policy shared by every stream
+   ([ADR-0038](ADR-0038-ranked-recall.md) decision 10). A heuristic window ignores both keywords
+   and wraps a synchronous body.
+
+2. **The base policy is `CharBudgetHistoryWindow(max_chars)`, a contiguous run of the newest
+   turns.** Selection groups messages into turns (consecutive `turn_id`), walks from the newest
+   turn backward, and stops at the first turn that would overflow the budget:
+   - **turns are kept or dropped whole**, so the model never sees an assistant reply without the
+     user message it answered;
+   - **the kept slice is contiguous and ends at the newest turn**: the walk stops at the first
+     overflow instead of skipping an oversized turn and collecting smaller older ones, because a
+     gap in the middle of the history degrades the reply more than dropping the oldest turns does;
    - **the newest turn is always kept**, oversized or not, because the current user message must
-     reach the model (the window never returns an empty slice for a non-empty history).
-3. **Characters stand in for tokens.** The budget is counted in characters of message text
-   (roughly 4 chars/token for English) so the core needs no tokenizer and no I/O. It is a
-   deliberately conservative heuristic, not an exact fit. Deployments size it well under
-   the model context.
-4. **Config: `CORTEX_HISTORY_CHAR_BUDGET`, default `48000`, `0` disables.** Read by
-   `BrainRuntimeConfig` and wired by `build_history_window` at the composition root. It is
-   **on by default**: the deferral is a correctness gap under long sessions, and a knob
-   nobody sets fixes nothing. 48K chars ≈ 12K tokens of history against the 16K-token
-   cortex context, leaving ~4K tokens of headroom for the security preamble (ADR-0013),
-   recalled memories (ADR-0008), tool schemas and in-turn tool steps (ADR-0009), and the
-   reply itself.
+     reach the model (a non-empty history never windows to an empty slice).
 
-## Alternatives rejected
+3. **Characters stand in for tokens.** The budget counts characters of message text (roughly four
+   characters a token for English), so the core needs no tokenizer and no I/O. It is a deliberately
+   conservative heuristic, and deployments set it well under the model context.
 
-- **Token-exact windowing.** Exact counting needs the model's tokenizer, an adapter/engine
-  concern (llama-server's `/tokenize`) that would put I/O or a model-specific vocabulary
-  inside the pure core, for precision the headroom margin buys more cheaply. If exactness is
-  ever needed, a tokenizer-backed `HistoryWindow` adapter fits the same seam.
-- **Last-N-turns.** Simpler to state but its unit is disconnected from the real constraint:
-  N turns of one-liners and N turns of pasted logs differ by orders of magnitude in tokens.
-- **Summarization (compress old turns instead of dropping them).** The richer option and the
-  original deferral names it. But it changes content (a lossy model pass inside turn
-  assembly), needs inference and therefore the GPU path, and deserves its own design.
-  **Still deferred**, recorded in the ROADMAP (Slice 3 block); it will land behind this same
-  `HistoryWindow` seam.
+4. **`CORTEX_HISTORY_CHAR_BUDGET`, default `48000`, `0` disables it.** Read by `BrainRuntimeConfig`
+   and wired by `build_history_window` (`window_builders.py`). It is **on by default**, because a
+   long session's overflow is a correctness gap, and a setting that defaults off leaves it open in
+   every deployment that does not set it. 48,000 characters is about 12K tokens of history against
+   the 16K-token cortex context, leaving about a quarter of the context for the security preamble
+   ([ADR-0013](ADR-0013-untrusted-content.md)), recalled memories, tool schemas and in-turn tool
+   steps ([ADR-0009](ADR-0009-tools-mcp.md)), and the reply.
+
+5. **The turns the budget drops come back as a cached recap.** `SummarizingHistoryWindow`
+   (`summarizing.py`) wraps the character-budget window and prepends at most one model-written
+   account of the dropped prefix, cached in the `SessionStore` and extended as the boundary moves.
+   It only prepends, so every failure path (store or model unreachable, a failed stream, an
+   unusable reply) returns the character-budget selection byte for byte, which is what makes it
+   safe on the turn's critical path. `CORTEX_HISTORY_SUMMARY` defaults to on and
+   `CORTEX_HISTORY_RECAP_MIN_CHARS` sets how much newly dropped text is worth extending it for.
+   Why a recap is cached rather than recomputed, how it is fenced, limited and announced, and why
+   it does not spread taint are [ADR-0038](ADR-0038-ranked-recall.md) decisions 9 and 17 to 21.
+
+6. **A model pass during selection finishes before the reply takes the GPU lease.** The inference
+   adapter holds a non-reentrant lease for a stream's whole lifetime, and selection completes
+   before the reply stream opens, so a window that finishes its own model call acquires and
+   releases the lease ahead of the reply's acquire. A pass held open across the reply's acquire
+   deadlocks, so selection-time inference goes through `drain_text` (`drain.py`), which closes the
+   stream in a `finally` (ADR-0038 decision 8). The ordering was measured with three streams
+   extending a recap at once over the real cortex: no hold overlapped another and every one
+   released before its own reply acquired. The price is that extending a recap is one more hold
+   every other stream's reply queues behind
+   ([history recap readings](../readings/history-recap.md#folds-under-concurrent-streams)).
 
 ## Consequences
 
-- Long sessions stop growing toward the context wall; what the model loses is the oldest
-  turns, wholesale and predictably, while the stored history (and Slice 5 memory) keeps
-  everything, so recall can still surface dropped context.
-- A single oversized newest turn is sent whole and can still overflow the model context because
-  the window bounds history, not one turn's size (a per-turn input cap would be a UX
-  decision at the overlay, not silent truncation here).
-- The `EchoInferenceBackend` reply counter counts user messages in the *windowed* history,
-  so the `"reply {n}"` script diverges from the stored count only past the budget, which is
-  unreachable in CI-sized tests, irrelevant on the real backend.
-- The seam invites exactly the follow-ons planned: summarization, or a tokenizer-backed
-  exact window, each a drop-in `HistoryWindow` with no engine change.
+- Long sessions no longer grow past the model's context. What the budget drops is the oldest turns,
+  whole and predictably, and with the summary on they return as a recap; the stored history and
+  memory keep everything.
+- A single oversized newest turn is sent whole and can still overflow the model context: the window
+  limits history, not one turn's size. A per-turn input cap would be a decision at the overlay, not
+  silent truncation here.
+- The `EchoInferenceBackend` reply counter counts user messages in the *windowed* history, so its
+  `"reply {n}"` script diverges from the stored count only past the budget, which CI-sized tests
+  never reach.
+- A tokenizer-backed exact window would fit the same port with no engine change.
+
+## Alternatives rejected
+
+- **Token-exact windowing.** Exact counting needs the model's tokenizer (llama-server's
+  `/tokenize`), which puts I/O or a model-specific vocabulary inside the pure core for precision
+  the headroom buys more cheaply.
+- **Last-N-turns.** Its unit is disconnected from the real constraint: N turns of one-liners and N
+  turns of pasted logs differ by orders of magnitude in tokens.
+- **Recomputing the recap every turn.** One full generation ahead of every reply, against one per
+  boundary move (ADR-0038 decision 9).
+
+## Related
+
+- Module contracts: [brain-core.md](../modules/brain-core.md),
+  [brain-orchestrator.md](../modules/brain-orchestrator.md).
+- Readings: [history recap](../readings/history-recap.md).
+- [ADR-0038](ADR-0038-ranked-recall.md) (the recap's design and the selection-time lease rule),
+  [ADR-0008](ADR-0008-memory-v1.md) (cross-session memory).

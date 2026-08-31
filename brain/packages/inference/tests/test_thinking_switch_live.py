@@ -1,4 +1,4 @@
-"""Integration: on which request shapes does this deployment honour the port's thinking switch?"""
+"""Integration: measure which request shapes this deployment honours the thinking switch on."""
 
 import json
 import os
@@ -114,7 +114,7 @@ async def _run(
 
 
 async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, switch: bool) -> str:
-    """The prompt this deployment's own chat template makes of that request, asked not inferred."""
+    """Return the prompt this deployment's chat template makes of that request, read from it."""
     messages = [Message(role=Role.USER, text=_ASK, at=datetime.now(UTC), turn_id="t-switch")]
     bounds = GenerationBounds(max_tokens=_CAP, thinking=not switch)
     payload = build_payload(_MODEL, messages, (), schema, bounds)
@@ -126,7 +126,7 @@ async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, swi
 
 
 async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
-    """What the template does with each of the four request shapes, before any token is decoded."""
+    """Read what the template makes of the four request shapes, before any token is decoded."""
     for switch in (False, True):
         prompts = {
             shape: await _rendered(client, schema, switch=switch) for shape, schema in _SHAPES
@@ -173,9 +173,7 @@ def _write(prompts: dict[bool, str], draws: dict[tuple[str, bool], list[_Cell]])
 
 
 async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -> None:
-    """Four cells, each drawn ``CORTEX_THINKING_REPEATS`` times: two request shapes, each sent
-    with the switch and without it.
-    """
+    """Draw four cells: two request shapes, each sent with the switch and without it."""
     print(  # noqa: T201
         f"\n{_MODEL} at {_ENDPOINT}, cap {_CAP}, {_REPEATS} draws a cell, "
         f"no server-side reasoning flags:"

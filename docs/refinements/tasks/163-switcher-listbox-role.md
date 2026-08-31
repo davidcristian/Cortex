@@ -17,7 +17,7 @@ disagree, and settling it means choosing between two shapes rather than filling 
 rows become options and the list becomes one tab stop moved through with `aria-activedescendant`
 (which then has to say what happens to the three per-row buttons, since an option is a leaf and
 they are not), or `role="listbox"` comes off and it is the list of composite rows it already
-behaves like, in which case the rows want `role="listitem"` semantics and nothing else changes.
+behaves like, in which case the rows need `role="listitem"` semantics and nothing else changes.
 Whichever wins has to be reconciled with Ctrl+Up and Ctrl+Down, which cycle sessions overlay-wide
 without moving focus at all and would be the obvious keys for a listbox to answer with focus. The
 reminder stack was read in the same pass and needs nothing: its `<ul>` claims no role its children
@@ -61,7 +61,7 @@ than a violation of it. Nothing blocks this; it is a design decision plus its wi
   rows live. And `aria-current` cannot be read back from CDP: its accessibility domain has no
   `current` among its property names, so it was verified per row in the live DOM instead, beside
   roles that did come out of the tree. Putting the role back and taking `aria-current` off each
-  redden the new test, checked in place and restored.
+  make the new test fail, checked in place and restored.
 
 ## Trail
 

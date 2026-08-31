@@ -44,7 +44,7 @@ missing.
 - 2026-08-25: **landed.** The three candidates for which occurrence to name turned out not to be a
   choice: the two readings are the two ends of one distance, so `needles.nearest` picks the pair
   and both halves are reported, each named as the one nearest the other, with the same fallback to
-  the first occurrence said out loud when one of them is missing. The run's line goes in the clause it
+  the first occurrence stated explicitly when one of them is missing. The run's line goes in the clause it
   already had, with a count when the file carries the run more than once, worded in the value
   reading's own three shapes. The distance is not computed for the reader: two line numbers are the
   comparison, and a gap stated in lines would sometimes disagree with a pair chosen by distance in

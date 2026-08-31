@@ -1,4 +1,4 @@
-"""In-memory ``SubagentScheduler`` fake: admit everything, drain like the real pool (ADR-0030)."""
+"""In-memory ``SubagentScheduler``: admit everything, and drain like the real pool."""
 
 import asyncio
 from collections.abc import AsyncGenerator
@@ -10,11 +10,7 @@ from cortex_core.scheduler import POOL_DRAINING_MSG
 
 
 class AdmitAllScheduler:
-    """SubagentScheduler twin with no budget: every admit is granted at once, unless draining.
-
-    ``admitted`` records every granted request in admission order, so a composition test can
-    assert what got through, and that nothing did during a drain window.
-    """
+    """SubagentScheduler twin with no budget: every admit is granted at once, unless draining."""
 
     def __init__(self) -> None:
         self.admitted: list[PlacementRequest] = []
@@ -24,7 +20,7 @@ class AdmitAllScheduler:
 
     @asynccontextmanager
     async def admit(self, request: PlacementRequest) -> AsyncGenerator[None, None]:
-        """Grant the request immediately; refuse (typed) while the pool is draining."""
+        """Grant the request immediately; raise ``SubagentAdmissionError`` while draining."""
         async with self._pool:
             if self._draining:
                 raise SubagentAdmissionError(POOL_DRAINING_MSG)

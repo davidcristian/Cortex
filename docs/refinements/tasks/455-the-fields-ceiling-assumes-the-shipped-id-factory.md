@@ -27,5 +27,5 @@ bound was sized to avoid.
 field the store round-trips and would want an argument of its own, or a line in
 `docs/modules/brain-memory.md` naming 60 as the id width at which the trail starts losing
 candidates, so the next person to inject a factory meets the number rather than discovering it. The
-second is the cheap one and probably the right one: the id is the store's identity and narrowing it
-to buy log headroom is the tail wagging the dog.
+second is the cheap one and probably the right one: the id is the store's identity, and narrowing it
+to buy log headroom would let a logging bound dictate a storage identity.

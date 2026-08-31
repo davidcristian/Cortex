@@ -1,9 +1,3 @@
-"""Behavior tests for the ModelManager v1 policy: leasing, single-resident, serialization.
-
-These pin the ModelManager contract: Slice 11's process-lifecycle adapter must pass the
-same checks against the same port (ADR-0007).
-"""
-
 import asyncio
 
 import pytest
@@ -19,7 +13,6 @@ _ENDPOINT = "http://llama-cortex:8080"
 
 
 def test_manager_satisfies_the_port() -> None:
-    """The concrete v1 manager is a structural ModelManager (pins the port signature)."""
     manager: ModelManager = SingleResidentModelManager("cortex", _ENDPOINT)
     assert isinstance(manager, SingleResidentModelManager)
 
@@ -39,15 +32,13 @@ async def test_acquire_non_resident_raises_without_swap() -> None:
 
 
 async def test_acquire_serializes_concurrent_callers() -> None:
-    """The lock keeps two turns from holding the GPU at once (no interleaving)."""
     manager = SingleResidentModelManager("cortex", _ENDPOINT)
     order: list[str] = []
 
     async def worker(tag: str) -> None:
         async with manager.acquire("cortex"):
             order.append(f"enter-{tag}")
-            # Yield control: a broken (lock-less) manager would let the other task
-            # slip in here and produce an interleaved order.
+            # Yield control: without the lock the other task runs here and the order interleaves.
             await asyncio.sleep(0)
             order.append(f"exit-{tag}")
 

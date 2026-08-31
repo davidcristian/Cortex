@@ -14,11 +14,11 @@ remains behind the same seams (ADR-0019 deferred). The fragment, verbatim:
 - 2026-07-16: Recorded in the index as wanting `MemoryRecord` provenance first, which is why the
   first producer of claimed provenance did not unblock it. The memory area's bullet says the
   same from the other side, that a record stores only the taint bit and not ADR-0027 structured
-  provenance, so this wants a different filter and stays fix-when-it-bites.
+  provenance, so this needs a different filter and stays fix-when-it-bites.
 - 2026-08-06: The index recorded that the persisted per-turn taint marker the replayed-quotation
-  entry wants is the one this entry and a precise recap refusal would both spend.
+  entry needs is the one this entry and a precise recap refusal would both spend.
 - 2026-08-16: Priced against the tree, given a trigger, and moved to the bucket the pricing says
-  it is in. **Both halves of it are missing, not one.** The 2026-07-16 line above has the filter
+  it is in. **Both halves of it are missing, where the record named one.** The 2026-07-16 line above has the filter
   half right, and understates it: `MemoryRecord` carries `id`, `text`, `embedding`, `at`, `scope`
   and `tainted` ([memory.py](../../../brain/packages/core/src/cortex_core/memory.py)), the
   Postgres table carries those same columns behind a single `memories_scope_idx`

@@ -1,5 +1,3 @@
-"""The capability read behind the per-request trace budget (ADR-0005 request-lever addendum)."""
-
 import json
 from collections.abc import Callable
 
@@ -13,7 +11,7 @@ pytestmark = pytest.mark.asyncio
 
 _ENDPOINT = "http://llama-cortex:8080"
 
-# What b10666-4e97ac86e really answered, quoted from the run in the ADR addendum's table.
+# What build b10666-4e97ac86e answered, as docs/readings/thinking-switch.md records the run.
 _REJECTION = {
     "error": {
         "code": 400,
@@ -24,9 +22,7 @@ _REJECTION = {
         "type": "invalid_request_error",
     }
 }
-# A 400 that is about something else entirely, which must not be read as a yes.
 _OTHER_REFUSAL = {"error": {"code": 400, "message": "Illegal param: max_tokens", "type": "x"}}
-# The shape a build with no opinion about the field returns: the completion it was asked for.
 _COMPLETION = {"choices": [{"finish_reason": "length", "message": {"content": "."}}]}
 
 
@@ -38,7 +34,6 @@ def _client(handler: _Handler) -> httpx.AsyncClient:
 
 
 async def test_a_build_that_range_checks_the_field_reads_a_trace_budget() -> None:
-    """The yes: a 400 naming the key is a build that parsed it."""
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -56,8 +51,6 @@ async def test_a_build_that_range_checks_the_field_reads_a_trace_budget() -> Non
 
 
 async def test_a_build_that_answers_the_completion_reads_no_trace_budget() -> None:
-    """The no that matters: the field was ignored, so the request must never carry one."""
-
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=_COMPLETION)
 
@@ -66,8 +59,6 @@ async def test_a_build_that_answers_the_completion_reads_no_trace_budget() -> No
 
 
 async def test_a_refusal_about_something_else_is_not_a_yes() -> None:
-    """A 400 that does not name the field says nothing about the field."""
-
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(400, json=_OTHER_REFUSAL)
 
@@ -76,8 +67,6 @@ async def test_a_refusal_about_something_else_is_not_a_yes() -> None:
 
 
 async def test_a_server_that_cannot_be_reached_is_read_as_no_lever() -> None:
-    """Every failure is a no, and the request goes back to what it always was."""
-
     def handler(request: httpx.Request) -> httpx.Response:
         msg = "no route to host"
         raise httpx.ConnectError(msg, request=request)

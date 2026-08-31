@@ -44,13 +44,13 @@ same three files and probably one row rather than three.
   hoisted the login to a module constant the day after this was written, so only the registration
   was missing, and the entry is one place short besides, the script spelling the home under `ROOT`
   and again in the `chown` seven lines later. The count is the ninth in the registry and its
-  argument differs from the guarded mailbox's: a half applied rename here is loud rather than
-  silent, `set -eu` stopping the script, but it is loud only at the next measurement, which is what
-  the count moves onto every commit. **The password is one value and not two spellings**, the same
-  constant spent as both halves of a login nothing verifies, and the server holds no password to
-  agree with it. **The mail root above the account is not registrable here**: `/srv/mail` is
+  argument differs from the guarded mailbox's: a half-applied rename here fails visibly rather than
+  quietly, `set -eu` stopping the script, but it fails only at the next measurement, whereas the
+  registry row checks it on every commit. **The password is one value and not two spellings**, the
+  same constant spent as both halves of a login nothing verifies, and the server holds no password
+  to agree with it. **The mail root above the account is not registrable here**: `/srv/mail` is
   spelled in the script, in `probe.conf` and in the compose tmpfs, and no tree declares it, so it
-  rides inside the account's template as shape and the gap is filed
+  appears inside the account's template as fixed text and the gap is filed
   ([R-390](390-the-probes-mail-root-is-spelled-in-three-files.md)). Measured live against
   dovecot 2.3.21 as well as against the text: the suite passes 6 of 6, renaming the account in the
   script alone fails all 6 including the control, and the revert passes 6 again. Five planted

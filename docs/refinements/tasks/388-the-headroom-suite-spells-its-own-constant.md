@@ -17,12 +17,13 @@ desktop is "resampled to 2048 px"; and one assertion pins a resampled size as a 
 from the edge and written as a literal, so a retune moves `BRAIN_EDGE` and the crosscheck gate
 stays green while that assertion fails in the Rust suite with a number nothing explains.
 
-**Why it was left.** Registering prose in the file that declares the value is what the neighbouring
+**Why it was left.** Registering prose in the file that declares the value is what the companion
 close already does twice over, so the two docstring sentences are rows and not decisions. The
 assertion is not: `1152` is `2048 * 9 / 16` for the 4K display the case builds, so pinning the pair
-as a mention would tie the edge and a derived height in one needle and would redden on a change to
-the fixture's aspect ratio, which is a different coupling wearing the same digits. The honest fix
-is probably arithmetic in the test rather than a registry row, and that is a change to the suite.
+as a mention would tie the edge and a derived height in one needle and would fail on a change to
+the fixture's aspect ratio, which is a different coupling written with the same digits. The honest
+fix is probably arithmetic in the test rather than a registry row, and that is a change to the
+suite.
 
 **What would close it.** Register the two docstring sentences and the comment. Then read the
 assertion and decide whether the height should be computed from `BRAIN_EDGE` in the test, which
@@ -43,20 +44,21 @@ this constant or independent numbers is the question that decides how far this g
   reading a declaring file's own prose already had; the byte reading in the body contract stays a
   control, and was re-run because the needle added here spells its words. **A derived literal is a
   consequence of a value and not a spelling of it**, so `(2048, 1152)` gets no row: the height is
-  the edge times the fixture's aspect ratio, and a needle over the pair would redden when the
+  the edge times the fixture's aspect ratio, and a needle over the pair would fail when the
   fixture's display changed, naming a coupling that never moved. The case computes the size from
   the constants it declares instead, which removes the coupling rather than holding it, and the
   maximised window's rectangle now derives from `SOURCE` for the same reason. The same reading
-  keeps the halved `1024` out, a rung below the edge being a consequence too, which answers this
-  entry's closing question about quarters and halves. **The sibling was the un-halved number**:
-  `BODY_EDGE` is the body's own `DEFAULT_MAX_EDGE` copied as a literal and held by nothing. It was
-  registered as a two-site entry and **the registry's own suite refused it**, an entry whose places
-  are all one language proving nothing about a seam, and that refusal was right: this suite already
-  imports from the module that declares it, so the copy needed to stop being a copy rather than to
-  gain a gate. `BODY_EDGE` is now that constant imported and the compiler holds it, which puts the
-  line between the two edges at reach rather than importance. Its prose is deferred as a survey of
+  keeps the halved `1024` out, a value one halving below the edge being a consequence too, which
+  answers this entry's closing question about quarters and halves. **The sibling was the un-halved
+  number**: `BODY_EDGE` is the body's own `DEFAULT_MAX_EDGE` copied as a literal and held by
+  nothing. It was registered as a two-site entry and **the registry's own suite failed on it**,
+  since an entry whose places are all one language proves nothing about a seam, and that failure
+  was right: this suite already imports from the module that declares it, so the copy needed to
+  stop being a copy rather than to gain a gate. `BODY_EDGE` is now that constant imported and the
+  compiler holds it, which puts the distinction between the two edges on what is reachable rather
+  than on which matters more. Its prose is deferred as a survey of
   seventy spellings ([R-399](399-the-body-edge-is-two-sites-and-no-prose.md)). Three planted drifts
-  reddened crosscheck and one reddened the Rust suite alone, which is the entry's own argument
+  made crosscheck fail and one made the Rust suite alone fail, which is the entry's own argument
   measured:
   retuned to 1800 the literal pair fails with `left: (1800, 1012)` against `right: (2048, 1152)`
   and the derived pair passes. All four cases run green on the restored tree in 77 s. Tabled in the

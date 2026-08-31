@@ -42,17 +42,13 @@ describe("PanelEdge", () => {
     const wrapper = container.querySelector(".edge") as HTMLElement;
     expect(wrapper).toHaveAttribute("aria-hidden", "true");
     expect(wrapper.className).toBe("edge edge-settled");
-    // The wrapper bleeds past the panel by the geometry module's own number, so the liquid
-    // breathes around the panel's real edge rather than inside it.
     expect(wrapper.style.inset).toBe(`${-BLEED}px`);
     const slab = container.querySelector(".edge-glass") as HTMLElement;
     expect(slab.style.clipPath).toContain('path("M');
-    // The box it measured is the box it drew: the far edge of the outline sits near 560.
     const far = Math.max(
       ...[...hairOf(container).matchAll(/L(-?[\d.]+) /gu)].map((hit) => Number(hit[1])),
     );
     expect(far).toBeGreaterThan(500);
-    // A settled glow is both strokes: the neutral one and the accent one it cross-fades to.
     expect(container.querySelector(".edge-glow-n")).not.toBeNull();
     expect(container.querySelector(".edge-glow-a")).toHaveAttribute("stroke", "url(#t1-ember)");
     expect(container.querySelector("#t1-ember")).not.toBeNull();
@@ -89,8 +85,6 @@ describe("PanelEdge", () => {
   });
 
   it("re-measures through the platform's observer when its box changes size", () => {
-    // jsdom has no ResizeObserver, so the observer path gets a hand-driven fake: what matters is
-    // that the edge observes its own box, redraws to the delivered size, and lets go on unmount.
     let deliver: (() => void) | null = null;
     const disconnect = vi.fn();
     class FakeResizeObserver {
@@ -111,7 +105,6 @@ describe("PanelEdge", () => {
     width.mockReturnValue(620);
     act(() => deliver?.());
     expect(hairOf(container)).not.toBe(before);
-    // A delivery that changed nothing redraws nothing, which is what keeps the observer quiet.
     act(() => deliver?.());
     unmount();
     expect(disconnect).toHaveBeenCalledOnce();
@@ -128,8 +121,6 @@ describe("PanelEdge", () => {
     tick(2400);
     const later = hairOf(container);
     expect(later).not.toBe(early);
-    // Going to work mid-flight: the next frames carry the pose toward the deeper one instead of
-    // jumping there, so the same instant reads differently as the depth eases in.
     rerender(<PanelEdge style={LUCID} working={true} animated={true} idPrefix="t5" />);
     tick(2500);
     const easing = hairOf(container);

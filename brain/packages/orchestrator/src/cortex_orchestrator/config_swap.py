@@ -1,4 +1,4 @@
-"""Brain-handoff configuration (ADR-0030): env-driven, root-read only."""
+"""Brain-handoff configuration: env-driven, root-read only."""
 
 from typing import Literal
 
@@ -12,10 +12,11 @@ from cortex_core import (
     ResidencyPlan,
 )
 
-# The logical id of the deep model (ADR-0004: logical ids, never paths), overridable via
-# CORTEX_MODEL_BRAIN exactly as the cortex tier's id is.
 DEFAULT_BRAIN_MODEL = "brain"
 
+# Must stay above the sidecar's worst stop, which is its SIGTERM grace plus its SIGKILL reap
+# bound plus the probe timeout a queued status spends inside it: 5 s + 10 s + 30 s under the
+# shipped defaults. Below that, a slow but correct eviction reads as a dead sidecar.
 DEFAULT_MODELHOST_TIMEOUT_S = 60.0
 
 ModelHostBackendName = Literal["none", "scripted", "supervisor"]
@@ -30,7 +31,6 @@ class SwapConfig(BaseSettings):
     modelhost_backend: ModelHostBackendName = "none"
     modelhost_endpoint: str = ""
     modelhost_timeout_s: float = Field(default=DEFAULT_MODELHOST_TIMEOUT_S, gt=0)
-    # The dictated env names break the prefix pattern, hence the explicit aliases.
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_endpoint: str = ""
     evict_models: tuple[str, ...] = Field(default=(), validation_alias="CORTEX_SWAP_EVICT_MODELS")
@@ -67,7 +67,7 @@ class SwapConfig(BaseSettings):
         return self._coresidency_needs_a_measured_fit()
 
     def _coresidency_needs_a_measured_fit(self) -> "SwapConfig":
-        """Refuse a co-resident deployment that never said what the deep model costs."""
+        """Raise for a co-resident deployment that never stated what the deep model costs."""
         if self.coresident and self.modelhost_backend == "supervisor" and not self.brain_vram_mib:
             msg = (
                 "CORTEX_SWAP_BRAIN_VRAM_MIB is required when CORTEX_SWAP_CORESIDENT=1: keeping "

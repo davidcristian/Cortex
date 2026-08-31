@@ -50,8 +50,8 @@ work, not anything about the reply.
 - 2026-08-28: **the trigger's proxy is wrong, and it is rewritten above rather than fired.**
   [R-481](481-the-sentence-is-measured-on-one-pick.md) measured the Qwen roster alternate at 288
   runs and it lands within seven draws of the default pick's constrained answer rate, 83 of 96
-  against 90, so the trigger as written would not have gone off. But its failures are quiet where
-  the default pick's are loud: **8 of its 13 constrained non-deliveries come back `ok=True`**,
+  against 90, so the trigger as written would not have gone off. But its failures go unreported where
+  the default pick's are refusals: **8 of its 13 constrained non-deliveries come back `ok=True`**,
   against none of the default pick's 6. So the answer rate does not predict the quiet failures it
   was made to stand for, and the trigger now names the failure kind directly. On that pick the
   quiet pass is the ordinary failure and not a rarity, which is closer to firing this entry than

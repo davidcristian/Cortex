@@ -91,7 +91,7 @@ describe("FakeBridge", () => {
     });
     await Promise.resolve();
     expect(settled).toBe(false);
-    // Hanging wins over failing: it is the more specific instruction.
+    // `linkHangs` is checked before `linkFails`, so setting both gives a probe that never settles.
     expect(bridge.linkCalls).toBe(2);
   });
 

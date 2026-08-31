@@ -1,12 +1,15 @@
+// Where the reader is in the conversation, and keeping them there. Two separate claims: whether
+// the reader is following the end of the log, and which line they are on otherwise. Both are refs,
+// because both are about the DOM and neither should re-render anything when it changes.
 
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { rideTail } from "./logRide";
 import { MORPH_START_EVENT } from "./morph";
 
-/** How close to the bottom (px) still counts as "reading the tail". Two things are spent on it: the
- *  auto-scroll follows a landing reply for a reader inside it, and a section rolling open inside the
- *  log holds their distance from the tail instead of pushing it away (`logRide.ts`). */
+/** How close to the bottom (px) still counts as "reading the tail". Two things use it: the
+ *  auto-scroll follows a reply for a reader inside it, and a section rolling open inside the log
+ *  holds their distance from the end instead of pushing it away. */
 const PIN_THRESHOLD_PX = 40;
 
 export interface LogScroll {
@@ -19,14 +22,15 @@ export interface LogScroll {
   readonly toTail: () => void;
 }
 
-/** Hold the log where the reader put it, across everything that would otherwise move it. */
+/** Hold the log where the reader put it, across everything that would otherwise move it. `showing`
+ *  is whether the chat is the view on screen, because the trip to the console takes the scroll
+ *  position with it. `columnRef` is the flex column this box is in, where a roll is heard. */
 export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement | null>): LogScroll {
   const ref = useRef<HTMLDivElement>(null!);
   const pinned = useRef(true);
   const parked = useRef(0);
-  // Read from a DOM event, so it has to be the CURRENT answer rather than the one a closure was
-  // built with. Assigned during the render, so it is already right by the time anything this render
-  // scheduled can fire.
+  // Read from a DOM event, so it has to be the current answer rather than the one a closure was
+  // built with. Assigned during the render, so it is right before anything this render scheduled.
   const onScreen = useRef(showing);
   onScreen.current = showing;
 
@@ -39,8 +43,6 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
     parked.current = el.scrollTop;
   }, []);
 
-  // "The reader is at the tail" is a claim about the log that has to survive everything that can
-  // falsify it, so the one way of restoring it is shared.
   const toTail = useCallback(() => {
     if (pinned.current) {
       const el = ref.current;
@@ -48,6 +50,8 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
     }
   }, []);
 
+  // Coming back: give the log the place the trip took from it, before the browser paints, then
+  // put it back on its end, because a reply can arrive while the console is up.
   useLayoutEffect(() => {
     if (showing) {
       ref.current.scrollTop = parked.current;
@@ -55,15 +59,19 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
     }
   }, [showing, toTail]);
 
+  // Subscribed on the column rather than on the box, because half the rolls that shrink this log
+  // happen outside it: the switcher list and the reminder stack are siblings, so their bubbling
+  // event goes up past the log and the box never hears it.
   const ride = useRef<(() => void) | null>(null);
   useEffect(() => {
     const box = ref.current;
     const column = columnRef.current;
     const onRoll = (event: Event) => {
+      // The roll's own element, which is what the event's target is. Reading the target rather
+      // than searching for the attribute keeps two rolls in one frame apart.
       const section = event.target as HTMLElement;
-      // A roll starting while another is still in the air re-reads the distance from where the eye
-      // has the log now, rather than carrying a baseline measured against a layout that has since
-      // moved on.
+      // A roll starting while another is still running re-reads the distance from where the eye
+      // has the log now.
       ride.current?.();
       ride.current = rideTail(box, section, PIN_THRESHOLD_PX);
     };

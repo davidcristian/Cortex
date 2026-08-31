@@ -20,10 +20,9 @@ function fakeFrames() {
   return { request, cancel, tick };
 }
 
-/**
- * A bubble with its text and mist, in the document, letters addable with chosen offsets (jsdom
- * lays nothing out, so the geometry the clock reads is declared by the test).
- */
+/** A bubble with its text and mist, in the document, letters addable with chosen offsets. jsdom
+ *  lays nothing out, so the test declares the geometry the clock reads, and setting the log's
+ *  width and the letters' offsets afterwards is how it says the window changed size. */
 function rig(parented = true) {
   const parent = document.createElement("div");
   const bubble = document.createElement("div");
@@ -106,7 +105,6 @@ describe("useWhisperClock", () => {
       initialProps: { f: facts({}) },
     });
     expect(result.current).toBe("breath");
-    // The waiting pose is written at mount: the pill drawn around the mist (fallback metrics).
     expect(bubble.style.width).toBe("55px");
     expect(bubble.style.height).toBe("42px");
     tick(0);
@@ -115,19 +113,15 @@ describe("useWhisperClock", () => {
 
     const letters = lay(12);
     rerender({ f: facts({ letters: 12, confirmed: 7 }) });
-    // One millisecond of travel is not enough front to end the breath yet.
     tick(101);
     expect(result.current).toBe("breath");
     tick(200);
     tick(300);
     tick(400);
     expect(result.current).toBe("talking");
-    // The first letter is condensing (fractional opacity and blur, written inline)...
     expect(Number.parseFloat(letters[0]!.style.opacity)).toBeGreaterThan(0);
     expect(letters[0]!.style.filter).toContain("blur");
-    // ...while a letter of the held trailing word stays exactly as the class left it.
     expect(letters[11]!.style.opacity).toBe("");
-    // A tick with nothing new arrived keeps the collected list (the cheap branch).
     tick(416);
     expect(result.current).toBe("talking");
   });
@@ -139,7 +133,6 @@ describe("useWhisperClock", () => {
     const rolls: string[] = [];
     bubble.parentElement?.addEventListener("cortex:morphstart", () => rolls.push("start"));
     bubble.parentElement?.addEventListener("cortex:morphend", () => rolls.push("end"));
-    // Two lines: the second's letters sit 40px down, so the box has real height to grow.
     const letters = lay(12, (i) => (i < 6 ? 0 : 40));
     const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
       initialProps: { f: facts({ letters: 12, confirmed: 7, onGrow: grew }) },
@@ -149,8 +142,6 @@ describe("useWhisperClock", () => {
       tick((now += 50));
     }
     expect(result.current).toBe("talking");
-    // The bubble owns its height while it speaks, in the panel's own roll contract: the
-    // attribute stands (holding the height being eased to) and the start bubbled up once.
     expect(bubble.getAttribute("data-morphing")).not.toBeNull();
     expect(rolls).toEqual(["start"]);
     rerender({ f: facts({ letters: 12, confirmed: 7, streaming: false, onGrow: grew }) });
@@ -162,11 +153,8 @@ describe("useWhisperClock", () => {
       expect(ch.style.opacity).toBe("1");
       expect(ch.style.filter).toBe("");
     }
-    // The box grew to hold the second line and said so to the tail pin.
     expect(Number.parseFloat(bubble.style.height)).toBeGreaterThan(42);
     expect(grew).toHaveBeenCalled();
-    // The mist rode the front as an inline transform, the roll was handed back with the
-    // settle, and the loop stopped.
     expect(mist.style.transform).toContain("translate");
     expect(bubble.hasAttribute("data-morphing")).toBe(false);
     expect(rolls).toEqual(["start", "end"]);
@@ -178,9 +166,9 @@ describe("useWhisperClock", () => {
   it("rolls to the height it stands on, publishing the number its own box carries", () => {
     const { tick } = fakeFrames();
     const { refs, bubble, lay } = rig();
-    // The bubble's own metrics, so the target lands where a real one does: `offsetTop` is a whole
-    // number in every engine, the line box is not (14.5px at 1.55 is 22.475), so a wrapped line
-    // asks for 40 + 22.475 + 10 and no rounding of that agrees with any other.
+    // Real metrics, so the target is a number a real bubble produces: `offsetTop` is a whole
+    // number in every engine, a line box is not (14.5px at 1.55 gives 22.475), so a wrapped line
+    // asks for 40 + 22.475 + 10 and no rounding of that agrees with another.
     bubble.style.paddingTop = "10px";
     bubble.style.paddingLeft = "15px";
     bubble.style.lineHeight = "22.475px";
@@ -199,8 +187,6 @@ describe("useWhisperClock", () => {
     run(12);
     rerender({ f: facts({ letters: 12, confirmed: 7, streaming: false }) });
     run(60);
-    // The panel predicts from this number and its `auto` height then follows the box to the end of
-    // the roll: the two are the same height or the prediction is out by the difference.
     expect(published).toBe("72.5");
     expect(bubble.style.height).toBe(`${published}px`);
   });
@@ -208,8 +194,6 @@ describe("useWhisperClock", () => {
   it("holds the settle until the mist reaches the last word (the coda)", () => {
     const { tick } = fakeFrames();
     const { refs, lay } = rig();
-    // The last letter sits far to the right, so the drain finishes the letters well before
-    // the trailing mist can have glided there.
     const letters = lay(8, () => 0, (i) => (i === 7 ? 320 : 15 + i * 7));
     const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
       initialProps: { f: facts({ letters: 8, confirmed: 8 }) },
@@ -222,7 +206,6 @@ describe("useWhisperClock", () => {
       tick((now += 50));
       if (lettersDoneAt === null && letters.every((ch) => ch.style.opacity === "1")) {
         lettersDoneAt = i;
-        // Every letter is ink, and the reply is still not settled: the mist is en route.
         expect(result.current).toBe("talking");
       }
     }
@@ -310,7 +293,6 @@ describe("useWhisperClock", () => {
     const { refs, text, lay, resize } = rig();
     const letters = lay(12);
     renderHook(() => useWhisperClock(refs, facts({ letters: 12, confirmed: 12 })));
-    // The wrap the letters were laid at: the log has no width at all, so the cap is the pill.
     expect(text.style.width).toBe("25px");
     let now = 0;
     for (let i = 0; i < 6; i += 1) {
@@ -318,9 +300,6 @@ describe("useWhisperClock", () => {
     }
     expect(letters[0]!.style.opacity).toBe("1");
     resize(1000);
-    // The paragraph is re-laid at the width the wider log now offers (82% of it, plus padding,
-    // less the padding the text sits inside), and the letters already condensed stay ink: the
-    // paint each one carries is its own, not a fact about where it sits.
     expect(text.style.width).toBe("820px");
     expect(letters[0]!.style.opacity).toBe("1");
   });
@@ -351,21 +330,14 @@ describe("useWhisperClock", () => {
       tick((now += 50));
     }
     expect(result.current).toBe("settled");
-    // Two lines' worth of box, standing on the last letter's line.
     expect(bubble.style.height).toBe("72.5px");
     const scheduled = request.mock.calls.length;
     grew.mockClear();
-    // A window wide enough to hold the reply on one line: the second line's letters come up
-    // beside the first's.
     resize(1000, () => 0, (i) => 15 + i * 7);
     expect(text.style.width).toBe("820px");
-    // The box the loop left behind is re-posed from the letters where they lie now, at once and
-    // from the same arithmetic the last frame used, so the settled bubble no longer holds a box
-    // two lines tall around one line of words.
     expect(bubble.style.width).toBe("142px");
     expect(bubble.style.height).toBe("42px");
     expect(grew).toHaveBeenCalled();
-    // And it is a pose, not a restart: nothing was scheduled.
     expect(request.mock.calls.length).toBe(scheduled);
   });
 
@@ -379,16 +351,11 @@ describe("useWhisperClock", () => {
     rerender({ f: facts({ streaming: false }) });
     tick(50);
     expect(result.current).toBe("settled");
-    // A listener that throws is reported to the window rather than to whoever dispatched the
-    // event, so the resize would look like it worked from here; this is what makes it a claim
-    // about the pose reaching a bubble that has no last letter to pose a box around.
     const raised = vi.fn();
     window.addEventListener("error", raised);
     resize(1000);
     window.removeEventListener("error", raised);
     expect(raised).not.toHaveBeenCalled();
-    // The wrap width is still re-laid for whatever the DOM holds, but the pill is padding and
-    // the mist, which no window change moves.
     expect(text.style.width).toBe("820px");
     expect(bubble.style.width).toBe("55px");
   });

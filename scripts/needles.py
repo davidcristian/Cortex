@@ -1,4 +1,4 @@
-"""How a rendered needle is looked for in a file, and what a file that lacks one is told."""
+"""How a rendered needle is looked for in a file, and what a fault says when one is not found."""
 
 import re
 
@@ -8,6 +8,9 @@ from couplings import PLACEHOLDER, Mention
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
 WORD_CHARACTER = re.compile(r"\w")
 
+# The narrower edge, and the only one a point can continue: a digit. Each guard asks for a digit on
+# the far side of the point, the near side being the needle's own edge, which is what keeps `2048.`
+# at a full stop found and `2048.5` unfound.
 DIGIT = re.compile(r"\d")
 
 # The lookarounds each edge may take, in the order they are applied: the word guard both kinds of
@@ -50,7 +53,11 @@ def carried(needle: str, text: str) -> str:
 
 
 def anchors(text: str, run: str) -> list[int]:
-    """Every offset ``text`` stops carrying ``run`` at, and none at all when it carries none."""
+    """Every offset ``text`` stops carrying ``run`` at, and none at all when it carries none.
+
+    The stop rather than the start, because the run stops where the file stops agreeing with the
+    needle. Measuring from the start put the whole length of the run into every distance.
+    """
     return [found.end() for found in re.finditer(re.escape(run), text)] if run else []
 
 
@@ -97,7 +104,11 @@ def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> st
 
 
 def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
-    """How much of the needle ``text`` carries, and where the occurrence meant stops."""
+    """How much of the needle ``text`` carries, and where the occurrence meant stops.
+
+    ``at`` is the stop the value reading was measured against, when there is one. Without it the
+    first stop is named and said to be the first, the same fallback the value reading makes.
+    """
     if not run:
         return "carrying no part of it"
     held = f"carrying no more of it than {run!r}"

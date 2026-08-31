@@ -10,9 +10,10 @@ and the shared GPU-lease hazard. Audited against the code, the first cost is bou
 is misframed, but it stays deferred, alongside the summarization half it shares a design with (see
 [session-history.md](../index.md#session-history)). **The async widening is clean and contained.**
 `RecallPolicy.select` has one production caller, `MemoryRecaller.recall` (`recall.py`), already
-`async`, so widening to `async` adds one `await` and cascades no colour upward; the implementers are
-`RawRecallPolicy` plus the three opt-in policies, and none calls another's `select` (they compose
-via the shared `_greedy_mmr`/`_recency_blend` helpers), so no implementer infects another. An
+`async`, so widening to `async` adds one `await` and requires no caller above it to change; the
+implementers are `RawRecallPolicy` plus the three opt-in policies, and none calls another's
+`select` (they compose via the shared `_greedy_mmr`/`_recency_blend` helpers), so no implementer
+forces another to change. An
 `async def select` with a synchronous body is gate-clean (`unused-async` is preview-only, off here).
 **The lease hazard is navigable, and this entry's framing overstated it.** Recall runs inside
 `_inference_messages`, which `handle_turn` awaits to completion before the reply stream acquires the
@@ -38,8 +39,8 @@ landing the async change, the richer `select` return, and the model policy as on
 ## Trail
 
 - 2026-07-16: Audited against the code and kept deferred with its blocker sharpened. The async
-  `select` widening is mechanically clean and contained, one already-async production caller with no
-  colour cascade upward, and the non-reentrant GPU-lease hazard is navigable by the title
+  `select` widening is mechanically clean and contained, one already-async production caller with nothing
+  above it to change, and the non-reentrant GPU-lease hazard is navigable by the title
   generator's sequential-drain discipline rather than being the structural nesting this entry's
   framing implied. The audit then named a hardware blocker, that a model pass cannot be
   behaviour-validated on the 8 GB dev GPU where the cortex tier does not fit. It is recorded at the
@@ -49,7 +50,7 @@ landing the async change, the richer `select` return, and the model policy as on
 - 2026-08-06: Landed as `JudgeRecallPolicy` when `select` was widened once for all three of its
   deferred consumers, measured against the shipping cosine at 0.917 to 1.000 mean reciprocal rank on
   a small built-for-disagreement corpus. Two claims of the audited entries did not hold: the caller
-  they name, `_inference_messages` in `engine.py`, no longer exists, and neither noticed that
+  they name, `_inference_messages` in `engine.py`, no longer exists, and neither recorded that
   `select` did not carry the query, so the widening was three changes rather than two.
 - 2026-08-06: The GPU-lease hazard this entry was deferred behind was settled as sequencing rather
   than as a new lock: a `drain_text` helper that leaves the adapter's acquire block in a `finally`,

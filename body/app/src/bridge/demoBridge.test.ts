@@ -43,8 +43,6 @@ describe("DemoBridge, the recorded conversation", () => {
     expect(thought(turn.events)).toBe(script.REASONING);
     expect(spoken(turn.events)).toBe(script.ANSWER);
     const kinds = turn.events.map((event) => event.kind);
-    // The reasoning burst is over before the reply starts, and the turn ends once, last: a
-    // completion that arrived early would settle the bubble over a reply still streaming.
     expect(kinds.lastIndexOf("status")).toBeLessThan(kinds.indexOf("delta"));
     expect(kinds.filter((kind) => kind === "complete")).toEqual(["complete"]);
     expect(turn.events.at(-1)).toEqual({ kind: "complete", turnId: "demo" });
@@ -121,14 +119,12 @@ describe("DemoBridge, the scripted hooks", () => {
     expect(await probe(bridge)).toEqual({ state: "degraded", detail: script.DEGRADED_DETAIL });
   });
 
-  /** The gap between the two rungs, long enough by hand to watch the pupil grow. */
+  /** The gap between the activity and its outcome, long enough by hand to watch the ring change. */
   const TO_THE_OUTCOME_MS = 450;
 
   it("lights the capture ring at the ask and opens its eye when the dispatch settles", async () => {
     const bridge = new DemoBridge();
     const turn = speak(bridge, "look at my screen");
-    // Nothing during the call: the ask rides a timer, as it must to be something the real
-    // bridge's channel could have carried.
     expect(turn.events).toEqual([]);
     await vi.advanceTimersByTimeAsync(100);
     expect(turn.events).toEqual([
@@ -171,8 +167,8 @@ describe("DemoBridge, the gated send", () => {
     vi.useRealTimers();
   });
 
-  /** Long enough for the preamble to run out of words, and deliberately short of the demo
-   *  brain's own confirm deadline, so a turn armed with one is still waiting when this returns. */
+  /** Long enough for the preamble to run out of words, and deliberately shorter than the demo
+   *  brain's own confirm deadline, so a turn that has one is still waiting when this returns. */
   const TO_THE_QUESTION_MS = 2_000;
 
   /** Walk a send prompt up to the question it stops on. */
@@ -219,7 +215,6 @@ describe("DemoBridge, the gated send", () => {
     await vi.advanceTimersByTimeAsync(WHOLE_TURN_MS);
     const timedOut = `${script.CONFIRM_PREAMBLE} ${script.CONFIRM_TIMED_OUT}`;
     expect(spoken(turn.events)).toBe(timedOut);
-    // The card closed, so a click landing after it resumes nothing: no second reply, fail-closed.
     await bridge.respondConfirm("demo-confirm", true);
     await vi.advanceTimersByTimeAsync(WHOLE_TURN_MS);
     expect(spoken(turn.events)).toBe(timedOut);

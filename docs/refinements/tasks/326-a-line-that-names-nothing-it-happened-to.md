@@ -5,7 +5,7 @@
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
 Now that a record's fields reach the line, the sites that attach none of their own are the ones
-worth reading again. Seventeen log calls in the brain attach no `extra` at all. Most are honest:
+worth reading again. Seventeen log calls in the brain attach no `extra` at all. Most are justified:
 `_logger.exception("the handoff store failed before anything was evicted")` has a traceback and no
 id worth naming beside it. Two kinds are not.
 

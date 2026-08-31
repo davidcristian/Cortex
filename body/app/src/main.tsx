@@ -1,3 +1,6 @@
+// Mounts the overlay and picks its bridge. Inside the Tauri shell it uses the real IPC bridge and
+// forwards the host's `cortex:activate` event to the DOM event the overlay listens on; in a plain
+// browser it uses the demo bridge and summons itself. Excluded from coverage.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -23,6 +26,9 @@ if (root) {
       listen("cortex:activate", requestActivation),
     );
   } else {
+    // Deferring this does not help: passive effects flush after paint, so it always ran before
+    // App's listener existed. `requestActivation` records the request and the listener takes it
+    // when it attaches.
     requestActivation();
   }
 }

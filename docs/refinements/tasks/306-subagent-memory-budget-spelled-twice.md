@@ -19,20 +19,20 @@ that cannot be made identical:
 
 So the number lives in three places: the brain's typed field, the env passthrough, and the two
 container limits. Raising the field to 12 leaves a container capped at 8 while the admission
-scheduler believes it may admit 12 GB of subagents, which is the failure mode the resource
-governance work exists to prevent, and nothing reports it: the two compose spellings agree with
-each other only by hand, and `crosscheck.py` carries no entry for either.
+scheduler goes on admitting up to 12 GB of subagents, which is the failure mode the resource
+governance work exists to prevent, and nothing reports it: the two compose spellings agree with each
+other only by hand, and `crosscheck.py` carries no entry for either.
 
 **What would close it.** One `Constant` in `scripts/couplings.py` whose site is
 `config_subagents.py`'s `mem_budget_gb` and whose mentions are the three compose spellings. The
 obstacle is that the site declares `Field(default=8.0, gt=0)` rather than a bare number, which
-`values.py` refuses to reduce (`parse_value` reads a product of integer literals, a plain string,
-or a one-line frozenset, and refuses anything else rather than guessing), and that the two
-spellings differ as text (`8.0` against `8`) even when they agree as a number. So the honest
-closure is one of: promote the default to a module constant that `values.py` already reads and
-have the field cite it; or teach the reducer a float and teach a mention to render a value under a
-second spelling. Decide which before writing either, and prove the entry fails by drifting one of
-the three places, the way the salience default's was proved.
+`values.py` refuses to reduce (`parse_value` reads a product of integer literals, a plain string, or
+a one-line frozenset, and refuses anything else rather than guessing), and that the two spellings
+differ as text (`8.0` against `8`) even when they agree as a number. So the closure is one of:
+promote the default to a module constant that `values.py` already reads and have the field cite it;
+or teach the reducer a float and teach a mention to render a value under a second spelling. Decide
+which before writing either, and prove the entry fails by drifting one of the three places, the way
+the salience default's was proved.
 
 The wider question this is one instance of, whether every compose default that restates a Python
 default should be tied, is deliberately **not** asked here. Around fifty `${CORTEX_*:-default}`
@@ -42,16 +42,16 @@ places, two of them in the same file.
 
 ## Trail
 
-- 2026-08-18: opened by the close of [40](040-salience-limit-knob.md), whose own compose default
-  was tied in the same sitting; this is the neighbour that survey found untied.
+- 2026-08-18: opened by the close of [40](040-salience-limit-knob.md), whose own compose default was
+  tied in the same sitting; this is the neighbour that survey found untied.
 - 2026-08-19: half of the obstacle above is gone and the entry stays open. The close of
   [R-308](308-crosscheck-cannot-tie-a-decimal.md) taught `values.py` a decimal, so `8.0` reduces
-  now, and it reduces to the digits it is written with, which settles the second half the other
-  way: `8.0` and `8` are two spellings and therefore two values, so the two container limits still
-  cannot be covered by one needle. What remains is a site that declares `Field(default=8.0, gt=0)`
-  rather than a bare number, and a far side spelling the same number twice in a shape the first
-  cannot render. The honest closure is still one of the two written above, and the first of them
-  (a module constant the field cites) is now the cheaper one.
+  now, and it reduces to the digits it is written with, which settles the second half the other way:
+  `8.0` and `8` are two spellings and therefore two values, so the two container limits still cannot
+  be covered by one needle. What remains is a site that declares `Field(default=8.0, gt=0)` rather
+  than a bare number, and a far side spelling the same number twice in a shape the first cannot
+  render. The closure is still one of the two written above, and the first of them (a module
+  constant the field cites) is now the cheaper one.
 - 2026-08-19: landed as one registry entry over four spends, and both halves of the obstacle were
   resolved the way this entry framed them rather than around them. The site took the first option:
   `DEFAULT_MEM_BUDGET_GB = 8.0` is a module constant in `config_subagents.py` that `mem_budget_gb`

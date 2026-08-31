@@ -1,28 +1,25 @@
-r"""One seam comment in both of its spellings: as the proto writes it, as prost re-spells it."""
+r"""One proto comment in both forms: as the proto writes it, and as prost rewrites it."""
 
 import re
 from typing import NamedTuple
 
-# The declaration that ends the file header. The line itself is header too: a trailing comment on
-# it would attach to the syntax statement, which generates no item for prost to document.
+# The line that ends the file header. It is header too: a comment trailing it would attach to
+# the syntax statement, which generates no item for prost to document.
 SYNTAX = "syntax = "
 
-# The declaration tonic documents twice, and how many copies of its comments the stub then holds.
 SERVICE = "service "
 COPIES = 2
 
-# What a doc comment looks like in the generated stub, and what a rule line reduces to.
 DOC = "///"
 RULE = "---"
 
-# What opens a string literal in proto, inside which a `//` punctuates nothing.
 QUOTES = ('"', "'")
 
 _HEADING = re.compile(r"^#+[ \t]*")
 
 
 class ProtoReadError(Exception):
-    """A proto file this reader will not guess at: no syntax line, or a block comment."""
+    """A proto file this reader cannot read: no syntax line, or a block comment."""
 
 
 class Comment(NamedTuple):
@@ -42,7 +39,7 @@ def split_comment(number: int, line: str) -> tuple[str, str | None]:
         char = line[index]
         if quote:
             if char == "\\":
-                index += 1  # an escape inside a string, so the next character closes nothing
+                index += 1
             elif char == quote:
                 quote = ""
         elif char in QUOTES:
@@ -57,7 +54,7 @@ def split_comment(number: int, line: str) -> tuple[str, str | None]:
 
 
 def proto_comments(text: str) -> list[Comment]:
-    """Return every comment in the proto body, in file order, refusing a file with no body."""
+    """Return every comment in the proto body, in file order, raising on a file with no body."""
     rows: list[tuple[int, str, bool]] = []
     claimed: set[int] = set()
     started = False
@@ -103,7 +100,7 @@ def rust_docs(text: str) -> list[str]:
 
 
 def normalize(text: str) -> str:
-    """Reduce one comment to the form both of its spellings share."""
+    """Reduce one comment to the form both versions share."""
     plain = _HEADING.sub("", text.replace(r"\[", "[").replace(r"\]", "]").strip())
     if plain and set(plain) == {"-"}:
         return RULE

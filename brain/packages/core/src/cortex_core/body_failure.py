@@ -15,5 +15,5 @@ _LEADS: Mapping[BodyFailure, str] = {
 
 
 def body_failure_message(err: BodyGatewayError, *, action: str) -> str:
-    """The ``is_error`` content for ``err``: the kind's lead, the action, then the detail."""
+    """The ``is_error`` text for ``err``: a phrase for its kind, the action, then the detail."""
     return f"{_LEADS[err.kind].format(action=action)}: {err}"

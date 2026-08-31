@@ -1,3 +1,5 @@
+// Geometry for the bubble mark: a circle whose radius is modulated by low-order sine harmonics,
+// recomputed per frame from an elapsed-seconds clock. Nothing here touches the DOM.
 
 /** How a harmonic's amplitude behaves over time: constant, or a crest that decays on a cadence. */
 export type Envelope = "steady" | "ping";
@@ -10,6 +12,8 @@ const TAU = Math.PI * 2;
 
 /** One surface mode: `waves` bulges per revolution, travelling once around every `periodSeconds`. */
 export interface Harmonic {
+  /** Bulges per revolution, always two or more: one bulge would move the whole shape, and the
+   *  corner anchor the mark sits on would wander with it. */
   readonly waves: number;
   /** Peak radius deviation, as a fraction of the lobe radius. */
   readonly amplitude: number;
@@ -26,7 +30,7 @@ export interface Orbit {
   readonly periodSeconds: number;
 }
 
-/** One bubble in a mark. Marks are single-lobe except the Tangent cluster. */
+/** One bubble in a mark. Every mark has one lobe except the Tangent cluster. */
 export interface Lobe {
   readonly cx: number;
   readonly cy: number;
@@ -110,7 +114,7 @@ export function highlightsOf(placed: PlacedLobe): readonly [Highlight, Highlight
   ];
 }
 
-/** The bright crescent light throws on the far side of the film, opposite the highlight. */
+/** The bright crescent that light casts on the far side of the film, opposite the highlight. */
 export function causticPath(placed: PlacedLobe): string {
   const radius = placed.r * 0.78;
   const from = 0.35;

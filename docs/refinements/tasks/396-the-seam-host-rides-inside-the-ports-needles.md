@@ -38,7 +38,7 @@ wrong.
 
 - 2026-08-23: opened by the close of
   [R-389](389-the-brain-port-is-held-in-code-and-not-in-prose.md), which found the loopback address
-  spelled as shape inside twelve of the port's own needles while nothing held it as a value.
+  spelled as fixed text inside twelve of the port's own needles while nothing held it as a value.
 - 2026-08-23: landed as `DEFAULT_SEAM_HOST` hoisted beside the port and one entry over three
   places, not twelve. **The entry was wrong about which value those needles carry.** There are 24
   of them, not twelve (18 on the seam port, 6 on the body's listen port, which the entry never
@@ -47,13 +47,14 @@ wrong.
   and a handful of loopback dials. The shipped stack settles it: `docker/docker-compose.yml` sets
   `CORTEX_SEAM_HOST=0.0.0.0`, so the container this repo ships does not bind `127.0.0.1` at all.
   Retune the default and exactly one of the 24 is stale, so the predicted failure, twelve needles
-  unfound and twelve ports named, would have been a false red twelve times over. **The ruling: an
-  incidentally-pinned value is shadowed, not held**, on three properties and a fourth that decides
+  unfound and twelve ports named, would have been a false failure twelve times over. **The ruling:
+  an incidentally-pinned value is shadowed rather than held**, on three properties and a fourth
+  that decides
   the remedy. The comparison runs against the registry's own text rather than a declaration; it can
   fail only where the far side moved; the fault names the wrong constant, measured, since moving
-  the compose publish's interface or the body app contract's dial default each reddens the seam
-  port; and a shadow is not evidence the value is there. So a value gets held by getting an entry,
-  and a new entry's needles carry only their own value where the shape allows: the RPC contract's
+  the compose publish's interface or the body app contract's dial default each makes the seam
+  port's entry fail; and a shadow is not evidence the value is there. So a value is held by having
+  an entry, and a new entry's needles carry only their own value where the shape allows: the RPC contract's
   one line is paid once from each end. Seven plantings, four proving the entry and three the
   misattribution, with two controls green; tabled in the ADR-0023 bind-host addendum. The registry
   took a ninth part, `endpointcouplings.py`, on the cap. One residue filed: the fault that names

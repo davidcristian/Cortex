@@ -36,7 +36,7 @@ reader would never see. **Set overlap was the wrong measurement to run and it is
 run.** A third option was measured and does not rescue the exact scan: `SET STORAGE PLAIN` plus a
 `VACUUM FULL` buys 22%, 1,154 ms against 1,478 ms, while the table grows from 688 MB to 924 MB,
 because a 3,080-byte vector inline fits two rows to a page. One operational fact for whoever picks
-this up: an `ivfflat` build at `lists=316` refuses at the default 64 MB of `maintenance_work_mem`,
+this up: an `ivfflat` build at `lists=316` fails at the default 64 MB of `maintenance_work_mem`,
 needing 69 MB, and nothing in the compose raises it. **New trigger, replacing "when it bites",
 which could not fire before the store was already too big:** a score-delta calibration, meaning
 how much worse in cosine terms the approximate answer is than the exact one rather than how many

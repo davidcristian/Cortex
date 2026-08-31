@@ -1,4 +1,4 @@
-"""Behaviour of the compose bind-mount gate, over real git repositories."""
+"""Tests for the compose bind-mount gate, run against real git repositories."""
 
 import subprocess
 from pathlib import Path
@@ -21,11 +21,7 @@ services:
 
 
 def _git(repo: Path, *args: str) -> None:
-    """Drive git against the fixture's own tree, with the environment the gate itself uses.
-
-    `gitenv.git_env()` rather than a strip of its own: an inherited `GIT_DIR` outranks `-C`, so
-    a fixture that forgot the strip would stage into the real repository this test lives in.
-    """
+    """Drive git against the fixture's own tree, with the environment the gate itself uses."""
     subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(repo), *args],  # noqa: S607 -- git on PATH
         check=True,
@@ -74,13 +70,14 @@ def test_an_ignored_default_is_accounted_for(repo: Path) -> None:
 
 
 def test_a_tracked_input_needs_no_ignore_rule(repo: Path) -> None:
-    """Not "every default must be gitignored": compose finds an input rather than making one."""
+    """A bind onto a file the repo tracks passes, since compose reads that input rather than
+    creating it."""
     _compose(repo, "./docker/seed.sql", name="docker-compose.yml")
     assert bindcheck.check(repo).faults == []
 
 
 def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
-    """The exemption is per landing, not per mount, which is how a shipped input hid a phantom."""
+    """The exemption applies per landing rather than per mount."""
     _compose(repo, "./docker/seed.sql")
     faults = bindcheck.check(repo).faults
     assert len(faults) == 1
@@ -88,7 +85,11 @@ def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
 
 
 def test_an_unignored_default_is_reported_at_both_landings(repo: Path) -> None:
-    """The whole point: a third default nobody remembered to ignore."""
+    """A default that is neither tracked nor ignored is reported at each landing it resolves to.
+
+    This is the case the gate exists to catch: a compose run creates the directory, and git then
+    takes it into the index.
+    """
     _compose(repo, "${MODELS_DIR:-./models}")
     faults = bindcheck.check(repo).faults
     assert [fault.line for fault in faults] == [4, 4]

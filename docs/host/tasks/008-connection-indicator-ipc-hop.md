@@ -5,7 +5,7 @@
 **Capability:** W
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
-**Until 2026-07-19 this was recorded in one place only, a runbook paragraph.**
+**Until 2026-07-19 this check was recorded in one place only, a runbook paragraph.**
 
 **What only this proves.** The `check_link` command across the real IPC hop. The classification
 itself is gated in `body_core::link` and checked against a real brain by the `body-rpc` live suite,
@@ -17,7 +17,7 @@ so Windows adds the hop and nothing else.
 staying red and re-checking every 5 s while the panel is open. Start the brain: green on its own,
 without a re-summon, and the chat list fills in with it. Point at a live brain with the **wrong**
 `CORTEX_SEAM_TOKEN`: amber, because the brain answered `Unauthenticated` and so is reachable and
-refusing.
+rejecting the token.
 
 **Fail.** A dot that never leaves green is the honest-signal failure the ADR-0011 addendum was
 written to avoid: an always-green dot is chrome that means nothing.

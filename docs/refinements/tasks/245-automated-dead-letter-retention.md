@@ -10,7 +10,7 @@ and left automated retention deferred until quarantine volume ever existed.
 
 **Declined, on three findings, none of which needs a live observation.**
 
-**The hash cannot grow the way the deferral imagines.** `quarantine` writes the raw bytes under the
+**The hash cannot grow the way the deferral describes.** `quarantine` writes the raw bytes under the
 item id and, in the same transaction, removes that id from the due, firing and deliverable sets and
 deletes the record
 ([schedule_claims.py](../../../brain/packages/session/src/cortex_session/schedule_claims.py)), so a
@@ -23,8 +23,8 @@ at which point the corruption is the incident and the hash is the evidence.
 **Expiry would delete the only record of the only exceptional event on this path.** The value kept
 is exactly the bytes the codec refused, rendered with replacement characters rather than decoded a
 second time, and it is the whole forensic trail. After a retention window an operator cannot tell
-"nothing ever corrupted" from "something did and the evidence timed out", which is a strictly worse
-story than a hash that grows by one entry and logs loudly when it does.
+"nothing ever corrupted" from "something did and the evidence timed out", which is strictly worse
+than a hash that grows by one entry and logs loudly when it does.
 
 **And a sweep cannot reach these calls without breaking the ports rule.** The ticker holds the
 `ScheduleStore` port, and the port deliberately carries no dead-letter method: the origin decision

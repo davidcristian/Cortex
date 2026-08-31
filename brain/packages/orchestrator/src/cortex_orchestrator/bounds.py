@@ -23,13 +23,13 @@ def delegated_call_bounds(tools: ToolsConfig) -> int:
 
 
 def check_tool_call_deadline(subagents: SubagentsConfig, tools: ToolsConfig) -> SubagentsConfig:
-    """Refuse a deployment whose tool call may be bounded above the run that contains it."""
+    """Raise when a tool call may be bounded above the delegated run that has to contain it."""
     if tools.backend != "mcp" or subagents.backend != "llamacpp":
         return subagents
     if _dispatch_cost(tools) < subagents.run_timeout_s:
-        # The numbers ride the record alone, the shipped formatter appending whatever a record
-        # carries; the refusal below is the one place they stay in the prose, being read where no
-        # formatter runs.
+        # The numbers are attached to the record alone, the shipped formatter appending whatever a
+        # record carries; the failure message below is the one place they stay in the prose, being
+        # read where no formatter runs.
         _logger.info(
             "the delegated run's deadline outlasts one wedged tool dispatch",
             extra=_pairing(subagents, tools),

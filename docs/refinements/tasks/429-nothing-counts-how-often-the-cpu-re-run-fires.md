@@ -19,11 +19,11 @@ reading `_placed`, `PlacedAttempt.run` and the adapter's error translation, not 
 
 That mattered once already. The entry this closes narrowed its own window on 2026-08-23 by
 reasoning about which arm a stalled stream lands in, got the arm wrong, and therefore got the window
-wrong in the safe-sounding direction. Reasoning about this path has a track record of being off by
-the size of the thing it is estimating.
+wrong in the safe-sounding direction. Reasoning about this path has already been off by
+the size of the window it was estimating.
 
 **Why it was left.** Counting is not free of design. The runner writes structured log records with
-the dispatch stamp's vocabulary (ADR-0009 one-vocabulary addendum), and a count wants somewhere to
+the dispatch stamp's vocabulary (ADR-0009 one-vocabulary addendum), and a count needs somewhere to
 live that survives a restart, which is a store rather than a logger, which is a port question. A
 bare counter in the runner would be process-local state on an object whose whole contract is that
 it holds none between calls, so the honest shapes are a field on the persisted `SubagentResult`, a
@@ -34,8 +34,8 @@ narrow version is the third: give the existing warning a record field naming the
 back from, so `grep` over a week of a real deployment answers the question the next retune needs.
 The wider one is a persisted counter, which is the only version that survives the brain restarting
 and the only one a health surface could ever read. Either way the thing to write down is the
-fraction, because what the bound is sized against is not whether the path fires but how often a
-peer is queued behind one that did.
+fraction, because the bound is sized against how often a peer is queued behind a
+re-run, rather than against whether the path fires at all.
 
 ## Trail
 

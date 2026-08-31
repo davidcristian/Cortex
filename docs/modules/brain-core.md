@@ -394,7 +394,7 @@ under "Use-case" is what snapshots it and runs the swap):
   armed, **or on a loop tail carrying images** (ADR-0029: the record is durable and its schema
   has no field for pixels, so accepting one would drop the picture in silence; the same rule
   both session stores enforce). That last raise is an unreachable invariant, like `Message`'s own
-  persistable-role check: the conductor refuses an opaque turn before it snapshots, which is
+  persistable-role check: the conductor rejects an opaque turn before it snapshots, which is
   where the user-facing answer lives.
 
 Schedule domain (Slice 9.5, ADR-0025, in `schedule.py` for the value types and the recurrence
@@ -1327,29 +1327,35 @@ Use-case:
   streamed and the assistant message is persisted, so raising would lose the memory just the same
   and take a turn the user has already read with it.
 - `SwapConductor(handoffs, residency, brain_phase, plan, clock, scheduler=None)` (ADR-0030
-  decision 4, `swap_conductor.py`) runs one brain handoff end to end as a stream of turn events:
-  `run_handoff(slot, *, session_id, turn_id)` takes the residency `handoff_claim` **first**, so
-  a concurrent handoff is refused with the honest note before anything is read, written,
-  drained, or evicted (the store's `active()` check stays as the second line, for a record the
-  store still holds, and its line is the one place in the brain that names two of one identity:
-  the refused turn is `turn_id` and the one the store is holding is `active_turn_id`, the
-  qualifier in front so the family grep still reaches both, ADR-0009 sixth-name addendum); **refuses a turn whose ledger is `opaque`** with `OPAQUE_TURN_NOTE`
-  (ADR-0029: pixels are turn-local, so the deep model would get a tool message promising a
-  picture with none attached, and the capture may have happened *after* the handoff was approved,
-  which is why this refusal is here and not in the tool); **refuses a deployment whose model host
-  does not carry the deep tier at all** with `UNHOSTED_TIER_NOTE` and one `ERROR` naming both
-  knobs (ADR-0030 unrostered-refusal addendum: the absence would otherwise surface at the `start`
-  inside the residency scope, with the cortex already unloaded and the scope's `finally` owing
-  minutes to put it back, once per attempt, for a handoff that could never run); then it snapshots
+  decision 4, `swap_conductor.py`) runs one brain handoff end to end as a stream of turn events.
+  `run_handoff(slot, *, session_id, turn_id)` opens with three checks, any of which ends the
+  handoff before anything moves:
+  - It takes the residency `handoff_claim` **first**, so a concurrent handoff is rejected with the
+    honest note before anything is read, written, drained, or evicted. The store's `active()`
+    check stays as the second line, for a record the store still holds, and its line is the one
+    place in the brain that names two of one identity: the rejected turn is `turn_id` and the one
+    the store is holding is `active_turn_id`, the qualifier in front so the family grep still
+    reaches both (ADR-0009 sixth-name addendum).
+  - It **rejects a turn whose ledger is `opaque`** with `OPAQUE_TURN_NOTE`
+    (ADR-0029: pixels are turn-local, so the deep model would get a tool message promising a
+    picture with none attached, and the capture may have happened *after* the handoff was approved,
+    which is why this check is here and not in the tool).
+  - It **rejects a deployment whose model host
+    does not carry the deep tier at all** with `UNHOSTED_TIER_NOTE` and one `ERROR` naming both
+    knobs (ADR-0030 unrostered-refusal addendum: the absence would otherwise surface at the `start`
+    inside the residency scope, with the cortex already unloaded and the scope's `finally` owing
+    minutes to put it back, once per attempt, for a handoff that could never run).
+
+  It then snapshots
   the slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
   a timeout **aborts before anything is evicted**; a `coresident` plan skips the step and its
   announcement, having stopped no tier the pool feeds), enters the residency scope, marks the record
   `BRAIN_ACTIVE` only once the deep model is actually serving, streams `BrainPhase`, and settles
   the record `DONE` (then deletes it) or `FAILED`. Settling is also what releases the store's
-  active pointer, so a settling write the store **refuses** is followed by deleting the record
-  anyway: a finished handoff left holding that pointer would make `active()` refuse every later
+  active pointer, so a settling write the store **rejects** is followed by deleting the record
+  anyway: a finished handoff left holding that pointer would make `active()` reject every later
   escalation in the process, with a note saying a handoff is in flight when none is, until a
-  restart. A refused *intermediate* write keeps its record, the handoff being genuinely live
+  restart. A rejected *intermediate* write keeps its record, the handoff being genuinely live
   there, and boot recovery settles it. Those state writes and that release rule are
   `HandoffSettler` (`swap_settle.py`), split off for the line cap along the seam the ADR's own
   addendum names: the conductor owns the order the machine changes hands in, while what the record
@@ -1696,7 +1702,7 @@ Use-case:
   (the `HistoryWindow` pattern). `GlobalMemoryScope` (the `GLOBAL_MEMORY_SCOPE` singleton, the
   default) writes `GLOBAL_SCOPE` and reads `None` (all), keeping recall cross-session;
   `SessionMemoryScope` writes/reads the `session_id`, isolating a conversation's memory to itself.
-  Selected at the composition root via `CORTEX_MEMORY_SCOPE`; the store filters, the policy decides.
+  Selected at the composition root via `CORTEX_MEMORY_SCOPE`; the store filters, the policy selects.
 - `SessionMemoryCascade(store, scope)` (`memory_cascade.py`, ADR-0021 delete addendum) is the
   scope-aware forget behind a session delete, deliberately SEPARATE from `MemoryRecaller`: the
   turn-facing recaller exposes only record/recall so no tool or tainted turn can reach a forget verb
@@ -1985,7 +1991,7 @@ Use-case:
   reads it after (ADR-0005 finish-reason addendum): a completion the backend says a token limit
   cut is an `AttemptFailure.TRUNCATED` outcome carrying `GENERATION_CAP_MSG`, which is what stops
   a capped delegated reply reading as a finished one. **A cut that lands inside a tool call takes
-  the same verdict through a different door** (ADR-0005 tool-call-cut addendum): the adapter
+  the same verdict by a different path** (ADR-0005 tool-call-cut addendum): the adapter
   assembles the model's calls only once the stream is over, so a cap firing mid `arguments` raises
   `MalformedToolCallError` instead of reaching the settling, and the arm that catches it reports
   `TRUNCATED` **only when the ledger also saw a cap**. Both facts are needed and neither is
@@ -2633,7 +2639,7 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   four checks over this fake and over `LlamaCppEmbedder` and needs both arms to answer for a
   backend that cannot answer.
 - Those two and `RecordingRecallSink` live in `fakes_memory.py`, split from `fakes.py` for the line
-  cap as `count_candidates` landed (the `fakes_session.py` precedent): a recall test wants an
+  cap as `count_candidates` landed (the `fakes_session.py` precedent): a recall test needs an
   embedder, a store and somewhere for the trail to land, and nothing else in `fakes.py` takes part.
 - `InMemoryToolRegistry({name: (spec, handler)})` is a dict-backed `ToolRegistry`; contract
   twin of the MCP adapter (Slice 6). A handler maps call arguments to result text, or to a whole

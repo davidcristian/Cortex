@@ -2,11 +2,12 @@ import type { ConsoleTab } from "../overlay/overlayState";
 import { DownArrowKey, ReturnKey, SlidersIcon, UpArrowKey } from "./icons";
 
 interface HintStripProps {
-  /** Open (or close again) one console tab: each opener here owns its own tab. */
+  /** Open (or close again) one console tab: each button here opens its own tab. */
   readonly onToggleConsole: (tab: ConsoleTab) => void;
 }
 
-/** The row of keyboard affordances under the composer, plus the two doors into the console. */
+/** The row of keyboard hints under the composer, plus the two buttons that open the console. Esc
+ *  is not listed: the strip ran out of room, and the console's shortcut tab is the full list. */
 export function HintStrip({ onToggleConsole }: HintStripProps) {
   return (
     <div className="hints">
@@ -16,6 +17,9 @@ export function HintStrip({ onToggleConsole }: HintStripProps) {
         </b>{" "}
         send
       </span>
+      {/* Shift and Return are two caps rather than one cap with two glyphs, so the chord does not
+          read as one key. Shift is written out like Ctrl and Alt beside it; only the keys with no
+          short name are drawn as glyphs, which are return and the two cycle arrows. */}
       <span>
         <b>Shift</b>
         <b className="key">
@@ -37,6 +41,9 @@ export function HintStrip({ onToggleConsole }: HintStripProps) {
         </b>{" "}
         chats
       </span>
+      {/* Two buttons into the one console, each opening the tab it names. They send the toggle
+          rather than the open, so that they and the ? key, which stays live inside the console and
+          can close it, share one handler. */}
       <button
         className="qbtn"
         onClick={() => onToggleConsole("appearance")}

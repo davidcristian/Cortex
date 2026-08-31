@@ -6,8 +6,8 @@
 
 Opened 2026-08-22 by the close of [R-356](356-the-body-port-is-a-bare-literal.md), which promoted
 the body's bind port to `DEFAULT_BODY_PORT` and tied it to six places: the body override's endpoint
-default, three runbook sentences, and the brain's live gateway fallback. That entry believed six
-files spelled the number. Eighteen do, outside the backlog itself.
+default, three runbook sentences, and the brain's live gateway fallback. That entry recorded six
+files as spelling the number. Eighteen do, outside the backlog itself.
 
 **Where it is still loose.** Four files carry it as an operator prerequisite,
 [host/index.md](../../host/index.md) and the three host tasks under it. Three module contracts
@@ -23,14 +23,14 @@ by the standing rule that an ADR records what was decided on a date.
 **Three of the eighteen are not far sides and should be recorded as such rather than skipped.**
 `test_config.py`, `test_vision_wiring.py` and `test_wiring.py` each set `CORTEX_BODY_ENDPOINT` to a
 string and assert the composition root read it back. Any port would pass. Registering them would
-tie a fixture value to a deployment default and would redden on a change that broke nothing.
+tie a fixture value to a deployment default and would fail on a change that broke nothing.
 
 **What would close it.** Sort the twelve by the tense test the compose survey settled, a sentence
 that becomes wrong being a far side and one that becomes history not being one, and register the
 ones that state. The header comments are the same shape the body override's other comment already
 holds, so those are rows rather than decisions. The host tasks are the judgement call: they read as
 live prerequisites while the sitting is open and as a record of what was run once it is done, and
-whichever way that goes it is the reading this task must leave written down. The neighbour worth
+whichever way that goes it is the reading this task must leave written down. The entry worth
 reading first is [382](382-the-paired-numbers-quoted-in-prose.md), which asks the same question
 about a different value.
 
@@ -55,8 +55,8 @@ about a different value.
   without it and a fixture when the test is merely specific. **The judgement call is settled in:**
   a host file is a live instruction and not a record, because its prerequisites open "Sittings die
   on setup", a completed check's file shrinks to a heading, its status and a pointer, and a stale
-  port there costs a sitting on hardware nobody here has. Eighteen planted drifts each reddened the
-  gate and four controls each left it green. Recorded in the ADR-0023 port-prose addendum, in
+  port there costs a sitting on hardware nobody here has. Eighteen planted drifts each made the
+  gate fail and four controls each left it green. Recorded in the ADR-0023 port-prose addendum, in
   `body/app/src-tauri/src/body_server.rs` and
   [modules/body-app.md](../../modules/body-app.md), whose accounts of what is tied were stale, and
   in [modules/repo-gates.md](../../modules/repo-gates.md). One narrower entry opens in its place,

@@ -1,5 +1,3 @@
-"""``SightedToolRegistry``: the screen is offered and run only while the model can read one."""
-
 import pytest
 
 from cortex_core import (
@@ -16,7 +14,7 @@ from cortex_core.tools import ToolResult, ToolSpec
 
 
 class _Registry:
-    """A minimal `ToolRegistry` advertising the given specs and recording what it was asked."""
+    """A minimal ``ToolRegistry`` that advertises the given specs and records what it was asked."""
 
     def __init__(self, *names: str) -> None:
         self.specs = tuple(
@@ -50,7 +48,6 @@ async def test_a_seeing_model_is_offered_the_screen_and_may_use_it() -> None:
 
 
 async def test_a_blind_model_is_not_offered_the_screen() -> None:
-    """The courtesy half: a model that cannot read a picture is not told it can take one."""
     inner = _Registry(CAPTURE_SCREEN_TOOL_NAME, GET_VOLUME_TOOL_NAME)
     registry = SightedToolRegistry(inner, ScriptedVisionProbe([False]))
 
@@ -58,7 +55,6 @@ async def test_a_blind_model_is_not_offered_the_screen() -> None:
 
 
 async def test_a_capture_is_refused_before_the_body_is_ever_asked() -> None:
-    """The half that protects the user: no pixels are read, so no privacy cost is paid."""
     inner = _Registry(CAPTURE_SCREEN_TOOL_NAME)
     registry = SightedToolRegistry(inner, ScriptedVisionProbe([False]))
 
@@ -71,7 +67,6 @@ async def test_a_capture_is_refused_before_the_body_is_ever_asked() -> None:
 
 
 async def test_the_answer_that_authorizes_a_capture_is_taken_at_the_call() -> None:
-    """A turn lists its tools once and then runs rounds against them, so the call re-asks."""
     inner = _Registry(CAPTURE_SCREEN_TOOL_NAME)
     probe = ScriptedVisionProbe([True, False])
     registry = SightedToolRegistry(inner, probe)
@@ -84,7 +79,6 @@ async def test_the_answer_that_authorizes_a_capture_is_taken_at_the_call() -> No
 
 
 async def test_every_other_tool_passes_through_a_blind_model_untouched() -> None:
-    """Only the screen is restricted; a model that cannot see still has hands."""
     inner = _Registry(CAPTURE_SCREEN_TOOL_NAME, GET_VOLUME_TOOL_NAME)
     registry = SightedToolRegistry(inner, ScriptedVisionProbe([False]))
 
@@ -95,7 +89,6 @@ async def test_every_other_tool_passes_through_a_blind_model_untouched() -> None
 
 
 async def test_a_registry_without_the_screen_never_asks() -> None:
-    """A set with no capture tool (the deep tier's, a body-less one's) costs nothing at all."""
     inner = _Registry(GET_VOLUME_TOOL_NAME)
     probe = ScriptedVisionProbe([True])
     registry = SightedToolRegistry(inner, probe)
@@ -105,7 +98,6 @@ async def test_a_registry_without_the_screen_never_asks() -> None:
 
 
 async def test_the_scripted_probe_repeats_its_last_answer() -> None:
-    """The fake's own contract: a script shorter than the questions keeps answering."""
     probe = ScriptedVisionProbe([True, False])
 
     assert [await probe.can_see() for _ in range(4)] == [True, False, False, False]
@@ -113,12 +105,10 @@ async def test_the_scripted_probe_repeats_its_last_answer() -> None:
 
 
 async def test_the_default_scripted_probe_can_see() -> None:
-    """An unarguments fake is a sighted one, so a test only writes the script it cares about."""
     assert await ScriptedVisionProbe().can_see() is True
 
 
 async def test_it_is_a_tool_registry() -> None:
-    """Port-preserving: it goes wherever a `ToolRegistry` goes, including inside a composite."""
     registry: ToolRegistry = SightedToolRegistry(_Registry(), ScriptedVisionProbe([True]))
 
     assert await registry.describe_tools() == ()

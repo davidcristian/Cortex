@@ -1,5 +1,4 @@
-"""The residency record every other half reads: what the GPU serves, and who waits on it changing.
-"""
+"""The residency bookkeeping the swap publishes into: what the GPU serves, and who waits on it."""
 
 import asyncio
 
@@ -18,11 +17,7 @@ class ResidencyBoard:
 
     @property
     def condition(self) -> asyncio.Condition:
-        """The one condition residency is published and waited on under.
-
-        Handed to ``HandoffClaim`` so a claim and a scope can never be deciding about the same GPU
-        at the same instant, which is the only reason it is exposed at all.
-        """
+        """The one condition residency is published and waited on under."""
         return self._condition
 
     @property
@@ -32,22 +27,18 @@ class ResidencyBoard:
 
     @property
     def scope_active(self) -> bool:
-        """Whether a residency scope owns the card, for the callers that must stand down if so."""
+        """Whether a residency scope owns the card, for the callers that must back off if so."""
         return self._scope_model is not None
 
     async def publish(self, model: str | None, report: ResidencyReport) -> None:
-        """Publish which model the GPU serves (``None`` mid swap), and what to tell a human.
-
-        The report is the one thing the resident cannot express on its own: a swap in and a swap
-        back both leave nothing resident, so the direction is published rather than inferred.
-        """
+        """Publish which model the GPU serves (``None`` mid swap), and what to tell a human."""
         async with self._condition:
             self._write(model, report)
 
     async def publish_between_handoffs(
         self, model: str | None, report: ResidencyReport, fence: Fence
     ) -> bool:
-        """Publish only while nothing owns the GPU, and answer whether the write landed."""
+        """Publish only while nothing owns the GPU, and return whether the write happened."""
         async with self._condition:
             if not fence():
                 return False
@@ -55,22 +46,18 @@ class ResidencyBoard:
             return True
 
     def _write(self, model: str | None, report: ResidencyReport) -> None:
-        """The invariant in one place: both fields land together, then the queue is woken.
-
-        Called with the condition already held, always, which is what makes "nothing awaited
-        between them" a property of this object rather than of each caller.
-        """
+        """Set both fields together, then wake the queue."""
         self._resident = model
         self._report = report
         self._condition.notify_all()
 
     async def publish_report(self, report: ResidencyReport) -> None:
-        """Replace what a human is told, and leave what may be leased exactly where it is."""
+        """Replace what a human is told, and leave what may be leased where it is."""
         async with self._condition:
             self._report = report
 
     async def await_resident(self, model: str) -> None:
-        """Wait out any scope this is not about, then refuse unless ``model`` is the resident."""
+        """Wait out any scope this is not about, then raise unless ``model`` is the resident."""
         async with self._condition:
             while self._scope_model is not None and self._scope_model != model:
                 await self._condition.wait()

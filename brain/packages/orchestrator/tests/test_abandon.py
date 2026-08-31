@@ -1,5 +1,3 @@
-"""Behavior tests for the abandoned-call line (ADR-0024 abandonment addendum)."""
-
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
@@ -28,13 +26,12 @@ from cortex_orchestrator import (
 from cortex_seam import BrainServiceStub, ListSessionsReply, ListSessionsRequest
 
 _ABANDON_LOGGER = "cortex_orchestrator.abandon"
-# Longer than any real answer and far shorter than the suite's patience: the client's deadline is
-# what ends this call, so the number only has to be big enough that the store never wins the race.
+# Longer than any real answer and far shorter than the suite's patience: the client's deadline
+# is what ends these calls, so the store never wins the race.
 _NEVER_S = 30.0
-# What the client announces when the deadline is the thing that ends the call. Small enough to
-# keep the suite quick, large enough to clear the loopback round trip that has to happen before
-# the handler is even entered.
 _ANNOUNCED_S = 0.2
+# Fifty times the deadline above, so a reading taken as the handler starts cannot be mistaken
+# for a window that ran out.
 _WIDE_ANNOUNCED_S = 10.0
 
 
@@ -90,7 +87,7 @@ async def never_answering_server() -> AsyncIterator[_Wire]:
 
 
 def _listing(channel: aio.Channel) -> Callable[..., aio.UnaryUnaryCall[object, object]]:
-    """The ``ListSessions`` callable off a real stub, typed past `grpc-stubs`' unknowns."""
+    """Return the ``ListSessions`` callable off a real stub, typed past `grpc-stubs`' unknowns."""
     stub = BrainServiceStub(channel)
     return cast(
         "Callable[..., aio.UnaryUnaryCall[object, object]]",
@@ -132,11 +129,7 @@ async def _outlast_a_listing(target: str) -> None:
 
 
 async def _line_left_behind(driver: Awaitable[None]) -> logging.LogRecord:
-    """Run ``driver`` against the wire and return the one abandonment line it leaves.
-
-    The server cancels the handler after the client has already been told, so no assertion can
-    follow the client's own failure: it has to wait for the line itself, which ``_Latch`` sets.
-    """
+    """Run ``driver`` against the wire and return the one abandonment line it leaves."""
     latch = _Latch()
     logger = logging.getLogger(_ABANDON_LOGGER)
     logger.addHandler(latch)
@@ -152,18 +145,16 @@ async def _line_left_behind(driver: Awaitable[None]) -> logging.LogRecord:
 
 
 def _reading_of(record: logging.LogRecord) -> object:
-    """The RPC's wire path, asserted, and the reading beside it, handed back unjudged."""
-    # The wire path of the RPC that was dropped, which is the whole of what the interceptor knows
-    # about a call it is deliberately generic over. Matched by its tail so the proto's package
-    # name is spelled in the proto and nowhere else.
+    """Assert the RPC's wire path and return the reading beside it, unjudged."""
     method = record.__dict__["method"]
     assert isinstance(method, str)
+    # Matched by its tail, so the proto's package name is written in the proto and nowhere else.
     assert method.endswith(".BrainService/ListSessions")
     return record.__dict__["time_remaining"]
 
 
 def _rendered(record: logging.LogRecord, printed: str) -> str:
-    """What the line reads as, with the method interpolated and the reading spelled out."""
+    """Render the line the formatter writes, with the method and the reading filled in."""
     method = record.__dict__["method"]
     assert isinstance(method, str)
     return f"WARNING:{_ABANDON_LOGGER}:{ABANDONED_MESSAGE} method={method} {printed}"
@@ -172,13 +163,11 @@ def _rendered(record: logging.LogRecord, printed: str) -> str:
 async def test_an_abandoned_unary_call_says_so_and_prints_the_time_it_had_left(
     never_answering_server: _Wire,
 ) -> None:
-    """The whole point, end to end: the handler the caller dropped leaves a line behind."""
     record = await _line_left_behind(_abandon_a_listing(never_answering_server.target))
     remaining = _reading_of(record)
     assert isinstance(remaining, float | int)
-    # Two claims about one real reading, each asserted rather than described. It is never
-    # negative, because grpc floors what it answers here and documents the answer as a nonnegative
-    # float, so an expiry can never read as a caller who walked away with time to spare.
+    # A bound rather than an exact 0: the cancellation can reach the handler with a sliver of the
+    # announced window left (docs/readings/abandoned-call-remaining.md).
     assert remaining >= 0
     assert remaining < _ANNOUNCED_S / 2
 
@@ -186,37 +175,30 @@ async def test_an_abandoned_unary_call_says_so_and_prints_the_time_it_had_left(
 async def test_a_caller_that_stopped_early_leaves_most_of_the_window_on_the_line(
     never_answering_server: _Wire,
 ) -> None:
-    """The reading the shipped body produces on every call, taken off a real wire."""
     record = await _line_left_behind(
         _cancel_a_listing(never_answering_server, announced=_WIDE_ANNOUNCED_S)
     )
     remaining = _reading_of(record)
+    # No upper bound: grpc-python rounds a timeout up before encoding it, so this client's 10 s
+    # reaches the server as 10100ms and a reading can be above what was announced
+    # (docs/readings/abandoned-call-remaining.md).
     assert isinstance(remaining, float)
-    # Well above zero, which is the whole of what the record claims this row means. Measured under
-    # the load above: 200 replays read between 9.9789 s and 10.0993 s against the 10 s announced,
-    # so this bound clears the worst by 4.98 s.
     assert remaining > _WIDE_ANNOUNCED_S / 2
 
 
 async def test_a_deadline_the_brain_outlasts_alone_reads_as_the_integer_floor(
     never_answering_server: _Wire,
 ) -> None:
-    """An expiry with one clock in it, so the floor is a fact rather than a likelihood."""
     record = await _line_left_behind(_outlast_a_listing(never_answering_server.target))
     remaining = _reading_of(record)
-    # An `int`, which is `max`'s own second argument and nothing a clock produced: a reading still
-    # counting down is a float, whatever its value.
     assert isinstance(remaining, int)
     assert remaining == 0
-    # And what that renders as, now on a reading grpc produced rather than one this file handed
-    # the wrap. A float zero fails this line even though it passes the two above.
     assert PlainFormatter().format(record) == _rendered(record, "time_remaining=0")
 
 
 async def test_a_caller_that_announced_no_deadline_reads_as_nothing_at_all(
     never_answering_server: _Wire,
 ) -> None:
-    """The third reading, over the wire: no deadline announced, and the caller simply goes."""
     record = await _line_left_behind(_cancel_a_listing(never_answering_server, announced=None))
     assert _reading_of(record) is None
     assert PlainFormatter().format(record) == _rendered(record, "time_remaining=None")
@@ -253,11 +235,7 @@ async def _watch(
     context: aio.ServicerContext[object, object],
     request: object = "the request",
 ) -> object:
-    """Drive the wrapped unary behavior the interceptor built around ``handler``.
-
-    The cast is the one `grpc-stubs` forces: it types a handler's behavior with the synchronous
-    server's signature, where every behavior on this service is an ``async def``.
-    """
+    """Drive the wrapped unary behavior the interceptor built around ``handler``."""
     wrapped = await _intercepted(handler)
     assert wrapped is not None
     watched = wrapped.unary_unary
@@ -269,12 +247,6 @@ async def _watch(
 
 
 async def test_a_streaming_method_is_handed_back_untouched() -> None:
-    """`Converse` announces no deadline and must stay unwatched: the fence, as a shape check.
-
-    A stream-stream handler carries no unary-unary behavior, so the passthrough is decided by
-    what the method *is* rather than by a name this interceptor would have to keep current.
-    """
-
     async def behavior(request: object, context: object) -> AsyncIterator[object]:
         del context
         yield request
@@ -284,15 +256,12 @@ async def test_a_streaming_method_is_handed_back_untouched() -> None:
 
 
 async def test_an_unserviced_method_is_handed_back_untouched() -> None:
-    """The continuation may resolve to ``None`` (no such method); there is nothing to watch."""
     assert await _intercepted(None) is None
 
 
 async def test_a_unary_call_that_answers_is_not_reported_as_abandoned(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The ordinary path: the wrap returns the reply and writes nothing."""
-
     async def behavior(request: object, context: object) -> object:
         del context
         return request
@@ -332,8 +301,6 @@ async def test_the_line_prints_the_reading_without_judging_it(
     printed: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Three different facts, one line, no branch: the operator reads the number."""
-
     async def behavior(request: object, context: object) -> object:
         del request, context
         raise asyncio.CancelledError

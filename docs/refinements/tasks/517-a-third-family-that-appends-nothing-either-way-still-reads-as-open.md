@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Trigger:** a pick entering the lineup whose template renders one identical tail with the thinking
-key and without it, and closes its thought in a spelling `scripts/switchtail.py` does not list.
+key and without it, and closes its thought with a marker `scripts/switchtail.py` does not list.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-30 by the close of
@@ -17,16 +17,16 @@ half of that test is what makes the first half safe: the failing pick answers th
 unmarked tail would refuse the one pick the module exists to read correctly.
 
 The case the discriminator cannot see is the other one. A template that renders **one identical
-tail** both ways and closes its thought in an unlisted spelling falls on the failing pick's side of
-the line and is read as an open door, which is the same wrong verdict this entry's parent was
+tail** both ways and closes its thought with an unlisted marker falls on the failing pick's side of
+the line and is read as an open thought, which is the same wrong verdict this entry's parent was
 about, one case narrower. It is not unguarded: a tail that closes the thought invites no
 deliberation, so that tier's control arm, the same request with no switch, would fail to deliberate
 on every draw and the run refuses one step later for that. The operator sees "this prompt invites
 no thought here and the switch stopped nothing" where the true reading is "this reader does not
-know your template", which is a red in the wrong words rather than a verdict published off a guess.
+know your template", which is a failure in the wrong words rather than a verdict published off a guess.
 
 **Why it was left.** Naming that case needs something the tail cannot supply, since by construction
-the key changed nothing after the ask: it needs either a third family's spelling in the vocabulary,
+the key changed nothing after the ask: it needs either a third family's markers in the vocabulary,
 which is a lineup decision with a person looking at it, or a reading of the control arm's own
 rendering against its cell, which is a second rule about a tier this module can say nothing else
 about. Both want a real template to be measured against, and the deferral is now genuine in a way
@@ -34,7 +34,7 @@ the parent entry's was not: there the missing input was already in hand.
 
 **What would close it.** Either a third pair in `MARKERS` once a pick that needs one is picked,
 which makes this case ordinary, or a sentence in the control-arm refusal naming the possibility
-that the control did not fire because the template closed the thought in a spelling this reader
+that the control did not fire because the template closed the thought with a marker this reader
 cannot see. The second is cheap and is a hint rather than a verdict; the first is the honest fix
 and needs the pick.
 

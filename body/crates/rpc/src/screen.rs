@@ -1,5 +1,5 @@
-//! The `CaptureScreen` half of the body's `BodyService` server (ADR-0029): request
-//! translation, the pure-core policy call, the body-authored receipt, and the wire mapping.
+//! The `CaptureScreen` half of the body's `BodyService` server: request translation, the pure-core
+//! policy call, the body-authored receipt, and the wire mapping.
 
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -17,7 +17,8 @@ use crate::generated::CaptureTarget as PbCaptureTarget;
 use crate::generated::{CaptureScreenReply, ImageBlob};
 use crate::server::off_worker;
 
-/// Takes one capture and answers the wire reply.
+/// Takes one capture and answers the wire reply. The blit, the encode and the receipt run in a
+/// single blocking-pool hop, so the receipt for one capture cannot interleave with the next.
 pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     screen: &Arc<S>,
     notifier: &Arc<N>,
@@ -46,8 +47,8 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     })
 }
 
-/// Says on the reply which of the two things the picture is, so the brain can describe it
-/// honestly instead of calling a crop a shrunk screen.
+/// Says on the reply which of the two things the picture is, so the brain does not describe a crop
+/// as a shrunk screen.
 fn encoded_target(capture: &Capture) -> PbCaptureTarget {
     if capture.covers_display() {
         PbCaptureTarget::Display
@@ -56,7 +57,9 @@ fn encoded_target(capture: &Capture) -> PbCaptureTarget {
     }
 }
 
-/// Reads the wire's target enum as one of the two things the body knows how to point at.
+/// Reads the wire's target enum as one of the two things the body knows how to point at. A value
+/// the enum does not name reads as the whole display, which is proto3's rule for an unrecognized
+/// enum; the wire type is an `i32`, so the value can be anything.
 fn resolve_target(target: i32) -> CaptureTarget {
     match PbCaptureTarget::try_from(target) {
         Ok(PbCaptureTarget::Focus) => CaptureTarget::Focus,
@@ -77,8 +80,8 @@ fn announce<N: Notify>(notifier: &Arc<N>, taken: &Capture, receipts: bool) {
     }
 }
 
-/// Wall-clock milliseconds since the Unix epoch, or zero if the host clock is set before it.
-/// A capture with no honest timestamp reports none rather than a fiction.
+/// Wall-clock milliseconds since the Unix epoch, or zero if the host clock is set before it, so a
+/// capture whose timestamp cannot be read reports none rather than a made-up one.
 fn unix_millis() -> i64 {
     let since_epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -86,9 +89,7 @@ fn unix_millis() -> i64 {
     i64::try_from(since_epoch.as_millis()).unwrap_or(i64::MAX)
 }
 
-/// Maps a bounded [`Capture`] onto the wire message. Every field the proto declares is filled
-/// from the value, including the source size the brain shows the model so it knows it is
-/// looking at a shrunk view of a larger screen.
+/// Maps a bounded [`Capture`] onto the wire message.
 fn blob(capture: &Capture, captured_at_unix_ms: i64) -> ImageBlob {
     ImageBlob {
         data: capture.data().to_vec(),
@@ -102,7 +103,8 @@ fn blob(capture: &Capture, captured_at_unix_ms: i64) -> ImageBlob {
 }
 
 /// Maps a [`CaptureError`] to the outbound gRPC [`Status`] the brain reads, on the same split the
-/// volume and notification mappings use.
+/// volume and notification mappings use. Nothing here returns `Unavailable`: tonic synthesizes
+/// that code when a channel cannot connect, so on this interface it means the call never arrived.
 fn capture_error_to_status(error: &CaptureError) -> Status {
     match error {
         CaptureError::NoDisplay(detail) => {

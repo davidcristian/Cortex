@@ -14,13 +14,13 @@ server a composed stack starts to the flags its tier requires.
 subagent server on loopback, outside any stack, carrying `--jinja`, the template kwarg and
 `--reasoning-budget 0`. A gate over compose services cannot see it. What reaches it today is one
 constant-registry needle over the budget's count, which came out of the same close: retune the
-tier's zero and that command block reddens. The two other flags are held there by nobody, so an
+tier's zero and that command block fails the gate. The two other flags are held there by nobody, so an
 edit that dropped the kwarg from the operator's command would leave the runbook telling somebody to
 start a server the shipped stack would not.
 
 **Why it was left.** The scale is one command block in one runbook, and the shapes a fenced shell
-line can take are the reason `samplecheck.py` exists as its own gate. Teaching the flag rule to
-read fenced commands is a second reader for one far side.
+line can take are the reason `samplecheck.py` exists as its own gate. Making the flag rule read
+fenced commands is a second reader for one far side.
 
 **What would close it.** Most likely two more needles rather than a reader: the kwarg and the
 `--jinja` are each a fixed string, and a constant they could hang off already exists in the

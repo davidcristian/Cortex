@@ -81,7 +81,7 @@ same ask) both spawns overflowed and the tier's task count did not move, so the 
 to stay silent as well as to fire. **The sentence above is therefore false as of that date and is
 kept as the record**; what is left of this entry's host half is the cap numbers.
 **The suite was proved able to fail before it was trusted.** The same budget with the GPU endpoint
-pointed at a closed port reddens on a third placement, because a GPU-placed attempt whose backend
+pointed at a closed port fails on a third placement, because a GPU-placed attempt whose backend
 did not answer re-runs once on the CPU, which is also the first time the re-place two bullets up
 has fired from a real GPU placement rather than from a failing fake.
 **The host half went with it, because the run kept the cortex resident (2026-08-04).** The

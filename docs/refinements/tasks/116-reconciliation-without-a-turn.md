@@ -8,14 +8,14 @@ Opened 2026-08-09 by the entry above landing, and it is the half a boot id canno
 reconciliation fires on one event, a daemon naming a different boot, and at one place, the top of
 `_swap_in`. Both are deliberate (a probe per `Health` was priced at up to 5.80 s against a 5 s
 recheck, and converging speculatively bounces a co-resident plan's peers), and together they
-leave two states unreachable. **The first is the expensive one.** After a restore that gave up,
+leave two states unreachable. **The first is the expensive one.** After a restore that failed,
 `_set_resident(None, RESIDENCY_LOST)` means `acquire` raises `ModelUnavailableError` for every
 model, so no turn runs, so no handoff starts, so nothing ever reaches the reconciliation even
 once the sidecar has genuinely been replaced and is serving the cortex again. That is why
 `docs/runbooks/model-swap.md`'s manual recovery still ends by restarting the brain. **The second
 is only a dot:** a boot that could not confirm the cortex publishes `RESIDENCY_BOOT_FAILED` and
 stays amber if the cortex comes up a minute later by itself, with the lease deliberately left
-forgiving so turns still run. **What would close it:** a reconciliation on the refusal path
+permissive so turns still run. **What would close it:** a reconciliation on the refusal path
 rather than only inside a swap, which is a cold path (a refused acquire has already failed, so a
 `GET /health` there costs nothing anyone is waiting on) but is genuinely delicate, because
 `_claim` holds the residency condition and would have to release it to do I/O, and because the
@@ -30,7 +30,7 @@ names is gone: `_set_resident` became `ResidencyBoard.publish` when the bookkeep
 2026-08-09, and the mechanism it describes is otherwise exactly what the tree still did on
 2026-08-18. The delicate refusal path it proposes is no longer the only option either, because the
 fence it says such a thing would have to invent already exists: `TierHealer` runs a fenced pass
-every `CORTEX_SWAP_TIER_HEAL_S` and the manager already refuses to touch the card inside it while a
+every `CORTEX_SWAP_TIER_HEAL_S` and the manager already leaves the card alone inside it while a
 handoff is claimed or a scope is active.
 
 So the regain rides that pass rather than the refusal

@@ -1,10 +1,10 @@
-"""Placement value types: where a subagent runs, and what it reserves (pure data, see ADR-0012)."""
+"""Placement value types: where a subagent runs, and what it reserves (pure data)."""
 
 from dataclasses import dataclass
 from enum import Enum
 
-_NGL_ALL = 99  # every layer on the GPU
-_NGL_NONE = 0  # every layer on the CPU
+_NGL_ALL = 99
+_NGL_NONE = 0
 
 
 class PlacementTarget(Enum):
@@ -15,11 +15,7 @@ class PlacementTarget(Enum):
 
     @property
     def ngl(self) -> int:
-        """The llama.cpp ``-ngl`` flag this target implies: 99 (whole model on GPU) or 0 (CPU).
-
-        The number the host uses to start the placed ``llama-server``; the core never spawns a
-        process, so it only decides the value (target and ngl are isomorphic, one field not two).
-        """
+        """The llama.cpp ``-ngl`` flag this target implies: 99 (whole model on GPU) or 0 (CPU)."""
         return _NGL_ALL if self is PlacementTarget.GPU else _NGL_NONE
 
 
@@ -40,7 +36,7 @@ class PlacementRequest:
 
 @dataclass(frozen=True, slots=True)
 class Placement:
-    """A ``SubagentPlacer``'s verdict for one spawn: where it runs and how much VRAM it reserved."""
+    """A ``SubagentPlacer``'s decision for one spawn: where it runs and the VRAM it reserved."""
 
     target: PlacementTarget
     reserved_gb: float

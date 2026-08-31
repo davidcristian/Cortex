@@ -192,8 +192,9 @@ async def test_runs_a_plain_task_and_persists_the_result() -> None:
 
 
 async def test_reasoning_deltas_are_dropped_from_the_subagent_output() -> None:
-    """A reasoning delta (ADR-0020) is ephemeral status, not the answer: the subagent tier runs
-    thinking-off, but the runner drops any reasoning defensively rather than folding it in."""
+    """A reasoning delta (ADR-0020) is ephemeral status rather than the answer. The subagent
+    tier runs with thinking off, and the runner drops any reasoning that arrives anyway rather
+    than folding it into the output."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="add", context="", at=_AT))
     backend = ScriptedBackend([[ReasoningChunk("thinking..."), TextChunk("42")]])
@@ -775,7 +776,7 @@ async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorde
 
 
 async def test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_better() -> None:
-    """A re-place only means something from the GPU: the GPU backend is never asked here."""
+    """A re-place is only worth making from the GPU, so the GPU backend is never asked here."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="c", instruction="hi", context="", at=_AT))
     gpu, cpu = TextBackend(["on-gpu"]), CountingFailure("the cpu server is down")
@@ -787,10 +788,8 @@ async def test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_bette
 
 
 async def test_a_malformed_constrained_reply_is_not_re_placed() -> None:
-    """Re-loading the model elsewhere would be told the same thing (ADR-0028's envelope).
-
-    The failure is the model answering outside its grammar, which is a property of the model and
-    the prompt, not of where it ran, so the one backend is asked exactly once.
+    """A malformed constrained reply is not re-placed, because re-loading the model elsewhere
+    would produce the same answer (ADR-0028's envelope).
     """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="m", instruction="go", context="", at=_AT))
@@ -802,10 +801,8 @@ async def test_a_malformed_constrained_reply_is_not_re_placed() -> None:
 
 
 async def test_the_gpu_reservation_is_released_before_the_cpu_re_run() -> None:
-    """Holding it across the re-run would misreport headroom to a concurrent spawn.
-
-    The ledger is a live-resource count (ADR-0012 decision 7), so the probe taken from inside the
-    CPU attempt lands on the GPU only if the failed attempt's 2 GB is genuinely back.
+    """The GPU reservation is released before the re-run, because holding it would misreport
+    headroom to a concurrent spawn.
     """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
@@ -817,10 +814,8 @@ async def test_the_gpu_reservation_is_released_before_the_cpu_re_run() -> None:
 
 
 async def test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_result() -> None:
-    """Under-reporting taint costs safety, so the two attempts' ledgers are unioned (ADR-0013).
-
-    The GPU attempt read an untrusted tool result and then lost its backend; the CPU re-run
-    answers from a fresh ledger of its own and would report no taint on its own.
+    """The two attempts' taint ledgers are unioned, because under-reporting taint costs safety
+    (ADR-0013).
     """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="read x", context="", at=_AT))

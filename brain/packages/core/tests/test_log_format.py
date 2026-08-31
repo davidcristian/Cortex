@@ -72,7 +72,9 @@ def bare_root() -> Iterator[logging.Logger]:
 
 
 def test_the_reserved_set_is_exactly_what_the_stdlib_owns() -> None:
-    """A Python release that adds a record attribute must redden here, not print it as a field."""
+    """A Python release that adds a record attribute fails this test rather than having the
+    formatter print it as a field.
+    """
     assert RESERVED_ATTRS - set(_record().__dict__) == {"message", "asctime"}
     assert set(_record().__dict__) - RESERVED_ATTRS == set()
 
@@ -107,7 +109,8 @@ def test_a_value_that_would_run_into_the_next_field_is_quoted() -> None:
 
 
 def test_a_structure_prints_as_compact_json_and_a_scalar_as_itself() -> None:
-    """The recall trail's hits are a list of objects, and a Python repr of one parses nowhere."""
+    """A structure renders as compact JSON and a scalar as itself. The recall trail's hits are a
+    list of objects, and a Python repr of one parses nowhere."""
     assert render_value([{"id": "m1", "score": 0.9}]) == '[{"id":"m1","score":0.9}]'
     assert render_value(None) == "None"
     assert render_value(7) == "7"
@@ -194,7 +197,9 @@ def test_no_fields_render_to_no_text() -> None:
 
 
 def test_a_field_named_for_a_secret_is_withheld_rather_than_printed() -> None:
-    """The whole risk of a formatter that prints what nobody enumerated (AGENTS.md gate 5)."""
+    """A field named for a secret prints ``<redacted>`` rather than its value, which is the risk
+    a formatter that prints what nobody enumerated carries (AGENTS.md gate 5).
+    """
     line = PlainFormatter().format(
         _record(
             token="s3cr3t-seam",  # noqa: S106 - a fake secret is the subject of the test
@@ -222,7 +227,8 @@ def test_the_denylist_errs_toward_withholding() -> None:
 
 
 def test_a_credential_inside_a_url_never_survives_the_line() -> None:
-    """The other shape of the leak, and the one a key-name rule cannot see."""
+    """A credential inside a URL is withheld, which is the shape of leak a key-name rule cannot
+    see."""
     assert redact_urls(_STORE_URL) == f"redis://{REDACTED}@redis:6379"
     assert redact_urls("imap://u:pw@127.0.0.1:1143") == f"imap://{REDACTED}@127.0.0.1:1143"
     assert redact_urls("mail to me@example.com") == "mail to me@example.com"  # no scheme, no match
@@ -250,7 +256,9 @@ def test_a_value_that_grows_under_withholding_is_still_bounded() -> None:
 
 
 def test_a_secret_named_field_is_withheld_before_the_bound_can_reach_it() -> None:
-    """The other defence's interaction with the bound, which is that it has none."""
+    """A field named for a secret is withheld before the bound can reach it, so these two
+    defences do not interact.
+    """
     line = PlainFormatter().format(_record(api_key="k" * 100_000))
     assert line == f"INFO:cortex.test:hello api_key={REDACTED}"
     assert len(REDACTED) < VALUE_CHARS  # what makes the sentence above true rather than lucky
@@ -266,7 +274,8 @@ def test_the_url_defence_reaches_the_message_the_field_and_the_traceback() -> No
 
 
 def test_fields_print_before_a_traceback_rather_than_after_it() -> None:
-    """A field twenty lines under a stack is a field nobody greps and nobody reads."""
+    """Fields are appended to the first line, because a field printed below a stack trace is
+    hard to grep and easy to miss."""
     head, _, trace = PlainFormatter().format(_raised()).partition("\n")
     assert "attempt=2" in head
     assert "attempt=2" not in trace

@@ -100,7 +100,7 @@ class InMemoryScheduleStore:
         return tuple(claims)
 
     def _holds(self, claim: ScheduleClaim) -> bool:
-        """Whether ``claim`` is the item's *current* claim (present, FIRING, token match)."""
+        """Whether ``claim`` is the item's current claim (present, FIRING, token match)."""
         item = self._items.get(claim.item.id)
         live = self._claims.get(claim.item.id)
         if item is None or live is None or item.status is not ScheduleStatus.FIRING:

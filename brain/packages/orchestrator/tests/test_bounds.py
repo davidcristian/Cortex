@@ -83,10 +83,8 @@ def _only(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
 def test_a_call_bounded_above_the_run_it_sits_inside_refuses_to_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The misconfiguration is static and its failure is not: refuse it where it was typed.
-
-    The numbers are deliberately far apart and unequal, so a comparison reading one field twice,
-    or a message rendering one field twice, cannot satisfy this by coincidence.
+    """The misconfiguration is static while its failure is not, so the check rejects it at boot,
+    where an operator typed it.
     """
     with caplog.at_level(logging.ERROR), pytest.raises(ToolCallDeadlineError) as excinfo:
         check_tool_call_deadline(_subagents(run_timeout_s=900.0), _tools(call_timeout_s=3000.0))
@@ -103,23 +101,24 @@ def test_a_call_bounded_above_the_run_it_sits_inside_refuses_to_boot(
 
 
 def test_a_dispatch_allowed_the_whole_of_the_run_is_refused_too() -> None:
-    """Equality is a race between two bounds, and the losing side reports a wedge as a runaway.
-
-    300 s is the equal pair here rather than 900: what has to fit inside the run is the whole
-    dispatch, and at one sidecar a dispatch is three of these bounds.
+    """An equal pair is a race between two bounds, and when the run's deadline fires first a
+    wedged sidecar is reported as a subagent that would not stop.
     """
     with pytest.raises(ToolCallDeadlineError):
         check_tool_call_deadline(_subagents(run_timeout_s=900.0), _tools(call_timeout_s=300.0))
 
 
 def test_a_call_bound_the_bare_pair_admits_is_still_refused() -> None:
-    """The pair that passes a comparison of the two numbers and wedges a run anyway."""
+    """A pair that passes a comparison of the two numbers alone still wedges a run, and is refused.
+    """
     with pytest.raises(ToolCallDeadlineError, match=r"so 2100\.0 s"):
         check_tool_call_deadline(_subagents(run_timeout_s=900.0), _tools(call_timeout_s=700.0))
 
 
 def test_the_shipped_pair_is_wired_and_says_so(caplog: pytest.LogCaptureFixture) -> None:
-    """The two defaults, compared as the running pair: a check refusing this refuses every stack."""
+    """The two shipped defaults are compared as the running pair, since a check that refused them
+    would refuse every stack.
+    """
     subagents = _subagents()
     with caplog.at_level(logging.INFO):
         assert check_tool_call_deadline(subagents, _tools()) is subagents
@@ -131,7 +130,7 @@ def test_the_shipped_pair_is_wired_and_says_so(caplog: pytest.LogCaptureFixture)
 
 
 def test_a_second_sidecar_costs_the_same_bound_more(caplog: pytest.LogCaptureFixture) -> None:
-    """The headroom is a property of the deployment, not of the pair of numbers in it."""
+    """The headroom is a property of the whole deployment rather than of the two numbers alone."""
     subagents = _subagents()
     with caplog.at_level(logging.INFO):
         assert check_tool_call_deadline(subagents, _two_sidecars()) is subagents
@@ -149,7 +148,9 @@ def test_a_second_sidecar_costs_the_same_bound_more(caplog: pytest.LogCaptureFix
 def test_the_multiple_counts_every_walk_a_delegated_dispatch_makes(
     config: ToolsConfig, bounds: int
 ) -> None:
-    """The arithmetic, as literals a reader typed rather than the expression under test."""
+    """The expected counts are written as literals rather than derived from the expression under
+    test.
+    """
     assert delegated_call_bounds(config) == bounds
 
 
@@ -158,7 +159,8 @@ def test_a_deployment_with_no_tool_sidecars_has_no_pairing_to_check(
 ) -> None:
     """Without ``mcp`` no ``BoundedToolRegistry`` is built, so the knob bounds nothing at all.
 
-    Carrying an inverted pair on purpose: the tolerance has to be the backend and not the numbers.
+    The pair is inverted on purpose, so what makes the check accept this deployment is the backend
+    setting and not the numbers.
     """
     subagents = _subagents(run_timeout_s=900.0)
     with caplog.at_level(logging.INFO):
@@ -182,7 +184,7 @@ def test_a_deployment_that_never_delegates_has_no_pairing_to_check(
 async def test_run_from_env_refuses_a_call_bounded_above_the_run_that_contains_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The check being right is worth nothing if the composition root never calls it."""
+    """The composition root calls the check, which is what puts a correct check on the boot path."""
     monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
     monkeypatch.setenv("CORTEX_TOOLS_ENDPOINT", _ENDPOINT)
     monkeypatch.setenv("CORTEX_TOOLS_CALL_TIMEOUT_S", "3000")

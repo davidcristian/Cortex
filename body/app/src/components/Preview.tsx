@@ -10,12 +10,10 @@ interface PreviewProps {
   readonly onHover: (hovering: boolean) => void;
 }
 
-/**
- * The completed-while-minimized preview card: the reply and the draining auto-fade bar, nothing
- * else.
- */
+/** The card shown when a turn completes while the overlay is minimized: the reply and the
+ *  draining auto-fade bar. Hovering pauses the drain and the fade timer with it. It always draws a
+ *  Lucid edge, whatever the window setting is, so it does not read as a system notification. */
 export function Preview({ reply, onClick, onHover }: PreviewProps) {
-  // Read here rather than threaded in, which is the Orb's pattern for the same question.
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [drainRun, setDrainRun] = useState(0);
   const leave = () => {

@@ -1,5 +1,4 @@
-"""Public core names for the turn use-case: routing in, history and guardrails around, output out.
-"""
+"""Public core names for the turn use-case: routing, history, guardrails, and output."""
 
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.engine import DEFAULT_CORTEX_MODEL, TurnEngine

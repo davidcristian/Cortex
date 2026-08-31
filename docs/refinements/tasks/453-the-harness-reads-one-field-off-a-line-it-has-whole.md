@@ -12,7 +12,7 @@ trail lines and then measures exactly one field of each.
 nothing about the line it came out of. The line is right there in the capture, whole, and its
 length is the open question
 [R-337](337-a-bounded-value-leaves-the-line-unbounded.md) is waiting on: that entry's trigger is a
-line whose fields together pass 16,383 rendered characters, which is the cliff the log driver ends
+line whose fields together pass 16,383 rendered characters, which is the limit the log driver ends
 a message at, and it is stated as a trigger precisely because nothing had ever measured a real
 line's total width. The captures this harness writes are that measurement sitting unread.
 
@@ -25,7 +25,7 @@ reading, so a run that ever produced one would need the `-t` reading to see the 
 are small; neither is free.
 
 The reason this is worth doing at all rather than filing and forgetting: the recall trail is the
-widest line the brain writes, so if any line in this deployment approaches the cliff, it is one of
+widest line the brain writes, so if any line in this deployment approaches that limit, it is one of
 these, and the harness that would answer it now exists and runs in fifteen minutes.
 
 ## Trail

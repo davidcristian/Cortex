@@ -156,8 +156,8 @@ describe("Panel", () => {
     const dot = screen.getByRole("status");
     expect(dot.className).toBe("linkdot warn");
     expect(dot).toHaveAccessibleName("The brain is not serving: store down");
-    // It closes the row instead of leading it: the title starts the header (and owns the panel's
-    // rounded corner), and the dot opens the button cluster as the state half of the same group.
+    // The dot sits after the title rather than before it: the title starts the header (and owns
+    // the panel's rounded corner), and the dot begins the button cluster as its state indicator.
     expect(dot.previousElementSibling?.textContent).toBe("My chat");
     expect(dot.nextElementSibling).toBe(screen.getByLabelText("Recent chats"));
   });
@@ -227,8 +227,8 @@ describe("Panel", () => {
       { onSelectSession },
     );
     fireEvent.click(screen.getByText("First chat"));
-    // And it loads SILENTLY: the row's own accessible name is the title, so a live region
-    // repeating it would read the reader the label they just pressed (`overlay/notice.ts`).
+    // The load is silent: the row's own accessible name is the title, so a live region repeating
+    // it would read back the label the reader just pressed (`overlay/notice.ts`).
     expect(onSelectSession).toHaveBeenCalledWith("c1", false);
   });
 
@@ -292,7 +292,7 @@ describe("Panel", () => {
     );
     rerender(<Panel {...props} />);
     const stack = screen.getByLabelText("Due reminders");
-    // Delivery is not conversation: the stack sits outside the log so it cannot scroll away.
+    // The stack sits outside the log, so scrolling the conversation cannot move it out of view.
     expect(container.querySelector(".history")?.contains(stack)).toBe(false);
     fireEvent.click(screen.getByText("open chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c9", true);
@@ -302,14 +302,11 @@ describe("Panel", () => {
     expect(onDismissReminder).toHaveBeenCalledWith("r-1");
   });
 
-  it("opens the console on the tab each door names: the sliders and the mark on appearance", () => {
+  it("opens the console on the tab each gesture names: the sliders and the mark on appearance", () => {
     const onToggleConsole = vi.fn();
     renderPanel({}, true, false, { onToggleConsole });
     fireEvent.click(screen.getByLabelText("Settings"));
     expect(onToggleConsole).toHaveBeenCalledWith("appearance");
-    // The mark is the shortcut: it is the thing the appearance tab's mark row changes, so it says
-    // what it shows and where it lands. Named for the tab, not for the settings sheet that used to
-    // be there: the view is gone, and a stale label is the part of a rename only a reader hears.
     fireEvent.click(screen.getByLabelText("Mark: Mull. Open appearance"));
     expect(onToggleConsole).toHaveBeenCalledTimes(2);
     expect(onToggleConsole).toHaveBeenLastCalledWith("appearance");
@@ -348,9 +345,6 @@ describe("Panel", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Chords" }));
     expect(onOpenConsole).toHaveBeenCalledWith("shortcuts");
 
-    // A tab is not a view. Both are mounted in one pane, stacked, so the taller decides the height
-    // and nothing about the panel moves when the tab changes; the header and its back chevron are
-    // the same elements before and after, so their enter animation does not run again.
     view.rerender(<Panel {...props("shortcuts")} />);
     expect(view.container.querySelectorAll(".pane")).toHaveLength(1);
     expect(view.container.querySelector(".view.out")).toBeNull();
@@ -360,9 +354,6 @@ describe("Panel", () => {
   it("keeps the inactive tab's box but exposes neither it nor its content", () => {
     const props = (tab: ConsoleTab) => panelProps({ consoleTab: tab }, true, false);
     const view = render(<Panel {...props("shortcuts")} />);
-    // The point of mounting both is the box: the panel is as tall as the taller tab either way, so
-    // switching cannot resize it. Everything else about the hidden one is taken away, or a reader
-    // stepping through the console would meet two equal tab panels and both sets of controls.
     const panes = [...view.container.querySelectorAll(".tabpane")];
     expect(panes.map((p) => p.getAttribute("aria-hidden"))).toEqual(["true", "false"]);
     expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
@@ -567,8 +558,8 @@ describe("Panel", () => {
     view.rerender(<Panel {...props(null)} />);
     expect(el.scrollTop).toBe(100);
 
-    // A reader who was AT the tail comes back to the tail, which is not the same line: a reply can
-    // land while the console is up, and following the stream is what they asked for.
+    // A reader who was at the tail comes back to the tail, which may be a different line: a reply
+    // can land while the console is up, and staying at the tail is what following the stream means.
     el.scrollTop = 470;
     fireEvent.scroll(el);
     view.rerender(<Panel {...props("shortcuts")} />);
@@ -585,8 +576,8 @@ describe("Panel", () => {
       "Chords",
     );
     // Closing keeps the console mounted for one morph so it can fade out. Its tab is already null
-    // by then, and the fallback for that was the FIRST tab, so leaving from the shortcuts drew the
-    // appearance pane over the one the user was looking at and took it away with the fade.
+    // by then, and the fallback for a null tab used to be the first tab, so leaving from the
+    // shortcuts drew the appearance pane over the one the user was looking at and faded that away.
     view.rerender(<Panel {...props(null)} />);
     const leaving = view.container.querySelector(".view.out");
     expect(leaving?.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe("Chords");
@@ -630,9 +621,9 @@ describe("Panel", () => {
     renderPanel({}, true, false);
     const hint = (text: string) =>
       [...document.querySelectorAll(".hints span")].find((s) => s.textContent?.includes(text));
-    // A chord is drawn as the keys it is: the newline hint is Shift AND Return, two caps, which is
-    // how the console's list reads it too. Shift is spelled out like Ctrl and Alt, so the drawn cap
-    // left is return, the one key here with no name worth writing.
+    // A chord is drawn as one cap per key: the newline hint is Shift and Return, so two caps, which
+    // is how the console's list renders it too. Shift is spelled out like Ctrl and Alt, so the only
+    // cap drawn as a glyph is return.
     expect(hint("new line")?.querySelectorAll("b")).toHaveLength(2);
     expect(hint("new line")?.querySelector("b")?.textContent).toBe("Shift");
     expect(hint("new line")?.querySelectorAll("b.key")).toHaveLength(1);

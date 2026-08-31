@@ -19,9 +19,9 @@ from the measurement, which is correct on its own terms, but it addressed that o
 change rather than the drift that delivered it.
 
 **Why it is deferred rather than pinned now.** A dated pin makes CI and the host agree and puts the
-toolchain in the diff, so an instrumentation change arrives as a deliberate bump with a green or
-red run attached to it. The cost is that the pin goes stale silently: dependabot bumps action SHAs
-and cannot bump a rustup channel string, so nothing would ever raise the nightly again, and the
+toolchain in the diff, so an instrumentation change arrives as a deliberate bump with a passing or
+failing run attached to it. The cost is that the pin goes stale silently: dependabot bumps action
+SHAs and cannot bump a rustup channel string, so nothing would ever raise the nightly again, and the
 gate would drift the other way, measuring branch coverage on an increasingly old compiler until
 something else forced the issue. The middle option worth naming is pinning CI to a date and
 recording the same date in the machine-setup runbook, which keeps the two sides equal and makes
@@ -49,10 +49,10 @@ expires: nightly runs two releases ahead of stable, so a pin taken today is over
 about twelve weeks, after which the coverage step compiles the body under an older compiler than
 every other step and the first newly stabilized feature the workspace adopts fails under coverage
 alone. That is this entry's own complaint reintroduced by its own fix, on a clock nobody services.
-Two more: pinning the compiler while the tool stays unpinned sells a reproducibility the step does
+Two more: pinning the compiler while the tool stays unpinned claims a reproducibility the step does
 not have, and pinning the tool as well inverts the mismatch, since cargo-llvm-cov is the half that
-has to track the compiler. What the printing does not do is make anything *read* the versions,
-which is [R-275](275-nothing-reads-the-printed-toolchain.md).
+has to track the compiler. What the printing does not do is make anything *read* the versions, which
+is [R-275](275-nothing-reads-the-printed-toolchain.md).
 
 ## Trail
 

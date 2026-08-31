@@ -1,4 +1,8 @@
-"""The wide recall corpus: notes, questions, and the category each question is testing."""
+"""The wide recall corpus: notes, questions, and the category each question tests.
+
+Input data for `test_rerank_judge_wide_live.py`. The notes and questions were written by the agent
+that recommended the judge, not sampled from real memories.
+"""
 
 from enum import Enum
 
@@ -14,9 +18,7 @@ class Category(Enum):
     CLAUSE = "clause (the answer is buried in a longer note)"
 
 
-# id -> remembered text. The pool every question is ranked against.
 MEMORIES: dict[str, str] = {
-    # TRAP: the original ten notes, verbatim from test_rerank_judge_live.py.
     "state": (
         "we settled on Redis for anything a turn is holding, and Postgres for what outlives it"
     ),
@@ -31,8 +33,6 @@ MEMORIES: dict[str, str] = {
         "nothing ships on a Friday, and the person who merges it is the person who watches it"
     ),
     "deploy-noise": "the deploy script lives in the scripts directory next to the linters",
-    # LEXICAL: the gold note answers in the question's own words, with a topical neighbour
-    # alongside it that shares the vocabulary and answers nothing.
     "wifi": "the wifi password for the guest network is written under the router",
     "wifi-noise": "the guest network drops out every time the microwave runs",
     "dentist": "the dentist appointment is on the fourteenth at half past nine in the morning",
@@ -41,7 +41,6 @@ MEMORIES: dict[str, str] = {
     "passport-noise": "the passport photos came out too dark and had to be taken again",
     "standup": "the team standup is at quarter past nine every weekday morning",
     "standup-noise": "the standup ran long on Monday because of the incident review",
-    # TWIN: two notes of the same shape, differing in the detail the question asks for.
     "hotel-lisbon": "the hotel booking in Lisbon is two nights starting on the third",
     "hotel-porto": "the hotel booking in Porto is four nights starting on the ninth",
     "tablets-blue": "the blue tablets are two in the morning, taken with food",
@@ -50,11 +49,8 @@ MEMORIES: dict[str, str] = {
     "key-garage": "the spare key to the garage hangs inside the fuse cupboard",
     "budget-design": "the design budget was signed off at eight thousand for the quarter",
     "budget-research": "the research budget was signed off at three thousand for the quarter",
-    # ABSENT: near misses only. These sit close to the unanswerable questions and answer none
-    # of them, so a ranking that wants to fill its slots has something tempting to reach for.
     "car": "the car needs a new set of tyres before the winter",
     "parking": "parking near the office is impossible after eight in the morning",
-    # STALE: the superseded version and the current one, the difference stated in prose.
     "office-old": "the team sat on the fourth floor until the lease ran out",
     "office-new": (
         "since the move the team sits on the ninth floor and the old fourth floor rooms "
@@ -66,7 +62,6 @@ MEMORIES: dict[str, str] = {
     "phone-new": "her number now ends in 8802",
     "gym-old": "the gym membership was monthly and renewed itself automatically",
     "gym-new": "the gym membership was cancelled in April so there is nothing left to renew",
-    # CLAUSE: the answer is one clause of a note about something else.
     "wedding": (
         "the wedding is in the village where her parents met, which is a two hour drive north, "
         "and the reception runs until midnight"
@@ -86,42 +81,38 @@ MEMORIES: dict[str, str] = {
     "coast": "the drive to the coast takes about four hours once the traffic starts",
 }
 
-# question -> (the note that answers it or None when nothing does, the category it probes).
 QUESTIONS: dict[str, tuple[str | None, Category]] = {
-    # TRAP (6): the published corpus's own questions, unchanged.
     "where are we keeping things while a conversation is in progress?": ("state", Category.TRAP),
     "can two of them be loaded at once?": ("gpu", Category.TRAP),
     "how does she like her coffee?": ("coffee", Category.TRAP),
     "what time do we get back?": ("flight", Category.TRAP),
     "is it alright to release at the end of the week?": ("deploy", Category.TRAP),
     "who is on the hook after a release goes out?": ("deploy", Category.TRAP),
-    # LEXICAL (4): the embedding is right on its own here.
     "what is the wifi password for the guest network?": ("wifi", Category.LEXICAL),
     "when is the dentist appointment?": ("dentist", Category.LEXICAL),
     "when does the passport expire?": ("passport", Category.LEXICAL),
     "what time is the team standup?": ("standup", Category.LEXICAL),
-    # TWIN (4): both candidates are plausible; one detail separates them.
     "how many nights are we in Porto?": ("hotel-porto", Category.TWIN),
     "how many of the white ones do I take?": ("tablets-white", Category.TWIN),
     "where is the garage spare kept?": ("key-garage", Category.TWIN),
     "how much did research get?": ("budget-research", Category.TWIN),
-    # ABSENT (4): no gold. Returning nothing is the correct answer.
     "what is the car insurance renewal date?": (None, Category.ABSENT),
     "which airline did we end up flying with?": (None, Category.ABSENT),
     "what did the dentist say about the x-ray?": (None, Category.ABSENT),
     "how much does the parking permit cost?": (None, Category.ABSENT),
-    # STALE (4): the current version wins, and only the prose says which it is.
     "which floor is the team on?": ("office-new", Category.STALE),
     "what database is the project on?": ("db-new", Category.STALE),
     "what number should I ring her on?": ("phone-new", Category.STALE),
     "is the gym still being paid for?": ("gym-new", Category.STALE),
-    # CLAUSE (4): the note's topic is not the answer; a clause inside it is.
     "how long is the drive to the wedding?": ("wedding", Category.CLAUSE),
     "when did the badge come through?": ("onboarding", Category.CLAUSE),
     "which day does the pager rota change hands?": ("incident", Category.CLAUSE),
     "what temperature does the bread go in at?": ("recipe", Category.CLAUSE),
 }
 
+# A third population, and deliberately not a `Category` in `QUESTIONS`: adding one there would
+# move every number an earlier run of this corpus published. These questions are unanswerable and
+# share no subject with any note, which is the easiest case for a similarity floor.
 UNRELATED: tuple[str, ...] = (
     "what is the atomic weight of tungsten?",
     "who won the world cup in 1998?",

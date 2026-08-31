@@ -1,4 +1,4 @@
-"""Public core names for in-memory test doubles for the ports above, shared across the workspace."""
+"""Public core names for the in-memory test doubles of the core ports, shared workspace-wide."""
 
 from cortex_core.fakes import (
     EchoInferenceBackend,

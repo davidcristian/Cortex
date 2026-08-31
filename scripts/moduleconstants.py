@@ -1,5 +1,4 @@
-"""What a Python module's own top level binds, read out of its source rather than by importing it.
-"""
+"""What a Python module's top level binds, read from its source rather than by importing it."""
 
 import ast
 from collections.abc import Mapping
@@ -42,11 +41,7 @@ def items(
 
 
 def bound(statement: ast.stmt) -> tuple[str, ast.expr] | None:
-    """The name one statement binds and the expression it binds it to, or None for the rest.
-
-    Both spellings a declaration takes here: a plain assignment, and an annotated one, which is
-    how a settings field is written. An annotated declaration with no value binds nothing.
-    """
+    """The name one statement binds and the expression it binds it to, or None for the rest."""
     if isinstance(statement, ast.Assign) and len(statement.targets) == 1:
         target = statement.targets[0]
         return (target.id, statement.value) if isinstance(target, ast.Name) else None
@@ -57,11 +52,7 @@ def bound(statement: ast.stmt) -> tuple[str, ast.expr] | None:
 
 
 def constants(module: ast.Module) -> tuple[dict[str, str], dict[str, tuple[str | None, ...]]]:
-    """Every top-level string and run of strings the module binds, by the name it binds it under.
-
-    The two answers come back separately because they are asked separately: a caller wanting a
-    flag wants the first, and one wanting a tier's tail wants the second.
-    """
+    """Every top-level string and run of strings the module binds, by the name it binds it under."""
     strings: dict[str, str] = {}
     tuples: dict[str, tuple[str | None, ...]] = {}
     for statement in module.body:

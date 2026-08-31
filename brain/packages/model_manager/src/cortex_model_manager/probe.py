@@ -1,4 +1,4 @@
-"""Is a child actually serving? The readiness seam, over the child's own ``/health``."""
+"""Whether one child is serving yet, read over its own ``/health``."""
 
 import logging
 from http import HTTPStatus
@@ -16,7 +16,7 @@ class HealthProbe(Protocol):
 
 
 class HttpHealthProbe:
-    """The real probe. Its client carries the timeout, set once at the composition root."""
+    """The real probe."""
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client

@@ -1,4 +1,8 @@
-"""Public core names for what a log line carries and how a process entry renders it."""
+"""Public core names for the fields a log line carries and the formatters that render them.
+
+Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
+stays ``cortex_core``. ``__all__`` is this file's contract.
+"""
 
 from cortex_core.log_fields import (
     CUT,

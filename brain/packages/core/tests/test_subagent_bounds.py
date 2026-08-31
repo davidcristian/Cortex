@@ -269,7 +269,7 @@ async def test_a_subagent_that_never_stops_talking_is_stopped_at_its_deadline() 
 
 
 async def test_the_cortex_can_tell_a_stopped_run_from_a_short_answer() -> None:
-    """A cap that reported a fragment as an answer would have traded a hang for a lie."""
+    """A cap that reported a fragment as an answer would have traded a hang for a wrong answer."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     scheduler = ResourceBudgetScheduler(4.0, 8.0)
@@ -311,7 +311,7 @@ async def test_a_stopped_run_releases_its_admission_and_its_placement() -> None:
 
 
 async def test_a_stopped_run_has_already_released_the_model_lease_when_it_returns() -> None:
-    """Not "the lease comes back eventually" but "it was back before ``run`` returned"."""
+    """The lease is back before ``run`` returns, rather than at some later moment."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RunawayBackend()
@@ -760,7 +760,7 @@ async def test_a_cap_inside_a_tool_call_is_reported_as_the_cap_not_a_dead_backen
 
 
 async def test_a_cut_tool_call_is_not_re_run_on_the_cpu() -> None:
-    """What the reporting buys: the second model load this shape used to spend, not spent."""
+    """What the reporting buys: this shape no longer spends a second model load."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     error = MalformedToolCallError('malformed tool-call arguments: \'{"path":"no\'')

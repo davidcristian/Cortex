@@ -1,5 +1,3 @@
-"""Behavior tests for the conversation domain: roles, immutability, tz-awareness."""
-
 import dataclasses
 from datetime import UTC, datetime, timedelta, timezone, tzinfo
 
@@ -11,7 +9,7 @@ _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
 
 class _OffsetlessTzinfo(tzinfo):
-    """A pathological tzinfo that claims no UTC offset (still a naive datetime)."""
+    """A tzinfo that reports no UTC offset, which leaves the datetime naive."""
 
     def utcoffset(self, dt: datetime | None) -> timedelta | None:
         del dt
@@ -39,7 +37,6 @@ def test_message_carries_all_fields() -> None:
         _AT,
         "t-1",
     )
-    # Tool fields default empty for ordinary dialogue.
     assert (message.tool_calls, message.tool_call_id) == ((), None)
 
 
@@ -84,7 +81,6 @@ def test_a_tool_message_may_carry_images() -> None:
 
 @pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT, Role.SYSTEM])
 def test_no_role_but_tool_may_carry_images(role: Role) -> None:
-    """Pixels are turn-local, and they ride the tool result they arrived on."""
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     with pytest.raises(ValueError, match="may not carry images: pixels are turn-local"):
         Message(role=role, text="hi", at=_AT, turn_id="t1", images=(picture,))

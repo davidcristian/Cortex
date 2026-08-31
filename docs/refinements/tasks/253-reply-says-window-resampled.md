@@ -5,17 +5,16 @@
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 **Trigger:** The next change that opens `CaptureScreenReply`, or a measured caption effect.
 
-Opened 2026-08-10 by the measurement above
-and the steer correction that followed it
+Opened 2026-08-10 by the measurement above and the steer correction that followed it
 ([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)'s fourth addendum of that date).
-`CaptureScreenReply` carries `resolved_target` and nothing else about the picture's provenance,
-so a `focus` capture of a window wider than the capture edge goes through the same box filter
-the whole display does, lands at the same 2048x1152, and arrives indistinguishable from a crop
-that was never touched. The model asked for the target that keeps detail, got a picture exactly
-as lossy as a screenshot, and has no way to find out. The body knows: the identity arm of
-`downscale` either fired or it did not, and `Capture` holds the crop and the bound side by side,
-so the value is one `bool` on the reply, symmetric with `resolved_target`, and `describe()` would
-finally be able to say which of the two pictures arrived.
+`CaptureScreenReply` carries `resolved_target` and nothing else about the picture's provenance, so a
+`focus` capture of a window wider than the capture edge goes through the same box filter the whole
+display does, lands at the same 2048x1152, and arrives indistinguishable from a crop that was never
+touched. The model asked for the target that keeps detail, got a picture exactly as lossy as a
+screenshot, and has no way to find out. The body can tell: the identity arm of `downscale` either
+fired or it did not, and `Capture` holds the crop and the bound side by side, so the value is one
+`bool` on the reply, symmetric with `resolved_target`, and `describe()` would finally be able to say
+which of the two pictures arrived.
 
 **Why it was not built, in descending weight.** Its only consumer is a sentence in the stand-in
 text, and that is the one intervention this area has measured twice and found inert: with
@@ -31,8 +30,8 @@ of 300), the seam facade, both fakes, six test files and six docs. Per this back
 standing warning, everything in that sentence except the two line counts is a hypothesis; the
 line counts were read at HEAD.
 
-What is **not** a reason is honesty. The silence is a real gap in what `describe()` can say, and
-it is why that function already refuses to guess. The claim is that the gap is not currently
+What is **not** a reason is accuracy. The missing field is a real gap in what `describe()` can say,
+and it is why that function already declines to guess. The claim is that the gap is not currently
 reachable by any behaviour this repo can measure, not that it is not a gap.
 
 **Trigger.** It lands with the next change that opens `CaptureScreenReply` at all, a

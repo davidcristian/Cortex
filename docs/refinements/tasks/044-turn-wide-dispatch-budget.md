@@ -4,7 +4,7 @@
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
-Both budget addenda sold "one number answers how many
+Both budget addenda claimed that "one number answers how many
 external calls one turn can make", and delegation made it false: `spent` was a local in
 `stream_tool_loop` and the runner builds a fresh `ToolLoopContext` per task, so every subagent
 started at zero. This entry's own "can exceed 32 in aggregate" understated it, because
@@ -18,15 +18,15 @@ spawned work on the **`TurnStamp`**, the channel the loop already stamps and
 `ToolCall` were added. That is the stamp's first non-provenance field, a deliberate widening to
 "what the dispatching turn hands work this call spawns" (`tainted` was already both), and the
 handle is excluded from the stamp's equality (`compare=False`) since a shared resource is not
-part of a value. One pool first-come-first-served, not a per-subagent share: dividing the
-remainder has to guess how many of a batch will call tools at all, and it makes the answer a
+part of a value. One pool first-come-first-served rather than a per-subagent share: dividing the
+remainder would have to estimate how many of a batch will call tools at all, and it makes the answer a
 function of fan-out again, which is the arithmetic being removed. Closure is turn-wide too, so
 `BUDGET_EXHAUSTED_MSG`'s "this turn has reached its limit" is literally true. The spawn price
 stays, because the two bounds count different things: the pool counts dispatches, and a
 subagent that calls no tools spends nothing from it while still costing an admission slot, a
 placement, and a model run. A root caller with no pool (the ticker's fire) still gets its own,
-unchanged. CI-gated at 100% with six guards mutation-proven (each reverted individually turns
-the new tests red). Remaining:
+unchanged. CI-gated at 100% with six guards mutation-proven (each reverted individually makes
+the new tests fail). Remaining:
 
 ## Trail
 

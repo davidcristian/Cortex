@@ -27,7 +27,7 @@ documented trap above and not a mystery.
 
 **Know this going in.** There is no per-model cap. The cortex, the deep model and any GPU subagent
 share one cgroup, because the model host runs them as children of one container; a per-model cap
-would want a container per model, which would want a controller that can start containers, which
+would need a container per model, which would need a controller that can start containers, which
 is the docker-socket shape ADR-0030 rejected on security grounds.
 
 **Record it.** The compose file's own comment (which says the maintainer measures real numbers on the

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ACTIVATE_EVENT, requestActivation, takePendingActivation } from "./activation";
 
-// The module holds one flag for the whole app, so each test starts from a drained one.
 beforeEach(() => {
   takePendingActivation();
 });
@@ -25,8 +24,6 @@ describe("activation", () => {
   });
 
   it("keeps the request for a listener that attaches afterwards", () => {
-    // The whole point: the browser self-summon and a cold-start hotkey press both land before
-    // the app's passive effect has attached anything.
     requestActivation();
     expect(takePendingActivation()).toBe(true);
   });

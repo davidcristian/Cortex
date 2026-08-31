@@ -26,7 +26,7 @@ file itself) trades that risk for a second reader of an untracked file, spelled 
 nothing holds to compose's own rules for quoting and precedence.
 
 **What would close it.** Decide which reader is authoritative for a recipe that is not compose:
-either the justfile learns the file under a rule narrow enough that the gate cannot inherit from
+either the justfile reads the file under a rule narrow enough that the gate cannot inherit from
 it, or the documentation stops offering `.env` as a way to configure anything except the compose
 stack and says the environment is where the body-side checks read from. The second costs nothing to
 implement and something to write, which is the trade to make deliberately rather than by default.

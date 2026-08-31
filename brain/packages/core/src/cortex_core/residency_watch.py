@@ -1,4 +1,4 @@
-"""Whether the daemon under this brain is the one its beliefs were formed against (ADR-0030)."""
+"""Whether the daemon under this brain is the one its state was formed against (ADR-0030)."""
 
 import logging
 
@@ -36,7 +36,7 @@ class BootWatch:
         self._seen: str | None = None
 
     def observe(self, boot_id: str | None) -> bool:
-        """Whether ``boot_id`` is a **different** daemon from the last one that named itself."""
+        """Whether ``boot_id`` is a different daemon from the last one that named itself."""
         if boot_id is None:
             return False
         replaced = self._seen is not None and boot_id != self._seen
@@ -87,8 +87,7 @@ class BootWatch:
         raise SwapFailedError(msg)
 
     async def _recheck_deadline(self) -> None:
-        """Refuse a handoff whose fresh sidecar can outlast the deadline this brain bounds it with.
-        """
+        """Raise when the fresh sidecar can outlast the deadline this brain bounds a stop with."""
         deadline_s = self._plan.control_deadline_s
         bounds = await self._bounds()
         if bounds is None or deadline_s <= 0 or bounds.clears(deadline_s):

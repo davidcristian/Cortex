@@ -1,4 +1,4 @@
-"""The swap sequence: serialize, drain, swap, run, persist, swap back (ADR-0030 decision 4)."""
+"""The swap sequence: serialize, drain, swap, run, persist, swap back."""
 
 import logging
 from collections.abc import AsyncGenerator
@@ -69,8 +69,6 @@ class SwapConductor:
                     async for event in run:
                         yield event
                 finally:
-                    # Same deterministic teardown as every other generator here: a consumer
-                    # that walks away must unwind the sequence, not leave it to the collector.
                     await run.aclose()
         except HandoffInProgressError:
             _logger.warning(
@@ -91,8 +89,6 @@ class SwapConductor:
             if not self._plan.coresident:
                 yield _status(DRAINING_DETAIL)
             if not await self._drain():
-                # The abort direction: nothing has been evicted, so the cortex is still serving
-                # and the turn simply ends with what it has.
                 await self._settle.fail(prepared, DRAIN_TIMEOUT_REASON)
                 yield TextDelta(text=DRAIN_TIMEOUT_NOTE)
                 return
@@ -101,11 +97,13 @@ class SwapConductor:
                 async for event in swap:
                     yield event
             finally:
+                # Closing the swap is what restores the usual residency, and it must happen
+                # before the undrain below: admission may only reopen once the tiers a swap
+                # evicted are running again.
                 await swap.aclose()
         except BaseException:
-            # Cancellation and stream teardown included: a handoff that stops being run is a
-            # failed handoff, and a live record would otherwise strand the next boot. The write
-            # is best-effort under cancellation, which is exactly what boot recovery backs up.
+            # Cancellation included: a handoff that stops being run is a failed handoff, and a
+            # record left live would refuse every escalation until the next boot recovers it.
             await self._settle.fail(prepared, TORN_DOWN_REASON)
             raise
         finally:
@@ -115,10 +113,9 @@ class SwapConductor:
         self, slot: EscalationSlot, *, session_id: str, turn_id: str
     ) -> HandoffRecord | str:
         """Serialize the slot into a ``READY`` record, or the note saying why there is none."""
+        # Pixels are turn-local and no store keeps them, so a turn that read the screen would
+        # hand the deep model a tool message promising a picture with none attached.
         if slot.refs is not None and slot.refs.taint.opaque:
-            # Pixels are turn-local (ADR-0029 decision 6): no store persists them, so the deep
-            # model would get a tool message promising a picture with none attached. Keyed on
-            # the ``opaque`` bit, the fact that stays true where the pixels cannot travel.
             _logger.warning(
                 "refusing a handoff for a turn that read the screen",
                 extra={"session_id": session_id, "turn_id": turn_id},
@@ -167,8 +164,6 @@ class SwapConductor:
         try:
             yield _status(LOADING_DETAIL)
             async with self._residency.swap_scope(self._plan.brain_model):
-                # Only now is the deep model actually serving: the record reaches BRAIN_ACTIVE
-                # after the health gate passed, never on the strength of a start call.
                 await self._settle.advance(record, HandoffState.BRAIN_ACTIVE)
                 yield _status(WORKING_DETAIL)
                 phase = self._brain_phase.run(record)
@@ -182,16 +177,13 @@ class SwapConductor:
             await self._settle.fail(record, str(err))
             return
         except ModelManagerError as err:
-            # The one path this whole field exists for: the error's message is where the model
-            # host's status code and the leading characters of its own response body ended up,
-            # and the note below is about the GPU rather than about any of that.
             await self._settle.fail(record, str(err))
             yield TextDelta(text=note_for(err))
             return
         await self._settle.advance(record, HandoffState.DONE)
 
     async def _drain(self) -> bool:
-        """Quiesce the pool, or answer True when there is no pool, or none to quiesce it for."""
+        """Quiesce the pool; return True when there is no pool, or no tier to quiesce it for."""
         if self._scheduler is None or self._plan.coresident:
             return True
         return await self._scheduler.drain(timeout_s=self._plan.drain_timeout_s)

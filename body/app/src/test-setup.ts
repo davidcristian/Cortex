@@ -1,11 +1,13 @@
+// Test setup, excluded from coverage: jest-dom matchers, DOM cleanup between tests, stand-ins for
+// the `matchMedia` and `ResizeObserver` that jsdom leaves out, the laid-out heights a test gives
+// the boxes the panel measures, and the animation stand-in the per-row exits are asserted through.
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
-/**
- * A `ResizeObserver` that observes what the real one observes and reports when a test says the box
- * moved, jsdom having no layout to notice it for itself.
- */
+/** A `ResizeObserver` for jsdom, which has no layout and so never reports a box changing size.
+ *  The callback runs only while the element is observed, and `resized` delivers by hand the
+ *  notification a browser would deliver. */
 class FakeResizeObserver implements ResizeObserver {
   private readonly watched = new Set<Element>();
 
@@ -49,7 +51,9 @@ export function resized(target: Element): number {
 
 globalThis.ResizeObserver = FakeResizeObserver;
 
-/** How tall a box measures, said through the one property production reads. */
+/** How tall a box measures, through the one property production reads: the used height off the
+ *  computed style. jsdom has no layout and returns the empty string for every height, so a test
+ *  that needs a box says how tall it is here. Faking `offsetHeight` would fake an unread number. */
 const laidOut = new WeakMap<Element, () => number>();
 /** Every box at once, for the tests that measure an element they never get their hands on. */
 let laidOutAll: (() => number) | null = null;
@@ -76,7 +80,9 @@ export function lays(element: Element, height: number | (() => number)): void {
   laidOut.set(element, typeof height === "number" ? () => height : height);
 }
 
-/** Give EVERY box the same laid-out height, and answer the way to stop. */
+/** Give every box the same laid-out height, and return the way to stop. For a test whose subject
+ *  is an element it cannot reach, such as the empty state, which publishes `--chat-floor` during
+ *  the same render that mounts it. */
 export function laysEverything(height: number | (() => number)): () => void {
   laidOutAll = typeof height === "number" ? () => height : height;
   return () => {
@@ -84,14 +90,13 @@ export function laysEverything(height: number | (() => number)): () => void {
   };
 }
 
-/** How tall a rolling section measures while `stubRoll` is installed. Any value past
- *  `MIN_DELTA_PX` will do: what it buys is a roll that actually runs rather than one `Collapse`
- *  completes on the spot. */
+/** How tall a rolling section measures while `stubRoll` is installed. Any value above
+ *  `MIN_DELTA_PX` will do; below it `Collapse` finishes the roll at once instead of running one. */
 const ROLL_PX = 48;
 
-/**
- * Stand in for the two things jsdom does not have, so a `Collapse` exit can be observed mid-roll.
- */
+/** Stand in for the layout and the Web Animations API that jsdom does not have, so a `Collapse`
+ *  exit can be watched mid-roll. It reproduces the one behavior those tests need: a cancelled
+ *  animation never finishes. Returns the way to finish every roll still running. */
 export function stubRoll(): () => void {
   laysEverything(ROLL_PX);
   const finishers: (() => void)[] = [];

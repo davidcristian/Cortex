@@ -29,6 +29,10 @@ import {
   submit,
 } from "./turnState";
 
+// The overlay's pure state and reducer, kept out of React so the interaction model can be tested
+// on its own. Three long halves live beside this file and are re-exported below, so a component
+// still has one import: session switching, the turn fold, and the panel's own sections.
+
 export { draftOf } from "./drafts";
 export { cycleTarget } from "./sessionState";
 export { CAPTURE_SCREEN_TOOL, isTurnActive, latestReply } from "./turnState";
@@ -37,7 +41,8 @@ export type { CaptureClaim, Message, PendingConfirm } from "./turnState";
 /** Where the overlay is on screen. */
 export type Mode = "hidden" | "panel" | "orb" | "preview";
 
-/** The console's tabs, in strip order. */
+/** The console's tabs, in strip order. Exported as the list rather than only the union, because
+ *  the tab strip and the panel's router both walk it. */
 export const CONSOLE_TABS = ["appearance", "shortcuts"] as const;
 
 export type ConsoleTab = (typeof CONSOLE_TABS)[number];
@@ -53,45 +58,41 @@ export interface OverlayState {
   /** Whether the switcher list is open in the header. */
   readonly switcherOpen: boolean;
   /** Which console tab the panel is showing, or null while it is on the chat. One field, because
-   *  the console is one view with a tab strip (ADR-0032, ADR-0035): appearance and the shortcut
-   *  list cannot both be open, and Esc leaves in a single press from either. */
+   *  the two tabs cannot both be open and Esc leaves from either in a single press. */
   readonly consoleTab: ConsoleTab | null;
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
-  /**
-   * What the overlay's live region has to say about what just happened to the panel: the
-   * conversation that arrived, a list that shrank under the reader, or both in one sentence when a
-   * delete did both.
-   */
+  /** What the overlay's live region has to say about what just happened to the panel: the
+   *  conversation that arrived, a list that shrank under the reader, or both in one sentence when
+   *  a delete did both. */
   readonly notice: Notice | null;
-  /** Which conversation-arrival the panel is showing, counted from the overlay's first. */
+  /** Which conversation-arrival the panel is showing, counted from the overlay's first. A count
+   *  rather than the session id, because re-selecting the chat already open is still an arrival,
+   *  and not a flag, because two arrivals in a row have to read as two events. */
   readonly arrival: number;
   /** What the composer is holding for each conversation, keyed by session id (`drafts.ts`). The
    *  field on screen is this map's entry for `sessionId`, so a swap hands the arriving chat its own
-   *  text in the same commit that swaps and no arm has to move anything. */
+   *  text in the same commit. */
   readonly drafts: Drafts;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
   readonly link: LinkView;
-  /**
-   * How far this turn's screen-capture claim has climbed, or `null` if nothing was asked for
-   * (ADR-0029).
-   */
+  /** How far this turn's screen-capture claim has climbed, or `null` if nothing was asked for. It
+   *  is cleared only when the turn ends, and within a turn it only ever climbs, because a privacy
+   *  indicator may over-report and may never under-report. */
   readonly capture: CaptureClaim | null;
   readonly seq: number;
-  /**
-   * Whether the user has acted on this overlay since mount (opened it, typed, switched, or minted
-   * a new chat).
-   */
+  /** Whether the user has acted on this overlay since mount (opened it, typed, switched, or
+   *  started a new chat). `seq` and `messages` cannot stand in for it, because starting a new chat
+   *  leaves both at their initial values. */
   readonly touched: boolean;
 }
 
 export type Action =
   | { readonly kind: "open" }
   | { readonly kind: "submit"; readonly text: string }
-  /** The composer's field changed. Parked under whichever chat is on screen, so the text is
-   *  already where it belongs by the time any swap arm runs (`drafts.ts`). */
+  /** The composer's field changed. */
   | { readonly kind: "draft"; readonly text: string }
   | { readonly kind: "event"; readonly event: TurnEvent }
   | { readonly kind: "transportError"; readonly error: TransportError }
@@ -102,8 +103,8 @@ export type Action =
   | {
       readonly kind: "newChat";
       readonly sessionId: string;
-      /** Whether the fresh chat is announced: true for Ctrl+N, false for the header's pencil,
-       *  whose own label is the name of what arrives (`notice.ts`). */
+      /** Whether the fresh chat is announced: true for Ctrl+N, false for the header's pencil, whose
+       *  own label is the name of what arrives (`notice.ts`). */
       readonly announce: boolean;
     }
   | { readonly kind: "sessionsLoaded"; readonly sessions: readonly SessionSummary[] }
@@ -134,8 +135,7 @@ export type Action =
   | {
       readonly kind: "toggleSwitcher";
       /** Whether the opened list says what it holds: true for Ctrl+K, false for the header's
-       *  chats button, which carries `aria-expanded` under the caret that pressed it
-       *  (`chromeState.ts`). */
+       *  chats button, which has `aria-expanded` under the caret that pressed it. */
       readonly announce: boolean;
     }
   | { readonly kind: "openConsole"; readonly tab: ConsoleTab }
@@ -169,31 +169,27 @@ export const initialState: OverlayState = createInitialState("");
 export function reduce(state: OverlayState, action: Action): OverlayState {
   switch (action.kind) {
     case "open":
-      // A summon always arrives at the chat. Clearing the console HERE and not on dismiss is the
-      // whole trick: the panel fades out wearing whatever it had on, instead of morphing back to
-      // the chat first and then fading, which read as the window changing its mind on the way out.
+      // A summon always arrives at the chat. Clearing the console here rather than on dismiss is
+      // what lets the panel fade out showing whatever it had up.
       return { ...state, mode: "panel", consoleTab: null, touched: true };
     case "submit":
       return submit(state, action.text);
     case "draft":
-      // Typing is the user acting on the overlay, which `touched` has always claimed to cover and
-      // until now could not: nothing dispatched on a keystroke, so a cold-start adoption could
-      // replace the chat under a sentence somebody was in the middle of. Now it cannot.
+      // Typing is the user acting on the overlay, so a cold-start adoption cannot replace the chat
+      // under a sentence somebody is in the middle of.
       return {
         ...state,
         touched: true,
         drafts: parkDraft(state.drafts, state.sessionId, action.text),
       };
     case "event": {
-      // Any event at all is the brain serving, so the turn keeps the indicator honest for free:
-      // no probe fires while a stream is arriving. The identity check keeps a no-op event a
-      // no-op (a late confirm request on a dead turn must not resurrect anything).
+      // Any event at all is the brain serving, so the indicator stays current with no probe while
+      // a stream is arriving.
       const next = applyEvent(state, action.event);
       const link = linkServing(state.link);
       return link === state.link ? next : { ...next, link };
     }
     case "transportError":
-      // The turn ends *and* the indicator learns: this is the failure the user is looking at.
       return { ...endTurn(state, action.error.message), link: linkFailed(state.link, action.error) };
     case "linkProbing":
       return { ...state, link: linkProbing(state.link) };
@@ -202,22 +198,21 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "linkProbeEnded":
       return { ...state, link: linkProbeEnded(state.link) };
     case "dismiss":
+      // Dismissing drops any pending approval with it, since walking away is a deny and the brain
+      // fails closed on its own timeout. The console is left open, and the next summon clears it.
       return {
         ...state,
         mode: isTurnActive(state) ? "orb" : "hidden",
         pendingConfirm: null,
       };
     case "stop":
-      // User cancelled the turn: end the streaming reply in place (keep the partial text,
-      // no error) and stay in the panel. This differs from dismiss, which minimizes to the orb.
+      // The user cancelled: end the streaming reply in place, keeping the partial text, and stay in
+      // the panel. Dismiss minimizes to the orb instead.
       return endTurn(state, null);
     case "confirmAnswered":
-      // The user answered (either way); the card leaves. The answer itself rides the bridge.
       return { ...state, pendingConfirm: null };
     case "previewFade":
-      // A pending approval waits to be seen (the errors rule, design/overlay-ux.md §4), and a
-      // still-streaming turn is never faded from under: a confirm approved mid-turn keeps the
-      // preview up until the turn completes, then the fade countdown starts (useOverlay).
+      // A pending approval waits to be seen, and a still-streaming turn is never faded from under.
       return state.mode === "preview" && state.pendingConfirm === null && !isTurnActive(state)
         ? { ...state, mode: "hidden" }
         : state;
@@ -232,10 +227,13 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "sessionDeleted":
       return deleteSession(state, action.sessionId, action.fallbackSessionId);
     case "remindersLoaded":
-      // Each open re-reads: the brain is the authority on what is still deliverable, so the
-      // list is replaced wholesale rather than merged (a reminder acked elsewhere leaves).
+      // Each open re-reads: the brain is the authority on what is still deliverable, so the list is
+      // replaced whole rather than merged.
       return { ...state, reminders: action.reminders };
     case "reminderDismissed": {
+      // The card goes now and the ack is sent over the bridge. A lost ack means the brain still
+      // holds the reminder and the next open shows it again. Filtering an unknown id does nothing,
+      // so a double-click or a stale card cannot corrupt the list.
       const reminders = state.reminders.filter((r) => r.reminderId !== action.reminderId);
       return reminders.length === state.reminders.length
         ? state

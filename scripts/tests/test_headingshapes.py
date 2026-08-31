@@ -1,4 +1,4 @@
-"""Behaviour of the heading shapes the anchor rule refuses to slug."""
+"""Tests for the heading shapes the anchor rule reports rather than slugging."""
 
 import re
 from pathlib import Path
@@ -37,7 +37,7 @@ def test_headings_ignores_a_hash_inside_a_fenced_block() -> None:
     assert headingshapes.headings(text) == [(1, "Real"), (8, "Real too")]
 
 
-# ── the six shapes this rule refuses ───────────────────────────────────────────
+# ── the six shapes this rule rejects ───────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -52,13 +52,13 @@ def test_headings_ignores_a_hash_inside_a_fenced_block() -> None:
         # A reference link resolves elsewhere; the label is not part of the rendered text.
         ("Read [the rules][rules]", headingshapes.LINKED),
         # The shortcut form carries no mark at all: whether it is a link depends on a definition
-        # somewhere else in the document, which is the one question a heading cannot answer about
-        # itself, so the brackets alone are enough to refuse it.
+        # somewhere else in the document, which a heading cannot answer about itself, so the
+        # brackets alone are enough to report it.
         ("Read [the rules]", headingshapes.LINKED),
         # And the collapsed form between the two, whose empty pair of brackets is its whole mark.
         ("Read [the rules][]", headingshapes.LINKED),
-        # A span nobody meant as a link is refused with them, which is the price of the rule and
-        # the reason it is worth paying: a heading that looks like a link misleads a reader first.
+        # A span nobody meant as a link is reported along with them. That is the cost of the rule,
+        # and a heading that looks like a link misleads a reader in any case.
         ("A note [with an aside] in it", headingshapes.LINKED),
         # A renderer drops the tags; this rule keeps kbd and the slash as letters.
         ("Press <kbd>Ctrl</kbd>+N", headingshapes.TAGGED),
@@ -85,7 +85,8 @@ def test_a_heading_this_rule_reads_too_literally_is_refused_by_name(
 
 
 def test_a_setext_heading_is_refused_at_the_underline_that_makes_it_one() -> None:
-    """The loudest shape: `anchors()` cannot see it, so the document would offer nothing."""
+    """`anchors()` cannot see a setext heading at all, so the document would offer no anchor for
+    it."""
     text = "Not a heading yet\n\nAn underlined heading\n=====================\n"
     assert headingshapes.unsluggable(text) == [
         Unsluggable(line=4, heading="An underlined heading", reason=headingshapes.UNDERLINED)
@@ -214,7 +215,8 @@ def test_problems_says_nothing_about_a_document_written_plainly() -> None:
 
 
 def test_the_repo_itself_writes_no_heading_this_rule_cannot_slug() -> None:
-    """The clean verdict is measured rather than assumed; it is what makes this a house style."""
+    """The clean verdict is measured over the real tree rather than assumed, which is what makes
+    this a house style."""
     found = [
         problem
         for path in backloganchors.markdown_files(ROOT)
@@ -226,7 +228,8 @@ def test_the_repo_itself_writes_no_heading_this_rule_cannot_slug() -> None:
 
 
 def test_the_repo_really_offers_the_two_shapes_this_rule_must_not_report() -> None:
-    """A refusal that matched nothing would be a rule nobody could tell from an absent one."""
+    """The tree really carries code-span and underscore headings, so the two exemptions above are
+    exercised by committed documents rather than only by fixtures."""
     quoted = 0
     underscored = 0
     for path in backloganchors.markdown_files(ROOT):

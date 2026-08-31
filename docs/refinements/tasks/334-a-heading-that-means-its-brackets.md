@@ -24,7 +24,7 @@ heading (the answer for every heading so far), an escape the rule honours (Commo
 `\[` as a literal bracket, and this rule could drop the backslash the way it drops a backtick, which
 costs one substitution and no exemption vocabulary), or a per-line allow marker with a reason, which
 is the `dashcheck.py` idiom and the loudest of the three. The escape is the interesting one, since
-it makes the source say what it means instead of asking the gate to look away.
+it makes the source say what it means instead of adding an exemption the gate has to honour.
 
 ## Trail
 

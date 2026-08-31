@@ -1,5 +1,3 @@
-"""The built-ins under a non-UTC display zone (ADR-0025 display addendum)."""
-
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -17,7 +15,6 @@ from cortex_core import (
     ZoneContext,
 )
 
-# +03:00 in July; the transitions themselves are exercised in test_schedule_time.py.
 _ZONE = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
 _ZONES = ZoneContext(default=_ZONE)
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -51,7 +48,7 @@ def _schedule_tool(store: InMemoryScheduleStore) -> ScheduleTaskTool:
 def test_the_creation_spec_names_the_zone_and_renders_local() -> None:
     description = _schedule_tool(InMemoryScheduleStore()).spec.description
     assert "The current date-time is 2026-07-12T15:00:00+03:00 (Europe/Bucharest)." in description
-    assert "UTC" not in description  # the label must not outlive the values it describes
+    assert "UTC" not in description
 
 
 def test_the_at_parameter_advertises_the_fold() -> None:
@@ -78,7 +75,6 @@ async def test_creation_confirms_in_local_time_but_stores_the_utc_instant() -> N
 
 
 async def test_an_offset_less_at_reads_as_zone_local() -> None:
-    """18:00 written bare means 18:00 in Bucharest (15:00 UTC), not 18:00 UTC."""
     store = InMemoryScheduleStore()
     result = await _schedule_tool(store).invoke(
         _call({"kind": "reminder", "text": "call", "at": "2026-07-12T18:00:00"})
@@ -89,7 +85,6 @@ async def test_an_offset_less_at_reads_as_zone_local() -> None:
 
 
 async def test_an_explicit_offset_still_wins() -> None:
-    """The model can always be unambiguous; an offset is honored, never re-read as local."""
     store = InMemoryScheduleStore()
     result = await _schedule_tool(store).invoke(
         _call({"kind": "reminder", "text": "call", "at": "2026-07-12T18:00:00+00:00"})

@@ -75,7 +75,7 @@ party, and what the flip changes is that a real conversation is now what the ran
   not predicted. A JSON schema does not protect a constrained reply from a cap, since a truncated
   reply is not JSON at all and the rank then falls back to the cosine exactly as it does for a model
   it cannot reach, which is why the cap is generous rather than snug. And the trap of capping while
-  thinking is left on, a coin flip on the history fold, is a certainty here: the reply came back
+  thinking is left on, which went either way on the history fold, is a certainty here: the reply came back
   empty three times in three at each of 16, 32 and 64 tokens, the answer being a few tokens and the
   deliberation before it hundreds.
 - 2026-08-06: The corpus half of the trigger was answered the same evening, 41 notes and 26

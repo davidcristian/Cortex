@@ -134,8 +134,9 @@ export class DemoBridge implements BrainBridge {
       });
       if (expires) {
         this.expiry = setTimeout(() => {
-          // The brain answered for the user: drop the continuation first, so a click landing
-          // after the card closes resumes nothing (the stale-answer case, fail-closed).
+          // The demo brain answers for the user here, so the continuation is dropped first and a
+          // click landing after the card closes resumes nothing (the stale-answer case,
+          // fail-closed).
           this.pending = null;
           sink.onEvent({ kind: "confirmResolved", confirmId: "demo-confirm", outcome: "timeout" });
           resume(script.CONFIRM_TIMED_OUT);
@@ -155,7 +156,7 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  /** Forget the open question and its deadline, so neither path can resume the turn twice. */
+  /** Clear the open question and its deadline, so neither path can resume the turn twice. */
   private clearPending(): void {
     this.pending = null;
     if (this.expiry !== null) {
@@ -195,8 +196,8 @@ export class DemoBridge implements BrainBridge {
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) || b.lastActivityUnixMs - a.lastActivityUnixMs,
     );
-    // `0` means the brain's own default (`types.ts`), never "at most none": read as a bound it
-    // answers an empty switcher to any caller that asks for the default listing.
+    // `0` means the brain's own default (`types.ts`) rather than a limit of none. Read as a limit,
+    // it would answer an empty switcher to every caller that asks for the default listing.
     return Promise.resolve(limit === 0 ? ordered : ordered.slice(0, limit));
   }
 

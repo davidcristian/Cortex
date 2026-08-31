@@ -273,7 +273,9 @@ async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
 
 
 async def test_the_trace_lever_is_measured_when_the_deployment_left_it_on_auto() -> None:
-    """``auto`` believes the engine, over a real exchange (ADR-0005 request-lever addendum)."""
+    """``auto`` takes its answer from the engine, over a real exchange (ADR-0005 request-lever
+    addendum).
+    """
     refusal = '{"error":{"message":"Field \'reasoning_budget_tokens\': out of range"}}'
     async with _canned_llama_server(400, refusal) as endpoint:
         config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
@@ -1067,7 +1069,7 @@ async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
 ) -> None:
     """The opt-in path: the endpoint, the shared seam token, and BOTH deadlines all reach
     GrpcBodyGateway.connect. The deadlines are asserted because a knob the composition root
-    silently drops leaves the suite green and the turn hanging."""
+    drops silently leaves the rest of the suite passing and the turn hanging."""
     seen: dict[str, object] = {}
     closed: list[str] = []
 
@@ -1121,8 +1123,8 @@ async def test_build_cortex_tools_adds_volume_tools_when_body_is_wired() -> None
 
 
 async def test_capture_screen_is_advertised_only_when_vision_is_available() -> None:
-    """It needs a body to take the picture and a model that can see it. Advertising it without
-    both spends the whole privacy cost of a screen read on an image nothing can read."""
+    """The tool needs a body to take the picture and a model that can read it. Advertising it
+    without both spends the whole privacy cost of a screen read on an image nothing can read."""
     without = build_builtin_tools(None, InMemoryBodyGateway())
     assert [tool.spec.name for tool in without] == [GET_VOLUME_TOOL_NAME, SET_VOLUME_TOOL_NAME]
 
@@ -1137,8 +1139,9 @@ async def test_capture_screen_is_advertised_only_when_vision_is_available() -> N
 
 
 async def test_the_capture_bounds_reach_the_body_through_the_built_tool() -> None:
-    """A knob the composition root drops leaves the suite green and the bound unenforced, so
-    the plumbing is asserted at the far end: what the body was actually asked for."""
+    """A knob the composition root drops leaves the rest of the suite passing and the bound
+    unenforced, so the plumbing is asserted at the far end: what the body was actually asked
+    for."""
     body = InMemoryBodyGateway()
     builtins = build_builtin_tools(
         None, body, vision=CaptureBounds(max_edge=1280, max_bytes=4_000_000)

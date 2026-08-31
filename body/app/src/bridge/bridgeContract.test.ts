@@ -6,7 +6,7 @@ import { DemoBridge } from "./demoBridge";
 import { FakeBridge } from "./fakeBridge";
 import type { TurnSink } from "./types";
 
-/** A sink for a turn the fixture only wants the side effect of. */
+/** A sink for a turn the fixture starts only for its side effect. */
 const DROPPED: TurnSink = { onEvent: () => undefined, onError: () => undefined };
 
 const advance = async (milliseconds: number): Promise<void> => {
@@ -15,8 +15,6 @@ const advance = async (milliseconds: number): Promise<void> => {
 
 function fakeCase(): BridgeCase {
   const bridge = new FakeBridge();
-  // The fake serves the tables its test assigns, so the fixture assigns what every
-  // implementation is expected to have something in: one reminder that has fired.
   bridge.reminders = [
     {
       reminderId: "fake-r1",
@@ -52,8 +50,8 @@ function demoCase(): BridgeCase {
   const bridge = new DemoBridge();
   return {
     bridge,
-    // The demo bridge comes by a chat the way the brain does: it is spoken in. The turn is
-    // dropped on the spot, these checks being about the catalog rather than the stream.
+    // The demo bridge only learns about a chat by being spoken in. The turn is cancelled right
+    // away, because these checks are about the chat list rather than the stream.
     addChat: (sessionId, firstMessage) => bridge.converse(sessionId, firstMessage, DROPPED)(),
     advance,
   };
@@ -65,8 +63,6 @@ const IMPLEMENTATIONS: readonly { name: string; create: () => BridgeCase }[] = [
 ];
 
 describe.each(IMPLEMENTATIONS)("BrainBridge contract over $name", ({ create }) => {
-  // Fake timers for both arms: the demo bridge paces its answers, the fake answers at once, and
-  // the shared checks advance the clock through `BridgeCase.advance` either way.
   beforeEach(() => {
     vi.useFakeTimers();
   });

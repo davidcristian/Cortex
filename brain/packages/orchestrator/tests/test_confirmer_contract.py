@@ -1,5 +1,3 @@
-"""Both `Confirmer` implementations against the same checks (`confirmer_contract.py`)."""
-
 import json
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -13,8 +11,6 @@ from cortex_seam import ServerEvent
 
 type Build = Callable[[], ConfirmerUnderTest]
 
-# Long enough that a scheduled answer always wins the race, short enough that the silent check
-# costs a blink. The adapter's own suite uses the same order of magnitude for its timeout case.
 _TIMEOUT_S = 0.01
 
 
@@ -24,7 +20,6 @@ def _recording() -> ConfirmerUnderTest:
         confirmer=confirmer,
         will_approve=lambda: confirmer.answer_with(approved=True),
         will_refuse=lambda: confirmer.answer_with(approved=False),
-        # A fake has nobody to fall silent, so it is scripted with what silence must produce.
         will_say_nothing=lambda: confirmer.answer_with(approved=False),
         shown=lambda: confirmer.requests,
     )

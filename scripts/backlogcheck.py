@@ -97,8 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     for kind, base, group_word in BACKLOGS:
         found, offered = run_one(root, kind, base, group_word, write=args.write)
         problems.extend(found)
-        # Registered even when its rendering is unknown, so the anchor scan knows this
-        # document is an index and leaves it alone rather than reading the stale file.
+        # Registered even when its rendering is unknown, so the anchor scan treats this
+        # document as an index and leaves it alone rather than reading the stale file.
         name = f"{base}/index.md"
         indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
     problems.extend(backloganchors.check(root, indexes))

@@ -7,15 +7,17 @@ use body_core::{Accelerator, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, M
 use global_hotkey::hotkey::{Code, HotKey, Modifiers};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 
-/// The Windows global-hotkey backend. Owns the OS registration for its lifetime;
-/// dropping it unregisters every hotkey it holds.
+/// The Windows global-hotkey backend.
 pub struct WindowsHotkey {
     manager: GlobalHotKeyManager,
 }
 
 impl WindowsHotkey {
-    /// Creates the backend, initializing the OS hotkey manager (which starts
-    /// `global-hotkey`'s message loop).
+    /// Creates the backend and starts the OS hotkey manager's message loop.
+    ///
+    /// # Errors
+    ///
+    /// [`HotkeyError::Registration`] if the OS manager cannot be created.
     pub fn new() -> Result<Self, HotkeyError> {
         let manager =
             GlobalHotKeyManager::new().map_err(|e| HotkeyError::Registration(e.to_string()))?;
@@ -40,8 +42,7 @@ impl Hotkey for WindowsHotkey {
     }
 }
 
-/// Maps a pure [`Accelerator`] to a `global-hotkey` [`HotKey`]. The accelerator's
-/// `code` is a `KeyboardEvent.code` name, which [`Code`] parses directly.
+/// Maps a pure [`Accelerator`] to a `global-hotkey` [`HotKey`].
 fn to_hotkey(accelerator: &Accelerator) -> Result<HotKey, HotkeyError> {
     let mut modifiers = Modifiers::empty();
     for modifier in &accelerator.modifiers {
@@ -52,9 +53,7 @@ fn to_hotkey(accelerator: &Accelerator) -> Result<HotKey, HotkeyError> {
     Ok(HotKey::new(Some(modifiers), code))
 }
 
-/// Maps one canonical [`Modifier`] to its `global-hotkey` flag. `Super` is the OS
-/// key (Windows key); if it ever fails to bind on the host, `Modifiers::META` is
-/// the alternative (validated on Windows, not here).
+/// Maps one canonical [`Modifier`] to its `global-hotkey` flag.
 fn to_modifiers(modifier: Modifier) -> Modifiers {
     match modifier {
         Modifier::Ctrl => Modifiers::CONTROL,
@@ -65,6 +64,9 @@ fn to_modifiers(modifier: Modifier) -> Modifiers {
 }
 
 /// Spawns the listener that forwards each matching press to `on_activate`.
+///
+/// `global-hotkey` publishes every hotkey's events on one process-wide channel, so the
+/// listener filters by this hotkey's `id`. The thread ends when the channel closes.
 fn spawn_listener(id: u32, on_activate: HotkeyCallback) {
     thread::spawn(move || {
         let receiver = GlobalHotKeyEvent::receiver();

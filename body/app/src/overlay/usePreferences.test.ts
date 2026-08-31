@@ -43,7 +43,6 @@ describe("usePreferences", () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => usePreferences(bridge));
     act(() => result.current.setMark("muse"));
-    // Applied in the same tick: the UI never waits on the seam to show a choice.
     expect(result.current.appearance.mark).toBe("muse");
     await waitFor(() =>
       expect(bridge.preferenceWrites).toEqual([{ key: MARK_KEY, value: "muse" }]),
@@ -75,8 +74,6 @@ describe("usePreferences", () => {
   });
 
   it("never lets a late record overwrite a choice the user already made", async () => {
-    // The record arrives a round trip after mount. Picking inside that window and then watching
-    // the pick revert would be the worst kind of bug here: silent, and it undoes a deliberate act.
     const bridge = new FakeBridge();
     bridge.preferences = [
       { key: THEME_KEY, value: "daylight" },
@@ -95,7 +92,6 @@ describe("usePreferences", () => {
     act(() => result.current.setMark("hunch"));
     act(() => result.current.setWindow("reverie"));
     act(() => release?.());
-    // The stored theme still lands (untouched), while the chosen mark and edge survive it.
     await waitFor(() => expect(result.current.appearance.theme).toBe("daylight"));
     expect(result.current.appearance.mark).toBe("hunch");
     expect(result.current.appearance.window).toBe("reverie");

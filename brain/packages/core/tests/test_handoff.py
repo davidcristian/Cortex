@@ -1,5 +1,3 @@
-"""The handoff record and escalation slot: pure value behavior (ADR-0030 decision 2)."""
-
 from datetime import UTC, datetime
 
 import pytest
@@ -79,18 +77,18 @@ def test_snapshot_captures_the_loop_tail_and_derives_rounds_from_it() -> None:
     assert record.state is HandoffState.READY
     assert (record.handoff_id, record.session_id) == ("t1", "s1")
     assert (record.brief, record.nonce) == ("go deep on this", "cafe0123beef4567")
-    assert record.loop_tail == tuple(tail)  # the user message before base_len is NOT carried
-    assert record.rounds_used == 1  # one assistant tool-call message = one dispatched round
+    assert record.loop_tail == tuple(tail)
+    assert record.rounds_used == 1
     assert (record.budget_remaining, record.budget_closed) == (6, False)
     assert record.tainted is True
-    assert record.opaque is False  # this turn read untrusted text, not pixels
+    assert record.opaque is False
     assert record.sources == _ledger().sources
     assert record.untrusted_urls == frozenset({"http://evil.example/a"})
 
 
 def test_snapshot_carries_a_closed_budget_as_closed() -> None:
     budget = DispatchBudget(limit=2)
-    assert budget.charge(3) is False  # closes the pool without spending
+    assert budget.charge(3) is False
     record = _slot([], budget=budget, base_len=0).snapshot(
         turn_id="t1", session_id="s1", requested_at=_AT
     )
@@ -107,8 +105,6 @@ def test_snapshot_without_a_brief_is_a_caller_bug() -> None:
 
 
 def test_snapshot_of_an_unarmed_slot_is_a_caller_bug() -> None:
-    # The wrapper builds the slot empty and the engine arms it at turn start (ADR-0030
-    # decision 5); a snapshot before any turn armed it has no state to serialize.
     slot = EscalationSlot(brief="go deep on this")
     with pytest.raises(ValueError, match="armed"):
         slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
@@ -159,14 +155,12 @@ def test_taint_ledger_reconstruction_is_exact_and_detached() -> None:
 
 
 def test_a_snapshot_refuses_a_loop_tail_carrying_pixels() -> None:
-    """The same rule the session stores enforce (ADR-0029)."""
     slot = _slot(_pixel_working(), budget=DispatchBudget(8), base_len=1)
     with pytest.raises(ValueError, match="never persists images"):
         slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
 
 
 def test_a_snapshot_carries_the_opaque_bit_off_the_live_ledger() -> None:
-    """The bit the pixels leave behind rides the record, and the rebuilt ledger says so."""
     ledger = _ledger()
     ledger.observe(
         ToolResult(

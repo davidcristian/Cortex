@@ -10,8 +10,7 @@ whose own count of the tree was wrong, and wrong in the same direction.
 
 `crosscheck.py` answers one question well: every place the registry names still spells the same
 value. It cannot answer the other one. A value spelled somewhere no needle reaches is invisible to
-it, and the invisibility is silent, which is the property that makes a survey the only way to find
-one. Three surveys have now paid for that by hand:
+it, and nothing reports the omission, which is why a survey is the only way to find one. Three surveys have now paid for that by hand:
 
 - The legibility pair was surveyed as five loose sites in three documents and turned out to be 49
   spellings in 14 files, three of the files being ones the entry never named at all.
@@ -22,8 +21,8 @@ one. Three surveys have now paid for that by hand:
   `Dockerfile`'s `EXPOSE`, a tonic client's dial example and two live suites' fallbacks.
 
 Every one of those was found by a person grepping, and every one of them was reported as a
-correction to the entry that had asked. That is not a run of bad entries; it is what happens when
-the only reading of coverage is somebody's memory of the tree.
+correction to the entry that had asked. Those three entries were not unusually careless: the only
+reading of coverage available was somebody's memory of the tree.
 
 **Why it was left.** It is a second question rather than a wider version of the first, and the two
 have different failure modes. The scan is `--root`-driven, fails closed, and reports faults. A
@@ -39,7 +38,7 @@ occurrence of each registered value that no needle covers, run by hand when an e
 sorted, which would have turned all three surveys above from grepping into reading. The expensive
 end is a gate: an acknowledged-exclusions list per entry, so a new unregistered spelling fails and
 a known one does not, which is a real registry field and a real maintenance cost. Read the false
-positive rate before choosing, since it decides everything: a measurement over the current registry
+positive rate before choosing, since it settles the choice: a measurement over the current registry
 would say how much of the tree a survey would print, and the same reading exists already in the
 population scan the second-spelling entry ran
 ([R-387](387-a-second-spelling-shares-a-held-line.md)), which found six of its eleven hits were

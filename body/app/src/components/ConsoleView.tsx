@@ -10,7 +10,9 @@ import { AppearanceTab } from "./AppearanceTab";
 import { BackIcon } from "./icons";
 import { ShortcutsTab } from "./ShortcutsTab";
 
-/** How far apart two tabs may stand, in px, and still be held at one shared height. */
+/** How far apart two tabs may stand, in px, and still be shown at one shared height. Both tabs
+ *  are mounted in one grid cell, so the taller one decides the panel's height and switching tabs
+ *  resizes nothing. Past this many pixels the tab on screen gets its own height instead. */
 export const TAB_SPREAD_PX = 15;
 
 /** Set on the stack for the length of one synchronous measurement, never across a paint. */
@@ -39,11 +41,8 @@ interface ConsoleViewProps {
   readonly onClose: () => void;
 }
 
-/**
- * The console: everything about the overlay that is not the conversation, behind one back
- * chevron. Appearance (ADR-0032) and the shortcut list used to be two views of the panel, which
- * made Esc a two-step exit and gave the user two ways in to one small pile of settings.
- */
+/** The console: everything about the overlay that is not the conversation, behind one back
+ *  chevron. */
 export function ConsoleView({
   tab,
   themeName,
@@ -56,52 +55,55 @@ export function ConsoleView({
   onSelectTab,
   onClose,
 }: ConsoleViewProps) {
-  // The stack is mounted with the view, so the ref is set before any effect runs.
   const stack = useRef<HTMLDivElement>(null!);
-  // One prefix per mounted console, rather than a name this file invents. The ids below are the
-  // only thing the overlay puts in the document's global namespace, and a hand-written one is a
-  // collision waiting for the second thing that wants it; `useId` is React's answer to exactly that.
+  // The pane ids below are the only names the overlay puts in the document's global namespace, so
+  // they come from `useId` rather than from a literal that could collide.
   const ids = useId();
   const paneId = (name: ConsoleTab) => `${ids}${name}`;
-  // The tab that is up, whichever one that is: the ref rides the selection from button to button,
-  // and React has attached it to the new one before the effect below runs (a child's refs are
-  // attached before an ancestor's layout effects).
+  // The selected tab's button. React reattaches this ref to the newly selected button before the
+  // effect below runs, because a child's refs are attached before an ancestor's layout effects.
   const selected = useRef<HTMLButtonElement>(null!);
 
+  // Focus follows the selection on the way in and at every switch after it. The switch that needs
+  // it is `?`, a global key that can change the tab while the keyboard is down in the pane being
+  // left. Without `preventScroll` the engine scrolls the clipped panel to reach the new button.
   useLayoutEffect(() => {
-    // Without scrolling anything, for the reason the composer's focus gives at length: the panel
-    // clips its overflow, which makes it a scroll container the user cannot scroll and the engine
-    // can, and bringing a newly focused element into view is exactly when it does.
     selected.current.focus({ preventScroll: true });
   }, [tab]);
 
-  // The strip's keys, one handler on the strip rather than one per tab: which tab has focus is the
-  // tab that is selected (that is what the roving `tabindex` below guarantees), so the key does not
-  // need to ask the event which button it came from.
   const onStripKey = (event: KeyboardEvent<HTMLDivElement>) => {
     const to = nextTab(event.key, CONSOLE_TABS, tab);
     if (to === null) {
       return;
     }
+    // Selection follows focus: both panes are already mounted, so showing one costs nothing.
     event.preventDefault();
     onSelectTab(to);
   };
 
+  // Which shape the stack is in, decided by measuring the tabs. A layout effect and a direct
+  // write, because `usePanelMotion`'s layout effect runs after this one, so the height the panel
+  // eases to is the one decided here.
   useLayoutEffect(() => {
     const element = stack.current;
+    // A pane stretched to the grid cell reports the cell's height, so both panes would report the
+    // taller one's and the difference would always be zero. This attribute unstretches them for
+    // one synchronous read, which paints nothing.
     element.setAttribute(MEASURING_ATTRIBUTE, "");
     const heights = [...element.children].map((pane) => (pane as HTMLElement).offsetHeight);
     element.removeAttribute(MEASURING_ATTRIBUTE);
     const tallest = Math.max(...heights);
     element.classList.toggle(APART_CLASS, tallest - Math.min(...heights) > TAB_SPREAD_PX);
+    // How far the stack falls short of its tallest tab, so the panel places the console by the
+    // height it can grow to. Read after the class above, because the class changes the stack's
+    // height: sharing a height it is zero, which is correct.
     element.setAttribute(TAB_SLACK_ATTRIBUTE, String(tallest - element.offsetHeight));
   });
 
   return (
     <section className="pane" aria-label="Settings">
-      {/* One line of chrome: the way back, and the strip saying which half you are looking at. A
-          title over a strip that already names both tabs was the same fact told twice, and the
-          panel is short enough that a row it does not need is a row you notice. */}
+      {/* One line of chrome: the back button and the strip naming which tab is showing. A title
+          above a strip that already names both tabs would state the same fact twice. */}
       <header className="head">
         <button className="hbtn" onClick={onClose} aria-label="Back to chat" type="button">
           <BackIcon />
@@ -114,10 +116,8 @@ export function ConsoleView({
             type="button"
             role="tab"
             aria-selected={name === tab}
-            // Which pane this face is the handle for. The two already read alike, the pane taking
-            // its name from the same label as the tab, but a reader offering "move to the panel"
-            // needs the pointer rather than the coincidence.
             aria-controls={paneId(name)}
+            // A roving `tabindex`: the whole strip is one stop in the tab order.
             tabIndex={name === tab ? 0 : -1}
             ref={name === tab ? selected : null}
             onClick={() => onSelectTab(name)}
@@ -128,6 +128,9 @@ export function ConsoleView({
         </div>
         <span className="hspacer" aria-hidden="true" />
       </header>
+      {/* Both tabs are mounted and stacked in one grid cell, and `TAB_SPREAD_PX` above decides
+          whether they share a height. The stylesheet's `visibility: hidden` arrives only after the
+          200ms fade, so `withdrawn` takes the hidden pane out of the tab order right away. */}
       <div className="tabstack" ref={stack}>
         {CONSOLE_TABS.map((name) => (
           <div

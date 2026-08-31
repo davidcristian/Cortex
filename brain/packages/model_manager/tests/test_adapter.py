@@ -1,5 +1,3 @@
-"""The real adapter's own half: URL shape, and every failure collapsed into ``ModelHostError``."""
-
 import logging
 from http import HTTPStatus
 
@@ -34,7 +32,6 @@ def _answer(state: str, detail: str = "") -> httpx.MockTransport:
 
 
 async def test_the_three_verbs_hit_the_documented_method_and_path() -> None:
-    """The wire the runbook documents and the sidecar routes, asserted as the requests sent."""
     seen: list[tuple[str, str]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -53,7 +50,6 @@ async def test_the_three_verbs_hit_the_documented_method_and_path() -> None:
 
 
 async def test_a_logical_id_is_escaped_rather_than_pasted_into_the_path() -> None:
-    """An id is a name, not a path fragment: a slash in one must not reroute the request."""
     seen: list[bytes] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -72,14 +68,10 @@ async def test_every_state_the_port_defines_round_trips_off_the_wire(state: Mode
 async def test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The sidecar's exit code is the only diagnosis the brain side ever sees, so it is logged."""
     host = _host(_answer("failed", "the process exited with code 1"))
     assert await host.status("brain") is ModelHostState.FAILED
     record = caplog.records[-1]
     assert record.levelno == logging.ERROR
-    # The whole rendered line, not just the attributes: the fields are the only place the tier and
-    # the exit code ride now, so an assertion on the message alone would pass over a line that
-    # carried the diagnosis nowhere.
     assert PlainFormatter().format(record) == (
         "ERROR:cortex_model_manager.adapter:a hosted model process has failed "
         'detail="the process exited with code 1" model=brain'
@@ -101,8 +93,6 @@ async def test_a_sidecar_that_is_not_there_is_a_typed_model_host_error() -> None
     "code", [HTTPStatus.NOT_FOUND, HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.INTERNAL_SERVER_ERROR]
 )
 async def test_a_refusal_carries_its_code_and_the_sidecars_reason(code: HTTPStatus) -> None:
-    """A 404 and a 503 both abort the swap, but the message has to say which and why."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(code, json={"error": "unknown model 'brain'"})
@@ -115,20 +105,14 @@ async def test_a_refusal_carries_its_code_and_the_sidecars_reason(code: HTTPStat
 @pytest.mark.parametrize(
     ("code", "expected"),
     [
-        # The daemon's own UnknownModelError: the id is not in a roster read once at its boot.
         (HTTPStatus.NOT_FOUND, ModelNotHostedError),
-        # Its SupervisorError: a process that would not start or stop, which the next call may
-        # well answer differently, so nothing here may say the tier does not exist.
         (HTTPStatus.SERVICE_UNAVAILABLE, ModelHostError),
-        # Anything else is a daemon this adapter does not recognize; guessing would be worse.
         (HTTPStatus.INTERNAL_SERVER_ERROR, ModelHostError),
     ],
 )
 async def test_only_a_404_about_a_tier_says_the_host_does_not_serve_it(
     code: HTTPStatus, expected: type[ModelHostError]
 ) -> None:
-    """The one refusal the port distinguishes, and the two it deliberately does not."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(code, json={"error": "something the sidecar said"})
@@ -139,8 +123,6 @@ async def test_only_a_404_about_a_tier_says_the_host_does_not_serve_it(
 
 
 async def test_a_404_that_is_not_about_a_tier_is_a_wrong_endpoint_not_a_missing_model() -> None:
-    """``GET /health`` names no model, so a 404 there says the address is wrong."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(HTTPStatus.NOT_FOUND, text="not found")
@@ -154,8 +136,6 @@ async def test_a_404_that_is_not_about_a_tier_is_a_wrong_endpoint_not_a_missing_
 
 @pytest.mark.parametrize("payload", [b"not json at all", b"[1, 2, 3]"])
 async def test_a_body_that_is_not_an_object_is_a_failure_not_a_default(payload: bytes) -> None:
-    """A sidecar answering the wrong shape must fail the swap, never decode into a state."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(HTTPStatus.OK, content=payload)
@@ -168,8 +148,6 @@ async def test_a_body_that_is_not_an_object_is_a_failure_not_a_default(payload: 
 async def test_a_state_word_this_version_does_not_know_is_a_failure_not_a_guess(
     state: str | None,
 ) -> None:
-    """Guessing would let a newer sidecar's state be read as the wrong one; the swap fails safe."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(HTTPStatus.OK, json={"state": state})
@@ -189,7 +167,6 @@ def _health(body: dict[str, object]) -> httpx.MockTransport:
 
 
 async def test_the_card_is_read_off_the_health_route_and_nowhere_else() -> None:
-    """The fourth verb's wire: one GET, on the route that takes no per-model lock."""
     seen: list[tuple[str, str]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -207,14 +184,9 @@ async def test_the_card_is_read_off_the_health_route_and_nowhere_else() -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        # A daemon that can see no card at all (a CPU-only stack, or one with no device reserved).
         {"status": "ok", "device_free_mib": None, "device_total_mib": None},
-        # A daemon older than this field: the same answer, because a brain that cannot get a
-        # reading must not behave as though the load fitted.
         {"status": "ok"},
-        # Half an answer is no answer: a total with no free figure says nothing about room.
         {"status": "ok", "device_total_mib": 24463},
-        # And a figure that is not a number is not a reading either.
         {"status": "ok", "device_free_mib": "plenty", "device_total_mib": 24463},
     ],
 )
@@ -223,7 +195,6 @@ async def test_a_health_body_without_two_figures_is_no_reading(body: dict[str, o
 
 
 async def test_the_control_bounds_are_read_off_the_same_health_route() -> None:
-    """The fifth verb's wire, asked once at wiring time and never inside a swap step."""
     seen: list[tuple[str, str]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -246,26 +217,20 @@ async def test_the_control_bounds_are_read_off_the_same_health_route() -> None:
 @pytest.mark.parametrize(
     "body",
     [
-        # A daemon older than the probe-timeout field: two thirds of the rule is not the rule, and
-        # a sum missing a term would pass a deadline the whole one fails.
         {"status": "ok", "stop_grace_s": 10.0, "reap_timeout_s": 30.0},
-        # A daemon that is not this daemon at all.
         {"status": "ok"},
-        # A bound that is not a number bounds nothing.
         {
             "status": "ok",
             "probe_timeout_s": "five",
             "stop_grace_s": 10.0,
             "reap_timeout_s": 30.0,
         },
-        # Nor does a negative one, which would shrink the worst case it is meant to state.
         {
             "status": "ok",
             "probe_timeout_s": 5.0,
             "stop_grace_s": -10.0,
             "reap_timeout_s": 30.0,
         },
-        # ``True`` is an int to Python and a second count to nobody.
         {
             "status": "ok",
             "probe_timeout_s": 5.0,
@@ -279,7 +244,6 @@ async def test_a_health_body_without_all_three_bounds_is_no_bounds(body: dict[st
 
 
 async def test_the_answering_daemon_is_named_off_the_same_health_route() -> None:
-    """The sixth verb's wire: one GET, and the value comes back exactly as the daemon spelled it."""
     seen: list[tuple[str, str]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -295,15 +259,9 @@ async def test_the_answering_daemon_is_named_off_the_same_health_route() -> None
 @pytest.mark.parametrize(
     "body",
     [
-        # A daemon older than the field, which is the case that must not read as a restart: the
-        # brain keeps whatever it believed rather than reconciling against an invented value.
         {"status": "ok"},
-        # Explicitly no id, the same answer by a different route.
         {"status": "ok", "boot_id": None},
-        # An empty string names no boot, and would compare equal to the next empty string.
         {"status": "ok", "boot_id": ""},
-        # A number is not an id: two daemons could mint the same one, which is the failure mode
-        # the identifier was chosen against.
         {"status": "ok", "boot_id": 1},
     ],
 )
@@ -312,8 +270,6 @@ async def test_a_health_body_that_names_no_boot_is_no_answer(body: dict[str, obj
 
 
 async def test_a_sidecar_that_cannot_be_asked_which_daemon_it_is_is_a_typed_error() -> None:
-    """The swap decides what an unreachable host means; the adapter only reports that it is."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(HTTPStatus.SERVICE_UNAVAILABLE, text="the supervisor is wedged")
@@ -323,8 +279,6 @@ async def test_a_sidecar_that_cannot_be_asked_which_daemon_it_is_is_a_typed_erro
 
 
 async def test_a_sidecar_that_cannot_answer_about_its_bounds_is_a_typed_error() -> None:
-    """The composition root decides what an unreachable host means; the adapter only reports."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(HTTPStatus.SERVICE_UNAVAILABLE, text="the supervisor is wedged")
@@ -334,9 +288,6 @@ async def test_a_sidecar_that_cannot_answer_about_its_bounds_is_a_typed_error() 
 
 
 async def test_a_sidecar_that_cannot_answer_about_the_card_is_a_typed_error() -> None:
-    """Not a silent ``None``: a control call that broke is the swap's failure to decide, not a
-    reading that came back empty."""
-
     def handle(request: httpx.Request) -> httpx.Response:
         del request
         return httpx.Response(HTTPStatus.SERVICE_UNAVAILABLE, text="the supervisor is wedged")

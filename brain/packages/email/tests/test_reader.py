@@ -1,5 +1,3 @@
-"""Behavior tests for EmailReader: parse raw RFC822 into email values over a fake Mailbox."""
-
 import pytest
 from mailbox_fake import FakeMailbox
 
@@ -13,7 +11,6 @@ _SIMPLE = (
     b"\r\n"
     b"Let's do lunch.\r\n"
 )
-# A message with no text/plain part: _body_text must return "" (and absent To/Date -> "").
 _NO_TEXT_BODY = (
     b"From: Carol <carol@example.com>\r\n"
     b"Subject: Attachment\r\n"
@@ -21,8 +18,6 @@ _NO_TEXT_BODY = (
     b"\r\n"
     b"\x00\x01\x02\r\n"
 )
-# HTML-only message: _body_text falls back to the html part (most real mail is HTML-only)
-# and extracts readable text from it (ADR-0009 refinements addendum).
 _HTML_ONLY = (
     b"From: Dave <dave@example.com>\r\n"
     b"Subject: Newsletter\r\n"
@@ -30,7 +25,6 @@ _HTML_ONLY = (
     b"\r\n"
     b"<p>Hello <b>world</b></p>\r\n"
 )
-# HTML-only message with no extractable prose: the raw HTML is kept so the body stays non-empty.
 _HTML_IMAGE_ONLY = (
     b"From: Eve <eve@example.com>\r\n"
     b"Subject: Postcard\r\n"
@@ -91,8 +85,6 @@ def test_read_keeps_raw_html_when_nothing_extracts() -> None:
 
 
 def test_a_refused_search_reaches_the_caller_as_the_port_s_error() -> None:
-    # The reader maps hits to summaries and owns no failure of its own, so a refusal must
-    # arrive at the tool exactly as the port raised it: same type, same query, nothing added.
     mailbox = FakeMailbox()
     mailbox.refuse()
     with pytest.raises(SearchRefusedError) as raised:

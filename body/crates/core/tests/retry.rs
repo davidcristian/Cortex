@@ -91,9 +91,6 @@ impl BrainTransport for FlakyTransport {
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        // A scripted turn that ends in a transport error. The decorator must forward both
-        // items verbatim and never retry (converse is non-idempotent). The decisions stream is
-        // dropped and the failure counter untouched, proving converse bypasses the retry path.
         drop(decisions);
         let _ = session_id;
         tokio_stream::iter(vec![
@@ -188,9 +185,6 @@ struct FakeSleeper {
 
 impl Sleeper for FakeSleeper {
     fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
-        // Recover the guard from a poisoned lock without unwrap/expect (clippy-denied in
-        // non-test-fn helpers). The bare fn ref keeps the never-taken poison path in stdlib,
-        // so it adds no uncovered region (mirrors `os.rs`'s `FakeAudio`).
         self.recorded
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -214,8 +208,9 @@ impl Sleeper for FakeSleeper {
         let expires = self.expires;
         async move {
             if expires {
-                // The deadline won: the call is dropped without ever being polled, so the
-                // fake's own call counter proves the attempt was abandoned, not merely lost.
+                // The deadline expired first, so the call is dropped without ever being polled
+                // and the fake's own call counter shows the attempt was abandoned rather than
+                // merely losing its result.
                 drop(call);
                 return None;
             }
@@ -225,7 +220,7 @@ impl Sleeper for FakeSleeper {
 }
 
 impl FakeSleeper {
-    /// A sleeper whose every deadline expires: the clock always beats the call.
+    /// A sleeper whose every deadline expires before the call it bounds finishes.
     fn expiring() -> Self {
         Self {
             expires: true,
@@ -249,8 +244,8 @@ impl FakeSleeper {
     }
 }
 
-/// A fast, generous policy for the retry-succeeds cases (cap never bites): `max_attempts` tries,
-/// 100 ms base, ×2, capped at 10 s.
+/// A fast policy for the retry-succeeds cases, where the cap never applies: `max_attempts`
+/// tries, 100 ms base, ×2, capped at 10 s.
 fn policy(max_attempts: u32) -> RetryPolicy {
     RetryPolicy {
         max_attempts,
@@ -260,7 +255,7 @@ fn policy(max_attempts: u32) -> RetryPolicy {
     }
 }
 
-/// A plan whose probe budget cannot bind, so a test about the retry *loop* sees the schedule it
+/// A plan whose probe budget cannot bind, so a test about the retry loop sees the schedule it
 /// configured rather than the trimmed probe.
 fn untrimmed(reads: RetryPolicy) -> RetryPlan {
     RetryPlan {
@@ -523,7 +518,7 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     while let Some(item) = stream.next().await {
         events.push(item);
     }
-    // Both items forwarded, including the terminal error. There is no retry, no sleep, no tick.
+    // Both items are forwarded, including the terminal error, with no retry and no sleep.
     assert_eq!(events.len(), 2);
     assert_eq!(events[0], Ok(TurnEvent::Delta(String::from("passed:hi"))));
     assert_eq!(
@@ -532,9 +527,9 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     );
     assert_eq!(flaky.call_count(), 0);
     assert!(sleeper.delays().is_empty());
-    // The gaps the items passed under, in the order the stream spent them: the first event is
-    // measured against the first-event gap and everything after it against the idle one, the
-    // fourth wait being the one that found the stream ended (ADR-0024 idle-gap addendum).
+    // The gaps the items passed under, in the order the stream used them: the first event is
+    // measured against the first-event gap and everything after it against the idle one, and
+    // the last wait is the one that found the stream ended (ADR-0024 idle-gap addendum).
     let gaps = RetryPlan::default().turn_gaps;
     assert_eq!(sleeper.bounds(), vec![gaps.first, gaps.idle, gaps.idle]);
 }
@@ -586,7 +581,6 @@ fn retry_policy_default_is_the_documented_schedule() {
     assert_eq!(default.base_delay, Duration::from_millis(200));
     assert_eq!(default.multiplier, 2);
     assert_eq!(default.max_delay, Duration::from_secs(2));
-    // Copy + Eq + Debug.
     let copy = default;
     assert_eq!(copy, default);
     assert_ne!(
@@ -708,8 +702,8 @@ async fn out_of_range_and_non_finite_draws_are_sanitized_not_panicked() {
     );
 }
 
-/// A patient read schedule (as `retry_plan.rs` uses): 6 attempts, 100 ms base, ×2, no cap in
-/// play, so its backoffs are 100/200/400/800/1600 ms and its worst case is 3.1 s.
+/// A long read schedule, the same one `retry_plan.rs` uses: 6 attempts, 100 ms base, ×2, and no
+/// cap in play, so its backoffs are 100/200/400/800/1600 ms and its worst case is 3.1 s.
 fn patient_reads() -> RetryPolicy {
     policy(6)
 }
@@ -822,9 +816,9 @@ async fn retry_with_fails_fast_on_a_non_transient_error() {
 
 #[tokio::test]
 async fn each_attempt_carries_the_plans_deadline_for_that_method() {
-    // The clock is asked once per attempt, with the duration the plan resolved for that
-    // method: the probe's own for `health`, the general one for a session read. This is the
-    // half a fake could quietly make vacuous, so it is asserted as a value rather than a count.
+    // The clock is asked once per attempt, with the duration the plan resolved for that method:
+    // the probe's own for `health`, the general one for a session read. A fake that ignored the
+    // duration would make this vacuous, so it is asserted as a value rather than as a count.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let plan = RetryPlan {
@@ -902,15 +896,15 @@ async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_in
     let first = plan.turn_gaps.first;
     assert_eq!(events, vec![Err(TransportError::Timeout { after: first })]);
     assert_eq!(sleeper.bounds(), vec![first]);
-    // And it is a gap, not a deadline: no `deadline_for` answer exists to have produced it.
+    // And it is a gap rather than a deadline, since `deadline_for` answers `None` here.
     assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
 }
 
 #[tokio::test]
 async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
-    // The composition itself, driven directly: the three answers it has. The `None` case is
-    // what `Converse` would take if the decorator ever routed a stream through the loop, and
-    // it is also what a caller composing this around a non-seam future can ask for.
+    // The composition driven directly, through the three answers it has. The `None` case is
+    // what `Converse` would take if the decorator ever routed a stream through the loop, and it
+    // is also what a caller composing this around a non-seam future can ask for.
     let granting = FakeSleeper::default();
     assert_eq!(
         within_deadline(
@@ -949,8 +943,8 @@ async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
             after: Duration::from_secs(2),
         }
     );
-    // No deadline: the clock is still asked, at the end of time, which is what unbounded means
-    // to a clock and what keeps this generic function free of an arm no caller could take.
+    // With no deadline the clock is still asked, with `Duration::MAX`, which is how unbounded
+    // is spelled here and what keeps this generic function free of an arm no caller could take.
     let granted = FakeSleeper::default();
     assert_eq!(
         within_deadline(

@@ -65,8 +65,8 @@ async def check_roundtrip_fidelity(store: SessionStore) -> None:
     assert loaded.role is Role.ASSISTANT
     assert loaded.text == original.text
     assert loaded.turn_id == original.turn_id
-    # Aware-datetime equality compares instants; pin the offset separately so a
-    # store that silently normalizes to UTC fails this check.
+    # Equality between aware datetimes compares instants, so the offset is asserted on its own:
+    # a store that quietly converted to UTC would otherwise pass this check.
     assert loaded.at.utcoffset() == timedelta(hours=5, minutes=30)
 
 
@@ -79,13 +79,11 @@ async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> None
     await store.append(older, make_message(Role.ASSISTANT, "cats are great", at=early, turn_id="a"))
     await store.append(newer, make_message(Role.USER, "question about dogs", at=late, turn_id="b"))
     mine = [s for s in await store.list_sessions(limit=50) if s.session_id in {older, newer}]
-    assert [s.session_id for s in mine] == [newer, older]  # most-recently-active first
+    assert [s.session_id for s in mine] == [newer, older]
     by_id = {s.session_id: s for s in mine}
-    # older: title from the first (user) message, preview from the last (assistant) message.
     assert by_id[older].title == "question about cats"
     assert by_id[older].preview == "cats are great"
     assert by_id[older].last_activity == early
-    # newer: one message, so title and preview both come from it.
     assert by_id[newer].title == "question about dogs"
     assert by_id[newer].preview == "question about dogs"
     assert by_id[newer].last_activity == late
@@ -104,7 +102,7 @@ async def check_set_title_overrides_the_first_message(store: SessionStore) -> No
     assert await title_and_preview() == ("a rambly first question about cats", "cats sleep a lot")
     await store.set_title(session_id, "Cat sleep habits")
     assert await title_and_preview() == ("Cat sleep habits", "cats sleep a lot")
-    await store.set_title(session_id, "Feline naps")  # a later title overwrites the earlier one
+    await store.set_title(session_id, "Feline naps")
     assert await title_and_preview() == ("Feline naps", "cats sleep a lot")
 
 
@@ -120,17 +118,13 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
 
     await store.delete(doomed)
 
-    assert list(await store.history(doomed)) == []  # the transcript is gone
-    # The recap is a model's account of the same conversation, so "forget this chat" has to take
-    # it too; leaving it behind would keep a paraphrase of the transcript the user just deleted.
+    assert list(await store.history(doomed)) == []
     assert await store.recap(doomed) is None
     listed = {s.session_id for s in await store.list_sessions(limit=50)}
-    assert doomed not in listed  # dropped from the recency index
-    assert kept in listed  # a sibling chat is untouched
-    await store.delete(doomed)  # deleting an already-gone chat is a no-op, not an error
+    assert doomed not in listed
+    assert kept in listed
+    await store.delete(doomed)
 
-    # Re-create a chat under the same id: its title derives from the first message and it lists
-    # unpinned, so neither the old override nor the old pin survived the delete (both keys removed).
     await store.append(doomed, make_message(Role.USER, "a brand new topic", at=_AT, turn_id="n"))
     (reborn,) = [s for s in await store.list_sessions(limit=50) if s.session_id == doomed]
     assert reborn.title == "a brand new topic"
@@ -138,11 +132,7 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
 
 
 async def check_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> None:
-    """``set_pinned`` toggles ``SessionSummary.pinned``, idempotent by value (pinning addendum).
-
-    A chat lists unpinned by default; pinning marks it, pinning again is a no-op, and unpinning
-    clears it. It filters to its own id, so the read names one row.
-    """
+    """``set_pinned`` toggles ``SessionSummary.pinned``; setting the same value twice is a no-op."""
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "toggle my pin"))
 
@@ -150,17 +140,17 @@ async def check_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> 
         (mine,) = [s for s in await store.list_sessions(limit=50) if s.session_id == session_id]
         return mine.pinned
 
-    assert await is_pinned() is False  # unpinned by default
+    assert await is_pinned() is False
     await store.set_pinned(session_id, pinned=True)
     assert await is_pinned() is True
-    await store.set_pinned(session_id, pinned=True)  # idempotent: re-pinning is a no-op
+    await store.set_pinned(session_id, pinned=True)
     assert await is_pinned() is True
     await store.set_pinned(session_id, pinned=False)
     assert await is_pinned() is False
 
 
 async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) -> None:
-    """A pinned chat OLDER than the recency window still lists, above the recency group."""
+    """A `pinned` chat older than the recency window still lists, above the recency group."""
     old = _session_id()
     newer = [_session_id() for _ in range(3)]
     base = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
@@ -170,40 +160,34 @@ async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) ->
         await store.append(session_id, make_message(Role.USER, "recent", at=at, turn_id="n"))
     await store.set_pinned(old, pinned=True)
 
-    listed = await store.list_sessions(limit=3)  # a window filled by the three newer chats
+    listed = await store.list_sessions(limit=3)
 
     ids = [s.session_id for s in listed]
-    assert old in ids  # the pin rescued it from outside the recency window
-    assert ids.count(old) == 1  # and exactly once
+    assert old in ids
+    assert ids.count(old) == 1
     by_id = {s.session_id: s for s in listed}
     assert by_id[old].pinned is True
-    # It sorts above every unpinned chat present, the pinned-first grouping.
     old_index = ids.index(old)
     first_unpinned = next(i for i, s in enumerate(listed) if not s.pinned)
     assert old_index < first_unpinned
-    # The newer chats list unpinned and newest-active first among themselves.
     mine_newer = [s for s in listed if s.session_id in set(newer)]
     assert [s.session_id for s in mine_newer] == list(reversed(newer))
     assert all(s.pinned is False for s in mine_newer)
 
 
 async def check_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> None:
-    """A chat both pinned AND inside the recency window appears exactly once (pinning addendum).
-
-    The union deduplicates ids before fetching, so a pinned-and-recent chat is one row, not two.
-    Removing the dedup (concatenating the window and the pinned set) reddens the count assertion.
-    """
+    """A chat that is both `pinned` and inside the recency window appears exactly once."""
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "pinned and recent"))
     await store.set_pinned(session_id, pinned=True)
-    listed = await store.list_sessions(limit=50)  # a wide window, so the chat is also in recency
+    listed = await store.list_sessions(limit=50)
     matches = [s for s in listed if s.session_id == session_id]
     assert len(matches) == 1
     assert matches[0].pinned is True
 
 
 async def check_append_refuses_an_image_bearing_message(store: SessionStore) -> None:
-    """No store ever persists pixels (ADR-0029): they are turn-local and die with the turn."""
+    """No store persists images: they are turn-local and go away with the turn."""
     session_id = _session_id()
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     message = Message(
@@ -224,7 +208,7 @@ async def check_recap_is_absent_then_roundtrips_and_overwrites(store: SessionSto
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "the opening question"))
 
-    assert await store.recap(session_id) is None  # never written, so nothing to read
+    assert await store.recap(session_id) is None
 
     first = HistoryRecap(text="They agreed to ship on Friday. Budget is 4,000.", covers=6)
     await store.set_recap(session_id, first)

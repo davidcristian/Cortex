@@ -5,7 +5,7 @@
 
 ## Context
 
-Slice 6 gives the cortex hands. It calls tools, starting with a filesystem, then read-only
+Slice 6 lets the cortex call tools, starting with a filesystem, then read-only
 email, and **every call is audited**. Per the founding arc and AGENTS.md, tools are
 reached through **MCP** servers, behind **one port** so every later tool (including the
 body-backed OS actions of Slices 9-10) dispatches through the same audited path.
