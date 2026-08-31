@@ -9,9 +9,9 @@ round-trip, across the container boundary when run from the brain image:
     cd brain && CORTEX_BODY_ENDPOINT=host.docker.internal:50151 \
     CORTEX_SEAM_TOKEN=... uv run pytest -m integration --no-cov packages/body_client
 
-The `--no-cov` matters. The 100% gate in addopts would otherwise fail the run. It reads the
-current volume, nudges it, restores it, and toggles mute back to where it started, so it leaves
-the host as it found it.
+`--no-cov` is required, because the 100% gate in addopts would otherwise fail the run. The test
+reads the current volume, nudges it, restores it, and puts mute back where it started, so it
+leaves the host as it found it.
 """
 
 import os

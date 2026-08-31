@@ -12,7 +12,7 @@ reminder stack with the switcher open: the panel's own box never moves (one dist
 the trace, largest single-frame step of its top edge 0px) and the switcher steps 127.14 to 227 in
 one frame, revealing two more rows. **The cost is a reveal and not a jump**, nothing outside the
 list moving at all, which is what makes it a deferral. The fix is for the share to follow the
-roll rather than the tree, which wants the rolling section's target height where the cascade can
+roll rather than the tree, which needs the rolling section's target height where the cascade can
 read it, and that is the same publication the ride-along already makes to the panel.
 - **LANDED 2026-08-08, measured before anything was touched, and it needed no JavaScript at all**
   ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). Traced in headless Chromium against
@@ -59,7 +59,7 @@ read it, and that is the same publication the ride-along already makes to the pa
   every number to the eased reading.
 - **The two hazards an eased cap could carry were measured rather than argued.** A cap that lagged
   the panel could feed the panel's own watch on its box, and `--ceiling` is rewritten by every
-  placement. It cannot: a share only binds when a section wants more than the column has, which is
+  placement. It cannot: a share only binds when a section needs more than the column has, which is
   exactly when the panel is at its ceiling, so the history absorbs the change and the panel's box
   does not move. Over a console round trip and a viewport walked 720 to 900 and back with both
   sections open, the panel's top edge travels 0.062px with the ease against 1.625px without it, the

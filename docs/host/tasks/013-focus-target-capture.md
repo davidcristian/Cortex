@@ -34,7 +34,7 @@ resolved.
 **Fail.** The picture is the overlay, or is black, or is the taskbar. Black means the walk landed
 on a window that excludes itself from capture and the two guards that should have skipped it (this
 process's id, and the display affinity) both missed. The overlay means the self-injection loop is
-live through a second door, so treat it exactly like the first check's failure: `CORTEX_HOST_CAPTURE=0`,
+live by a second route, so treat it exactly like the first check's failure: `CORTEX_HOST_CAPTURE=0`,
 stop, record.
 
 ## The other six observations
@@ -43,7 +43,7 @@ stop, record.
 | --- | --- | --- |
 | It picks what the user is looking at | The frontmost ordinary window, whichever app it is | A window behind it, or one the user forgot was open |
 | The taskbar is never the answer | Never resolved, even with everything else minimized | A picture of the taskbar, which means the `WS_EX_TOOLWINDOW` filter did not hold |
-| A bare desktop is refused | The reply says **the host is not in a state to capture the screen**; no picture, no receipt | A picture of the wallpaper, which means the walk resolved the shell window or the wallpaper host and the refusal was silently widened into a screen capture |
+| A bare desktop is refused | The reply says **the host is not in a state to capture the screen**; no picture, no receipt | A picture of the wallpaper, which means the walk resolved the shell window or the wallpaper host and the refusal was widened into a screen capture with nothing reporting it |
 | The crop's edges are the window's | The picture stops at the window, with no strip of whatever is behind it along the edges | A few pixels of desktop on all four sides, which means `DWMWA_EXTENDED_FRAME_BOUNDS` was unavailable and `GetWindowRect`'s invisible resize border was used |
 | A window dragged half off the screen | The half that is on the display, cropped, no error | An error, or a stretched picture, or a panic |
 | A window on a second monitor | The same refusal sentence as a bare desktop, since v1 captures the primary display only | A picture of the primary display's pixels at that window's coordinates, which is the wrong part of the wrong screen |

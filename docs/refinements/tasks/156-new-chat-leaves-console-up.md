@@ -17,7 +17,7 @@ case arm already puts the panel in `mode: "panel"` for exactly that reason. Agai
 console is the one surface that is about the app rather than the conversation, and closing it out
 from under someone who reached for a new chat while reading the shortcut list is the same
 surprise pointing the other way. Nothing else is ambiguous: `dismiss` and Esc both close the
-console on purpose and say so in their comments, so this is about the third door alone.
+console on purpose and say so in their comments, so this is about the new-chat path alone.
 **The user answered on 2026-08-03 and it LANDED the same day
 ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)): Ctrl+N closes the console.** A
 keystroke aimed at the conversation puts you in the conversation, so the chat is cleared, the tab
@@ -26,7 +26,7 @@ the question correctly and undersold the answer by exactly one arm, which is the
 here: `openSession` had the identical hole, and its version is reachable by keyboard, because
 Ctrl+Up and Ctrl+Down are global keys in `Overlay.tsx` and cycle straight into it while the
 switcher row that normally starts a load is `display: none` behind the console. Those two keys and
-Ctrl+N are the whole reachable surface, the pointer doors into both arms (the pencil, a switcher
+Ctrl+N are the whole reachable surface, the pointer routes into both arms (the pencil, a switcher
 row) being under the console. So "one line in one reducer arm" was two lines in two, and the rule
 that shipped is a conversation arriving on the
 panel brings the chat with it, rather than a special case for one keystroke. The two chat swaps
@@ -36,8 +36,8 @@ delete comes from a switcher row, so the user is managing chats rather than aski
 unreachable from the console besides, and `adoptSession` is a cold-start restore that must take
 nothing off the panel and cannot meet an open console anyway, a summon having set `touched`. Both
 halves are pinned in `overlay/overlayState.test.ts`, the arriving pair walked through both tabs
-and both doors, the standing pair asserted as standing, and each arm's clear was proven to redden
-its case by being removed in place. Both were also watched in the browser at the entry's own
+and both entry points, the standing pair asserted as standing, and each arm's clear was proven to fail its
+case by being removed in place. Both were also watched in the browser at the entry's own
 900x900, before and after, and the readings are in the ADR addendum: with the clears removed the
 console is still the live view after each press, and with them in place the chat is.
 

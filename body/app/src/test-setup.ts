@@ -1,18 +1,17 @@
 // Test harness glue (excluded from coverage): jest-dom matchers, DOM cleanup between tests, a
 // matchMedia stub (jsdom omits it) so the theme resolver can read the system scheme, a
-// ResizeObserver stand-in (jsdom omits that too), the laid-out height every box the panel measures
-// is given, and the roll stand-in every per-row exit is asserted through.
+// ResizeObserver stand-in (jsdom omits that too), the laid-out heights tests give the boxes the
+// panel measures, and the animation stand-in the per-row exits are asserted through.
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 /**
- * A `ResizeObserver` that observes what the real one observes and reports when a test says the box
- * moved, jsdom having no layout to notice it for itself.
+ * A `ResizeObserver` for jsdom, which has no layout and so never reports a box changing size.
  *
- * Faithful in the way that matters: the callback fires for the element that was observed and only
- * while it is observed, so a test asserting that the panel re-places on its own growth is asserting
- * the subscription as well as the placement. `resizePanel` is the browser's frame, called by hand.
+ * The callback fires for the element that was observed and only while it is observed, so a test
+ * asserting that the panel re-places on its own growth is asserting the subscription as well as the
+ * placement. `resized` delivers the notification the browser would deliver, called by hand.
  */
 class FakeResizeObserver implements ResizeObserver {
   private readonly watched = new Set<Element>();
@@ -58,13 +57,13 @@ export function resized(target: Element): number {
 globalThis.ResizeObserver = FakeResizeObserver;
 
 /**
- * How tall a box measures, said through the one property production reads.
+ * How tall a box measures, answered through the one property production reads.
  *
  * The panel's own measurement is the used height off the computed style (`panelMemory.heightOf`),
  * which is the reading that keeps its sub-pixels and ignores the summon's scale transform, and a
- * section's roll measures itself with the same function so the two cannot disagree. jsdom
- * has no layout and answers every height with the empty string, so a test that needs a box says how
- * tall it is here. Faking `offsetHeight` instead would fake a number nothing measures.
+ * section's roll measures itself with the same function so the two cannot disagree. jsdom has no
+ * layout and answers every height with the empty string, so a test that needs a box says how tall
+ * it is here. Faking `offsetHeight` instead would fake a number nothing measures.
  *
  * A function rather than a number where the height changes under the test: a box mid-animation, or
  * one whose answer depends on the cap standing on the element.
@@ -95,7 +94,7 @@ export function lays(element: Element, height: number | (() => number)): void {
   laidOut.set(element, typeof height === "number" ? () => height : height);
 }
 
-/** Give EVERY box the same laid-out height, and answer the way to stop. For a test whose subject
+/** Give every box the same laid-out height, and return the way to stop. For a test whose subject
  *  is an element it cannot reach: `Panel`'s empty state publishes `--chat-floor` during the render
  *  that mounts it, so there is no moment in between to hand it a height, and a rolling section is
  *  measured inside the layout effect that mounts it. A function where the answer changes under the
@@ -109,20 +108,21 @@ export function laysEverything(height: number | (() => number)): () => void {
 }
 
 /** How tall a rolling section measures while `stubRoll` is installed. Any value past
- *  `MIN_DELTA_PX` will do: what it buys is a roll that actually runs rather than one `Collapse`
- *  completes on the spot. */
+ *  `MIN_DELTA_PX` will do; under it `Collapse` completes the roll on the spot instead of running
+ *  one. */
 const ROLL_PX = 48;
 
 /**
  * Stand in for the two things jsdom does not have, so a `Collapse` exit can be observed mid-roll.
  *
  * jsdom has neither layout nor the Web Animations API, so without this a row's exit finishes inside
- * the layout effect that starts it and a row is never observably on its way out. The stand-in is
- * faithful in the one way that matters: a cancelled animation never finishes, which is what a row
- * coming back mid-exit depends on. Returns the way to land every roll still in the air.
+ * the layout effect that starts it and a row is never observably on its way out. The stand-in
+ * reproduces the one behaviour those tests depend on: a cancelled animation never finishes, which
+ * is what a row coming back mid-exit relies on. Returns the way to land every roll still in the
+ * air.
  *
  * Shared by the two lists that roll their rows out one at a time (the reminder stack and the chat
- * switcher), so the fake they both assert against is one fake. The height is said through the
+ * switcher), so the fake they both assert against is one fake. The height is given through the
  * computed style, because that is where `Collapse` reads the height it rolls to (`heightOf`); faked
  * on `offsetHeight` it would be a number production no longer looks at. Restoring the height is the
  * file's `afterEach` here rather than the caller's.

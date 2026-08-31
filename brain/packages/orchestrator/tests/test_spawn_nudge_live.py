@@ -1,4 +1,4 @@
-"""Integration: does a live cortex spread independent subtasks across roster models (ADR-0018)?
+"""Integration: whether a live cortex spreads independent subtasks across roster models (ADR-0018).
 
 The spawn spec tells the cortex that subtasks on **distinct** roster models overlap while subtasks
 sharing one model run one after another, wording that understates this deployment's two-way overlap
@@ -127,7 +127,7 @@ def _profile(
     scheduler: SubagentScheduler,
     placer: SubagentPlacer,
 ) -> SubagentProfile:
-    """One roster entry as the composition root builds it: its own backend pair and ask."""
+    """Build one roster entry as the composition root does, with its own backend pair and ask."""
     return SubagentProfile(
         resources=SubagentResources(
             backends={
@@ -149,7 +149,7 @@ def _profile(
 def _spawn_tool(
     config: SubagentsConfig, runtime: BrainRuntimeConfig, client: httpx.AsyncClient
 ) -> SpawnSubagentsTool:
-    """The deployment's own spawn tool: every roster entry, one shared budget and ledger.
+    """Build the deployment's own spawn tool over every roster entry, with one budget and ledger.
 
     Numbers come from the settings classes the composition root reads, so the spec the cortex is
     shown here is the spec the shipped brain would show it. The task store is in-memory because
@@ -174,7 +174,7 @@ def _spawn_tool(
 
 
 def _advertised_models(spec: ToolSpec) -> list[str]:
-    """The `model` enum the spec publishes, dug out of the JSON Schema it carries."""
+    """Return the `model` enum the spec publishes, read out of the JSON Schema it carries."""
     properties = cast("Mapping[str, object]", spec.parameters["properties"])
     instructions = cast("Mapping[str, object]", properties["instructions"])
     items = cast("Mapping[str, object]", instructions["items"])
@@ -232,7 +232,8 @@ async def _one_turn(ask: str) -> _Observed:
 
 
 def _pick_of(item: object, default: str) -> str:
-    """Which roster entry one instructions item asked for; the default when it named none."""
+    """Return the roster entry one instructions item asked for, or the default when it named
+    none."""
     if isinstance(item, Mapping):
         chosen = cast("Mapping[str, object]", item).get("model", "")
         return cast("str", chosen) if chosen else default
@@ -240,7 +241,7 @@ def _pick_of(item: object, default: str) -> str:
 
 
 def _report(label: str, observed: _Observed) -> None:
-    """Print the observation. It is the point of the run and it is never an assertion."""
+    """Print the observation, which is the output of the run rather than an assertion."""
     print(  # noqa: T201
         f"\n[{label}] batches={observed.batches} picks={observed.picks} "
         f"distinct_models={len(set(observed.picks))} reply_chars={len(observed.reply)} "
@@ -249,7 +250,7 @@ def _report(label: str, observed: _Observed) -> None:
 
 
 def _assert_the_choice_is_well_formed(observed: _Observed, config: SubagentsConfig) -> None:
-    """What must hold whatever the cortex decided, delegation or none."""
+    """Assert what holds whatever the cortex decided, delegation or none."""
     assert observed.reply.strip(), "the turn produced no reply at all"
     for size in observed.batches:
         assert 0 < size <= MAX_SPAWN_BATCH, f"a batch of {size} is outside the advertised cap"
@@ -260,9 +261,11 @@ def _assert_the_choice_is_well_formed(observed: _Observed, config: SubagentsConf
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
 async def test_the_spawn_tool_offers_the_knob_and_the_trade_off_it_is_meant_to_take() -> None:
-    """The armed check: a run that never spreads must not be a spec that never offered to.
+    """The advertised spec carries the `model` knob and the trade-off line, so a run that never
+    spreads is not a spec that never offered the choice.
 
-    Deterministic and model-free, so it is the evidence the two observation arms lean on.
+    This arm is deterministic and makes no model call, so it is the evidence the two observation
+    arms rest on.
     """
     config = SubagentsConfig()
     runtime = BrainRuntimeConfig()
@@ -280,7 +283,8 @@ async def test_the_spawn_tool_offers_the_knob_and_the_trade_off_it_is_meant_to_t
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
 async def test_a_prose_only_ask_carrying_independent_subtasks() -> None:
-    """Observation: given no delegation language, does the cortex reach for delegation at all?"""
+    """Observe whether the cortex reaches for delegation at all when the ask carries no
+    delegation language."""
     config = SubagentsConfig()
     observed = await _one_turn(_ASK_PROSE)
     _report("prose-only", observed)
@@ -290,7 +294,8 @@ async def test_a_prose_only_ask_carrying_independent_subtasks() -> None:
 @pytest.mark.integration
 @_needs_a_cortex_and_a_multi_entry_roster
 async def test_an_ask_that_invites_delegation_in_the_users_own_words() -> None:
-    """Observation: given delegation, does the cortex spread the batch or pile it on one entry?"""
+    """Observe whether an invited cortex spreads the batch across entries or puts it all on
+    one."""
     config = SubagentsConfig()
     observed = await _one_turn(_ASK_INVITED)
     _report("invited", observed)

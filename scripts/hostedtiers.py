@@ -3,48 +3,46 @@
 `flagcheck.py` owns the rule and this module owns the second of the two sets it is applied to.
 `subagentservers.py` answers for the servers a composed stack starts, which is every subagent
 server whose argv is written in a compose file. The one that is not is the model host's own hosted
-subagent tier: the supervisor starts it as a child process, and its argv is assembled in Python
-from a `TierArgs` the settings module declares. That placement was outside the rule and correct by
+subagent tier: the supervisor starts it as a child process, and its argv is assembled in Python from
+a `TierArgs` the settings module declares. That placement was outside the rule and correct only by
 hand, one position in a fixed tuple, so a fourth tier added for a second subagent pick would have
-carried whatever its author copied while the rule went on holding the compose servers.
+carried whatever its author copied while the rule went on holding the compose servers. The ADR-0029
+addenda on deriving the set a rule runs over, on covering both placements of one tier, and on
+holding the convention it is read out of argue the arrangement.
 
-**One rule, two readers, and a reader is not the claim.** What a subagent server must be started
-with stays written once, in `flagcheck.REQUIREMENTS`. This module adds members and not a second
-requirement, which is the whole difference between a second reader and a second way to write one
-claim: a fourth flag added to the rule reaches this tier the day it is written, and a flag renamed
-on either side reddens, because the sidecar's own `_JINJA` and `_REASONING_OFF` are now compared
-against the rule rather than each trusted to a reader of its own.
+What a subagent server must be started with stays written once, in `flagcheck.REQUIREMENTS`. This
+module adds members rather than a second requirement, so a flag added to the rule reaches this tier
+the day it is written, and a flag renamed on either side fails: the sidecar's own `_JINJA` and
+`_REASONING_OFF` are compared against the rule rather than each trusted to a reader of its own.
 
-**A tier serves subagents when the setting naming its artifact does**, which is the reading the
-compose side already makes. There the argv spends a `CORTEX_MODEL_FILE_SUBAGENT*` variable; here
-the settings field holding the tier's model path carries one as its `validation_alias`, and
-`MODEL_PREFIX` is the single place that prefix is written. The tier's logical id is deliberately
-not the test: an id is what a deployment renames, and this question must keep its answer under one.
-
-**That reading rests on a naming convention, so the same declaration is read a second way.**
+A tier serves subagents when the setting naming its artifact does, which is the reading the compose
+side already makes. There the argv spends a `CORTEX_MODEL_FILE_SUBAGENT*` variable; here the
+settings field holding the tier's model path carries one as its `validation_alias`, and
+`MODEL_PREFIX` is the single place that prefix is written. The tier's logical id is deliberately not
+the test, since an id is what a deployment renames and this question must keep its answer under one.
+Because that reading rests on a naming convention, the same declaration is read a second way:
 `tier_artifacts` returns every tier's artifact variable with no filter at all, which is what
-`artifactnames.py` joins to the compose side and `flagcheck.py` holds to the family prefix: a
-tier whose artifact is spelled outside it would otherwise leave this set in silence. The two
-readings share one walk of the declaration rather than being two readers of it.
+`artifactnames.py` joins to the compose side and `flagcheck.py` holds to the family prefix, so a
+tier whose artifact is named outside that family is not left out of this set with nothing reported.
+The two readings share one walk of the declaration.
 
-**The flags are read out of the argv builder rather than restated here.** Every tier's command is
-the fixed run of items that builder returns with the tier's own `extra` splatted into it, so this
-reads that return tuple, resolves what it can, and splices the tail in at the splat. Nothing about
-which flags matter is written in this module, which is what keeps the rule single.
+The flags are read out of the argv builder rather than restated here. Every tier's command is the
+fixed run of items that builder returns with the tier's own `extra` splatted into it, so this reads
+that return tuple, resolves what it can, and splices the tail in at the splat. Nothing about which
+flags matter is written in this module, which is what keeps the rule single.
 
-**An item this reader cannot reduce to a string becomes a token no requirement can be met by.**
-A port rendered with `str()` is a value rather than a flag and nothing compares it, but dropping
-it would close the gap between a flag and the item after it, and a check reading the wrong
-neighbour is worse than one reporting an item it cannot see. So an unreadable item is `UNREADABLE`
-and the gate fails closed on it.
+An item this reader cannot reduce to a string becomes `UNREADABLE`, a token no requirement can be
+met by. A port rendered with `str()` is a value rather than a flag and nothing compares it, but
+dropping it would close the gap between a flag and the item after it, and a check that read the
+wrong neighbour would report a flag as present where it is not.
 
-**A subagent tier's own tail is refused rather than approximated.** That tail is the whole of what
-one tier adds to the shared command, so a shape this reader was not taught (a call, a splat, a
-value assembled while the program runs) is reported by name rather than filled with a token whose
-fault message would send a reader hunting for a flag they can see written down. Everything else it
-was not taught leaves by the same door: an absent module, a builder whose return it cannot read, a
-settings class declaring no environment names, a tree declaring no tier at all, and a tier whose
-artifact path names no setting this reader can resolve.
+A subagent tier's own tail raises rather than being approximated. That tail is the whole of what one
+tier adds to the shared command, so a shape this reader was not taught (a call, a splat, a value
+assembled while the program runs) is reported by name rather than filled with a token whose fault
+message would send a reader hunting for a flag they can see written down. Everything else it was not
+taught raises the same way: an absent module, a builder whose return it cannot read, a settings
+class declaring no environment names, a tree declaring no tier at all, and a tier whose artifact
+path names no setting this reader can resolve.
 """
 
 import ast
@@ -62,8 +60,9 @@ ARGV_MODULE = "tiers.py"
 TIER_MODULE = "config.py"
 
 # What is read out of the two. The builder every tier's command comes from and the splat a tier's
-# own tail rides on; the settings class, the dataclass a tier is declared as, the keyword carrying
-# the artifact path that says which setting a tier belongs to, and the keyword carrying its tail.
+# own tail is spliced at; the settings class, the dataclass a tier is declared as, the keyword
+# carrying the artifact path that says which setting a tier belongs to, and the keyword carrying
+# its tail.
 ARGV_FUNCTION = "llama_server_argv"
 TIER_CLASS = "TierArgs"
 TIER_EXTRA = "extra"
@@ -73,9 +72,9 @@ SETTINGS_FIELD = "Field"
 SETTINGS_ALIAS = "validation_alias"
 SELF = "self"
 
-# An argv item this reader cannot reduce to a string. It is spelled so that no flag name and no
-# required value can ever equal it, its whole job being to occupy a position without satisfying
-# anything a rule might require at one.
+# An argv item this reader cannot reduce to a string. It is written so that no flag name and no
+# required value can equal it, its job being to occupy a position without satisfying anything a
+# rule might require at one.
 UNREADABLE = "<computed>"
 
 # A tree declaring no tier at all, or a settings class naming no environment variable, is a
@@ -103,7 +102,7 @@ class Tier(NamedTuple):
 
 
 def parse_module(root: Path, name: str) -> ast.Module:
-    """One of the sidecar's modules, with the syntax reader's refusal carried out this door."""
+    """One of the sidecar's modules, with the syntax reader's error re-raised as this module's."""
     try:
         return parse(root / MODEL_MANAGER / name, (MODEL_MANAGER / name).as_posix())
     except ModuleReadError as err:
@@ -111,11 +110,11 @@ def parse_module(root: Path, name: str) -> ast.Module:
 
 
 def _returned(module: ast.Module) -> ast.Tuple:
-    """The tuple the argv builder returns, refusing a shape this reader cannot splice into.
+    """The tuple the argv builder returns, raising on a shape this reader cannot splice into.
 
-    Exactly one return, because a builder that returns one argv down one branch and another down
-    a second is a builder whose flags depend on something this reader is not evaluating, and
-    reading the first would be a gate green over the branch it did not take.
+    Exactly one return, because a builder that returns one argv down one branch and another down a
+    second has flags that depend on something this reader is not evaluating, and reading the first
+    would pass the gate over the branch it did not take.
     """
     for statement in module.body:
         if not isinstance(statement, ast.FunctionDef) or statement.name != ARGV_FUNCTION:
@@ -190,9 +189,9 @@ def tier_artifacts(call: ast.Call, named: Mapping[str, str]) -> tuple[tuple[str,
     """Every settings field one tier reads its artifact path from, and the variable each names.
 
     Unfiltered, because the question above this one is whether every artifact this tree names is
-    named so that a reader can classify it at all, and an artifact spelled outside the family is
-    exactly the one a subagent filter here would drop. `_serves` applies that filter; the naming
-    rule in `flagcheck.py` reads this.
+    named so that a reader can classify it at all, and an artifact named outside the family is the
+    one a subagent filter here would drop. `_serves` applies that filter; the naming rule in
+    `flagcheck.py` reads this.
     """
     fields = [
         node.attr
@@ -227,7 +226,7 @@ def _tail(
     strings: Mapping[str, str],
     tuples: Mapping[str, tuple[str | None, ...]],
 ) -> tuple[str, ...]:
-    """The flags one subagent tier adds to the shared command, refused when it cannot be read."""
+    """The flags one subagent tier adds to the shared command, raising when it cannot be read."""
     written = [keyword.value for keyword in call.keywords if keyword.arg == TIER_EXTRA]
     tail = items(written[0], strings, tuples) if written else ()
     if tail is None or any(item is None for item in tail):

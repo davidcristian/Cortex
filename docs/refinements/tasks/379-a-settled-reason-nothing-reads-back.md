@@ -18,12 +18,12 @@ record for. Nothing in the tree reads `failure` back: the seam's residency repor
 it, the overlay never sees it, boot recovery does not read it, and no code path branches on it.
 It is written for a human who has to know it is there.
 
-That is defensible and it is also exactly the shape of the gap the spill note closed on the
-neighbouring problem. A handoff that decoded below its floor used to say so only in the brain's
-log, and the spill-note addendum decided that was not a surface, so the verdict now rides the
-residency report for an hour and reaches an operator who is not tailing a container. A failed
-handoff's reason is the same fact one step further along: something about the last handoff, true
-for a bounded while, that an operator would want without being told where to look.
+That is defensible, and it is also the same gap the spill note closed for a related problem. A
+handoff that decoded below its floor used to say so only in the brain's log, and the spill-note
+addendum decided that was not a surface, so the verdict now travels on the residency report for an
+hour and reaches an operator who is not tailing a container. A failed handoff's reason is the same
+kind of fact one step further along: something about the last handoff, true for a bounded while,
+that an operator would want without being told where to look.
 
 **What is not the same, and is the argument against.** The user has already been told, in the
 reply, what is true of their machine, and a failure they were told about does not obviously owe a

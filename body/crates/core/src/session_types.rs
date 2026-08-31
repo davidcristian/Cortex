@@ -1,9 +1,10 @@
 //! Typed core mirrors of the session-catalog and reminder wire values (ADR-0021/0025).
 //!
-//! The pure data the [`crate::transport::BrainTransport`] port carries for the overlay's chat
-//! list / switcher / cycling and its reminder pull path, split out of `transport.rs` so the port
-//! trait and its data types each stay under the line cap. No tonic, no network: the concrete gRPC
-//! adapter in `body/crates/rpc` maps these onto the proto messages.
+//! These are the pure data types the [`crate::transport::BrainTransport`] port carries for the
+//! overlay's chat list, switcher and cycling, and for its reminder pull path. They were split
+//! out of `transport.rs` so the port trait and its data types each stay under the line cap. No
+//! tonic and no network: the gRPC adapter in `body/crates/rpc` maps these onto the proto
+//! messages.
 
 /// One recent chat as the overlay's switcher shows it. This is the typed core mirror
 /// of the proto `SessionSummary` (ADR-0021).
@@ -43,7 +44,7 @@ pub struct SessionMessage {
 /// `text` is user-authored in the ordinary case but may be attacker-influenced when
 /// `tainted` (a reminder scheduled out of untrusted content, ADR-0013), so a surface
 /// renders it as inert text and never as markup, a link, or an instruction. The
-/// provenance bit rides along so that surface can badge it rather than guess.
+/// `tainted` flag travels with the text so a surface can badge it rather than guess.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DueReminder {
     /// The reminder's id, which is what [`crate::transport::BrainTransport::ack_reminder`] acks.

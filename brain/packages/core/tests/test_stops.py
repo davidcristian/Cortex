@@ -5,15 +5,15 @@ manufacture a cap. A false cap turns every delegated answer on a quiet build int
 is strictly worse than the gap this whole arm closes, so the checks below pin both directions of
 each rule rather than only the one the fix is named for.
 
-Distrust-green proofs, each mutation applied to production code alone with the whole ``packages``
-suite re-run, so the counts are measured rather than aimed at:
+Mutations proving these tests can fail, each applied to production code alone with the whole
+``packages`` suite re-run, so the counts are measured rather than estimated:
 
-- dropping the ``StopReason.CAPPED`` guard in ``observe`` so every stop counts reddens **8**: the
+- dropping the ``StopReason.CAPPED`` guard in ``observe`` so every stop counts fails **8**: the
   three cases here that hand it a reason which is not a cap, plus five delegation checks whose
   runs answer through ``EchoInferenceBackend``, which reports a stop of its own;
-- starting ``_capped`` at ``True`` reddens **28**, most of the delegated path, since every run then
+- starting ``_capped`` at ``True`` fails **28**, most of the delegated path, since every run then
   reports a cut reply including the ones whose backend said nothing at all;
-- keeping only the last stop, rather than any, reddens **2**,
+- keeping only the last stop, rather than any, fails **2**,
   ``test_one_capped_round_of_several_is_still_a_cap`` here and the tool-loop case beside it in
   ``test_subagent_bounds.py``.
 """
@@ -47,7 +47,7 @@ def test_a_completion_that_stopped_to_call_a_tool_is_not_a_cap() -> None:
 
 
 def test_a_reason_this_core_cannot_read_is_not_a_cap() -> None:
-    """``UNKNOWN`` is honest about not knowing, and not knowing is not evidence of a cut."""
+    """``UNKNOWN`` states that the reason is unknown, and not knowing is not evidence of a cut."""
     ledger = StopLedger()
     ledger.observe(DecodeStop(StopReason.UNKNOWN))
     assert not ledger.capped

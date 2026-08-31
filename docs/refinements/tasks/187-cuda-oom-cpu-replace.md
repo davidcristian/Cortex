@@ -21,7 +21,7 @@ before the re-run so headroom is never misreported to a concurrent spawn, re-use
 admission and dispatch budget so it buys no second charge, and unions the two attempts' taint.
 The entry's own worry about vacuous coverage held up and is answered: the branch is proven by
 behaviour (a failing GPU backend, an answering CPU one) rather than by a simulated OOM, and each
-of its properties reddens a named test under mutation.
+of its properties fails a named test under mutation.
 
 ## Trail
 
@@ -33,10 +33,10 @@ of its properties reddens a named test under mutation.
   measured a 14.4 GB model pinned to `-ngl 99` on the 8 GB card spilling to shared system memory
   under WSL2 and serving 177 s later, so a branch keyed on an OOM would have been unfireable and the
   trigger became any GPU-placed attempt whose backend did not answer.
-- 2026-07-18: That widening is not a consolation prize but exactly the mitigation the tier-outage
-  entry needed, since a tier the swap back could not restart makes every spawn placed on it fail at
+- 2026-07-18: That widening is exactly the mitigation the tier-outage entry needed rather than a
+  consolation prize, since a tier the swap back could not restart makes every spawn placed on it fail at
   its backend.
 - 2026-07-18: The union of the two attempts' taint was recorded as deliberate on the reason that
   under-reporting taint costs safety rather than precision.
 - 2026-08-04: Fired from a real GPU placement rather than from a failing fake for the first time,
-  when the GPU-arm suite was reddened on purpose by pointing the GPU endpoint at a closed port.
+  when the GPU-arm suite was made to fail on purpose by pointing the GPU endpoint at a closed port.

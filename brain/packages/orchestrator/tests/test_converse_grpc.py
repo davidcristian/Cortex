@@ -1,7 +1,8 @@
 """The Converse contract over a real loopback grpc.aio server (CI-safe, no network).
 
-Includes THE Slice 3 acceptance test: a fresh server over the SAME store keeps the
-conversation counting, because state lives only in the session store, never in the process.
+Includes the acceptance test for state surviving a restart: a fresh server over the SAME store
+keeps the conversation counting, because state lives only in the session store and never in the
+process.
 """
 
 import asyncio
@@ -190,7 +191,8 @@ async def test_second_turn_in_the_same_session_counts_up() -> None:
 
 
 async def test_conversation_survives_a_server_and_deps_restart() -> None:
-    """THE slice acceptance: instance B over the SAME store continues instance A's count."""
+    """Instance B over the SAME store continues instance A's count, which is the acceptance case
+    for state living outside the process."""
     redis_state = FakeServer()  # plays the role of the redis process: it alone survives
 
     def fresh_deps() -> tuple[TurnEngine, RedisSessionStore]:
@@ -342,7 +344,7 @@ def _gated_engine_factory(ran: list[str]) -> EngineFactory:
 
 
 async def test_confirm_round_trips_over_the_real_wire() -> None:
-    """THE ADR-0022 wire proof: ConfirmRequest out and ConfirmResponse back over real gRPC.
+    """The ADR-0022 round trip over real gRPC: ConfirmRequest out and ConfirmResponse back.
 
     The client keeps writing after the first UserTurn (the ADR-0011 deferral taken): it
     reads the mid-turn ConfirmRequest, answers approved on the same open call, and the

@@ -1,10 +1,10 @@
-// The demo bridge's own suite: what it does BEYOND the shared `BrainBridge` list, which is the
-// recorded conversation it plays and the four hooks a prompt can trip (an outage, the gated-send
-// confirm round with its deadline, and the capture indicator's two rungs). The port-level claims
-// it shares with the fake live in `bridgeContract.ts` and are not restated here.
+// The demo bridge's own suite, covering what the shared `BrainBridge` list does not: the recorded
+// conversation it plays and the four hooks a prompt can trip (an outage, the gated-send confirm
+// round with its deadline, and the capture indicator's two states). The port-level claims it
+// shares with the fake live in `bridgeContract.ts` and are not restated here.
 //
-// It runs on fake timers because the demo paces everything it says: that is the point of it in
-// browser dev, and it is what makes the cadence assertable here rather than only by eye.
+// It runs on fake timers because the demo paces everything it sends, which is what it is for in
+// browser dev and what makes the cadence assertable here rather than only by eye.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DemoBridge } from "./demoBridge";
@@ -128,14 +128,14 @@ describe("DemoBridge, the scripted hooks", () => {
     expect(await probe(bridge)).toEqual({ state: "degraded", detail: script.DEGRADED_DETAIL });
   });
 
-  /** The gap between the two rungs, long enough by hand to watch the pupil grow. */
+  /** The gap between the activity and its outcome, long enough by hand to watch the ring change. */
   const TO_THE_OUTCOME_MS = 450;
 
   it("lights the capture ring at the ask and opens its eye when the dispatch settles", async () => {
     const bridge = new DemoBridge();
     const turn = speak(bridge, "look at my screen");
-    // Nothing during the call: the ask rides a timer, as it must to be something the real
-    // bridge's channel could have carried.
+    // Nothing arrives during the call, because the activity is dispatched from a timer, which is
+    // the only shape the real bridge's channel could have delivered.
     expect(turn.events).toEqual([]);
     await vi.advanceTimersByTimeAsync(100);
     expect(turn.events).toEqual([

@@ -1,11 +1,12 @@
 """The swap back's own two guarantees: it is retried, and it finishes (ADR-0030 decision 4).
 
 Split out of ``residency.py`` for the line cap, along a seam of its own: the manager owns when the
-GPU may change hands, the lease every move runs under, and the state a move publishes, while this
-owns what the swap back is *promised* to do once one has begun. ``restore_with_retries`` is the
+resident model may change, the lease every move runs under, and the state a move publishes, while
+this owns what the swap back is promised to do once one has begun. ``restore_with_retries`` is the
 policy (how many attempts, what is published between them, and what is true after the last one
 fails); ``restore_uninterruptibly`` is the guarantee that outranks the caller's own teardown, and
-it deliberately knows nothing about what a restore is, being handed one and made unabandonable.
+it deliberately has no knowledge of what a restore is: it is handed one and makes it
+unabandonable.
 """
 
 import asyncio
@@ -25,7 +26,7 @@ from cortex_core.residency_state import (
 )
 from cortex_core.residency_tiers import StandingTiers
 
-# How many times the swap back brings the cortex back before it gives up loudly: the first
+# How many times the swap back brings the cortex back before it raises: the first
 # attempt plus the one retry ADR-0030 decision 4 step 3 specifies. A third would not be a
 # different experiment; past two, the host itself is gone and only the runbook helps.
 _RESTORE_ATTEMPTS = 2
@@ -41,21 +42,21 @@ async def restore_with_retries(
     publish: ResidencyPublisher,
     tiers: StandingTiers,
 ) -> None:
-    """Bring the cortex back, retrying once; give up loudly rather than silently.
+    """Bring the cortex back, retrying once; raise rather than returning quietly on failure.
 
     Called with the GPU lease held, so nothing can lease a half-restored card and any round the
     scope's own resident still had in flight has been waited out. ``publish`` is the manager's one
-    residency writer, handed in rather than reached for, so every step of the give-up is visible
+    residency writer, handed in rather than reached for, so every step of the failure is visible
     to the seam at the instant it happens instead of after the exception unwinds. ``tiers`` is
     the same shape of argument for the peers: the record of which of them came back, written
     where the attempt is made rather than inferred afterwards from a machine nobody re-reads. It
     carries the placer too, which is the one collaborator the standing charge below needs.
 
-    Each attempt answers the model it failed on rather than a bool, and that id is the whole
-    reason this loop can be honest. The swap back has two subjects, the resident it is taking off
-    the card and the cortex it is putting back, so a verdict that only said "no" left every
-    sentence here naming the cortex whichever of them the host refused, the give-up an operator
-    reads out of the runbook included.
+    Each attempt answers the model it failed on rather than a bool, and that id is what lets each
+    line here name the right tier. The swap back has two subjects, the resident it is taking off
+    the card and the cortex it is putting back, so an answer that only said "no" left every
+    sentence here naming the cortex whichever of them actually failed, including the failure an
+    operator reads out of the runbook.
     """
     cortex = plan.cortex_model
     await publish(None, RESIDENCY_RESTORING)
@@ -67,9 +68,9 @@ async def restore_with_retries(
         failed = await restore_standing(host, plan, model, gate, tiers)
         if failed is None:
             await publish(cortex, RESIDENCY_SERVING)
-            # Only here, where the cortex is genuinely serving again. A restore that gave up
-            # leaves the handoff's charge standing, so spawns keep overflowing to the CPU rather
-            # than being admitted onto a card nobody can describe.
+            # Only here, where the cortex is genuinely serving again. A restore that stopped
+            # retrying leaves the handoff's charge in place, so spawns keep overflowing to the CPU
+            # rather than being admitted onto a card nobody can describe.
             charge_standing(tiers.placer)
             return
         # Two model fields, because they are two facts and either can be the one to act on: the
@@ -90,7 +91,7 @@ async def restore_with_retries(
     # The one sentence an operator carries to the runbook, so the tier goes in the prose as well
     # as in the field beside it: this string is also the exception's text, read on a stream where
     # no formatter runs, and "could not restore the cortex" sent a reader after the wrong model
-    # every time the swap back was the eviction that refused.
+    # every time it was the eviction that failed.
     msg = (
         f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts, the last of which "
         f"failed on {failed!r}; manual recovery is needed (docs/runbooks/model-swap.md)"
@@ -107,8 +108,8 @@ async def restore_uninterruptibly(restore: Awaitable[None]) -> None:
     own task behind a shield, and every cancellation waits for that task before it propagates,
     which keeps the ordering the residency scope promises (restored, then released).
 
-    **Every** cancellation, not the first one, and that is the whole point of the loop: one
-    shielded wait is abandoned by a second delivery, and the seam delivers two whenever a client
+    Every cancellation, not only the first, which is what the loop is for: one shielded wait is
+    abandoned by a second delivery, and the seam delivers two whenever a client
     ``Cancel`` is followed by the stream's own teardown (``ConverseStream`` cancels the turn from
     the pump, then again from ``events()``'s ``finally``). A restore left running behind the
     scope's exit is the harm: the conductor reopens subagent admission the moment the scope
@@ -129,7 +130,7 @@ async def restore_uninterruptibly(restore: Awaitable[None]) -> None:
             pass
     if cancelled is not None:
         # Retrieved so asyncio does not warn about it; a restore failure has already been
-        # logged loudly inside, and the cancellation is what the caller must see.
+        # logged inside, and the cancellation is what the caller must see.
         task.exception()
         raise cancelled
     await task

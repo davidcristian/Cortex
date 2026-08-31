@@ -1,8 +1,8 @@
 """What a Python module's own top level binds, read out of its source rather than by importing it.
 
 `hostedtiers.py`'s syntax side, split off it the way `composestarts.py` was split off
-`subagentservers.py`: this module answers a question about Python and knows nothing about model
-tiers or subagents, and the module above it answers which of those bindings is a tier and knows
+`subagentservers.py`: this module answers a question about Python and says nothing about model
+tiers or subagents, while the module above it answers which of those bindings is a tier and says
 nothing about assignment statements.
 
 **Parsed, not matched**, for the reason `logcalls.py` gives: a tuple of flags is written over as
@@ -14,7 +14,7 @@ on reading the brain without importing it, which is the seam the architecture ke
 argv is made of, and everything else a module binds (a number, a call, a class) is not something
 a command line can carry. A binding this reader cannot reduce is absent from the answer rather
 than reported, because a module is full of them and none is a fault; the caller asking for a name
-that is not there is the one who knows whether its absence matters.
+that is not there is the one that can say whether its absence matters.
 
 **Resolution runs in source order, which is what makes a name resolvable and a cycle impossible.**
 A module-level name can only be spelled below the statement that binds it, so a value naming
@@ -85,8 +85,8 @@ def bound(statement: ast.stmt) -> tuple[str, ast.expr] | None:
 def constants(module: ast.Module) -> tuple[dict[str, str], dict[str, tuple[str | None, ...]]]:
     """Every top-level string and run of strings the module binds, by the name it binds it under.
 
-    The two answers come back separately because they are asked separately: a caller wanting a
-    flag wants the first, and one wanting a tier's tail wants the second.
+    The two answers come back separately because they are asked separately: a caller after a flag
+    reads the first, and one after a tier's tail reads the second.
     """
     strings: dict[str, str] = {}
     tuples: dict[str, tuple[str | None, ...]] = {}

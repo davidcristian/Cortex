@@ -54,15 +54,16 @@ UNREADABLE_CALL_NOTE = (
 def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when one of this turn's completions was cut, appending the note to ``parts``.
 
-    The honesty half of a bounded reply, and the one thing a user-facing cap may not do without:
-    a truncated answer that says nothing about being truncated is read as a short answer, which is
-    the same misreading ``StopLedger`` exists to stop on the delegated path. The delegated path can
-    refuse outright, because a delegated reply is read whole by a model; a user is already watching
-    the text arrive, so what is owed here is a sentence under it rather than a refusal.
+    The user-facing half of a bounded reply: a truncated answer that says nothing about being
+    truncated is read as a short answer, which is the same misreading ``StopLedger`` exists to
+    stop on the delegated path. The delegated path can refuse outright, because a delegated reply
+    is read whole by a model; a user is already watching the text arrive, so this appends a
+    sentence under the reply instead of refusing.
 
     It joins ``parts``, so the note is persisted with the reply exactly as ``BRAIN_FAILED_NOTE``
     is and for the same reason: it explains text the user can still see in their history. A turn
-    whose backend reported no stop at all emits nothing, silence never being read as a cap.
+    whose backend reported no stop at all emits nothing, an absent report never being read as a
+    cap.
     """
     if not stops.capped:
         return
@@ -74,17 +75,17 @@ def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEv
     """Say so when a tool call would not parse, unless a token limit already explains it.
 
     The user-facing half of the pairing ``MalformedToolCallError`` exists for (ADR-0005
-    tool-call-cut addendum): the error says the unparsable fragment is the **model's own** rather
-    than the transport's, and the ledger says whether a completion of this turn stopped at a
+    tool-call-cut addendum): the error says the unparsable fragment came from the model rather
+    than from the transport, and the ledger says whether a completion of this turn stopped at a
     limit. The two facts pick between two different sentences, which is why the ledger is read
     here and not the error alone. Capped, the truthful note is the one every capped reply gets,
-    so this yields nothing and ``cap_note`` speaks a line later; uncapped, no limit explains the
-    fragment and this is the only thing that will be said. Exactly one note either way, and never
-    both, which is what keeps a reader from being handed two explanations for one stump.
+    so this yields nothing and ``cap_note`` appends it a moment later; uncapped, no limit explains
+    the fragment and this note is the only one written. Exactly one note either way, so a reader
+    is never handed two explanations for one cut-off reply.
 
-    Silence is still not a cap, so a backend that reported no reason at all takes this note rather
-    than the other: an unexplained fragment is what it is, and sending a reader after a token
-    budget nothing reported would be the invention the ledger's own invariant refuses.
+    An absent report is still not a cap, so a backend that reported no reason at all takes this
+    note rather than the other: nothing explains the fragment, and pointing a reader at a token
+    budget nothing reported would invent the fact the ledger declines to invent.
     """
     if stops.capped:
         return
@@ -167,21 +168,21 @@ async def record_exchange(
     recorded instead with the untrusted-provenance marker, so recall fences it as data. One
     policy, applied identically by the cortex phase and by the brain phase after a swap.
 
-    An **opaque** turn is never recorded, whatever that setting says (ADR-0029). The licence for
+    An opaque turn is never recorded, whatever that setting says (ADR-0029). The licence for
     recording a tainted turn rested on the raw untrusted payload never being persisted, and that
-    is false for vision: a capture turn's assistant reply *is* a transcription of the screen. A
-    user who switched recording on did not ask for their password manager to be summarized into
+    is false for vision: a capture turn's assistant reply is a transcription of the screen. A user
+    who switched recording on did not ask for their password manager to be summarized into
     Postgres.
 
-    **A write the memory backend refuses is logged and not raised** (ADR-0008 unavailable-memory
-    addendum), and the argument is not the read's. Nothing here can be saved by failing: the reply
-    has already streamed and the assistant message is already in the session store by the time
-    this runs, so the embedding or the insert has already failed and raising would only replace a
-    turn the user has read with an error, losing the memory just the same. What is lost is a
+    A write the memory backend rejects is logged and not raised (ADR-0008 unavailable-memory
+    addendum), for a different reason than the read's. Raising here saves nothing: the reply has
+    already streamed and the assistant message is already in the session store by the time this
+    runs, so the embedding or the insert has already failed, and raising would only replace a turn
+    the user has read with an error while losing the memory just the same. What is lost is a
     derived index entry rather than the exchange, which stays in the conversation the user can
-    scroll to, so the record owed is a loud one on the operator's log rather than a broken turn.
-    It is an ``error`` and the read's is a ``warning`` for the difference between a turn that
-    answered thinly and durable state that no longer matches the conversation beside it.
+    scroll to, so this logs at ``error`` rather than breaking the turn. The read's line is a
+    ``warning`` instead, marking the difference between a turn that answered thinly and durable
+    state that no longer matches the conversation beside it.
     """
     if taint.opaque:
         return

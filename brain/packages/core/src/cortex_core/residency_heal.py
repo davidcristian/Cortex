@@ -2,9 +2,9 @@
 
 Split from ``residency_tiers.py`` along the same seam the rest of this family is split on: that
 module owns the record, ``residency_regain.py`` owns what one pass does (the peers through
-``residency_sweep.py``, then the resident), and this owns *when* a pass happens and who owns the
+``residency_sweep.py``, then the resident), and this owns when a pass happens and who owns the
 task it runs in. Deliberately generic about the pass itself, taking a coroutine factory rather
-than the manager, so the object that knows whether a handoff is in flight keeps that judgement
+than the manager, so the object that holds whether a handoff is in flight keeps that decision
 (``SwappingModelManager.heal_residency``) and nothing here has to import it.
 
 The loop owns its own task, unlike the schedule ticker's, whose start and stop are two more lines
@@ -23,8 +23,8 @@ from collections.abc import Awaitable, Callable
 # the wait is short next to the minutes a tier takes to load, and what it is spent on is one
 # status call per evictable tier to a loopback sidecar: a deployment that evicts nothing still
 # makes a pass that asks nobody anything, and one that evicts a tier pays a couple of calls a
-# minute for a record that is a reading of the machine rather than a memory of refusals. A pass
-# taken while the seam is saying the GPU is **not** serving pays two calls more, and only such a
+# minute for a record that is a reading of the machine rather than a record of past failures. A
+# pass taken while the seam says the GPU is not serving pays two calls more, and only such a
 # pass: the resident half returns before it asks anything while the report says all is well. The
 # deployment overrides it with CORTEX_SWAP_TIER_HEAL_S.
 DEFAULT_TIER_HEAL_INTERVAL_S = 30.0

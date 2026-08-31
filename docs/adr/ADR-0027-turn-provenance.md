@@ -5,8 +5,8 @@
 
 ## Context
 
-Four recorded deferrals converge on the same missing seam, each wanting "where did this
-work come from" to travel with what a turn spawns:
+Four recorded deferrals converge on the same missing seam. Closing any of them means
+letting "where did this work come from" travel with what a turn spawns:
 
 1. **ADR-0013** defers structured provenance beyond the binary taint bit (source URI,
    sender) at the untrusted-content boundary.
@@ -21,8 +21,8 @@ Today the only turn context a dispatched call carries is the lone `tainted` bool
 to `ToolDispatcher.dispatch` as a keyword and overwritten onto `ToolCall.tainted` at
 dispatch time (the ADR-0018 stamp), where `spawn_subagents` and the schedule built-ins
 read it. Landing each deferral the same way would add a parallel keyword and a second
-overwritten field per fact, recreating the divergence one at a time. The channel wants
-to be designed once.
+overwritten field per fact, recreating the divergence one at a time. This ADR designs the
+channel once instead.
 
 ## Decision
 
@@ -42,7 +42,7 @@ to be designed once.
    is the unattributed default: no session, no taint, the same fail-open-on-attribution
    and fail-safe-on-gating posture as today's `tainted=False`.
 
-3. **Three stamp sources, one rule: the caller states what it knows.**
+3. **Three stamp sources, one rule: the caller states the facts it holds.**
    - The **cortex turn**: `ToolLoopContext` grows a required `session_id`, filled by the
      engine from `handle_turn`; the loop builds a fresh stamp per dispatch (the taint
      bit is live and can flip mid-loop as results arrive).
@@ -127,15 +127,15 @@ own framing in one place, noted below.
 - **Nothing the model authored is ever a source.** The loop attributes an untrusted result to
   `spec.name` off the advertisement it dispatched against, never to `call.name` or an argument,
   and a call matching no advertised spec attributes nothing at all. Provenance is destined for a
-  confirmation card, which is precisely the display channel `ToolStep` already refuses to let the
-  model write into (a call argument reading `Trusted bank, approve this` is the attack).
+  confirmation card, which is the display channel `ToolStep` already keeps the model from writing
+  into (a call argument reading `Trusted bank, approve this` is the attack).
 - **Two capture points exist today, both first-party.** The tool loop notes the advertised tool
   an untrusted result came through (`TaintLedger.observe(result, source=...)`), and the engine's
   recall notes a fenced memory's own record id (`ingest_untrusted(text, source=...)`), which is
   the honest locator there: what originally tainted that memory is not stored beyond ADR-0019's
   bit, so anything finer would be invented rather than known. Each dispatch's stamp copies the
   ledger's sources, as live as the taint bit beside them.
-- **The claimed kinds have no producer yet, and that is the honest half.** This ADR guessed that
+- **The claimed kinds have no producer yet.** This ADR guessed that
   "a generic MCP adapter cannot know an email's sender"; reading the code shows the tighter
   statement. `ToolResult` carries no source *and* a FastMCP tool returns content blocks, with no
   result `_meta` to ride: the only structured channel is `structuredContent`, which replaces the
@@ -179,8 +179,8 @@ true, and it is the clean channel the addendum was looking for.
   FastMCP types a `-> CallToolResult` tool as "return without output-schema validation", so it passes
   the value through untouched, `_meta` and all, with no `structuredContent`. Proven by an in-memory
   client/server round trip: result-level `_meta` survived to the client while the readable string
-  stayed in the content blocks, unchanged. The addendum's true constraint was only its own preferred
-  channel (`structuredContent`); `_meta` was there the whole time.
+  stayed in the content blocks, unchanged. The constraint the addendum recorded applied only to its
+  own preferred channel, `structuredContent`; `_meta` was reachable all along.
 - **The transport half.** `read_email` returns a `CallToolResult` whose single text block is the same
   readable message and whose `_meta["cortex/source"]` declares `{"kind": "sender", "value": <From>}`.
   `McpToolRegistry.invoke` reads that key (`_declared_source`) into a new `ToolResult.source`, and the
@@ -193,7 +193,7 @@ true, and it is the clean channel the addendum was looking for.
   marks taint from `result.trust` before noting any source, so a declared source only ever annotates and
   can never downgrade the turn. The core owns which kinds are declarable and the sanitization; only the
   `_meta` transport detail lives in the adapter.
-- **The consumer is thin, honestly.** Nothing reads `SENDER`/`URI` provenance today:
+- **The producer lands ahead of its consumer.** Nothing reads `SENDER`/`URI` provenance today:
   confirm-with-provenance stays declined (a producer alone does not reverse the fail-closed decision),
   and per-provenance eviction wants `MemoryRecord` provenance first. The producer lands anyway to
   complete the provenance design symmetrically for the claimed kinds, the same "build the field ahead of
@@ -211,7 +211,7 @@ audit line gaining the stamp, are both closed by one change, argued in the
 [ADR-0009](ADR-0009-tools-mcp.md) named-work addendum. The consumer they were waiting for is the
 tool audit trail, which now names the work each dispatch was made for.
 
-Three things about this ADR's own framing are worth setting straight here.
+This addendum also corrects three things about this ADR's own framing.
 
 - **The stamp does not go on the line.** `ToolInvocation` takes three strings off the stamp
   (`session_id`, `turn_id`, `task_id`) and leaves its live handles behind, an audit record being a
@@ -219,8 +219,8 @@ Three things about this ADR's own framing are worth setting straight here.
 - **The stamp gained an identity it never carried.** `turn_id` and `task_id` join `session_id` on
   `TurnStamp`, which is the shape this ADR predicted for `sources`: a field lands on the one object
   and no call site changes.
-- **`""` still conflates "no session" with "unattributed", and now says so out loud.** The risk
-  above accepted the conflation while one consumer treated both as absent. The trail is the second
-  consumer and treats them the same way, by leaving an absent id off the line entirely rather than
+- **`""` still conflates "no session" with "unattributed", and the second consumer accepts that.**
+  The risk above accepted the conflation while one consumer treated both as absent. The trail is
+  that second consumer and treats them the same way, leaving an absent id off the line rather than
   printing it empty. A structured origin is still what a reader needing the distinction would
   want, and still nothing needs it.

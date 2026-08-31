@@ -1,62 +1,32 @@
 """What the recall trail's widest field really costs a line, read off lines a container wrote.
 
 `cortex_core.VALUE_CHARS` bounds one rendered field at 2,048 characters, and the argument that the
-bound is generous enough rests on one comparison: it has to clear the widest value the tree
-attaches, which is the recall trail's `dropped` list at the shipped pool of twenty. That figure was
-drawn in process, from `uuid4` ids and cosine scores a script made up, with no store involved. The
-ids a live stack mints and the cosines pgvector returns are both inputs to the rendered width, so
-the figure was a number about a synthesis rather than about the trail.
+bound is generous enough rests on it clearing the widest value the tree attaches, which is the
+recall trail's `dropped` list at the shipped pool of twenty. That figure was drawn in process, from
+`uuid4` ids and cosine scores a script made up, with no store involved. The ids a live stack mints
+and the cosines pgvector returns are both inputs to the rendered width, so the figure described a
+synthesis rather than the trail.
 
-This is the reading half of the live run that answers it (ADR-0038 real-trail addendum), and it is
-in this tree for the reasons `contrast.py` is: it must be pure, it must never ship inside the brain
-image, and it must be covered like everything else. The measuring half is
-`brain/packages/orchestrator/tests/recall_trail_probe.py`, which runs inside the brain container
-and writes real trail lines; `just recall-width` runs both. What arrives here is captured text, and
-what leaves is the distribution of that field's rendered width and of the whole line's.
+This is the reading half of the live run that answers it (ADR-0038 real-trail addendum). The
+measuring half is `brain/packages/orchestrator/tests/recall_trail_probe.py`, which runs inside the
+brain container and writes real trail lines; `just recall-width` runs both. This half sits in
+`scripts/` for the reasons `contrast.py` does: it must be pure, it must never ship inside the brain
+image, and it must be covered like everything else. What arrives here is captured text, and what
+leaves is the distribution of that field's rendered width and of the whole line's.
 
-**The line, because the capture has it whole and one open question is about nothing else.** The
-per-value bound leaves the line itself unbounded, and what says that cannot bite today is an
-arithmetic argument about how many bounded fields fit under the cliff a container's log driver ends
-a message at. Nothing had measured a real line against it, though every line this reads is one, so
-the width is reported beside the field's in the same cohorts. The recall trail is the widest line
-the brain writes, which is what makes this the reading rather than a reading: if anything the
-deployment logs approaches that cliff, it is one of these.
+`docs/modules/repo-gates.md` states the rest, and the ADR-0038 whole-line and bounded-value addenda
+argue it: why the whole line is reported beside the field, why the width is measured from where the
+shipped formatter's output starts rather than from the start of the captured text, why the
+rendering is taken to the next `name=` pair rather than to the next space, why a block publishes a
+range and a seeded interval rather than a maximum, why widths are grouped by the candidates one
+line named, and why a cut rendering is counted apart from the cohorts.
 
-**What the line's width is measured from is the rendering and not the captured text.** A capture
-taken through `docker compose logs` opens every line with a service prefix the process never wrote,
-so a length counted off the file would be a reading of the capture's own decoration. The width here
-starts where the shipped formatter's output starts, which is `logging.BASIC_FORMAT`'s level, logger
-and message. Finding that opening is also what qualifies a line: matching the message where the
-formatter puts it, rather than anywhere in the text, is what tells the message from the logger's
-own name, which ends in the same word.
-
-**A line the driver split is invisible here, and the reading is still right.** Past the cliff a
-message continues in a second piece carrying no newline, so the plainest capture reads it back
-concatenated: the width measured is the width the process wrote, which is the number this reports.
-What is lost is the fact of the split, and the `-t` capture that would show it stamps every piece
-mid line, inflating the very width being measured (ADR-0038 bounded-value addendum). The two
-readings cannot be taken at once, and this is the one that answers the question.
-
-**Why a range and an interval rather than a maximum.** The claim under test is about a maximum, and
-a maximum from one run is the weakest thing a run can publish: it can only grow with n. So a block
-reports its whole shape, and a second block run separately is the check, two samples of a maximum
-agreeing being the standard the synthesised figure already met. The bootstrap interval on the mean
-is the part that does have a sampling distribution, and it is seeded and printed with its seed, so
-the arithmetic is reproducible without the stack. That interval is the field's alone: the line is
-read for its ceiling against a cliff, and an interval on a mean says nothing about a ceiling, where
-the field's mean is the quantity a synthesised figure was once compared against.
-
-**Width is reported against the number of candidates the line carried**, and that is the reading
-rather than a garnish. This field is a sum over its entries, so a line whose rank kept four notes
-and a line whose rank kept none are two different quantities and pooling them describes neither.
-The widest case is the whole pool, which is what a rank that keeps nothing drops, and it is the one
-cohort a claim about the widest value the tree attaches is actually about.
-
-**The one thing this reads that is not arithmetic** is whether a rendering was cut. A cut value
-ends in `render_value`'s own marker, and its presence on a trail line would say the bound bit a
-line that ships, which is exactly the failure the bound was sized to avoid. It is reported as a
-count rather than folded into the cohorts, because a cut rendering measures the bound rather than
-the field, and it no longer parses, so it has no candidate count to be grouped under either.
+A line the container's log driver split is invisible here. Past the cliff where the driver ends a
+message, that message continues in a second piece carrying no newline, so the plainest capture
+reads it back concatenated and the width measured is the width the process wrote. What is lost is
+the fact of the split, and the `-t` capture that would show it stamps every piece mid line,
+inflating the width being measured. The two readings cannot be taken at once, and this is the one
+that answers the question.
 """
 
 import argparse
@@ -73,7 +43,7 @@ from contrast import DEFAULT_RESAMPLES, DEFAULT_SEED, bootstrap
 # a capture. Matched where the formatter puts a message rather than anywhere in the line, by the
 # pattern below, since the logger this sink writes through ends in the same word.
 TRAIL_MESSAGE = "memory.recall"
-# The field whose width is the subject. Spelled once and spent in the pattern below.
+# The field whose width is the subject. Written once and spent in the pattern below.
 TRAIL_FIELD = "dropped"
 # One field's rendering, bounded by the next `name=` pair or by the end of the line. The trail's
 # own JSON is compact and carries no space at all, so this could have stopped at the next space,
@@ -102,9 +72,8 @@ class Reading(NamedTuple):
     included, measured from where the formatter's output starts rather than from the start of the
     captured text.
 
-    ``entries`` is ``None`` for a rendering the bound cut, which is not a shortfall in the parser:
-    a cut rendering has lost its closing bracket by construction, so the number of candidates it
-    was about is genuinely no longer on the line.
+    ``entries`` is ``None`` for a rendering the bound cut: such a rendering has lost its closing
+    bracket by construction, so the number of candidates it was about is no longer on the line.
     """
 
     width: int
@@ -147,9 +116,9 @@ class Shape(NamedTuple):
 def read_line(line: str) -> Reading | None:
     """One line's reading, or ``None`` when the line is not a trail line carrying the field.
 
-    A line qualifies by opening a record with the trail's own message and by carrying that field;
-    a line carrying the message and no such field is a trail line this build attaches no such
-    field on, and has no width to report.
+    A line qualifies by opening a record with the trail's own message and by carrying that field.
+    A line carrying the message but no such field is a trail line this build attached no such field
+    to, and it has no width to report.
     """
     opened = _RECORD.search(line)
     if opened is None:
@@ -180,7 +149,7 @@ def readings(text: str) -> tuple[Reading, ...]:
 
 
 def load(path: Path) -> Block:
-    """Read one capture into a block, refusing a file that holds no trail line at all."""
+    """Read one capture into a block, raising on a file that holds no trail line at all."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as err:
@@ -201,9 +170,9 @@ def shape(widths: list[int]) -> Shape:
 def by_entries(blocks: list[Block]) -> dict[int, list[Reading]]:
     """Every whole rendering across the blocks, grouped by how many candidates it named.
 
-    The readings and not their widths, because a cohort is now read twice: the field a claim about
-    the widest value is about, and the line that field sits on, which is one number in the same
-    grouping rather than a second grouping beside it.
+    Readings rather than their widths, because each cohort is read twice: the field a claim about
+    the widest value is about, and the line that field sits on, reported in the same grouping
+    rather than in a second one beside it.
     """
     grouped: dict[int, list[Reading]] = {}
     for block in blocks:

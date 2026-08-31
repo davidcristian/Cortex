@@ -40,14 +40,14 @@ def build_history_window(
     budget to drop anything: with windowing disabled there is no dropped prefix to recap, so
     the flag is ignored rather than building a wrapper that can never fire.
 
-    **The floor is clamped to the budget here**, which is the one place both numbers are in
-    hand. A fold's cost is flat (one model pass) so an absolute floor is the right shape for
-    deciding whether the pass is worth it, but what a deferred fold costs is text sitting in
-    neither the window nor the account, and that is only bearable while it is small next to
-    the window. A floor above the budget would let more conversation go unaccounted for than
-    the model can see at all, which is exactly when its absence is felt, so it is capped rather
-    than trusted; a deployment that shrinks the budget therefore tightens the floor with it
-    instead of silently turning the recap off.
+    The floor is clamped to the budget here, which is the one place both numbers are in hand. A
+    fold's cost is flat (one model pass) so an absolute floor is the right shape for deciding
+    whether the pass is worth it, but what a deferred fold costs is text sitting in neither the
+    window nor the account, and that is only bearable while it is small next to the window. A
+    floor above the budget would let more conversation go unaccounted for than the model can see
+    at all, which is exactly when its absence is felt, so the floor is capped rather than used as
+    given; a deployment that shrinks the budget therefore tightens the floor with it instead of
+    turning the recap off with nothing reporting it.
     """
     if runtime.history_char_budget < 1:
         return None

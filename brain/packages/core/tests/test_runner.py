@@ -1,32 +1,32 @@
 """Behavior tests for SubagentRunner: a stateless function over the TaskStore (ADR-0010/0018).
 
-Distrust-green proofs for the CPU re-place (ADR-0012's deferred entry as ADR-0030 schedules it),
-each mutation applied to production code alone with the whole ``packages`` suite re-run, so the
-counts are measured rather than aimed at:
+Mutations proving the CPU re-place tests can fail (ADR-0012's deferred entry as ADR-0030
+schedules it), each applied to production code alone with the whole ``packages`` suite re-run, so
+the counts are measured rather than estimated:
 
-- removing the retry entirely reddens 6: the five re-place cases at the end of this file plus
+- removing the retry entirely fails 6: the five re-place cases at the end of this file plus
   ``test_spawn.py::test_a_failed_subagent_is_reported_not_raised``, which reads the recorded detail
   as the cortex does;
-- retrying whatever the placement was reddens exactly 1,
+- retrying whatever the placement was fails exactly 1,
   ``test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_better``;
-- retrying on any failure rather than only an unanswered backend reddens exactly 1,
+- retrying on any failure rather than only an unanswered backend fails exactly 1,
   ``test_a_malformed_constrained_reply_is_not_re_placed``;
-- retrying a second time when the re-run also fails reddens exactly 1,
+- retrying a second time when the re-run also fails fails exactly 1,
   ``test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorded``;
-- holding the GPU reservation across the re-run reddens exactly 1,
+- holding the GPU reservation across the re-run fails exactly 1,
   ``test_the_gpu_reservation_is_released_before_the_cpu_re_run``;
-- handing the re-run a fresh dispatch budget reddens exactly 1,
+- handing the re-run a fresh dispatch budget fails exactly 1,
   ``test_both_attempts_spend_from_the_spawning_turns_one_pool``;
-- taking only the re-run's taint rather than the union reddens exactly 1,
+- taking only the re-run's taint rather than the union fails exactly 1,
   ``test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_result``;
-- recording only the re-run's own reason in the detail reddens 3, two here and the spawn case.
+- recording only the re-run's own reason in the detail fails 3, two here and the spawn case.
 
 And two for the sentence a constrained ask now carries (ADR-0028 instruction addendum), over the
 same suite:
 
-- never appending it reddens exactly 1,
+- never appending it fails exactly 1,
   ``test_a_constrained_ask_carries_the_envelopes_own_sentence_on_the_instruction``;
-- appending it to every ask rather than only a constrained one reddens 8: the two negative cases
+- appending it to every ask rather than only a constrained one fails 8: the two negative cases
   here plus six existing tests across ``test_runner.py``, ``test_spawn.py`` and
   ``test_delegation.py`` that read the prompt a subagent was handed.
 """
@@ -228,8 +228,9 @@ async def test_runs_a_plain_task_and_persists_the_result() -> None:
 
 
 async def test_reasoning_deltas_are_dropped_from_the_subagent_output() -> None:
-    """A reasoning delta (ADR-0020) is ephemeral status, not the answer: the subagent tier runs
-    thinking-off, but the runner drops any reasoning defensively rather than folding it in."""
+    """A reasoning delta (ADR-0020) is ephemeral status rather than the answer. The subagent
+    tier runs with thinking off, and the runner drops any reasoning that arrives anyway rather
+    than folding it into the output."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="add", context="", at=_AT))
     backend = ScriptedBackend([[ReasoningChunk("thinking..."), TextChunk("42")]])
@@ -597,7 +598,7 @@ async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too() -> N
     refused before running and why, which is what makes a refusal actionable rather than a hang
     with extra steps. The peer holds the whole budget and the bound is already expired, so
     proving it costs the suite no wall-clock time; `asyncio.timeout` is here because the defect
-    under test is an unbounded wait, and a mutation restoring one must redden rather than hang.
+    under test is an unbounded wait, and a mutation restoring one must fail rather than hang.
     """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="do", context="", at=_AT))
@@ -837,7 +838,7 @@ async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorde
 
 
 async def test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_better() -> None:
-    """A re-place only means something from the GPU: the GPU backend is never asked here."""
+    """A re-place is only worth making from the GPU, so the GPU backend is never asked here."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="c", instruction="hi", context="", at=_AT))
     gpu, cpu = TextBackend(["on-gpu"]), CountingFailure("the cpu server is down")
@@ -849,7 +850,8 @@ async def test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_bette
 
 
 async def test_a_malformed_constrained_reply_is_not_re_placed() -> None:
-    """Re-loading the model elsewhere would be told the same thing (ADR-0028's envelope).
+    """A malformed constrained reply is not re-placed, because re-loading the model elsewhere
+    would produce the same answer (ADR-0028's envelope).
 
     The failure is the model answering outside its grammar, which is a property of the model and
     the prompt, not of where it ran, so the one backend is asked exactly once.
@@ -864,7 +866,8 @@ async def test_a_malformed_constrained_reply_is_not_re_placed() -> None:
 
 
 async def test_the_gpu_reservation_is_released_before_the_cpu_re_run() -> None:
-    """Holding it across the re-run would misreport headroom to a concurrent spawn.
+    """The GPU reservation is released before the re-run, because holding it would misreport
+    headroom to a concurrent spawn.
 
     The ledger is a live-resource count (ADR-0012 decision 7), so the probe taken from inside the
     CPU attempt lands on the GPU only if the failed attempt's 2 GB is genuinely back.
@@ -879,7 +882,8 @@ async def test_the_gpu_reservation_is_released_before_the_cpu_re_run() -> None:
 
 
 async def test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_result() -> None:
-    """Under-reporting taint costs safety, so the two attempts' ledgers are unioned (ADR-0013).
+    """The two attempts' taint ledgers are unioned, because under-reporting taint costs safety
+    (ADR-0013).
 
     The GPU attempt read an untrusted tool result and then lost its backend; the CPU re-run
     answers from a fresh ledger of its own and would report no taint on its own.

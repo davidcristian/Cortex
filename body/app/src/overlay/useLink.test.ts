@@ -13,7 +13,7 @@ async function flush(): Promise<void> {
 }
 
 /**
- * Render the hook over a mode the test can move, feeding its dispatches through the **real**
+ * Render the hook over a mode the test can move, feeding its dispatches through the real
  * reducer and the resulting link back into it. That closes the real loop: the recovery cadence
  * is driven by the state the hook's own answers produce, so a mis-folded answer would show up
  * here as a wrong number of probes rather than passing on a hand-written stub.
@@ -50,7 +50,7 @@ describe("useLink", () => {
   });
 
   it("probes nothing while hidden, then once when the overlay opens", async () => {
-    // Nothing is on screen to be honest about, and the body is resident for days.
+    // Nothing is on screen for the dot to report, and the body is resident for days.
     const bridge = new FakeBridge();
     const { rerender, actions } = harness(bridge);
     await flush();

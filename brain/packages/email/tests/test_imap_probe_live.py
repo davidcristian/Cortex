@@ -76,13 +76,13 @@ FOLLOWED_SUBSCRIPTION = "Feigned/Followed"
 # the realistic half of that refusal, a model writing `Folders/` from a prefix it saw in a list.
 IMPOSSIBLE_NAMES = ("Parent/", "/Parent", "Parent//Child", "INBOX/../etc")
 # No password is checked (docker/dovecot/probe.conf), so this is a formality the IMAP dialogue
-# requires rather than a secret of anything, and it is one word because both halves of a login
-# that nothing verifies are the same nothing.
+# requires rather than a secret, and the user and the password are the same word because nothing
+# verifies either.
 PROBE_LOGIN = "probe"
 
 
 def _probe_address() -> tuple[str, int]:
-    """Where the probe answers, or a skip when the stack is not up."""
+    """Return the host and port the probe answers on, or skip when the stack is not up."""
     port = os.environ.get("CORTEX_EMAIL_PROBE_PORT", "")
     if not port:
         pytest.skip("run `just up-imap-probe`, then `just email-folder-probe` to reach the probe")
@@ -90,7 +90,7 @@ def _probe_address() -> tuple[str, int]:
 
 
 def probe_mailbox() -> ImapMailbox:
-    """The probe as `ImapMailbox` sees it. The self-signed cert is accepted as the Bridge's is."""
+    """Build an `ImapMailbox` on the probe. The self-signed cert is accepted as the Bridge's is."""
     host, port = _probe_address()
     config = EmailConfig(
         host=host,
@@ -104,7 +104,7 @@ def probe_mailbox() -> ImapMailbox:
 
 
 def probe_dialogue() -> imaplib.IMAP4:
-    """The same server over raw imaplib, for the one question imap-tools cannot be asked.
+    """Open the same server over raw imaplib, for the one question imap-tools cannot be asked.
 
     `folder.list()` sends the plain `LIST "" "*"` and nothing else, so a listing carrying a
     selection option, and the older `LSUB` beside it, have to be composed here. Everything else in
@@ -123,15 +123,14 @@ def probe_dialogue() -> imaplib.IMAP4:
 
 @pytest.mark.integration
 def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> None:
-    """The contrast case, live: the assumption the whole classification rests on.
+    """A real mailbox an ACL has shut is refused without being typed as a missing folder.
 
-    A real server refusing a real mailbox that a real ACL has shut. Three things have to hold
-    at once for the fail-safe rule to mean anything, and only a server that can produce this
-    refusal can show them: the folder is listed, so it demonstrably exists; opening it is
-    refused; and the refusal is not typed as a missing folder, because none of the phrases that
-    prove a folder missing appears in what the server said. The port contract's own check runs
-    over it rather than being restated, with nothing to break the folder first: this server has
-    it broken already.
+    This is the assumption the whole classification rests on, and only a server that can produce
+    this refusal can show it. Three things hold at once: the folder is listed, so it demonstrably
+    exists; opening it is refused; and the refusal is not typed as a missing folder, because none
+    of the phrases that prove a folder missing appears in what the server said. The port
+    contract's own check runs over it rather than being restated, and nothing has to break the
+    folder first, since this server keeps it shut already.
     """
     mailbox = probe_mailbox()
     assert GUARDED_FOLDER in list(mailbox.list_folders())
@@ -157,11 +156,12 @@ def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> 
 
 @pytest.mark.integration
 def test_this_server_says_a_folder_is_missing_in_its_own_words_and_is_still_understood() -> None:
-    """The missing case in a second server's wording, which shares no word with the first.
+    """A folder no mailbox has is typed as missing in this server's own wording too.
 
-    The Bridge says `no such mailbox`; this one names the folder and says it doesn't exist.
-    Both are read, so a model that invents a name is corrected on either server rather than only
-    on the one the phrase was first measured against.
+    That wording shares no word with the Bridge's. The Bridge says `no such mailbox`; this one
+    names the folder and says it doesn't exist. Both phrases are read, so a model that invents a
+    name is corrected on either server rather than only on the one the phrase was first measured
+    against.
     """
     mailbox = probe_mailbox()
     assert INVENTED_FOLDER not in list(mailbox.list_folders())
@@ -184,10 +184,10 @@ def test_this_server_says_a_folder_is_missing_in_its_own_words_and_is_still_unde
 
 @pytest.mark.integration
 def test_the_folder_the_probe_leaves_open_still_opens() -> None:
-    """The control: the login, the EXAMINE and the search path all work against this server.
+    """The login, the EXAMINE and the search path all work against this server.
 
-    Without it a refusal proves nothing, since a server that refused everything would pass
-    every other test in this file.
+    This is the control. Without it a refusal proves nothing, since a server that refused
+    everything would pass every other test in this file.
     """
     mailbox = probe_mailbox()
     assert REAL_FOLDER in list(mailbox.list_folders())
@@ -196,14 +196,15 @@ def test_the_folder_the_probe_leaves_open_still_opens() -> None:
 
 @pytest.mark.integration
 def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> None:
-    """The fix, against the server that made it necessary, and the fact underneath it.
+    """`list_folders` drops the listed Noselect node, and its child is still offered.
 
-    This server's LIST answers with a Noselect parent and then refuses a SELECT of it exactly as
-    it refuses a name no mailbox has, so nothing in the refusal could tell them apart and the
-    filtering has to happen on the call that offers the names. `list_folders` drops it; naming it
-    anyway is still refused, because the name really is not a mailbox; and its child is offered
-    in its own right, so the tree stays reachable and only the unusable name is gone. The
-    Bridge's own Noselect parents open instead, which is why this is measured here.
+    This is the server that made the filtering necessary. Its LIST answers with a Noselect parent
+    and then refuses a SELECT of it exactly as it refuses a name no mailbox has, so nothing in
+    the refusal could tell them apart and the filtering has to happen on the call that offers the
+    names. `list_folders` drops it; naming it anyway is still refused, because the name really is
+    not a mailbox; and its child is offered in its own right, so the tree stays reachable and
+    only the unusable name is gone. The Bridge's own Noselect parents open instead, which is why
+    this is measured here.
 
     The port's own two checks run over the live server rather than being restated, with the
     fixture's knobs doing nothing: this server needs no arranging for any of it.
@@ -223,13 +224,13 @@ def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> N
 
 @pytest.mark.integration
 def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correction() -> None:
-    """A third fact the same `NO` carries, and the second of the two answers it gets.
+    """A name this server rejects as a mailbox name is still corrected towards `list_folders`.
 
     The Bridge answers an empty folder name with the same `no such mailbox` it gives every other
-    wrong name, and this server refuses to read it as a name at all. Nothing in its prose says
-    anything about a mailbox, so the classification turns on RFC 5530's `[CANNOT]` instead, and
-    the port's own check runs over the live refusal rather than restating it. The code stays on
-    the chained cause, where the operator's traceback keeps everything the model is not told.
+    wrong name, and this server rejects it as a name at all. Nothing in its prose says anything
+    about a mailbox, so the classification turns on RFC 5530's `[CANNOT]` instead, and the port's
+    own check runs over the live refusal rather than restating it. The code stays on the chained
+    cause, where the operator's traceback keeps everything the model is not told.
     """
     mailbox = probe_mailbox()
     a_name_no_mailbox_could_have_is_one_no_mailbox_has(
@@ -246,10 +247,10 @@ def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correctio
     assert "[CANNOT] Invalid mailbox name" not in str(raised.value)
     assert "[CANNOT] Invalid mailbox name" in str(raised.value.__cause__)
 
-    # The empty name is the least likely of these to be sent. The others are shapes a model
-    # really would write, and this server answers every one of them with the same code and a
-    # different reason, each of them about the name and none about the mailbox: a name no
-    # mailbox could have is exactly the class `[CANNOT]` marks out.
+    # The empty name is the least likely of these to be sent, while the others are shapes a model
+    # really would write. This server answers every one of them with the same code and a
+    # different reason, each reason about the name and none about the mailbox, so `[CANNOT]`
+    # marks out exactly the class of names no mailbox could have.
     for name in IMPOSSIBLE_NAMES:
         with pytest.raises(FolderUnknownError) as refused:
             mailbox.fetch(name, "1")
@@ -259,17 +260,17 @@ def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correctio
 
 @pytest.mark.integration
 def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends() -> None:
-    """Where RFC 5258's `\\NonExistent` comes from on a real server, and where it does not.
+    """A real server sends RFC 5258's `\\NonExistent`, and only to a LIST that asks for it.
 
-    Half the unselectable filter was read off a standard and from no server. This is the dialogue
-    that settles it, and it is a raw one because imap-tools never asks the question: `folder.list`
-    sends the plain `LIST "" "*"` of RFC 3501, and a server may only send the newer word to a LIST
-    that carries a selection option (RFC 5258). So three things are asserted at once. The word is
-    real and is spelled the way the filter spells it. It arrives instead of `\\Noselect` rather
-    than beside it, and on a different name: the hierarchy node keeps the older word even when the
-    LIST asks for return options, while the newer one belongs to a subscribed name no mailbox has.
-    And the listing the adapter really makes carries neither that name nor that word, which is why
-    reading it is a defence against a server this repo has not met rather than a live code path.
+    Half the unselectable filter was read off a standard and from no server, and this dialogue
+    settles it. The dialogue is raw because imap-tools never asks the question: `folder.list`
+    sends the plain `LIST "" "*"` of RFC 3501, and a server may send the newer word only to a
+    LIST that carries a selection option (RFC 5258). Three things are asserted at once. The word
+    is real and is spelled the way the filter spells it. It arrives instead of `\\Noselect` and on
+    a different name, since the hierarchy node keeps the older word even when the LIST asks for
+    return options, while the newer word belongs to a subscribed name no mailbox has. The listing
+    the adapter really makes carries neither that name nor that word, so reading the newer word is
+    a defence against a server this repo has not met rather than a live code path.
     """
     with probe_dialogue() as conn:
         conn.xatom("LIST", "(SUBSCRIBED)", '""', '"*"')
@@ -286,26 +287,28 @@ def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends()
 
 @pytest.mark.integration
 def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing() -> None:
-    """The other half of the flag rule, which had been measured on one account and nowhere else.
+    """A second server flags a mailbox `\\Noselect` in one listing and opens it anyway.
 
-    `list_folders` drops a flagged name only when the server also refuses it, and that second
-    question exists because a `\\Noselect` name really can open: a ProtonMail Bridge flags the two
-    parents of its own hierarchy and opens both. That was the whole evidence, one account's folder
-    tree, which goes stale the way any account does. This is a second server saying it, on a
-    fixture this repo builds, and it is not a quirk but a requirement: RFC 3501 has an `LSUB` of
-    `%` answer with `\\Noselect` for a name that is unsubscribed and has subscribed children,
-    whatever that name really is, so a standard obliges a compliant server to flag a mailbox it
-    will happily open. `Feigned` is exactly that name here, and it opens through the port.
+    This is the other half of the flag rule, which had been measured on one account and nowhere
+    else. `list_folders` drops a flagged name only when the server also refuses it, and that
+    second question exists because a `\\Noselect` name really can open: a ProtonMail Bridge flags
+    the two parents of its own hierarchy and opens both. That was the whole evidence, one
+    account's folder tree, which goes stale the way any account does. Here a second server says
+    it, on a fixture this repo builds, and the standard requires it rather than allowing it as a
+    quirk: RFC 3501 has an `LSUB` of `%` answer with `\\Noselect` for a name that is unsubscribed
+    and has subscribed children, whatever that name really is, so a compliant server is obliged
+    to flag a mailbox it will open. `Feigned` is exactly that name here, and it opens through the
+    port.
 
-    What this server will NOT do is put the flag in the listing the adapter itself makes, which
-    is asserted here too, because it is the reason the Bridge's own test stays the only live proof
-    of the keep and not a redundant one. In dovecot 2.3.21's plain `LIST` the flag and the refusal
-    are computed from one fact, so `Feigned` is `\\HasChildren` there and nothing else. Two
-    configurations were tried against 2.3.21 to move it and both failed the same way: a second
-    namespace whose prefix collides with a real mailbox lists that name twice, once flagged, and
-    the flagged reading is the one a SELECT resolves to, so the name is refused; and a namespace
-    prefixed `INBOX/` is merged with the real INBOX and listed `\\HasChildren` with no flag at all.
-    The finding is written up in the ADR-0022 flagged-name-that-opens addendum.
+    This server does not put the flag in the listing the adapter itself makes, which is asserted
+    here too, because it is the reason the Bridge's own test stays the only live proof that a
+    flagged name is kept. In dovecot 2.3.21's plain `LIST` the flag and the refusal are computed
+    from one fact, so `Feigned` is `\\HasChildren` there and nothing else. Two configurations were
+    tried against 2.3.21 to move it and both failed the same way: a second namespace whose prefix
+    collides with a real mailbox lists that name twice, once flagged, and the flagged reading is
+    the one a SELECT resolves to, so the name is refused; and a namespace prefixed `INBOX/` is
+    merged with the real INBOX and listed `\\HasChildren` with no flag at all. The finding is
+    written up in the ADR-0022 flagged-name-that-opens addendum.
     """
     with probe_dialogue() as conn:
         subscribed_tree = _named(conn.lsub('""', '"%"'))
@@ -316,15 +319,15 @@ def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing(
     # `\UnMarked` with a mailbox once something has searched it, and the port contract's own
     # check searches every name `list_folders` offers, so `Feigned` is `(\HasChildren)` on the
     # first run against a fresh container and `(\HasChildren \UnMarked)` on every run after.
-    # An exact reading was written here, passed on the container that built it, and reddened on
-    # the rerun, which is the whole argument for this shape.
+    # An exact reading was written here, passed on the container that built it, and failed on the
+    # rerun, which is the whole argument for this shape.
     plain_flags = set(plain[FEIGNED_FOLDER].strip("()").split())
     assert "\\HasChildren" in plain_flags
     assert not plain_flags & {"\\Noselect", "\\NonExistent"}
 
-    # And the same name opens, which is what makes the flag a lie worth asking about rather than
-    # a fact worth believing. Through the port, so the offer and the open are one story: both the
-    # parent and the child that flagged it are names a caller may really be given.
+    # The same name opens, which is why the flag is treated as a question to put to the server
+    # rather than as the answer. This goes through the port, so the offer and the open are read
+    # together: both the parent and the child that flagged it are names a caller may be given.
     mailbox = probe_mailbox()
     offered = list(mailbox.list_folders())
     assert FEIGNED_FOLDER in offered
@@ -333,12 +336,12 @@ def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing(
 
 
 def _named(answer: tuple[str, Sequence[bytes | tuple[bytes, bytes] | None]]) -> dict[str, str]:
-    """The flags a LIST answered with, per name, read off the wire lines imaplib hands back.
+    """Read the flags a LIST answered with, per name, off the wire lines imaplib hands back.
 
-    Raw rather than through `FolderInfo` on purpose: what is being measured here is what the
-    server sent, and imap-tools cannot be asked the question at all. imaplib splits a line whose
-    name arrived as a literal into a pair, which this server never does for the plain names it
-    holds; such a pair is skipped rather than guessed at, so a fixture that grew a quoted name
+    This reads the raw lines rather than going through `FolderInfo`, because what is measured
+    here is what the server sent, and imap-tools cannot be asked at all. imaplib splits a line
+    whose name arrived as a literal into a pair, which this server never does for the plain names
+    it holds; such a pair is skipped rather than guessed at, so a fixture that grew a quoted name
     would go missing from this reading instead of being misread into it.
     """
     lines = (line.decode() for line in answer[1] if isinstance(line, bytes))

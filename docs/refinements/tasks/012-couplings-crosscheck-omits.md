@@ -13,10 +13,10 @@ compares for equality, and three real couplings are orderings: the body's `MAX_E
 must stay inside the brain's `ALLOWED_MIME_TYPES`, and `cortex_body_client`'s
 `MAX_RECEIVE_BYTES` (16 MiB) must stay above both byte ceilings. Each would need a comparator
 and a registry field naming which one applies, which is a design, not a line.
-**Second, copies that are not declarations.** A value spelled inside a string is invisible to a
+**Second, copies that are not declarations.** A value spelled inside a string is not read by a
 scan that reads constant declarations: `docker/docker-compose.yml`'s healthcheck carries
 `x-cortex-seam-token` inline in a one-line Python command (a fourth copy of a key the gate now
-ties in three places, and the one whose drift would be silent), the brain's port `50051` lives
+ties in three places, and the one whose drift nothing would report), the brain's port `50051` lives
 in the shell as `"http://127.0.0.1:50051"` against `SeamServerConfig.port`, and the body's bind
 port `50151` is a bare literal argument in `body_server.rs` against a compose env var. Teaching
 a constant scanner to read a shell string embedded in YAML is a different tool. **Third,
@@ -25,25 +25,25 @@ TypeScript, which the scan had no declaration syntax for at all. That half close
 values by hand: `CAPTURE_SCREEN_TOOL` against the brain's `CAPTURE_SCREEN_TOOL_NAME`, whose
 drift leaves the capture dot unlit, and a bare `"thinking"` literal (in `turnState.ts` and
 twice in `Message.tsx`) against `THINKING_STATE`, whose drift leaves the reasoning trace
-unaccumulated and its chip unstyled. Both fail silently, by a surface simply never appearing.
+unaccumulated and its chip unstyled. Both fail without an error, by a surface never appearing.
 `CAPTURE_SCREEN_TOOL` is now registrable as it stands, at the cost of a registry entry; the
 `"thinking"` literals are not, and deciding that a bare literal must first become a named
 constant is the work that is left. **A fourth kind arrived on 2026-08-03 and is the same
 entry rather than a new one:** a name that crosses from TypeScript into CSS, where the far side
 is a USE and not a declaration at all, so there is nothing for a declaration scanner to compare.
 `overlay/panelBudget.ts` publishes `CEILING_PROPERTY` (`--ceiling`) and overlay.css spends it as
-`var(--ceiling, 100vh)`; rename either side and the fallback quietly becomes the viewport, which
-is the uncapped section the panel's budget exists to stop, with every test still green
+`var(--ceiling, 100vh)`; rename either side and the fallback becomes the viewport, which
+is the uncapped section the panel's budget exists to stop, with every test still passing
 ([ADR-0035](../../adr/ADR-0035-console-and-motion.md), the 2026-08-03 budget addendum). The same
 shape already holds `data-resizing`, written by the placement and read only by the rule that
 hides the history's thumb, and gained two more members later the same day: `overlay/measured.ts`
 publishes `CHAT_FLOOR_PROPERTY` (`--chat-floor`) and `TRACE_ROW_PROPERTY` (`--trace-row`), spent
 by `.log`'s floor and by the settled Thoughts disclosure, where a rename on either side falls back
 to the value declared on `:root` and so degrades to exactly the frozen constants the probe
-replaced, silently and with every test green ([ADR-0035](../../adr/ADR-0035-console-and-motion.md),
-the 2026-08-03 chat-floor addendum). All four are pinned as literals in their own suites, which is
-what a rename has to walk past; what would close it is a scan that reads a stylesheet for uses
-rather than a source for declarations.
+replaced, without an error and with every test passing ([ADR-0035](../../adr/ADR-0035-console-and-motion.md),
+the 2026-08-03 chat-floor addendum). All four are pinned as literals in their own suites,
+and that is the only thing standing in a rename's way today; what would close it is a scan that
+reads a stylesheet for uses rather than a source for declarations.
 **One of them was already divergent, which is why this was recorded rather than folded in, and
 that one is settled and registered as of 2026-08-03 (the same day, later).** `TITLE_MAX` was 48
 in `brain/packages/core/src/cortex_core/sessions.py` and 32 in
@@ -80,14 +80,14 @@ this entry thought was left in the `thinking` case: a bare literal never has to 
 constant, because the check reads the use rather than a declaration. So `thinking`, the
 healthcheck's fourth copy of the seam-token key, the four TypeScript-into-CSS names, the
 `--ease` curve, and `capture_screen` (which needed nothing but registering) are all tied now.
-**One suite invariant was relaxed deliberately** rather than quietly: the test that refused an
+**One suite invariant was relaxed deliberately** and is recorded here rather than left implicit: the test that refused an
 entry confined to one top-level tree now demands more than one suffix, since the overlay and its
 stylesheet are one tree and two languages and are exactly the rename this scan is for. Two new
 invariants replace what that loses, both aimed at this widening rather than at the tree: the
 registry must exercise both relations and both kinds of place, because a comparator no entry
 uses is the same defect in a wider gate. **Landed ahead of the trigger**, which was the first
-coupling that actually drifts; nothing had drifted, and each capability was reddened on the real
-tree instead, once per capability. **What this opens** is the entry below.
+coupling that actually drifts; nothing had drifted, and each capability was made to fail on the
+real tree instead, once per capability. **What this opens** is the entry below.
 
 ## Trail
 

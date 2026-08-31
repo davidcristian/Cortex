@@ -1,11 +1,11 @@
 """Model Manager v1: pure single-resident GPU-lease policy (no I/O, no process spawn).
 
-Owns policy, not a GPU: one model is resident, and callers are serialized so only one
+It owns policy rather than a GPU: one model is resident, and callers are serialized so only one
 turn touches the GPU at a time. The resident ``llama-server`` is brought up out-of-band
-(``docker-compose.gpu.yml``, ADR-0005); this object hands out its endpoint under a lease
-and refuses any other model until swap lands (Slice 11). Because it does no I/O it is a
-pure reference impl of the ``ModelManager`` port, lives in the core, and is fully covered
-without a GPU (ADR-0007 decision 3).
+(``docker-compose.gpu.yml``, ADR-0005); this object hands out its endpoint under a lease and
+raises for any other model, since v1 performs no swap. Because it does no I/O it is a
+pure reference implementation of the ``ModelManager`` port, lives in the core, and is fully
+covered without a GPU (ADR-0007 decision 3).
 """
 
 import asyncio
@@ -45,7 +45,7 @@ class SingleResidentModelManager:
         """Queue for the GPU, then lease the resident model's endpoint.
 
         Raises ``ModelUnavailableError`` for any model other than the resident one, since v1
-        performs no swap (Slice 11). The lock serializes callers; its waiter queue is the
+        performs no swap. The lock serializes callers; its waiter queue is the
         queue API, so a second turn blocks until the first releases the lease.
         """
         if model != self._resident_model:

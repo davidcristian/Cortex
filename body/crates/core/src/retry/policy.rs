@@ -1,11 +1,11 @@
 //! [`RetryPolicy`]: the backoff schedule, and the error half of the retry decision.
 //!
 //! Split out of `retry.rs` when the per-method plan joined it (both files stay well under the
-//! line cap). Two questions are answered here and nowhere else: *is this error worth another
-//! attempt* ([`is_transient`]), and *how long is the wait before it* ([`RetryPolicy::delay`]).
-//! The third question, *may this method be repeated at all*, is deliberately not here: it is a
-//! property of the call, not of the failure, so it lives in [`crate::retry::plan`] and is asked
-//! first. An error code never establishes that a repeat is safe.
+//! line cap). Two questions are answered here and nowhere else: whether this error is worth
+//! another attempt ([`is_transient`]), and how long the wait before it is
+//! ([`RetryPolicy::delay`]). The third question, whether this method may be repeated at all, is
+//! a property of the call rather than of the failure, so it lives in [`crate::retry::plan`] and
+//! is asked first. An error code never establishes that a repeat is safe.
 
 use std::time::Duration;
 
@@ -16,19 +16,17 @@ use crate::transport::TransportError;
 /// answer (any other `Rpc` status), uninterpretable wire data (`Protocol`), or an expired
 /// deadline (`Timeout`) is not. A repeat would return the same thing (ADR-0024 decision 3).
 ///
-/// This is a *necessary* condition for a retry, never a sufficient one. `Unavailable` says the
-/// brain could not serve the call; it does not say the brain did not already run it. Whether a
-/// repeat is safe is [`crate::retry::SeamMethod::repeatable`]'s question, asked first.
+/// This is a necessary condition for a retry rather than a sufficient one. `Unavailable` says
+/// the brain could not serve the call; it does not say the brain did not already run it.
+/// Whether a repeat is safe is [`crate::retry::SeamMethod::repeatable`]'s question, asked first.
 ///
-/// **`Timeout` is terminal by decision, not by omission** (ADR-0024 deadline addendum), and it
-/// is the one classification here that a plausible reading would get backwards. A retried
-/// deadline is the classic load amplifier, and it amplifies precisely when the peer is least
-/// able to take it. The argument that decides it, though, is narrower than that convention: a
-/// timeout is not the brain's report about the call, it is **this side's decision to stop
-/// waiting**. `Unavailable` is an answer that invites a repeat, because the brain is saying it
-/// could not serve this one; an expired deadline says nothing whatever about the brain, and in
-/// particular cannot say a second attempt would be faster. The cure for a call that needs
-/// longer is a longer deadline, which is a knob, not a repeat.
+/// `Timeout` is terminal by decision (ADR-0024 deadline addendum). Retrying a deadline
+/// amplifies load exactly when the peer is least able to take it, and the narrower reason is
+/// that a timeout is this side's decision to stop waiting rather than the brain's report about
+/// the call. `Unavailable` invites a repeat, because the brain is saying it could not serve
+/// this one; an expired deadline says nothing about the brain, and in particular cannot say a
+/// second attempt would be faster. A call that needs longer needs a longer deadline, which is a
+/// configured duration rather than a repeat.
 #[must_use]
 pub fn is_transient(error: &TransportError) -> bool {
     match error {
@@ -66,11 +64,11 @@ impl Default for RetryPolicy {
 }
 
 impl RetryPolicy {
-    /// The schedule that cannot retry: one attempt, no wait, nothing to compute. It is what a
-    /// caller runs when [`crate::retry::RetryPlan::policy_for`] refuses a method, so a refusal
-    /// is *executed* by the same loop as a permission rather than by a second code path no
-    /// test can enter. A refused call therefore makes exactly one attempt and surfaces its
-    /// result, whatever the failure looks like.
+    /// The schedule that cannot retry: one attempt and no wait. It is what a caller runs when
+    /// [`crate::retry::RetryPlan::policy_for`] refuses a method, so a refusal runs through the
+    /// same loop as a permitted call rather than through a second code path no test can enter.
+    /// A refused call therefore makes exactly one attempt and surfaces its result, whatever the
+    /// failure looks like.
     pub const ONCE: Self = Self {
         max_attempts: 1,
         base_delay: Duration::ZERO,
@@ -89,8 +87,8 @@ impl RetryPolicy {
         delay
     }
 
-    /// The backoff to apply after `attempt` failures (0-based), or `None` to give up: retry
-    /// only while an attempt remains *and* the error is [`is_transient`].
+    /// The backoff to apply after `attempt` failures (0-based), or `None` to give up: it retries
+    /// only while an attempt remains and the error is [`is_transient`].
     #[must_use]
     pub fn backoff(&self, attempt: u32, error: &TransportError) -> Option<Duration> {
         if attempt + 1 < self.max_attempts && is_transient(error) {
@@ -104,9 +102,9 @@ impl RetryPolicy {
     /// before giving up, unjittered (equal jitter only ever shortens a wait, never lengthens
     /// one).
     ///
-    /// This is the number a caller who must answer *within* some time cares about, which is
-    /// why it exists: the connection indicator renders a probe's answer, so this is how long
-    /// the dot may go on claiming a state the seam has stopped proving.
+    /// It exists for a caller that has to answer within a bounded time: the connection indicator
+    /// renders a probe's answer, so this is how long the dot may go on claiming a state the seam
+    /// has stopped proving.
     #[must_use]
     pub fn worst_case_backoff(&self) -> Duration {
         (0..self.max_attempts.saturating_sub(1)).fold(Duration::ZERO, |total, index| {
@@ -118,17 +116,17 @@ impl RetryPolicy {
     /// attempt as costing up to `attempt` and every backoff between them, and leaving the
     /// delays themselves untouched.
     ///
-    /// The per-attempt cost is why this takes two durations. Summing only the waits was right
-    /// while an attempt could return at any time, and wrong the moment attempts became bounded:
-    /// an attempt that spends its whole deadline and *then* fails transiently buys a wait on
-    /// top, so a budget that counted the waits alone promised a bound it could not hold
-    /// (ADR-0024 deadline addendum).
+    /// The per-attempt cost is why this takes two durations. Summing only the waits was correct
+    /// while an attempt could return at any time, and became wrong once attempts were bounded:
+    /// an attempt that spends its whole deadline and then fails transiently adds a wait on top,
+    /// so a budget counting the waits alone would exceed the bound it promised (ADR-0024
+    /// deadline addendum).
     ///
-    /// One attempt always survives: a budget buys back patience, never the call itself, so a
-    /// zero budget still makes exactly one try, and the guarantee is therefore
+    /// One attempt always survives, since the budget trims retries and never the call itself, so
+    /// a zero budget still makes exactly one try and the guarantee is
     /// `attempts × attempt + backoff ≤ max(budget, attempt)`. Trimming rather than rescaling
-    /// keeps the early waits at the length that lets a restarting brain come back; what it
-    /// drops is the long tail a caller with a budget could not spend anyway.
+    /// keeps the early waits long enough for a restarting brain to come back, and drops the long
+    /// tail a caller with a budget could not spend anyway.
     #[must_use]
     pub fn within(self, budget: Duration, attempt: Duration) -> Self {
         let mut spent = attempt;

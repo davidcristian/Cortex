@@ -1,8 +1,8 @@
-"""What a ``RecallPolicy`` returns: the hits it kept, the key it ranked them by, and what that
-key means (ADR-0038).
+"""What a ``RecallPolicy`` returns: the kept hits, the ranking key, and what that key means.
 
-v1 ``select`` returned a bare sequence of hits, which said *which* memories a turn saw and never
-*why*. ADR-0008's relevance-field addendum declined to answer that with a second field on
+The whole design is ADR-0038. v1 ``select`` returned a bare sequence of hits, which said which
+memories a turn saw and never why. ADR-0008's relevance-field addendum declined to answer that
+with a second field on
 ``ScoredMemory``, because the store's score has exactly one meaning (the raw cosine) and the
 policies rank by three different quantities, one of them incomparable between hits. This module is
 the answer it pointed at instead: the policy's own quantity lives on the policy's own return type,
@@ -20,7 +20,7 @@ from cortex_core.memory import ScoredMemory
 
 
 class RankBasis(Enum):
-    """How a memory came to mind, or why none did (ADR-0038 decision 4, abstention addendum).
+    """Which quantity a policy ranked by, or why it returned nothing (ADR-0038 decision 4).
 
     One word per policy, and the family's split is the finding it exists to carry. ``ECHO`` is the
     store's raw cosine, likeness and nothing else. ``EMBER`` is that likeness still warm, the
@@ -35,12 +35,12 @@ class RankBasis(Enum):
     rather than an absence of one. That is exactly what separates it from a heuristic basis over an
     empty ranking, which says only that there was nothing to rank.
 
-    ``comparable`` is the load-bearing part: an MMR objective is computed against the kept set at
-    pick time, so two ``SPREAD`` or ``SWEEP`` keys in one result were measured against different
-    sets and mean nothing next to each other, while ``ECHO``, ``EMBER`` and ``VERDICT`` keys are
-    per-hit quantities that do compare. A consumer that thresholds or plots a key must read this
-    first. ``DEMUR`` sits with the comparable bases vacuously, having no key to compare with
-    anything: nothing on it was measured against a kept set, which is what the property is about.
+    ``comparable`` is what a consumer thresholding or plotting a key has to read first. An MMR
+    objective is computed against the kept set at pick time, so two ``SPREAD`` or ``SWEEP`` keys in
+    one result were measured against different sets and mean nothing next to each other, while
+    ``ECHO``, ``EMBER`` and ``VERDICT`` keys are per-hit quantities that do compare. ``DEMUR`` sits
+    with the comparable bases with nothing to compare, having no key at all: nothing on it was
+    measured against a kept set, which is what the property is about.
     """
 
     ECHO = "echo"
@@ -82,8 +82,8 @@ class Ranking:
     is worth knowing, and on ``DEMUR`` the emptiness is the answer rather than a shortfall.
 
     That last reading is enforced rather than described: a ``DEMUR`` ranking carrying hits would
-    say a policy both declined and returned something, which no consumer could act on, so it is
-    refused at construction. The converse stays legal, since a heuristic policy handed an empty
+    say a policy both declined and returned something, which no consumer could act on, so it
+    raises at construction. The converse stays legal, since a heuristic policy handed an empty
     pool returns an empty ranking on its own basis and means only that there was nothing to rank.
     """
 
@@ -91,7 +91,7 @@ class Ranking:
     basis: RankBasis
 
     def __post_init__(self) -> None:
-        """Refuse the one combination that has no meaning: a declined rank that kept hits."""
+        """Raise for the one combination that has no meaning: a declined rank that kept hits."""
         if self.basis is RankBasis.DEMUR and self.hits:
             msg = "a DEMUR ranking declines, so it carries no hits"
             raise ValueError(msg)
@@ -117,8 +117,8 @@ class DroppedCandidate:
 
     ``score`` is the store's raw cosine, exactly as ``ScoredMemory.score`` means it, and there is
     deliberately no rank key beside it. A ``Ranking`` carries keys for the hits it kept and for
-    nothing else, so no key for a passed-over candidate is on record anywhere: the judge leaves an
-    unhelpful note out of its order rather than scoring it low, and an MMR objective for an unpicked
+    nothing else, so no key for a passed-over candidate is on record anywhere: the judge omits an
+    unhelpful memory from its order rather than scoring it low, and an MMR objective for an unpicked
     candidate would depend on a kept set it never joined. Two bases could compute one after the
     fact (``ECHO`` is the cosine already here, ``EMBER`` blends it with the age), but only the
     policy holds the parameters, and the policy did not. So this type says what the store offered,
@@ -170,7 +170,7 @@ def dropped_candidates(
 
 @dataclass(frozen=True, slots=True)
 class RecallAudit:
-    """One recall as its trail sees it: what was asked, how wide the pool was, and what ranked.
+    """One recall as the trail records it: the query, the pool width, and what ranked.
 
     ``query`` is the user's text and ``ranking`` carries the recalled memories, so both are
     conversation content: a sink that writes anywhere durable is responsible for what it keeps of
@@ -186,10 +186,10 @@ class RecallAudit:
 
     ``available`` is how many candidates the read scopes held, which is the store's own count and
     not a length over the rows it returned (ADR-0038 candidate-count addendum). It is what makes
-    "never a candidate" readable rather than merely nameable: ``pool_size == available`` says the
-    pool WAS the whole readable store, so a memory absent from the line was never written or was
-    written outside the scopes, while ``pool_size < available`` says the pool was cut and an
-    absent memory may simply have ranked below the cutoff. The two numbers come from two reads
+    "never a candidate" readable: ``pool_size == available`` says the pool was the whole readable
+    store, so a memory absent from the line was never written or was written outside the scopes,
+    while ``pool_size < available`` says the pool was cut and an absent memory may simply have
+    ranked below the cutoff. The two numbers come from two reads
     rather than one transaction, so ``available`` describes the store as of a moment beside the
     search rather than an invariant tied to ``pool_size``.
     """

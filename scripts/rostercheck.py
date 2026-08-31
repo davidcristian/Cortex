@@ -1,44 +1,25 @@
 """Repo gate: fail when a document's roster stops naming the set it describes.
 
-A module contract that lists the checks in a suite, or the modules in a directory, is describing
-something the tree really holds, and nothing held the description to it. The failure is quiet in
-both directions: a member added and the roster left alone, so a reader is told a smaller set
-exists than does, which is the direction observed here twice before this was written; and a name
-kept after the thing it named was renamed, so a reader is sent looking for something that is gone.
-Every other gate stays green through both, because a document is text and the set it describes is
-a directory listing or a run of attributes in another tree.
+A module contract that lists the checks in a suite, or the modules in a directory, describes
+something the tree really holds, and nothing else held the description to it. Both directions fail
+quietly: a member added with the roster left alone tells a reader that a smaller set exists than
+does, and a name kept after its subject was renamed sends a reader looking for something that is
+gone.
 
-**What it holds is membership and naming, and nothing else.** Every member of the real set is
-named in the roster, and every name in the roster is a member. The sentence beside each name is
-free to say whatever it likes, at whatever length, in whatever order, because that sentence is
-what a roster is FOR: a generated list would say what the names are and could never say what any
-of them proves. A gate that forced this prose into a table would destroy the thing it protects.
+What is compared is membership and naming, and nothing else. Every member of the real set is named
+in the roster, and every name in the roster is a member or a reference the roster declares. The
+sentence beside each name is free, at whatever length and in whatever order, because that sentence
+is what a roster is for. Counts are not compared, and where a roster begins and ends is data rather
+than a heading, since several rosters share one page. The ADR-0003 live-roster addendum, the
+ADR-0029 roster-membership addendum and `docs/modules/repo-gates.md` argue all of that.
 
-**Counts are deliberately not held**, and a roster that carried one lost it instead. A tally
-restated by hand beside a list is the half that drifts first, and it is the half a reader can
-recount in a second from the list itself. This continues the standing decision that a document
-describing a registry is not a far side of its numbers, and it draws the line the other way for
-names: a name list goes stale exactly when a member is added, which is when it should redden.
+An empty side on either half fails rather than passing: a suite whose ignores are all gone, a
+directory that moved, or a phrase that stopped appearing is either an input failure or a reported
+fault.
 
-**Where a roster begins and ends is data**, two phrases the document already carries, because
-holding one section of a document is not the same question as holding the document. Several
-rosters here share one page, one sentence closes one of them and opens the next, and a rule that
-read whole pages would let a name missing from one list pass on the strength of the other.
-
-**A name a sibling roster owns is a reference rather than an entry.** A paragraph split into two
-rosters says whose reader each module is, and it says it with the other half's names, so requiring
-every name to be a member would make ordinary prose a fault. A roster may declare the set whose
-names it is allowed to carry that way, and nothing else is let through: a module that gains a
-command line and stays in the wrong half is still a member the other half does not name.
-
-**Both empty sides are a failure rather than a pass.** A suite whose ignores are all gone, a
-directory that moved, a phrase that stopped appearing: each is either an input failure or a
-reported fault, never a quiet agreement between two nothings.
-
-**The success line states the collection the verdict is over**, rosters, documents and members
-after every exclusion, because a verdict that would be equally true of a page this scan never read
-has to say which pages it read. It is a reading and nothing asserts it; the floors are the
-assertion.
+The success line states the collection the verdict is over, the rosters, documents and members
+after every exclusion, so a verdict that would be equally true of a page this scan never read says
+which pages it read.
 """
 
 import argparse
@@ -51,8 +32,8 @@ from rostermembers import MemberError
 from rosternames import PassageError
 from rosters import ROSTERS, Roster
 
-# A gate over no roster at all would report success forever, which is the one thing every scan
-# here refuses. The per-roster floors are `rostermembers.py`'s.
+# A gate over no roster at all would report success forever. The per-roster floors are in
+# `rostermembers.py`.
 MIN_ROSTERS = 1
 
 
@@ -96,9 +77,9 @@ def _fault(roster: Roster, detail: str) -> Fault:
 def check_one(root: Path, roster: Roster) -> tuple[frozenset[str], list[Fault]]:
     """Compare one roster with the set it describes; return that set and every fault.
 
-    A passage that cannot be found is reported here rather than thrown, so one run names every
-    roster that moved instead of the first. A document or a set that cannot be READ is not: that
-    is an input failure and it leaves by its own door.
+    A passage that cannot be found is reported as a fault rather than raised, so one run names
+    every roster that moved instead of only the first. A document or a set that cannot be read is
+    an input failure and raises instead.
     """
     text = _read(root, roster.document)
     try:

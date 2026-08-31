@@ -6,7 +6,7 @@
 
 The front trails arrivals by
 its catch-up time, so the box can gain its last line inside the half second after `complete`,
-when nothing re-renders and the panel's measured moves are not looking (ADR-0037
+when nothing re-renders and no measured move of the panel is running (ADR-0037
 consequences). The history's min-height floor hides it today (short chats sit inside the
 floor, long ones scroll), and the tail pin rides the whisper's own `onGrow`. Trigger: the
 chat floor changing, or a between-render growth visibly outrunning the panel on some future

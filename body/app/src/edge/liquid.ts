@@ -1,15 +1,15 @@
-// The dreaming edge's geometry (ADR-0036): a rounded rectangle sampled as one closed loop, each
-// point displaced along its outward normal by the style's spectrum. Pure functions of numbers,
-// like mark/bubble.ts: the component that renders this owns a clock and a box size, nothing here
-// touches the DOM.
+// The window edge's geometry (ADR-0036): a rounded rectangle sampled as one closed loop, each
+// point displaced along its outward normal by the style's spectrum. Pure functions of numbers, as
+// mark/bubble.ts is: the component that renders this holds a clock and a box size, and nothing
+// here touches the DOM.
 //
-// The invariant this file owes the panel: the path NEVER leaves the given box. The box is the
-// edge wrapper, which bleeds `BLEED` past the panel on every side, and the neutral outline sits
-// exactly that far inside it, which is to say exactly ON the panel's own edge: the waves swing
-// around the regular border, outward into the bleed and inward over the glass, and every style's
-// worst-case reach is pinned under the bleed by the registry tests. The first cut inset the
-// whole liquid by the reach instead, and the maintainer caught it on sight: on the light ground it
-// read as a window that had shrunk (ADR-0036 decision 5).
+// The invariant every function here maintains is that the path never leaves the given box. The box
+// is the edge wrapper, which extends `BLEED` past the panel on every side, and the neutral outline
+// sits exactly that far inside it, which puts it on the panel's own edge: the waves swing around
+// the regular border, outward into the bleed and inward over the glass, and the registry tests
+// hold every style's worst-case reach under the bleed. The first version inset the whole liquid by
+// the reach instead, which on the light ground read as a window that had shrunk (ADR-0036
+// decision 5).
 
 import type { EdgeStyle } from "./edges";
 
@@ -17,12 +17,12 @@ import type { EdgeStyle } from "./edges";
 export const CORNER_RADIUS = 28;
 
 /** How far the edge wrapper extends past the panel's border box on every side, px. The wrapper
- *  wears this as its negative inset (PanelEdge), the sampler as the neutral line's inset, so the
- *  two cannot drift; reachOf(style) <= BLEED is what keeps every wave inside the wrapper. */
+ *  applies it as a negative inset (PanelEdge) and the sampler applies it as the neutral line's
+ *  inset, so the two cannot drift. `reachOf(style) <= BLEED` keeps every wave inside the wrapper. */
 export const BLEED = 14;
 
-/** How far past its arc a corner's full swell reaches into the straight runs, px. The panel
- *  scales it with everything else; the tile passes it whole, so the swell owns the small loop. */
+/** How far past its arc a corner's full swell reaches into the straight runs, px. The panel scales
+ *  it with everything else; the tile passes it unscaled, so the swell dominates the small loop. */
 export const CORNER_TAIL = 34;
 
 /** Samples around the loop. Order eight around a panel-sized perimeter spans ~200px per wave, so
@@ -54,8 +54,8 @@ interface Segment {
 }
 
 /** The rounded rectangle `(0,0)..(w,h)` with radius `r`, as segments walked clockwise from the
- *  top-left arc's end. Corner weight is 1 on the arcs and falls off along the runs over the
- *  tail, so the swell belongs to the corners and the runs keep only their configured share. */
+ *  top-left arc's end. Corner weight is 1 on the arcs and falls off along the runs over the tail,
+ *  so the swell is concentrated at the corners and the runs keep only their configured share. */
 function segmentsOf(w: number, h: number, r: number, tail: number): readonly Segment[] {
   const fall = (distance: number): number =>
     distance >= tail ? 0 : 0.5 * (1 + Math.cos((Math.PI * distance) / tail));
@@ -124,10 +124,10 @@ function displacementAt(
   return weight * scale * sum;
 }
 
-/** The rectangle one liquid loop breathes around, placed wherever the caller draws, plus how
- *  far the spectrum swings on it. `amplitude` scales displacement ALONE: a miniature keeps a
- *  legible swing on a small rectangle instead of inheriting its box's shrink, which is how the
- *  tile art re-tunes the motion for its medium the way the mark tiles do (ADR-0036 addendum). */
+/** The rectangle one liquid loop is displaced around, placed wherever the caller draws, plus how
+ *  far the spectrum swings on it. `amplitude` scales displacement and nothing else, so a miniature
+ *  keeps a legible swing on a small rectangle instead of shrinking with its box, which is how the
+ *  tile art re-tunes the motion for its size, as the mark tiles do (ADR-0036 addendum). */
 export interface LoopFrame {
   readonly x: number;
   readonly y: number;
@@ -149,7 +149,7 @@ export function loopPath(
   depth: number,
 ): string {
   const { x, y, width: w, height: h, radius } = frame;
-  // A still style, or a box with no room for two arcs and a run between them: the plain rect.
+  // A still style, or a box with no room for two arcs and a run between them, draws a plain rect.
   if (style.waves.length === 0 || w < 2 * radius + 16 || h < 2 * radius + 16) {
     return roundedRect(x, y, Math.max(0, w), Math.max(0, h), radius);
   }

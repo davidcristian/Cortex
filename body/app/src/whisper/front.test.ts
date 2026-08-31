@@ -19,7 +19,7 @@ import {
 describe("advance", () => {
   it("sprints a deep backlog at the capped pace, easing the velocity toward it", () => {
     const one = advance(RESTING_FRONT, 100, 0.016);
-    // Backlog 100 wants 100 / 0.35 ≈ 286 letters/s; the cap holds it to MAX_PACE, and the
+    // A backlog of 100 implies 100 / 0.35 ~ 286 letters/s; the cap holds it to MAX_PACE, and the
     // velocity blends toward that rather than jumping.
     expect(one.velocity).toBeCloseTo(MAX_PACE * 0.016 * 6, 5);
     expect(one.at).toBeCloseTo(one.velocity * 0.016, 5);

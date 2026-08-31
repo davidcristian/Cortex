@@ -1,28 +1,24 @@
 """The couplings around one capture: what the brain asks for, holds the reply to, and waits.
 
-One of the data files `crosscheck.py` reads as a single registry, and the eighth part to arrive. It
-was split off `shippedcouplings.py` when the second spellings on already held lines brought that
-file to the 300-line cap, on a seam its own text had been drawing in a comment for as long as these
-entries had been in it: `# The two capture bounds that ride with a request`. Everything here is one
-request's worth of shipped numbers, the pair of deadlines it runs under, and the answer to whether
-the tool that sends it is offered at all (ADR-0029). Nothing in the scan asks which file an entry
-sits in, so the move costs the gate nothing.
+One of the data files `crosscheck.py` reads as a single registry, split off `shippedcouplings.py`
+when the second spellings on already held lines brought that file to the 300-line cap. Everything
+here is one request's worth of shipped numbers, the pair of deadlines it runs under, and the answer
+to whether the tool that sends it is offered at all (ADR-0029). Nothing in the scan asks which file
+an entry sits in, so the move cost the gate nothing.
 
-The subject is narrower than the one it left, and that is the point of naming it. `shippedcouplings`
-holds whatever default the brain container ships; these hold the ones that describe a **single
-capture**, which is why the edge below has a site in the other tree and the others do not: the body
-encodes the picture, so the body's own suite has to size itself on the edge the brain asks for.
-
-The same reading is why the body's own default edge sits here beside the brain's. It is not a
-shipped default at all, it is what a caller that asks for nothing gets, and it is here because
-every document that states the brain's edge states it as a departure from this one. The two are
-one capture's question asked from both ends.
+The subject is narrower than the one it left. `shippedcouplings` holds whatever default the brain
+container ships; these hold the ones that describe a **single capture**, which is why the edge below
+has a site in the other tree and the others do not: the body encodes the picture, so the body's own
+suite has to size itself on the edge the brain asks for. The body's own default edge sits here
+beside the brain's for the same reason. It is not a shipped default, it is what a caller that asks
+for nothing gets, and every document that states the brain's edge states it as a departure from
+this one.
 
 The same tense test settles every far side here as everywhere else (ADR-0029's compose-default
 survey addendum): a sentence that becomes **wrong** when the value moves is a far side, and one
-that becomes **history** is not. Two of the entries below now hold both spellings a runbook row
-writes, its Default cell and the sentence in its Meaning cell restating the same number, because a
-mention is a presence check and one of the two was satisfying it for both.
+that becomes **history** is not. Two of the entries below hold both spellings a runbook row writes,
+its Default cell and the sentence in its Meaning cell restating the same number, because a mention
+is a presence check and one of the two was satisfying it for both.
 """
 
 from couplings import Constant, Mention, Site
@@ -85,7 +81,7 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_CLIENT_DOC, "`DEFAULT_CALL_TIMEOUT_S = {value}`"),
         ),
     ),
-    # The two capture bounds that ride with a request. The byte budget is the brain's half of a
+    # The two capture bounds sent with a request. The byte budget is the brain's half of a
     # ceiling the body enforces too, so it is a site in `seamcouplings.py` as well; here it is the
     # shipped number three deployment surfaces restate. The edge is the brain's alone.
     Constant(
@@ -120,17 +116,17 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
         # all three are wrong about the file the day the edge is retuned. The pair the same suite
         # once asserted as digits is deliberately NOT here. `1152` is not a second spelling of the
         # edge, it is a consequence of the edge and of the fixture's aspect ratio, so a needle over
-        # `(2048, 1152)` would tie two independent couplings into one and would redden on a change
+        # `(2048, 1152)` would tie two independent couplings into one and would fail on a change
         # to the display the fixture builds. That one is arithmetic in the suite instead, which
         # removes the coupling rather than holding it, and the same reading keeps the halved `1024`
         # in that file's prose out: a rung of the ladder below this edge is a consequence too.
         #
         # The last needle is the vision runbook's second spelling on the row the first one holds,
         # where the Meaning cell calls this number the brain half of the legibility pair. It
-        # carries four words of that sentence, which is what the second-spelling survey settled
-        # is allowed when the words are the shape that makes the sentence a claim about the
-        # SHIPPED value rather than about pixels in general: cell walls pin the Default cell and
-        # there is nothing else inside a table row for a needle to hold on to.
+        # carries four words of that sentence, which the second-spelling survey allows when those
+        # words are what makes the sentence a claim about the SHIPPED value rather than about
+        # pixels in general: the cell walls pin the Default cell, and a table row offers a needle
+        # nothing else to match on.
         mentions=(
             Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
             Mention(BODY_COMPOSE, "defaults to {value} rather"),
@@ -172,7 +168,8 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
     # means this number, in `screen.rs` and `body_server.rs`, are suites CI runs holding
     # themselves. `test_config.py`'s comment is the case that sharpens that second rule: a suite
     # holds what it ASSERTS, and this number it only explains, in a language that cannot reach the
-    # constant, so a retune leaves the comment lying with every test in that file green.
+    # constant, so a retune leaves that comment stating the old number with every test in the file
+    # green.
     Constant(
         label="the body's own default edge",
         why=(
@@ -233,7 +230,7 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
         sites=(Site(INFERENCE_CONFIG, "DEFAULT_VISION_MODE"),),
         # The same runbook row spells this mode a second time, and that one is deliberately NOT a
         # far side: it says what `auto` DOES, beside what `on` and `off` do, and goes on being
-        # true after another mode becomes the shipped answer. It is the case that refuses a rule
+        # true after another mode becomes the shipped answer. It is the case that rules out
         # counting every occurrence on a held line, a second spelling being no evidence of a
         # second claim about the default.
         mentions=(

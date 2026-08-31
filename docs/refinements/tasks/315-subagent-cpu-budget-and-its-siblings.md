@@ -23,14 +23,15 @@ admitting against, with nothing saying so.
 
 **The three per-subagent asks need a decision first, and one of them disagrees on purpose.**
 `CORTEX_SUBAGENTS_CPUS` ships `2.0` against the field's `2.0` and `CORTEX_SUBAGENTS_VRAM_GB` ships
-`3.5` against the field's `3.5`, so both could be tied as equalities today. `CORTEX_SUBAGENTS_MEMORY_GB`
-ships `3.0` against the field's `2.0`, and the divergence is deliberate: the compose comment
-records the measured pick (about 2.5 GiB RSS on CPU, rounded up to a 3.0 ask so two are admitted
-under the memory budget) while the field default stays the GPU-less-safe placeholder. An equality
-entry over that pair would redden a difference somebody chose. So closing this half means deciding
-which number the field should carry, and either moving it and tying the pair or recording that the
-two are independent and leaving them untied on purpose. Tying `cpus` and `vram_gb` while their
-neighbour stays untied for an unwritten reason is the worst of the three outcomes.
+`3.5` against the field's `3.5`, so both could be tied as equalities today.
+`CORTEX_SUBAGENTS_MEMORY_GB` ships `3.0` against the field's `2.0`, and the divergence is
+deliberate: the compose comment records the measured pick (about 2.5 GiB RSS on CPU, rounded up to a
+3.0 ask so two are admitted under the memory budget) while the field default stays the GPU-less-safe
+placeholder. An equality entry over that pair would fail on a difference somebody chose. So closing
+this half means deciding which number the field should carry, and either moving it and tying the
+pair or recording that the two are independent and leaving them untied on purpose. Tying `cpus` and
+`vram_gb` while their neighbour stays untied for an unwritten reason is the worst of the three
+outcomes.
 
 Verify all of the above against the tree before acting on it: these are readings taken on the day
 this was filed, and the numbers are exactly the kind that move.
@@ -50,14 +51,13 @@ one file the closed entry already touched.
   digits the field declares, and the passthrough and the cgroup cap are pinned as a counted pair
   because they are the twinning the comment beside them claims. Of the three asks, `cpus` and
   `vram_gb` were tied as they stood, and `memory_gb` moved: the field takes the measured `3.0` the
-  stack has shipped all along, since a default of `2.0` under-charges every spawn by half a
-  gigabyte and admits onto room the container's own cap would refuse, which is the same unsafe
-  direction the VRAM ask was corrected for and the reason that pair is one number today. Nothing
-  moves for a deployment running the shipped compose file. The registry outgrew its file in the
-  process and split a third time, into `scripts/shippedcouplings.py`, along the line
-  `seamcouplings.py` had been describing in its own second paragraph. Twelve drifts were planted on
-  the real tree and reverted, each reddening its own entry and no other. The reasoning is the
-  ADR-0012 addendum on these four knobs; the split is recorded at ADR-0029 beside the two before it.
-  The wider survey this entry declined to ask, and the memory budget's close declined before it,
-  finally has a file of its own
+  stack has shipped all along, since a default of `2.0` under-charges every spawn by half a gigabyte
+  and admits onto room the container's own cap would refuse, which is the same unsafe direction the
+  VRAM ask was corrected for and the reason that pair is one number today. Nothing moves for a
+  deployment running the shipped compose file. The registry outgrew its file in the process and
+  split a third time, into `scripts/shippedcouplings.py`, along the line `seamcouplings.py` had been
+  describing in its own second paragraph. Twelve drifts were planted on the real tree and reverted,
+  each failing its own entry and no other. The reasoning is the ADR-0012 addendum on these four
+  knobs; the split is recorded at ADR-0029 beside the two before it. The wider survey this entry
+  declined to ask, and the memory budget's close declined before it, finally has a file of its own
   ([R-333](333-compose-defaults-that-restate-a-declaration.md)).

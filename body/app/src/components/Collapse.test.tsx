@@ -16,9 +16,9 @@ interface Roll {
 }
 
 /**
- * jsdom has neither the Web Animations API nor layout, so both are stood in for. The fake is
- * faithful in the way that matters: a running animation OVERRIDES the measured height, so a roll
- * interrupted half way can be read for where it had got to.
+ * jsdom has neither the Web Animations API nor layout, so both are stood in for. The fake
+ * reproduces the behaviour these tests depend on: a running animation overrides the measured
+ * height, so a roll interrupted half way can be read for where it had got to.
  */
 function stubBrowser() {
   const rolls: Roll[] = [];
@@ -30,10 +30,10 @@ function stubBrowser() {
   let running = false;
   let playState: AnimationPlayState = "running";
 
-  // The section reads its own LAYOUT height off the computed style (`heightOf`), which keeps the
-  // sub-pixels the roll has to land on and still ignores the summon's scale transform, unlike the
-  // rect. Said here the way production asks for it, so a fractional height is a case these tests
-  // can have (`HALF`).
+  // The section reads its own layout height off the computed style (`heightOf`), which keeps the
+  // sub-pixels the roll has to land on and ignores the summon's scale transform, unlike the rect.
+  // The stub answers the same call production makes, so a fractional height is a case these tests
+  // can set up (`HALF`).
   laysEverything(() => (running ? box.displayed : box.natural));
 
   Element.prototype.animate = ((keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
@@ -123,11 +123,11 @@ describe("Collapse", () => {
   });
 
   it("rolls to the sub-pixel its content actually stands on, opening and shutting alike", () => {
-    // An opening roll deliberately does not fill, so the section is handed back to its own layout
-    // the frame it ends: a target rounded off the box left it stepping the remainder. Measured over
+    // An opening roll deliberately does not fill, so the section returns to its own layout in the
+    // frame it ends, and a target rounded off the box left it stepping the remainder. Measured over
     // the demo at 900x1000 before this, the reminder stack's aside rolled to 194 and stood at
-    // 193.75, and the closing roll then started 0.25px above where the eye had it. The published
-    // target carries the fraction too, the panel's ride-along adding it to fractional heights of
+    // 193.75, and the closing roll then started 0.25px above where it had been painted. The
+    // published target carries the fraction too, since the panel adds it to fractional heights of
     // its own (`overlay/panelRide.ts`).
     const { box, rolls, settle } = stubBrowser();
     box.natural = HALF;
@@ -168,7 +168,7 @@ describe("Collapse", () => {
       </Collapse>,
     );
     // React would have deleted the rows here, the content below would have snapped up into the
-    // hole, and only then would the panel have eased down after it. Instead they are still on
+    // gap, and only then would the panel have eased down after it. Instead the rows are still on
     // screen, rolling shut, and the panel's `auto` height follows them.
     expect(screen.getByText("rows")).toBeInTheDocument();
     expect(rolls).toEqual([{ from: HEIGHT, to: 0, fade: [1, 0] }]);
@@ -193,8 +193,8 @@ describe("Collapse", () => {
     // whole section reappearing, which is what a 60Hz trace of a switcher close showed.
     expect(fills).toEqual(["forwards"]);
     settle();
-    // The opening direction holds nothing: its end state IS the natural height, so there is
-    // nothing to hold, and holding it would freeze the section at the content it opened with.
+    // The opening direction holds nothing, because its end state is the natural height, so there
+    // is nothing to hold and holding it would freeze the section at the content it opened with.
     view.rerender(
       <Collapse open>
         <p>rows</p>
@@ -221,7 +221,7 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    // The finished closing roll is still holding 0; letting go of it is what lets the section
+    // The finished closing roll is still holding 0, and cancelling it is what lets the section
     // measure its natural height again.
     expect(cancelled).toEqual([1]);
     expect(rolls[1]).toEqual({ from: 0, to: HEIGHT, fade: [0, 1] });
@@ -239,8 +239,8 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    // The value is the contract, not just the presence: the panel works out from it how tall IT is
-    // about to be, and moves its own bottom edge over this same roll instead of after it.
+    // The attribute's value matters as well as its presence: the panel works out from it how tall
+    // it is about to be, and moves its own bottom edge over this roll rather than after it.
     expect(view.container.querySelector("[data-morphing]")?.getAttribute("data-morphing")).toBe(
       String(HEIGHT),
     );
@@ -263,9 +263,9 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    // What the panel needs at this moment is the height being rolled to, so the attribute has to be
-    // set by the time the event lands: it works out from that number how tall it is about to be and
-    // takes its own bottom edge along over the same roll.
+    // The panel needs the height being rolled to, so the attribute has to be set by the time the
+    // event lands: it works out from that number how tall it is about to be and moves its own
+    // bottom edge over the same roll.
     view.container.addEventListener("cortex:morphstart", (event) =>
       heard.push((event.target as HTMLElement).getAttribute("data-morphing")),
     );
@@ -299,8 +299,8 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    // Nothing is animating, so there is nothing for the panel to ride along WITH: the end event
-    // that follows immediately is what places it around the height already committed to.
+    // Nothing is animating, so the panel has no roll to follow. The end event that follows
+    // immediately is what places it around the height already committed to.
     expect(heard).toEqual([]);
   });
 
@@ -312,8 +312,8 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    // Listening on the container, not on the section: it bubbles, so the panel hears it without
-    // the section having to know the panel is there.
+    // The listener is on the container rather than on the section, because the event bubbles, so
+    // the panel receives it without the section holding a reference to the panel.
     view.container.addEventListener("cortex:morphend", () => heard.push("end"));
     view.rerender(
       <Collapse open>
@@ -337,8 +337,8 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    // Half way shut, and asked to open again: the second roll starts where the eye is, not from
-    // zero, so the reversal is continuous rather than a jump back to nothing.
+    // Half way shut and asked to open again: the second roll starts from the height currently
+    // painted rather than from zero, so the reversal is continuous.
     hold(70);
     view.rerender(
       <Collapse open>
@@ -365,17 +365,17 @@ describe("Collapse", () => {
 
   it("rolls in on mount when told to, and only then", () => {
     const { rolls } = stubBrowser();
-    // A section mounted with the view it belongs to is already there and animates only what
-    // happens to it afterwards (the re-render case above). One mounted INTO a list that is on
-    // screen has arrived, and the switcher's empty line is that case: it takes the place of the
-    // last row as that row rolls out, so it has to grow into the gap on the same clock.
+    // A section mounted with the view it belongs to is present from the start and animates only
+    // what happens to it afterwards (the re-render case above). A section mounted into a list that
+    // is already on screen is the other case, and the switcher's empty line is that case: it takes
+    // the place of the last row as that row rolls out, so it grows into the gap on the same clock.
     const view = render(
       <Collapse open enter>
         <p>rows</p>
       </Collapse>,
     );
     expect(rolls).toEqual([{ from: 0, to: HEIGHT, fade: [0, 1] }]);
-    // Read once, at mount: a section already on screen cannot arrive again.
+    // Read once, at mount, because a section already on screen cannot arrive again.
     view.rerender(
       <Collapse open enter>
         <p>rows</p>
@@ -418,9 +418,9 @@ describe("Collapse", () => {
     );
     expect(rolls).toEqual([]);
     expect(screen.queryByText("rows")).toBeNull();
-    // The silence is load bearing for the log underneath: its scroll rides a roll off this event
-    // (`overlay/logRide.ts`), so a roll that is not a motion leaves the reader's place alone, which
-    // is what a disclosure did before it learned to roll at all.
+    // The log underneath depends on this event: its scroll follows a roll off it
+    // (`overlay/logRide.ts`), so a roll that moves nothing leaves the reader's scroll position
+    // alone, which is what a plain disclosure did before it was given a roll.
     expect(started).toEqual([]);
   });
 
@@ -432,11 +432,11 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    // What the panel sees when it re-measures on the event: with nothing animating, there is no
-    // forwards fill holding the end state, so the section would still be standing at its full
-    // height around rows that are about to go. Traced under prefers-reduced-motion before this was
-    // fixed: closing the chat switcher left the panel 119px lower than it had been before it
-    // opened, and it stayed there, because that was the height it was placed around.
+    // What the panel measures on the event: with nothing animating there is no forwards fill
+    // holding the end state, so the section would still stand at its full height around rows that
+    // are about to be removed. Traced under prefers-reduced-motion before this was fixed: closing
+    // the chat switcher left the panel 119px lower than it had been before it opened, and it stayed
+    // there, because that was the height it was placed around.
     let heightWhenTold: string | undefined;
     view.container.addEventListener("cortex:morphend", (event) => {
       heightWhenTold = (event.target as HTMLElement).style.height;
@@ -450,8 +450,8 @@ describe("Collapse", () => {
   });
 
   it("hands the closed section back to its caller, and only once it is shut", () => {
-    // What lets a list hold a removed row until its own exit ends (`overlay/usePresence.ts`):
-    // the roll owns the clock, and this is the roll saying it is over.
+    // This callback is what lets a list hold a removed row until its own exit ends
+    // (`overlay/usePresence.ts`): the roll holds the clock and reports when it has finished.
     const { settle } = stubBrowser();
     const onClosed = vi.fn();
     const view = render(
@@ -487,9 +487,9 @@ describe("Collapse", () => {
   });
 
   it("is still in the tree when the panel re-measures, and released only after", () => {
-    // The order these two land in is the contract: the panel places itself off the event, so the
-    // section has to be part of what it measures. Told first, the caller would be free to take the
-    // element away before the panel had heard the roll end at all.
+    // The order these two land in matters: the panel places itself off the event, so the section
+    // has to be part of what it measures. Called first, the callback would let the caller remove
+    // the element before the panel had received the roll's end event.
     const { settle } = stubBrowser();
     const seen: string[] = [];
     const view = render(

@@ -765,7 +765,7 @@ async def test_a_cadence_reaches_a_watching_caller_and_never_the_stream() -> Non
 async def test_a_caller_with_no_watch_drops_the_cadence_and_keeps_streaming() -> None:
     """Every cortex turn and every subagent: the arm must cost a caller that ignores it nothing.
 
-    Without the loop's own branch this reddens loudly rather than subtly, the event falling
+    Without the loop's own branch this fails loudly rather than subtly, the event falling
     through to the text arm and having no ``text`` at all.
     """
     context = _context(RecordingAuditSink(), budget=4)
@@ -807,7 +807,7 @@ async def test_a_stop_reaches_a_ledger_keeping_caller_and_never_the_stream() -> 
 async def test_a_caller_with_no_ledger_drops_the_stop_and_keeps_streaming() -> None:
     """Every cortex turn: the arm must cost a caller that ignores it nothing.
 
-    Without the loop's own branch this reddens loudly rather than subtly, the event falling
+    Without the loop's own branch this fails loudly rather than subtly, the event falling
     through to the text arm and having no ``text`` at all.
     """
     context = _context(RecordingAuditSink(), budget=4)

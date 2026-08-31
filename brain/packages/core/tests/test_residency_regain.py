@@ -11,31 +11,31 @@ The headline case is the runbook's own manual recovery with its last step remove
 starts the cortex through the sidecar's control API, and the brain notices by itself instead of
 being restarted.
 
-Distrust-green proofs (each mutation applied to production code alone, the whole brain workspace
-re-run, then reverted, so the counts are measured rather than aimed at):
-- publishing on the cortex's own state alone, dropping the deep-tier reading, reddens 6: both arms
+Mutations proving these tests can fail (each applied to production code alone, the whole brain
+workspace re-run, then reverted, so the counts are measured rather than estimated):
+- publishing on the cortex's own state alone, dropping the deep-tier reading, fails 6: both arms
   of ``test_a_deep_model_still_on_the_card_stops_the_regain``, which is the guard against handing
   a lease out onto a card that already holds another tier, plus the four cases that read the
   second status call out of the host's op log;
-- treating a host that could not be asked as evidence the cortex is serving reddens 1,
+- treating a host that could not be asked as evidence the cortex is serving fails 1,
   ``test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing``;
-- treating an unanswerable deep tier the same way reddens 1,
+- treating an unanswerable deep tier the same way fails 1,
   ``test_a_host_that_cannot_be_asked_about_the_deep_model_publishes_nothing``;
-- publishing without testing the fence at all reddens 1,
+- publishing without testing the fence at all fails 1,
   ``test_a_handoff_that_begins_mid_pass_wins_the_publish``. What that pins is that the fence is
   consulted at the write and not only at the top of the pass; the tighter property, that the
   answer and the write are under one condition with nothing awaited between them, has no mutation
   that can show it, because inserting an await there lets a claim run and a claim takes the same
   condition, so it blocks rather than interleaves. The argument for it is in the ADR;
-- regaining without the standing charge reddens 1,
+- regaining without the standing charge fails 1,
   ``test_a_regained_residency_charges_the_placer_for_the_cortex_again``;
-- reading the machine even while the report says serving reddens 7,
+- reading the machine even while the report says serving fails 7,
   ``test_a_serving_report_costs_the_pass_no_control_call_at_all`` plus six cases in
   ``test_residency_tiers.py`` that pin a whole pass's op log, which is what keeps a healthy
   deployment paying nothing new;
-- regaining before the sweep rather than after it reddens 1,
+- regaining before the sweep rather than after it fails 1,
   ``test_a_pass_sweeps_the_peers_before_it_republishes_the_resident``;
-- dropping the regain from the pass altogether reddens 12: every case here but
+- dropping the regain from the pass altogether fails 12: every case here but
   ``test_a_serving_report_costs_the_pass_no_control_call_at_all``, which asserts an empty op log
   either way, plus the composition root's
   ``test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_green``, the only case
@@ -154,7 +154,7 @@ async def _refuses_every_turn(manager: SwappingModelManager) -> None:
 
 
 async def _serves_turns_again(manager: SwappingModelManager) -> None:
-    """And the recovery, asserted the same way: the lease hands out the cortex once more."""
+    """The recovery, asserted the same way: the lease hands out the cortex once more."""
     async with manager.acquire(_CORTEX) as lease:
         assert lease.endpoint == _ENDPOINTS[_CORTEX]
 
@@ -171,7 +171,8 @@ def _spawn() -> PlacementRequest:
 async def test_a_restore_that_gave_up_is_regained_by_the_next_pass_with_no_restart(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The entry's whole point: the manual recovery no longer ends by restarting the brain.
+    """A restore that gave up is regained by the next pass, so the manual recovery no longer
+    ends by restarting the brain.
 
     Nothing about the machine is touched by the pass. The operator (or the sidecar's own boot
     default after a restart) put the cortex back through the control API, and all the brain owes
@@ -263,7 +264,8 @@ async def test_a_deep_tier_the_daemon_never_had_is_off_the_card() -> None:
 async def test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """No reading is not a reading that says yes, which is the direction that would be worse.
+    """A failed reading is not evidence that the cortex is serving, and reading it as one is the
+    worse direction.
 
     A pass that read a transport failure as a serving cortex would hand out leases onto a card it
     has no evidence about, every interval, on the one path where the evidence is the whole point.
@@ -369,7 +371,7 @@ async def test_a_regained_residency_charges_the_placer_for_the_cortex_again() ->
 
 
 async def test_a_boot_that_could_not_confirm_the_cortex_goes_green_when_it_comes_up() -> None:
-    """The cheap half of the same hole: an amber dot nothing but a restart could ever clear.
+    """The display half of the same gap: a boot verdict nothing but a restart could clear.
 
     The lease was forgiving throughout, deliberately, so what changes here is only what a human is
     told. Before this pass existed that sentence stood until the next handoff, and a deployment

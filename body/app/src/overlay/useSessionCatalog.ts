@@ -15,7 +15,7 @@ const SESSION_LIST_LIMIT = 50;
 
 /** The chat-catalog half of `OverlayController`; every member is re-exported from it verbatim. */
 export interface SessionCatalog {
-  /** Load a stored chat into the panel. `announce` is the door's answer to whether the swap says
+  /** Load a stored chat into the panel. `announce` is the caller's answer to whether the swap says
    *  what arrived: false from a switcher row, whose own accessible name is that chat's title, and
    *  true from a control that points at a chat without naming it, which is the reminder card's
    *  open link and the cycle keys below (`overlay/notice.ts`). */
@@ -118,7 +118,7 @@ export function useSessionCatalog(
     [bridge, refreshSessions],
   );
 
-  // A user-only DESTRUCTIVE catalog write (ADR-0021), fired only after the switcher row's own
+  // A user-only destructive catalog write (ADR-0021), fired only after the switcher row's own
   // "are you sure" confirm. Deleting the currently-open chat first tears down its in-flight turn and
   // denies any pending confirm, so a still-streaming reply cannot re-materialize the chat with a
   // `store.append` after the delete lands (the current-session hazard). The row is dropped and the

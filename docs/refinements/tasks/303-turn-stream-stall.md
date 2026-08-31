@@ -13,12 +13,12 @@ the probe had before it got a deadline, minus the latch: the user can cancel, so
 recoverable rather than terminal, which is why this is not urgent.
 
 What it needs is not a total deadline, which would kill long legitimate turns, but an **idle gap**
-bound: the longest silence allowed *between* events, reset by every delta, tool activity and
-status update. That is a stream decorator in the core over the existing `Sleeper` port rather than
-a change to the port's signature, and the interesting part is choosing the gap honestly, since a
-deep model on a cold cache can be quiet for a while before its first token while a mid-reply gap
-of the same length means something is wrong. A first-token gap and a mid-stream gap may well be
-two numbers.
+bound: the longest silence allowed *between* events, reset by every delta, tool activity and status
+update. That is a stream decorator in the core over the existing `Sleeper` port rather than a change
+to the port's signature, and the interesting part is choosing the gap with evidence, since a deep
+model on a cold cache can be quiet for a while before its first token while a mid-reply gap of the
+same length means something is wrong. A first-token gap and a mid-stream gap may well be two
+numbers.
 
 ## Trail
 

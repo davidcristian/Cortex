@@ -1,16 +1,15 @@
 """Email domain values: a search hit, a full message, and the outbound draft (no I/O).
 
-``EmailAttachment`` is also **the schema a model composes against**, which is why pydantic
-appears in a module that is otherwise plain dataclasses. It was always partly that: pydantic
-has been lifting this class's docstring into the ``send_email`` tool's ``$defs`` entry since
-attachments landed, so the prose here has been prompt-facing text all along and only the
-per-field half was missing (ADR-0022 per-field addendum). Keeping it here rather than mirroring
-the three fields into a second schema-facing type in ``server.py`` is what stops the tool
-contract being spelled twice.
+``EmailAttachment`` is also the schema a model composes against, which is why pydantic appears in
+a module that is otherwise plain dataclasses. Pydantic has been lifting this class's docstring
+into the ``send_email`` tool's ``$defs`` entry since attachments landed, so the prose here has
+been prompt-facing all along and only the per-field descriptions were missing (ADR-0022 per-field
+addendum). Keeping the schema here rather than mirroring the three fields into a second
+schema-facing type in ``server.py`` keeps the tool contract from being written twice.
 
-The bounds those descriptions quote live here for the same reason: ``SmtpSender`` refuses a send
-against them and the model is told about them in the same breath, so they are one value read
-twice rather than a number in prose that can drift from the number in the check.
+The bounds those descriptions quote live here for the same reason: ``SmtpSender`` raises when a
+send exceeds them and the descriptions state the same numbers to the model, so each bound is one
+value read twice rather than a number in prose that can drift from the number in the check.
 """
 
 from dataclasses import dataclass
@@ -18,19 +17,22 @@ from typing import Annotated
 
 from pydantic import Field
 
-# How many attachments one send may carry. Refused, never truncated: a silently dropped
-# attachment is a send the user approved and did not get (ADR-0010's batch-cap argument).
+# How many attachments one send may carry. Going over rejects the send rather than truncating it:
+# an attachment dropped without a word is a send the user approved and did not get (ADR-0010's
+# batch-cap argument).
 MAX_ATTACHMENTS = 8
-# Characters summed across every attachment's content. The bound comes from the authoring
-# side, not from SMTP: 32K is already half the cortex's 16K-token context, so past it an
+# Characters summed across every attachment's content. The bound comes from the authoring side
+# rather than from SMTP: 32K is already half the cortex's 16K-token context, so past it an
 # attachment competes with the conversation that wrote it (ADR-0022 attachments addendum).
 MAX_ATTACHMENT_CHARS = 32768
-# A filename rides a Content-Disposition header, and a header line is not a payload.
+# A filename travels in a Content-Disposition header rather than in the payload, so it is bounded
+# at a header line's length.
 MAX_FILENAME_CHARS = 128
 
-# Written as instruction rather than as documentation, the `capture_screen` target precedent:
-# each sentence exists to remove one guess a model would otherwise make, and every refusal is
-# named because the check runs in the sidecar, which is *after* the user approved the card.
+# The three per-field descriptions are written as instruction rather than as documentation,
+# following the `capture_screen` target precedent: each sentence removes one guess a model would
+# otherwise make, and each names what is rejected because the check runs in the sidecar, after the
+# user has already approved the confirmation card.
 _FILENAME_HELP = (
     "The name the recipient sees on the attached file. Give it an extension matching the "
     "subtype, such as notes.md for markdown. It rides a header rather than the payload, so "
@@ -48,7 +50,7 @@ _SUBTYPE_HELP = (
     "holding a slash, a space or a semicolon, or the send is refused. Leave it out for plain."
 )
 # The two bounds that belong to the array rather than to any one attachment: one counts the
-# entries, the other sums their content. Spent by the tool signature in `server.py`.
+# entries, the other sums their content. Used by the tool signature in `server.py`.
 ATTACHMENTS_HELP = (
     "Files to attach, each of them text you have written. At most "
     f"{MAX_ATTACHMENTS} of them, and their content totals at most {MAX_ATTACHMENT_CHARS} "
@@ -56,12 +58,12 @@ ATTACHMENTS_HELP = (
     "rather than shortened, so put long material in the body instead of splitting it here."
 )
 
-# The read side's three fields, and the one guess that costs a whole dispatch. `query` reaches the
-# IMAP server unaltered, so the dialect is raw IMAP SEARCH criteria; the syntax a model reaches
-# for is the `key:value` of every mail client it has ever seen, and the server answers that with a
-# parse error nothing downstream can repair. Every criterion named below was run against a real
-# Bridge before it was named (ADR-0022 search-dialect addendum), because a description that
-# advertises a criterion the server refuses is worse than one that omits a criterion it accepts.
+# The description of the search query, which is where a wrong guess costs a whole dispatch.
+# `query` reaches the IMAP server unaltered, so the dialect is raw IMAP SEARCH criteria, while the
+# syntax a model reaches for is the `key:value` of every mail client it has seen, and the server
+# answers that with a parse error nothing downstream can repair. Every criterion named below was
+# run against a real Bridge before it was named (ADR-0022 search-dialect addendum): naming a
+# criterion the server rejects costs a dispatch, while omitting one it accepts costs nothing.
 SEARCH_QUERY_HELP = (
     "Raw IMAP SEARCH criteria. It is not a mail client's search box: "
     "from:someone@example.com is refused by the server rather than understood, and that "
@@ -76,12 +78,12 @@ SEARCH_QUERY_HELP = (
     "after it, and parentheses group. So unread mail from this year about either of two things "
     'is: UNSEEN SINCE 01-Jan-2026 OR SUBJECT "invoice" SUBJECT "receipt".'
 )
-# The same dialect, said at the other moment. `SEARCH_QUERY_HELP` above is what a model reads
-# before it writes a query; this is what it reads once the server has refused the one it wrote,
-# and the two live together because the refusal points at that description by name, so a rename
-# there that left this behind would send a model to a field that no longer says anything.
-# It deliberately carries nothing of the server's own answer: the wire fragment IMAP sends back is
-# an offset into a command the model never saw (`SearchRefusedError` argues that in full).
+# The same dialect, stated after a rejection. `SEARCH_QUERY_HELP` above is what a model reads
+# before it writes a query; this is what it reads once the server has rejected the one it wrote.
+# The two live together because this text points at that description by name, so a rename there
+# that left this behind would send a model to a field that no longer says anything. It
+# deliberately carries nothing of the server's own answer: the wire fragment IMAP sends back is an
+# offset into a command the model never saw (`SearchRefusedError` gives the full argument).
 SEARCH_REFUSED = (
     "The mail server refused this search as malformed, so nothing was searched and no message "
     "was read. The query is raw IMAP SEARCH criteria, and the query field's own description "
@@ -94,12 +96,12 @@ FOLDER_HELP = (
     "Nothing is normalised or guessed at, and a name no folder has is an error rather than an "
     "empty result, so read the list rather than inventing a likely name."
 )
-# The other guess those same two tools invite, said at the moment it fails. `FOLDER_HELP` above is
-# what a model reads before it names a folder; this is what it reads once the server has answered
-# that no mailbox has that name. Both `search_emails` and `read_email` take a folder, so it names
-# neither searching nor reading in particular. It says outright what the correction is, because
-# here the correction is one call away: `list_folders` returns the exact spellings, so the next
-# attempt can be a lookup rather than a second likely-looking name.
+# The folder name, stated after a failed lookup. `FOLDER_HELP` above is what a model reads before
+# it names a folder; this is what it reads once the server has answered that no mailbox has that
+# name. Both `search_emails` and `read_email` take a folder, so it names neither searching nor
+# reading in particular. It states the correction outright, because here the correction is one
+# call away: `list_folders` returns the exact names, so the next attempt can be a lookup rather
+# than a second likely-looking guess.
 FOLDER_UNKNOWN = (
     "The mail server has no folder by that name, so nothing was searched and no message was "
     "read. Folder names are matched exactly and are never normalised or guessed at: call "

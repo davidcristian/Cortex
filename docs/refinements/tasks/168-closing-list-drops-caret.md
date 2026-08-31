@@ -4,7 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md)
 
-Opened 2026-08-07 by the chord entry above, which shut one door onto this and left the others
+Opened 2026-08-07 by the chord entry above, which closed one of these paths and left the others
 standing.
 The caret rule answers a row changing shape, a row leaving, and a list running out of rows; a list
 the reader closes is none of the three, and the rows are unmounted with it. Measured at 900x900
@@ -23,7 +23,7 @@ before a shape is picked. Nothing blocks it.
 - **LANDED 2026-08-07 as a rule about a section CLOSING rather than about a key**
   ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). The trace the entry asked for came
   first, in headless Chromium at 900x900 against the demo bridge, `document.activeElement` sampled
-  every animation frame for 800ms across twenty three doors, and **the entry's own reading held**:
+  every animation frame for 800ms across twenty three paths, and **the entry's own reading held**:
   with the switcher open and the caret on a resting row's pencil, `Ctrl+K` kept the caret on that
   pencil for the whole 300ms roll (frames at 1, 21 and 337ms) and read `<body>` at 353ms, outside
   the panel and one Tab from the top of the document. Sampling across the roll rather than after it
@@ -38,7 +38,7 @@ before a shape is picked. Nothing blocks it.
   **Two are the console arriving over the chat**, the `?` key and the hint strip's openers, where
   the console's own selected tab takes the caret in its layout effect (measured at 26ms and 60ms),
   so a section going inert under the caret was already answered one layer up. **One is the header's
-  chats button, and the entry was wrong to want a rule for it**: measured, the pointer's press
+  chats button, and the entry was wrong to ask for a rule for it**: measured, the pointer's press
   moves the caret off the row and onto the button at 45ms, before the close is dispatched at all,
   and the keyboard can only press a button the caret is already on. **Two are the panel being
   dismissed**, Escape and the tuck button, where the caret reads `<body>` at 39ms and at 71ms
@@ -49,7 +49,7 @@ before a shape is picked. Nothing blocks it.
   **The reminder stack has the same gap and it is not the stack's own control.** Its three
   closings: acking the last row, which `useRowCaret`'s anchor already answers (the caret is in the
   composer at 53ms); a swap, which the arrival rule answers; and the first message landing, which
-  is reached by two doors. The composer's own send is standing in the field already. The other is
+  is reached by two paths. The composer's own send is standing in the field already. The other is
   an **example chip on the empty state**, which is in no list, has no heir, and whose press unmounts
   the whole empty state and rolls the stack away with it: measured, the caret read `<body>` at
   39ms. That one is answered here.
@@ -84,11 +84,11 @@ before a shape is picked. Nothing blocks it.
   props on `SessionList`, which hears its own close while it is still mounted; one call in the
   empty state's chips. The reminder stack is deliberately not wired to the hook: every closing it
   has is answered elsewhere, so a hook there would be a rule with nothing to do.
-  **After, measured the same way, every door.** `Ctrl+K` from a row's pencil lands on
+  **After, measured the same way, every path.** `Ctrl+K` from a row's pencil lands on
   `button[Recent chats]` in the first sampled frame (6ms) and holds it to 802ms, and from a row's
   title and from an open confirm's cancel by 18ms. The composer's half typed sentence is untouched,
-  caret still at offset 4. The seven swap doors still read `textarea[Message]`, the two console
-  doors still read the tab strip, the two dismissals still read `<body>`, the stack's own two acks
+  caret still at offset 4. The seven swap paths still read `textarea[Message]`, the two console
+  paths still read the tab strip, the two dismissals still read `<body>`, the stack's own two acks
   are unmoved, and the example chip now reads `textarea[Message]` at 40ms where it read `<body>`.
   The full before and after table is in the addendum.
   **And the panel does not notice the caret moving under it**, traced at 60Hz with the same close
@@ -98,20 +98,20 @@ before a shape is picked. Nothing blocks it.
   `scrollTop` 0 throughout, which is `preventScroll` doing its job. The one 31px step in that trace
   is the frame at 322ms reading the unanimated layout, the `requestAnimationFrame` artefact this
   ADR already documents, and it is in both runs identically.
-  **The mutation proof.** Neutering the handoff reddens the hook's own case and the end to end one
+  **The mutation proof.** Neutering the handoff fails the hook's own case and the end to end one
   (`expected <body> to be <button class="hbtn" ...>`, which is the defect restated); dropping the
-  arrival guard reddens the stand down case; dropping the inside the section guard reddens both the
-  unit case and the half typed sentence; removing the chip's handoff reddens the chip case alone.
-  Four mutations, four distinct rednesses, nothing else in the 661 test suite moving under any of
+  arrival guard fails the stand down case; dropping the inside the section guard fails both the
+  unit case and the half typed sentence; removing the chip's handoff fails the chip case alone.
+  Four mutations, four distinct failures, nothing else in the 661 test suite moving under any of
   them.
   One thing opened behind it, below, and it is the mirror of this one.
 
 ## Trail
 
-- 2026-08-07: Opened by the chord entry above, which shut one door onto this and left the others
+- 2026-08-07: Opened by the chord entry above, which closed one of these paths and left the others
   standing.
 - 2026-08-07: Closed the same day as a rule about a section closing rather than about a key, one out
   and one in, with the mirror entry opening behind it and every top-level entry in the area walked
-  beforehand and agreeing with the index cell one for one. The doors were thirteen where the entry
+  beforehand and agreeing with the index cell one for one. The paths were thirteen where the entry
   filed four, the third entry in this chain to undercount them and the second to be wrong about
   which of them were already answered.

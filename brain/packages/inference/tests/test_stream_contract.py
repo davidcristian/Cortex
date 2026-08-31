@@ -15,9 +15,9 @@ others would turn a backend a GPU-less deployment really runs into a test stub, 
 argument ``fakes_inference.py`` makes about the cadence it must never fabricate. What the echo owes
 is held by ``core/tests/test_fakes.py``, beside the script it is.
 
-Mutations run against production code, each reverted and each with the whole ``packages`` suite
-re-run, proving these checks can fail rather than trusting that they pass. They are recorded in the
-architecture ADR's addendum on the contract-test half of decision 2, port by port.
+These checks were proved able to fail. Each mutation was run against production code and then
+reverted, with the whole ``packages`` suite re-run, and they are recorded in the architecture ADR's
+addendum on the contract-test half of decision 2, port by port.
 """
 
 import json
@@ -136,7 +136,7 @@ def _calling_body() -> bytes:
 
 @pytest.fixture
 def scripted() -> BackendUnderTest:
-    """The core twin, scripted with each world rather than asked to derive it.
+    """Build the core twin, scripted with each world rather than asked to derive it.
 
     Every twin here is told it stands for a deployment serving ``CONTRACT_MODEL`` alone, which is
     the wiring the adapter leg gets from its ``SingleResidentModelManager``. Without it the two
@@ -179,7 +179,7 @@ def scripted() -> BackendUnderTest:
 
 @pytest.fixture
 def adapter() -> BackendUnderTest:
-    """The real adapter over a MockTransport serving the real llama-server bodies."""
+    """Build the real adapter over a MockTransport serving the real llama-server bodies."""
     clients: list[httpx.AsyncClient] = []
 
     def over(handler: Callable[[httpx.Request], httpx.Response]) -> LlamaCppBackend:
@@ -233,11 +233,12 @@ async def test_llamacpp_backend_meets_the_stream_contract(
 async def test_the_adapter_leg_really_assembles_what_the_wire_split(
     adapter: BackendUnderTest,
 ) -> None:
-    """The contract's derived half, stated once outside the shared checks.
+    """The adapter assembles the call and the reply the wire split into fragments.
 
-    The scripted twin cannot fail this: it is handed a whole ``ToolCall`` and whole chunks. The
-    adapter is handed bytes in which neither the arguments nor the reply exists as one value, so
-    this pins that both were assembled here rather than written down for it.
+    This is the contract's derived half, stated once outside the shared checks. The scripted twin
+    cannot fail it, because it is handed a whole ``ToolCall`` and whole chunks. The adapter is
+    handed bytes in which neither the arguments nor the reply exists as one value, so this pins
+    that both were assembled here rather than written down for it.
     """
     body = _calling_body().decode()
     assert json.dumps(CONTRACT_CALL.arguments) not in body

@@ -3,13 +3,13 @@
 These tests drive the conversation loop directly (no gRPC); the loopback tests in
 test_converse_grpc.py prove the same contract over the real wire.
 
-Distrust-green proofs for the turn a failure names (ADR-0038 named-turn addendum), each
+Proof these cases can fail for the turn a failure names (ADR-0038 named-turn addendum), each
 mutation applied to production code alone with the core and orchestrator suites re-run, then
-restored: the failure lines minting a fresh id rather than reporting the turn's reddens 5;
-dropping the ``turn_id`` field reddens 5; attaching the user's own text beside it reddens 3;
-the engine naming its own turn again instead of answering under the id it was handed reddens
-27; and the escalating wrapper completing under whatever id its inner runner claimed reddens
-1, in test_escalating_engine.py.
+restored: the failure lines minting a fresh id rather than reporting the turn's makes 5 tests
+fail; dropping the ``turn_id`` field makes 5 tests fail; attaching the user's own text beside it
+makes 3 tests fail; the engine naming its own turn again instead of answering under the id it was
+handed makes 27 tests fail; and the escalating wrapper completing under whatever id its inner
+runner claimed makes 1 test fail, in test_escalating_engine.py.
 """
 
 import asyncio
@@ -540,9 +540,9 @@ async def test_a_failure_is_named_for_the_same_turn_the_store_grouped_it_under(
 ) -> None:
     """The join, asserted against the store rather than against a string this test arranged.
 
-    The id on the failure line is worth nothing unless it is the id the dead turn actually ran
-    under. A turn that dies mid-inference has already persisted its user message, so the store
-    holds that turn's own grouping key, and the two must be the same value.
+    The id on the failure line has to be the id the failed turn actually ran under. A turn that
+    fails mid-inference has already persisted its user message, so the store holds that turn's
+    own grouping key, and the two have to be the same value.
     """
     store = InMemorySessionStore()
     engine = TurnEngine(store, MidStreamFailingBackend(), SystemClock())
@@ -556,11 +556,12 @@ async def test_a_failure_is_named_for_the_same_turn_the_store_grouped_it_under(
 async def test_two_failed_turns_in_one_session_are_told_apart_by_their_own_ids(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The reading this was opened over: one repeating fault, or two unrelated ones.
+    """Two failures in one session carry different turn ids, so a reader can tell one repeating
+    fault from two unrelated ones.
 
     A failed stream starts no further turn, so a session that failed twice is two streams, and
-    both lines used to say `session_id=s7` and nothing else. Nothing is pinned here, which is
-    the point: the default naming is what a deployment runs, so this case is also what holds
+    both lines used to say `session_id=s7` and nothing else. No id factory is passed here,
+    deliberately: the default naming is what a deployment runs, so this case also holds
     `new_turn_id` to being unique per turn rather than merely present.
     """
     with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
@@ -647,7 +648,8 @@ async def test_seam_error_bypasses_the_buffer_credits() -> None:
 
 
 async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
-    """Client disconnect: the in-flight turn dies, user message stays, partial drops."""
+    """On a client disconnect the in-flight turn is cancelled, the user message stays persisted,
+    and the partial reply is dropped."""
     store = InMemorySessionStore()
     backend = GatedBackend()
     engine = TurnEngine(store, backend, SystemClock())
@@ -660,12 +662,12 @@ async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
 
 
 async def test_cancel_behind_a_queued_turn_stops_current_and_drops_queued() -> None:
-    """[UserTurn A, UserTurn B, Cancel]: A dies mid-stream, B never runs at all.
+    """[UserTurn A, UserTurn B, Cancel]: A is cancelled mid-stream and B never runs at all.
 
-    Dispatch must not block on the running turn. With the old serialized dispatch
+    Dispatch does not block on the running turn. With the old serialized dispatch
     this interleaving deadlocked until A finished (never, here), and the stale
-    Cancel then destroyed B instead. The dictated semantics: Cancel stops the
-    current turn AND drops everything queued; a dropped turn leaves no trace.
+    Cancel then destroyed B instead. The semantics are that Cancel stops the
+    current turn AND drops everything queued, and a dropped turn leaves no trace.
     """
     store = InMemorySessionStore()
     backend = GatedBackend()
@@ -716,9 +718,9 @@ async def test_closing_the_stream_during_cancel_teardown_does_not_hang() -> None
 class CutCallBackend:
     """Backend that streams a delta and a reported cap, then fails to assemble a tool call.
 
-    The adapter's own ordering: the finish reason rides the last chunk and the calls are
-    assembled once the stream is over, so the turn's ledger is already answering when the raise
-    reaches it.
+    This follows the adapter's own ordering: the finish reason arrives on the last chunk and the
+    calls are assembled once the stream is over, so the turn's ledger is already answering when
+    the raise reaches it.
     """
 
     async def stream(
@@ -738,11 +740,11 @@ class CutCallBackend:
 
 
 async def test_a_cut_tool_call_completes_the_turn_instead_of_failing_the_stream() -> None:
-    """The surface this arm exists for: the user was told inference failed and shown JSON.
+    """A cut tool call ends the turn with the capped-reply note instead of failing the stream.
 
-    A cut tool call is the model's own tokens rather than a broken transport, so the turn now
-    ends with the note a capped reply gets and the reply the user watched arrive is persisted,
-    where the same turn used to reach here as an error carrying a fragment of the call.
+    A cut tool call is the model's own tokens rather than a broken transport, so the turn ends
+    with the note a capped reply gets and the reply the user watched arrive is persisted. The
+    same turn used to reach the user as an error carrying a fragment of the call's JSON.
     """
     store = InMemorySessionStore()
     engine = TurnEngine(store, CutCallBackend(), SystemClock())

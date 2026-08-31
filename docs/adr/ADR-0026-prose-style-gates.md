@@ -21,8 +21,8 @@ neither. A rule with no gate is a defect by the repo's own standard.
 
 The rules are also easy to enforce *wrongly*. During the sweep, the ad-hoc verifier
 raised false positives twice: once on an en dash inside a numeric range, once on the SQL
-comment marker at the head of a line. Both are correct text that a naive scan condemns. A
-gate that cries wolf gets disabled, so the boundary needs to be exact.
+comment marker at the head of a line. Both are correct text that a naive scan reports. A
+gate that fails on correct text gets disabled, so the boundary needs to be exact.
 
 ## Decision
 
@@ -44,8 +44,8 @@ the line cap) and extend `scripts/commitlint.py` from the header to the whole me
    spelling.
 
 2. **ASCII `--` is banned in a commit message and allowed in a file.** The two are
-   different registers. A commit message is pure prose, so ` -- ` there is an em dash in
-   ASCII clothing. A source file uses `--` as this repo's inline-reason idiom
+   different registers. A commit message is pure prose, so ` -- ` there is an em dash
+   written in ASCII. A source file uses `--` as this repo's inline-reason idiom
    (`# noqa: DTZ001 -- the naive value under test`, `# pragma: no cover -- reason`), which
    the escape-hatch rule effectively requires and which appears across 13 files. Banning
    it in files would mean either abandoning that idiom or an unrequested second sweep.
@@ -92,8 +92,8 @@ the line cap) and extend `scripts/commitlint.py` from the header to the whole me
   outright. A commit that genuinely edits the plan must describe what it changed rather
   than name the file. That is the intent, and it is the rule's sharpest edge.
 - The dash rule is not retroactively enforceable on anything outside this repo's history,
-  and the one allowed exemption is load-bearing: if the HTML entity test moves, its pragma
-  moves with it.
+  and the one allowed exemption has to travel with its subject: if the HTML entity test
+  moves, its pragma moves with it.
 
 ## Deferred
 
@@ -171,13 +171,13 @@ indented `docker compose --project-directory . -f docker/docker-compose.yml ... 
 chars, longest word 29), a fenced `uv run pytest packages/core --cov ...` line (82 chars), and a
 `BREAKING CHANGE:` footer of short words (118 chars) produced three complaints and exit 1. The
 footer is the sharpest of the three in principle, because [AGENTS.md](../../AGENTS.md) mandates
-that footer for a breaking change, so the gate as it stands can refuse a message the commit rules
+that footer for a breaking change, so the gate as it stands can reject a message the commit rules
 themselves require; it is also the easiest to live with, since a footer is prose and its value may
 carry newlines, so wrapping it costs nothing. A pasted command and a fenced block cannot be
 reflowed without changing what they say, which is the "rewriting messages rather than checking
 them" failure the deferral named.
 
-Closing that gap wants a **line-kind** exemption rather than a word-width one: a fence toggle
+Closing that gap needs a **line-kind** exemption rather than a word-width one: a fence toggle
 carried through the walk, a heuristic for a pasted command (a leading indent, a shell prompt), and
 a decision on whether a footer is exempt at all or simply wrapped like any other prose. That is
 recorded as its own deferral in the three places this repo requires, replacing its parent: the
@@ -197,7 +197,7 @@ and they collided twice on 2026-08-06: the session-history summarizer got under 
 trimming the barrel's docstring, and an hour later `PLAIN_SECURITY_PREAMBLE` landed with its
 barrel export backed out after `scripts/linecap.py` measured the file at 304. That left a public
 core constant importable from `cortex_core.untrusted` and from nowhere else, unlike every one of
-its siblings, which is the shape of a rule bending code rather than code obeying a rule.
+its siblings, which is the line cap deciding a public API rather than a file's length.
 
 The three options on the record were a sub-barrel per area, the test doubles leaving the top
 barrel, and an `__all__` over star imports. The first two only relocate the wall unless every
@@ -259,23 +259,23 @@ cannot classify, a source it cannot reduce, or a `git` it cannot run are each a 
 than a pass, since a scan whose glob matched nothing would report success forever. The reader
 (`scripts/composemounts.py`, split out at the line cap) refuses an inline `volumes:` list, a
 mount without a `type`, a type it has not been taught, and a short-syntax entry carrying an
-expansion. Before being trusted the scan was reddened twice over the real tree: a planted
+expansion. Before being trusted the scan was made to fail twice over the real tree: a planted
 `docker/docker-compose.cache.yml` with `${CORTEX_CACHE_DIR:-./hfcache}` drew two complaints
 (`hfcache` and `docker/hfcache`) and exit 1, which is precisely the third case this was written
 for, and deleting the `models/` line from `.gitignore` drew eight across four overrides. Both
 went back to `bindcheck OK` on revert.
 
-### Two silences the first reddening did not reach (2026-08-08)
+### Two unreported shapes the first failing run did not reach (2026-08-08)
 
-Reddening a scan on the shapes it already reads says nothing about the shapes it walks past, and
-this one walked past two that `docker compose config` resolves into live binds.
+Making a scan fail on the shapes it already reads says nothing about the shapes it skips, and this
+one skipped two that `docker compose config` resolves into live binds.
 
 **A flush sequence.** YAML lets a list sit at the indent of its own key, and compose accepts it,
 so `volumes:` at four spaces with `- type: bind` also at four is a real mount. The reader closed
 a block at the first line no deeper than its key, so the entire list fell outside it and zero
-mounts were read, with no error: the exact "quietly walks past the one mount a new override adds"
-the module's docstring promises against. A block now ends at a line **shallower** than its key, or
-at one beside the key that is not a list item.
+mounts were read, with no error: exactly the case the module's docstring names, a reader skipping
+the one mount a new override adds. A block now ends at a line **shallower** than its key, or at one
+beside the key that is not a list item.
 
 **A flow-style entry.** `- {type: bind, source: ./x, target: /y}` is the long syntax written
 inline. It reached the short-syntax reader, where `{type` is not a path prefix, so it was
@@ -297,7 +297,7 @@ returns to `bindcheck OK` once the landing is accounted for.
 
 ## Addendum (2026-08-09): the wrap exempts a line's kind, and the footer is not one of them
 
-The 2026-07-19 addendum shipped one of the four exceptions and named what the other three want:
+The 2026-07-19 addendum shipped one of the four exceptions and named what the other three need:
 a fence toggle carried through the walk, a heuristic for a pasted command, and a decision on
 whether a `BREAKING CHANGE:` footer is exempt at all or simply wrapped. All three are decided
 here, and two of the three answers are not the ones that were sketched.
@@ -315,8 +315,8 @@ in the wrap for exactly the class of text the wrap exists for, keyed on a token 
 anything about the words: a three-sentence footer would be exempt on all three sentences.
 
 **The defect the deferral feared is smaller than the record said, which is worth stating plainly.**
-Both the entry and the addendum above say the gate "can refuse a message the commit rules
-themselves require". What it refuses is a footer written unwrapped, never the footer: AGENTS.md
+Both the entry and the addendum above say the gate "can reject a message the commit rules
+themselves require". What it rejects is a footer written unwrapped, never the footer: AGENTS.md
 mandates the footer and, on the same page, mandates the wrap, and the specification it cites
 permits the two together. Measured rather than argued, and on the gate exactly as it stood before
 this change: a footer written as one 139-character line exits 1, while the same footer wrapped
@@ -354,7 +354,7 @@ three places this repo requires: the entry in
 **What the gate still cannot see.** The fence toggle is not a CommonMark implementation: it does
 not require a closing fence to match the opener's character or length, and it knows nothing of
 indented code blocks, list context, or a fence nested in a fence. The prompt marks its own line and
-not the output printed under it, which wants a fence. And nothing here tells a paste from prose that
+not the output printed under it, which needs a fence. And nothing here tells a paste from prose that
 merely resembles one, by design: both exemptions are author declarations, the only signal that does
 not guess.
 
@@ -399,7 +399,7 @@ the paste and bypassing the hook.
 
 **The dash ban is exempt because its subject is absent, not because a paste is inconvenient.**
 ADR-0026 decision 2 bans ASCII `--` in a message on the reasoning that a commit message is pure
-prose, so ` -- ` there is an em dash in ASCII clothing. Inside a paste that premise fails: the text
+prose, so ` -- ` there is an em dash written in ASCII. Inside a paste that premise fails: the text
 is not prose in any register, and `--` in `cargo llvm-cov -- --nocapture` is cargo's own argument
 separator, a token of a command line with no punctuating role to play. The remedy the rule
 prescribes settles it. Every rule states one, and this one's is "restructure the sentence"; a paste
@@ -458,7 +458,7 @@ a paste is not exempt from still fire inside one**: a fenced `git show` of this 
 short hash, which really resolves, exits 1 on the hash, and a fenced `grep -n 'ADR-0026' docs/adr/*.md`
 exits 1 on the decision-record number. An em dash in program output printed under a `$` prompt
 rather than inside a fence exits 1, which is not a defect but the recorded limit: the prompt marks
-its own line and output wants a fence.
+its own line and output needs a fence.
 
 **No new deferral opens, and that is a decision rather than an omission.** Two limits are worth
 writing down beside the behaviour instead. The exemption is an author declaration, so a fence
@@ -564,8 +564,8 @@ compose files under `docker/` at this commit.
 | `CORTEX_SUBAGENT_CTX_SIZE` (3) | the GPU override's env to `4096` | exit 1, all 3 spends named |
 | `CORTEX_SUBAGENTS_MEM_BUDGET_GB` (3) | `memswap_limit` to `7` | exit 1, all 3 spends named |
 
-And the converse, which is the half that matters most here, since a gate that reddens on everything
-would also redden on the tree's one deliberate re-spelling:
+And the converse, which is the half that matters most here, since a gate that failed on everything
+would also fail on the tree's one deliberate re-spelling:
 
 | Case | Expected | Result |
 | --- | --- | --- |
@@ -607,7 +607,7 @@ So interpolation runs over the strings a YAML parse produced, a comment never su
 and nothing in a note is ever spent. The gate's whole-line skip is therefore exact, and its
 trailing-note reading is wrong about compose rather than careful about it.
 
-**The remedy as the entry proposes it reddens the tree it protects.** Written out exactly as the
+**The remedy as the entry proposes it fails on the tree it protects.** Written out exactly as the
 entry describes it (track single and double quotes across the line with the backslash escape, take
 a `#` that opens a line or follows whitespace outside a quote, refuse an unterminated quote and a
 block scalar) and run over the ten compose files under `docker/`, it refuses five lines in two of
@@ -631,7 +631,7 @@ wrongly read as a marker is silent: every substitution after it drops out of the
 the group goes on agreeing with itself, which is precisely the failure this gate was written to
 remove. The same argument `headingshapes.py` makes for refusing six heading shapes rather than
 emulating a renderer holds here with the added weight that the mechanism is measured: no compose
-file in this tree wants the shape, and two of them already break the model the remedy would need.
+file in this tree needs the shape, and two of them already break the model the remedy would need.
 
 **One narrower task opens.** The fault says nothing about the one-line remedy, and a reader who
 hits it sees one `path:line` twice among the spends with no hint that a `#` is why
@@ -715,7 +715,7 @@ Three candidates were weighed: the working tree, the index, and `git ls-files`.
 `git ls-files` is what the repo ships, it is what the rule is about, and it is the only candidate
 whose printed count is reproducible between this machine and CI. It loses anyway, on the case that
 made the walk a walk. A file an agent wrote a minute ago is prose this repo is about to own, and
-under `ls-files` the gate goes green on the document being written in front of it and reddens only
+under `ls-files` the gate goes green on the document being written in front of it and fails only
 once somebody stages it, which is after the sentence is written and usually after it has been read.
 The index is the same argument one step later: it covers the staged file and still not the new one.
 An unstaged new file is the single most common way prose enters this repo, an agent writing an ADR
@@ -774,8 +774,8 @@ re-established after the last.
 | 5 | the floor lowered to zero | both floor tests fail, the new road included | 2 failed, 850 passed |
 
 Row 3 is the row the fail-closed decision needed: reading everything on a git failure is the
-tempting alternative, it hides no violation, and it silently restores the exact reds this change
-removes. Row 5 is the check that the floor still means what it meant, its second failure being the
+tempting alternative, it hides no violation, and it silently restores the exact failures this
+change removes. Row 5 is the check that the floor still means what it meant, its second failure being the
 tree git ignores entirely, which could not have existed before this change.
 
 ### What this opened
@@ -823,8 +823,8 @@ and `dashcheck.py` raises `IgnoreQueryError`, each named for the question it cou
 and `commitlint.py` answers an `OSError` with False rather than an exception, because a box with no
 git cannot disprove a hash and blocking a commit over that would be the wrong trade in a commit-msg
 hook. A shared runner would therefore take an allowed-codes set, an exception factory and an
-`OSError` policy, which is one parameter per caller and a switch statement wearing a function's
-clothes. The environment is one fact with one reason, so `scripts/gitenv.py` is one constant and
+`OSError` policy, which is one parameter per caller and a switch statement in the shape of a
+function. The environment is one fact with one reason, so `scripts/gitenv.py` is one constant and
 one function, and each gate keeps its own argv and its own reading of the answer.
 
 `GIT_PREFIX` ends in its underscore on purpose. Dropping everything that starts `GIT` would take
@@ -859,7 +859,7 @@ restored from a copy taken before the first, with `__pycache__` purged between r
 Rows 3 to 5 are the rows this close needed, and they are why the three end-to-end tests exist at
 all. A helper nobody is obliged to call is not a fix, so each gate is held to calling it by a test
 that exports a `GIT_DIR` naming no repository at all over a real `git` and demands the right answer
-anyway: without the strip, `bindcheck.py` reddens on a clean tree, `dashcheck.py` exits 2 on one,
+anyway: without the strip, `bindcheck.py` fails on a clean tree, `dashcheck.py` exits 2 on one,
 and `commitlint.py` stops reporting a hash that really resolves. Row 1 is the same three tests plus
 the unit one, which is the shape a shared fact should fail in.
 
@@ -930,8 +930,8 @@ same 10 files and 59 read.
 
 The claim the list makes about `.gitignore` is now measured rather than believed. A test asks git
 about each of the ten, in a directory git tracks and under the repo's own ignore rules alone, and
-holds the partition: eight restatements, and `.git` and `coverage` outside them. It reddens in
-both directions, which is the point of comparing two things nothing compared before.
+holds the partition: eight restatements, and `.git` and `coverage` outside them. It fails in both
+directions, which is the point of comparing two things nothing compared before.
 
 ### Proved able to fail, six times, over the scripts suite
 
@@ -953,7 +953,7 @@ Row 4 is the historical defect replayed: a copy that agrees with the original is
 every behaviour test in the tree, which is how the anchor scan's twin lived here unnoticed, and
 only an obligation on the walk itself catches it. Row 6 is the row that proves the overlap test
 reads git rather than a second copy of the answer: adding a rule this repo does not have turns
-`coverage` into a restatement and the partition reddens on the spot.
+`coverage` into a restatement and the partition fails on the spot.
 
 ### Records
 

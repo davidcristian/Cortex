@@ -1,62 +1,25 @@
 """Repo gate: fail when one value spelled in two trees stops agreeing with itself.
 
-A few constants exist twice, once per language, because both sides of the seam must hold the
-same number or the same string and neither toolchain can import the other's. Each side already
-pins its own literal in its own suite, which catches an edit to the constant alone. What nothing
-caught is an edit to a constant **and** its own pin: both suites stay green while the two trees
-disagree. That is the drift this gate closes. The registry it reads is `registry.py`, which names
-the `*couplings.py` data files; they are all of the data the way this file is all of the logic,
-written in the vocabulary `couplings.py` holds.
+A few constants exist twice, once per language, because both sides of the seam must hold the same
+number or the same string and neither toolchain can import the other's. Each side pins its own
+literal in its own suite, which catches an edit to the constant alone. What nothing caught is an
+edit to a constant and its own pin together: both suites stay green while the two trees disagree.
 
-**No master.** proto/body.proto is the source of truth for the seam's *shape*, but protobuf has
-no constant, so a value could only live there as a comment, and a comment is one more uncoupled
-copy: the body's own default edge is spelled in a comment there and in prose all through both
-trees, which is why each of those places is a row in this registry and none of them is a master.
-So this gate compares the sites with each other rather than against a designated original, which
-is what keeps it symmetric. A designated original would leave that one file editable alone, which
-is the same drift with the roles reversed.
+This file is the logic and reports the constants that do not tie. The registry it reads is
+`registry.py`, which names the `*couplings.py` data files; the vocabulary those are written in is
+`couplings.py`, what a value reduces to is `values.py`, what it means for a constant's readings to
+hold together is `readings.py`, and how a rendered needle is looked for is `needles.py`.
 
-**Fail closed** is the whole point. A constant this scan cannot find, cannot read, finds twice,
-or cannot reduce to a value is a failure, never a silent pass, because a rename that quietly
-emptied the registry would leave a scan that always agrees with itself.
+ADR-0029's cross-language-constant addenda argue the rest: why the sites are compared with each
+other rather than against a designated master, why a constant the scan cannot find, cannot read,
+finds twice, or cannot reduce fails rather than passing, why `Mention.occurrences` pins an exact
+count rather than a floor, and why a far side whose syntax cannot take the value as written is
+reached by re-spelling rather than by a second number in the registry.
 
-A value is compared after reduction, not as text, so one site may write ``6291456`` where another
-writes ``6 * 1024 * 1024``. What reduces, and how a mention may spell what did, is `values.py`;
-what it means for a constant's readings to hold together is `readings.py`. This file finds the
-declarations and reports the ones that do not tie, and those two say what it found and whether it
-stands.
-
-Not every far side is a declaration, and the ones that are not used to be unreachable. A key
-spelled inside a shell string, a custom property a stylesheet reads back with ``var(...)``, a
-bare literal a component compares against: each is a **mention**, checked by rendering the agreed
-value into the mention's own template and requiring the result to **appear as a whole token** in
-the file. How a needle is looked for, and what an unfound one is told about where the file stopped
-agreeing with it, is `needles.py`; a template is written to cover the whole of what it pins rather
-than a leading piece of it.
-
-A mention is a presence check unless it says otherwise, so a file that spends the value twice and
-loses one of them passes: what the gate ties is the spelling and not how many times it is spent.
-``Mention.occurrences`` says otherwise, and it pins an **exact** count rather than a floor,
-because a floor cannot notice that the far side has grown past it and so widens itself by however
-much the tree drifted. The exactness is affordable only because the field is opt in: a count is
-written where the occurrences are one set that must move together, and every other mention keeps
-the presence check, so no legitimate new rule reddens a gate about a coupling that never moved.
-
-A far side whose own syntax cannot take the value as the site writes it (docker reads ``8g`` as a
-size and refuses ``8.0g``) is reached by re-spelling the agreed value rather than by writing a
-second number into the registry: ``Mention.spelling`` names the shape and `values.py` derives it,
-refusing any value it would have to change to fit. An entry that re-spells everywhere it is spent
-is refused, nothing there holding the spelling the site itself writes.
-
-**The success line states the registry's own shape**, entries over sites over mentions and how
-many of those mentions pin a count, because that is the collection every mutation table in this
-repo opens by naming and it was counted by hand until now. It is a reading and never an assertion:
-holding the documents that quote it to it would tie this gate's prose to this gate's own data.
-
-And not every coupling is an equality: `Relation.ORDERED` holds a registry's sites to
-non-decreasing order instead, for the bounds that must sit under one another rather than match,
-and `Relation.MEMBER` holds them to one being inside another's collection, for the encoding one
-tree produces and another accepts a set of.
+The success line states the registry's own shape, entries over sites over mentions and how many of
+those mentions pin a count, because that is the collection every mutation table in this repo opens
+by naming. It is a reading and never an assertion: holding the documents that quote it to it would
+tie this gate's prose to this gate's own data.
 """
 
 import argparse
@@ -78,18 +41,17 @@ from readings import Reading, relation_fault
 from registry import CONSTANTS, shape
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
-# A registry entry naming one place would agree with itself forever, which is the gate that
-# cannot fail this scan was written to remove. Two is therefore the floor, not a formality, and
-# it counts mentions: a lone declaration plus one place that spends it is a real coupling.
+# A registry entry naming one place would agree with itself forever. Two is therefore the floor,
+# and it counts mentions: a lone declaration plus one place that spends it is a real coupling.
 MIN_PLACES = 2
 
 # The floor under a pinned occurrence count. Zero would ask a mention to prove the value is
-# ABSENT, which is the opposite of a coupling, and a negative one asks nothing at all.
+# absent, which is the opposite of a coupling, and a negative count asks nothing at all.
 MIN_OCCURRENCES = 1
 
 # One declaration syntax per language, each matching only a module-level (Python, TypeScript) or
 # item-level (Rust) constant, and each capturing exactly the value expression. `{name}` is
-# substituted with the escaped identifier. An unknown suffix is a fault, never a skip. The
+# substituted with the escaped identifier. An unknown suffix is a fault rather than a skip. The
 # TypeScript form is anchored at column 0 like the Python one, so a `const` inside a function is a
 # local and not a second declaration of the module's constant; its type annotation is optional
 # because TypeScript infers one, where Rust requires it.

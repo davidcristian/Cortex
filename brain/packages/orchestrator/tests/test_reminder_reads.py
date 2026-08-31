@@ -206,7 +206,7 @@ async def test_schedule_free_brain_answers_benignly() -> None:
 
 
 class _FailingScheduleStore(InMemoryScheduleStore):
-    """Scripts a down store for the abort paths."""
+    """A store whose reads and acks always raise, for the abort paths."""
 
     def _down(self) -> ScheduleStoreError:
         msg = "redis down"

@@ -1,10 +1,10 @@
-"""Behaviour of the gate holding a runbook's log samples to the calls that would print them.
+"""Tests for the gate holding a runbook's log samples to the calls that would print them.
 
 The fixtures are a miniature repo: one brain package that logs one line, one runbook that prints
-it. Every mutation below is an edit somebody could really make to one side and forget on the
-other, which is the whole reason this gate exists: the two sides are two hundred files apart and
-each of them stays green on its own. The last tests here run the gate over the committed tree,
-where the samples are true or the fixtures are testing the gate against itself.
+it. Every mutation below is an edit somebody could make to one side and forget on the other, which
+is why this gate exists: the two sides are two hundred files apart and each of them stays green on
+its own. The last tests here run the gate over the committed tree, since the fixtures alone would
+test the gate against itself.
 """
 
 from pathlib import Path
@@ -53,7 +53,7 @@ def repo(root: Path, *, module: str = SETTLE, runbook: str = RUNBOOK) -> Path:
 
 
 def detail(root: Path) -> str:
-    """The one miss the fixture produces, asserted to be one so a miscount cannot pass."""
+    """Return the one miss the fixture produces, asserting the count so a miscount fails here."""
     misses = samplecheck.check(root).misses
     assert len(misses) == 1
     return misses[0].detail
@@ -67,13 +67,15 @@ def test_a_sample_that_prints_what_the_call_attaches_is_clean(tmp_path: Path) ->
 
 
 def test_a_field_the_call_stopped_attaching_is_caught(tmp_path: Path) -> None:
-    """The defect this gate is named for: the sample goes on printing a field nothing emits."""
+    """This is the defect the gate is written for: the sample goes on printing a field the call no
+    longer attaches."""
     dropped = SETTLE.replace(', "reason": reason', "")
     assert "attaches session_id, turn_id" in detail(repo(tmp_path, module=dropped))
 
 
 def test_a_field_the_call_started_attaching_is_caught(tmp_path: Path) -> None:
-    """The other direction, and the one no neighbouring-field anchor could ever see."""
+    """The same drift in the other direction, which a check anchored on the neighbouring fields
+    would not see."""
     gained = SETTLE.replace('"reason": reason', '"reason": reason, "state": record')
     assert "attaches reason, session_id, state, turn_id" in detail(repo(tmp_path, module=gained))
 
@@ -101,13 +103,14 @@ def test_a_message_the_module_no_longer_logs_is_caught(tmp_path: Path) -> None:
 
 
 def test_a_sample_naming_a_logger_nothing_declares_is_caught(tmp_path: Path) -> None:
-    """Fail closed: a runbook quoting a line no module writes is a miss, never a skip."""
+    """A runbook quoting a logger no module declares is reported as a miss rather than skipped."""
     moved = RUNBOOK.replace("cortex_core.swap_settle", "cortex_core.swap_settler")
     assert "which no module under the brain declares" in detail(repo(tmp_path, runbook=moved))
 
 
 def test_an_empty_field_list_is_reported_in_words(tmp_path: Path) -> None:
-    """A bare pair of quotes reads as a formatting slip rather than as an answer."""
+    """A sample printing no fields is reported in words, since an empty list in the message would
+    read as a formatting slip."""
     bare = RUNBOOK.replace(SAMPLE, "WARNING:cortex_core.swap_settle:a handoff ended failed")
     assert detail(repo(tmp_path, runbook=bare)).startswith("prints no fields where")
 
@@ -130,20 +133,23 @@ def test_a_repo_with_no_runbook_tree_is_a_failure(tmp_path: Path) -> None:
 
 
 def test_a_runbook_tree_with_no_sample_in_it_is_a_failure(tmp_path: Path) -> None:
-    """A comparison over nothing would report success forever."""
+    """A runbook tree holding no sample raises, since a comparison over nothing would pass every
+    time it ran."""
     with pytest.raises(samplecheck.SampleCheckError, match="no log sample"):
         samplecheck.check(repo(tmp_path, runbook="## Nothing rendered here\n"))
 
 
 def test_a_brain_that_declares_no_logger_is_a_failure(tmp_path: Path) -> None:
-    """The other empty side: a name table nothing filled would make every logger unknown."""
+    """This is the other empty side: a logger table nothing filled would leave every sample's
+    logger unknown."""
     with pytest.raises(samplecheck.SampleCheckError, match="declares no logger"):
         samplecheck.check(repo(tmp_path, module="x = 1\n"))
 
 
 def test_a_brain_that_logs_no_message_is_a_failure(tmp_path: Path) -> None:
-    """The third empty side: a module claiming a logger and writing nothing through it leaves
-    every sample's message unaccounted for, and a floor is what keeps that from reading as clean."""
+    """The third empty side: a module that declares a logger and writes nothing through it would
+    leave every sample's message unaccounted for, and this floor keeps that from reading as
+    clean."""
     module = "import logging\n\n_logger = logging.getLogger(__name__)\n"
     with pytest.raises(samplecheck.SampleCheckError, match="logs no message"):
         samplecheck.check(repo(tmp_path, module=module))
@@ -227,7 +233,7 @@ def test_the_repo_itself_is_clean() -> None:
 
 
 def test_the_repo_really_carries_samples_for_this_gate_to_have_checked() -> None:
-    """A guard on the guard: a walk that read nothing would make the test above vacuous."""
+    """This guards the test above, which a walk that read nothing would leave vacuous."""
     scanned = samplecheck.check(REPO_ROOT)
     assert scanned.samples >= 3
     assert scanned.docs >= 10

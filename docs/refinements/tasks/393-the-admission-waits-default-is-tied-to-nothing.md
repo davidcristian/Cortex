@@ -10,12 +10,12 @@ and spelled again in two documents: `docs/runbooks/subagents-cpu.md` writes it a
 "`admission_wait_s: float = 3600.0`". No row of the constant scan's registry names it, so retuning
 the declaration alone leaves both documents quoting a bound no spawn is given.
 
-Its neighbour is already held exactly this way. `SUBAGENT_COUPLINGS` in
+The bound beside it is already held exactly this way. `SUBAGENT_COUPLINGS` in
 `scripts/subagentcouplings.py` carries the delegated run's shipped deadline with one site and
 three mentions, in the two spellings the two kinds of reader write it in: a whole count of seconds
 where an operator says it out loud, and the field's own declaration with its point where a module
 contract restates it. The admission wait's two mentions are the same two spellings, so the entry
-that holds it is the neighbouring one with the numbers changed, and the reason it is missing is
+that holds it is the run deadline's own with the numbers changed, and the reason it is missing is
 that the deadline's row was written when the deadline landed while the wait's declaration predates
 the registry.
 
@@ -40,7 +40,7 @@ cannot hold them to it, and the pair moving without the sentence is the failure
   entry in a row framed as a prose gap whose misses include code. **Its own open question is
   answered by the derived-literal ruling**, which landed hours before this was picked up: the
   1800 s and 900 s the bound is twice and four times are consequences of this value and of a
-  measured batch, so a needle over either would redden when the measurement moved, and they stay
+  measured batch, so a needle over either would fail when the measurement moved, and they stay
   out. Two more kinds stay out: [index.md](../../index.md)'s catalogue sentence, whose subject is a
   dated addendum and which sorts with the decision records it indexes, and the two unit suites
   asserting the default, which run on every commit and hold themselves. Five planted drifts each

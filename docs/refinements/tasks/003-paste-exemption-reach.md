@@ -22,7 +22,7 @@ chooses between mangling the paste and bypassing the hook, which is exactly the 
 above exists to prevent.
 
 **Landed 2026-08-09, ahead of its trigger, and the narrower of the two readings it offered was
-refused** ([ADR-0026 paste-reach addendum](../../adr/ADR-0026-prose-style-gates.md)). **The trigger
+rejected** ([ADR-0026 paste-reach addendum](../../adr/ADR-0026-prose-style-gates.md)). **The trigger
 had not fired and is reported rather than glossed:** over 437 commits the history holds 0 fenced
 lines and 1 prompt-marked line, that one being the `docker compose` paste in the commit that
 shipped the kind exemption hours earlier, and it carries neither a bare `--` (its dashes are all
@@ -42,7 +42,7 @@ restructuring the sentence, does not exist for words the author did not write. T
 about the message's future rather than its typing, so who produced the characters is beside the
 point, and their remedy survives a paste intact, `git show <sha>` carrying everything the
 original carried where a reflowed command carries less.
-**This entry's own narrower reading was refused**, that only the argument-separator `--` and a
+**This entry's own narrower reading was rejected**, that only the argument-separator `--` and a
 hash inside a fence be exempt: a rule that exempts ASCII `--` inside a paste while still banning
 an em dash there is a rule about character sets rather than kinds, and it fails on pasted program
 output, which can carry one and which an author would then have to alter. All three banned forms
@@ -54,8 +54,8 @@ The leaks were measured, not assumed: the same separator unfenced exits 1, after
 exits 1, and on the line after a `$` prompt exits 1; an unclosed fence still exits 1 naming the
 line that opened it; and inside a fence a `git show` of a resolving short hash and a
 `grep -n 'ADR-0026'` each still exit 1. **No new deferral opens**, which is a decision: the two
-residues, that a fence around prose launders it past the dash ban the way it already launders it
-past the wrap, and that a paste of `git log --oneline` output is refused for being all hashes,
+residues, that a fence around prose exempts it from the dash ban the way it already exempts it
+from the wrap, and that a paste of `git log --oneline` output is rejected for being all hashes,
 are the accepted costs of an author-declared exemption and of the column above, written beside
 the behaviour in the ADR rather than filed as work.
 
@@ -68,5 +68,5 @@ the behaviour in the ADR rather than filed as work.
   five. Over 437 commits the history holds 0 fenced lines and 1 prompt-marked line, which carries
   neither a bare separator nor a hex token, so what moved it is that the wall is one paste away.
   The answer is per rule: a paste is exempt from the wrap and from the dash ban and from nothing
-  else, and the entry's own narrower reading was refused for being a rule about character sets
+  else, and the entry's own narrower reading was rejected for being a rule about character sets
   rather than kinds.

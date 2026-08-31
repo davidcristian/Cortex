@@ -115,7 +115,7 @@ def test_the_field_block_may_follow_the_title_with_or_without_blank_lines() -> N
 
 
 def test_the_field_block_ends_at_the_first_line_that_is_not_a_field() -> None:
-    """A bold line further down is prose, so a body cannot smuggle a field in behind it."""
+    """A bold line further down is prose, so a field written into the body is not read as one."""
     text = _file(REFINEMENT_FIELDS) + "\nWhy it waits.\n\n**Trigger:** not a field down here\n"
     task = backlog.parse_task("refinements", REFINEMENT_PATH, text)
     assert "Trigger" not in task.fields
@@ -140,7 +140,7 @@ def test_a_wrapped_field_keeps_every_line_of_its_value() -> None:
 
 
 def test_a_wrapped_field_that_is_not_the_last_one_keeps_the_fields_after_it() -> None:
-    """Wrapping is presentation, so it may not end the block and swallow what follows."""
+    """Wrapping is presentation, so it does not end the block or absorb the fields after it."""
     text = (
         f"# {TITLE}\n\n**Status:** open, actionable\n**Area:** the brain,\nand its ports\n"
         "**Origin:** ADR-0001\n"
@@ -175,7 +175,8 @@ def test_prose_where_the_block_should_start_continues_nothing() -> None:
 
 
 def test_a_bold_line_inside_the_block_that_is_not_a_field_is_rejected() -> None:
-    """`**` opens a field here, so a mistyped one must fail rather than wrap into its neighbour."""
+    """`**` opens a field here, so a mistyped field line raises rather than wrapping into its
+    neighbour."""
     text = (
         f"# {TITLE}\n\n**Status:** open, actionable\n**Area:** brain\n**Origin:** ADR-0001\n"
         "**Trigger** the colon is missing\n"
@@ -185,7 +186,7 @@ def test_a_bold_line_inside_the_block_that_is_not_a_field_is_rejected() -> None:
 
 
 def test_a_field_given_twice_is_rejected() -> None:
-    """Two Status lines is the drift this layout exists to make impossible."""
+    """Two Status lines would put one task's status in two places, which this layout prevents."""
     text = (
         f"# {TITLE}\n\n**Status:** open, actionable\n**Status:** landed 2026-03-04\n"
         "**Area:** brain\n**Origin:** ADR-0001\n"
@@ -250,7 +251,8 @@ def test_a_title_that_restates_its_own_status_is_rejected(title: str, message: s
 
 
 def test_a_title_may_use_the_words_that_are_not_status_verbs() -> None:
-    """A closed section and a done port are ordinary phrases; the ban costs no honest name."""
+    """A closed section and a done port are ordinary phrases, so the ban on status words costs no
+    honest title."""
     title = "Reopen the closed section once the port is done"
     task = backlog.parse_task("refinements", REFINEMENT_PATH, _file(REFINEMENT_FIELDS, title=title))
     assert task.title == title
@@ -336,7 +338,8 @@ def test_load_rejects_a_number_used_twice(tmp_path: Path) -> None:
 
 
 def test_load_reports_a_directory_wearing_a_task_name(tmp_path: Path) -> None:
-    """The stray scan names this too; the loader must report it rather than raise OSError."""
+    """The stray scan names this too, and the loader reports it as a task-file error rather than
+    raising OSError."""
     (tmp_path / "001-first-one.md").mkdir()
     with pytest.raises(backlog.TaskFileError, match="cannot be read as a task file"):
         backlog.load(tmp_path, "refinements")

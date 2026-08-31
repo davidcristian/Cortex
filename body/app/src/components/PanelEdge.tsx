@@ -4,19 +4,18 @@ import type { EdgeStyle } from "../edge/edges";
 import { BLEED, approachDepth, edgePath } from "../edge/liquid";
 import { useMarkClock } from "../mark/useMarkClock";
 
-// The panel's dreaming edge (ADR-0036). Layers, back to front: the glass slab wearing the
-// animated clip, the blurred glow strokes, then the panel's content (`.views`, z-indexed above
-// by overlay.css), then the crisp hairline. The slab is the ONLY thing the per-frame clip
-// touches and it holds no text, which is what keeps the type as sharp as the still panel's; the
-// glow lives under the content so nothing soft can cross a glyph (decision 6).
+// The panel's liquid edge (ADR-0036). Layers, back to front: the glass slab carrying the animated
+// clip, the blurred glow strokes, then the panel's content (`.views`, z-indexed above by
+// overlay.css), then the crisp hairline. The per-frame clip touches only the slab, which holds no
+// text, so the type stays as sharp as the still panel's, and the glow sits under the content so
+// nothing soft crosses a glyph (decision 6).
 //
-// The whole component re-renders per frame on the mark's own clock while the panel around it
-// does not, the same split that keeps the bubble cheap. The box is measured once before first
-// paint and re-measured only when it actually resizes (ResizeObserver), with the measurement in
-// a ref the clock's renders read. It is NOT re-read via setState in a per-render layout effect:
-// that shape trips React's nested-update guard once a clock renders every frame (measured in the
-// dev overlay, which went down inside two seconds), and jsdom's driven frames never run long
-// enough to catch it.
+// The whole component re-renders per frame on the mark's own clock while the panel around it does
+// not, the same split that keeps the bubble cheap. The box is measured once before first paint and
+// re-measured only when it resizes (ResizeObserver), with the measurement in a ref that the clock's
+// renders read. Re-reading it with setState in a per-render layout effect trips React's
+// nested-update guard once a clock renders every frame (measured in the dev overlay, which stopped
+// inside two seconds), and jsdom's driven frames never run long enough to catch that.
 
 interface PanelEdgeProps {
   readonly style: EdgeStyle;
@@ -27,15 +26,14 @@ interface PanelEdgeProps {
   readonly idPrefix: string;
 }
 
-/** The accent's own hues (theme/themes.ts ACTIVITY), as gradient stops: an SVG stroke cannot
- *  wear the CSS `--accent` token, so the stops are restated here the way the mark restates the
- *  palette. */
+/** The accent's own hues (theme/themes.ts ACTIVITY), as gradient stops. An SVG stroke cannot take
+ *  the CSS `--accent` token, so the stops are restated here as the mark restates the palette. */
 const EMBER_STOPS = ["#8B5CF6", "#E24BC4", "#FF7A6B"] as const;
 
 export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps) {
   const seconds = useMarkClock(animated);
-  // The eased working depth, advanced by the frames themselves so the deepening is a movement.
-  // Not animating (reduced motion) snaps it: a still edge holds one pose per state, exactly.
+  // The eased working depth, advanced by the frames themselves so the deepening is animated. Under
+  // reduced motion it jumps to the target, since a still edge holds one shape per state.
   const pace = useRef({ seconds, depth: working ? 1 : 0 });
   const target = working ? 1 : 0;
   const depth = animated
@@ -56,9 +54,9 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
     }
   }, []);
   useLayoutEffect(() => {
-    // Once before first paint, so the edge never shows a zero-size pose; after that the observer
-    // owns it. jsdom has no layout, so under test the mount measurement is a stub and the
-    // observer's deliveries are hand-driven (`src/test-setup.ts`).
+    // Measured once before first paint, so the edge never draws at zero size; after that the
+    // observer drives it. jsdom has no layout, so under test the mount measurement is a stub and
+    // the observer's deliveries are driven by hand (`src/test-setup.ts`).
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(box.current);
@@ -68,9 +66,9 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
   const d = edgePath(style, size.current.width, size.current.height, seconds, depth);
   const ember = `${idPrefix}-ember`;
   return (
-    // The wrapper bleeds past the panel so the neutral outline rides the panel's real edge and
-    // the waves have room to swing outward. The inset is the geometry module's own number, worn
-    // inline so the two cannot drift.
+    // The wrapper extends past the panel so the neutral outline sits on the panel's real edge and
+    // the waves have room to swing outward. The inset is the geometry module's own constant,
+    // applied inline so the two cannot drift.
     <div
       ref={box}
       className={`edge edge-${style.glow}${working ? " edge-working" : ""}`}

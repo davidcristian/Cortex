@@ -1,17 +1,13 @@
 """Opt-in recall reranking policies over the ``RecallPolicy`` seam (ADR-0008).
 
-Split from ``rerank.py`` (the port and the default ``RawRecallPolicy``) at the 300-line cap. These
-three policies are opt-in, selected at the composition root by ``CORTEX_MEMORY_RECALL``; each keeps
-the ``MemoryStore.search`` contract untouched and reranks above it, so both store adapters stay pure
-translators. ``RerankingRecallPolicy`` blends similarity with an exponential recency decay and drops
-near-duplicates; ``MmrRecallPolicy`` selects for maximal marginal relevance (diversity beyond that
-near-duplicate cutoff); ``RecencyMmrRecallPolicy`` composes the two, running MMR selection over the
-recency-blended relevance. The shared ``recency_blend``/``redundancy``/``greedy_mmr`` helpers live
-in ``rerank_math.py`` and keep each policy to its own axis; the model-based judge is a fourth
-policy, in ``rerank_judge.py`` because it holds ports rather than only maths.
-
-Each ``select`` returns a ``Ranking`` carrying the key it ordered by and the basis naming that key
-(ADR-0038). Order and membership are unchanged by that widening.
+Selected at the composition root by ``CORTEX_MEMORY_RECALL``. Each reranks above
+``MemoryStore.search`` without changing its contract, so both store adapters stay pure translators.
+``RerankingRecallPolicy`` blends similarity with an exponential recency decay and drops
+near-duplicates; ``MmrRecallPolicy`` selects for maximal marginal relevance; and
+``RecencyMmrRecallPolicy`` runs MMR selection over the recency-blended relevance. Shared maths is in
+``rerank_math.py``; the model-based judge is a fourth policy, in ``rerank_judge.py`` because it
+holds ports. Each ``select`` returns a ``Ranking`` carrying the key it ordered by and the basis
+naming that key (ADR-0038).
 """
 
 from collections.abc import Sequence
@@ -72,7 +68,7 @@ class RerankingRecallPolicy:
         session_id: str | None = None,
     ) -> Ranking:
         """Rerank by the similarity+recency blend, drop near-duplicates, keep the top ``k``."""
-        del query, session_id  # a geometric policy reads neither the question nor where it is
+        del query, session_id  # scored from scores and embeddings alone
         ranked = sorted(hits, key=lambda hit: self._relevance(hit, now), reverse=True)
         kept: list[ScoredMemory] = []
         for hit in ranked:
@@ -100,11 +96,11 @@ class RerankingRecallPolicy:
 class MmrRecallPolicy:
     """Select for maximal marginal relevance: trade query-relevance against diversity, greedily.
 
-    Threshold dedup (``RerankingRecallPolicy``) only removes *near*-identical hits; a pool of
-    distinct-but-redundant memories (several phrasings of one fact, each below the dedup cosine)
-    still crowds out the rest, so the turn sees one region of the query's neighborhood ``k`` times.
-    MMR instead penalizes *every* candidate by its ``redundancy`` to what is kept, so the returned
-    ``k`` spread across the neighborhood (ADR-0008 rerank addendum, diversity past threshold dedup).
+    Threshold dedup (``RerankingRecallPolicy``) only removes near-identical hits, so several
+    phrasings of one fact, each below the dedup cosine, still crowd out the rest and the turn sees
+    one region of the query's neighborhood ``k`` times. MMR penalizes every candidate by its
+    ``redundancy`` to what is kept, so the returned ``k`` spread across that neighborhood (ADR-0008
+    rerank addendum, diversity past threshold dedup).
 
     ``candidate_k`` over-fetches ``k * pool_factor``. ``select`` builds the result greedily via
     ``greedy_mmr``, each step maximizing ``relevance_weight * similarity - (1 - relevance_weight) *
@@ -139,7 +135,7 @@ class MmrRecallPolicy:
         session_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` hits of highest marginal relevance (relevance less penalty)."""
-        # MMR weighs relevance against diversity: not the question, not the age, not the caller.
+        # MMR weighs relevance against diversity, using scores and embeddings alone.
         del query, now, session_id
         return Ranking(hits=greedy_mmr(hits, k, self._marginal_relevance), basis=RankBasis.SPREAD)
 
@@ -153,11 +149,10 @@ class RecencyMmrRecallPolicy:
     """MMR selection run over the reranker's recency-blended relevance instead of the raw cosine.
 
     ``MmrRecallPolicy`` diversifies on raw query-similarity and ``RerankingRecallPolicy`` weights
-    recency; a memory that is fresh, on-topic, *and* non-redundant wants both axes at once. This
-    policy composes them: the MMR greedy selection (penalize each candidate by its redundancy to
-    what is kept) run with the ``recency_blend`` similarity-and-recency combination as the
-    relevance term, so the returned ``k`` are recent, relevant, *and* spread across the query's
-    neighborhood (ADR-0008 recency-and-diversity addendum).
+    recency; selecting on both axes at once needs the two composed. This policy runs the MMR greedy
+    selection (penalize each candidate by its redundancy to what is kept) with the ``recency_blend``
+    similarity-and-recency combination as the relevance term, so the returned ``k`` are recent,
+    relevant, and spread across the query's neighborhood (ADR-0008 recency-and-diversity addendum).
 
     ``candidate_k`` over-fetches ``k * pool_factor``. ``select`` builds the result greedily via
     ``greedy_mmr``, each step maximizing ``relevance_weight * blend - (1 - relevance_weight) *
@@ -205,7 +200,7 @@ class RecencyMmrRecallPolicy:
         session_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` of highest recency-blended marginal relevance."""
-        del query, session_id  # a geometric policy reads neither the question nor where it is
+        del query, session_id  # scored from scores, embeddings and the clock alone
         return Ranking(
             hits=greedy_mmr(hits, k, lambda hit, kept: self._marginal_relevance(hit, kept, now)),
             basis=RankBasis.SWEEP,

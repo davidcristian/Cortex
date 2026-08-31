@@ -8,9 +8,9 @@ interface LinkDotProps {
  * The header's connection indicator (design/overlay-ux.md §3): green ready, amber reachable but
  * not serving, red unreachable, neutral before anything is known, pulsing while a probe is out.
  *
- * The v1 dot was always green and was removed for it (2026-07-03): chrome earns its place by
- * meaning something. This one only ever shows what the seam actually proved, and says so in a
- * label a pointer or a screen reader can read, since a colour alone is not an explanation.
+ * The first version of this dot was always green and was removed on 2026-07-03 because it reported
+ * nothing. This one shows only what the last probe established, and states it in a label a pointer
+ * or a screen reader can read, since a colour alone explains nothing.
  */
 export function LinkDot({ link }: LinkDotProps) {
   const { tone, busy, label } = describeLink(link);

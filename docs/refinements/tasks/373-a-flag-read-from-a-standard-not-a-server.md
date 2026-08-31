@@ -19,14 +19,14 @@ folder phrases are each a sentence a real server sent, and the risk is not that 
 wrong but that the shape around it is: whether such a server sends it instead of `\Noselect` or
 beside it, and whether the name it comes with behaves the way the measured one does.
 
-**What would close it.** Either a measurement or an honest downgrade. Dovecot answers LIST-EXTENDED
-when the client asks for it, and imap-tools' `folder.list()` does not, so the cheap version is a
-direct imaplib dialogue against the running probe (`just up-imap-probe`) issuing an extended LIST
-and recording what the `Parent` node comes back flagged as. If it can be produced, the wording joins
-the addendum beside the one already there and the unit test can be driven from the recorded answer
-rather than an invented one. If it cannot, the honest close is to say in the comment that the second
-spelling is defensive and unmeasured, which is what the neighbouring measured phrases already say
-about themselves.
+**What would close it.** Either a measurement or a downgrade of the claim. Dovecot answers
+LIST-EXTENDED when the client asks for it, and imap-tools' `folder.list()` does not, so the cheap
+version is a direct imaplib dialogue against the running probe (`just up-imap-probe`) issuing an
+extended LIST and recording what the `Parent` node comes back flagged as. If it can be produced, the
+wording joins the addendum beside the one already there and the unit test can be driven from the
+recorded answer rather than an invented one. If it cannot, the right close is to say in the comment
+that the second spelling is defensive and unmeasured, which is what the neighbouring measured
+phrases already say about themselves.
 
 That dialogue was run and the sentence above is wrong about where it would lead: `Parent` comes back
 `\Noselect` under every extended LIST this server accepts, because dovecot converts its own

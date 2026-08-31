@@ -1,53 +1,47 @@
 """Repo gate: fail when a runbook prints a log line the brain would not print that way.
 
 A runbook that shows a rendered log line is telling an operator what to expect on a stream while
-somebody is waiting. Nothing held those samples to the calls that write them. A field the call site
-stopped attaching left the sample printing something the code never emits; a field it started
+somebody is waiting, and nothing held those samples to the calls that write them. A field the call
+site stopped attaching left the sample printing something the code never emits; a field it started
 attaching left the sample short of one, with every gate green either way, because a document is
 text and the fields on a line are a dict two hundred files away (ADR-0009 sample-membership
 addendum).
 
-**What it holds, for every sample it finds.** The level the sample prints is the level the call
-logs at, the logger it names is the module that owns that name, the message is one a call there
-really writes, and the fields are exactly the ones that call attaches, in exactly the order the
-formatter will print them. One comparison covers membership and order together, since the printed
-order is name order and therefore a function of the key set alone.
+For every sample it finds: the level the sample prints is the level the call logs at, the logger it
+names is the module that owns that name, the message is one a call there really writes, and the
+fields are exactly the ones that call attaches, in exactly the order the formatter will print them.
+One comparison covers membership and order together, since the printed order is name order and
+therefore a function of the key set alone.
 
-**What it deliberately does not hold: values.** A sample's values are placeholders as often as
-readings, and one runbook's captured `port=50051` is registered in the constant scan as a dated
-reading rather than a coupling, on the argument that a captured line stays true after the default
-it quotes moves. Holding values here would overturn that decision from a second gate. It would also
-demand that a hand-written sample quote its placeholders the way the formatter quotes a value with
-a space in it, which is a fiction the ADR already refused to teach a gate to expect.
+Values are deliberately not held. A sample's values are placeholders as often as readings, and one
+runbook's captured `port=50051` is registered in the constant scan as a dated reading rather than a
+coupling, on the argument that a captured line stays true after the default it quotes moves.
+Holding values here would overturn that decision from a second gate, and it would demand that a
+hand-written sample quote its placeholders the way the formatter quotes a value with a space in it.
 
-**Found rather than registered.** There is no list of samples to keep current: the walk reads the
-runbooks and every fenced line that looks like a rendered one is checked. A registry would leave a
-new sample unheld until somebody remembered it, which is the same silence this gate closes. What
-that costs is that a runbook quoting a line no brain module writes is a failure rather than a
-skip, and that is the intended direction: fail closed, and register nothing.
+Samples are found rather than registered: the walk reads the runbooks and checks every fenced line
+that looks like a rendered one. A registry would leave a new sample unheld until somebody
+remembered it. What that costs is that a runbook quoting a line no brain module writes fails rather
+than being skipped, which is the intended direction.
 
-**Runbooks and not every document.** An ADR's transcripts are evidence of a run on a day, recorded
-beside the decision they justify, and this repo already holds that an addendum records what was
-decided when it was decided. Holding a dated transcript to today's code would make a record of the
-past a thing that must be edited to stay green, which is the opposite of what it is for. A runbook
-is the other kind: instructions, in the present tense, opened while something is broken. So the
-walk reads `docs/runbooks/` and the ADRs are declared evidence rather than contract.
+Only runbooks are read. An ADR's transcripts are evidence of a run on a day, recorded beside the
+decision they justify, and this repo already holds that an addendum records what was decided when
+it was decided. Holding a dated transcript to today's code would make a record of the past
+something that has to be edited to stay green. A runbook is the other kind: instructions, in the
+present tense, opened while something is broken.
 
-**The whole brain is read, not only the modules a sample names.** Both sides of a line are
-collected before any sample is looked at, the loggers the brain declares and the messages it logs,
-and each collection carries a rule of its own about a word spelled twice in one module, once for a
-logger name and once for a message. Those rules are about a module rather than about a document, so
-running them here is what gives them the tree: a doubled spelling is refused the day it is written
+The whole brain is read, not only the modules a sample names. Both sides of a line are collected
+before any sample is looked at, the loggers the brain declares and the messages it logs, and each
+collection carries a rule of its own about a word written twice in one module, once for a logger
+name and once for a message. Those rules are about a module rather than about a document, so
+running them here is what gives them the tree: a doubled name is refused the day it is written
 rather than the day a runbook happens to quote that line.
 
-**Fail closed.** An unreadable runbook tree, a brain whose loggers or messages cannot be collected,
-and either side of the comparison coming back empty are each a failure rather than a quiet pass: a
-gate over no samples would report success forever.
-
-**The success line states what the comparison was over**, samples and runbooks and the loggers and
-messages they were resolved against, because a verdict that would be equally true of a tree this
-walk never entered has to say which tree it is over. It is a reading and nothing asserts it; the
-floors under it are the assertion.
+An unreadable runbook tree, a brain whose loggers or messages cannot be collected, and either side
+of the comparison coming back empty each fail rather than passing quietly, since a gate over no
+samples would report success forever. The success line states what the comparison was over, samples
+and runbooks and the loggers and messages they were resolved against, because a verdict that would
+be equally true of a tree this walk never entered has to say which tree it is over.
 """
 
 import argparse
@@ -64,8 +58,8 @@ from skippeddirs import SKIPPED_DIRS
 # a claim about what the code prints today, argued in the module docstring.
 RUNBOOKS = Path("docs/runbooks")
 
-# The floors under the reading in the success line, and the same floors `stubcheck.py` carries: a
-# side that came back empty has read nothing, and a comparison over nothing cannot fail.
+# The floors under the reading in the success line: a side that came back empty has read nothing,
+# and a comparison over nothing cannot fail.
 MIN_SAMPLES = 1
 MIN_LOGGERS = 1
 MIN_MESSAGES = 1
@@ -98,7 +92,7 @@ class Scan(NamedTuple):
 
 
 def _read(path: Path, shown: str) -> str:
-    """Read one runbook, refusing one that is absent or is not text."""
+    """Read one runbook, raising when it is absent or is not text."""
     try:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
@@ -128,8 +122,8 @@ def disagreement(root: Path, names: dict[str, str], sample: Sample) -> str | Non
     """How ``sample`` differs from the call it quotes, or None when it prints what that call does.
 
     A module this reader cannot account for is reported here beside the samples rather than
-    thrown, so one run names every disagreement instead of the first. A module it cannot READ is
-    not: that is an input failure and it leaves by the same door an unreadable runbook does.
+    raised, so one run names every disagreement instead of only the first. A module it cannot READ
+    is an input failure and raises, the way an unreadable runbook does.
     """
     module = names.get(sample.logger)
     if module is None:

@@ -2,48 +2,22 @@
 
 `CharBudgetHistoryWindow` bounds a turn's context by dropping the oldest turns whole. What the
 user said in them is still in the store, but the model stops seeing it, so a long conversation
-forgets its own beginning. This window wraps that one and prepends a model-written recap of
-everything the tail left behind, so the beginning survives as a paragraph instead of vanishing.
-What the fold says to the model, and both fences around it, live in `recap_prompt.py`.
+loses its own beginning. This window wraps that one and prepends a model-written recap of
+everything the tail left behind. What the fold says to the model, and both fences around it,
+live in `recap_prompt.py`.
 
-Five properties make it safe to run on the turn's critical path:
+The recap is cached behind `SessionStore`, keyed by the boundary it covers, and nothing lives in
+a model process or its KV cache, so a swap between the write and the next read changes nothing
+(the one hard rule). `docs/modules/brain-core.md` states the invariants this class is held to:
+it only adds to the inner selection, it caches rather than recomputes, it releases the GPU lease
+before the reply asks for it, it bounds what one fold may cost, it announces a pass it is really
+going to make, and it reports why when it adds nothing.
 
-**It can only add.** The wrapped window's selection is returned untouched; the recap is a system
-message PREPENDED to it. Every failure path (the store unreachable, the model unreachable, the
-model saying nothing usable) returns that selection exactly as the shipped window would have. So
-a broken summarizer costs the user context it might have added, never a word they actually wrote.
-
-**And when it adds nothing, it says why** (ADR-0038's cut-fold addendum). Silently falling back
-self-heals on the next boundary move, which is the design, but it also means nothing accumulates
-for anyone to compare: the completion that was rejected is gone the moment the turn is. So the
-warning carries `capped`, taken from a `StopLedger` the fold hands to `drain_text`, and `chars`,
-the account's own length measured the way the rejection rules measure it. `clean_recap` rejects on
-shape and is right to, catching a
-cut account, a mid-thought one and a mangled one alike where a stop reason catches only the
-first; what the stop adds is not a better rejection but the only reading that separates a cut
-fold from a wandering one, which want opposite fixes.
-
-**It caches rather than recomputes.** The recap lives in Redis behind `SessionStore`, keyed by
-the boundary it covers. History is append-only, so a recap of a prefix can only go incomplete,
-never wrong: when the boundary moves the previous recap is folded together with the newly dropped
-turns rather than recomputed from scratch, and while the boundary is still where it was, a turn
-pays nothing. Nothing lives in the model process or its KV cache, so a swap between the write and
-the next read is invisible: the next model rehydrates it from the store like any other state.
-
-**It lets go of the GPU before the reply asks for it.** The model pass goes through `drain_text`,
-which leaves the inference adapter's acquire block in a `finally`. Selection runs to completion
-inside `assemble_inference_messages`, several statements before `handle_turn` first iterates the
-reply's generator, so the reply's acquire is the second acquire of a sequence and never a nested
-one under the non-reentrant lease.
-
-**It costs what it needs and no more** (ADR-0038 cheap-fold addendum). The fold's request carries
-`RECAP_BOUNDS`, so it decodes an account rather than pages of reasoning nobody reads, and a
-boundary move too small to be worth a model pass does not spend one.
-
-**It says so while it works.** A fold is serialized ahead of the reply, so without a word on
-screen the turn is indistinguishable from a slow model. When the caller passes a `ProgressSink`
-the window emits one `StatusUpdate` before the pass, which reaches the overlay through the
-stream's own queue while assembly is still running.
+One property is worth repeating here because the code below is where it is enforced: the model
+pass goes through `drain_text`, which leaves the inference adapter's acquire block in a
+`finally`. Selection runs to completion inside `assemble_inference_messages`, several statements
+before `handle_turn` first iterates the reply's generator, so the reply's acquire is the second
+acquire of a sequence and never a nested one under the non-reentrant lease.
 """
 
 import logging
@@ -80,7 +54,7 @@ class SummarizingHistoryWindow:
     """Wrap a history window so the turns it drops arrive as a cached, model-written recap.
 
     ``inner`` is the window that decides what to keep (``CharBudgetHistoryWindow`` in every
-    shipped deployment); this class never second-guesses it and never returns fewer messages
+    shipped deployment); this class never alters that selection and never returns fewer messages
     than it did.
 
     ``min_dropped_chars`` is how much newly dropped conversation is worth a model pass. It is
@@ -193,16 +167,15 @@ class SummarizingHistoryWindow:
         raw = await drain_text(self._backend, self._model, prompt, bounds=RECAP_BOUNDS, stops=stops)
         text = clean_recap(raw)
         if not text:
-            # The two fields beside the message are the whole diagnosis, and they exist because
-            # the completion is gone by the time anyone reads this. ``capped`` separates the two
-            # causes with opposite fixes: True is the token budget running out mid-account, which
-            # wants a larger RECAP_MAX_TOKENS or a smaller fold, and False is a model that ended
-            # by itself and wrote the wrong shape, which wants the instruction rewritten.
-            # ``chars`` is the account's own length, measured the way the rejection rules measure
-            # it, so it splits the other two causes exactly: 0 is a model that said nothing (or
-            # nothing but whitespace), past RECAP_MAX is one that ran further than the store will
-            # hold, and in between is the bucket where a cut and a wander collide and ``capped``
-            # is the only reading that tells them apart.
+            # The two fields beside the message are the whole diagnosis, because the completion
+            # itself is gone by the time anyone reads this (ADR-0038 cut-fold addendum).
+            # ``capped`` separates the two causes with opposite fixes: True is the token budget
+            # running out mid-account, which needs a larger RECAP_MAX_TOKENS or a smaller fold,
+            # and False is a model that ended by itself in the wrong shape, which needs the
+            # instruction rewritten. ``chars`` is the account's own length, measured the way the
+            # rejection rules measure it, so it splits the other two causes: 0 is a model that
+            # said nothing, and a number past RECAP_MAX is one that ran further than the store
+            # will hold.
             _logger.warning(
                 "the model returned no usable history recap; falling back to the plain window",
                 extra={

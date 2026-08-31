@@ -23,20 +23,20 @@ not to be; what the close leaves behind is written under it and is narrower than
 came from, being one presence-checked name rather than a shape the registry cannot express. The
 three that remain are the bind port, the gRPC status code, and the capture target's enums.
 **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
-`ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this wants a collection value form as
-well as a comparator, and the reducer refuses what it cannot reduce by policy rather than by
+`ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this needs a collection value form as
+well as a comparator, and the reducer rejects what it cannot reduce, by policy rather than by
 omission. **Trigger:** a second capture encoding, which is the only thing that makes the set
 larger than one useful element.
 **Struck 2026-08-11**, ahead of that trigger, which had not fired: the body still produces the
 one encoding and the allow-list still carries three, so what moved it is that the form is cheap
 once the scan has somewhere to put it, and this entry's own account of the tree was checked
-before it was believed and held (`CAPTURE_MIME` is `"image/png"` in
+rather than trusted, and held (`CAPTURE_MIME` is `"image/png"` in
 `body/crates/core/src/os/screen_policy.rs`, and `ALLOWED_MIME_TYPES` is a one-line `frozenset`
 of three strings in `brain/packages/core/src/cortex_core/images.py`). The comparator is
 `Relation.MEMBER` and it reads registry order the way the ordering does: every site but the last
 declares a value, the last declares the collection that must carry them, and a last site holding
-a lone value is a fault rather than a comparison, since `in` over two strings would quietly
-answer about substrings instead. The value form is a one-line `frozenset` of double-quoted
+a lone value is a fault rather than a comparison, since `in` over two strings would test for a
+substring instead. The value form is a one-line `frozenset` of double-quoted
 strings, reduced to its members so that the writer's order and spacing decide nothing.
 **What it cost was a file, and the cap is what asked for it**: the scan and the registry were
 both within twenty lines of 300, so the value forms and the relation comparators moved into
@@ -47,10 +47,10 @@ read as one and nothing in the scan asks which half an entry is in.
 **Proved able to fail before it was trusted**, twice and in both directions: the body producing
 `"image/gif"` and the allow-list dropping `"image/png"` each exit 1 naming both files, both
 values and the reason, and the scan as it stood at the previous commit exits 0 over the second of
-those trees while reporting all fifteen constants agree, its reducer refusing the `frozenset` it
+those trees while reporting all fifteen constants agree, its reducer rejecting the `frozenset` it
 was never taught. **One limit is policy rather than omission and stays that way:** a collection
 spelled in Rust or TypeScript does not reduce, no coupling in this repo having one, and the
-reducer refuses what it does not understand rather than guessing. It becomes work the day a
+reducer rejects what it cannot reduce rather than guessing. It becomes work the day a
 collection on the far side of a seam is not Python's.
 **A port with no declaration to read.** The body's bind port 50151 is a bare literal argument in
 `body/app/src-tauri/src/body_server.rs`, against `docker-compose.body.yml`'s
@@ -79,13 +79,13 @@ that the roll's clock was theirs, which is what made them identifiable as the ro
 a duration that matches it. The other four declarations keep their literal on purpose, being the
 panel's summon fade (paired with its own 0.44s spring, accompanying no roll) and the three
 arrivals (`bubblein` on a bubble, `confirmin` on a chip and on a reminder row, each played on
-something that has just appeared): tying them would mean a retune of the roll silently retunes
+something that has just appeared): tying them would mean a retune of the roll also retunes
 three features it has nothing to do with, which is the false tie this registry must not claim.
 **The unit-aware value form turned out to be unnecessary rather than deferred**, which is the
 finding: once the sheet spells the duration once, it spells it in the constant's own unit, and
 the mention is `--roll: {value}ms;` against `MORPH_ROLL_MS` with nothing new in the scan. Every
 rendered duration measured unchanged in headless Chromium at both `prefers-reduced-motion`
-settings, and the gate was reddened on a drift in each direction before it was trusted
+settings, and the gate was made to fail on a drift in each direction before it was trusted
 ([ADR-0029 addendum](../../adr/ADR-0029-vision-screen-capture.md) of that date).
 **A custom property's spend, where the TypeScript declares the value and not the name.** Opened
 2026-08-09 by the close above, and folded in here rather than counted beside it for the reason
@@ -103,21 +103,21 @@ rather than a rendered value. **Trigger:** a third property in this shape, or th
 that is found mistyped.
 **Struck 2026-08-11**, ahead of both of those, by the second of the two ways it named, and the
 reason it went that way rather than the other is that a name constant nothing imports is a
-declaration written to be read by a gate, which is the tail wagging the tree. `Mention.name` is
+declaration written to be read by a gate rather than used by the code. `Mention.name` is
 the name a far side spends the value under and `{name}` renders it, so the pair is two mentions
 of one entry: `{name}: {value}ms;` over the declaration on `:root`, which is the mention that
 already existed with its property name spelled inside the template, and `var({name})` over the
 spends, which no rendered value could reach. A mention carries a name exactly when its template
-renders one, either half alone being dead data, and the registry refuses a name pinned as a
+renders one, either half alone being dead data, and the registry rejects a name pinned as a
 spend that no mention of the same entry renders a value under, since that would hold the name
-while quietly dropping the value it was supposed to tie.
+while dropping the value it was supposed to tie.
 **The two properties got different treatment, and the difference is the counting rule already
 written down.** `var(--roll)` is pinned at 2, those two rules being the set the entry's own
 reason names (the section share caps' handover and the thoughts marker's turn), so losing one is
 the drift rather than a design change and a third rule joining them is a registry line to
 correct. `var(--ease)` is a presence check, 52 transitions across unrelated features riding that
-curve, where a count would redden on the next one added and hold a retune of one feature hostage
-to another. That is the same division the `[data-morphing` rules got.
+curve, where a count would fail on the next one added and make a retune of one feature depend
+on another. That is the same division the `[data-morphing` rules got.
 **Proved able to fail three times before it was trusted**, each restored: one of the two roll
 spends mistyped to `var(--rol)` exits 1 with `found 1, pinned 2`; the declaration renamed to
 `--cadence` on `:root` while the spends stand exits 1 saying the sheet does not spell
@@ -127,7 +127,7 @@ commit exits 0 over the first and the third, reporting all sixteen constants agr
 makes these the drifts the form was for rather than ones the old one already caught. The second
 was catchable before and still is, being a rendered value.
 **What it does not reach**, recorded rather than left to be discovered: a mistyped spend of a
-property whose mention is a presence check is still invisible, so `var(--ease)` is held only
+property whose mention is a presence check is still undetected, so `var(--ease)` is held only
 against losing every spend at once. Counting it would be the churn the occurrences field was
 made opt in to avoid, and the honest closing of that gap is a stylesheet-wide check that every
 `var()` names a property something declares, which is a different scan over a different input and
@@ -159,9 +159,9 @@ rather than merely awkward: `crosscheck.py` reads declarations out of source, an
 becomes a serialized descriptor in one tree and a `#[derive]`d Rust enum in the other, with no
 literal in either place for a template to match. Registering it would mean reading the `.proto`
 itself, which is a parser this repo does not have and a fifth kind of place for the registry to
-know about. What holds it today is the compiler on the Rust side (a `match` over
+cover. What holds it today is the compiler on the Rust side (a `match` over
 `PbCaptureTarget` is exhaustive, so a new proto value fails the build) and nothing at all on the
-Python side, where a new value would simply never be produced. **Trigger:** the third value on
+Python side, where a new value would never be produced. **Trigger:** the third value on
 this enum, which is also the first one whose addition the Rust side cannot catch for the Python
 side, or a `.proto` reader arriving in the scan for another reason.
 

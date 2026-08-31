@@ -28,7 +28,7 @@ is what the entry this closes exists to warn against.
 
 **What would close it.** Run the constrained and unconstrained shapes over the same several report
 bodies and compare decoded lengths, which is a short measurement now that the harness exists. Then
-pick between the honest answers. If the envelope really does multiply the reply, the cap wants
+pick between the honest answers. If the envelope really does multiply the reply, the cap needs
 deriving from the constrained shape rather than from the raw one, since that is the shape the
 default stack runs; if it does not, the sample was variance and the record should say so. Worth
 checking in the same run: whether a reply cut mid-envelope is reported as the cap rather than as a

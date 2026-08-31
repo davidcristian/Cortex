@@ -99,8 +99,8 @@ async def test_close_denies_the_pending_request_and_every_later_ask() -> None:
     # the asked question is resolved on the wire so the card closes.
     assert _resolutions(emitted) == [(confirm_id, OUTCOME_UNAVAILABLE)]
     assert await confirmer.confirm(_REQUEST) is False  # closed: denied without emitting
-    # An ask refused after close emitted no request, so it must emit no resolution either:
-    # there is no card to close, and a resolution for an unknown id is noise.
+    # An ask refused after close emitted no request, so it emits no resolution either: there is
+    # no card to close, and the overlay would not recognize the id.
     assert len(emitted) == 2
 
 
@@ -109,7 +109,7 @@ async def test_close_is_idempotent_over_an_answered_request() -> None:
     ask = asyncio.ensure_future(confirmer.confirm(_REQUEST))
     confirmer.resolve(await _emitted_id(emitted), approved=True)
     assert await ask is True
-    confirmer.close()  # nothing pending; must not blow up
+    confirmer.close()  # nothing pending; the call must not raise
     confirmer.close()
     # The user answered, so the client closed its own card: no resolution is owed.
     assert _resolutions(emitted) == []
@@ -147,8 +147,8 @@ async def test_cancellation_deregisters_the_pending_request() -> None:
     await asyncio.wait([ask])
     assert ask.cancelled()
     confirmer.resolve(confirm_id, approved=True)  # ignored: nothing pending anymore
-    # No resolution either: the turn is dying, and its terminal event (or the stream's
-    # death) is what closes the card. Reporting into a stream nobody will read is noise.
+    # No resolution either: the turn is ending, and its terminal event, or the stream ending,
+    # is what closes the card. Reporting into a stream nobody will read adds nothing.
     assert _resolutions(emitted) == []
 
 

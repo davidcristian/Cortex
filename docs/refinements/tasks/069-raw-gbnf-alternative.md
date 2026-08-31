@@ -15,7 +15,7 @@ alternative to the JSON envelope.
   file lost in transcription: the ADR defers it "only if a non-JSON shape is ever wanted". Two
   things came out of the reading. **The bucket was wrong.** Nothing bites here, because the
   constraint that shipped does the whole job the ADR asked of it; what is missing is a consumer,
-  which is the same state its twin [R-070](070-per-task-caller-schema.md) was already filed in
+  which is the same state its sibling [R-070](070-per-task-caller-schema.md) was already filed in
   from the same deferred list. And **the cost is not a keyword.** The port carries
   `schema: JsonSchema | None` where `JsonSchema` is a `Mapping[str, object]`
   ([ports.py](../../../brain/packages/core/src/cortex_core/ports.py),
@@ -26,7 +26,7 @@ alternative to the JSON envelope.
   free-form sampling slot anywhere on the path, so an alternative needs the port widened, a branch
   in the request builder, and a second settle path beside `unwrap_envelope`, which parses JSON and
   nothing else ([subagent_reply.py](../../../brain/packages/core/src/cortex_core/subagent_reply.py)).
-  The ADR's "no new port" reading covers what landed, not this.
+  The ADR's "no new port" reading covers what landed rather than this.
 - 2026-08-16: The seam gained its second constrained caller since the ADR was written, and it
   argues the same way: the ranked-recall rerank judge passes an `ORDER_ENVELOPE` of
   `{"order": [int]}` through `drain_text`

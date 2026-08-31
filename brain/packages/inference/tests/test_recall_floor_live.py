@@ -1,4 +1,4 @@
-"""Can a similarity floor give a geometric recall policy the refusal only the judge has?
+"""Calibrate a similarity floor as the refusal a geometric recall policy would need.
 
 This is the calibration the relevance-floor deferral asked for, and its answer is no. The floor is
 not in the tree: what runs below is the operator a fifth policy would have applied, measured
@@ -25,12 +25,12 @@ each candidate threshold silences and what it costs.
 The assertions are deliberately about the *instrument* and about the *finding*, not about a shipped
 feature. A floor of zero must change nothing and a floor above one must silence everything, which is
 what proves the operator is wired at all: a gate that never fires and a gate that works look
-identical on a corpus of answerable questions. The finding is asserted too, so it reddens rather
-than rots: no threshold separates the populations here, and every threshold that silences all four
-`ABSENT` questions also silences answerable ones. **Point this at another `Embedder` and rerun it**
-(`CORTEX_MODEL_FILE_EMBED` in the memory override) to reopen the entry: a red finding assertion is
-an embedder whose populations do separate, which is the one thing that would make a floor
-calibratable.
+identical on a corpus of answerable questions. The finding is asserted too, so that it fails rather
+than going stale: no threshold separates the populations here, and every threshold that silences
+all four `ABSENT` questions also silences answerable ones. **Point this at another `Embedder` and
+rerun it** (`CORTEX_MODEL_FILE_EMBED` in the memory override) to reopen the entry: a failing
+finding assertion means an embedder whose populations do separate, which is the one thing that
+would make a floor calibratable.
 """
 
 import math
@@ -61,11 +61,11 @@ def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
 
 
 def _floored(pool: Sequence[tuple[str, float]], floor: float) -> list[str]:
-    """The operator under test: the raw top-`k` of a pool, minus everything under the floor.
+    """Return the operator under test: a pool's top-`k`, minus everything under the floor.
 
-    Pre-filter rather than post-filter, which is the more generous of the two readings: the floor
-    decides what counts as a candidate and the policy still fills its `k` from what qualifies, so a
-    hit that clears the floor is never displaced by one that does not.
+    The floor is applied before the top-`k` rather than after, which is the more generous of the
+    two readings: the floor decides what counts as a candidate and the policy still fills its `k`
+    from what qualifies, so a hit that clears the floor is never displaced by one that does not.
     """
     return [rid for rid, score in pool if score >= floor][:_K]
 
@@ -180,7 +180,7 @@ async def test_no_similarity_floor_separates_answerable_questions_from_unanswera
         assert absurd.absent_silent == 4
         assert absurd.unrelated_silent == len(UNRELATED)
 
-        # The finding, asserted so that an embedder which separates the populations reddens this
+        # The finding, asserted so that an embedder which separates the populations fails this
         # run rather than passing quietly. Nothing sits between the two bands, and every floor
         # that silences the adjacent-unanswerable population takes answerable questions with it.
         assert min(gold_scores) < max(absent_best), "the populations would separate here"

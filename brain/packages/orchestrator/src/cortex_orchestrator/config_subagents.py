@@ -98,8 +98,9 @@ class SubagentsConfig(BaseSettings):
     """Whether the cortex can delegate to subagents (ADR-0010, ADR-0012, ADR-0018).
 
     ``none`` (the default) disables delegation. The cortex's tool set has no ``spawn_subagents``
-    and the turn path is byte-for-byte the Slice 6 behavior, so CI and the no-GPU dev loop run
-    subagent-free. ``llamacpp`` enables GPU-first placement (ADR-0012) and requires both
+    and the turn path is byte-for-byte what it was before delegation existed, so CI and the no-GPU
+    dev loop run subagent-free. ``llamacpp`` enables GPU-first placement (ADR-0012) and
+    requires both
     ``gpu_endpoint`` (the GPU subagent ``llama-server``, ``-ngl 99``) and ``endpoint`` (the CPU
     overflow ``llama-server``, ``-ngl 0``), each a base URL in ``docker-compose.subagents.yml``.
 
@@ -113,10 +114,10 @@ class SubagentsConfig(BaseSettings):
     from the one a hand-wired deployment charges. ``vram_gb`` and ``memory_gb`` are measured
     (ADR-0012 measured-ask and budget-tie addenda); the CPU ask stays a host-measured placeholder.
 
-    The flat fields above define the roster's **default entry** as the injection-robust ADR-0004
+    The flat fields above define the roster's default entry as the injection-robust ADR-0004
     pick the wiring pins untrusted-content spawns to (ADR-0017); ``model`` names it and
     ``model_description`` is its advertised text. ``CORTEX_SUBAGENTS_ROSTER__<name>`` adds one
-    **alternate** model per key (a JSON ``SubagentRosterEntry``), so layered compose overrides
+    alternate model per key (a JSON ``SubagentRosterEntry``), so layered compose overrides
     each contribute their own entry (ADR-0018). A roster key naming the default is rejected, since
     the default's resources come from the flat fields, one source of truth.
     """
@@ -157,9 +158,9 @@ class SubagentsConfig(BaseSettings):
     # disables. The defaults are measured on the shipped CPU entry (cortex_core.subagents).
     max_tokens: int = Field(default=DEFAULT_SUBAGENT_MAX_TOKENS, ge=1)
     run_timeout_s: float = Field(default=DEFAULT_SUBAGENT_RUN_TIMEOUT_S, gt=0)
-    # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
-    # format-laundering on the weak-model niche. On by default; the raw stream is restored per
-    # niche with CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT=false.
+    # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), which closes
+    # format-laundering on the weak-model niche. On by default; a deployment restores the raw
+    # stream with CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT=false.
     constrain_output: bool = True
 
     @model_validator(mode="after")
@@ -184,9 +185,9 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _every_ask_must_fit_the_whole_budget(self) -> "SubagentsConfig":
-        """Refuse at boot an entry the scheduler could only ever refuse (ADR-0012 addendum).
+        """Fail at boot on an entry the scheduler could never admit (ADR-0012 addendum).
 
-        ``ResourceBudgetScheduler.admit`` waits while a charge merely does not fit *right now*,
+        ``ResourceBudgetScheduler.admit`` waits while a charge merely does not fit right now,
         but raises when it exceeds the whole budget, since no peer releasing anything could
         admit it. Left to runtime that is a spawn refused on every attempt, discovered only when
         the cortex delegates and visible only inside a subagent result. It is a wiring error, so
@@ -205,14 +206,14 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _the_run_deadline_must_outlast_the_stall_ceiling(self) -> "SubagentsConfig":
-        """Refuse at boot a pair of bounds whose precedence would be the wrong way round.
+        """Fail at boot on a pair of bounds whose precedence would be the wrong way round.
 
         Both can fire on one stream, and they say different things: the stall ceiling reports the
         gap between chunks, which is a wedged server, and the run deadline reports the whole, which
         is a model that will not stop. Only the first is worth re-running on another target, so a
-        deadline at or under the ceiling would convert every wedge into a truncation and quietly
-        delete the CPU re-run this repo schedules for exactly that failure. The ceiling stays
-        reachable only while the deadline outlasts it, which is a relation between two of this
+        deadline at or under the ceiling would convert every wedge into a truncation and remove,
+        with nothing reporting it, the CPU re-run this repo schedules for that failure. The ceiling
+        stays reachable only while the deadline outlasts it, which is a relation between two of this
         deployment's own numbers and so belongs here beside the other wiring errors.
         """
         if self.run_timeout_s <= self.stall_timeout_s:
@@ -228,24 +229,25 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _the_run_deadline_must_fit_inside_the_queue_for_it(self) -> "SubagentsConfig":
-        """Refuse at boot a hold no queued peer would still be waiting through.
+        """Fail at boot on a hold no queued peer would still be waiting through.
 
         The pair bounds the two halves of one room: the deadline is how long a run may hold its
         admission, the wait how long the next spawn queues for that admission to come back. At or
         above the wait, a peer gives up while the run in front of it is still inside the time this
         deployment granted it, so a working pool reads as one that refuses spawns under load, under
-        a refusal naming the queue rather than the deadline that filled it. Strictly under, the
-        neighbours' rule: equality is the peer giving up at the instant the room is released.
+        a refusal naming the queue rather than the deadline that filled it. The comparison is
+        strictly under, the same rule the validator above uses: equality is the peer giving up at
+        the instant the room is released.
 
-        **What is compared is the hold, not one attempt's deadline.** ``_placed`` re-runs a
-        GPU-placed inference failure on the CPU inside the same admission under a deadline armed
+        What is compared is the whole hold rather than one attempt's deadline. ``_placed`` re-runs
+        a GPU-placed inference failure on the CPU inside the same admission under a deadline armed
         fresh, so a task holds its room for ``ATTEMPTS_PER_ADMISSION`` whole deadlines and it is
-        that product a peer's patience must outlast. Comparing the bare deadline under-protects
-        the relation by that factor, which is what this class did until the batch behind both
-        numbers was re-measured and the wait was raised over the hold.
+        that product a peer's wait must outlast. Comparing the bare deadline under-protects the
+        relation by that factor, which is what this class did until the batch behind both numbers
+        was re-measured and the wait was raised over the hold.
 
-        **A zero wait passes**, and is the one number here that must: zero means never queue at
-        all, so nothing waits on a running spawn and there is no relation to keep.
+        A zero wait passes, and is the one value here that must: zero means never queue at all, so
+        nothing waits on a running spawn and there is no relation to keep.
         """
         hold_s = ATTEMPTS_PER_ADMISSION * self.run_timeout_s
         if self.admission_wait_s > 0 and hold_s >= self.admission_wait_s:

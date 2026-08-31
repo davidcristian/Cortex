@@ -23,7 +23,7 @@ _BUCHAREST = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"
 
 
 def _naive(year: int, month: int, day: int, hour: int, minute: int) -> datetime:
-    """A wall time carrying no zone: precisely the input the fold policy exists to read."""
+    """A wall time carrying no zone, which is the input the fold policy reads."""
     return datetime(year, month, day, hour, minute)  # noqa: DTZ001 - naive is the subject
 
 
@@ -102,14 +102,14 @@ def test_the_zone_is_a_frozen_value() -> None:
 
 
 def test_the_utc_only_resolver_knows_only_utc() -> None:
-    """The core default resolves the one zone it can without a tz-database lookup, and no other."""
+    """The core default resolves UTC, which needs no tz-database lookup, and no other name."""
     assert UTC_ONLY_RESOLVER.resolve(UTC_ZONE_NAME) is UTC_DISPLAY
     assert UTC_ONLY_RESOLVER.resolve("America/New_York") is None
 
 
 def test_the_default_zone_context_is_utc_render_and_utc_only_resolution() -> None:
-    """An unconfigured deployment renders UTC and resolves only UTC, so no per-rule zone slips in
-    without the real resolver wired."""
+    """An unconfigured deployment renders UTC and resolves only UTC, so no per-rule zone is
+    resolvable until the real resolver is wired."""
     assert UTC_ZONE_CONTEXT.default is UTC_DISPLAY
     assert UTC_ZONE_CONTEXT.resolver is UTC_ONLY_RESOLVER
     assert ZoneContext() == UTC_ZONE_CONTEXT

@@ -1,10 +1,9 @@
 """Repo gate: hold each backlog index to the task files it claims to describe.
 
 Run without arguments it checks; with `--write` it regenerates. That split is the whole
-mechanism, and it is `cargo fmt --check` applied to a backlog: the index cannot be edited
-into disagreement with the tasks, because the only way to change it is to change a task
-file and regenerate, and the gate fails on any difference. What the predecessor layout
-asked a person to keep true by hand, this asks a machine to keep true by construction.
+mechanism, and it works the way `cargo fmt --check` does: the index cannot be edited into
+disagreement with the tasks, because the only way to change it is to change a task file and
+regenerate, and the gate fails on any difference (ADR-0039).
 
 Six things fail here:
 
@@ -21,9 +20,9 @@ Six things fail here:
 4. An index whose generated block is stale, missing, or hand-edited.
 5. A `tasks/` directory holding something that is not a task file.
 6. A heading written in one of the six shapes whose anchor the slug rule cannot work out, from
-   a bracketed span in the heading to a setext underline. `headingshapes.py` says which and why it
-   refuses them rather than emulating a renderer; the document carrying one has its own
-   anchors left unknown until it is rewritten, so nothing aimed at it is judged meanwhile.
+   a bracketed span in the heading to a setext underline. `headingshapes.py` says which they are
+   and why they are refused rather than emulated; the document carrying one has its own anchors
+   left unknown until it is rewritten, so nothing aimed at it is judged meanwhile.
 """
 
 import argparse
@@ -128,8 +127,8 @@ def main(argv: list[str] | None = None) -> int:
     for kind, base, group_word in BACKLOGS:
         found, offered = run_one(root, kind, base, group_word, write=args.write)
         problems.extend(found)
-        # Registered even when its rendering is unknown, so the anchor scan knows this
-        # document is an index and leaves it alone rather than reading the stale file.
+        # Registered even when its rendering is unknown, so the anchor scan treats this
+        # document as an index and leaves it alone rather than reading the stale file.
         name = f"{base}/index.md"
         indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
     problems.extend(backloganchors.check(root, indexes))

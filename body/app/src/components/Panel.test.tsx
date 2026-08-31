@@ -110,8 +110,9 @@ function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, 
 
 /** The panel with the reducer's draft half wired back up. The composer holds no text of its own
  *  (`overlay/drafts.ts`), so typing into the field changes what is on screen only if the state
- *  above it hears the keystroke, which is the one wire a bare `panelProps` cannot carry: it hands
- *  over a fixed `state`. Used by the tests that TYPE; the rest never touch the field. */
+ *  above it receives the keystroke, which is the one connection a bare `panelProps` cannot make,
+ *  since it hands over a fixed `state`. Used by the tests that type; the rest never touch the
+ *  field. */
 function LivePanel({ props }: { readonly props: ReturnType<typeof panelProps> }) {
   const [drafts, setDrafts] = useState(props.state.drafts);
   return (
@@ -159,8 +160,8 @@ describe("Panel", () => {
     const dot = screen.getByRole("status");
     expect(dot.className).toBe("linkdot warn");
     expect(dot).toHaveAccessibleName("The brain is not serving: store down");
-    // It closes the row instead of leading it: the title starts the header (and owns the panel's
-    // rounded corner), and the dot opens the button cluster as the state half of the same group.
+    // The dot sits after the title rather than before it: the title starts the header (and owns
+    // the panel's rounded corner), and the dot begins the button cluster as its state indicator.
     expect(dot.previousElementSibling?.textContent).toBe("My chat");
     expect(dot.nextElementSibling).toBe(screen.getByLabelText("Recent chats"));
   });
@@ -173,13 +174,13 @@ describe("Panel", () => {
     expect(capture).toHaveAccessibleName(
       "The assistant asked to look at your screen during this reply",
     );
-    // The two are one row of state and move together. Split, the ring would be the one thing left
-    // beside the title, appearing and vanishing with every capture the assistant asks for.
+    // The two indicators are one group and move together. Separated, the ring would be the only
+    // thing beside the title, appearing and vanishing with every capture the assistant asks for.
     //
-    // The order within the pair is load-bearing, not cosmetic. The title is the row's only flexible
-    // item, so it pays for anything inserted directly against it and nothing else moves. Put the
-    // ring on the far side of the dot and the dot plus every button slide left by the ring's width
-    // the instant a capture starts, which is a header that twitches mid-turn.
+    // The order within the pair changes what moves. The title is the row's only flexible item, so
+    // it absorbs anything inserted directly against it and nothing else moves. With the ring on the
+    // far side of the dot, the dot and every button slide left by the ring's width the instant a
+    // capture starts, so the header twitches mid-turn.
     expect(capture?.previousElementSibling?.textContent).toBe("My chat");
     expect(capture?.nextElementSibling).toBe(link);
     expect(link?.nextElementSibling).toBe(screen.getByLabelText("Recent chats"));
@@ -237,8 +238,8 @@ describe("Panel", () => {
       { onSelectSession },
     );
     fireEvent.click(screen.getByText("First chat"));
-    // And it loads SILENTLY: the row's own accessible name is the title, so a live region
-    // repeating it would read the reader the label they just pressed (`overlay/notice.ts`).
+    // The load is silent: the row's own accessible name is the title, so a live region repeating
+    // it would read back the label the reader just pressed (`overlay/notice.ts`).
     expect(onSelectSession).toHaveBeenCalledWith("c1", false);
   });
 
@@ -302,12 +303,12 @@ describe("Panel", () => {
     );
     rerender(<Panel {...props} />);
     const stack = screen.getByLabelText("Due reminders");
-    // Delivery is not conversation: the stack sits outside the log so it cannot scroll away.
+    // The stack sits outside the log, so scrolling the conversation cannot move it out of view.
     expect(container.querySelector(".history")?.contains(stack)).toBe(false);
-    // A reminder's origin opens through the switcher's own handler: same chat load, one path.
-    // Read before the dismissal, which takes the card away with it. The two doors part on the
-    // second argument only: this control is named "open chat" and not for the chat, so the chat
-    // that arrives is announced where a switcher row's is not (`overlay/notice.ts`).
+    // A reminder's origin opens through the switcher's own handler, so both routes load a chat the
+    // same way. Read before the dismissal, which removes the card. The two routes differ only in
+    // the second argument: this control is labelled "open chat" rather than with the chat's name,
+    // so the chat that arrives is announced where a switcher row's is not (`overlay/notice.ts`).
     fireEvent.click(screen.getByText("open chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c9", true);
     // The ack goes up in the frame the check is pressed; the row it removes is held on screen for
@@ -316,14 +317,15 @@ describe("Panel", () => {
     expect(onDismissReminder).toHaveBeenCalledWith("r-1");
   });
 
-  it("opens the console on the tab each door names: the sliders and the mark on appearance", () => {
+  it("opens the console on the tab each gesture names: the sliders and the mark on appearance", () => {
     const onToggleConsole = vi.fn();
     renderPanel({}, true, false, { onToggleConsole });
     fireEvent.click(screen.getByLabelText("Settings"));
     expect(onToggleConsole).toHaveBeenCalledWith("appearance");
-    // The mark is the shortcut: it is the thing the appearance tab's mark row changes, so it says
-    // what it shows and where it lands. Named for the tab, not for the settings sheet that used to
-    // be there: the view is gone, and a stale label is the part of a rename only a reader hears.
+    // The mark doubles as the shortcut into the appearance tab, since that tab's mark row is what
+    // changes it, so its label names both the mark showing and the tab it opens. It is named for
+    // the tab rather than for the settings sheet that used to be there, because that view is gone
+    // and a stale accessible name is the part of a rename only a screen reader user meets.
     fireEvent.click(screen.getByLabelText("Mark: Mull. Open appearance"));
     expect(onToggleConsole).toHaveBeenCalledTimes(2);
     expect(onToggleConsole).toHaveBeenLastCalledWith("appearance");
@@ -362,9 +364,10 @@ describe("Panel", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Chords" }));
     expect(onOpenConsole).toHaveBeenCalledWith("shortcuts");
 
-    // A tab is not a view. Both are mounted in one pane, stacked, so the taller decides the height
-    // and nothing about the panel moves when the tab changes; the header and its back chevron are
-    // the same elements before and after, so their enter animation does not run again.
+    // Switching tabs is not the same as switching views. Both tabs are mounted in one pane,
+    // stacked, so the taller decides the height and nothing about the panel moves when the tab
+    // changes; the header and its back chevron are the same elements before and after, so their
+    // enter animation does not run again.
     view.rerender(<Panel {...props("shortcuts")} />);
     expect(view.container.querySelectorAll(".pane")).toHaveLength(1);
     expect(view.container.querySelector(".view.out")).toBeNull();
@@ -374,9 +377,10 @@ describe("Panel", () => {
   it("keeps the inactive tab's box but exposes neither it nor its content", () => {
     const props = (tab: ConsoleTab) => panelProps({ consoleTab: tab }, true, false);
     const view = render(<Panel {...props("shortcuts")} />);
-    // The point of mounting both is the box: the panel is as tall as the taller tab either way, so
-    // switching cannot resize it. Everything else about the hidden one is taken away, or a reader
-    // stepping through the console would meet two equal tab panels and both sets of controls.
+    // Both panes are mounted so that the panel is as tall as the taller tab either way and
+    // switching cannot resize it. The hidden pane keeps its box and loses everything else, since a
+    // screen reader stepping through the console would otherwise meet two equal tab panels and
+    // both sets of controls.
     const panes = [...view.container.querySelectorAll(".tabpane")];
     expect(panes.map((p) => p.getAttribute("aria-hidden"))).toEqual(["true", "false"]);
     expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
@@ -472,10 +476,10 @@ describe("Panel", () => {
 
   it("keeps the invitation and the bubbles that replace it in the same floored column", () => {
     // The panel must not shrink when the first message is sent, and what stops it is a min-height
-    // on `.log` sized to the empty state (overlay.css). That only holds while BOTH the empty state
-    // and the messages that replace it are inside that one column, which is a structural contract
-    // no stylesheet can defend: pulling either back out to `.history` would silently hand the
-    // user back a panel that shrinks the moment they use it.
+    // on `.log` sized to the empty state (overlay.css). That only holds while both the empty state
+    // and the messages that replace it are inside that one column. No stylesheet rule can enforce
+    // the arrangement, so this test does: moving either back out to `.history` brings back a panel
+    // that shrinks the moment the user sends a message.
     const empty = renderPanel({}, true, false).container;
     expect(empty.querySelector(".history > .log > .empty")).not.toBeNull();
     cleanup();
@@ -546,11 +550,11 @@ describe("Panel", () => {
 
   it("holds the log's place while a section rolls open in the chrome beside it", () => {
     // The switcher list and the reminder stack are siblings of the history, so a roll's start event
-    // goes up past the log to the panel and the box itself hears nothing. At the panel's ceiling
-    // their growth comes out of the log's window all the same: measured at 640x720 on a full
+    // travels up past the log to the panel and never reaches the scrolling box. At the panel's
+    // ceiling their growth still comes out of the log's window: measured at 640x720 on a full
     // history, opening the switcher took the window 293px to 73px with `scrollTop` left where it
-    // was, so the end of the reply went from 3px below the fold to 223px. The log listens on the
-    // column the panel renders this view into, and this is that wire.
+    // was, so the end of the reply went from 3px below the fold to 223px. The log therefore listens
+    // on the column the panel renders this view into, which this test wires up.
     const land = stubRoll();
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
@@ -601,8 +605,8 @@ describe("Panel", () => {
     view.rerender(<Panel {...props(null)} />);
     expect(el.scrollTop).toBe(100);
 
-    // A reader who was AT the tail comes back to the tail, which is not the same line: a reply can
-    // land while the console is up, and following the stream is what they asked for.
+    // A reader who was at the tail comes back to the tail, which may be a different line: a reply
+    // can land while the console is up, and staying at the tail is what following the stream means.
     el.scrollTop = 470;
     fireEvent.scroll(el);
     view.rerender(<Panel {...props("shortcuts")} />);
@@ -619,8 +623,8 @@ describe("Panel", () => {
       "Chords",
     );
     // Closing keeps the console mounted for one morph so it can fade out. Its tab is already null
-    // by then, and the fallback for that was the FIRST tab, so leaving from the shortcuts drew the
-    // appearance pane over the one the user was looking at and took it away with the fade.
+    // by then, and the fallback for a null tab used to be the first tab, so leaving from the
+    // shortcuts drew the appearance pane over the one the user was looking at and faded that away.
     view.rerender(<Panel {...props(null)} />);
     const leaving = view.container.querySelector(".view.out");
     expect(leaving?.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe("Chords");
@@ -664,9 +668,9 @@ describe("Panel", () => {
     renderPanel({}, true, false);
     const hint = (text: string) =>
       [...document.querySelectorAll(".hints span")].find((s) => s.textContent?.includes(text));
-    // A chord is drawn as the keys it is: the newline hint is Shift AND Return, two caps, which is
-    // how the console's list reads it too. Shift is spelled out like Ctrl and Alt, so the drawn cap
-    // left is return, the one key here with no name worth writing.
+    // A chord is drawn as one cap per key: the newline hint is Shift and Return, so two caps, which
+    // is how the console's list renders it too. Shift is spelled out like Ctrl and Alt, so the only
+    // cap drawn as a glyph is return.
     expect(hint("new line")?.querySelectorAll("b")).toHaveLength(2);
     expect(hint("new line")?.querySelector("b")?.textContent).toBe("Shift");
     expect(hint("new line")?.querySelectorAll("b.key")).toHaveLength(1);

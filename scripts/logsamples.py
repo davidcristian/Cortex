@@ -22,9 +22,9 @@ for rather than anchored, and whatever precedes it is decoration this module dro
 parse. The formatter joins ``key=value`` pairs with a single space after the message, so the first
 ``name=`` token at a whitespace boundary is the field run's opening and everything before it is the
 message. A message that itself spelled a ``word=`` would be cut short there, and the gate would
-then report that no call site logs the message it read, which is loud and wrong in the safe
-direction: nothing in this tree writes one, and a message that starts doing so is refused rather
-than guessed at.
+then report that no call site logs the message it read, which fails loudly and in the safe
+direction: nothing in this tree writes such a message, and one that started to would be refused
+rather than guessed at.
 
 **Field names, never field values.** A sample's values are frequently placeholders (``<chat id>``,
 ``<what happened>``), and one runbook's captured ``port=50051`` is deliberately a dated reading

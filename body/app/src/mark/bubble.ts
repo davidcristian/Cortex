@@ -115,7 +115,7 @@ export function highlightsOf(placed: PlacedLobe): readonly [Highlight, Highlight
   ];
 }
 
-/** The bright crescent light throws on the far side of the film, opposite the highlight. */
+/** The bright crescent that light casts on the far side of the film, opposite the highlight. */
 export function causticPath(placed: PlacedLobe): string {
   const radius = placed.r * 0.78;
   const from = 0.35;

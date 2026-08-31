@@ -43,11 +43,11 @@ different positive counts, is now expressible: the fold, the title and the recal
 zero and a user's reply sends whatever `CORTEX_REPLY_TRACE_TOKENS` names, all on the one resident
 cortex.
 
-Measured per request on one unbudgeted server, so the dial is the engine's rather than a claim
-about it: unbounded spent 591 to 854 characters of trace and returned **nothing** inside a cap of
-256, `reasoning_budget_tokens: 128` spent 310 to 516 and returned an answer, and `32` spent 0 to 92
-and returned a longer one. What the addendum adds beyond this entry's own design is the floor under
-the key, since a build that does not know it ignores it in silence
+Measured per request on one unbudgeted server, so the dial is the engine's rather than a claim about
+it: unbounded spent 591 to 854 characters of trace and returned **nothing** inside a cap of 256,
+`reasoning_budget_tokens: 128` spent 310 to 516 and returned an answer, and `32` spent 0 to 92 and
+returned a longer one. What the addendum adds beyond this entry's own design is the floor under the
+key, since a build that does not read the key ignores it without error
 ([R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md) is where those questions were
 recorded).
 

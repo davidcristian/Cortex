@@ -1,49 +1,40 @@
 """What a Dockerfile in this tree declares a VOLUME at, and each one its recorded row lacks.
 
 `imagevolumes.py` holds what docker said each image declares, and `volumecheck.py` holds every
-declared path to a mount. Three of those rows are images this repo builds from Dockerfiles of its
-own, and for those the record can move under the gate from inside the tree: add
-`VOLUME /var/cache/thing` to `brain/Dockerfile` and the built image declares a path, every
-container of it collects an anonymous volume, and the row goes on saying the image declares
-nothing, with `just check` green until somebody rebuilds and hand-runs `just image-volumes`. This
-module is the half of that question the tree can answer on every commit, with no daemon.
+declared path to a mount. Three of those rows are for images this repo builds from Dockerfiles of
+its own, and for those the record can go stale from inside the tree: add `VOLUME /var/cache/thing`
+to `brain/Dockerfile` and the built image declares a path, every container of it collects an
+anonymous volume, and the row goes on saying the image declares nothing, with `just check` green
+until somebody rebuilds and hand-runs `just image-volumes`. This module is the half of that question
+the tree can answer on every commit, with no daemon.
 
-**The rule is one-directional, and that is what makes it cheap.** Every path a Dockerfile here
-declares must appear in the row for the image built from it. A recorded path that Dockerfile does
-not declare is fine: it came from the base image the file stands on, which is `dockerfilebases.py`'s
-question and the other half of what a built row says. That module is asked from here, over the same
-text and inside the same read, so a file opened once answers both halves and an unreadable one is
-reported once.
+The rule runs one way: every path a Dockerfile here declares must appear in the row for the image
+built from it. A recorded path that Dockerfile does not declare came from the base image the file
+stands on, which is `dockerfilebases.py`'s question, asked from here over the same text and inside
+the same read, so a file opened once answers both halves and an unreadable one is reported once.
+That module also hands over a base's recorded `ONBUILD` triggers, the third source a built row
+answers for: a base carrying `ONBUILD VOLUME /x` declares nothing of its own and makes the image
+built `FROM` it declare `/x`. The ADR-0011 addenda on why the built rows stay recorded and on what
+a base declares for its children argue all three sides.
 
-**Which Dockerfile builds which row is read from the compose file, never recorded.** The mapping
-lives in each service's `build:` stanza, `composeservices.py` reads it there, and the gate hands it
-over. Writing it down beside the row would buy cheapness by spelling one fact twice, with nothing
-deriving it to compare, which is the same defect this check exists to close one level down.
+Which Dockerfile builds which row is read from each service's `build:` stanza by
+`composeservices.py` rather than recorded, so the mapping is not written down twice with nothing
+deriving it. Where a relative context lands depends on the project directory, which compose takes
+from `--project-directory` when it is given and from the first `-f` file's own directory otherwise,
+so both are tried, exactly as `bindcheck.py` tries both for a bind source. A Dockerfile landing
+under neither is a fault rather than a silent pass.
 
-**Where a relative context lands** depends on the project directory, which compose takes from
-`--project-directory` when it is given and from the first `-f` file's own directory otherwise, so
-both are tried, exactly as `bindcheck.py` tries both for a bind source. A Dockerfile landing under
-neither is a fault rather than a silent pass.
-
-**What a `VOLUME` looks like.** Both spellings are read, the JSON array `VOLUME ["/a", "/b"]` and
-the plain list `VOLUME /a /b`, joined across continuation lines. `ONBUILD VOLUME` is deliberately
-not one of them, and that refusal is a correctness requirement rather than a simplification: it
-declares a volume in an image built *from* this one, so reading it here would make the rule above
-demand a path in the row for an image that truly declares none, and redden a correct record.
-Everything else is refused rather than walked past, the way every reader here refuses: an argument
-carrying a build argument or an environment variable, which only a build can resolve; a path that
-is not absolute; an array that is not one, or that names something other than a path; and a
-`VOLUME` naming nothing. The file's own grammar, the comment and continuation handling and the
-`escape=` parser directive that would change what a continuation means, is `dockerfilebases.py`'s,
-shared because both readers work over the same joined lines.
-
-**The same grammar reads a base's triggers**, which is the third source a built row answers for. A
-base carrying `ONBUILD VOLUME /x` declares nothing of its own and makes the image built `FROM` it
-declare `/x`, so its row records the trigger raw and `dockerfilebases.py` hands it over here: each
-entry is one whole instruction as docker wrote it down, read as the one-line Dockerfile it is, and
-every path it names must appear in the built row exactly as an inherited one must. A trigger this
-reader cannot read is a fault rather than a resolved-to-nothing, for the reason a skipped `VOLUME`
-would be: it is a path the next build may declare and this tree would go on denying.
+Both forms of the instruction are read, the JSON array `VOLUME ["/a", "/b"]` and the plain list
+`VOLUME /a /b`, joined across continuation lines. `ONBUILD VOLUME` is not read as a declaration of
+the file that writes it, which is a correctness requirement rather than a simplification: it
+declares a volume in an image built *from* this one, so counting it here would demand a path in the
+row for an image that truly declares none. Anything else raises rather than being walked past: an
+argument carrying a build argument or an environment variable, which only a build can resolve; a
+path that is not absolute; an array that is not one, or that names something other than a path; a
+`VOLUME` naming nothing; and a recorded trigger this reader cannot parse, which is a path the next
+build may declare and this tree would go on denying. The file's own grammar, the comment and
+continuation handling and the `escape=` parser directive that changes what a continuation means,
+lives in `dockerfilebases.py`, shared because both readers work over the same joined lines.
 """
 
 import json
@@ -57,12 +48,12 @@ from composetargets import normalize
 from dockerfilebases import DockerfileError, Inheritance, inherited, logical
 from imagevolumes import RECORD_PATH, Row
 
-# The instruction this reader is looking for, matched case-insensitively the way docker matches it.
+# The instruction this reader matches, case-insensitively the way docker matches it.
 INSTRUCTION = "VOLUME"
 
-# What opens a JSON container, which is how the array spelling of the instruction begins. Both are
-# dispatched to the array reader, because an object where an array belongs is a shape to refuse
-# with the reason rather than to hand to the path splitter and refuse for the wrong one.
+# What opens a JSON container, which is how the array form of the instruction begins. Both go to
+# the array reader, so an object written where an array belongs is refused for not being an array
+# rather than split into paths and refused for the wrong reason.
 JSON_OPENERS = ("[", "{")
 
 _UNDECLARED = (
@@ -106,7 +97,7 @@ class Reading(NamedTuple):
 
 
 def _array(number: int, argument: str) -> list[str]:
-    """The paths a JSON-array VOLUME names, refused whole when it is not an array of paths."""
+    """The paths a JSON-array VOLUME names, raising when it is not an array of paths."""
     try:
         loaded: object = json.loads(argument)
     except json.JSONDecodeError as err:
@@ -125,7 +116,7 @@ def _array(number: int, argument: str) -> list[str]:
 
 
 def _paths(number: int, argument: str) -> list[str]:
-    """The container paths one VOLUME instruction names, in either spelling docker accepts."""
+    """The container paths one VOLUME instruction names, in either form docker accepts."""
     if "$" in argument:
         msg = f"line {number}: VOLUME {argument!r} carries an expansion only a build can resolve"
         raise DockerfileError(msg)
@@ -157,12 +148,12 @@ def onbuild_volumes(entries: Iterable[str]) -> tuple[str, ...]:
     Each entry is one whole instruction as docker wrote it down, with any continuation already
     joined by the builder that recorded it, so it is read as the one-line Dockerfile it is: an
     entry naming another instruction declares no volume, exactly as a `RUN` in a file declares
-    none, and a `VOLUME` this reader cannot read is refused rather than resolved to nothing.
+    none, and a `VOLUME` this reader cannot parse raises rather than resolving to nothing.
 
-    An entry not opening with an instruction word is refused too, and that is the one refusal
-    aimed at the hand rather than at docker. The row is pasted in by whoever ran the recipe, and
-    a trigger written as the path it resolves to, `/x` where docker said `VOLUME /x`, would
-    otherwise be read as an instruction this reader passes over and would declare nothing at all.
+    An entry not opening with an instruction word raises too, which is the one check aimed at the
+    person who pasted the row rather than at docker's own output. A trigger written as the path it
+    resolves to, `/x` where docker said `VOLUME /x`, would otherwise be read as an instruction this
+    reader passes over and would declare nothing at all.
     """
     found: list[str] = []
     for entry in entries:

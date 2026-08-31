@@ -35,7 +35,7 @@ afterEach(() => {
 
 describe("publishHeight", () => {
   it("publishes the height it measured, not the number the stylesheet started with", () => {
-    // The whole point of the module: an empty state that grew a line has to move the floor with
+    // What the module is for: an empty state that grew a line has to move the floor with
     // it. A probe that published the frozen 185 would pass every structural test and drift exactly
     // as the constant did.
     publishHeight(CHAT_FLOOR_PROPERTY, tall(207));

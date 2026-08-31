@@ -16,11 +16,10 @@ on the one file in the tree that already got this right. Only a scalar anchor is
 alias naming nothing recorded is refused rather than guessed at.
 
 Like its siblings it is a line reader rather than a YAML parse, these gates being stdlib-only
-(`pyproject.toml` in this directory), and it stays honest about that by refusing every shape it
-was not taught rather than walking past it: an inline list, a mount with no target, a short entry
-carrying an expansion, a relative target, an alias naming nothing. Each is raised, never skipped,
-because a reader that quietly walked past the one mount a new override adds is a gate that cannot
-fail.
+(`pyproject.toml` in this directory), and it raises on every shape it was not taught rather than
+walking past it: an inline list, a mount with no target, a short entry carrying an expansion, a
+relative target, and an alias naming nothing. Each raises rather than being skipped, because a
+reader that walked past the one mount a new override adds would leave the gate unable to fail.
 """
 
 import re
@@ -43,10 +42,10 @@ _FIELDS = 2
 
 
 class ComposeServiceError(Exception):
-    """A compose file carries a shape this reader will not guess at.
+    """A compose file carries a shape this reader cannot read.
 
-    One refusal covers both halves of the reader, and it lives here because this half raises most
-    of them: a caller catching `ComposeServiceError` should not have to know which half it came
+    One exception covers both halves of the reader, and it lives here because this half raises most
+    of them: a caller catching `ComposeServiceError` should not have to work out which half it came
     from, and two names for one fault would be two things to keep in step.
     """
 

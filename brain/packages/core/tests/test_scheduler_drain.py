@@ -6,14 +6,14 @@ nothing killed on timeout, and a reversible window (`undrain`). Every wait here 
 and the timeout paths pass ``timeout_s=0.0`` (an already-expired bound), so no test sleeps
 wall-clock; ``_settle`` yields the loop a few turns, which is scheduling, not time.
 
-Distrust-green proofs (each mutation reddened the named test, then was restored):
-- dropping the ``_draining`` check in ``admit`` (admissions allowed through a drain) reddens
+Mutations proving these tests can fail (each was applied on its own, then restored):
+- dropping the ``_draining`` check in ``admit`` (admissions allowed through a drain) fails
   ``test_admit_is_refused_while_draining_until_undrain`` (both impls);
-- dropping drain's ``notify_all`` (a queued waiter left sleeping) reddens
+- dropping drain's ``notify_all`` (a queued waiter left sleeping) fails
   ``test_a_spawn_waiting_on_a_full_budget_is_woken_and_refused_when_drain_begins``;
 - making drain wait unbounded (no ``asyncio.timeout``) hangs, and returning True from its
-  timeout path reddens ``test_drain_times_out_when_work_stays_in_flight_and_kills_nothing``;
-- breaking ``undrain`` (window never released) reddens the same undrain-resumes assertions.
+  timeout path fails ``test_drain_times_out_when_work_stays_in_flight_and_kills_nothing``;
+- breaking ``undrain`` (window never released) fails the same undrain-resumes assertions.
 """
 
 import asyncio
@@ -184,7 +184,8 @@ async def test_undrain_without_a_drain_is_a_no_op(scheduler: SubagentScheduler) 
 
 
 async def test_a_spawn_waiting_on_a_full_budget_is_woken_and_refused_when_drain_begins() -> None:
-    """The crux interleaving (budget impl only, since only it queues): the waiter must not sleep.
+    """The interleaving that matters, on the budget implementation only since only it queues:
+    the waiter must not sleep through the drain.
 
     A spawn queued on a transiently full budget when the drain begins would otherwise sleep
     through the whole handoff and admit into the brain phase on wake. Drain wakes it, it sees

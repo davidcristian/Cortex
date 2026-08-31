@@ -10,8 +10,8 @@ import { useMarkClock } from "../mark/useMarkClock";
 // bubble is drawn is data (mark/marks.ts); this renders any of them. `idPrefix` keeps the SVG
 // gradient and clip ids unique per mount: ids are document-global and marks can co-exist.
 //
-// The eight-hue palette, carried over from the rings it replaced: one gradient, not two
-// arcs, so the identity survived the shape change.
+// The eight-hue palette is carried over from the rings this mark replaced, as one gradient
+// rather than two arcs, so the colour identity is the same across the shape change.
 const PALETTE = [
   "#43d675",
   "#ffb347",

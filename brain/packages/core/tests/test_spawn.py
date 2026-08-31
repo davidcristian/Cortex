@@ -51,7 +51,7 @@ class FixedClock:
 
 
 class FailingBackend:
-    """Yields one delta then fails. Every subagent driven by it comes back ok=False."""
+    """Yields one delta and then fails, so every subagent driven by it comes back ok=False."""
 
     async def stream(
         self,
@@ -223,7 +223,7 @@ async def test_a_failed_subagent_is_reported_not_raised() -> None:
 
 
 async def test_a_refused_subagent_does_not_take_the_rest_of_the_batch_down() -> None:
-    """The scheduler's wall is one member's outcome, never the batch's (ADR-0012 addendum).
+    """A refusal is one member's outcome and never the batch's (ADR-0012 addendum).
 
     `asyncio.gather` propagates the first exception, so a refusal that stayed an exception would
     lose every sibling's answer and fail the turn. As a value it is one `FAILED:` section.
@@ -396,7 +396,7 @@ async def test_brace_strings_that_are_not_object_items_stay_plain_instructions(
     assert result.is_error is False
     task = await store.get_task("st-1")
     assert task is not None
-    # The third case IS a valid object item, so its instruction is the unwrapped text.
+    # The third case is a valid object item, so its instruction is the unwrapped text.
     expected = "indented ok" if "indented ok" in text else text
     assert task.instruction == expected
     assert task.model == ""

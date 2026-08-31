@@ -89,13 +89,13 @@ this ADR. Two adjacent facts shape it:
    bigger model simply fit-tests to CPU more often). `SubagentRunner` takes the roster, loads the
    task **first**, resolves the entry, then admits→places→runs on that entry's resources.
 
-8. **Advertisement is honest about the wiring it runs in.** The spawn tool builds its spec from
+8. **The advertised spec describes the wiring it runs in.** The spawn tool builds its spec from
    the roster: the `model` enum lists every entry with its description, and the tool description
    states the ADR-0017 rule (on a turn that read untrusted content the default is enforced). In a
    wiring whose subagents are **tools-enabled**, ADR-0017 rule 2b pins *every* spawn to the
-   default. The spec thus **omits the `model` property entirely** rather than advertising a knob
-   that cannot do anything (the `context`/object form stays). The runner enforces regardless of
-   what was advertised. That is defense in depth, not trust in the spec.
+   default. The spec therefore **omits the `model` property entirely** rather than advertising a
+   knob that has no effect (the `context`/object form stays). The runner enforces the rule whatever
+   the spec advertised, so the spec is an optimization aid and the runner is the boundary.
 
 ## Alternatives considered
 
@@ -179,7 +179,7 @@ names: `ToolCall.tainted` became `ToolCall.stamp` (a frozen `TurnStamp` of `sess
 `tainted`) and `dispatch(call, tainted=...)` became `dispatch(call, stamp=...)`. The
 mechanism and the invariant are unchanged with the rename applied: the dispatcher still
 overwrites the call's stamp with its own argument, a model-forged stamp still feeds
-nothing, and the gate still decides on the dispatcher's argument (`stamp.tainted`), never
+nothing, and the gate still tests the dispatcher's argument (`stamp.tainted`), never
 the call field. The spawn tool reads `call.stamp.tainted`.
 
 ## Addendum (2026-07-16): the advertised trade-off now matches the measured hardware
@@ -204,12 +204,12 @@ across two backend objects, ratio 2.08, full serialization).
 drops the blanket "concurrently"/"worth parallelizing" wording; the model-choice note points the
 cortex at spreading independent subtasks across distinct roster models as the wall-clock lever;
 the pinned/single-entry note says a batch on the one model groups independent work rather than
-speeding it up. Decision 8 (advertisement honest about the wiring) now extends to being honest
-about the wiring's *timing*, not just its safety pins. This also delivers the "spontaneous model
-picks" nudge finding 1 wanted, since the parallelism line gives the model knob a concrete reason
-(a faster batch) to reach for beyond a directed pick. The behavior is unchanged: `invoke` still
-dispatches the runs together via `asyncio.gather`; only the advertised text changed, guarded by
-spec-description assertions in `test_spawn.py` (mutation-proven: reverting the text reddens them).
+speeding it up. Decision 8 (the spec describes the wiring) now covers the wiring's *timing* as well
+as its safety pins. This also delivers the "spontaneous model picks" nudge finding 1 asked for,
+since the parallelism line gives the model knob a concrete reason (a faster batch) to be used
+beyond a directed pick. The behavior is unchanged: `invoke` still dispatches the runs together via
+`asyncio.gather`; only the advertised text changed, guarded by spec-description assertions in
+`test_spawn.py` (mutation-proven: reverting the text makes those assertions fail).
 
 The measurement is reused from the same-day admission-wall work, cited as prior rather than
 re-run; the mechanism (`asyncio.Lock` per entry, held for the stream) is confirmed in `model.py`.
@@ -248,7 +248,7 @@ No code changed here; this is a records correction at the origin ADR.
 The residual the two addenda above hand forward, whether a live cortex reaches for **distinct**
 roster models unprompted, was run on the development card. It has an answer, and running it split
 the question in two, because the residual had folded a prior question inside it: before a cortex
-can spread a batch it has to want a batch at all.
+can spread a batch across models it has to produce a batch at all.
 
 **Setup.** Base + gpu + subagents + subagents-roster on the 24 GB card, models under
 `CORTEX_MODELS_DIR`. The cortex tier is the shipped one, started by the model host over
@@ -262,7 +262,8 @@ real builders assembled (`build_subagents`, `build_builtin_tools`, `build_cortex
 security preamble in place via `assemble_inference_messages` and `spawn_subagents` as the **only**
 advertised tool, which is the most favourable condition delegation could be given.
 
-**The tool was armed, checked before any silence was read as a decision.** The advertised spec
+**The tool was armed, and that was checked before an absent spawn call was read as a decision.**
+The advertised spec
 carried the model enum `["qwen", "subagent"]` and the trade-off sentence verbatim ("Subtasks on
 distinct models run in parallel, while subtasks that share one model run one after another (one
 backend each), so spread independent subtasks across models to finish the batch sooner"). A control
@@ -273,7 +274,8 @@ ask that directed the picks produced one `spawn_subagents` call carrying `{"mode
 **Finding 1: a prose-only ask does not reach for delegation at all.** Four asks, each carrying
 three or four genuinely independent subtasks and saying nothing about delegation, over **20 turns**
 (twelve run to completion, eight sampled at the dispatch): **zero** `spawn_subagents` calls, 9.88 s
-to 76.03 s per turn. The traces do not decline to delegate, they never raise it: `subagent`,
+to 76.03 s per turn. The traces contain no decision against delegating; delegation is never
+mentioned at all. `subagent`,
 `delegat`, `spawn` and `farm` appear **zero** times across the twelve full reasoning traces. The
 cortex enumerates the subtasks as a checklist and answers them itself, which on this deployment is
 also the better answer, since the CPU tiers generate at 0.35 tok/s (gemma-4-E4B under its 4 CPU
@@ -281,16 +283,16 @@ cap) and 0.97 to 1.10 tok/s (Qwen3.5-2B), so a delegated paragraph costs minutes
 in seconds. **The probe as specified therefore cannot observe a spread**, because it never produces
 a batch.
 
-**Finding 2: invited to delegate, it delegates every time and piles the batch on one entry every
-time.** Two asks that request delegation in ordinary user prose (no tool name, no model name, no
-parallelism language), over **16 turns: 16 delegations, 0 spreads.** Of the 15 batches whose
+**Finding 2: invited to delegate, it delegates every time and places the whole batch on one entry
+every time.** Two asks that request delegation in ordinary user prose (no tool name, no model name,
+no parallelism language), over **16 turns: 16 delegations, 0 spreads.** Of the 15 batches whose
 arguments were recorded, 11 used the object item form and 4 bare strings, and exactly **one**
-carried a `model` key at all: it put all three subtasks on `qwen`, which is a pile on the cheap
-entry rather than a spread. The other fourteen ran entirely on the default, as did the sixteenth
-turn, which was abandoned while its batch ran and during which the alternate's server served
-nothing at all. The one explicit pick states
-the reasoning plainly, and states it while holding the belief the trade-off line was written to
-remove: "I can use `spawn_subagents` to handle these three requests in parallel. Since the content
+carried a `model` key at all: it put all three subtasks on `qwen`, placing the whole batch on the
+cheap entry rather than spreading it. The other fourteen ran entirely on the default, as did the
+sixteenth turn, which was abandoned while its batch ran and during which the alternate's server
+served nothing at all. The one explicit pick states its reason plainly, and the reason is the one
+the trade-off line was written to correct: "I can use `spawn_subagents` to handle these three
+requests in parallel. Since the content
 is simple and doesn't involve untrusted data, I can use the default model or `qwen` for speed, but
 `subagent` is safer. Actually, `qwen` is fine for these simple definitions." The choice is made per
 subtask on cost and safety, never on the batch's shape.
@@ -316,23 +318,23 @@ GPU-placed and the rest overflow, so two lock objects front one server: the thre
 launched two in the same millisecond and the third only when the first released. The default
 entry's 5.5 GB ask never fits, so its batches are strictly serial (258.4 s, 208.7 s, 330.2 s, one
 after another). The advertised claim is therefore conservative rather than wrong, and what it
-overstates is the size of the prize for spreading, which is one more reason to leave the fix
+overstates is how much wall-clock time spreading saves, which is one more reason to leave the fix
 queued. **The last of those readings has since changed and the conclusion has not (2026-08-08):**
 both budget terms were measured, the reservation to 8.6 GiB and the default entry's ask to 3.5, so
 the default entry now behaves exactly as `qwen` did here, one spawn of a batch GPU-placed and the
 rest overflowing, rather than strictly serial. Two lock objects still front one server wherever an
 entry omits `gpu_endpoint`, which is what this correction is about.
 
-**What the correction reached a day later (2026-08-09), and what it deliberately did not.** The
+**What the correction changed a day later (2026-08-09), and what it left alone.** The
 same premise had also been written into arithmetic rather than into prose: the bounded admission
 wait in `scheduler.py` derived its 3600 s default from the serialization reading as though it held
 unconditionally, and a test pinned the derivation. That one was corrected against the measurement
 above ([ADR-0012](ADR-0012-resource-governance.md)). The number did not move, the serial reading
 surviving as what a closed GPU tier leaves and 3600 s being twice it; what moved is the claim, from
 an equality to an upper bound four times the wait the shipped stack produces. The advertised
-sentence stays declined on the grounds this section already gave, being prose a model reads whose
-error understates the prize, where the arithmetic's error was a derivation with a correct answer
-and a false reason and no wording to guess at.
+sentence stays declined on the grounds this section already gave. It is prose a model reads, and
+its error understates the gain from spreading, whereas the arithmetic's error was a derivation with
+a correct answer and a false reason, which could be corrected without guessing at wording.
 
 **What changes, and what does not.** The spec text is unchanged. This run says the advice is not
 taken; it does not say which wording would be taken, and rewriting on the strength of one
@@ -379,7 +381,7 @@ overrode that artifact, whose real rate is furthest from the table, is the one t
 reading it. The Risks note above says a wrong description misleads the optimization only, and that is
 still true; what changes is that a wrong **number** misleads it with the authority of a measurement.
 
-**2. A rate is a reading under conditions the profile cannot see.** Four of them, each of which
+**2. A rate is a reading under conditions the profile does not record.** Four of them, each of which
 moved at least once inside the arc that produced the number: the artifact behind the endpoint, the
 engine build, which every one of these measurements names by digest, the token cap
 `CORTEX_SUBAGENTS_MAX_TOKENS`, since the strict reading counts a run cut at the cap as a
@@ -402,7 +404,7 @@ the shipped overrides remove.
 ### The three shapes, priced against each other
 
 1. **A sentence typed into the description.** Rejected, and the entry says why: nothing holds a
-   hand-typed rate to a measurement, so it is a lie the day the wording or the engine build changes.
+   hand-typed rate to a measurement, so it is wrong the day the wording or the engine build changes.
 2. **A field on `SubagentProfile` rendered by the spec builder.** This is the same seam ADR-0028
    declines today for the wording, for the same reason. Both values want to be per artifact and the
    port offers per name, so building it would file a measured property under a key that does not

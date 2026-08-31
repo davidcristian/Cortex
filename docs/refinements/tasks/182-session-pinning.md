@@ -32,8 +32,8 @@ re-assert a pinned value the user's next toggle reversed). The overlay adds a pe
 re-forms at the top, and reads the one pinned-first `sessions` order everywhere (switcher, cycling,
 cold-start adoption, which now adopts the top pinned chat when any is pinned). Gated at 100% across
 all four trees, with the union mutation-proven: the flagship contract check pins a chat older than
-a `limit=3` window and asserts it still lists above the recency group (dropping the union reddens
-it), a pinned-and-recent chat is asserted to appear once (dropping the dedup reddens it), and the
+a `limit=3` window and asserts it still lists above the recency group (dropping the union makes it
+fail), a pinned-and-recent chat is asserted to appear once (dropping the dedup makes it fail), and the
 user-only path is pinned by a no-tool structural test. Live-validated (agent, Docker + real Redis):
 four chats seeded with an old one pinned and a `limit=3` listing returned the pinned old chat
 first, above the three newer chats, exactly once.

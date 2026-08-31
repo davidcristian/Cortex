@@ -82,9 +82,11 @@ async def test_get_volume_tool_unreachable_body_is_a_trusted_error() -> None:
 
 
 async def test_get_volume_tool_says_the_host_is_unready_when_it_has_no_endpoint() -> None:
-    """The volume half of the prefix defect. A host with no default audio device is not a
-    body nobody could reach, and the two used to be the same sentence behind the same status
-    code, so the cortex could not tell a dead body from an unplugged speaker."""
+    """An UNREADY failure says the host is not in a state to control volume.
+
+    This is the volume half of the prefix defect. A host with no default audio device and a body
+    that could not be reached at all used to produce the same sentence behind the same status
+    code, so the cortex could not tell the two apart."""
     fail = BodyGatewayError(
         "body get_volume failed: no audio endpoint: no device", kind=BodyFailure.UNREADY
     )
@@ -165,8 +167,10 @@ async def test_set_volume_tool_unreachable_body_is_a_trusted_error() -> None:
 
 
 async def test_set_volume_tool_says_the_body_refused_when_the_body_refused() -> None:
-    """A standing refusal (a rejected seam token) is not a body that could not be reached,
-    and retrying it changes nothing, which is what the wording now lets the cortex know."""
+    """A REFUSED failure says the body refused, rather than that it could not be reached.
+
+    A rejected seam token stands until it is fixed, so retrying changes nothing, and that is
+    what this wording tells the cortex and an unreachable-body message would not."""
     fail = BodyGatewayError(
         "body set_volume failed: invalid or missing seam token", kind=BodyFailure.REFUSED
     )

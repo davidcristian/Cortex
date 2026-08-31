@@ -30,11 +30,11 @@ deep tier absent from the roster, a residency scope stopped the real cortex, met
 ``start``, and spent 29.7 s reloading the cortex, while the conductor asked first and refused in
 under 0.01 s with the cortex never leaving READY.
 
-Distrust-green, measured against the running sidecar rather than argued: deleting
-``residency_moves.swap_in``'s ``stop`` of the standing resident reddens
+These checks were proved able to fail against the running sidecar rather than by argument.
+Deleting ``residency_moves.swap_in``'s ``stop`` of the standing resident fails
 ``test_a_residency_scope_really_evicts_one_model_and_loads_another`` with both tiers reporting READY
 at once, which is the eviction half nothing else here would catch. Measured the same way on
-2026-08-18, deleting the deep-tier reading from ``residency_regain.regain_residency`` reddens
+2026-08-18, deleting the deep-tier reading from ``residency_regain.regain_residency`` fails
 ``test_a_real_deep_tier_on_the_card_stops_the_regain``, which published a serving residency while
 the sidecar really did have two tiers on the card.
 """
@@ -111,7 +111,7 @@ class _RecordingProcesses:
 
 
 def _supervisor(command: str) -> tuple[ModelSupervisor, _RecordingProcesses]:
-    """A supervisor whose one model is a shell command: the OS half real, the model not."""
+    """Build a supervisor whose one model is a shell command: the OS half real, the model not."""
     roster = build_roster(
         [ModelSpec(model=_MODEL, port=8099, argv=("/bin/sh", "-c", command, "--port", "8099"))]
     )
@@ -151,7 +151,7 @@ async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace(tmp_p
     supervisor, processes = _supervisor(f'trap "" TERM; : > {armed}; sleep 30')
     await supervisor.start(_MODEL)
     async with asyncio.timeout(_ARM_TIMEOUT_S):
-        # The suppressed rule wants an asyncio.Event, which cannot observe a file that another
+        # The suppressed rule requires an asyncio.Event, which cannot observe a file that another
         # process creates; the enclosing timeout is what keeps the poll from becoming a hang.
         while not armed.exists():  # noqa: ASYNC110
             await asyncio.sleep(0.01)
@@ -163,7 +163,7 @@ async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace(tmp_p
 
 @pytest.mark.integration
 async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> None:
-    """The mechanism against a running sidecar: a real llama-server up, then genuinely gone."""
+    """The real adapter starts, health-gates and stops a real llama-server."""
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
@@ -605,7 +605,7 @@ async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
 
 
 def _live_manager(host: HttpModelHost, standing: str, deep: str) -> SwappingModelManager:
-    """The shipped manager over the real adapter, with the endpoints the loopback override maps."""
+    """Build the shipped manager over the real adapter, on the loopback override's endpoints."""
     return SwappingModelManager(
         host,
         {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
@@ -616,7 +616,8 @@ def _live_manager(host: HttpModelHost, standing: str, deep: str) -> SwappingMode
 
 
 async def _tier_states(host: HttpModelHost, models: Sequence[str]) -> list[str]:
-    """What the sidecar says each tier is doing, with a 404 read as the fact that it is not one."""
+    """Return what the sidecar says each tier is doing, reading a 404 as a tier it does not
+    host."""
     states: list[str] = []
     for model in models:
         try:
@@ -627,12 +628,12 @@ async def _tier_states(host: HttpModelHost, models: Sequence[str]) -> list[str]:
 
 
 def _spawn() -> PlacementRequest:
-    """One spawn asking for the shipped subagent VRAM budget."""
+    """Build one spawn asking for the shipped subagent VRAM budget."""
     return PlacementRequest("subagent", vram_gb=_SPAWN_GB, cpus=1.0, memory_gb=2.0)
 
 
 def _fit_plan(target: str, needed_mib: int) -> ResidencyPlan:
-    """A plan whose standing resident is the target itself, so nothing else is evicted."""
+    """Build a plan whose standing resident is the target itself, so nothing else is evicted."""
     return ResidencyPlan(
         cortex_model=target, brain_model=target, brain_vram_mib=needed_mib, load_timeout_s=300.0
     )

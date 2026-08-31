@@ -7,21 +7,22 @@ corpus can be read as a corpus. It is the input to a measurement, not a module o
 here in full: the agent that recommended the judge wrote these notes and these questions, and no
 sampling of real memories was involved. What is different is the *shape* of the bias. The original
 corpus was built so that every gold note answered its question in words the question never used
-while a distractor echoed the question's vocabulary, which is precisely the case a cosine cannot
-see. A corpus made only of those is a demonstration, not a benchmark: it can only produce the
-answer it was cut for.
+while a distractor echoed the question's vocabulary, which is the case a cosine cannot see. A
+corpus made only of those cases can produce one result and no other, so it demonstrates rather
+than measures.
 
-So this one is built to be adversarial to its author's own conclusion. Six categories, and only
-the first of them is the case the judge was bought for. The other five are cases where the cosine
-should win or tie, where a reader that thinks too hard can talk itself out of the right answer, or
-where the right behaviour is to return nothing at all:
+This corpus is therefore built to be adversarial to its author's own conclusion. It has six
+categories, and only the first is the case the judge was adopted for. The other five are cases
+where the cosine should win or tie, where a model reading the notes can reason its way past the
+right answer, or where the correct result is nothing at all:
 
 `TRAP`      the original corpus verbatim, so the wide run is a superset of the published one.
             The answer shares no vocabulary with the question; a distractor shares plenty.
 `LEXICAL`   the answer *does* use the question's own words, so the embedding is already right
             and the only thing a judge can add is a mistake.
 `TWIN`      two near-duplicate notes, both plausible, differing in the one detail the question
-            pins. Geometry sees a tie; only reading resolves it.
+            pins. The embedding scores them almost equally, and only reading them separates the
+            two.
 `ABSENT`    nothing in the corpus answers the question. There is no gold note. The right result
             is no hit, and the measurement is whether the judge invents a pick instead.
 `STALE`     two versions of the same fact, one superseded. The recency signal is in the prose
@@ -84,8 +85,8 @@ MEMORIES: dict[str, str] = {
     "key-garage": "the spare key to the garage hangs inside the fuse cupboard",
     "budget-design": "the design budget was signed off at eight thousand for the quarter",
     "budget-research": "the research budget was signed off at three thousand for the quarter",
-    # ABSENT: near misses only. These sit close to the unanswerable questions and answer none
-    # of them, so a ranking that wants to fill its slots has something tempting to reach for.
+    # ABSENT: near misses only. These sit close to the unanswerable questions and answer none of
+    # them, so a ranking that fills every slot it is offered has a plausible note to pick.
     "car": "the car needs a new set of tyres before the winter",
     "parking": "parking near the office is impossible after eight in the morning",
     # STALE: the superseded version and the current one, the difference stated in prose.
@@ -160,7 +161,7 @@ QUESTIONS: dict[str, tuple[str | None, Category]] = {
 # would silently move every number every earlier run of this corpus published. `ABSENT` questions
 # are unanswerable *and adjacent*, each sitting beside notes the corpus does hold, which is what
 # makes them hard. These are unanswerable and unrelated: nothing here shares a subject with any
-# note, so they are the easiest possible case for a policy that decides by distance alone. Used by
+# note, so they are the easiest possible case for a policy that selects by distance alone. Used by
 # `test_recall_floor_live.py` to ask what a similarity floor can catch at its very best.
 UNRELATED: tuple[str, ...] = (
     "what is the atomic weight of tungsten?",

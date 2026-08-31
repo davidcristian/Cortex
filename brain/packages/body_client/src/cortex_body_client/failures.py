@@ -1,21 +1,19 @@
 """The gRPC-status → ``BodyFailure`` classifier every ``GrpcBodyGateway`` call routes through.
 
-Split from ``gateway.py`` (which owns the calls) for the same reason ``status.rs`` is split from
-``client.rs`` on the body side: the classifier is the shared thing, and one table beats four
-copies of a match. Thin translation only, no business logic; the core decides what each kind is
-worth telling the cortex (``cortex_core.body_failure``), and this decides only which kind a wire
-status is.
+Split from ``gateway.py`` so one table serves all four calls, the same split ``status.rs`` and
+``client.rs`` have on the body side. Thin translation only, no business logic: the core decides
+what each kind is worth telling the cortex (``cortex_core.body_failure``), and this decides only
+which kind a wire status is.
 
-**The rule that makes this possible** (ADR-0023's 2026-08-08 addendum): a body that answered never
-says ``UNAVAILABLE``. tonic synthesizes that code locally when a channel cannot connect, and
-grpc-python does not tag a synthesized status the way tonic does, so if the body also spent it on
-a shut lid the brain could never tell *there is no body* from *the body is here and has no
-display*. The body's host-state failures say ``FAILED_PRECONDITION`` instead, which leaves
-``UNAVAILABLE`` on this seam meaning exactly one thing.
+A body that answered never says ``UNAVAILABLE`` (ADR-0023's 2026-08-08 addendum). tonic
+synthesizes that code locally when a channel cannot connect, and grpc-python does not tag a
+synthesized status the way tonic does, so a body that also spent it on a shut lid would leave the
+brain unable to tell "there is no body" from "the body is here and has no display". The body's
+host-state failures say ``FAILED_PRECONDITION`` instead, which leaves ``UNAVAILABLE`` on this seam
+meaning one thing.
 
-A body older than this change still interoperates: its ``UNAVAILABLE`` for a shut lid classifies
-as ``UNREACHABLE``, which is the sentence the tool used to give every failure, so it degrades to
-the old behaviour rather than breaking.
+A body older than that change still interoperates: its ``UNAVAILABLE`` for a shut lid classifies
+as ``UNREACHABLE``, the sentence the tool used to give every failure.
 """
 
 from collections.abc import Mapping
@@ -44,9 +42,8 @@ _KINDS: Mapping[grpc.StatusCode, BodyFailure] = {
 def kind_of(err: aio.AioRpcError) -> BodyFailure:
     """Classify one gRPC failure into the port's error currency.
 
-    Any code the table does not name falls to ``BodyFailure.FAULTED``: the honest uninformative
-    answer, never a claim that the body could not be reached. That is a fallback rather than an
-    omission, since the seam's own handlers spend only the codes above and a body that starts
-    spending another one is reporting a fault by any reading.
+    Any code the table does not name falls to ``BodyFailure.FAULTED`` rather than to a claim that
+    the body could not be reached. The seam's own handlers spend only the codes above, so a body
+    that starts spending another one is reporting a fault.
     """
     return _KINDS.get(err.code(), BodyFailure.FAULTED)

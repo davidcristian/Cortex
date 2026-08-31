@@ -12,9 +12,9 @@ answer. Notes are streamed but NOT persisted as a message of their own, with one
 exception, ``BRAIN_FAILED_NOTE``, which is appended to the deep model's partial reply and
 persisted with it, because there the note explains text the user can see in their history.
 
-Honesty over reassurance: every failure note says what did not happen and what is true now.
-``note_for`` is that rule as code: it maps each way a swap can end to the note that describes
-the GPU as it stands at that moment, which is why the mapping lives beside the strings.
+Every failure note says what did not happen and what is true now. ``note_for`` maps each way a swap
+can end to the note that describes the GPU as it stands at that moment, and lives beside the
+strings so the two are edited together.
 """
 
 from cortex_core.errors import (
@@ -33,8 +33,8 @@ WORKING_DETAIL = "the deep model is working on this"
 RESTORING_DETAIL = "bringing the usual assistant back"
 
 # A deployment that turned escalation on and gave its model host no deep tier to load. Every
-# handoff it is ever asked for ends here, so the note says the thing that will still be true
-# tomorrow rather than inviting a retry: what is missing is a machine setting, not a moment.
+# handoff it is ever asked for ends here, so the note names a machine setting that will still be
+# missing tomorrow rather than suggesting a retry.
 UNHOSTED_TIER_NOTE = (
     "\n\n(This machine has no deep model set up, so the handoff was not started and nothing was "
     "unloaded. The answer above is what I have.)"
@@ -75,11 +75,11 @@ RESTORE_FAILED_NOTE = (
 def note_for(error: ModelManagerError) -> str:
     """The note for each way a swap can end: what is true of the GPU right now.
 
-    A failed restore is the graver statement (the next turn may fail too), and it wins even when
-    it happened while unwinding some other failure, because it is what is true now. A refused
-    claim is not a failure at all: the deep model IS loaded and the usual assistant is NOT back,
-    the opposite of what the swap-failure note asserts, so it owes the other note. Only a swap
-    that genuinely broke leaves the cortex serving with nothing else loaded.
+    A failed restore is the graver statement (the next turn may fail too), and it is checked first
+    even when it happened while unwinding some other failure, because it is what is true now. A
+    rejected claim is not a failure at all: the deep model is loaded and the usual assistant is not
+    back, which is the opposite of what the swap-failure note says, so it gets the other note. Only
+    a swap that genuinely broke leaves the cortex serving with nothing else loaded.
     """
     if isinstance(error, ResidencyRestoreError):
         return RESTORE_FAILED_NOTE

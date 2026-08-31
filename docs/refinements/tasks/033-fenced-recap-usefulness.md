@@ -11,14 +11,14 @@ falsified.** The question was whether a cortex told the recap is quoted data wou
 booking reference out of it. It does: three runs of the recorded live test, and behind the fence
 the reply is "Your booking reference is QH7-4412." exactly as it read unfenced, with the shipped
 window failing to answer all three times. **The control is now asserted rather than printed**,
-which is the trap this repo has fallen into twice: an arm that answers anyway has measured
+which is the mistake this repo has made twice: an arm that answers anyway has measured
 nothing, so the test fails instead of reporting a comparison with no contrast in it. So is the
 absence of fence markers from the reply, a defect that would have been visible only by reading
-the output. **What the fence costs is characters, not the answer:** the same 484-character
+the output. **What the fence costs is characters rather than the answer:** the same 484-character
 account reaches the model as a 1022-character message once its standing preface and two markers
 are around it, so the recap message roughly doubled while the account inside it did not change.
 The fold also got slower, 11.0 s unfenced against 15.2 s and 23.6 s here, which is partly the
-larger prompt and partly run variance, and is dwarfed by what follows. **What stopped the default
+larger prompt and partly run variance, and is small beside what follows. **What stopped the default
 is the case a default runs in**, and it is written up as its own finding on the two entries above:
 five folds compound, retention was 2 of 3, and a fold reached 224.5 s. The user had decided to
 turn the summary on and accepted 11 s per boundary move; that premise is what this run

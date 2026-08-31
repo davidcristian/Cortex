@@ -6,12 +6,12 @@ error swallowing are all exercised by the same three checks the fake passes. The
 the adapter (a real `llama-server` whose projector really goes away) is `test_vision_live.py`,
 integration-marked per AGENTS.md gate 3.
 
-Distrust-green proofs (each mutation applied to production code alone, `packages/orchestrator`
+Proof these checks can fail (each mutation applied to production code alone, `packages/orchestrator`
 plus `packages/core` re-run, 2026-08-06):
 
-- caching the first `/props` answer in `PropsVisionProbe` reddens 2, this suite's `props` arms of
-  `answers_what_the_world_reports` and `re_reads_the_world_on_every_call`;
-- letting the `httpx.HTTPError` escape instead of answering False reddens 4, this suite's
+- caching the first `/props` answer in `PropsVisionProbe` makes 2 tests fail, this suite's `props`
+  arms of `answers_what_the_world_reports` and `re_reads_the_world_on_every_call`;
+- letting the `httpx.HTTPError` escape instead of answering False makes 4 tests fail, this suite's
   `an_unanswerable_world_is_no_vision[props]` plus three cases in `test_vision.py` (a non-2xx, a
   body that is not JSON, and the `auto` builder's own dead endpoint).
 """

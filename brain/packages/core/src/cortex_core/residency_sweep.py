@@ -3,32 +3,32 @@
 Split from ``residency_tiers.py`` along the seam that already divides this family: that module
 owns the record, ``residency_heal.py`` owns when a pass happens, and this owns what a pass does.
 
-**Why it looks at every tier.** The record used to be written only where a ``start`` raised, so it
-knew about exactly the tiers a restart had already been refused for. Four conditions escape that
-and were measured escaping it against a real supervisor: a peer that accepted its start and then
-died, a peer that died quietly between two handoffs, a peer nothing ever started because a
-convergence returned before its restart loop, and a boot that could not reach the host at all and
-therefore asked nothing to run. In all four the record is empty, the placer goes on believing the
-GPU pool is reachable, and every spawn pays a dead load. None of them has a refusal to be written
-by, and all four are plain to a ``status``, so the pass asks about every tier a handoff may evict
-and writes down what it hears.
+Why the pass reads every tier. The record used to be written only where a ``start`` raised, so it
+covered exactly the tiers a restart had already failed for. Four conditions escape that, and were
+measured escaping it against a real supervisor: a peer that accepted its start and then died, a
+peer that died between two handoffs without raising anywhere, a peer nothing ever started because
+a convergence returned before its restart loop, and a boot that could not reach the host at all and
+therefore asked nothing to run. In all four the record is empty, the placer still treats the GPU
+pool as reachable, and every spawn pays a dead load. None of them produces a failure the record
+could be written from, and all four are visible to a ``status``, so the pass asks about every tier
+a handoff may evict and records the answer.
 
-**What that costs and what it buys.** One ``status`` per ``evict_models`` tier per interval, where
-a pass with an empty record used to ask nothing at all. In the shipped defaults that set is empty
-and the pass still asks nothing; in the deployment this exists for it is a couple of loopback calls
-a minute. What it buys is a record that is a **cache of the machine** rather than a list of
-refusals, which is also what lets it stay in the process: a restart, or a foreign swapper, is
-corrected by the next reading instead of being believed for ever.
+What that costs and what it gives. One ``status`` per ``evict_models`` tier per interval, where a
+pass with an empty record used to ask nothing at all. In the shipped defaults that set is empty and
+the pass still asks nothing; in the deployment this exists for it is a couple of loopback calls a
+minute. What it gives is a record that caches the state of the machine rather than listing past
+failures, which is also what lets it stay in the process: a restart, or a foreign swapper, is
+corrected by the next reading instead of standing for ever.
 
-**The one write to the card, and the fence around it.** Reading is safe at any time; starting a
-tier is not, because a handoff may at that moment be deliberately evicting the very tier a pass
-wants back. So the fence is a callable the manager owns (no handoff claimed, no residency scope
+The one write to the GPU, and the fence around it. Reading is safe at any time; starting a tier is
+not, because a handoff may at that moment be deliberately evicting the very tier the pass would
+restart. So the fence is a callable the manager owns (no handoff claimed, no residency scope
 active, declared as ``Fence`` beside the rest of the residency vocabulary in
 ``residency_state.py``, since the pass's other half reads the same one), it is read at the top of
-the pass, and it is read **again immediately before every start**, synchronously, with nothing
-awaited in between so no handoff can begin in the gap. A
-start already in flight when a handoff begins is left to the supervisor's own per-model lock: the
-swap in stops these very tiers first and does not return until each child is reaped.
+the pass, and it is read again immediately before every start, synchronously, with nothing awaited
+in between so no handoff can begin in the gap. A start already in flight when a handoff begins is
+left to the supervisor's own per-model lock: the swap in stops these very tiers first and does not
+return until each child is reaped.
 """
 
 import logging
@@ -55,7 +55,7 @@ async def sweep_tiers(
 
 
 async def _sweep_one(host: ModelHost, model: str, tiers: StandingTiers, fence: Fence) -> None:
-    """Read one tier's state and act on it, or say why the reading could not be taken."""
+    """Read one tier's state and act on it, or log why the reading could not be taken."""
     if tiers.fault_of(model) is TierFault.UNHOSTED:
         # The answer is this daemon's env, read once at its own boot, so no pass will ever get a
         # different one. A replacement daemon rebuilds the whole record (``residency_watch.py``).
@@ -76,9 +76,9 @@ async def _act_on(
 ) -> None:
     """Write what the reading means, and start the tier when the reading says nothing is running.
 
-    ``LOADING`` is the one state that means neither: it is on its way, so starting it again would
-    be a no-op at the supervisor and marking it would close the GPU on a tier that is about to
-    serve. A tier already believed missing stays believed missing through its whole load.
+    ``LOADING`` is the one state that means neither: the tier is on its way, so starting it again
+    would be a no-op at the supervisor and marking it would close the GPU on a tier that is about
+    to serve. A tier already recorded as missing stays recorded as missing through its whole load.
     """
     if state is ModelHostState.READY:
         if tiers.fault_of(model) is not None:
@@ -111,10 +111,10 @@ async def _act_on(
 
 
 def _unhosted(model: str, tiers: StandingTiers, err: ModelHostError) -> None:
-    """Record a tier this daemon's roster never had, and say so once rather than every pass.
+    """Record a tier this daemon's roster never had, and log it once rather than every pass.
 
-    Said once because the pass never comes back: a tier with this fault is skipped at the top of
-    every later pass, so this line is written where the belief changes and nowhere else.
+    Logged once because the pass never comes back: a tier with this fault is skipped at the top of
+    every later pass, so this line is written where the record changes and nowhere else.
     """
     _logger.error(
         "the model host does not serve this model at all, so this tier will not be asked about "

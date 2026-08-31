@@ -1,15 +1,15 @@
 """RedisScheduleStore: the ScheduleStore port over durable Redis keys (ADR-0025).
 
-The state a schedule outlives every model swap and brain restart through (the one hard rule);
-key layout + codec policy in ``schedule_codec.py``, the claim path + WATCH-fenced transition
-helpers in ``schedule_claims.py``, the post-fire settle/deliver/ack path in
-``schedule_delivery.py``, full contract in ``docs/modules/brain-session.md``. The
-adapter only translates: the fenced claim→finish semantics live at the port; **every guarded
-transition is optimistically atomic** (WATCH→MULTI/EXEC, so a racing ``cancel``/``ack``/claim
-makes the write's EXEC fail as ``WatchError``, answered like a stale token, post-review
-hardening); every backend failure crosses as ``ScheduleStoreError`` (cause chained); an
-undecodable record on the CLAIM path is quarantined to the dead-letter hash (the poison-pill
-defense) while targeted reads fail loudly naming the key.
+This is the state a schedule outlives every model swap and brain restart through (the one hard
+rule). Key layout and codec policy are in ``schedule_codec.py``, the claim path and the
+WATCH-fenced transition helpers in ``schedule_claims.py``, the post-fire settle/deliver/ack path
+in ``schedule_delivery.py``, and the full contract in ``docs/modules/brain-session.md``. The
+adapter only translates: the fenced claim→finish semantics live at the port; every guarded
+transition is optimistically atomic (WATCH→MULTI/EXEC, so a racing ``cancel``/``ack``/claim makes
+the write's EXEC fail as ``WatchError``, answered like a stale token, post-review hardening);
+every backend failure crosses as ``ScheduleStoreError`` with the cause chained; and an undecodable
+record on the claim path is quarantined to the dead-letter hash (the poison-pill defense) while
+targeted reads raise naming the key.
 """
 
 from collections.abc import Sequence
@@ -80,7 +80,7 @@ class RedisScheduleStore:
             raise ScheduleStoreError(msg) from err
 
     async def get(self, item_id: str) -> ScheduledItem | None:
-        """Return the item with ``item_id`` (None when unknown); corrupt records fail loudly."""
+        """Return the item with ``item_id`` (None when unknown); a corrupt record raises."""
         try:
             raw = await self._client.get(record_key(item_id))
         except RedisError as err:
@@ -94,8 +94,8 @@ class RedisScheduleStore:
     async def list_active(self) -> Sequence[ScheduledItem]:
         """PENDING/FIRING items plus fired-but-undelivered ones, due order.
 
-        A dangling index id (its record deleted) is skipped, the ``list_sessions``
-        tolerance; a present-but-corrupt record fails loudly via ``decode``.
+        A dangling index id (its record deleted) is skipped, the same tolerance
+        ``list_sessions`` has; a present-but-corrupt record raises through ``decode``.
         """
         try:
             found: list[str] = []
@@ -113,8 +113,8 @@ class RedisScheduleStore:
         return tuple(sorted(items, key=lambda item: item.due_at))
 
     async def cancel(self, item_id: str) -> bool:
-        """Delete record + every index entry (False for unknown); never decodes, so a
-        corrupt record is cancellable too. Cancel sticks through an in-flight fire."""
+        """Delete the record and every index entry (False for unknown). It never decodes, so a
+        corrupt record is cancellable too, and a cancel holds through an in-flight fire."""
         try:
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.zrem(DUE_KEY, item_id)
@@ -196,9 +196,9 @@ class RedisScheduleStore:
     async def dead_letters(self) -> Sequence[DeadLetter]:
         """The quarantined records, for operator inspection (dead-letter addendum).
 
-        Adapter-only, deliberately not on the ``ScheduleStore`` port: quarantine is a codec
-        mechanic the in-memory fake can never produce, and no core path (least of all a
-        model tool) consumes it.
+        Adapter-only rather than on the ``ScheduleStore`` port: quarantine is a codec mechanic
+        the in-memory fake can never produce, and no core path consumes it, model tools least
+        of all.
         """
         try:
             return await dead_letters(self._client)

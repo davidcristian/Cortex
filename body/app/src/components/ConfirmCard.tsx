@@ -8,8 +8,9 @@ interface ConfirmCardProps {
 }
 
 /**
- * The draft's fields as key→value rows, or `null` when `argumentsJson` is not one JSON
- * object (then the card shows the raw string, since what you approve is what runs, ADR-0022).
+ * The draft's fields as key and value rows, or `null` when `argumentsJson` is not a single JSON
+ * object, in which case the card shows the raw string, since what the user approves is what runs
+ * (ADR-0022).
  */
 function parseDraft(argumentsJson: string): readonly (readonly [string, string])[] | null {
   try {
@@ -26,9 +27,9 @@ function parseDraft(argumentsJson: string): readonly (readonly [string, string])
   }
 }
 
-/** The approval card (ADR-0022): a gated tool call paused mid-turn on the user's decision.
- *  It sits in the history's inline layer between bubbles, with neutral chrome, keys and values
- *  verbatim; the accent lives only on Approve, the one affordance that runs the action. */
+/** The approval card (ADR-0022): a gated tool call paused mid-turn on the user's decision. It sits
+ *  in the history's inline layer between bubbles, with neutral chrome and keys and values shown
+ *  verbatim. The accent appears only on Approve, the one control that runs the action. */
 export function ConfirmCard({ confirm, onRespond }: ConfirmCardProps) {
   const draft = parseDraft(confirm.argumentsJson);
   return (

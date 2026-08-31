@@ -2,12 +2,12 @@
 //!
 //! A thin adapter (AGENTS.md gate 3): it asks the OS for the display's size, blits it into a
 //! memory bitmap, reads the pixels back as a top-down 32-bit DIB, and hands the raw BGRA bytes
-//! to the pure core. **Every size decision (the crop, the downscale, the PNG encode, the byte
-//! ceiling and its shrink ladder) lives in `body_core` and none of it is here**, because this
+//! to the pure core. Every size decision, meaning the crop, the downscale, the PNG encode, and
+//! the byte ceiling with its shrink ladder, lives in `body_core` rather than here, because this
 //! crate is `cfg(windows)` and the coverage gate never measures it, so a policy left here would
-//! be a seam guarantee resting on code no gate can see. What this file does own is the part no
-//! gate could reach anyway: the blit, and the [`focus`](crate::focus) walk behind a targeted
-//! capture, which reports a rectangle for the core to crop to.
+//! rest a seam guarantee on code no gate can see. What this file does own is the part no gate
+//! could reach anyway: the blit, and the [`focus`](crate::focus) walk behind a targeted capture,
+//! which reports a rectangle for the core to crop to.
 //!
 //! GDI rather than DXGI Desktop Duplication or `Windows.Graphics.Capture` (ADR-0029): it needs
 //! no COM apartment, so it does not deepen the recorded unbalanced-`CoUninitialize` entry with
@@ -16,12 +16,12 @@
 //! blocking-pool thread; and it has the smallest `unsafe` surface. Every handle it creates is
 //! released inside the one call that created it.
 //!
-//! **Known limitation, silent by nature:** GDI renders hardware-overlay and DRM-protected
-//! surfaces black, and there is no error to distinguish that from a genuinely dark screen.
+//! One limitation is silent: GDI renders hardware-overlay and DRM-protected surfaces black,
+//! and there is no error to distinguish that from a genuinely dark screen.
 //!
-//! Host-authored, **validated on Windows by the user**. Like the other real backends it is
-//! never built or measured in CI. It *is* compiled and clippy-linted on the Windows target from
-//! Linux, which type-checks it against the port and nothing more: no blit here has ever run.
+//! Host-authored and validated on Windows by the user. Like the other real backends it is never
+//! built or measured in CI. It is compiled and clippy-linted on the Windows target from Linux,
+//! which type-checks it against the port and nothing more: no blit here has ever run.
 //!
 //! [`ScreenCapture`]: body_core::ScreenCapture
 #![allow(unsafe_code)] // ADR-0029: GDI (GetDC/BitBlt/GetDIBits) is a raw Win32 FFI surface.
@@ -75,10 +75,10 @@ impl ScreenCapture for WindowsScreenCapture {
     /// `cfg(windows)` and no gate can see it. The request's size hints stay unread here, since
     /// GDI has no cheaper read to ask for; the core re-applies them to what comes back.
     ///
-    /// The target is resolved **before** the blit, so the rectangle names a window that was on
-    /// screen at most one blit ago. Nothing can make that exact: a desktop is free to reorder
-    /// itself between any two Win32 calls, and the other order would be stale by the same
-    /// amount in the other direction.
+    /// The target is resolved before the blit, so the rectangle names a window that was on
+    /// screen at most one blit ago. Nothing can make that exact, because a desktop is free to
+    /// reorder itself between any two Win32 calls, and the other order would be stale by the
+    /// same amount in the other direction.
     fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
         let target = match request.target() {
             CaptureTarget::Display => None,
@@ -110,12 +110,11 @@ fn framed(frame: RawFrame, target: Option<TargetRect>) -> CapturedFrame {
     }
 }
 
-/// The primary display's size in **physical pixels**.
+/// The primary display's size in physical pixels.
 ///
 /// `GetSystemMetrics` reports the primary monitor, which is what this backend captures. The
-/// numbers are physical rather than logical: the manifest marks the process per-monitor DPI
-/// aware, so no scaling is applied on the way out, and the docs say so rather than pretending
-/// these are points.
+/// numbers are physical rather than logical, because the manifest marks the process per-monitor
+/// DPI aware, so no scaling is applied on the way out.
 fn display_size() -> Result<(u32, u32), CaptureError> {
     // SAFETY: a pure metric read with no handles and no out-parameters.
     let (width, height) = unsafe { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
@@ -195,8 +194,8 @@ fn copy_pixels(
 
 /// Reads `bitmap` back as a top-down 32-bit BGRA buffer.
 ///
-/// The header's height is **negative**, which is what asks GDI for top-down rows; a positive
-/// height would hand back a vertically flipped image, and the core has no way to know.
+/// The header's height is negative, which is what asks GDI for top-down rows. A positive height
+/// would hand back a vertically flipped image, which the core has no way to detect.
 fn read_back(
     memory: HDC,
     bitmap: HBITMAP,
@@ -254,22 +253,23 @@ fn as_i32(value: u32) -> Result<i32, CaptureError> {
 
 /// Hides a window from every screen capture on the machine, at the DWM level.
 ///
-/// The overlay excludes **itself** with this at setup, and the shell wires
-/// `DeniedScreenCapture` if it fails (ADR-0029). Not cosmetic: the overlay is an always-on-top
-/// opaque window, so without exclusion the model receives a picture of that window covering the
-/// content, containing the user's own prompt and the prior reply. That is a **self-injection
-/// loop**, where one line an attacker gets into a rendered reply is re-ingested as screen
-/// content on the next capture, laundered from model output back into untrusted model input.
+/// The overlay excludes itself with this at setup, and the shell wires `DeniedScreenCapture` if
+/// it fails (ADR-0029). The overlay is an always-on-top opaque window, so without exclusion the
+/// model receives a picture of that window covering the content, containing the user's own
+/// prompt and the prior reply. That is a self-injection loop: one line an attacker gets into a
+/// rendered reply is re-ingested as screen content on the next capture, turning model output
+/// back into untrusted model input.
 ///
-/// `WDA_EXCLUDEFROMCAPTURE` is DWM level, so it holds for GDI, DXGI and WGC alike if the
-/// backend is ever swapped, and it has no timing relationship with a capture. Hide, capture,
-/// show is rejected: it flickers, it blanks the window the user is typing into, and it races a
-/// handler running on a blocking-pool thread with no ordering guarantee against the UI thread.
+/// `WDA_EXCLUDEFROMCAPTURE` is DWM level, so it holds for GDI, DXGI and WGC alike if the backend
+/// is ever swapped, and it has no timing relationship with a capture. Hiding the window around
+/// each capture was rejected: it flickers, it blanks the window the user is typing into, and it
+/// races a handler running on a blocking-pool thread with no ordering guarantee against the UI
+/// thread.
 ///
 /// # Errors
 ///
-/// Answers `false` if the OS refuses the call, which the caller must treat as "no capture may
-/// happen at all" rather than as a warning.
+/// Returns `false` if the OS refuses the call, which the caller must treat as forbidding
+/// capture entirely rather than as a warning.
 #[must_use]
 pub fn exclude_from_capture(hwnd: isize) -> bool {
     use windows::Win32::UI::WindowsAndMessaging::{

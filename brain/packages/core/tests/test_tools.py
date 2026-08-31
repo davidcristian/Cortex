@@ -116,8 +116,8 @@ async def test_registry_invoke_raises_tool_not_found_for_an_unknown_tool() -> No
 def test_a_stamps_budget_is_carried_but_is_not_part_of_its_value() -> None:
     # The stamp stays a value even though the pool it carries is a live handle (ADR-0009
     # turn-wide addendum): two dispatches of one turn compare equal, and no caller can conclude
-    # from equality that two turns share a pool. The handle itself is still reachable, since
-    # that is the whole point of carrying it.
+    # from equality that two turns share a pool. The handle itself is still reachable, which is
+    # why the stamp carries it.
     pool = DispatchBudget(limit=4)
     stamped = TurnStamp(session_id="s", tainted=True, budget=pool)
     assert stamped == TurnStamp(session_id="s", tainted=True, budget=DispatchBudget(limit=9))

@@ -53,11 +53,12 @@ async def test_capture_screen_records_the_hints_and_answers_the_default() -> Non
 
 
 async def test_a_capture_the_fake_was_given_is_answered_whatever_was_asked_for() -> None:
-    """The fake is the adapter's twin, and the adapter reports what the body says it pointed at.
+    """The scripted capture is answered whatever target was asked for, because the fake is the
+    adapter's twin and the adapter reports what the body says it pointed at.
 
-    A focus request answered by a display capture is not a bug in either: it is a window filling
-    the screen. Rewriting the scripted capture to match the ask would make the fake the one place
-    in the system where the reply echoes the request.
+    A focus request answered by a display capture is correct in both: it is a window filling the
+    screen. Rewriting the scripted capture to match the ask would make the fake the one place in
+    the system where the reply echoes the request.
     """
     gateway = InMemoryBodyGateway()
     capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)

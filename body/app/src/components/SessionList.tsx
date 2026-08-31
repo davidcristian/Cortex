@@ -13,25 +13,25 @@ import { type RowShape, SessionRow } from "./SessionRow";
 interface SessionListProps {
   readonly sessions: readonly SessionSummary[];
   readonly currentId: string;
-  /** Whether the switcher is open. The list is mounted for the length of its closing roll, so it
-   *  hears the close with its own rows still on the page, and a close the reader made under the
-   *  caret hands the caret to the anchor below (`overlay/sectionCaret.ts`). */
+  /** Whether the switcher is open. The list stays mounted for the length of its closing roll, so
+   *  it observes the close with its own rows still on the page, and a close made while the caret
+   *  was inside it moves the caret to the anchor below (`overlay/sectionCaret.ts`). */
   readonly open: boolean;
   /** `OverlayState.arrival`, for the same rule: most of the ways this list closes are chat swaps,
-   *  and a caret that a conversation is arriving for belongs to the composer (`Composer`). */
+   *  and when a conversation is arriving the caret belongs to the composer (`Composer`). */
   readonly arrival: number;
-  /** Where the caret goes when this list has no row left to hand it to, which is the chat the
-   *  reader just deleted their last other one from: the header control that opened the list. It
-   *  is still on screen, it is what closes the list again, and it is the one control whose whole
-   *  job is this list (`overlay/rowCaret.ts`). The same control answers for the list CLOSING, so
-   *  the two things this list cannot keep the caret through land in one place. */
+  /** Where the caret goes when this list has no row left to receive it, which happens when the
+   *  reader deletes the last chat other than the one they are in: the header control that opened
+   *  the list. It is still on screen, it is what closes the list again, and it is the one control
+   *  dedicated to this list (`overlay/rowCaret.ts`). The same control receives the caret when the
+   *  list closes, so both cases this list cannot keep the caret through land in one place. */
   readonly anchor: RefObject<HTMLElement | null>;
   readonly onSelect: (sessionId: string) => void;
   /** Rename a chat (ADR-0021 management addendum): submit a new label, or an empty one to
    *  clear a custom title back to the derived one. A user-only write. */
   readonly onRename: (sessionId: string, title: string) => void;
   /** Delete a chat (ADR-0021 management addendum): a destructive, irreversible user-only write.
-   *  Called ONLY after this row's local "are you sure" confirm, so a stray click cannot delete. */
+   *  Called only after this row's local "are you sure" confirm, so a stray click cannot delete. */
   readonly onDelete: (sessionId: string) => void;
   /** Pin or unpin a chat (ADR-0021 pinning addendum): a user-only write toggling `pinned`, so a
    *  pinned chat stays listed above the recency window. Fires immediately (no confirm needed). */
@@ -63,43 +63,44 @@ export function SessionList({
   // Which row is awaiting a delete confirmation (at most one). Local UI state: the destructive
   // write fires only when the user confirms here, so a single stray click never deletes a chat.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
-  // A deleted chat leaves `sessions` the moment the write lands, and the row it takes with it
-  // stays on screen for the length of its own roll (`usePresence`, shared with the reminder
-  // stack). Before this, the row was gone in the frame the delete resolved and everything under it
-  // snapped up 50px into the hole; the panel does not move at all, so that snap was the whole of
-  // what the eye saw. The hook holds no clock: `Collapse` reports the roll over and the row is
-  // dropped then, which is what keeps the WRITE immediate and only the exit lagging.
+  // A deleted chat leaves `sessions` the moment the write lands, and the row goes on standing for
+  // the length of its own roll (`usePresence`, shared with the reminder stack). Before this, the
+  // row was gone in the frame the delete resolved and everything under it snapped up 50px into the
+  // gap; the panel does not move at all, so that snap was the only thing visible. The hook holds no
+  // clock: `Collapse` reports the roll over and the row is dropped then, which keeps the write
+  // immediate and lets only the exit lag.
   const stack = usePresence(sessions, (session) => session.sessionId);
-  // And a row the list MOVES travels there. The brain lists pinned chats first and then by recency,
-  // so pinning one regroups everything around it, and every row the regrouping touched used to be
-  // at its new place in the frame the write landed (`overlay/useTravel.ts` has the trace and the
-  // mechanism). Rows only: the empty line below is not one of them, and it has nowhere to go.
+  // A row the list reorders animates to its new place. The brain lists pinned chats first and then
+  // by recency, so pinning one regroups everything around it, and before this every row the
+  // regrouping touched was at its new place in the frame the write landed (`overlay/useTravel.ts`
+  // has the trace and the mechanism). Rows only: the empty line below is not a row and has no
+  // second place to be in.
   const card = useRef<HTMLUListElement>(null);
   useTravel(card, ".switcher-slot");
-  // AND THE CARET TRAVELS TOO. Every gesture below takes the control that fired it off the page,
-  // and each hands the caret on rather than dropping it on `<body>` (`overlay/rowCaret.ts` carries
-  // the rule and the measurements). After `useTravel`, so a row's new place is settled before
-  // anything is focused inside it; neither cares, focus moving nothing and `preventScroll` keeping
-  // it that way, and the order is the one that stays right if either ever does.
+  // The caret moves with the rows. Every gesture below removes the control that fired it from the
+  // page, and each passes the caret on rather than dropping it on `<body>` (`overlay/rowCaret.ts`
+  // carries the rule and the measurements). Placed after `useTravel`, so a row's new place is
+  // settled before anything is focused inside it. Neither order changes the result today, since
+  // focus moves nothing and `preventScroll` keeps it that way, and this order is the one that stays
+  // correct if either of those changes.
   const caret = useRowCaret(card, anchor);
-  // AND THE LIST CLOSING IS THE THIRD WAY THE CARET CAN BE LEFT NOWHERE. The rule above answers the
-  // list reshaping under the reader; this one answers it going away under them, which `Ctrl+K` does
-  // from anywhere and the header's chats button does from the header (`overlay/sectionCaret.ts`
-  // carries the rule, the guard and the measurements). Same anchor as the emptied list above, and
-  // the same list element to ask about, so the caret is only ever moved for a reader who was
-  // standing in here.
+  // The list closing is the third way the caret can be left with nowhere to go. The rule above
+  // covers the list reshaping under the reader; this one covers it being removed under them, which
+  // `Ctrl+K` does from anywhere and the header's chats button does from the header
+  // (`overlay/sectionCaret.ts` carries the rule, the guard and the measurements). Same anchor as
+  // the emptied list above, and the same list element to ask about, so the caret is only moved for
+  // a reader who had focus inside this list.
   useSectionCaret(card, anchor, open, arrival);
 
   const startRename = (session: SessionSummary): void => {
     setRenamingId(session.sessionId);
     setDraft(session.title);
-    // The editor is a control the reader is expected to type into at once, so it takes the caret
-    // and the name it is standing in for comes selected with it.
+    // The editor is a control the reader is expected to type into straight away, so it takes the
+    // caret with the existing name selected.
     caret(caretKey("name", session.sessionId));
   };
-  // Both ways out of an editor, and both give the caret back to the pencil that opened it: the
-  // reader is where they were, on the row they were on, and the pencil's own label now reads the
-  // name they just gave it.
+  // Both ways out of an editor return the caret to the pencil that opened it, so the reader is left
+  // on the row they were on and the pencil's own label reads the name they just gave it.
   const endRename = (sessionId: string, commit: boolean): void => {
     if (commit) {
       onRename(sessionId, draft.trim());
@@ -119,15 +120,15 @@ export function SessionList({
     onDelete(sessionId);
     setConfirmingDeleteId(null);
     if (sessionId === currentId) {
-      // Deleting the chat on screen is a SWAP: a fresh one arrives in its place and takes the caret
-      // to the composer with it (`sessionState.deleteSession`, `Composer`). Saying nothing here is
-      // what lets that rule answer, rather than aiming the caret at a row first and having the
-      // arriving chat pull it out of the list a moment later.
+      // Deleting the chat on screen is a swap: a fresh chat arrives in its place and moves the
+      // caret to the composer (`sessionState.deleteSession`, `Composer`). Claiming no caret here
+      // lets that rule apply, rather than aiming the caret at a row and having the arriving chat
+      // pull it out of the list a moment later.
       return;
     }
     // Every other delete leaves the reader in the list they are managing, on the row that has just
-    // moved into the gap, and on the same control they pressed to make the gap: deleting several
-    // chats is then the one gesture repeated rather than a walk back into the list each time.
+    // moved into the gap, and on the same control they pressed to make the gap, so deleting several
+    // chats is one gesture repeated rather than a walk back into the list each time.
     caret(caretKey("delete", heir(sessions.map((session) => session.sessionId), sessionId)));
   };
 
@@ -139,31 +140,32 @@ export function SessionList({
   };
 
   return (
-    // The list is the list of composite rows it behaves like, and says so. It carried
-    // `role="listbox"` once, which nothing under it satisfied: an option is a leaf and these rows
-    // are four buttons each, so the container announced a listbox holding no options. Measured in
-    // Chromium, the cost was not only the missing role. A `<li>` inside a listbox is not a
-    // listitem, so every row came through as `none` and the boundaries a reader counts rows by
-    // were gone, leaving twelve loose buttons in a list of nothing. Dropped, the implicit list and
-    // listitem roles come back, `aria-label` names the list, and this is the reminder stack's
-    // arrangement exactly (`Reminders.tsx`), which is the overlay's other list of rows with
-    // buttons in them. The four buttons per row keep their own tab stops, and `Ctrl+↑` / `Ctrl+↓`
-    // stay what they were: overlay-wide keys that cycle the chat without moving focus, which is
-    // a listbox's job and no longer a promise this markup makes.
+    // A plain list of composite rows, which is what this is. It carried `role="listbox"` once,
+    // which nothing under it satisfied: an option is a leaf and these rows are four buttons each,
+    // so the container announced a listbox holding no options. Measured in Chromium, the missing
+    // role was not the only cost. A `<li>` inside a listbox is not a listitem, so every row came
+    // through as `none` and the boundaries a screen reader counts rows by were gone, leaving twelve
+    // loose buttons in a list of nothing. Without the role the implicit list and listitem roles
+    // come back and `aria-label` names the list, which is the arrangement the reminder stack uses
+    // (`Reminders.tsx`), the overlay's other list of rows with buttons in them. The four buttons
+    // per row keep their own tab stops, and `Ctrl+↑` / `Ctrl+↓` stay overlay-wide keys that cycle
+    // the chat without moving focus, which is a listbox's behaviour and no longer something this
+    // markup claims.
     <ul className="switcher" aria-label={RECENT_CHATS} ref={card}>
       {stack.entries.map(({ key, item: session, leaving }) => (
-        // The `<li>` is outside the roll and the row inside it, the reminder stack's arrangement
-        // and for the first of its two reasons: a list whose items are wrapper divs is not a list
-        // to a screen reader. Its second reason, an adjacent-sibling hairline that a wrapper in
-        // between switches off, does not apply here, the switcher drawing no rule between rows.
-        // A third that stack did not have does: the row's `min-height` is what makes every shape
-        // of it the same height, and left on the `<li>` it is also a floor the roll inside cannot
-        // get under, so the row would animate to nothing inside a slot that never shrank.
+        // The `<li>` is outside the roll and the row inside it, which is the reminder stack's
+        // arrangement, for the first of that stack's two reasons: a list whose items are wrapper
+        // divs is not a list to a screen reader. Its second reason, an adjacent-sibling hairline
+        // that a wrapper in between switches off, does not apply here, since the switcher draws no
+        // rule between rows. A third reason applies here and not there: the row's `min-height` is
+        // what makes every shape of it the same height, and on the `<li>` it would also be a floor
+        // the roll inside cannot go under, so the row would animate to nothing inside a slot that
+        // never shrank.
         //
-        // A leaving row is WITHDRAWN for the length of its exit. It is a chat that no longer
-        // exists, and holding it on screen for 300ms otherwise leaves its four buttons live: the
-        // roll would be 300ms in which the title still opens a deleted chat, the trash still asks
-        // to delete it again, and the tab order still walks through all four.
+        // A leaving row is withdrawn for the length of its exit, because it is a chat that no
+        // longer exists. Left live for those 300ms, its title still opens a deleted chat, its trash
+        // button still asks to delete it again, and the tab order still walks through all four
+        // buttons.
         <li key={key} className="switcher-slot" {...withdrawn(leaving)}>
           <Collapse open={!leaving} onClosed={() => stack.released(key)}>
             <SessionRow
@@ -185,23 +187,21 @@ export function SessionList({
           </Collapse>
         </li>
       ))}
-      {/* THE TWO DIRECTIONS OF THE EMPTY LINE ARE NOT ONE FLAG.
-          It is asked of `sessions` and not of the rendered rows, so deleting the last chat puts it
-          up in the same frame the row starts leaving, and `enter` grows it out of nothing over that
-          row's own roll: the card eases from a row to a line instead of rolling to 14 and then
-          snapping 39px back up to 53, which is what it did while this waited for the roll to end.
-          Both are on screen together for those 300ms, which is why the line is BELOW the rows and
-          not above them, and why it is the row's roll the panel rides along with (the first
-          `data-morphing` in the tree, `panelPlacement`), the target it publishes being the one the
-          card is actually going to.
-          Going the other way it does not roll at all: it is unmounted in the frame a chat arrives.
-          The line is not a row, it is what the list says when it has nothing to say, so it waits
-          for the row it replaces and yields to the row that replaces it. Rolling it out instead was
-          traced and is worse in exactly the way this is better: the arriving row's 50px lands at
-          once and the line's 39 would then roll away underneath it, an overshoot bigger than the
-          11px step that is left.
+      {/* The empty line appears and disappears by different rules.
+          Its condition is read off `sessions` rather than off the rendered rows, so deleting the
+          last chat mounts it in the same frame the row starts leaving, and `enter` grows it from
+          nothing over that row's own roll: the card eases from a row to a line instead of rolling
+          to 14 and then snapping 39px back up to 53, which is what it did while this waited for the
+          roll to end. Both are on screen together for those 300ms, which is why the line is below
+          the rows rather than above them, and why the panel follows the row's roll (the first
+          `data-morphing` in the tree, `panelPlacement`), whose published target is the height the
+          card is going to.
+          On the way out the line does not roll: it is unmounted in the frame a chat arrives, so the
+          arriving row takes its place immediately. Rolling it out was traced and is worse: the
+          arriving row's 50px lands at once and the line's 39 would then roll away underneath it, an
+          overshoot bigger than the 11px step that is left.
           Its words come from `overlay/notice.ts`, because the live region says the same thing when
-          the last row leaves and a reader who hears one and then reads the other must not be told
+          the last row leaves, and a reader who hears one and then reads the other must not be told
           two different things about one empty list. */}
       {sessions.length === 0 && (
         <li className="switcher-empty-slot">

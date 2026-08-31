@@ -4,13 +4,13 @@
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
-The salience addendum's first remaining item, and the
-index warned this very area had misdiagnosed its own cost before, so it was read against the code
-first. The threat it carried, that permuted keys and other spellings evade a per-argument dedup,
+This is the salience addendum's first remaining item. The
+index warned that this very area had misdiagnosed its own cost before, so it was read against the
+code first. The threat it carried, that permuted keys and other spellings evade a per-argument dedup,
 is **already closed** for the case that motivated it: `RepeatSalience` compares `arguments` with
 `Mapping.__eq__`, which is deep and key-order-independent at every nesting level, so permuted keys
 already collapse to one call (`test_arguments_compare_structurally_rather_than_by_key_order` pins
-it, and turns red the moment identity switches to an unsorted serialization), JSON whitespace
+it, and fails the moment identity switches to an unsorted serialization), JSON whitespace
 never survives into the parsed mapping, and Python-equal scalars (`1` and `1.0`) collapse too. A
 **schema-free** canonical form (recursively sort keys) closes nothing equality does not, and its
 natural serialized shape is a regression: unsorted reopens permuted keys, sorted splits `1` from
@@ -24,7 +24,7 @@ bounded anyway: extra dispatches are capped by `MAX_TOOL_DISPATCHES` (32) and `M
 turn is denied outright with no card and an untainted turn's budget caps dispatches at 32. Docs
 only, no seam change; the entry above stays verbatim as the historical record. It reopens only if
 a real wired tool shows a semantic-equivalence evasion those three bounds do not cover, and even
-then the sound fix is a per-tool domain normalizer (the model judgment the ADR rejected), not
+then the sound fix is a per-tool domain normalizer (the model judgment the ADR rejected) rather than
 schema folding. Nothing opened behind it.
 
 ## Trail

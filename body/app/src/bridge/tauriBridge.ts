@@ -52,8 +52,8 @@ export class TauriBridge implements BrainBridge {
   }
 
   // The connection probe (ADR-0011 addendum). The Rust command is infallible: an unreachable
-  // brain comes back as `{ state: "down", detail }`, not as a rejected promise, so the overlay
-  // never has to guess what a rejection meant.
+  // brain comes back as `{ state: "down", detail }` rather than as a rejected promise, so the
+  // overlay never has to interpret a rejection.
   checkLink(): Promise<LinkStatus> {
     return invoke<LinkStatus>("check_link");
   }

@@ -36,10 +36,10 @@ anything was written; per request rather than per server because one resident co
 answers the user, where the compose file deliberately leaves deliberation on, and folds a recap,
 where it is thrown away. **The request is capped** at 512 tokens, which is `RECAP_MAX` said in
 the request's own unit and roughly six times the account the prompt produces, and the cap and
-the switch ship together because a cap alone is a trap this repo measured: the identical prompt
+the switch ship together because a cap alone fails in a way this repo measured: the identical prompt
 at `max_tokens` 160 and 256 with thinking on came back `finish_reason: "length"` with 624 and
-988 characters of reasoning and an EMPTY reply, and even at 512 it is a coin flip. **Hitting a
-bound degrades to the plain window rather than to half a sentence:** `clean_recap` refuses a
+988 characters of reasoning and an EMPTY reply, and even at 512 it goes either way. **Hitting a
+bound degrades to the plain window rather than to half a sentence:** `clean_recap` rejects a
 reply that does not end a sentence and one longer than `RECAP_MAX`, because storing a truncated
 account would advance `covers` past turns the missing tail never reached and the next fold reads
 from `covers` forward, so those turns would be lost for good rather than for a turn. **A fold
@@ -60,7 +60,7 @@ Remaining from this deferral: nothing of its own.
   a default move waits on.
 - 2026-08-06: Closed the same day by the cheap-fold change, which built the token cap, the fold
   floor and the disable-thinking lever together. The cap and the switch ship together because a
-  cap alone is a trap with a number on it: the same prompt at 160 and 256 tokens with thinking on
+  cap alone has a measured failure mode: the same prompt at 160 and 256 tokens with thinking on
   returned `finish_reason: "length"`, hundreds of characters of reasoning, and an empty reply.
 - 2026-08-06: That the diagnosis held on every point was recorded as worth saying in an area whose
   own entries had twice been wrong about themselves.

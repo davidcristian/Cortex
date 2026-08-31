@@ -21,7 +21,7 @@ provenance **framing** (tool output is data, not instructions), capability **gat
 (irreversible/outbound actions need explicit confirmation once untrusted content is in
 context), and an optional **screening subagent** (weighed and deferred).
 
-The threat model is a single-user local assistant. The load-bearing invariant is **framing
+The threat model is a single-user local assistant. The governing invariant is **framing
 is necessary but not sufficient**. A model can be jailbroken, so the deterministic boundary
 is the *gate*, which makes an obeyed injection non-catastrophic: an outbound action cannot
 fire on a tainted turn without an out-of-band confirmation the model cannot forge. Framing
@@ -31,7 +31,7 @@ Two existing facts constrain the design. The MCP adapter (`McpToolRegistry.invok
 registry.py) builds every `ToolResult` generically from a remote server, so it **cannot
 annotate per-tool trust**. And `stream_tool_loop` is shared by the cortex turn *and* every
 subagent (ADR-0010), so a boundary placed there covers both; a subagent that reads a
-malicious email must be as protected as the cortex, and its taint must ride home.
+malicious email must be as protected as the cortex, and its taint must travel back with its result.
 
 ## Decision
 
@@ -41,7 +41,7 @@ A two-value enum in `tools.py` (`Trust.TRUSTED` / `Trust.UNTRUSTED`) carried on
 `ToolResult.trust`, **default `UNTRUSTED`**. Trust travels *with the content* that re-enters
 the loop, so `_result_message` reads it directly. The distinction is binary because the
 boundary only ever acts on one question (is this text data or instructions), so a third
-"tainted" grade would behave identically to UNTRUSTED and earns nothing.
+"tainted" grade would behave identically to UNTRUSTED and add nothing.
 
 Because the default is fail-closed, **the MCP adapter and its `InMemoryToolRegistry` twin
 need no change**: any result they return is UNTRUSTED, which is exactly right for external
@@ -80,8 +80,8 @@ rule, and the rule must be stated once regardless:
   `</untrusted-tool-output …>` cannot close the frame, because the attacker, authoring a
   file before the turn, cannot predict the turn's nonce, so the forged closer never carries
   the matching id and the real nonce'd closer still bounds the whole hostile blob. The nonce
-  is fresh per turn and dies with it. We reject content-mangling (stripping delimiters from
-  the payload) as it corrupts data the user may need; the unpredictable nonce is the
+  is fresh per turn and is discarded when the turn ends. We reject content-mangling (stripping
+  delimiters from the payload) as it corrupts data the user may need; the unpredictable nonce is the
   mitigation.
 
 Provenance is written to the audit trail: `ToolInvocation.trust` records whether each
@@ -215,13 +215,14 @@ Docker-validatable by the agent; the Windows overlay is the user's.
   prove the model honors the "content in markers is data" rule (no GPU in CI). But the agent
   can and should verify it via Docker against real gemma-4-12B (see the Agent GPU validation
   above); it is not a host-only item. It is exactly why the *gate* (deterministic) is the real
-  boundary and framing (probabilistic) is the reducer: even if the GPU check shows the model
-  occasionally obeying an injection, the gate still mechanically stops the outbound action.
+  boundary while framing (probabilistic) only reduces how often the gate is reached: even if the
+  GPU check shows the model occasionally obeying an injection, the gate still mechanically stops
+  the outbound action.
 - **Talk-only exfiltration to the user's own screen.** An obeyed injection can still make the
   cortex *say* something misleading in its reply (no tool call, no gate). Accepted: the single
   user is the only audience and there is no outbound channel without a gated tool.
-- **Confirmation fatigue** once a real gated tool exists, since a turn that read any email then
-  legitimately wants to send one will prompt. Mitigation is host-side UX (a clear reason
+- **Confirmation fatigue** once a real gated tool exists, since a turn that read any email and
+  then legitimately needs to send one will prompt. Mitigation is host-side UX (a clear reason
   string, the action shown); flagged for Slice 9/10 host validation, not solvable in the pure
   core.
 - **A built-in mis-declared `TRUSTED`.** A future author wrongly stamping a tool that returns
@@ -282,7 +283,7 @@ live as a `StatusUpdate(state="thinking")` rather than dropped.
 
 ## Addendum (2026-07-01): framing is model-dependent and FAILS on the small subagent models
 
-The first addendum's happy result does **not** generalize down the model tiers. Re-running the probe
+The first addendum's result does **not** generalize down the model tiers. Re-running the probe
 with a **harder, low-obvious-malice suite** (plausible retention/accessibility/business-logic
 "forward this" requests to *non-*evil-looking addresses, an instruction-file framing, a fake casual
 continuation, and an **output-laundering** payload that asks the summary to end with a phishing line)
@@ -292,8 +293,9 @@ against the actual subagent-tier models, namely **Qwen3.5-2B** (the ADR-0004 sub
 - **Framing is ineffective on both.** Framed exactly as shipped, both sizes **parrot the injected
   instruction into their answer** ("… *with a request to forward a copy to records@…*") and **fully
   launder the phishing line** into the summary, identical to the unframed control, and unchanged by
-  thinking. Unlike gemma-12B, they do not reason about or cite the preamble; they just follow the
-  text. Framing efficacy scales with model capability, and 2-9B is below the bar.
+  thinking. Unlike gemma-12B, they do not reason about or cite the preamble; they follow the
+  text. Framing efficacy scales with model capability, and these 2B and 9B models sit below the
+  capability where it works.
 - They did **not** emit a `send_email` call in any case. But small models are erratic at *initiating*
   tool calls, so that is **not** reliable resistance to the action, only the absence of one here.
 
@@ -307,7 +309,7 @@ hold regardless of how injectable the subagent is:
    is **denied without running** (decision 4). The model's obedience is irrelevant.
 3. **A subagent's output re-enters the cortex as UNTRUSTED** (taint → `spawn_subagents` UNTRUSTED →
    fenced, decision 3), so a laundered subagent answer is treated as *data* by the framing-robust
-   cortex. The weak link is contained by the strong one.
+   cortex. The injectable subagent is contained by the model that resists injection.
 
 **Output-laundering hits the cortex too, until hardened (a residual; see the next addendum).**
 Output-laundering is *content*, not an action, so the gate does not cover it; it rests on the reader
@@ -403,12 +405,12 @@ dangerous to call. That is the CI-proven deterministic boundary. Two consequence
 The Slice 9-10 requirement above ("a jailbroken small subagent must never be *handed* a dangerous
 tool") no longer waits for the first gated tool: it is now enforced structurally, ahead of need.
 `UngatedToolRegistry(inner)` (core, `aggregate.py`) is a port-preserving combinator that strips
-gated tools from a registry: `describe_tools` drops every `gated` spec, and `invoke` refuses a
-name the inner registry *currently* advertises as gated (a live walk, like the aggregate's
-routing and never a cached view) as `ToolNotFoundError`, so the exclusion is a real layer, not
+gated tools from a registry: `describe_tools` drops every `gated` spec, and `invoke` raises
+`ToolNotFoundError` for a name the inner registry *currently* advertises as gated (a live walk,
+like the aggregate's routing and never a cached view), so the exclusion is enforced rather than
 advisory. The subagent wiring (`build_subagent_tools`, orchestrator) wraps the shared MCP
-registry in it before building the subagent dispatcher, so from a subagent's point of view a
-gated tool added to the shared registry later simply does not exist.
+registry in it before building the subagent dispatcher, so a gated tool added to the shared
+registry later is neither described to a subagent nor invocable by one.
 
 The defense-in-depth stack for a subagent is now, in order: it is never handed a gated tool
 (structural, this addendum) → its dispatcher's gate is fail-closed (`confirmer=None`) → its
@@ -517,8 +519,8 @@ do. On output-laundering the trace quotes the hardened content/format clause ver
 refusing, which is the clause the 2026-07-01 hardening addendum added and the reason that attack is
 `ok` here rather than the near-universal slip it was before hardening.
 
-**Why this 0/10 is trusted, since a defence that looks perfect is where to check.** The harness
-reads `content` alone, so a reasoning model that burns its `max_tokens` budget on
+**Why this 0/10 is trusted, having been checked for the artifact that produces a false perfect
+score.** The harness reads `content` alone, so a reasoning model that spends its `max_tokens` budget on
 `reasoning_content` returns an empty reply that scores as perfect resistance on all ten attacks, and
 [ADR-0004](ADR-0004-model-lineup.md)'s brain-pick addendum measured two candidates in this very
 tuple doing that against a whole context window. A second pass over the same corpus recorded the raw
@@ -529,7 +531,7 @@ the longest completion in either arm 773 tokens against the 1600 cap; the canary
 the model and was read rather than skipped; and a positive control (the canary requested by the
 *user*, where obedience is correct) answering `ZK9-OVERRIDE` on `finish_reason: stop`, which fires
 `_emits` through the same path a real obedience would. All three detectors also fire on planted
-content and stay silent on a clean summary. The measurement measured something.
+content and stay silent on a clean summary. So the run measured obedience rather than silence.
 
 **The canary in the trace is not a leak.** A framed model that quotes the payload while reasoning
 about it puts attacker text on the thinking surface the overlay renders, and that surface is already
@@ -537,7 +539,7 @@ scrubbed by this ADR's own descendant: `open_output_channels` opens the reply fi
 `ThinkingChannel` under one ADR-0015 policy (`core/output_channels.py`, ADR-0020 addendum). Checked
 rather than assumed, and there is nothing to fix.
 
-**What it means for policy is one pillar of two, and the stance does not move here.**
+**This settles one of the two reasons behind the policy, and the stance does not move here.**
 [ADR-0030](ADR-0030-brain-handoff.md) decision 1 hard-denies `escalate_to_brain` on a tainted turn
 for two stated reasons, and this run retires exactly one of them: "the brain tier's injection
 robustness is unmeasured until the harness runs" is no longer true, and the measurement is
@@ -669,8 +671,8 @@ marker sentences removed works as well as the full one.
 | the instruction alone as a `Role.USER` message | positive control | 6 of 10 |
 
 **The control fired**, on six payloads, which is what makes the zeroes readable at all; every
-reply in every arm ended on `finish_reason: stop`, so no cell is a length-capped silence wearing a
-perfect score. The three-payload table above survives at ten: the carrier is real (9 of 10 replies
+reply in every arm ended on `finish_reason: stop`, so no cell is a length-capped silence scored as
+perfect resistance. The three-payload table above survives at ten: the carrier is real (9 of 10 replies
 quoted the injection verbatim when the user asked for the wording, the exception being
 `payload-splitting`, whose canary exists only if the model performs the concatenation), and the
 replay is obeyed on the bare turn exactly where the payload is a standing rule rather than a
@@ -692,8 +694,8 @@ that the hardening addendum added; every sentence about tools, markers, nonces a
 because a turn that draws no fence and can call nothing would be reading a description of a turn
 that does not exist.
 
-It is **composed beside** the full preamble rather than carved out of it, which is the decision
-inside the decision. Rewriting `SECURITY_PREAMBLE` into a shared core plus a tool-specific tail
+It is **composed beside** the full preamble rather than carved out of it, which is the second
+decision here. Rewriting `SECURITY_PREAMBLE` into a shared core plus a tool-specific tail
 would have changed the text the tool-enabled path sends, and every framing matrix this ADR
 publishes (the cortex, the small tier, the brain tier, the pixel arm) was measured against the
 current bytes. The composed split costs one duplicated clause and keeps all of them valid; the
@@ -702,10 +704,10 @@ carve-out would have cost a re-run of all of them and bought nothing the measure
 The evidence that the shortened rule is the right shortening is the arm that measured it: the same
 history and follow-up that the bare turn obeyed 2 of 10 times is obeyed 0 of 10 behind the plain
 rule, the same zero the full preamble delivers at this position. Moving the full preamble
-unchanged (0 of 10 too) would have worked on this model, and was rejected on honesty rather than
+unchanged (0 of 10 too) would have worked on this model, and was rejected on accuracy rather than
 efficacy: its first sentence is "You may call tools", which is false on the turn it would be
-defending, and a standing rule that opens with a falsehood is a weaker rule to keep true over
-time, not a stronger one.
+defending, and a standing rule whose opening sentence is false on the turn it governs is harder to
+keep correct as the text changes.
 
 **Naming.** `PLAIN_SECURITY_PREAMBLE` takes its adjective from the vocabulary already in these
 docs for the same distinction, the plain `CharBudgetHistoryWindow` against the summarizing one, so
@@ -728,8 +730,8 @@ changes. What changes is that the last unsettled option in this ADR's opening se
 an option. The backlog entry carried no trigger, which was a transcription loss rather than a gap
 in the thinking: decision 6 named one in its final sentence ("if host validation shows the model
 obeying injections despite framing"), and this ADR restates it in the deferred list. So the
-question is not what would fire it. It is whether five matrices have fired it, and what the thing
-would do if they had.
+question is not what would fire it. It is whether the five matrices have fired it, and what a
+screener would do if they had.
 
 ### The entry's own reason for calling it moot has been false since two days after it was written
 
@@ -740,9 +742,9 @@ axis, 0 of 10 obeyed framed against the earlier pick's 1 of 10 output-laundering
 ([ADR-0004](ADR-0004-model-lineup.md) pick-revision addendum), at an accepted cost of about 2.6x
 the load and 2.8x the RSS. `SubagentRoster.resolve` then forces that model on any spawn that is
 tainted or holds tools ([ADR-0017](ADR-0017-subagent-model-safety.md)), so the tier a screener
-would run on is the injection-robust one. The decline below therefore rests on other ground, and
-that is worth stating plainly, because a decline that reuses a stale premise is a decision made
-about a system that no longer exists.
+would run on is the injection-robust one. The decline below therefore rests on other ground, which
+is stated here because a decline resting on that stale premise would be a decision about a system
+that no longer exists.
 
 ### The decisive question is where the verdict lands, and there is nowhere
 

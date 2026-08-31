@@ -1,17 +1,17 @@
 //! Resolving a targeted capture to a window rectangle: a walk down the desktop's Z-order
 //! (ADR-0029).
 //!
-//! **Not `GetForegroundWindow`**, and that is the whole design. The user summons the overlay
-//! with a global hotkey and types the question into it, so at the moment a capture runs the
-//! overlay *is* the foreground window; it also sets `WDA_EXCLUDEFROMCAPTURE` on itself
+//! This does not use `GetForegroundWindow`. The user summons the overlay with a global hotkey
+//! and types the question into it, so the overlay is the foreground window at the moment a
+//! capture runs, and it also sets `WDA_EXCLUDEFROMCAPTURE` on itself
 //! ([`exclude_from_capture`](crate::exclude_from_capture)), so a crop to it would be an absent
 //! or black rectangle. Cropping to the foreground window would therefore fail on the common
 //! path rather than in an edge case.
 //!
-//! So this walks the desktop's child list, which is the top-level windows in Z-order from the
-//! front, and takes the first one a person would call a window: visible, not minimized, not
-//! DWM-cloaked, not a tool window, not the shell's own desktop, titled, ours in neither process
-//! nor display affinity. Each of those is one class of thing that is on screen and is not what
+//! Instead this walks the desktop's child list, which is the top-level windows in Z-order from
+//! the front, and takes the first one a person would call a window: visible, not minimized, not
+//! DWM-cloaked, not a tool window, not the shell's own desktop, titled, and ours in neither
+//! process nor display affinity. Each of those is one class of thing that is on screen and is not what
 //! the user is looking at, and the ones that are not obvious are argued at their own predicate.
 //!
 //! Nothing here decides how big the picture may be, and nothing here crops. It reports the
@@ -20,7 +20,7 @@
 //! off it is refused. That keeps the arithmetic under the coverage gate and leaves this file
 //! with only the part no gate can reach.
 //!
-//! Host-authored, **never run**. Like the rest of this crate it is compiled and clippy-linted
+//! Host-authored and never run. Like the rest of this crate it is compiled and clippy-linted
 //! for the Windows target from Linux, which type-checks it against the Win32 signatures and
 //! nothing more: no walk here has ever seen a real desktop. What a real one has to confirm is
 //! in `docs/host/index.md#windows-capture`.
@@ -54,8 +54,8 @@ const MAX_WALK: usize = 512;
 /// # Errors
 ///
 /// [`CaptureError::NoTarget`] if the walk finds nothing: a bare desktop, or every window on it
-/// filtered out. Deliberately not a fallback to the whole display, which would send more of the
-/// screen than was asked for with neither the model nor the receipt knowing.
+/// filtered out. There is no fallback to the whole display, which would send more of the screen
+/// than was asked for without the model or the receipt reflecting it.
 /// [`CaptureError::Backend`] if a window is found and the OS then refuses to say where it is.
 pub(crate) fn topmost_window() -> Result<TargetRect, CaptureError> {
     // SAFETY: three pure reads of process-wide state, no handles owned and no out-parameters.
@@ -76,7 +76,7 @@ pub(crate) fn topmost_window() -> Result<TargetRect, CaptureError> {
     )))
 }
 
-/// Whether `window` is the one the user is looking at, as far as anything but the user can tell.
+/// Whether `window` is the one the user is looking at, as far as the OS can tell.
 fn is_capturable(window: HWND, ours: u32, shell: HWND) -> bool {
     window != shell
         && is_visible(window)
@@ -88,8 +88,8 @@ fn is_capturable(window: HWND, ours: u32, shell: HWND) -> bool {
         && !is_hidden_from_capture(window)
 }
 
-/// Whether the OS calls the window visible. The first filter and the weakest one: a window can
-/// be visible, be nothing anyone can see, and still say yes here.
+/// Whether the OS calls the window visible. This is the first filter and the weakest one: a
+/// window can pass it and still be something nobody can see.
 fn is_visible(window: HWND) -> bool {
     // SAFETY: a state read on a handle from the walk; it touches no memory of ours.
     unsafe { IsWindowVisible(window) }.as_bool()
@@ -104,9 +104,9 @@ fn is_minimized(window: HWND) -> bool {
 
 /// Whether DWM is hiding the window from the compositor.
 ///
-/// This is the filter that stops a targeted capture from resolving to a ghost. A store app the
-/// user closed, a window on another virtual desktop, and a shell surface that never renders are
-/// all *visible* by `IsWindowVisible` and cloaked by DWM, and a walk without this check would
+/// This filter stops a targeted capture from resolving to a window nothing renders. A store app
+/// the user closed, a window on another virtual desktop, and a shell surface that never renders
+/// are all visible by `IsWindowVisible` and cloaked by DWM, and a walk without this check would
 /// crop to whichever of them happens to sit highest.
 ///
 /// A DWM that will not answer is read as not cloaked, because the attribute is absent on a
@@ -142,9 +142,9 @@ fn is_tool_window(window: HWND) -> bool {
 /// Whether the window has a title at all, which is how the wallpaper host (`WorkerW`) and the
 /// untitled helper windows every desktop carries are told from real ones.
 ///
-/// The **length** is read and the text never is. A window title is attacker-chosen text, this
-/// ADR keeps titles out of the capture result for that reason, and counting characters is the
-/// most that can be learned from one without carrying any of it.
+/// The length is read and the text never is. A window title is attacker-chosen text, which is
+/// why ADR-0029 keeps titles out of the capture result, and counting characters is the most that
+/// can be learned from one without carrying any of it.
 fn has_title(window: HWND) -> bool {
     // SAFETY: a length read on a handle from the walk; no buffer is passed, so none is written.
     let length = unsafe { GetWindowTextLengthW(window) };

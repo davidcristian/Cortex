@@ -19,11 +19,11 @@ export const CAPTURE_SCREEN_TOOL = "capture_screen";
 
 /**
  * How far this turn's screen-capture claim has climbed (ADR-0029 outcome addendum). Two rungs,
- * weakest first, and the only two the brain can honestly reach: `"asked"` is what the
+ * weakest first, and the only two the brain can prove: `"asked"` is what the
  * pre-dispatch activity proves, `"read"` what the post-dispatch outcome proves. `null` is a turn
  * that asked for nothing.
  *
- * **The ladder only ever climbs within a turn.** Over-reporting a capture is the safe direction
+ * The ladder only ever climbs within a turn. Over-reporting a capture is the safe direction
  * for a privacy indicator and under-reporting is the dangerous one, so no event may weaken a
  * claim: a failed capture is indistinguishable from one that failed *after* the shutter fired,
  * where the pixels really did leave the display and the body really did show its own receipt.
@@ -74,8 +74,8 @@ export function latestReply(state: OverlayState): string {
  *  or a turn already running is a no-op, so a double-send cannot open a second stream (and a blank
  *  one leaves the field exactly as it is, nothing having been sent out of it).
  *
- *  SENDING A TEXT EMPTIES THE FIELD THAT HELD IT, which is asked of the text rather than of the
- *  door it came through (`drafts.ts`). The composer sends its own draft, so the draft goes; an
+ *  Sending a text empties the field that held it, which is asked of the text rather than of the
+ *  control it was sent from (`drafts.ts`). The composer sends its own draft, so the draft goes; an
  *  example chip on the empty state sends the chip's words, so a half-typed question sitting in the
  *  field beside it is not thrown away by a button the user pressed for something else. */
 export function submit(state: OverlayState, text: string): OverlayState {
@@ -104,7 +104,7 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
     case "delta":
       return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
     case "toolActivity": {
-      // The chip is emitted just BEFORE the dispatch, so it proves the assistant ASKED to look
+      // The chip is emitted just before the dispatch, so it proves the assistant asked to look
       // and no more; the `toolOutcome` below is what can raise that to "read". `?? "asked"` is
       // what keeps the rung from falling: a second capture asked for after a first one was read
       // leaves the claim at "read".
@@ -118,7 +118,7 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
     }
     case "toolOutcome":
       // How the announced dispatch ended (ADR-0029 outcome addendum). It may only ever
-      // STRENGTHEN the claim: `ok` false means the brain cannot say the screen was read, never
+      // strengthen the claim: `ok` false means the brain cannot say the screen was read, never
       // that it was not read, so it changes nothing and the dot stays where the ask put it. A
       // true one is the only evidence that promotes the claim, and it promotes even a claim this
       // side never saw asked (a dropped activity must not cost the stronger, truer statement).

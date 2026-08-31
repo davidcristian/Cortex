@@ -2,21 +2,20 @@
 
 Key layout: ``cortex:task:{id}`` holds the ``SubagentTask``, ``cortex:task:{id}:result`` the
 ``SubagentResult``. Each is one JSON document with an ISO-8601 timestamp, written with a short TTL
-because task state is *hot and ephemeral*: it lives only for the in-flight delegation. Unlike the
-durable session history (and its schema-version escape hatch), a task is written and read back by
-one deployment within one turn, so it carries no ``v``/``kind`` markers. Redis is the state a
-subagent is a stateless function over. It survives an orchestrator restart or a model swap
-mid-delegation (the one hard rule). This adapter only translates: every backend failure crosses
-the port as ``TaskStoreError`` with the cause chained, and a corrupt record fails LOUDLY. The
-whole record round-trips, including ``model``/``tainted`` on a task and ``tainted`` on a result
-(ADR-0018): taint that did not survive a re-read would fail open. The task's ``session_id``,
-``turn_id`` and ``item_id`` round-trip for the neighbouring reason (ADR-0009 named-work and
-fired-work addenda): the runner audits a delegated call under the turn or the fired item that
-spawned it, and an attribution lost in the store would make the trail claim the work belonged to
-nobody. Each is read back as a **required** key, the rule this module already holds every field
-to: ``""`` is how the record says a spawn had no turn or no item behind it, so a codec that
-supplied one for a key it could not find would make an attribution it dropped indistinguishable
-from an absence it was told about.
+because task state lives only for the in-flight delegation. Unlike the durable session history
+(and its schema-version escape hatch), a task is written and read back by one deployment within
+one turn, so it carries no ``v``/``kind`` markers. Redis holds the state a subagent is a stateless
+function over, so a delegation survives an orchestrator restart or a model swap (the one hard
+rule). This adapter only translates: every backend failure crosses the port as ``TaskStoreError``
+with the cause chained, and a corrupt record raises. The whole record round-trips, including
+``model``/``tainted`` on a task and ``tainted`` on a result (ADR-0018), because taint that did not
+survive a re-read would fail open. The task's ``session_id``, ``turn_id`` and ``item_id``
+round-trip for a similar reason (ADR-0009 named-work and fired-work addenda): the runner audits a
+delegated call under the turn or the fired item that spawned it, and an attribution lost in the
+store would leave the trail naming no owner for the work. Each is read back as a required key, the
+rule this module already holds every field to: ``""`` is how the record says a spawn had no turn
+or no item behind it, so a codec that supplied one for a key it could not find would make an
+attribution it dropped indistinguishable from an absence it was told about.
 """
 
 import json

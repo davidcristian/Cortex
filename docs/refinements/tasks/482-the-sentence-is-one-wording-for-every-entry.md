@@ -64,7 +64,7 @@ cannot be derived from that column alone. The 0.8B's loss also has a different m
 E2B's: it writes nothing to the reasoning channel at all, and what it does instead is hand the
 instruction back, once as a paraphrase of `REPLY_INSTRUCTION` itself offered as the answer. A milder
 wording is a plausible remedy on the E2B and is not obviously one here. Worth designing together
-with [R-485](485-a-roster-description-never-says-whether-the-entry-answers.md), which wants the same
+with [R-485](485-a-roster-description-never-says-whether-the-entry-answers.md), which needs the same
 per-entry seam for a different value.
 
 ## Trail

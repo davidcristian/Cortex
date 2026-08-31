@@ -77,7 +77,8 @@ class _ScriptedToolBackend:
 
 
 def _gated_send_factory(ran: list[str]) -> EngineFactory:
-    """An engine whose model calls the gated 'send' tool once, then replies 'done'."""
+    """Build an engine whose scripted model calls the gated 'send' tool once, then replies
+    'done'."""
 
     async def send(arguments: Mapping[str, object]) -> str:
         ran.append(str(arguments["to"]))
@@ -118,9 +119,12 @@ def _answer(confirm_id: str, *, approved: bool) -> ClientEvent:
 
 
 async def _next_of(stream: AsyncIterator[ServerEvent], kind: str) -> ServerEvent:
-    """The next event of `kind`. Bounded, because these streams stay open by design: an
-    event that never arrives has to fail the test, not hang the suite (its absence is
-    exactly what a missing emit looks like)."""
+    """Return the next event of `kind`.
+
+    The wait is bounded because these streams stay open by design, so an event that never
+    arrives fails this test rather than hanging the suite. A missing emit looks exactly like
+    that absence.
+    """
     try:
         async with asyncio.timeout(5.0):
             async for event in stream:

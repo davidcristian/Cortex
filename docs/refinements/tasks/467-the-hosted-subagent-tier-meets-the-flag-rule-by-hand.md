@@ -46,9 +46,9 @@ before the first is built.
   runs `REQUIREMENTS` over the union of that and the compose set. **Re-derivation found nothing
   stale**, every claim this entry made held, though "pins that argv whole" was generous: the
   model_manager suite pins the cortex tier's argv flag for flag and the subagent tier's tail.
-  **The cheap close was argued and refused.** It runs the real code, which is its real advantage,
+  **The cheap close was argued and rejected.** It runs the real code, which is its real advantage,
   and its membership test could have been derived honestly from `model_fields` rather than from a
-  renameable id. It was refused on one scenario that is the entry's own point: `REQUIREMENTS` is
+  renameable id. It was rejected on one scenario that is the entry's own point: `REQUIREMENTS` is
   data, so a fourth flag is a line, and a suite in another tree cannot be reached by that line.
   The two halves are complementary rather than redundant, measured in the addendum's table: that
   suite says what the tier really starts with and the gate says the rule reaches it. **The rest of

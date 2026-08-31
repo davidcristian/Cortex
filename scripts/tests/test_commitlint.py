@@ -172,7 +172,7 @@ def _git(repo: Path, *args: str) -> None:
 
     This suite runs inside `just check`, which the pre-commit hook runs during a real commit,
     and git exports GIT_DIR (and friends) to its hooks. Inheriting those points `git -C
-    tmp_path` at the REAL repository no matter what `-C` says: the fixture's `add f.txt` then
+    tmp_path` at the real repository no matter what `-C` says: the fixture's `add f.txt` then
     lands in the in-flight commit's index and the seed commit fails. `gitenv.git_env()` is the
     gate's own answer to that, read here rather than rebuilt.
     """
@@ -196,7 +196,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _head_sha(repo: Path) -> str:
-    """The fixture repository's own HEAD, abbreviated the way a person would paste it."""
+    """Return the fixture repository's own HEAD, abbreviated the way a person would paste it."""
     return subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],  # noqa: S607 -- git on PATH
         capture_output=True,
@@ -219,7 +219,7 @@ def test_a_hex_string_that_is_not_a_commit_passes(repo: Path) -> None:
 def test_an_exported_git_dir_does_not_decide_which_repository_answers(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The strip is what makes `-C` the answer, and without it this hook is silently wrong.
+    """Stripping GIT_DIR is what makes `-C` decide which repository answers.
 
     Git exports GIT_DIR to every hook it runs, and this one runs as a commit-msg hook. Pointed
     at anything that is not a repository, an inherited GIT_DIR turns `cat-file` into a fatal
@@ -305,7 +305,8 @@ _COMMAND = (
     "docker compose --project-directory . -f docker/docker-compose.yml "
     "-f docker/docker-compose.gpu.yml up -d"
 )
-# 124 characters, longest word 11: a footer of short words, which is the sharp case.
+# 124 characters, longest word 11: a footer of short words, which the word-width exemption
+# cannot excuse.
 _FOOTER = (
     "BREAKING CHANGE: the capture request field is renamed, so every client must be "
     "regenerated from the proto before it connects"
@@ -325,14 +326,14 @@ def test_every_fence_spelling_opens_and_closes_a_block(fence: str) -> None:
 
 
 def test_prose_after_a_closed_fence_is_still_flagged() -> None:
-    # The leak that matters: an exemption that outlives its block is the gate not holding.
+    # An exemption that outlived its block would stop the rule applying to the prose after it.
     lines = ["feat: subject", "```", _COMMAND, "```", _OVER]
     (problem,) = commitlint.check_widths(lines)
     assert "line 5 is 73 chars" in problem
 
 
 def test_an_unclosed_fence_is_itself_a_violation() -> None:
-    # Otherwise one stray fence exempts every line after it, silently and forever.
+    # Otherwise one stray fence would exempt every line after it and nothing would report it.
     (problem,) = commitlint.check_widths(["feat: subject", "```", _COMMAND])
     assert "line 2 opens a code fence nothing closes" in problem
 
@@ -361,8 +362,8 @@ def test_an_indent_alone_is_not_a_paste(line: str) -> None:
 
 
 def test_a_breaking_change_footer_wraps_like_any_other_prose() -> None:
-    # Decided rather than exempted: the footer is a machine-read token over a prose value,
-    # and the parser that reads it allows newlines in that value, so wrapping costs nothing.
+    # The footer is a machine-read token over a prose value, and the parser that reads it
+    # allows newlines in that value, so wrapping it costs nothing.
     assert len(_FOOTER) == 124
     (problem,) = commitlint.check_widths(["feat(proto)!: rename the capture field", _FOOTER])
     assert "line 2 is 124 chars" in problem
@@ -415,8 +416,8 @@ def test_a_separator_inside_a_paste_is_not_punctuation(lines: list[str]) -> None
 
 @pytest.mark.parametrize("dash", [EM, EN])
 def test_a_unicode_dash_inside_a_paste_is_exempt_too(dash: str) -> None:
-    # Verbatim output can carry one, and altering a paste is the failure the kind exemption
-    # exists to prevent; the exemption is keyed on the kind, never on the character.
+    # Verbatim output can carry one, and altering a paste is what the exemption prevents. It is
+    # keyed on the kind of line, never on the character.
     lines = ["feat: subject", "```", f"error: expected {dash} found nothing", "```"]
     assert commitlint.check_body_lines(lines, Path()) == []
 
@@ -430,7 +431,7 @@ def test_a_unicode_dash_inside_a_paste_is_exempt_too(dash: str) -> None:
     ],
 )
 def test_the_same_separator_outside_a_paste_still_fails(lines: list[str]) -> None:
-    # An exemption that outlives its block is the gate not holding.
+    # An exemption that outlived its block would stop the rule applying to the lines after it.
     (problem,) = commitlint.check_body_lines(lines, Path())
     assert "a spaced ASCII --" in problem
 
@@ -451,8 +452,8 @@ def test_an_unclosed_fence_is_still_reported_beside_the_prose_rules() -> None:
 
 
 def test_a_volatile_reference_inside_a_paste_is_still_flagged() -> None:
-    # Not exempt, and deliberately: the ban is about the message still reading correctly once
-    # the thing it points at moves, which does not care who typed the pointer.
+    # Deliberately not exempt: the ban is about the message still reading correctly once the
+    # thing it points at moves, and that holds however the pointer was typed.
     lines = ["docs: quote the record", "```", "grep -n 'ADR-0026' docs/adr/*.md", "```"]
     (problem,) = commitlint.check_body_lines(lines, Path())
     assert "decision-record number" in problem

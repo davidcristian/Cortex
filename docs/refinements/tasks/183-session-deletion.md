@@ -30,8 +30,8 @@ which `test_the_recaller_exposes_no_forget_verb...` forbids) but on a separate t
 `SessionMemoryCascade(store, scope)` the orchestrator wires into `DeleteSession` only. It targets
 `write_scope(session_id)` and cascades **only** when that scope is the session's own private space
 (`scope == session_id`); the `GLOBAL_SCOPE` guard is checked **first**, so `GLOBAL_SCOPE` can never
-reach `delete_scope` even for a session whose id equals `GLOBAL_SCOPE` (the flagship distrust-green
-test seeds exactly that and reddens when the guard is dropped). The confirm is **overlay-local** as
+reach `delete_scope` even for a session whose id equals `GLOBAL_SCOPE` (the flagship test seeds
+exactly that and fails when the guard is dropped). The confirm is **overlay-local** as
 the entry said: the switcher row's trash swaps in an inline "Delete this chat?" confirm/cancel pair,
 and `onDelete` fires only on the second, explicit click. The gate is the **same structural
 user-only reachability** rename got: `DeleteSession` is a `BrainService` method the overlay drives,

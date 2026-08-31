@@ -6,73 +6,73 @@ advertised; with it on, the model host, the swapping manager, the handoff store,
 escalating engine factory all exist, and the deployment must have said where the deep model
 answers or boot fails loudly.
 
-Distrust-green proofs (each mutation reddened the named test, then was restored):
-- registering ``escalate_to_brain`` unconditionally reddens
+Proof these cases can fail (each mutation made the named test fail, then was restored):
+- registering ``escalate_to_brain`` unconditionally fails
   ``test_the_escalate_tool_is_not_advertised_unless_a_handoff_can_run``;
 - dropping the escalation branch in ``build_swap_runtime`` (always building the runtime)
-  reddens ``test_nothing_is_built_when_escalation_is_off``;
-- dropping the config validator reddens ``test_escalation_without_a_model_host_fails_at_boot``.
+  fails ``test_nothing_is_built_when_escalation_is_off``;
+- dropping the config validator fails ``test_escalation_without_a_model_host_fails_at_boot``.
 
 Five more for the real backend, each applied to production code alone with the whole ``packages``
-suite re-run, so the counts below are what actually reddened rather than what was aimed at. None
+suite re-run, so the counts below are what actually failed rather than what was aimed at. None
 of them reaches outside this file, the backend name being read in exactly one place:
 
-- building the scripted host whatever the backend names reddens 3, every case here that goes
-  through ``_supervisor_runtime``;
-- closing only the handoff store (dropping the model host's client from the closer) reddens the
-  same 3, since two of them read ``client.is_closed`` and the third cannot get there;
-- closing only the model host's client reddens 2, ``test_closing_the_runtime_...`` and
+- building the scripted host whatever the backend names makes 3 tests fail, every case here that
+  goes through ``_supervisor_runtime``;
+- closing only the handoff store (dropping the model host's client from the closer) makes the
+  same 3 fail, since two of them read ``client.is_closed`` and the third cannot get there;
+- closing only the model host's client makes 2 tests fail, ``test_closing_the_runtime_...`` and
   ``test_a_store_that_will_not_close_...``, which is why both read the store's own release rather
   than only the new one;
-- releasing the client outside the closer's ``finally`` (so a store that raises skips it) reddens
-  exactly 1, ``test_a_store_that_will_not_close_still_releases_the_control_client``;
-- dropping the endpoint clause from the config validator reddens exactly 1,
+- releasing the client outside the closer's ``finally`` (so a store that raises skips it) makes
+  exactly 1 test fail, ``test_a_store_that_will_not_close_still_releases_the_control_client``;
+- dropping the endpoint clause from the config validator makes exactly 1 test fail,
   ``test_the_real_backend_without_its_endpoint_fails_at_boot``.
 
 Four for the deadline pairing, measured the same way. Dropping the refusal (logging the mismatch
-and serving anyway) reddens 3, ``test_a_deadline_the_hosts_worst_stop_can_outlast_...``,
+and serving anyway) makes 3 tests fail, ``test_a_deadline_the_hosts_worst_stop_can_outlast_...``,
 ``test_a_refused_pairing_releases_what_the_runtime_already_holds`` and
 ``test_run_from_env_refuses_a_deployment_whose_pairing_does_not_hold``; making the bounds'
-``clears`` answer ``True`` whatever the numbers reddens those 3 plus the boundary case in the
+``clears`` answer ``True`` whatever the numbers makes those 3 fail plus the boundary case in the
 core's own ``test_model_host.py``, which is what separates the arithmetic from the policy over it;
-refusing an unreachable host as well reddens exactly 1,
+refusing an unreachable host as well makes exactly 1 test fail,
 ``test_a_host_that_cannot_be_asked_leaves_the_pairing_unchecked``, so the tolerance is pinned as
-deliberately as the refusal; and dropping the call from the composition root reddens exactly 1, the
-``run_from_env`` case, which is the only reason that case exists beside the three that drive the
-check directly. That case is bounded by ``asyncio.wait_for`` because a root that never refuses goes
-on to ``serve``: without the bound the mutation hung the suite instead of reddening, which is not a
-proof of anything.
+deliberately as the refusal; and dropping the call from the composition root makes exactly 1 test
+fail, the ``run_from_env`` case, which is the only reason that case exists beside the three that
+drive the check directly. That case is bounded by ``asyncio.wait_for`` because a root that never
+refuses goes on to ``serve``: without the bound the mutation hung the suite instead of failing a
+test, which shows nothing.
 
 Two for the seam's residency reporter, measured the same way. Dropping ``residency=`` from the
-``SeamPorts`` the composition root serves with reddens 2, both cases here that probe ``Health``
-through the wiring, which is why the first of them holds the manager the root really built rather
-than one of its own. Dropping the root's ``publish_boot_residency`` call reddens exactly 1,
-``test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so``, and so does passing
-it a constant ``serving=True``: that argument is the knob turning boot recovery's own observation
-into the seam's first answer, and neither half of it can be dropped silently.
+``SeamPorts`` the composition root serves with makes 2 tests fail, both cases here that probe
+``Health`` through the wiring, which is why the first of them holds the manager the root really
+built rather than one of its own. Dropping the root's ``publish_boot_residency`` call makes
+exactly 1 test fail, ``test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so``,
+and so does passing it a constant ``serving=True``: that argument is what turns boot recovery's
+own observation into the seam's first answer, and neither half of it can be dropped silently.
 
 One more for the loop that keeps reading after that first answer. Dropping the regain from the
-background pass (``residency_regain.heal_standing_residency``) reddens 12 across the workspace, and
-exactly one of them is here:
+background pass (``residency_regain.heal_standing_residency``) makes 12 tests fail across the
+workspace, and exactly one of them is here:
 ``test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_green`` is the only case
 anywhere that drives ``TierHealer``'s own loop over the real composition root, so it is what would
 catch a healer wired to a pass that no longer regains anything. It is bounded by
 ``asyncio.timeout`` for the reason the pairing case above is: without the bound the mutation hangs
-the suite rather than reddening, which proves nothing.
+the suite rather than failing a test, which shows nothing.
 
 One more beside them, for the record that observation is now written into. Handing boot recovery a
 fresh ``StandingTiers`` instead of the manager's own (two records for one fact, which is what any
-version of this that did not reach through the manager would have) reddens exactly 1,
+version of this that did not reach through the manager would have) makes exactly 1 test fail,
 ``test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready``, on both of its last two
 lines: the seam would say nothing about the tier and the pool would go on offering the GPU.
 
 Two for the tier ids themselves, which are the one thing the case above cannot see. Keying the
-endpoint map by the module's own ``"brain"`` constant instead of the plan's id reddens exactly 1
-across the workspace's 2757, ``test_each_tier_leases_the_endpoint_its_own_deployment_named``, and
-so does keying the cortex half by ``"cortex"``. The one-lease-and-one-residency case above leases
-both tiers, asserts both endpoints, and stays green through either, because it leaves both ids at
-their shipped defaults, where the constant and the deployment's value are the same string. That is
-the whole reason the case beside it renames them.
+endpoint map by the module's own ``"brain"`` constant instead of the plan's id makes exactly 1
+test of the workspace's 2757 fail, ``test_each_tier_leases_the_endpoint_its_own_deployment_named``,
+and so does keying the cortex half by ``"cortex"``. The one-lease-and-one-residency case above
+leases both tiers, asserts both endpoints, and passes through either mutation, because it leaves
+both ids at their shipped defaults, where the constant and the deployment's value are the same
+string. That is the whole reason the case beside it renames them.
 """
 
 import asyncio
@@ -197,8 +197,8 @@ def _supervisor_runtime(
 ) -> tuple[SwapRuntime, httpx.AsyncClient, list[str]]:
     """The real-backend runtime, with the control client's transport replaced but nothing else.
 
-    The client is built by the production builder's own seam, so the endpoint the adapter dials
-    is whatever ``CORTEX_MODELHOST_ENDPOINT`` said, and the test holds the very object the
+    The client is built by the production builder's own seam, so the endpoint the adapter
+    requests is whatever ``CORTEX_MODELHOST_ENDPOINT`` said, and the test holds the very object the
     runtime's closer must release. ``bounds`` is what this sidecar claims its own control calls
     can spend; without it ``/health`` carries none, which is a daemon older than that field.
     """
@@ -246,7 +246,8 @@ def test_escalation_is_off_by_default() -> None:
 
 
 def test_escalation_without_a_model_host_fails_at_boot() -> None:
-    """Nothing could evict or load a model, so the tool could only ever refuse: say so loudly."""
+    """Nothing could evict or load a model, so the config raises at boot rather than serving a
+    tool that could only refuse."""
     with pytest.raises(ValueError, match="CORTEX_MODELHOST_BACKEND must name a model host"):
         SwapConfig(escalation=True)
 
@@ -286,7 +287,8 @@ def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
 
 
 def test_co_residency_on_the_real_host_without_a_measured_fit_fails_at_boot() -> None:
-    """The flag is a claim about a card, and this is the only thing that ever tests it.
+    """The co-residency flag is a claim about a specific card, and this boot check is the only
+    place it is tested.
 
     Boot rather than the swap, because a deployment that never stated the figure is misconfigured
     from the moment it starts, and a handoff is the worst place to learn it: the cortex is already
@@ -359,8 +361,8 @@ async def test_each_tier_leases_the_endpoint_its_own_deployment_named() -> None:
 
     Both tiers are renamed here, which is the whole of the pin. Under the shipped ids a map keyed
     by the module's own constants is indistinguishable from one keyed by the deployment's values,
-    so the case above stays green on exactly the mis-wiring that would leave a handoff unable to
-    lease the model it just swapped in.
+    so the case above keeps passing on exactly the mis-wiring that would leave a handoff unable
+    to lease the model it just swapped in.
     """
     runtime = build_swap_runtime(
         _enabled(brain_model="brain-alt"),
@@ -389,7 +391,7 @@ async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() ->
     Boot recovery converges a machine nobody has escalated on yet, which is why this is the least
     excusable place for that conflation: the report used to go amber with "did not come up at
     startup" over a cortex serving turns perfectly well. What the boot really learned goes into
-    the manager's own peer record instead, so the seam stays green and names the tier, and the
+    the manager's own peer record instead, so the seam stays ready and names the tier, and the
     placer the pool spawns against is closed before a single delegated run pays a dead attempt.
 
     The retry loop is stopped before the assertions rather than after: its first pass would ask
@@ -485,7 +487,7 @@ async def test_the_closer_is_a_clean_no_op_when_nothing_was_built() -> None:
 
 
 def _with_bounds(bounds: ControlBounds | None) -> SwapRuntime:
-    """The scripted runtime, holding a host that claims ``bounds`` for its own control calls."""
+    """Build the scripted runtime, holding a host that reports ``bounds`` for its control calls."""
     runtime = build_swap_runtime(
         _enabled(),
         BrainRuntimeConfig(),
@@ -565,16 +567,17 @@ async def test_a_refused_pairing_releases_what_the_runtime_already_holds(
 async def test_a_deadline_that_clears_the_worst_stop_is_wired_and_says_so(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The shipped pair, which must pass: a check that refused this would refuse every stack."""
+    """The shipped pair passes, since a check that rejected it would reject every stack."""
     runtime = _with_bounds(
         ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
     )
     with caplog.at_level(logging.INFO):
         await check_control_deadline(runtime)
     assert "clears the model host's worst stop" in caplog.text
-    # The two numbers ride the record rather than the message, so the pair an operator greps for
-    # is read off the line the shipped formatter renders. ``caplog.text`` carries the message
-    # alone, and asserting the pair against it would pass only while the values were printed twice.
+    # The two numbers are attached to the record rather than the message, so the pair an operator
+    # greps for is read off the line the shipped formatter renders. ``caplog.text`` carries the
+    # message alone, and asserting the pair against it would pass only while the values were
+    # printed twice.
     assert "deadline_s=60.0 worst_s=45.0" in PlainFormatter().format(_only(caplog))
     await swap_closer(runtime)()
 
@@ -670,8 +673,8 @@ async def test_run_from_env_refuses_a_deployment_whose_pairing_does_not_hold(
 ) -> None:
     """The root asks before it builds anything else, so a mispaired stack never serves a turn.
 
-    Driven through ``run_from_env`` rather than the check alone, because the check being right is
-    worth nothing if the composition root never calls it. The sidecar here answers the two-term
+    It is driven through ``run_from_env`` rather than the check alone, because a correct check
+    does nothing unless the composition root calls it. The sidecar here answers the two-term
     tuning the runbook warns about, a grace and a reap summing to a compliant-looking 55 that the
     queued probe carries to the deadline exactly.
     """
@@ -778,7 +781,8 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
 async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Boot recovery's own observation reaches the report, or the first probe is a lie.
+    """Boot recovery's own observation reaches the report, so the first probe answers what
+    recovery found.
 
     A manager seeds its report optimistically, because a constructor cannot know what is on the
     GPU. Recovery is what looks, and it is allowed to fail without raising, so a brain whose

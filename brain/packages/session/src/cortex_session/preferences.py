@@ -4,7 +4,7 @@ Key layout is a single hash, ``cortex:preferences``, one field per setting. A ha
 key per setting because ``all`` is the common read (the overlay asks once at startup) and HGETALL
 is one round trip, while the alternative is a SCAN over a keyspace this adapter would then own.
 Values are opaque strings stored verbatim: this adapter never parses a preference, so a new one
-costs no change here. Writing an EMPTY value HDELs the field (the port's clear convention), so a
+costs no change here. Writing an empty value HDELs the field (the port's clear convention), so a
 cleared preference is absent rather than present-and-empty, and the reader's default applies.
 
 This is the durable half of the record: Redis persists with append-only mode and a named volume

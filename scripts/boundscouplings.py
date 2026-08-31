@@ -18,12 +18,12 @@ ordered against each other, the stall ceiling under the run deadline and the run
 admission wait, an ordering the core module declaring that deadline states in the comment beside
 it and so is a far side of both its neighbours.
 
-`SUBAGENTS_CONFIG` is spelled here and in `subagentcouplings.py` both, which is safe for the reason
-this scan is built on rather than tolerated: a path that drifts in one of them names something the
-scan cannot read, and an unreadable place is a fault here and never a skip.
+`SUBAGENTS_CONFIG` is written here and in `subagentcouplings.py` both, which is safe for the reason
+this scan is built on: a path that drifts in one of them names something the scan cannot read, and
+an unreadable place is a fault here and never a skip.
 
-Nothing in the scan asks which file an entry sits in, so the move costs the gate nothing; what a
-file buys is a reader who can hold one subject at a time.
+Nothing in the scan asks which file an entry sits in, so the move cost the gate nothing; a file of
+its own gives a reader one subject at a time.
 """
 
 from couplings import Constant, Mention, Site, Spelling
@@ -87,7 +87,7 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
         # Two kinds stay out, on the rules the siblings below already settled. The arithmetic under
         # the value is out: four places say the cap is about five times the longest reply this tier
         # was measured writing, which is a consequence of a measurement, and a needle over it would
-        # redden this constant whenever the measurement moved. And the core suite pins the cap by
+        # fail this constant whenever the measurement moved. And the core suite pins the cap by
         # its literal where it asserts the refusal's own wording, which runs on every commit and so
         # holds itself.
         mentions=(
@@ -157,7 +157,7 @@ BOUNDS_COUPLINGS: tuple[Constant, ...] = (
         # What is deliberately out is the arithmetic under the value rather than the value. Four
         # places say this bound is twice 1800 s and four times 900 s; those are consequences of
         # the wait and of a measured batch, and a needle over one would tie this constant to a
-        # measurement, reddening when the measurement moved. The ADR index's own summary is out
+        # measurement, failing when the measurement moved. The ADR index's own summary is out
         # on the rule that keeps every decision record out: it says what a dated addendum
         # decided, which stays true after the default moves. And the two unit suites asserting
         # this default run on every commit, so they hold themselves.

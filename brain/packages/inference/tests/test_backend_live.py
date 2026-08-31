@@ -82,9 +82,12 @@ async def test_llama_cpp_backend_streams_from_a_live_server() -> None:
 
 @pytest.mark.integration
 async def test_reasoning_model_emits_reasoning_before_reply() -> None:
-    """ADR-0020, host-validated 2026-07-06: the resident reasoning cortex (gemma-4-12B, thinking
-    ON) streams reasoning_content, surfaced as ReasoningChunk alongside the reply TextChunks. A
-    reasoning-inducing prompt (the bat-and-ball trap) reliably triggers a trace."""
+    """The live reasoning cortex streams reasoning_content, surfaced as ReasoningChunk.
+
+    Host-validated 2026-07-06 against the resident reasoning cortex (gemma-4-12B, thinking ON):
+    the trace arrives alongside the reply TextChunks, and the bat-and-ball prompt used here
+    reliably triggers one (ADR-0020).
+    """
     manager = SingleResidentModelManager(_MODEL, _ENDPOINT)
     messages = [
         Message(
@@ -109,20 +112,23 @@ async def test_reasoning_model_emits_reasoning_before_reply() -> None:
 
 @pytest.mark.integration
 async def test_a_projector_less_server_says_so_when_an_image_arrives() -> None:
-    """ADR-0029, agent-Docker measured 2026-08-03 against gemma-4-12B at build b10236-1464c62d8:
-    a server started without --mmproj answers an image-bearing request with HTTP 500 and a JSON
-    body that names the missing projector, which is the whole reason the adapter quotes a bounded
-    excerpt of a non-2xx body instead of reporting the status alone. Measured verbatim:
+    """A server started without --mmproj answers an image-bearing request with a 500 that names
+    the missing projector.
+
+    Measured 2026-08-03 through agent Docker against gemma-4-12B at build b10236-1464c62d8. The
+    body naming the projector is the whole reason the adapter quotes a bounded excerpt of a
+    non-2xx body instead of reporting the status alone (ADR-0029). Measured verbatim:
     `{"error":{"code":500,"message":"image input is not supported - hint: if this is unexpected,
     you may need to provide the mmproj","type":"server_error"}}`, 151 bytes, so the 300-character
     bound quotes the whole of it. The assertions pin what the excerpt has to keep working: the
     hint token survives, and the quoted body is still complete JSON rather than a cut-off prefix.
-    This is a canary for a llama.cpp wording change, not a gate; if it reddens, re-measure and
-    record the new string. Text-only turns at the same server are unaffected.
+    This is a canary for a llama.cpp wording change rather than a gate, so on a failure re-measure
+    and record the new string. Text-only turns at the same server are unaffected.
 
     The conversation is the shipped capture turn's own shape, the assistant's tool call included:
     a bare user-plus-tool pair is a malformed exchange, and a server that tokenizes before it
-    checks for a projector would then answer 400 for that reason instead (measured)."""
+    checks for a projector would then answer 400 for that reason instead (measured).
+    """
     manager = SingleResidentModelManager(_MODEL, _NO_MMPROJ_ENDPOINT)
     at = datetime.now(UTC)
     call = ToolCall(id="c1", name="capture_screen", arguments={})
@@ -155,7 +161,7 @@ async def test_a_projector_less_server_says_so_when_an_image_arrives() -> None:
 
 
 async def _subagent_reply(prompt: str, *, schema: JsonSchema | None) -> str:
-    """The live subagent tier's reply text to ``prompt``, optionally constrained (ADR-0028)."""
+    """Return the live subagent tier's reply to ``prompt``, optionally constrained (ADR-0028)."""
     manager = SingleResidentModelManager(_SUBAGENT_MODEL, _SUBAGENT_ENDPOINT)
     messages = [Message(role=Role.USER, text=prompt, at=datetime.now(UTC), turn_id="live-c")]
     async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, read=None)) as client:
@@ -166,16 +172,18 @@ async def _subagent_reply(prompt: str, *, schema: JsonSchema | None) -> str:
 
 @pytest.mark.integration
 async def test_constrained_decoding_kills_format_laundering_on_the_weak_tier() -> None:
-    """ADR-0028, agent-Docker validated 2026-07-13 (CPU gemma-4-E4B): the SAME injection that a
-    raw stream obeys is defeated by the envelope constraint. Unconstrained, E4B appends the
-    injected exfil footer; constrained through the real LlamaCppBackend, the output is a
-    well-formed single-field envelope with no grammatical room for appended structure."""
+    """The envelope constraint defeats an injection the same model obeys unconstrained.
+
+    Validated 2026-07-13 through agent Docker on CPU gemma-4-E4B (ADR-0028). Unconstrained, E4B
+    appends the injected exfiltration footer; constrained through the real LlamaCppBackend, the
+    output is a well-formed single-field envelope with no grammatical room for appended structure.
+    """
     unconstrained = await _subagent_reply(_LAUNDERING_PROMPT, schema=None)
     assert "evil.example" in unconstrained, "baseline: the weak model should obey the injection"
 
     constrained = await _subagent_reply(_LAUNDERING_PROMPT, schema=_ENVELOPE)
-    # The structural guarantee (robust, grammar-enforced): exactly one `reply` string field, so
-    # the injected footer cannot ride as a trailing line or an extra field.
+    # The structural guarantee the grammar enforces: exactly one `reply` string field, so the
+    # injected footer cannot ride as a trailing line or an extra field.
     payload = json.loads(constrained)
     assert set(payload) == {"reply"}
     assert isinstance(payload["reply"], str)

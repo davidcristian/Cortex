@@ -7,41 +7,42 @@ registry and moves without anything here changing. Recording those bases in `ima
 what lets a re-derivation refresh them the way it refreshes every other pulled reference, and this
 module says which base a built row is answerable for and holds the row to what that base declares.
 
-**Measured rather than assumed**, with docker on 2026-08-28. An image built from a base declaring
-`/probe/base` declares `/probe/base` itself, so a declaration really is inherited through `FROM`.
+This was measured rather than assumed, with docker on 2026-08-28. An image built from a base
+declaring `/probe/base` declares `/probe/base` itself, so a declaration is inherited through
+`FROM`.
 A `FROM ... AS builder` stage declaring `/probe/builder` contributed nothing to the built image,
 because only the final stage's config survives a build. That is why the last `FROM` is the one this
 reader resolves, and why `brain/Dockerfile`'s `uv` builder stage gets no row of its own: whatever
 that stage declares, no container ever runs it.
 
-**A stage may stand on an earlier stage**, so the last `FROM` is followed back through the stage
+A stage may stand on an earlier stage, so the last `FROM` is followed back through the stage
 names written before it until it reaches something that is not one, which is the image the build
 really pulls. Stage names are matched however they are cased, the way docker matches them.
 `FROM scratch` stands on nothing and is answered as such rather than sent looking for a row.
 
-**Why the file's grammar sits here.** A stage cannot be found before comments are dropped and
+The file's grammar sits here because a stage cannot be found before comments are dropped and
 continuation lines are joined onto the instruction they belong to, so `logical` and
 `DockerfileError` live beside the reader that needs them first, and `dockerfilevolumes.py` reads
-its own instructions out of the same joined lines. Both readers refuse a shape they were not
-taught rather than walking past it, and for the same reason: a `FROM` guessed at is a base whose
+its own instructions out of the same joined lines. Both readers raise on a shape they were not
+taught rather than walking past it, for the same reason: a `FROM` guessed at is a base whose
 declarations the record would go on denying. A flag on the instruction is the one thing dropped
 rather than refused, `--platform` being docker's only one and changing nothing about what the
 named image declares.
 
-**The rule is one-directional**, like the one over the file's own declarations: every path the
+The rule runs one way, like the one over the file's own declarations: every path the
 base's row carries must appear in the row for the image built from that file. A recorded path the
 base does not declare is fine, being the Dockerfile's own. What it catches is the half the built
 rows cannot catch themselves. Those three are asked without a pull, having no registry, so their
 answer is whatever the machine running the recipe last built, while the base rows are pulled on
-every re-derivation. A base republished with a new `VOLUME` therefore reddens `just check` on the
+every re-derivation. A base republished with a new `VOLUME` therefore fails `just check` on the
 next run of the recipe, rather than waiting for somebody to rebuild on the machine that runs it.
 
-**A base declares for its children too**, through `ONBUILD VOLUME`, which its own `Config.Volumes`
+A base declares for its children too, through `ONBUILD VOLUME`, which its own `Config.Volumes`
 never carries and the build of anything standing `FROM` it does. That is the second dimension of a
 base's row and it costs the built row the same paths, so the reading is handed straight over: this
 module says which base answers for a built row and returns the triggers that row recorded, and
 `dockerfilevolumes.py` reads them with the `VOLUME` grammar it already owns and reports what the
-built row does not carry. One rule, two sources, and the parsing where the parser lives.
+built row does not carry, so one rule reads two sources and the parsing stays where the parser is.
 """
 
 import re
@@ -89,7 +90,7 @@ _UNINHERITED = (
 
 
 class DockerfileError(Exception):
-    """A Dockerfile carries a shape the readers of one in this tree will not guess at."""
+    """A Dockerfile carries a shape the readers of one in this tree cannot read."""
 
 
 class Inheritance(NamedTuple):
@@ -152,8 +153,8 @@ def read_base(text: str) -> str | None:
     Only the final stage decides, every earlier one having been measured to contribute nothing to
     the built image, and a final stage naming an earlier one is followed back to what that stage
     stands on. The walk only ever moves to an earlier index, so it terminates; a stage naming
-    itself or one written after it is a file no build could resolve and is refused rather than
-    read as an image reference that happens to share a stage's name.
+    itself or one written after it is a file no build could resolve, and it raises rather than
+    being read as an image reference that happens to share a stage's name.
     """
     stages: list[tuple[str | None, str]] = []
     for number, line in logical(text):

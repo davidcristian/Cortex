@@ -8,17 +8,17 @@ OS spawn and the health socket faked. Every assertion is on what ``status`` answ
 implementation under test did its own work, and the two legs are held to different depths on
 purpose. On the **supervisor** leg the answer is derived rather than echoed (the exit code read
 before the probe, the slot kept or replaced, the port a spec names), which is why the mutations
-recorded in ``test_model_host_contract.py`` redden supervisor cases and no scripted ones. On the
+recorded in ``test_model_host_contract.py`` fail supervisor cases and no scripted ones. On the
 **scripted** leg a state word the fixture handed the twin comes back verbatim, so what those
-assertions pin is that the twin honours the world-condition it was given: that is what a fake owes
-the contract, and it is the reason the real adapter is driven through the same script.
+assertions pin is that the twin honours the world-condition it was given. That is all a fake can be
+held to, which is why the real adapter is driven through the same script.
 
 The port's own vocabulary needs two conditions of the world that no verb can create, so each
 implementation supplies them as knobs on ``HostUnderTest``: whether a started model's server
 answers readiness yet, and a process dying without being asked to. ``ScriptedModelHost`` scripts
-them; the supervisor's fixture flips a fake probe and exits a fake child. That is the honest
-widening of the contract, because "``start`` only begins loading" is not observable at all in an
-implementation where nothing can be mid-load.
+them; the supervisor's fixture flips a fake probe and exits a fake child. Widening the contract
+this way is what makes those checks possible, because "``start`` only begins loading" is not
+observable at all in an implementation where nothing can be mid-load.
 
 The roster is the same widening taken one step further: which ids a host carries at all is
 deployment env rather than a condition anything can arrange mid test, so ``HostUnderTest`` names
@@ -92,8 +92,8 @@ async def check_start_begins_a_load_and_is_idempotent(subject: HostUnderTest) ->
 
     The health gate is the only thing that decides readiness (``await_model_ready`` polls
     ``status``), so an implementation whose ``start`` reported ready would make the gate
-    decorative. Both properties are load bearing: ``residency_moves`` re-issues ``start`` without
-    checking first.
+    decorative. Both properties are relied on, because ``residency_moves`` re-issues ``start``
+    without checking first.
     """
     subject.serving(DEEP, serving=False)
     await subject.host.start(DEEP)
@@ -141,7 +141,7 @@ async def check_a_failed_model_is_restarted_without_being_stopped_first(
 
     This is the shape the swap back and boot recovery actually use: ``restore_standing`` stops the
     deep model and then starts the cortex, never stopping the cortex first, so a cortex that died
-    while the deep model was resident is started over its own corpse. An implementation that
+    while the deep model was resident is started again in place. An implementation that
     remembered the old exit would report FAILED forever and every later turn would fail.
     """
     subject.serving(DEEP, serving=True)
@@ -156,10 +156,10 @@ async def check_a_failed_model_is_restarted_without_being_stopped_first(
 
 
 async def check_stopping_a_model_that_already_died_settles_it(subject: HostUnderTest) -> None:
-    """A stop settles a slot whose process is already gone, waiting for no signal nobody can send.
+    """A stop settles a slot whose process is already gone, without waiting for a signal.
 
-    What the swap back does to a deep model that crashed mid answer: it stops it anyway, and that
-    must complete rather than block on a corpse.
+    This is what the swap back does to a deep model that crashed mid answer: it stops it anyway,
+    and the stop has to complete rather than wait on a process that cannot answer.
     """
     subject.serving(DEEP, serving=True)
     await subject.host.start(DEEP)
@@ -204,10 +204,10 @@ async def check_an_id_this_host_does_not_carry_is_refused_by_every_verb(
 async def check_an_unhosted_refusal_is_still_a_model_host_error(subject: HostUnderTest) -> None:
     """The narrower failure is caught by every caller that only ever knew the broad one.
 
-    Not a tautology about subclassing but the compatibility promise the port makes: ``swap_in``,
-    ``restore_standing``, ``restart_evicted`` and the tier retry all catch ``ModelHostError`` and
-    must go on catching this, so adding the distinction cannot turn a handled failure into an
-    unhandled crash in a caller that never asked for it.
+    This is the compatibility promise the port makes rather than a tautology about subclassing.
+    ``swap_in``, ``restore_standing``, ``restart_evicted`` and the tier retry all catch
+    ``ModelHostError`` and must go on catching this, so adding the distinction cannot turn a
+    handled failure into an unhandled crash in a caller that never asked for it.
     """
     with pytest.raises(ModelHostError):
         await subject.host.status(subject.unhosted)

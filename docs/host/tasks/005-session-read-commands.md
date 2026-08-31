@@ -5,8 +5,8 @@
 **Capability:** W
 **Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
 
-**Until 2026-07-19 this was recorded in exactly two places, both of them prose, and one of them was
-about to be cleaned.**
+**Until 2026-07-19 this check was recorded in exactly two places, both of them prose, and one of
+them was about to be cleaned.**
 
 **What only this proves.** That the two ungated glue commands carry the reads across the real IPC
 hop. Both ends are already proven: the brain half was Docker-validated against real Redis on

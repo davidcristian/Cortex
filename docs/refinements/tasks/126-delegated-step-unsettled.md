@@ -40,14 +40,14 @@ on them: the runner degrades a failed subagent to an `ok=False` `SubagentResult`
 the answer shaped by it. There is no consent to surface either, since a subagent is handed the
 gated-stripped subset and nothing it can call is outbound or irreversible.
 **What was actually broken was the contract**, and on the body's side, which is the side that
-cannot notice, a delegated activity being a byte-identical `ToolActivity`. `proto/body.proto`
+cannot detect the difference, a delegated activity being a byte-identical `ToolActivity`. `proto/body.proto`
 said the brain emits one outcome per activity "it emitted on the turn's own stream", and a
 delegated activity is emitted on exactly that stream;
 `body/crates/core/src/transport/turn.rs` repeated the sentence, and `docs/modules/body-core.md`
 shortened it to "one per activity", while `docs/modules/brain-orchestrator.md` had it right all
 along. All three now say the pairing covers the dispatches the turn itself made and name the
 unsettled delegated activity as the ordinary case. The asymmetry is pinned by
-`test_a_delegated_step_reaches_the_wire_announced_and_unsettled`, which reddens under the very
+`test_a_delegated_step_reaches_the_wire_announced_and_unsettled`, which fails under the very
 `elif` the entry proposed, because the reversal is cheap enough to land as a tidy-up and would
 make three published contracts wrong in one commit.
 It reopens on a surface that renders how a step ended for its own sake rather than as a capture

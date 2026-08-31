@@ -59,7 +59,7 @@ _WS = re.compile(r"\s+")
 
 
 class _TextExtractor(HTMLParser):
-    """Collect prose chunks; ``convert_charrefs`` (the default) decodes entities for us."""
+    """Collect prose chunks; ``convert_charrefs`` (the default) decodes character entities."""
 
     def __init__(self) -> None:
         super().__init__()

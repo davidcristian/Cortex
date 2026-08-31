@@ -46,11 +46,11 @@ union variant. Nothing in the tree asks for either.
 - 2026-07-14: Recorded as the calendar-recurrence entry's one remainder, cron itself having been
   rejected there as a parser dependency and a syntax a small model gets subtly wrong in ways that
   still validate.
-- 2026-07-15: The per-rule timezone landed and left this as the only calendar remainder, a
-  per-rule DST-policy override not being owed.
-- 2026-08-09: A trigger sweep of the fix-when-it-bites bucket this entry sits in ran against
-  the tree and fired nothing.
-- 2026-08-18: Declined on a re-derivation. The deferral was never "not yet" but "not this shape",
+- 2026-07-15: The per-rule timezone landed and left this as the only calendar remainder, a per-rule
+  DST-policy override not being owed.
+- 2026-08-09: A trigger sweep of the fix-when-it-bites bucket this entry sits in ran against the
+  tree and fired nothing.
+- 2026-08-18: Declined on a re-derivation. The deferral was about the shape rather than the timing,
   and three landed extensions prove the other shape works; the decisive new finding is that POSIX
   cron cannot express the nth or last weekday of a month, which is the very rule this entry waits
   for. The residue above is additive under the closed-union decision and is recorded there rather

@@ -4,7 +4,7 @@ Content the brain reads through a tool (file contents, email bodies, later web p
 screen captures) is untrusted data, not instructions. This module holds the pure primitives
 that draw the boundary: a standing-rule ``SECURITY_PREAMBLE`` the caller injects as a system
 message, a per-result ``wrap_untrusted`` that fences hostile content behind an unforgeable
-nonce, and the ``TaintLedger`` the shared tool loop marks so a turn knows it has consumed
+nonce, and the ``TaintLedger`` the shared tool loop marks so a turn records that it has consumed
 untrusted content (which drives capability gating, ADR-0013 decision 4). All pure, no I/O; the
 ledger is turn-local state reconstructed each turn, never persisted (the one hard rule holds).
 """
@@ -71,7 +71,8 @@ PLAIN_SECURITY_PREAMBLE = (
 
 # The result content fed back to the model when a gated tool is blocked on a tainted turn
 # (ADR-0013 decision 4, table revised by ADR-0022 decision 2): after untrusted content has
-# entered the turn, the outbound surface is closed. It is never merely a confirm-away.
+# entered the turn, the outbound surface is closed. It is a block, never a call the user could
+# still approve within this turn.
 DENIED_MSG = (
     "BLOCKED: this action is irreversible or outbound and this turn has read untrusted external "
     "content, so it was not performed and cannot be confirmed within this turn. If the user "
@@ -88,7 +89,7 @@ USER_DECLINED_MSG = (
 
 
 def new_nonce() -> str:
-    """A fresh per-turn nonce for the untrusted-content fence; unpredictable, dies with the turn."""
+    """A fresh per-turn nonce for the untrusted-content fence; unpredictable and turn-scoped."""
     return secrets.token_hex(_NONCE_BYTES)
 
 
@@ -130,12 +131,12 @@ class TaintLedger:
     """
 
     tainted: bool = False
-    # Whether any untrusted content that entered this turn was **unfenceable**: pixels, today
+    # Whether any untrusted content that entered this turn could not be fenced: pixels, today
     # (ADR-0029). A separate bit from ``tainted`` because the fence is what the ordinary taint
     # response assumes exists, and for an image it does not: no nonce brackets a picture, and a
     # URL painted into one is never in any result text, so the default URL redaction is
     # structurally a no-op for exactly the laundering case vision introduces. The bit is what
-    # lets the two consumers that care escalate deterministically.
+    # lets the two consumers that read it escalate deterministically.
     opaque: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
     sources: tuple[Provenance, ...] = ()

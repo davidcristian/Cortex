@@ -1,13 +1,12 @@
-r"""What may still be **growing** into a URL at a buffer's end, behind the output guardrail
-(ADR-0015).
+r"""What may still be growing into a URL at a buffer's end, behind the output guardrail (ADR-0015).
 
 Split from ``urls.py`` (which owns the grammar: what counts as a clickable URL in finished text) at
 the line cap as the sixteenth addendum landed, the third such split after ``url_identity`` and
 ``url_spellings``. This module answers the streaming half of the same question. The redactor scrubs
 one delta at a time, so it needs an index from which the buffer might still change meaning: release
 everything before it, carry everything from it into the next delta. Getting that wrong leaks a link
-in pieces, which is why every widening of the grammar has had to be asked whether it opens a shape
-that is *not yet* a match and *not yet* a prefix of one either.
+in pieces, which is why every widening of the grammar has to be checked for shapes that are neither
+a match yet nor a prefix of one.
 
 Four shapes are open, and all four are bounded: a ``URL_RE`` match touching the buffer's end, a
 dotless host trailed by a gap that has opened but not closed (``hxxp://evil dot ``), a scheme word
@@ -16,7 +15,7 @@ prefix of any scheme+separator the tables enumerate. Carrying is not redacting: 
 released whole and in order by a later ``feed`` or the ``flush``, so prose that never becomes a
 host reaches the user unchanged and only its arrival moves.
 
-Deterministic and dependency-free (stdlib only). Pure state- and I/O-free.
+Deterministic and dependency-free (stdlib only), with no state and no I/O.
 """
 
 import re
@@ -64,12 +63,12 @@ _SCHEME_PREFIXES = (
 _LONGEST_OPEN_PREFIX = max(len(prefix) for prefix in _SCHEME_PREFIXES)
 
 # An entity reference that has begun but not finished at the buffer's end (`&`, `&#`, `&#5`,
-# `&#x3`, `&col`). The leading `&` is load bearing: it is what stops this from holding back every
+# `&#x3`, `&col`). The leading `&` is required: it is what stops this from holding back every
 # scheme word followed by ordinary letters (`database`), and the run it opens is bounded by the
 # first character no reference can contain.
 _UNFINISHED_ENTITY = r"&[#0-9a-z]*"
 
-# A scheme word whose separator or host is still **arriving** at the buffer's end, in the shapes too
+# A scheme word whose separator or host is still arriving at the buffer's end, in the shapes too
 # variable-length to enumerate into `_SCHEME_PREFIXES`: an open bracket chunk (`http[&#58;`), a run
 # of separator characters ending in an unfinished entity (`https&#5`, `https&#58;&#4`), and a
 # slashless authority whose host has not yet reached its dot (`https:evil.`), which is not a match
@@ -96,7 +95,7 @@ def _prefixes(token: str) -> str:
     return "".join(f"(?:{re.escape(char)}{REMOVED_RUN}" for char in token) + ")?" * len(token)
 
 
-# A gap that has **opened but not closed** at the buffer's end: its whitespace, then at most a
+# A gap that has opened but not closed at the buffer's end: its whitespace, then at most a
 # prefix of one dot token, then at most the whitespace that would close it. Every token comes from
 # `DOT_TOKENS`, so the hold-back and the grammar cannot disagree about what a gap may hold; the
 # bracket forms and the unfinished entity are the two shapes that table cannot carry as text.
@@ -106,15 +105,15 @@ _ARRIVING_GAP = (
     rf"{GAP_WHITESPACE}*"
 )
 
-# A **whitespace-split host still arriving** at the buffer's end (`hxxp://evil `, `… evil do`,
+# A whitespace-split host still arriving at the buffer's end (`hxxp://evil `, `… evil do`,
 # `… evil dot `, `… evil [do`). None of those is a match and none is a prefix of any scheme, so
 # without this branch the released text would leak the head of a split host one delta before its
 # gap closed. It carries the grammar's own constraint rather than merely looking for trailing
-# whitespace: the labels so far must be **dotless**, because only a dotless host can still grow a
-# gap. That is what keeps the branch off the common case, an ordinary link followed by a space
+# whitespace: the labels so far must be dotless, because only a dotless host can still grow a gap.
+# That is what keeps the branch off the common case, an ordinary link followed by a space
 # (`https://evil.example/report `), which a gap can never join and which is released as before.
-# The authority it opens with wears the **arriving** host anchor, since the slashless form reaches
-# its host through a lookahead that a half-typed split host cannot yet satisfy: `https:evil dot `
+# The authority it opens with uses the arriving host anchor, since the slashless form reaches its
+# host through a lookahead that a half-typed split host cannot yet satisfy: `https:evil dot `
 # would otherwise be released one delta before its own gap closed (ADR-0015 sixteenth addendum).
 _ARRIVING_SPLIT_HOST = re.compile(
     rf"\b{ARRIVING_AUTHORITY}{SPLIT_LABEL}(?:{SPLIT_GAP})*{_ARRIVING_GAP}\Z", re.IGNORECASE
@@ -149,7 +148,7 @@ def held_from(buf: str) -> int:
 def _open_prefix(buf: str) -> int | None:
     """Where the longest suffix of ``buf`` that is a prefix of a scheme opening starts, or None.
 
-    Compared with the removals **dropped**, because a URL parser drops them before it reads the
+    Compared with the removals dropped, because a URL parser drops them before it reads the
     scheme at all, so `ht<TAB>t` is the same three characters of `http://` that `htt` is; without
     that a tab landing on a delta boundary released the head of an opening and lost the link
     (ADR-0015 seventeenth addendum). The window is counted in the characters that survive the

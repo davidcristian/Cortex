@@ -20,7 +20,8 @@ What would close it: make both arguments required, drop the two `is not None` gu
 that a missing relay is a usage failure rather than a pass, and update the module docstring and the
 recipe's comment. It makes the relay mandatory rather than checked, so it does not answer what
 [290](290-the-export-names-its-tool-not-its-compiler.md) asked; it only stops the one check that
-does exist from being deletable in silence. Re-derive the guards and the tests before starting.
+does exist from being removed without any report. Re-derive the guards and the tests before
+starting.
 
 ## Trail
 
@@ -29,8 +30,8 @@ does exist from being deletable in silence. Re-derive the guards and the tests b
   different reason and found this beside it.
 - 2026-08-18: Landed as proposed, the re-derivation having found every claim above exact. Both
   relays are `required=True`, both `is not None` guards are gone, and `Toolchain` holds two plain
-  strings. The regression was reproduced end to end before and after: with `--llvm-cov` deleted
-  from the `check-body` line, the old gate printed a full green verdict and exited 0, while the new
-  one exits 2 on `the following arguments are required: --llvm-cov` and takes the whole recipe red
-  with it. Required is not the same as non-empty, and that residue is filed as
+  strings. The regression was reproduced end to end before and after: with `--llvm-cov` deleted from
+  the `check-body` line, the old gate printed a full passing verdict and exited 0, while the new one
+  exits 2 on `the following arguments are required: --llvm-cov` and fails the whole recipe with it.
+  Required is not the same as non-empty, and that residue is filed as
   [313](313-a-relay-can-be-required-and-empty.md). The reasoning is recorded at the origin decision.

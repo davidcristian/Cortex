@@ -52,8 +52,8 @@ def memory_scope_from_name(name: MemoryScopeName) -> MemoryScope:
     """Map ``CORTEX_MEMORY_SCOPE`` to its recall-namespace policy (ADR-0008 scoping addendum).
 
     ``global`` keeps the founding one-global-space recall (spans conversations); ``session``
-    isolates each conversation's memory to itself. The composition root's one env->core seam
-    for scoping, since the core never reads the string.
+    isolates each conversation's memory to itself. This is the composition root's one env-to-core
+    seam for scoping, since the core never reads the string.
     """
     if name == "session":
         return SessionMemoryScope()
@@ -70,10 +70,10 @@ def recall_policy_from_config(
     (query-relevance traded against diversity); ``recency_mmr`` runs that MMR selection over the
     recency blend, combining both axes; ``judge`` hands the pool to the resident model on the given
     ``backend`` and ranks by what it answers (ADR-0038), falling back to ``raw`` whenever the model
-    cannot be reached or believed, and is **the default** since the turn-cost addendum measured
-    what it does to a whole turn. Each is tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs (each
-    policy validates the ranges of the ones it uses). The composition root's one env->core seam for
-    reranking, since the core never reads the string.
+    cannot be used or its reply cannot be read, and is the default since the turn-cost addendum
+    measured what it does to a whole turn. Each is tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs
+    (each policy validates the ranges of the ones it uses). This is the composition root's one
+    env-to-core seam for reranking, since the core never reads the string.
     """
     if config.recall == "judge":
         return JudgeRecallPolicy(backend, cortex_model, pool_factor=config.recall_pool_factor)
@@ -104,7 +104,7 @@ def recall_audit_from_config(config: MemoryConfig) -> RecallAuditSink | None:
 
     ``True`` attaches ``LoggingRecallSink``, one structured line per recall carrying the pool, the
     rank basis and each kept hit's key, never any text; ``False`` (the default) is the founding
-    silent recall path, where the recaller has no sink at all rather than a sink that drops.
+    recall path that writes no trail, where the recaller has no sink rather than a sink that drops.
     """
     return LoggingRecallSink() if config.recall_audit else None
 
@@ -114,7 +114,8 @@ async def build_memory(
 ) -> tuple[MemoryRecaller | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
     """Pick the memory backend from config; return the recaller, the delete cascade, and a closer.
 
-    ``none`` disables memory (both are None). The DB-less default CI and the no-GPU dev loop run.
+    ``none`` disables memory, returning None for both; it is the DB-less default that CI and the
+    no-GPU dev loop run.
     ``pgvector`` connects an asyncpg pool and a CPU embedder client; the returned closer releases
     both. The ``scope`` config selects the recaller's namespace policy (default global, ADR-0008
     addendum) and ``recall`` its reranking policy (default raw top-k cosine, ADR-0008 rerank

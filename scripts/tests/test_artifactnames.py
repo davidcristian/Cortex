@@ -1,13 +1,13 @@
-"""Behaviour of the reader that finds every model artifact this tree names.
+"""Tests for the reader that finds every model artifact this tree names.
 
-The question here is narrower than the one `subagentservers.py` answers and sits underneath it:
-not which servers serve subagents, which is decided from the variable an artifact is named under,
-but which variables name an artifact at all, so that the deciding can be held to a spelling. The
-domain is therefore structural in both languages, and the tests below are mostly about what counts
-as naming an artifact and what deliberately does not.
+The question here sits underneath the one `subagentservers.py` answers. That reader determines
+which servers serve subagents, from the variable an artifact is named under; this one determines
+which variables name an artifact at all, so that the answer can be held to a spelling. The domain
+is structural in both languages, and the tests below are mostly about what counts as naming an
+artifact and what deliberately does not.
 
 The last tests read the committed tree, because a reader agreeing with its own fixtures and
-finding nothing real would leave the rule above it green over an empty set.
+finding nothing in the tree would leave the rule above it green over an empty set.
 """
 
 import ast
@@ -61,7 +61,7 @@ services:
 
 
 def _tree(root: Path, files: dict[str, str]) -> Path:
-    """A compose tree written under ``root``, which is how a stack arrives here."""
+    """Write a compose tree under ``root``, which is the shape a stack arrives in."""
     (root / "docker").mkdir(parents=True, exist_ok=True)
     for name, text in files.items():
         (root / "docker" / name).write_text(text, encoding="utf-8")
@@ -69,7 +69,7 @@ def _tree(root: Path, files: dict[str, str]) -> Path:
 
 
 def _one(text: str) -> Started:
-    """The one service of ``text`` that starts with a command, which is the argv under test."""
+    """Return the one service of ``text`` that declares a command, the argv under test."""
     found = [started for started in read_starts(text) if started.command is not None]
     assert len(found) == 1, found
     return found[0]
@@ -83,8 +83,8 @@ def test_the_variable_after_the_model_flag_is_the_artifact_that_argv_names() -> 
 
 
 def test_a_model_path_written_out_in_full_names_no_variable_to_hold() -> None:
-    """There is no name to misspell in a literal path, and the wiring is what finds such a
-    server; a reader reporting the path itself would be reporting a value, not a name."""
+    """A literal path carries no variable name to hold to the convention, and the wiring is what
+    finds such a server. Reporting the path itself would report a value rather than a name."""
     assert spends(_one(WRITTEN_OUT)) == ()
 
 
@@ -96,26 +96,26 @@ def test_a_model_flag_written_last_is_followed_by_nothing_rather_than_by_an_arti
 
 
 def test_a_service_declaring_no_command_names_nothing(tmp_path: Path) -> None:
-    """The normal shape for an override re-opening `brain:`, and the shape the model host has:
-    its argv comes from a supervisor, and the sidecar's own declaration is read instead."""
+    """This is the normal shape for an override re-opening `brain:`, and the shape the model host
+    has: its argv comes from a supervisor, so the sidecar's own declaration is read instead."""
     reopened = 'services:\n  brain:\n    environment:\n      CORTEX_X: "1"\n'
     assert composed(_tree(tmp_path, {"docker-compose.body.yml": reopened})) == ()
 
 
 def test_the_short_spelling_of_the_model_flag_is_not_read() -> None:
-    """Deliberate, and the fixture is this tree's own shape: an MCP sidecar started with
-    `python -m <module>`. Reading `-m` would call the module an artifact and redden a correct
-    service whose only remedy would be to teach the gate."""
+    """The short `-m` is skipped deliberately. The fixture is this tree's own shape, an MCP sidecar
+    started with `python -m <module>`, and reading `-m` would call the module an artifact and fail
+    a correct service whose only remedy would be to teach the gate."""
     assert spends(_one(PYTHON_MODULE)) == ()
 
 
 def test_an_argv_that_declares_itself_an_embedding_server_names_an_artifact_like_any_other(
     tmp_path: Path,
 ) -> None:
-    """What a server serves is the membership reader's question and not this one, so the CPU
+    """What a server serves is the membership reader's question rather than this one, so the CPU
     embedder's own artifact is enumerated beside the subagent's and held to the same spelling.
     The exclusion that used to sit here excused the one artifact in this tree named outside the
-    family, in the block a new non-chat model server would be copied from."""
+    convention, in the block a new non-chat model server would be copied from."""
     stack = {
         "docker-compose.memory.yml": EMBEDDER,
         "docker-compose.subagents.yml": SUBAGENT,
@@ -142,8 +142,8 @@ def test_an_artifact_carries_the_file_the_service_and_the_line_it_is_named_on(
 
 
 def test_a_command_spending_a_dollar_form_no_reader_can_name_is_raised() -> None:
-    """The substitution reader owns that refusal and this one re-raises it with the service on
-    it, exactly as the membership reader does with the same reading."""
+    """The substitution reader raises, and this reader re-raises with the service named, exactly as
+    the membership reader does with the same reading."""
     broken = 'services:\n  s:\n    command:\n      - "--model"\n      - "${"\n'
     with pytest.raises(ComposeStartError, match="the command of 's' cannot be read"):
         spends(_one(broken))
@@ -179,8 +179,8 @@ class ModelHostConfig(BaseSettings):
 
 
 def test_a_settings_field_naming_a_file_is_an_artifact_whichever_keyword_spends_it() -> None:
-    """The projector's shape: it reaches an argv through a tier's `extra` and never through its
-    `model_path`, so the field's own name is what says it holds one."""
+    """This is the projector's shape: it reaches an argv through a tier's `extra` rather than
+    through its `model_path`, so the field's own name is what says it holds a file."""
     assert files(ast.parse(SETTINGS)) == (
         ("cortex_file", "CORTEX_MODEL_FILE_CORTEX", 11),
         ("cortex_mmproj_file", "CORTEX_MODEL_FILE_CORTEX_MMPROJ", 12),
@@ -190,9 +190,10 @@ def test_a_settings_field_naming_a_file_is_an_artifact_whichever_keyword_spends_
 def test_a_field_that_names_no_file_and_one_outside_the_settings_class_are_both_passed_over() -> (
     None
 ):
-    """Three shapes at once, and each would be a fault of its own: a knob that is no artifact
-    (`cortex_ngl`), a path that is no artifact (`llama_bin`, which names no variable), and a
-    field of the right shape in some other class, which is not this sidecar's declaration."""
+    """Three shapes are passed over, each of which would be a fault of its own if it were read: a
+    setting that is no artifact (`cortex_ngl`), a path that is no artifact (`llama_bin`, which
+    names no variable), and a field of the right shape in some other class, which is not this
+    sidecar's declaration."""
     found = [field for field, _, _ in files(ast.parse(SETTINGS))]
     assert "cortex_ngl" not in found
     assert "llama_bin" not in found
@@ -203,9 +204,10 @@ def test_a_field_that_names_no_file_and_one_outside_the_settings_class_are_both_
 
 
 def test_the_committed_sidecar_names_every_tiers_artifact_and_not_only_the_subagents() -> None:
-    """The half the membership reader filters away. Its three tiers name three artifacts, and the
-    two that serve no subagent are held to the family exactly as the one that does; the projector
-    is the fourth, found by its field rather than by a tier's `model_path`."""
+    """This is the half the membership reader filters away. The sidecar's three tiers name three
+    artifacts, and the two that serve no subagent are held to the naming convention exactly as the
+    one that does. The projector is the fourth, found by its field rather than by a tier's
+    `model_path`."""
     found = {artifact.where: artifact.variable for artifact in tiered(REPO_ROOT)}
     assert found == {
         "cortex_file": "CORTEX_MODEL_FILE_CORTEX",
@@ -216,8 +218,8 @@ def test_the_committed_sidecar_names_every_tiers_artifact_and_not_only_the_subag
 
 
 def test_an_artifact_a_tier_spends_is_reported_once_and_at_the_tier_that_spends_it() -> None:
-    """Both readings find `cortex_file`, and it is one artifact: the tier's line is what a reader
-    is sent to, and the field walk adds only what no tier's `model_path` named."""
+    """Both readings find `cortex_file`, and it is reported once: a reader is sent to the tier's
+    line, and the field walk adds only what no tier's `model_path` named."""
     walked = tiered(REPO_ROOT)
     found = [artifact for artifact in walked if artifact.where == "cortex_file"]
     projector = [artifact for artifact in walked if artifact.where == "cortex_mmproj_file"]
@@ -229,10 +231,9 @@ def test_an_artifact_a_tier_spends_is_reported_once_and_at_the_tier_that_spends_
 
 
 def test_the_committed_tree_names_the_artifacts_it_ships_in_both_languages() -> None:
-    """Both halves at once, since the rule above runs over the join. Every artifact this tree
-    names is here, the CPU embedder's included: nothing is excluded from this reading any more,
-    which is what makes the family the rule holds them to a family rather than a convention with
-    one documented exception."""
+    """Both halves at once, since the rule above runs over the join. Every artifact this tree names
+    is here, the CPU embedder's included, so nothing is excluded from this reading and the naming
+    convention the rule holds them to has no documented exception."""
     found = {artifact.variable for artifact in named(REPO_ROOT)}
     assert found == {
         "CORTEX_MODEL_FILE_EMBED",

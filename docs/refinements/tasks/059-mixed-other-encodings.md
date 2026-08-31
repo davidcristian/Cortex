@@ -19,13 +19,13 @@ like the work was never owed anything, and that is a property of generating tabl
 listing them.
 
 *Other encodings* owed the resolver question one candidate, and the candidate that answers yes is
-not an encoding of a character at all but the **absence** of one: a URL parser removes every ASCII
+the **absence** of a character rather than an encoding of one: a URL parser removes every ASCII
 tab and newline from its input before it parses anything, at every position, so
 `http://evil.exa<TAB>mple/pay` is the plain link to every conforming parser, the browser the user
 pastes into included, and the overlay's `white-space: pre-wrap` bubble hands the character to the
 clipboard intact. **The tab closed and the line break declined, on one measurement over the repo's
 own prose**: 1,054 files, 1,348,844 words, 1,469 spans, with the tab adding, losing and extending
-nothing at all, and the newline extending 42 spans by swallowing a line's end and the next line's
+nothing at all, and the newline extending 42 spans over a line's end and into the next line's
 first word. That decline was already argued when the split host's space table left the
 line-breaking family out, so this pass only put a number to it. The pass also fixed the one
 ordering decision the fold makes: a tab between two labels keeps the **gap** reading (`evil.com`,

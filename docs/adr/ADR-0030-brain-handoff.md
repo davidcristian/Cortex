@@ -12,7 +12,7 @@ decision 3) → the brain rehydrates from the store, works, persists → swap ba
 resumes from the store. It includes a chaos test (kill a model mid-handoff; the system resumes
 from the store) and the runbook `docs/runbooks/model-swap.md`.
 
-The design sits on what exists, not on guesses. The load-bearing facts, each read from the
+The design sits on what exists, not on guesses. The facts the design rests on, each read from the
 tree at the commit this ADR lands on:
 
 - **Almost everything is already in the stores.** The engine is a stateless function over
@@ -352,7 +352,7 @@ For every kill point it asserts convergence and no state loss:
 
 Distrust-green, per AGENTS.md: after wiring, the suite is proven fallible by mutation
 (removing the scope's `finally` restore, or skipping the record transition before the swap,
-must redden named cases; the proofs are noted in the tests as the lease-release test did).
+must make named cases fail; the proofs are noted in the tests as the lease-release test did).
 
 **Host half (host-side, runbook-driven).** On the 24 GB machine: `docker exec` into
 `model-host` and `kill -9` the brain's `llama-server` child mid-handoff (and once mid-load),
@@ -373,7 +373,7 @@ overflows, so today's GPU carries the cortex and nothing else. Every brain candi
 and none fits under the 14 GB soft cap alone at full offload.** Therefore the swap evicts
 BOTH the cortex and any GPU-placed subagent, and the v1 co-residency rule is: **while the
 brain is resident, it is alone on the GPU.** CPU subagents hold no VRAM but are drained
-anyway (decision 4): the brain's hybrid-offload fallback and its KV want the host RAM/CPU
+anyway (decision 4): the brain's hybrid-offload fallback and its KV need the host RAM/CPU
 headroom, and "brain runs alone" is one invariant instead of three special cases.
 
 The handoff window is a deliberate, user-confirmed exception to the 14 GB soft cap: the brain
@@ -540,7 +540,7 @@ in the conductor, on the same bit, answering `OPAQUE_TURN_NOTE` beside `ALREADY_
 `STORE_FAILED_NOTE`, so the turn ends with an honest sentence and a serving cortex; the dead check
 in the tool is gone, and the snapshot raise is documented as the unreachable invariant behind it
 rather than as a mechanism. The refusal is pinned end to end through the real tool loop, the real
-tools and the real conductor, and deleting it (or moving a word of the note) reddens that test.
+tools and the real conductor, and deleting it (or moving a word of the note) fails that test.
 What the record still does **not** carry is the `opaque` bit itself, so `taint_ledger()` rebuilds
 it at `False`: sound only because no opaque turn can reach a record now, and recorded as a
 deferral in `docs/refinements/index.md#vision` with its index line, beside the pixels-across-a-swap
@@ -700,7 +700,7 @@ it had to be decided now rather than discovered then.
   case, and justified that with a citation to a cancellation proof that does not exist. Status
   details are now asserted as an ordered prefix of the swap window, with "the deep model is
   working on this" witnessed against the record and the host's op log, so a status yielded
-  before the residency scope is entered reddens; the false citation is replaced by a plain
+  before the residency scope is entered makes a case fail; the false citation is replaced by a plain
   statement of what a cancelled case does not prove;
 - "the stores are intact" never covered durable memory (the harness's capabilities carried no
   recaller, so the memory write was a no-op in every case). It does now, strictly for a
@@ -722,7 +722,7 @@ places the previous addendum had just declared fixed. Nothing about decisions 1 
 **Still no real model swap has been validated**, for the same reason as before: the scripted
 host starts no process, and the dev GPU cannot hold these tiers.
 
-**The honest note was only half wired, and the docs were the half that lied.** The previous
+**The honest note was only half wired, and the docs were the half that was wrong.** The previous
 addendum decided that `HandoffInProgressError` carries the note saying a handoff is already
 running, and the error's own docstring, the port, and the module doc all said so. The
 conductor's mapping did not: it answered the swap-failure note for everything that was not a
@@ -757,7 +757,7 @@ that same flag back. It constrained nothing: with the pool's `drain` mutated to 
 refusal window at all, the case still passed. The straggler now waits on the pool's condition
 until the real `drain` closes admission around it, and only then fires the gate, so the handoff
 is suspended inside the real drain and every assertion at that boundary reads state the pool set.
-The same mutation now reddens both mid-drain cases. This is the third instance in this sub-slice
+The same mutation now fails both mid-drain cases. This is the third instance in this sub-slice
 of an assertion satisfied by its own harness, which is worth naming as a species: a kill point
 whose boundary is staged rather than reached proves nothing about the code that reaches it.
 
@@ -793,7 +793,7 @@ answering whether it took the pointer. The Redis side is an atomic `SET cortex:h
 cannot branch on an intermediate reply. It also needs an expiry story: a fenced claim held by a
 process that then dies would wedge every other process's escalation until someone cleared the key
 by hand, where today a stranded non-terminal record is deliberately TTL-free and settled by the
-next boot recovery. So the claim wants a lease (a TTL plus a heartbeat while the handoff runs) or
+next boot recovery. So the claim needs a lease (a TTL plus a heartbeat while the handoff runs) or
 a user id that lets recovery tell its own strand from another process's live handoff. Then the
 in-memory fake carries the same semantics, the contract suite gains a two-concurrent-claimants
 case, and `_prepare` calls the claim instead of `active()`, keeping the refusal note it has now.
@@ -827,7 +827,7 @@ of cancellations, and the cost is the one already recorded in
 cortex. The conductor's `undrain` keeps its single `finally`, which already runs after the swap
 generator's `aclose` and therefore after the restore; what was missing was never that ordering
 but the guarantee underneath it, and the gate now holds both (hoisting the `undrain` above that
-`aclose` reddens the close case).
+`aclose` fails the close case).
 
 **An order among four strings is not four true statements.** The window's statuses were asserted
 as an ordered prefix of the four, which constrains them only against each other: three of them
@@ -838,14 +838,14 @@ the deep model's call count), and each is checked against the work it announces:
 announced before the pool is quiesced, the load before the deep model is started, "working on
 this" only after the health gate passed and the record reached `BRAIN_ACTIVE` and before the
 model has been asked anything, and the restore after the deep model answered and before the
-cortex is asked back. All four misplacements redden, in both swap suites; none of them changes
-the order the old assertion read.
+cortex is asked back. All four misplacements make a case fail, in both swap suites; none of them
+changes the order the old assertion read.
 
 **The innermost teardown had no witness at all.** The conductor closes three generators on a
 consumer that walks away, and the case named for that teardown asserted only the outermost two.
 The deep model's own round is now asserted through the backend's `closed` flag, and the close
 case runs with the deep model mid answer so all three are outstanding at once. Dropping that
-`aclose` reddens it and nothing else in the suite.
+`aclose` fails it and nothing else in the suite.
 
 ## Addendum (2026-07-18): the proof claims only what was measured
 
@@ -861,28 +861,28 @@ half of the case's name was unbacked. Non-resumption is a property of the signat
 here and in the refinement that would undo it, not something a runtime assertion adds to. What
 the case proves instead is the consequence a crash-stranded record really threatens and that can
 fail: it now escalates the same turn again after recovery and requires it to answer, having asked
-the deep model exactly once, which reddens under a conductor that refuses a handoff because the
+the deep model exactly once, which fails under a conductor that rejects a handoff because the
 store still holds a record under that turn id. The case is renamed for that. The second assertion
 was decorative, a `not in` on a value the preceding line had already pinned whole by equality to a
 constant that does not contain it; the equality is what rules the note out, and the comment says
 so rather than a line that cannot fail.
 
 **A preamble that claimed more precision than it had.** The chaos suite's distrust-green block
-said each mutation "reddened exactly the cases named". Re-measured one mutation at a time across
-the whole `packages/core` suite, nine of the bullets understated, reddening cases they did not
+said each mutation failed exactly the cases named. Re-measured one mutation at a time across
+the whole `packages/core` suite, nine of the bullets understated, failing cases they did not
 name, either elsewhere in the chaos suite or in the conductor, residency, recovery and
 drain-contract suites over the same production code; two of the four swap-window sub-claims
-overstated instead, naming a wider population than actually reddens (a drain that timed out emits
+overstated instead, naming a wider population than actually fails (a drain that timed out emits
 no status at all under the "draining" mutation, a case killed between the deep model's answer and
 the "restoring" status never emits that one, and four cases in the suite never check the window
 at all). No proof is weaker than it was cited for, every
-mutation still reddening the case it exists to pin, but "exactly" would have told a future agent
+mutation still failing the case it exists to pin, but "exactly" would have told a future agent
 that a case is unconstrained when it is not. Each bullet now carries its measured package-wide
 failure count and names the cases in its own file, and "and nothing else" where it appears was
 measured across the package. Two counts had also drifted with the repairs above: dropping
-`undrain` now reddens the mid-drain kill as well, the window's release being witnessed against
+`undrain` now fails the mid-drain kill as well, the window's release being witnessed against
 the residency running at that instant, and restarting nothing after the cortex comes back now
-reddens the second-cancellation case too, that case evicting a tier.
+fails the second-cancellation case too, that case evicting a tier.
 
 **One piece of harness the suite does not pin.** The mid-drain straggler waits on the pool's own
 condition until the real `drain` closes admission around it. Removing that wait leaves the whole
@@ -940,11 +940,11 @@ implementation could have moved either number. What that deployment really const
 instead: the sequence still reaches a deep answer and a `DONE` record, which is the drain step
 answering "nothing to quiesce" rather than aborting, and the window still announces the quiescing
 it has nothing to perform, as all four details whole rather than as the prefix the per-status
-witness checks (dropping the last status reddens that case and the clean one, and nothing else in
+witness checks (dropping the last status fails that case and the clean one, and nothing else in
 the package). The mid-drain boundary case asserted that its straggler task was still running, which
 its own harness holds at a gate; the case now asserts what the conductor owes at that boundary and
 had not been asked for, that the record is written and `READY` before anything touches the pool
-(persisting the snapshot after the drain instead reddens it there, and nothing else in the suite
+(persisting the snapshot after the drain instead fails it there, and nothing else in the suite
 sees the ordering while the drain is still running), and the straggler lines stay as the stated
 premise of the boundary rather than as a finding about the code. The conductor suite's drain-timeout
 case has the same premise line and now says so too.
@@ -983,7 +983,7 @@ model's name, which is the hard rule's premise silently broken. So the superviso
 **exit code first** and only probes a process it knows is alive; a child that exited unasked is
 FAILED with its code in `detail` until the next `start` replaces it. `build_roster` closes the same
 hole at boot by refusing two tiers on one port, where an operator can still fix it. Both halves are
-pinned by tests that redden under mutation, and the FAILED case was observed live twice (a missing
+pinned by tests that fail under mutation, and the FAILED case was observed live twice (a missing
 artifact, exit code 1; a `kill -9`, code -9).
 
 **The control API is not published to the host, and that cost a second override file.** Decision 3
@@ -1028,7 +1028,7 @@ in one cgroup** and no per-model CPU or RAM cap exists, only one cap set coverin
 (`CORTEX_MODELHOST_{CPUS,MEMORY,MEMSWAP}`), plus a separate set on the CPU subagent container whose
 defaults are the hard twin of the brain's soft admission budgets. This ADR wins as the later and
 more specific decision, and its own security argument is what buys it: a per-model cap wants a
-container per model, which wants something that can start containers, which is the docker-socket
+container per model, which needs something that can start containers, which is the docker-socket
 shape decision 3 rejected. The values ship as user-tunable placeholders, because the 8 GB dev GPU
 cannot hold a real tier pair; note that llama.cpp mmaps the GGUF, so mapped model pages count
 against the memory cap and a cap below the artifact size makes a load thrash rather than fail.
@@ -1269,18 +1269,18 @@ than papered over, because boot recovery is what re-reads the machine and the ru
 recovery already ends by restarting the brain; the runbook now says why that step is not optional.
 
 **What the gate holds, proven by mutation** (each applied to production code alone with the whole
-brain workspace re-run): answering ready unconditionally again reddens three cases and nothing
+brain workspace re-run): answering ready unconditionally again fails three cases and nothing
 else, two at the seam and one through the whole composition root; reading `_resident` instead of
-the published report reddens five; dropping the give-up report reddens one; dropping `residency=`
-from the root's `serve` call reddens exactly the wiring case, which is what keeps the knob from
-being silently droppable; publishing not-ready at the claim reddens the drain-window case; and
+the published report fails five; dropping the give-up report fails one; dropping `residency=`
+from the root's `serve` call fails exactly the wiring case, which is what keeps the knob from
+being silently droppable; publishing not-ready at the claim fails the drain-window case; and
 making the report a coroutine that takes the lease fails the stalled-swap case by its own timeout
 rather than hanging the suite. The last of those is the non-blocking proof: the case pauses a swap
 inside the host's `start`, where the lease is held for the whole move, and requires a bounded
 `Health` RPC to answer `loading` anyway. Agent-validated in Docker as well, over the real
 supervisor and two small stand-ins: inside a real residency scope the deep child was READY, the
 standing one STOPPED, and the report at that instant said a deep task was in progress, with a
-report that always claims serving reddening it.
+report that always claims serving failing it.
 
 ## Addendum (2026-07-18): the audit round on the honest `Health`, and the boot it still lied about
 
@@ -1338,17 +1338,17 @@ restoring and gave-up windows through `BrainService.Health` and assert `ready is
 literal it has to be.
 
 **Measured mutations for the repair** (each applied to production code alone, whole brain
-workspace re-run, then restored): `serving=True` on `RESIDENCY_RESTORING` reddens 2, the constants
-case plus the seam's swap-back case; the same on `RESIDENCY_LOST` reddens the constants case plus
+workspace re-run, then restored): `serving=True` on `RESIDENCY_RESTORING` fails 2, the constants
+case plus the seam's swap-back case; the same on `RESIDENCY_LOST` fails the constants case plus
 the seam's gave-up case; on `RESIDENCY_BOOT_FAILED`, the constants case plus the composition
-root's boot case. Blanking all five not-serving details reddens exactly 1, the constants case.
-Dropping the root's `publish_boot_residency` call reddens exactly 1, and passing it a constant
-`serving=True` reddens the same one, so neither half of that knob is silently droppable. Making
-`converge_residency` return `True` unconditionally reddens 3, both recovery cases that observe a
+root's boot case. Blanking all five not-serving details fails exactly 1, the constants case.
+Dropping the root's `publish_boot_residency` call fails exactly 1, and passing it a constant
+`serving=True` fails the same one, so neither half of that knob is silently droppable. Making
+`converge_residency` return `True` unconditionally fails 3, both recovery cases that observe a
 cortex which is not serving plus that same root case. Dropping the not-serving branch of the
-publish reddens 2. Clearing `_resident` inside it reddens exactly 1, the case that pins a
+publish fails 2. Clearing `_resident` inside it fails exactly 1, the case that pins a
 still-leasable cortex, which is the guard on the exception described above. `Health` answering
-ready unconditionally now reddens 6 where it reddened 3 before this round.
+ready unconditionally now fails 6 where it failed 3 before this round.
 
 **Two smaller corrections.** `create_server` and `serve` were threading the three optional seam
 ports one keyword at a time and had reached `max-args = 6`, the dependency ceiling ruff.toml sets,
@@ -1357,7 +1357,7 @@ bundle, which drops them to 4 and removes the second place that must learn about
 optional port. And `SwappingModelManager`'s handoff claim moved to `residency_claim.py` as
 `HandoffClaim` over the same condition, a pure move made **before** adding to `residency.py`
 rather than after tripping the 300-line cap: 277 lines plus the boot publish would have left 8 of
-headroom on the file every swap feature grows. Dropping the claim's refusal reddens 2, its own
+headroom on the file every swap feature grows. Dropping the claim's refusal fails 2, its own
 case and the chaos suite's race, so the move is proven behaviour-preserving where it matters.
 
 **Validated live in Docker, and the boot path needs no GPU to be real.** The brain container was
@@ -1368,7 +1368,7 @@ come up at startup; the model host needs attention", the boot-recovery ERROR was
 own log, and the container still read **healthy**, which is the corrected predicate doing its job
 (the RPC answered). Restoring the base stack, where escalation is off and no residency is wired,
 answered `ready=true` with the version detail, so the check discriminates rather than always
-reddening. **Tier scale is still not validated and cannot be here**, for the reason every addendum
+failing. **Tier scale is still not validated and cannot be here**, for the reason every addendum
 above gives: the dev GPU is 8 GB.
 
 ## Addendum (2026-07-19): the host-only half has a home, and an 8 GB card does not fail loudly
@@ -1458,16 +1458,16 @@ real and are reached by the deep phase (`BrainPhase.run` opens the guardrail ove
 ledger and hands the same ledger to `record_exchange`), and the cost estimate ("a record field, a
 codec line, and the store contract's round trip") held exactly. The codec's behaviour on a field it
 does not know was checked too, since the same entry's history turns on it: `decode_record` reads
-keys by name, so an **unknown** key is ignored in silence and a **missing** known key raises
+keys by name, so an **unknown** key is ignored without error and a **missing** known key raises
 `KeyError` into `HandoffStoreError`. That asymmetry is why the bit is added to both halves of the
 codec rather than defaulted on read, and why the strict-decode test is now parametrized over all
 four taint fields.
 
-Mutation-proven three ways, each restored: dropping the key from `encode_record` alone reddens
+Mutation-proven three ways, each restored: dropping the key from `encode_record` alone fails
 thirteen store tests (every read of a written record fails as corrupt); defaulting it on read with
-`.get("opaque", False)` reddens only the strict-decode test, which is the one that exists to catch
-a silent default; dropping it from both halves reddens the contract round trip itself on
-`loaded == record`. Dropping `opaque` out of `snapshot` or out of `taint_ledger()` reddens the two
+`.get("opaque", False)` fails only the strict-decode test, which is the one that exists to catch
+a silent default; dropping it from both halves fails the contract round trip itself on
+`loaded == record`. Dropping `opaque` out of `snapshot` or out of `taint_ledger()` fails the two
 new brain-phase tests that watch the consumers differ across a swap, each of which runs a
 tainted-but-not-opaque control arm so the difference measured is the bit and not the taint.
 
@@ -1476,7 +1476,7 @@ Validated against the compose Redis (`cortex-redis-1`), not only fakeredis: the 
 poles shows `"opaque": true` and `"opaque": false` in the stored document, reads back exact on the
 record and on the rebuilt ledger, and sweeps the keys.
 
-What stays open is the expensive half, pixels themselves, which still wants an `AttachmentStore`
+What stays open is the expensive half, pixels themselves, which still needs an `AttachmentStore`
 and still meets the capability argument that no brain-tier candidate on the mount has a projector.
 The conductor's refusal stays exactly where it is.
 
@@ -1627,7 +1627,7 @@ decision the maintainer made, and a later reader should be able to tell them apa
   charge above composes with the new value unchanged: it replaces this term for the window and
   restores it after, and what it restores is 8.6.
 - **The reason CPU subagents are drained.** Decision 8 says the drain covers them because "the
-  brain's hybrid-offload fallback and its KV want the host RAM/CPU headroom". ADR-0004's brain-pick
+  brain's hybrid-offload fallback and its KV need the host RAM/CPU headroom". ADR-0004's brain-pick
   addendum retired that premise on 2026-08-04: every candidate fits alone at `-ngl 99`, the hybrid
   fallback "is therefore not needed and is not configured". The surviving reason for the drain is
   the one the conductor's own comments give, that admission must not reopen onto an evicted tier,
@@ -1711,11 +1711,11 @@ last `stop` and the `start`, and that is where the check went.
   pairing at boot: nothing here talks to the sidecar until a swap does.
 - **Not by degrading to the evict-everything path.** Falling back to the shipped behaviour on a
   card that turns out to be short is tempting and is unsafe here, for a reason that is about
-  ordering rather than taste: the conductor decides whether to drain **before** the swap begins, so
-  a co-resident handoff has already skipped the drain and announced no window by the time `swap_in`
-  reads the card. Stopping the peers at that point would reopen exactly the hazard the drain
-  exists for, admission onto a tier nothing restarted, and it would do it silently. A handoff that
-  cannot run as configured is refused, and the machine is left as it was found.
+  ordering rather than taste: the conductor determines whether to drain **before** the swap
+  begins, so a co-resident handoff has already skipped the drain and announced no window by the
+  time `swap_in` reads the card. Stopping the peers at that point would reopen exactly the hazard
+  the drain exists for, admission onto a tier nothing restarted, and it would do it silently. A
+  handoff that cannot run as configured is refused, and the machine is left as it was found.
 - **After the cortex is stopped, not before.** The refusal therefore costs one cortex eviction and
   its restore (measured 31.43 s) on a misconfigured deployment. Checking earlier would need the
   cortex's own cost as a second declared number to know what the eviction will free, and that
@@ -1944,15 +1944,15 @@ after a handoff has the same cause read from the other end.
 ### Proven able to fail before being trusted
 
 The parse, the routing and the policy were each mutated and reverted. Dropping the timings read
-reddens the adapter leg of the shared contract and no scripted case; removing the loop's cadence
-branch reddens every deep-phase case that expects a reading; logging a collapse at INFO reddens
+fails the adapter leg of the shared contract and no scripted case; removing the loop's cadence
+branch fails every deep-phase case that expects a reading; logging a collapse at INFO fails
 the warning case; keeping the slowest sample instead of the fastest, dropping the short-sample
 guard, judging against an undeclared floor, and answering with a reading when nothing qualified
-each redden their own named test. One mutation did **not** redden what it should have, and that is
-recorded rather than smoothed over: reordering the adapter's yields does not redden the contract's
+each fail their own named test. One mutation did **not** fail what it should have, and that is
+recorded rather than smoothed over: reordering the adapter's yields does not fail the contract's
 ordering check, because on this build the `timings` object rides a content-less chunk and the order
 is the transcript's rather than the adapter's. The case where the adapter's order is its own, one
-chunk carrying both, is pinned in `test_backend.py` instead, and that is what the mutation reddens.
+chunk carrying both, is pinned in `test_backend.py` instead, and that is what the mutation fails.
 
 A second lesson came out of the same pass. The first run of that mutation reported green against a
 **stale `.pyc`**: `cp` restoring the source within the same second as the bytecode's write left
@@ -2053,26 +2053,26 @@ this is the same kind of misconfiguration read from a running container instead 
 ### Proven able to fail before being trusted
 
 Each mutation was applied to production code alone, `__pycache__` cleared, and the whole `packages`
-suite re-run, so the counts below are what actually reddened rather than what was aimed at.
+suite re-run, so the counts below are what actually failed rather than what was aimed at.
 
-- Making `clears` answer `True` whatever the numbers reddens **4**: the boundary case in
+- Making `clears` answer `True` whatever the numbers fails **4**: the boundary case in
   `test_model_host.py` and all three refusal cases.
-- Dropping the refusal itself (logging the mismatch and serving anyway) reddens **3**, those same
+- Dropping the refusal itself (logging the mismatch and serving anyway) fails **3**, those same
   three, which is what separates the arithmetic from the policy over it.
-- Refusing an unreachable host as well as an answered mismatch reddens **1**,
+- Refusing an unreachable host as well as an answered mismatch fails **1**,
   `test_a_host_that_cannot_be_asked_leaves_the_pairing_unchecked`, so the tolerance is pinned as
   deliberately as the refusal.
-- Dropping `probe_timeout_s` from the health body reddens **2**, the API's own health case and the
-  shared contract's supervisor leg; no scripted case reddens, the twin echoing what it was handed.
-- Reading a partial set of bounds as bounds (guarding only the first term) reddens **2**, the
+- Dropping `probe_timeout_s` from the health body fails **2**, the API's own health case and the
+  shared contract's supervisor leg; no scripted case fails, the twin echoing what it was handed.
+- Reading a partial set of bounds as bounds (guarding only the first term) fails **2**, the
   negative and the bool rows of the adapter's parameterization.
-- Dropping the composition root's own call reddens **1**, and only the case that drives
+- Dropping the composition root's own call fails **1**, and only the case that drives
   `run_from_env`, which is why that case exists beside the ones that drive the check directly.
 
 One thing the first attempt got wrong is worth recording: that root-level case originally hung
 instead of failing, because a root that never refuses goes on to `serve`, which returns for nothing
 a test can arrange. It is bounded by `asyncio.wait_for` now. A mutation that hangs the suite is not
-a proof that it reddens.
+a proof that it fails.
 
 ### What this deliberately does not do
 
@@ -2181,25 +2181,25 @@ that can be stale and are rewritten are the resident and the report.
 ### Proven able to fail before being trusted
 
 Each mutation was applied to production code alone, `__pycache__` cleared, and the whole
-`packages` suite re-run, so the counts are what actually reddened rather than what was aimed at.
+`packages` suite re-run, so the counts are what actually failed rather than what was aimed at.
 
-- Treating a first observation as a change reddens **3**, and the third is the one that matters:
+- Treating a first observation as a change fails **3**, and the third is the one that matters:
   a co-resident plan losing its peers on a brain whose boot could not reach the sidecar.
-- Remembering nothing reddens **12**; clearing what was remembered when a host will not say reddens
+- Remembering nothing fails **12**; clearing what was remembered when a host will not say fails
   **1**, and only on one line, since a silence **between** two daemons is the sole sequence in
   which erasing changes an answer.
-- Skipping the deadline re-read after a replacement reddens **3**. Refusing on an unreachable host
-  instead of standing down reddens **2**, and doing the same for unreadable bounds reddens **1**,
+- Skipping the deadline re-read after a replacement fails **3**. Refusing on an unreachable host
+  instead of standing down fails **2**, and doing the same for unreadable bounds fails **1**,
   so both tolerances are pinned as deliberately as the refusals.
-- Publishing nothing after a successful convergence reddens **7**, which is what ties the beliefs
-  to the reading rather than to the machine alone; publishing nothing after a failed one reddens
+- Publishing nothing after a successful convergence fails **7**, which is what ties the beliefs
+  to the reading rather than to the machine alone; publishing nothing after a failed one fails
   **1**.
-- Dropping the reconcile from the swap reddens **9**, across the residency, conductor and chaos
-  suites, all of which read the op log; dropping the seed from the boot publish reddens **2**.
-- Dropping `boot_id` from the daemon's health body reddens **2**, the API's own case and the shared
+- Dropping the reconcile from the swap fails **9**, across the residency, conductor and chaos
+  suites, all of which read the op log; dropping the seed from the boot publish fails **2**.
+- Dropping `boot_id` from the daemon's health body fails **2**, the API's own case and the shared
   contract's supervisor leg, and no scripted case, the twin echoing what it was handed. A
-  supervisor minting a constant instead of a fresh value reddens **1**. An adapter taking whatever
-  the body carries reddens **2**, the empty-string and non-string rows.
+  supervisor minting a constant instead of a fresh value fails **1**. An adapter taking whatever
+  the body carries fails **2**, the empty-string and non-string rows.
 
 ### Validated against a real container, since one claim here is not a CI claim
 
@@ -2239,7 +2239,7 @@ described.
   `device_free_mib` beside it, and neither side declares it as a named constant, so `crosscheck.py`
   has nothing to compare. What ties them is the shared `ModelHost` contract suite, which drives the
   same check over the twin and over the real adapter talking to a real supervisor through a real
-  Starlette app: dropping the field from the daemon reddens that leg.
+  Starlette app: dropping the field from the daemon fails that leg.
 - **It does not resume the handoff it refuses.** A refused handoff ends as every other refused one
   does, with the honest note and the cortex serving. Resuming from the record remains the separate
   deferral it was, waiting on the same request-identity design.
@@ -2372,7 +2372,7 @@ standing residency grew peers that can be down while the cortex is up.
 
 Nine mutations, each applied to production code alone with the whole brain workspace re-run, then
 reverted; the counts are in `test_residency_tiers.py`'s header and are measured rather than aimed
-at. Dropping `mark_missing` reddens 7 across two packages, dropping `mark_standing` 1, reopening
+at. Dropping `mark_missing` fails 7 across two packages, dropping `mark_standing` 1, reopening
 on any restart rather than on an emptied record 1, annotating a not-serving report 1, consulting
 the headroom before the closed flag 7, starting a `LOADING` tier 1, dropping the scope guard 1,
 dropping the loop's pass guard 1, and dropping the seam's serving-detail branch 1.
@@ -2549,7 +2549,7 @@ beside it, because no adapter has business holding one.
 Five mutations, each applied to production code alone with the whole brain workspace re-run, then
 reverted; the counts are measured rather than aimed at.
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | the peer restart back inside the verdict's `try` (the code as it was) | 5 |
 | the peer clearing back inside that `try` (deep model included) | 1 |
@@ -2561,7 +2561,7 @@ The third one is the case that earned the file's warning. Written the obvious wa
 suite's default plan, its assertion was **vacuous**: that plan evicts nothing, so a mutation that
 marked every peer had no peer to mark and stayed green. It names a tier and hands the host a start
 it refuses now, and it releases. The split was re-measured rather than assumed: dropping
-`notify_all` from what is now `ResidencyBoard.leave_scope` reddens 3, every wait that then never
+`notify_all` from what is now `ResidencyBoard.leave_scope` fails 3, every wait that then never
 wakes.
 
 ### Validated against a real sidecar, since the claim that moved the design is not a CI claim
@@ -2809,7 +2809,7 @@ shape rather than filed as a new entry.
 Seven mutations, each applied to production code alone with the whole brain workspace re-run, then
 reverted. The counts are measured rather than aimed at.
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | the adapter collapsing a tier's 404 into the broad error (the code as it was) | 2 |
 | the adapter reading **every** refusal as a tier the host does not carry | 3 |
@@ -2819,15 +2819,15 @@ reverted. The counts are measured rather than aimed at.
 | the swap back stopping the swapped-in model with no tolerance (the code as it was) | 1 |
 | the swap in describing an unrostered tier as a host that failed (the code as it was) | 1 |
 
-Three of them are worth reading rather than counting. The first reddens the **supervisor** leg of
+Three of them are worth reading rather than counting. The first fails the **supervisor** leg of
 `check_an_id_this_host_does_not_carry_is_refused_by_every_verb` and no scripted one, which is what
 driving the contract over both implementations is for: the twin is told what it does not host,
 while the real leg has to derive the same answer from a roster and an HTTP status. The third is the
-mirror of it, reddening both scripted legs plus the three core cases that arrange the condition,
+mirror of it, failing both scripted legs plus the three core cases that arrange the condition,
 and it is the reason a fake that could not refuse would have made this whole slice untestable over
 the twin. The second is the guard on the direction that matters most, since it is the one mistake
 that would be worse than the defect: read every refusal as a missing tier and a wedged supervisor
-becomes a configuration note, so the 503 and 500 rows and the wrong-endpoint case all redden.
+becomes a configuration note, so the 503 and 500 rows and the wrong-endpoint case all fail.
 
 ### Validated against the real supervisor over HTTP, since the claim that moved the design is not a CI claim
 
@@ -2929,7 +2929,7 @@ believes about it, and writes what it sees. The record stops being a list of ref
 **cache of the machine, refreshed every interval**, which is the property that closes four shapes
 at once: none of them has a refusal to be written by, and all four are visible to a `status`.
 
-**A per-tier reason, because the two faults want opposite treatment.** `StandingTiers` now holds
+**A per-tier reason, because the two faults need opposite treatment.** `StandingTiers` now holds
 `dict[str, TierFault]` rather than a set, with two words:
 
 - `TierFault.MISSING`: the tier is not serving and asking again may change that. It is retried.
@@ -3046,7 +3046,7 @@ Eight mutations, each applied to production code alone with the whole brain work
 reverted. The counts are measured rather than aimed at, and they sit in `test_residency_tiers.py`'s
 header beside the ones the tier-outage addendum measured.
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | sweeping only the tiers already believed missing (the code as it was) | 10 |
 | letting a host that could not be asked mark the tier anyway | 1 |
@@ -3061,7 +3061,7 @@ The second is the one worth reading rather than counting, because it is the dire
 be worse than the defect: a pass that read a transport failure as a tier being down would close
 GPU placement for the whole pool on one blip, over a stack where every tier is in fact serving.
 The last two are the argument for the fence being a disjunction rather than either flag, each
-half reddening a case the other cannot: the scope covers a swap that never claimed, and the claim
+half failing a case the other cannot: the scope covers a swap that never claimed, and the claim
 covers the drain, where the scope flag says nothing at all.
 
 ### Validated against the real supervisor over HTTP, before and after
@@ -3229,7 +3229,7 @@ machine changes hands in. Nothing a caller can see moved.
 Four mutations, each applied to production code alone with `__pycache__` cleared and the whole
 `brain/packages` suite re-run, then reverted. The counts are measured rather than aimed at.
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | dropping the refusal entirely (the code as it was) | 28 |
 | refusing after the drain instead of before it | 25 |
@@ -3244,8 +3244,8 @@ names what it has spent, and it means the prologue's cost is now pinned by every
 cared about it rather than by one new case beside them.
 
 The last two are the pair that matter most, being the two directions in which this could have been
-built wrongly. Reading any failure as a missing tier reddens the unreachable-host case in the
-conductor suite and the port's own three-answer case. Caching the verdict reddens the case that
+built wrongly. Reading any failure as a missing tier fails the unreachable-host case in the
+conductor suite and the port's own three-answer case. Caching the verdict fails the case that
 gains the tier mid test and that same port case, which is the property the whole design rests on:
 the same manager answers differently the moment the roster it is asking about does.
 
@@ -3376,9 +3376,9 @@ A swap back that gives up publishes `(None, RESIDENCY_LOST)` and raises
 (`residency_restore.py`). Nothing being resident, `ResidencyBoard.await_resident` refuses every
 `acquire` with `ModelUnavailableError`, so no turn runs; no turn means no `escalate_to_brain`, no
 handoff, no `swap_scope`, and therefore no `BootWatch.reconcile`. The one thing that re-reads the
-machine is behind the one door that state locks. The runbook's manual recovery ended by restarting
-the brain for exactly this reason, and said so: *restarting is what re-reads the machine; nothing
-else does.*
+machine is reachable only along the path that state closes. The runbook's manual recovery ended by
+restarting the brain for exactly this reason, and said so: *restarting is what re-reads the machine;
+nothing else does.*
 
 The same hole has a cheaper twin. A boot that could not confirm the cortex publishes
 `RESIDENCY_BOOT_FAILED` through `publish_report`, which deliberately leaves the resident alone, so
@@ -3467,7 +3467,7 @@ The regain publishes the bare `RESIDENCY_SERVING` constant and nothing else; eve
 reads is composed at read time by `StandingTiers.note_on` in `residency()`. That is what lets one
 pass sweep the peers and then republish the resident without the two contradicting each other: the
 report says the cortex is back and names the tier that has been asked back but not yet observed
-serving. Anything else that wants to ride a serving report, such as the spill verdict in
+serving. Anything else that needs to ride a serving report, such as the spill verdict in
 [R-304](../refinements/tasks/304-spill-rides-the-residency-report.md), should ride that read-time
 composition for the same reason, since a detail written into the published record would be erased
 by the next writer.
@@ -3478,7 +3478,7 @@ Eight mutations, each applied to production code alone with the whole brain work
 reverted. The counts are measured rather than aimed at and they sit in the header of
 `test_residency_regain.py` beside the cases they name.
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | publishing on the cortex alone, with no deep-tier reading | 6 |
 | an unanswerable cortex read as serving | 1 |
@@ -3498,8 +3498,8 @@ the report was green could not be landed quietly.
 One property has no mutation and says so. That the fence answer and the write sit under one
 condition with nothing awaited between them cannot be shown by inserting an await there, because
 the coroutine that would have to interleave is a claim, and a claim takes that same condition, so
-it blocks rather than races. What is proven is the weaker and still load-bearing half: the fence is
-consulted at the write, not only at the top of the pass.
+it blocks rather than races. What is proven is the weaker half the design still rests on: the fence
+is consulted at the write, not only at the top of the pass.
 
 ### Validated against the real sidecar, since the state this exists for is not a CI state
 
@@ -3569,7 +3569,7 @@ residency through the real pass, and reads the note back.
 
 One cost the entry did not name showed up in the re-derivation, and it is the reason the
 composition is a shared function now: two annotators over one string is a rule about ordering, and
-a rule about ordering that is written twice is a rule that will be broken once.
+a rule about ordering written in two places will eventually be applied differently in each.
 
 ### Decision 1: the writer is a port, and what crosses it is a verdict
 
@@ -3648,7 +3648,7 @@ Seven mutations, each applied to production code alone with the whole brain work
 reverted. The counts are measured rather than aimed at and they sit in the headers of
 `test_residency_pace.py` and `test_brain_phase.py` beside the cases they name.
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | dropping the pace note from `residency()`'s composition | 4 |
 | `with_note` annotating a report that is not serving | 4 |
@@ -3658,7 +3658,7 @@ reverted. The counts are measured rather than aimed at and they sit in the heade
 | the phase publishing `collapsed` rather than the three-state `verdict` | 1 |
 | the phase logging the verdict and publishing nothing | 3 |
 
-The second one is worth reading rather than counting: it reddens the peer record's own
+The second one is worth reading rather than counting: it fails the peer record's own
 down-versus-evicted case as well as the three new ones, which is the whole point of the two
 annotators sharing one composition rather than each keeping the rule.
 
@@ -3880,7 +3880,7 @@ Every mutation below was applied on its own to production code, measured over th
 `packages` suite** (2854 tests, `pytest -q --no-cov`), and then restored, on 2026-08-22. The
 baseline is green at 100% line and branch coverage.
 
-| Mutation | Reddens | Which |
+| Mutation | Tests failed | Which |
 | --- | --- | --- |
 | `HandoffSettler.fail` writes no reason onto the record (the state alone, as it was before) | **18** | the two swap-sentence cases; the drain abort in both suites; the deep model dying mid answer; the cortex that would not come back; the seven kill boundaries; and the close, the second cancellation and the scripted failures in the chaos suite, all through the record's own invariant there |
 | `fail` writes no line | **3** | the two swap-sentence cases and the one that drops the record and keeps only the line |
@@ -3889,7 +3889,7 @@ baseline is green at 100% line and branch coverage.
 | the codec never encodes the reason, both stores' own code intact | **1** | the shared contract check, on its Redis parameter alone |
 
 The last two are the ones that matter for ports-before-adapters: each breaks one implementation
-while leaving the other correct, and each reddens the contract check for the store it broke and
+while leaving the other correct, and each fails the contract check for the store it broke and
 nothing else, which is what proves the shared check is really running against both.
 
 ### What this deliberately does not do

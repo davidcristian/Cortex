@@ -82,7 +82,7 @@ right, or whether a load spilled anyway; for that, measure decode, exactly as be
 The same figure is honoured with co-residency off, where it is optional: it then guards the
 ordinary handoff on a card too small for the deep tier at all.
 
-**One pairing to keep, and the brain now refuses to start when you break it.** The sidecar's
+**One pairing to keep, and the brain now fails to start when you break it.** The sidecar's
 `stop` answers only once the child is dead and reaped, so it can legitimately take
 `CORTEX_MODELHOST_STOP_GRACE_S` (10 s) plus `CORTEX_MODELHOST_REAP_TIMEOUT_S` (30 s) before
 replying, **plus** `CORTEX_MODELHOST_PROBE_TIMEOUT_S` (5 s) when a `status` got the tier's lock
@@ -100,8 +100,8 @@ left). Tuning by the grace and the reap alone (say 20 and 35, a compliant sum of
 the control client times out, and the handoff aborts although the eviction was working.
 
 `GET /health` reports all three bounds the daemon actually got, and the brain reads them once at
-boot: if `CORTEX_MODELHOST_TIMEOUT_S` does not sit strictly above their sum, the brain **refuses to
-serve** and says so in one line naming every term, so a mispaired stack fails at `docker compose
+boot: if `CORTEX_MODELHOST_TIMEOUT_S` does not sit strictly above their sum, the brain **fails at
+boot** and says so in one line naming every term, so a mispaired stack fails at `docker compose
 up` instead of inside somebody's handoff:
 
 ```
@@ -112,7 +112,7 @@ lower the sidecar's own bounds
 ```
 
 Raise `CORTEX_MODELHOST_TIMEOUT_S`, or lower whichever sidecar bound you had raised, and bring the
-stack up again. Two cases deliberately do **not** refuse: a `model-host` that is not answering yet
+stack up again. Two cases deliberately do **not** fail the boot: a `model-host` that is not answering yet
 (logged at warning, and the brain serves, because a sidecar that is merely down comes back on its
 own under the restart policy), and the `scripted` backend, which stops no process and so has no
 bounds to report.
@@ -121,7 +121,7 @@ bounds to report.
 handoff.** `GET /health` carries a `boot_id`, a fresh value per daemon process, and the brain
 records which one it was talking to at startup and asks again before each handoff evicts anything.
 A different answer means the sidecar was replaced (an OOM kill, a crash, a `docker compose restart
-model-host`), so everything the brain believed about which model holds the card was believed about
+model-host`), so everything the brain recorded about which model holds the card was recorded about
 a process that is gone. It then converges residency back onto the cortex, republishes what it
 observed, and re-reads the three stop bounds, because a restart is the only way that env can change
 under a brain that never restarted. You will see this at warning level in the brain's log:
@@ -131,7 +131,7 @@ the model host has been replaced since the last handoff; reconciling residency a
 daemon that is answering now
 ```
 
-Two conditions refuse that one handoff rather than serving it, both **before** anything is
+Two conditions abort that one handoff rather than serving it, both **before** anything is
 unloaded, so the cortex keeps answering and the reply carries the note saying the deep model was
 not loaded: a machine the convergence could not settle back onto the cortex, and a sidecar that
 came back with stop bounds the brain's own deadline no longer clears. The second is the pairing
@@ -139,7 +139,7 @@ above, checked again on the one event that can break it; fix it the same way, by
 restarting, and note that the brain will keep serving ordinary turns meanwhile.
 
 **The daemon comparison itself is still per handoff, and one direction of staleness is watched
-between them.** A sidecar replaced under a brain that then never escalates is noticed by nothing,
+between them.** Nothing detects a sidecar replaced under a brain that then never escalates,
 so a green dot can be a reading taken before that restart. What is watched is the direction that
 costs an operator something: a report saying the GPU is **not** serving is re-derived against the
 machine every `CORTEX_SWAP_TIER_HEAL_S` seconds (30 s), so an amber dot clears itself within one
@@ -203,8 +203,8 @@ Every number is one observation on this card, not a benchmark.
 | load | `POST /models/brain/start` | answered in **0.007 s**, which is a spawn and not a load; `loading` immediately after |
 | health gate | poll `GET /models/brain` | `ready` **18.0 s** after the start; `/v1/models` on 8081 named the 2B path; exactly one `llama-server` in `ps`; cortex still `stopped`; VRAM 3952 MiB |
 | swap back | `POST /models/brain/stop` then `POST /models/cortex/start` | stop answered in **0.10 s** with the child idle; cortex `ready` **11.3 s** later, serving the 0.8B path again; deep tier `stopped` |
-| the scope | `SwappingModelManager.swap_scope(deep)` over the real adapter (`just brain-modelhost-live`) | inside the scope the deep tier was READY and the standing one STOPPED, and the endpoint the lease handed out was the deep tier's; after it, the reverse. Deleting the eviction from `swap_in` reddens it with both tiers READY at once |
-| what the seam would say | `manager.residency()` read at those same instants | "a deep task is in progress" inside the scope, the serving report before and after, checked against the sidecar's own reads rather than beside them. A report that always claims serving reddens it |
+| the scope | `SwappingModelManager.swap_scope(deep)` over the real adapter (`just brain-modelhost-live`) | inside the scope the deep tier was READY and the standing one STOPPED, and the endpoint the lease handed out was the deep tier's; after it, the reverse. Deleting the eviction from `swap_in` fails this check with both tiers READY at once |
+| what the seam would say | `manager.residency()` read at those same instants | "a deep task is in progress" inside the scope, the serving report before and after, checked against the sidecar's own reads rather than beside them. A report that always claims serving fails this check |
 | the brain's own healthcheck | `docker inspect cortex-brain-1` after the predicate change | **healthy**; the same command against a port with no server exits 1, so the check still catches the broken gRPC server it exists for |
 | end to end | one `Converse` turn through the brain container | `Health` ready, `text_delta`s, `turn_complete`; the reply came off the supervised child over `http://model-host:8080` |
 
@@ -248,8 +248,8 @@ rate, roughly halved, plus a prefill that collapses to 13.8 tok/s on the first r
 switch where a fitting pair holds 105 to 134. So **measure `predicted_per_second` from
 llama.cpp's own `timings`, on each tier, before and after**, and treat a memory reading alone as no
 evidence either way. The brain reads decode itself since 2026-08-08 (the spill watch below);
-prefill it still does not, so that half of this stays a hand measurement. It is the same lesson the 8 GB warning above teaches at a different scale, and
-it survives having enough card to be fooled by.
+prefill it still does not, so that half of this stays a hand measurement. The 8 GB warning above
+teaches the same lesson at a different scale, and a bigger card does not remove it.
 
 What co-residency buys, on the same run and the same control API, with the artifact warm in the
 page cache: `stop(cortex)` **0.48 s**, deep tier `ready` **70.03 s** later, `stop(brain)`
@@ -298,9 +298,9 @@ same breath, so GPU placement reopens within one `CORTEX_SWAP_TIER_HEAL_S` of th
 serving.
 With `CORTEX_SWAP_BRAIN_VRAM_MIB` unset there is no charge and the placer behaves as it always did.
 
-**Read the refusal as "there was not room", never the pass as "it fitted".** The check is blind
-to a figure declared too low, and blind to memory taken while a load runs, and both of those end
-in the silent spill above: two tiers reporting `ready`, `nvidia-smi` reading like a fit, and the
+**Read the refusal as "there was not room", never the pass as "it fitted".** The check does not
+cover a figure declared too low, and does not cover memory taken while a load runs, and both of
+those end in the silent spill above: two tiers reporting `ready`, `nvidia-smi` reading like a fit, and the
 deep model decoding at half its rate. When a co-resident deep phase feels slow, do not read
 memory. Read `timings.predicted_per_second` off a completion on each tier and compare it against
 the solo rates in the table above.
@@ -395,7 +395,7 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   can ask it what happened) and the compose healthcheck stayed red. The child's own reason is in
   `docker logs model-host`, interleaved with the daemon's, because children inherit its streams.
   This is the hazard the supervisor's status ordering exists for: it reads the child's exit code
-  **before** it trusts a health probe, so a start that died on a port collision cannot pass as
+  **before** it acts on a health probe, so a start that died on a port collision cannot pass as
   ready while the previous weights are still serving.
 - **A child killed under you reports `failed` with its signal.** `kill -9` on the resident child
   gave `{"state":"failed","detail":"the process exited with code -9"}` and VRAM returned to
@@ -407,8 +407,8 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   again from a clean slate. Nothing can outlive the container holding the GPU reservation.
   **What does not reconverge is the other direction:** with escalation ON, the brain's residency
   bookkeeping is in-process and nothing tells it the sidecar restarted, so a restart mid handoff
-  leaves the brain believing the deep model is resident while the fresh sidecar serves the cortex.
-  That belief is not permanent any more. The handoff's own swap back runs against the fresh daemon
+  leaves the brain recording the deep model as resident while the fresh sidecar serves the cortex.
+  That record is not permanent any more. The handoff's own swap back runs against the fresh daemon
   and usually settles it (a `start` of a cortex the boot default already started is a no-op that
   gates ready at once), and if even that gives up, the brain re-reads the machine every
   `CORTEX_SWAP_TIER_HEAL_S` seconds and publishes the cortex again the first pass that finds it
@@ -520,9 +520,9 @@ site wrote them in (ADR-0038 rendered-fields addendum), so that is the order you
 once, so the two are one number and the brain's log spells it the way every other line about that
 turn does (ADR-0009 sixth-name addendum). That is what makes `grep turn_id=` on that id return
 the whole of it, this line beside the turn's own failures and every tool call it made. Grep the
-field name with an id you already have and never a prefix: a turn id is a bare `uuid4` and wears
-no shape you could search for (ADR-0009 bare-id addendum). The Redis key below is the one place
-that id still wears the word `handoff`, being the record's own address.
+field name with an id you already have and never a prefix: a turn id is a bare `uuid4` with no
+shape you could search for (ADR-0009 bare-id addendum). The Redis key below is the one place
+that id still carries the word `handoff`, being the record's own address.
 
 `session_id` is the chat that turn belongs to, and it is on **every** swap-path line rather than
 on this one alone (ADR-0009 named-conversation addendum). The rule is worth knowing before you
@@ -570,9 +570,9 @@ docker compose --project-directory . -f docker/docker-compose.yml \
 
 The `state` is `failed` and the `failure` field is the reason. This is the copy to reach for when
 the brain has since restarted, or when the log has rolled, and it is the only one that survives
-either. The two are not a duplicate: a store that refuses the settling write is followed by
-dropping the record outright (that delete is what frees the active pointer), so the failure that
-costs you the record is exactly the failure the log line covers for.
+either. The two are not a duplicate: when the store fails the settling write, the conductor drops
+the record outright (that delete is what frees the active pointer), so the failure that costs you
+the record is exactly the failure the log line covers for.
 
 ## The error that sends you here
 
@@ -586,7 +586,7 @@ That is `ResidencyRestoreError` from `residency.py`, logged just before as
 `model=<cortex model> failed_model=<tier> attempts=2`.
 
 **Read the second tier before the first.** The swap back has two subjects, the deep model it takes
-off the card and the cortex it puts back, and either can be what refused. `<tier>` is the one the
+off the card and the cortex it puts back, and either can be what failed. `<tier>` is the one the
 last attempt actually failed on, so when it names the deep model the cortex was never even asked
 for: its `start` never ran, `GET /models/<cortex model>` says `stopped` for a reason that has
 nothing to do with the cortex, and what is holding the card is a deep tier that would not stop.
@@ -594,7 +594,7 @@ Step 2 of the manual recovery below is then the whole of it, and its first half 
 second: stop that tier, and only then start the cortex.
 
 It means the swap
-back failed twice, so the brain now believes **no model is resident** and every later turn that
+back failed twice, so the brain now has **no model recorded as resident** and every later turn that
 needs the GPU fails until residency is fixed. Nothing in the swap will try again, which is why it
 is loud; what does try again is the background pass, which re-reads the machine every
 `CORTEX_SWAP_TIER_HEAL_S` seconds and publishes the cortex as the resident the first time it finds
@@ -608,7 +608,7 @@ what is broken is the brain's own residency bookkeeping (or the host it was talk
 **supervisor** host a real `llama-server` really did fail to come back, so ask the sidecar which
 tier and why (`GET /models/{id}`, whose `detail` carries the exit code) before restarting anything;
 the container's log has the child's own reason. Check both either way, because a cortex that really
-is down and a brain that only thinks so produce the same user-visible symptom.
+is down and a brain whose bookkeeping is merely wrong produce the same user-visible symptom.
 
 ## The other error that sends you here
 
@@ -616,13 +616,14 @@ is down and a brain that only thinks so produce the same user-visible symptom.
 could not release the finished handoff; escalation stays refused until a restart
 ```
 
-Logged by the conductor (`swap_conductor.py`) when the handoff store refused **both** the write
+Logged by the conductor (`swap_conductor.py`) when the handoff store failed **both** the write
 that settles a finished handoff and the delete that would drop it. The turn itself converged
 (the deep model's answer stands, the cortex is serving, subagent admission reopened), but the
 record is still readable as a handoff in flight, so every later escalation in that process is
 refused with "a handoff to the deep model is already running" while none is. One refused
 settling write on its own does not do this: the conductor then drops the record instead, which
-is what frees the store's active pointer. Only a store that refuses that too gets stuck. So the
+is what frees the store's active pointer. Only a store that fails that too leaves the record
+stuck. So the
 thing to fix is redis, and then step 3 below is the whole recovery: boot recovery marks the
 stranded record `FAILED` and escalation works again.
 
@@ -680,7 +681,7 @@ stranded record `FAILED` and escalation works again.
    ```
 
    `start` is a spawn and answers in milliseconds; loading a multi-GB GGUF off the model mount
-   takes minutes, so poll `GET /models/cortex` for `ready` rather than believing the `start`
+   takes minutes, so poll `GET /models/cortex` for `ready` rather than treating the `start` as done
    ([llamacpp-gpu.md](llamacpp-gpu.md)). If the sidecar itself is gone,
    `docker compose ... up -d model-host` recreates it and its boot default starts the cortex;
    `just up-gpu` does the same for the whole GPU stack.
@@ -715,7 +716,7 @@ stranded record `FAILED` and escalation works again.
 
    **Do step 2 first, and check the dot afterwards.** `restart` does not re-evaluate the GPU
    override's `depends_on`, so a brain restarted while the cortex still will not load comes back
-   with recovery having failed. It says so rather than lying: the dot stays amber reading "did
+   with recovery having failed. It says so instead of showing green: the dot stays amber reading "did
    not come up at startup", and that amber now clears itself too, the moment the cortex comes up
    and a pass reads it. A green dot after this step is the confirmation that recovery actually
    settled the cortex, which is why step 4 is still worth running.

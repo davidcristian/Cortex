@@ -1,7 +1,7 @@
 """In-memory ``HandoffStore`` fake: the contract twin of the Redis adapter (ADR-0030).
 
 Split out of ``fakes.py`` for the line cap (the ``fakes_body``/``fakes_schedule``/
-``fakes_session`` precedent). Like the other in-memory fakes it does NOT survive a process
+``fakes_session`` precedent). Like the other in-memory fakes it does not survive a process
 restart; the Redis adapter is what proves a handoff record outlives the swap, and this twin
 only has to be observably interchangeable with it behind the ``HandoffStore`` port.
 """

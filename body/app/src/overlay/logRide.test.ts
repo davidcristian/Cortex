@@ -6,15 +6,15 @@ import { rideTail } from "./logRide";
 const WITHIN = 40;
 
 /**
- * jsdom has neither layout nor a frame clock, so the test IS the layout: one mutable record standing
+ * jsdom has neither layout nor a frame clock, so the test is the layout: one mutable record standing
  * for how tall the box's content is, how much of it shows, where it is scrolled to, and where the
  * rolling section's top edge sits in that content.
  *
  * A roll is the test moving `content` between frames, and a roll the panel is still absorbing moves
  * `window` with it, which is exactly what the section's height animation does to a real box. The
- * scroll position is faithful in the one way the ride depends on: the engine clamps it to the range
- * the box has, on the way in AND on the way out, so a closing roll shortens the content under a
- * position that then reads back as something else.
+ * scroll position reproduces the one behaviour the ride depends on: the engine clamps it to the
+ * range the box has, both on the way in and on the way out, so a closing roll shortens the content
+ * under a position that then reads back as something else.
  */
 interface Layout {
   content: number;
@@ -27,7 +27,7 @@ interface Layout {
 /**
  * Where the rolling section stands. `"in"` is a Thoughts trace, a child of the scroll box, whose
  * growth lengthens the content under the reader. `"chrome"` is the switcher list or the reminder
- * stack, a SIBLING of the box in the panel's column, whose growth takes the box's window away
+ * stack, a sibling of the box in the panel's column, whose growth takes the box's window away
  * instead: the content is untouched and the section is above the box's top edge for every frame.
  */
 type Where = "in" | "chrome";
@@ -199,7 +199,7 @@ describe("rideTail", () => {
 
   it("does not read a chrome section's own top edge as room the reader has to keep", () => {
     // The cap exists so a trace taller than the window ends fully visible from its first line. A
-    // section OUTSIDE the box has no such claim: it stays where the panel put it whatever the log
+    // section outside the box has no such claim: it stays where the panel put it whatever the log
     // does, and read as room its top edge is above the box's for every frame, which floors to no
     // room at all and freezes the ride where it started. Wired up with the cap left general, the
     // switcher above scrolled 0px in 640x720 Chromium; here it stands at its opening 173.

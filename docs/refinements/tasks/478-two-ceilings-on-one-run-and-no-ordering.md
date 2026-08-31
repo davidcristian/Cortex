@@ -8,9 +8,9 @@ Opened 2026-08-28 by the close of
 [R-457](457-the-caps-derivation-on-the-shape-that-ships.md), whose second question was which of a
 run's bounds binds and whose answer is that it depends on how busy the host is.
 
-The brain already refuses to start on three broken orderings around a delegated run:
+The brain already fails at boot on three broken orderings around a delegated run:
 `SubagentsConfig` checks the run deadline against the stall ceiling and the whole hold against the
-admission wait, and `cortex_orchestrator.bounds` checks one wedged tool dispatch against the run
+admission wait, and `cortex_orchestrator.bounds` checks one stalled tool dispatch against the run
 that has to contain it. Every one of those is a comparison between two **times**. The fourth
 relation in the same family is between a time and a count, `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` against
 `DEFAULT_SUBAGENT_MAX_TOKENS`, and nothing compares them because the exchange rate between them is
@@ -65,7 +65,7 @@ differ only in what a human reads afterwards.
   `MAX_TOOL_STEPS` rounds and the deadline binds at both ends of the measured range there. A
   validator has neither fact. **And deriving one from the other is wrong at one end of the same
   measured range either way**: a deadline derived from the cap at the slow end is a hold of about
-  11460 s against a 7200 s admission wait, which the boot check that already exists refuses, and at
+  11460 s against a 7200 s admission wait, which the boot check that already exists rejects, and at
   the fast end it is about 772 s, under the 1736.6 s a legitimate narrow subtask was measured
   taking on a busy box; a cap derived from the deadline at the slow end is about 425 tokens, below
   the 429-token longest answer this tier has been measured writing. So the pair is declared

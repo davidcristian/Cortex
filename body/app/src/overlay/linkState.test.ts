@@ -18,8 +18,8 @@ const down = view({ state: "down", detail: "connection refused" });
 
 describe("link state", () => {
   it("starts claiming nothing at all", () => {
-    // The honest opening position: an indicator that says "ready" before it has asked is the
-    // decoration the v1 dot was.
+    // The opening position: an indicator that says "ready" before it has asked reports nothing,
+    // which is what the first version of the dot did.
     expect(INITIAL_LINK).toEqual({ state: "unknown", detail: "", probing: false });
   });
 
@@ -66,7 +66,8 @@ describe("link state", () => {
       detail: "refused",
       probing: false,
     });
-    // Answered, so reachable: amber, not red. The token is wrong, the brain is not missing.
+    // The brain answered, so it is reachable: amber rather than red. The token is wrong and the
+    // brain is not missing.
     expect(linkFailed(ready, rpc).state).toBe("degraded");
     expect(linkFailed(ready, protocol).state).toBe("degraded");
     expect(linkFailed(ready, rpc).detail).toBe("Unauthenticated: bad token");

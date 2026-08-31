@@ -28,7 +28,7 @@ interface Handlers {
 const nowhere = { current: null };
 
 /** A real anchor: the composer's field, which is what the reader is left with once the last
- *  reminder is acked and the section goes with it. */
+ *  reminder is acked and the section is removed with it. */
 function anchored(): { current: HTMLTextAreaElement } {
   const composer = document.createElement("textarea");
   composer.setAttribute("aria-label", "Message");
@@ -72,10 +72,10 @@ describe("Reminders", () => {
   });
 
   it("puts the control before the badges, and the timestamp in the side column", () => {
-    // The one thing you can DO on the row comes before the badges that only describe it, so it
-    // sits at a fixed x down the stack instead of being pushed along by however many badges a
-    // given reminder carries. The timestamp is not one of those badges: it is the row's other
-    // fact, and it lives in the right column under the dismiss control.
+    // The row's one actionable control comes before the badges that only describe it, so it sits
+    // at a fixed x down the stack instead of being shifted by how many badges a given reminder
+    // carries. The timestamp is not one of those badges; it lives in the right column under the
+    // dismiss control.
     vi.useFakeTimers({ now: NOW });
     const { container } = renderStack([
       reminder({ recurring: true, tainted: true, sessionId: "s-other" }),
@@ -95,12 +95,12 @@ describe("Reminders", () => {
   });
 
   it("drops the meta line entirely when a reminder has nothing to put on it", () => {
-    // One-shot, untrusted by nobody, and already in the chat on screen: no control and no
-    // badges, so an empty row would only spend its own top margin.
+    // One-shot, untainted, and already in the chat on screen, so there is no control and no badge
+    // and the meta line is omitted rather than rendered empty with its top margin.
     vi.useFakeTimers({ now: NOW });
     const { container } = renderStack([reminder({ sessionId: "open-chat" })]);
     expect(container.querySelector(".reminder-meta")).toBeNull();
-    // The timestamp is unaffected: it never lived on that line.
+    // The timestamp is unaffected, since it is not on that line.
     expect(container.querySelector(".reminder-time")?.textContent).toBe("5m ago");
   });
 
@@ -130,9 +130,9 @@ describe("Reminders", () => {
   });
 
   it("dismissing a card reports that reminder's id, in the frame the check is pressed", () => {
-    // The ack is the user's gesture and the roll is the overlay's answer to it, so the ack does
-    // not wait: held behind a timer the roll's length long, it was lost outright whenever the
-    // stack was unmounted inside those 300ms (a new chat, or the chat a reminder points at).
+    // The ack is sent immediately and the roll runs afterwards. Held behind a timer as long as the
+    // roll, the ack was lost whenever the stack was unmounted inside those 300ms, which a new chat
+    // or opening the chat a reminder points at both do.
     const onDismiss = vi.fn();
     const { unmount } = renderStack([reminder(), reminder({ reminderId: "r-2", text: "Stretch" })], {
       onDismiss,
@@ -144,9 +144,9 @@ describe("Reminders", () => {
   });
 
   it("holds an acked row through its own roll while the rest of the stack keeps its place", () => {
-    // The defect: the row was the caller's, so the optimistic ack deleted it in a frame and the
-    // rows under it snapped up into the hole. It is held here until its roll ends, and the roll
-    // is what closes the gap.
+    // The defect: the row came straight from the caller's list, so the optimistic ack deleted it
+    // in one frame and the rows under it snapped up into the gap. The row is held here until its
+    // roll ends, and the roll is what closes the gap.
     const land = stubRoll();
     const three = [
       reminder(),
@@ -155,11 +155,11 @@ describe("Reminders", () => {
     ];
     const { rerender } = renderStack(three);
     fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
-    // What the reducer does with that ack, on the spot: the reminder is gone from the list.
+    // What the reducer does with that ack immediately: the reminder leaves the list.
     rerender(stack([three[0]!, three[2]!]));
     expect(screen.getAllByLabelText("Dismiss reminder")).toHaveLength(3);
     expect(screen.getByText("Stretch")).toBeTruthy();
-    // Between its neighbours, still, rather than shunted to the end of the stack.
+    // Still between its neighbours rather than moved to the end of the stack.
     expect([...document.querySelectorAll(".reminder-text")].map((row) => row.textContent)).toEqual([
       "Stand-up in 10 minutes",
       "Stretch",
@@ -172,8 +172,8 @@ describe("Reminders", () => {
 
   it("shows a reminder that returns before its exit ends, rather than holding it shut for good", () => {
     // A lost ack leaves the reminder deliverable and the next summon lists it again under the id
-    // it left with (ADR-0025). Held shut, that row would occupy its place in the stack and never
-    // be seen again.
+    // it left with (ADR-0025). Held shut, that row would occupy its place in the stack and never be
+    // visible again.
     const land = stubRoll();
     const two = [reminder(), reminder({ reminderId: "r-2", text: "Stretch" })];
     const { rerender } = renderStack(two);
@@ -186,8 +186,8 @@ describe("Reminders", () => {
   });
 
   it("opens the chat a reminder came from, and never acks it in passing", () => {
-    // Acking destroys the reminder and opening does not, so the two gestures stay separate:
-    // a mis-click on the way to the context may not silently clear what it came to explain.
+    // Acking clears the reminder and opening does not, so the two stay separate controls: a
+    // mis-click on the way to the origin chat must not clear the reminder it came to explain.
     const onOpen = vi.fn();
     const onDismiss = vi.fn();
     renderStack([reminder(), reminder({ reminderId: "r-2", sessionId: "s2" })], {
@@ -207,9 +207,9 @@ describe("Reminders", () => {
     expect(screen.queryByText("open chat")).toBeNull();
   });
 
-  // WHERE THE CARET GOES WHEN A ROW LEAVES (`overlay/rowCaret.ts`). Acking is the one gesture here
-  // that takes its own control away, and measured at 900x900 it held focus for its whole 300ms roll
-  // and then read `<body>` at 350ms, the row's `Collapse` unmounting what it contained.
+  // Where the caret goes when a row leaves (`overlay/rowCaret.ts`). Acking is the one gesture here
+  // that removes its own control, and measured at 900x900 it held focus for the whole 300ms roll
+  // and then read `<body>` at 350ms, when the row's `Collapse` unmounted its contents.
   it("rides the caret down the stack, so clearing what fired is one key pressed again", () => {
     const three = [
       reminder(),
@@ -220,7 +220,7 @@ describe("Reminders", () => {
     const acks = () => screen.getAllByLabelText("Dismiss reminder");
     fireEvent.click(acks()[1]!);
     rerender(stack([three[0]!, three[2]!]));
-    // The row below the gap, which is where the eye already is and where the pointer already is.
+    // The row below the gap, which is where the pointer already is.
     expect(acks()).toHaveLength(2); // the acked row's roll finished with nothing to animate
     expect(document.activeElement).toBe(acks()[1]);
     expect(document.activeElement?.closest(".reminder")?.textContent).toContain("Drink water");
@@ -237,8 +237,9 @@ describe("Reminders", () => {
   });
 
   it("hands the caret to the anchor when the only reminder is acked, the stack going with it", () => {
-    // The one case this list cannot answer from inside itself: the section leaves with its last
-    // row, so there is no list to keep the caret in and what is left is the conversation under it.
+    // The one case this list cannot handle from inside itself: the section is removed with its
+    // last row, so there is no list to keep the caret in and the conversation underneath is what
+    // remains.
     const anchor = anchored();
     const { rerender } = renderStack([reminder()], { anchor });
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));
@@ -247,7 +248,7 @@ describe("Reminders", () => {
   });
 
   it("withdraws an acked row for its exit, so the tab order cannot walk back into it", () => {
-    // The switcher's rule, arriving here. Measured at HEAD, an acked reminder kept both of its
+    // The same rule the switcher uses. Measured before this, an acked reminder kept both of its
     // controls live and tabbable for the 300ms roll, behind a caret that had already moved on.
     const land = stubRoll();
     const two = [reminder(), reminder({ reminderId: "r-2", text: "Stretch" })];
@@ -258,7 +259,7 @@ describe("Reminders", () => {
     rerender(stack([two[0]!]));
     expect(slots()[1]!.hasAttribute("inert")).toBe(true);
     expect(slots()[1]!.getAttribute("aria-hidden")).toBe("true");
-    // Withdrawal is per row: the one that stays is untouched.
+    // Withdrawal is per row, so the row that stays is untouched.
     expect(slots()[0]!.hasAttribute("inert")).toBe(false);
     land();
     expect(slots()).toHaveLength(1);

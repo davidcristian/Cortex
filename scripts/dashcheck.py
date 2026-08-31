@@ -4,16 +4,16 @@ Prose here never uses an em dash. The rule is stylistic, so nothing but a gate k
 prose is rewritten constantly and the dash returns by default. This scans every text
 file, not just `.py`/`.rs`, because the rule covers docs and comments alike.
 
-**The collection is the working tree minus what git ignores** (ADR-0026 dash-ban-collection
-addendum). The working tree rather than the commit or the index, deliberately: a file staged
-but not committed and a file an agent wrote a minute ago are both prose this repo is about to
-own, and a gate reading `git ls-files` would go green on the document being written in front of
-it. Minus what git ignores, because the walk used to read generated schemas, a coverage export
-and the JSON blocks a live measurement leaves behind, where a banned dash is a red whose remedy
-is deleting a file rather than rewriting a sentence. Git is asked once, for the paths it
-ignores; a wholly ignored directory is pruned rather than descended. A root git cannot answer
-about is a failure and not a quieter scan, because the collection would then be undefined and
-the count printed below would be over nothing anybody named.
+The collection is the working tree minus what git ignores (ADR-0026 dash-ban-collection
+addendum). The working tree rather than the commit or the index: a file staged but not committed
+and a file an agent wrote a minute ago are both prose this repo is about to own, and a gate reading
+`git ls-files` would pass on the document being written in front of it. Minus what git ignores,
+because the walk used to read generated schemas, a coverage export and the JSON blocks a live
+measurement leaves behind, where a banned dash is a failure whose remedy is deleting a file rather
+than rewriting a sentence. Git is asked once, for the paths it ignores; a wholly ignored directory
+is pruned rather than descended. A root git cannot answer about fails rather than being scanned
+more quietly, because the collection would then be undefined and the count printed below would be
+over nothing anybody named.
 
 What counts as punctuation, and what deliberately does not:
 
@@ -35,11 +35,10 @@ character.
 The dashes are spelled as escapes below, not literals, so that this module and its own
 tests pass the gate they implement.
 
-**The success line states what the walk read**, text files and lines after the binary skip
-rather than before, because "no text file uses a banned dash" is equally true of a tree the
-scan never entered. The two numbers are a reading and nothing asserts them; the floor under
-them is the assertion, reading no text file at all exiting 2 the way `composefiles.py`
-already refuses an empty compose walk.
+The success line states what the walk read, text files and lines after the binary skip rather
+than before, because "no text file uses a banned dash" is equally true of a tree the scan never
+entered. The floor under those two numbers is the assertion: reading no text file at all exits 2,
+the way `composefiles.py` already raises on an empty compose walk.
 """
 
 import argparse

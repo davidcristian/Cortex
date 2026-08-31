@@ -1,4 +1,4 @@
-"""What the deployment's env becomes: the roster, its argv, and the misconfigurations refused.
+"""What the deployment's env becomes: the roster, its argv, and the refused misconfigurations.
 
 The argv assertions are exact on purpose. The resident cortex must come up with byte-identical
 flags to the ones the always-on ``llama-cortex`` compose service passed, or a stack that never
@@ -38,7 +38,11 @@ def _tier(**overrides: object) -> TierArgs:
 
 
 def test_the_argv_is_the_compose_command_it_replaces() -> None:
-    """Flag for flag, in order, including the explicit context llama.cpp's default would blow."""
+    """Flag for flag, in order, including the context size named rather than defaulted.
+
+    llama.cpp's own default pre-allocates a KV cache far larger than the VRAM envelope, which is
+    why the tier names a size at all (docker/docker-compose.gpu.yml records the default).
+    """
     assert llama_server_argv(_BIN, _tier(model_path=f"/models/{_CORTEX_GGUF}", ctx_size=16384)) == (
         _BIN,
         "--model",
@@ -189,7 +193,7 @@ def test_a_raised_image_budget_carries_the_micro_batch_up_with_it(
     A picture is decoded as one non-causal chunk and llama.cpp asserts the micro-batch is at
     least that large, so a budget above the engine's 512 default without a matching
     ``--ubatch-size`` aborts the process on the first oversized picture. Emitting them together
-    is what makes this knob unable to be set into that crash.
+    is what keeps this knob from being set into that crash.
     """
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
@@ -225,8 +229,8 @@ def test_the_shipped_default_buys_the_measured_resolution_back(
 def test_a_deployment_can_still_hand_the_budget_back_to_the_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Zero is off, and off means an argv naming neither flag rather than one naming the
-    engine's own defaults back at it: the VRAM and the latency the default buys are refundable."""
+    """Zero is off, and off means an argv naming neither flag rather than one restating the
+    engine's own defaults, so a deployment that turns it off gets its VRAM and latency back."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "0")
     argv = ModelHostConfig().roster()["cortex"].argv
@@ -255,7 +259,7 @@ def test_a_negative_image_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> 
 def test_a_thinking_budget_reaches_the_cortex_tier_as_the_engines_own_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The middle of the dial: a think that happens, bounded, rather than one that does not.
+    """A budget bounds the cortex tier's thinking rather than ending it.
 
     Measured on the cortex pick at this very count, the trace falls from 2323 to 2996 characters
     to about 500 and the first word from 10.1 to 12.6 s to 1.7 to 2.6 s, the reply staying the

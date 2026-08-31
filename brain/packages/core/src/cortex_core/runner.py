@@ -1,14 +1,14 @@
 """SubagentRunner: run one delegated task as a stateless function over the store (ADR-0010/0012).
 
-The runner is a subagent's body. It loads the task from the ``TaskStore`` **by id** (not cortex
-memory, as everything it needs is in the store), resolves which roster entry runs it (the ADR-0017
-boundary lives in ``SubagentRoster.resolve``: an untrusted-content path is pinned to the robust
-default whatever the task requested, per ADR-0018), admits against the CPU/RAM budget, places itself
-on GPU or CPU against the VRAM budget, runs the shared bounded infer-tool loop on the placed
-backend with its tool subset, and persists a ``SubagentResult``. It holds no state between calls,
-so a restart or model swap mid-delegation loses nothing: the task is re-readable from the store. A
-failed inference becomes an ``ok=False`` result the cortex consumes, not an exception, per the tool
-contract.
+The runner executes one delegated task end to end. It loads the task from the ``TaskStore`` by id
+rather than from cortex memory, since everything it needs is in the store, resolves which roster
+entry runs it (the ADR-0017 boundary lives in ``SubagentRoster.resolve``: an untrusted-content path
+is pinned to the robust default whatever the task requested, per ADR-0018), admits against the
+CPU/RAM budget, places itself on GPU or CPU against the VRAM budget, runs the shared bounded
+infer-tool loop on the placed backend with its tool subset, and persists a ``SubagentResult``. It
+holds no state between calls, so a restart or model swap mid-delegation loses nothing: the task is
+re-readable from the store. A failed inference becomes an ``ok=False`` result the cortex consumes
+rather than an exception, per the tool contract.
 
 The run itself lives in ``subagent_attempt.py``, because there can be two of them: a GPU-placed
 attempt whose backend did not answer is re-run once on the CPU (ADR-0012's deferred re-place,
@@ -28,14 +28,14 @@ from cortex_core.subagent_outcome import AttemptFailure, AttemptOutcome, reran_o
 from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentResult, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 
-# What the cortex reads when the scheduler refuses a spawn outright. Phrased like the
+# What the cortex reads when the scheduler rejects a spawn outright. Phrased like the
 # dispatcher's refusal messages: say it was refused rather than attempted, and say what to do
 # instead. Three causes reach here, and the reason carries which: the impossible charge
 # (permanent, a resource-budget misconfiguration, ADR-0012 admission-wall addendum), the drain
 # window (transient, a model handoff quiescing the pool, ADR-0030), and a queue that outlasted
 # the admission bound (ADR-0012 bounded-admission-wait addendum). A full budget still queues, so
-# this means "busy" only after the bound has actually been spent waiting, never on first sight
-# of a full budget, which is why the reason rather than this template says whether to retry.
+# this means "busy" only after the bound has actually been spent waiting, never merely because the
+# budget is full, which is why the reason rather than this template says whether to retry.
 _REFUSED_TEMPLATE = (
     "refused before running: {reason}. The subtask was never attempted; answer without "
     "delegating this subtask, and say what you could not do."
@@ -87,7 +87,7 @@ class SubagentRunner:
         VRAM is ever reserved while queuing. The "reserved VRAM then no CPU slot" leak is
         impossible. The placement's VRAM is always returned in the ``finally``. An unknown
         requested model fails closed as an ``ok=False`` result, mirroring "task not found", and so
-        does a spawn the scheduler refuses outright (a charge no budget could ever fit, a pool
+        does a spawn the scheduler rejects outright (a charge no budget could ever fit, a pool
         draining for a model handoff, ADR-0030, or a queue that outlasted the admission bound).
 
         ``budget`` is the spawning turn's dispatch pool (ADR-0009 turn-wide addendum), handed
@@ -143,24 +143,24 @@ class SubagentRunner:
         single CPU re-run after a GPU-placed failure, recorded in the result's detail". Three
         properties make it safe rather than a retry loop:
 
-        - it fires **only** on ``AttemptFailure.INFERENCE`` from a **GPU** placement, so a model
-          that answered outside its grammar is not re-loaded to answer the same way, one still
-          talking at its deadline (``TRUNCATED``, ADR-0005 total-cap addendum) is not re-loaded to
-          talk past it again on the slower tier, and a CPU-placed failure has nowhere better to go;
-        - the GPU reservation is released **before** the re-run, in the ``finally`` that already
+        - it fires only on ``AttemptFailure.INFERENCE`` from a GPU placement, so a model that
+          answered outside its grammar is not re-loaded to answer the same way, one still talking
+          at its deadline (``TRUNCATED``, ADR-0005 total-cap addendum) is not re-loaded to talk
+          past it again on the slower tier, and a CPU-placed failure has no better target left;
+        - the GPU reservation is released before the re-run, in the ``finally`` that already
           existed, so a CPU re-run never misreports headroom to a concurrent spawn (the ledger is
           a live-resource count, ADR-0012 decision 7);
         - it re-uses the same admission and the same dispatch budget, so a re-run buys no second
           CPU/RAM charge (the charge is target independent by design) and cannot spend past the
-          turn's allowance. The one bound it does **not** re-use is the attempt's own deadline,
-          which is armed fresh per attempt: a re-run handed what a failed attempt left of one
-          would be refused before it began, and the failure a re-place exists for is exactly the
-          one where nothing was produced to spend a deadline on. A task can therefore hold its
-          admission for ``ATTEMPTS_PER_ADMISSION`` deadlines rather than one, and only along the
-          path a dead backend opens, since neither of the failures a deadline itself produces is
-          re-placed. That product is the number a queued peer's patience is ordered against at
-          boot, so the two attempts below are what `SubagentsConfig` compares the admission wait
-          with rather than the single deadline they each get.
+          turn's allowance. The one bound it does not re-use is the attempt's own deadline, which
+          is armed fresh per attempt: a re-run handed what a failed attempt left of one would be
+          refused before it began, and the failure a re-place exists for is exactly the one where
+          nothing was produced to spend a deadline on. A task can therefore hold its admission for
+          ``ATTEMPTS_PER_ADMISSION`` deadlines rather than one, and only along the path a dead
+          backend opens, since neither of the failures a deadline itself produces is re-placed.
+          That product is the number the queued peer's admission wait is ordered against at boot,
+          so the two attempts below are what `SubagentsConfig` compares the admission wait with
+          rather than the single deadline they each get.
         """
         placement = res.placer.place(res.request)
         try:

@@ -90,12 +90,12 @@ async def test_corrupt_record_wraps_into_handoff_store_error() -> None:
 
 @pytest.mark.parametrize("field", ["tainted", "opaque", "sources", "untrusted_urls"])
 async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str) -> None:
-    """A document without one of its taint fields fails LOUDLY; a default would fail open.
+    """A record missing one of its taint fields raises rather than decoding with a default.
 
-    Every field of the serialized ledger, not just the ones with obviously dangerous defaults:
-    a decoder that quietly filled any of them in would hand the deep model a turn that looks
-    cleaner than the one the cortex ran, and ``opaque`` is the newest and quietest of the four
-    (its default is ``False``, which is also what an honest clean turn writes).
+    Every field of the serialized ledger is covered, not only the ones whose defaults are
+    obviously dangerous: a decoder that filled any of them in would hand the deep model a turn
+    that looks cleaner than the one the cortex ran. ``opaque`` is the easiest of the four to
+    miss, since its default is ``False``, which is also what a genuinely clean turn writes.
     """
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
@@ -106,7 +106,8 @@ async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str)
 
 
 async def test_record_with_an_unknown_source_kind_is_corrupt() -> None:
-    """A forged/unknown provenance kind never decodes into an attested-looking source."""
+    """An unknown or forged provenance kind raises rather than decoding into a source that looks
+    attested."""
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
     fields["sources"] = [{"kind": "root-of-trust", "value": "evil"}]
@@ -127,7 +128,7 @@ async def test_terminal_records_expire_and_live_ones_do_not() -> None:
 
 
 async def test_a_dangling_active_pointer_reads_as_no_active_handoff() -> None:
-    """A pointer naming a gone record self-heals to None on read (nothing is mutated)."""
+    """A pointer naming a record that is gone reads as None, and the read mutates nothing."""
     client = FakeAsyncRedis(server=FakeServer())
     await client.set(ACTIVE_KEY, "ghost")
     store = RedisHandoffStore(client)
@@ -136,7 +137,7 @@ async def test_a_dangling_active_pointer_reads_as_no_active_handoff() -> None:
 
 
 async def test_a_terminal_record_behind_the_pointer_is_not_active() -> None:
-    """A hand-crafted finished-but-still-pointed record never resurrects as in flight."""
+    """A finished record still named by the active pointer reads as no active handoff."""
     client = FakeAsyncRedis(server=FakeServer())
     done = replace(handoff_contract.make_record("t1"), state=HandoffState.DONE)
     await client.set("cortex:handoff:t1", encode_record(done))

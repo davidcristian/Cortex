@@ -1,17 +1,17 @@
 """The brain-handoff record: the mid-turn state a model swap must not lose (ADR-0030).
 
-Per the one hard rule, the record carries ONLY what is not already in a store when the cortex
+Per the one hard rule, the record carries only what is not already in a store when the cortex
 escalates mid-turn: the escalation brief, the turn's fence nonce, the serialized ``TaintLedger``
 (both bits, sources, laundering-evidence URLs), the turn-wide dispatch-budget position, and the
 tool loop's never-persisted tail (the assistant tool-call messages and their fenced ``Role.TOOL``
 results, in order). Everything else (history, tasks, schedules, memories) already survives in
 its own store. The tail is text-only by the same invariant the session stores enforce
-(ADR-0029): ``Message`` carries no pixels today, and the day it can, the handoff record refuses
-image-bearing messages the way those stores do rather than quietly widening pixel persistence.
+(ADR-0029): ``Message`` carries no pixels today, and the day it can, the handoff record raises for
+image-bearing messages the way those stores do rather than widening pixel persistence unannounced.
 
 ``EscalationSlot`` is how the in-flight state reaches the serializer. Whoever orchestrates the
 turn (the escalating engine wrapper, ADR-0030 decision 5) builds the empty slot before the turn
-exists; the engine **arms** it at turn start by filling ``refs`` (an ``EscalationRefs`` holding
+exists; the engine arms it at turn start by filling ``refs`` (an ``EscalationRefs`` holding
 references to the live ``working`` list, ledger, nonce, and budget, created next to the ledger
 and nonce); the ``escalate_to_brain`` tool writes only ``brief``; the conductor snapshots
 everything else at the loop boundary, after the cortex phase's generator has finished, so
@@ -67,14 +67,14 @@ class HandoffRecord:
     ``opaque`` / ``sources`` / ``untrusted_urls`` are the whole ``TaintLedger``
     (ADR-0013/0015/0027/0029): taint that did not survive the swap would fail open, and without
     the URL set the brain phase's guardrail would forget every URL read before the swap.
-    ``opaque`` is carried as **defence in depth** and nothing else: no opaque turn produces a
-    record today, because ``SwapConductor._prepare`` refuses one before it snapshots, so every
-    record written now says ``False`` truthfully. What the schema must not do is *invent* that
-    ``False``, because both consumers of the bit open on it after the swap (the default URL
-    guardrail stops scanning strictly, and an opaque turn stops being kept out of durable
-    memory), so a bit that decayed in transit would fail open the day anything relaxes that
-    refusal. ``budget_remaining`` / ``budget_closed`` carry the turn-wide dispatch pool's
-    position, so a swap can never refill the turn's allowance. ``rounds_used`` counts the
+    ``opaque`` is carried as defence in depth and nothing else: no opaque turn produces a record
+    today, because ``SwapConductor._prepare`` stops one before it snapshots, so every record
+    written now says ``False`` truthfully. What the schema must not do is fabricate that ``False``,
+    because both consumers of the bit relax on it after the swap (the default URL guardrail stops
+    scanning strictly, and an opaque turn stops being kept out of durable memory), so a bit lost in
+    transit would fail open the day anything relaxes that rejection. ``budget_remaining`` /
+    ``budget_closed`` carry the turn-wide dispatch pool's position, so a swap can never refill the
+    turn's allowance. ``rounds_used`` counts the
     tool-loop rounds that dispatched (one assistant tool-call message each), and ``loop_tail``
     is every message the loop appended this turn, in order. Tool-call stamps are transient live
     handles and are never persisted (``tools.py``: the loop persists the unstamped calls), so a
@@ -84,9 +84,9 @@ class HandoffRecord:
     about itself (ADR-0030 failed-reason addendum). Every other field is written once at the
     snapshot and read after the swap; this one is written by the settling transition and read by
     whoever finds the record afterwards, which is the only reader a failed handoff has left once
-    its process is gone. ``None`` on every record that has not been settled failed, and never a
-    sentence the model wrote: it is app-authored text, or the message of the error the swap
-    itself raised, which is where the model host's own words reach the brain's side.
+    its process is gone. It is ``None`` on every record that has not been settled failed, and it is
+    never text the model wrote: it is app-authored, or the message of the error the swap itself
+    raised, which is where the model host's own error text reaches the brain's side.
     """
 
     handoff_id: str
@@ -156,7 +156,7 @@ class EscalationSlot:
     next to the ledger and nonce at turn start; the ``escalate_to_brain`` tool writes only
     ``brief`` (``None`` = no escalation this turn); the conductor calls ``snapshot`` at the
     loop boundary, once the cortex phase's generator has finished. Mutable and turn-local on
-    purpose, like the ledger it rides beside: one slot serves exactly one turn (a fresh slot
+    purpose, like the ledger it sits beside: one slot serves exactly one turn (a fresh slot
     per turn is the builder's contract), it dies with that turn, and only its snapshot is
     persisted.
     """
@@ -183,10 +183,10 @@ class EscalationSlot:
         if any(message.images for message in tail):
             # The same rule the session stores enforce (ADR-0029): a handoff record is durable,
             # and the record schema has no field for pixels, so accepting one would drop the
-            # picture in silence and hand the deep model a caption with nothing attached. The
-            # conductor refuses an opaque turn before it can reach here (that is the user-facing
-            # answer), so this is the invariant behind it: an unreachable raise, like the one
-            # ``Message`` makes for a persistable role, not the mechanism anything relies on.
+            # picture without reporting anything and hand the deep model a caption with nothing
+            # attached. The conductor rejects an opaque turn before it can reach here, which is
+            # the user-facing answer, so this raise is the invariant behind that and is
+            # unreachable in the same way the one ``Message`` makes for a persistable role.
             msg = "a handoff record never persists images: pixels are turn-local"
             raise ValueError(msg)
         return HandoffRecord(

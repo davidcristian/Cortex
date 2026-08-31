@@ -1,10 +1,10 @@
 """The composition root's vision decisions, driven through ``run_from_env`` itself (ADR-0029).
 
-Every other vision test calls ``build_builtin_tools`` directly, which proves the builder and
+Every other vision test calls ``build_builtin_tools`` directly, which covers the builder and
 nothing about the root. The decisions live in the root: whether to build a probe at all, what
 the probe's answer does, which numbers reach the tool, and which tier is offered the capability.
 None of that was executed by any test when this suite was written: the ternary's true arm never
-ran, so ``vision=capture`` could be replaced by ``vision=None`` with the whole suite green, and
+ran, so ``vision=capture`` could be replaced by ``vision=None`` with the whole suite passing, and
 coverage stayed at 100% because coverage.py does not measure the arms of a boolean short-circuit.
 
 What the root decides changed on 2026-08-06 (ADR-0029 live-probe addendum) and this suite moved
@@ -14,22 +14,22 @@ the tool whenever a body can take a picture, and hands the cortex's dispatcher a
 the **advertised** set out of the dispatcher the root actually built, which is the set the model
 is offered, rather than the list of objects that were constructed.
 
-Distrust-green proofs (each mutation applied to production code alone, ``packages/orchestrator``
-plus ``packages/core`` re-run, 2026-08-06):
-- dropping ``vision=sight`` where the root builds the cortex's dispatcher reddens exactly 2 here,
-  ``test_the_probes_answer_decides_whether_the_screen_is_offered`` and
+Proof these cases can fail (each mutation applied to production code alone, with
+``packages/orchestrator`` plus ``packages/core`` re-run, 2026-08-06):
+- dropping ``vision=sight`` where the root builds the cortex's dispatcher makes exactly 2 tests
+  here fail, ``test_the_probes_answer_decides_whether_the_screen_is_offered`` and
   ``test_a_capture_the_model_can_no_longer_read_reads_no_pixels``: the tool would be advertised
   and run whatever the server said, which is the shipped defect this work removes;
-- returning bounds for ``off`` in ``build_vision`` reddens exactly 2,
+- returning bounds for ``off`` in ``build_vision`` makes exactly 2 tests fail,
   ``test_the_owners_off_switch_needs_no_server_to_be_believed`` and ``test_vision.py``'s
   ``test_off_registers_no_capture_tool_at_all``;
-- handing the cortex's built-in set to the deep phase reddens exactly 1,
+- handing the cortex's built-in set to the deep phase makes exactly 1 test fail,
   ``test_the_deep_tier_is_never_offered_the_screen``, and so does giving the deep set
   ``vision=capture``.
 
 The builder's own arguments are asserted for the same reason as before: a root that passed a
 constant mode, or the endpoint where the mode goes, would leave a suite that only checks the
-outcome green.
+outcome passing.
 """
 
 import asyncio
@@ -111,8 +111,8 @@ class _Root:
 def _record(monkeypatch: pytest.MonkeyPatch, root: _Root, vision_answers: tuple[bool, ...]) -> None:
     """Wrap the four root collaborators whose arguments and products this suite reads back.
 
-    Each wrapper calls the real thing and keeps what it returned, so every assertion below is
-    about shipped code; the only substitution is the scripted probe, and only when a test asked
+    Each wrapper calls the real collaborator and keeps what it returned, so every assertion below
+    is about shipped code. The only substitution is the scripted probe, and only when a test asked
     for one.
     """
     real_builtins = build_builtin_tools
@@ -233,16 +233,17 @@ _ESCALATION = {
 async def test_the_probes_answer_decides_whether_the_screen_is_offered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Discovered, not declared: the same env, the same body, and only the probe's verdict differs.
+    """The same env and the same body, with only the probe's answer differing, decide whether the
+    screen tool is advertised.
 
-    Read off what the cortex's dispatcher advertises rather than off the built-in list, because
-    that is where the decision moved: the tool object exists under ``auto`` either way now, and a
-    root that built the probe and then never handed it to the dispatcher would leave a
-    built-in-list assertion green while the model was offered eyes it does not have.
+    This is read off what the cortex's dispatcher advertises rather than off the built-in list,
+    because that is where the decision moved: the tool object exists under ``auto`` either way
+    now, and a root that built the probe and then never handed it to the dispatcher would leave a
+    built-in-list assertion passing while the model was offered a capability it does not have.
 
     The builder's arguments are read back too, because the root passing the wrong pair (a
     constant mode, or the endpoint as the mode) would leave a suite that only checks the outcome
-    green.
+    passing.
     """
     seeing = await _compose(
         monkeypatch,
@@ -266,9 +267,9 @@ async def test_the_probes_answer_decides_whether_the_screen_is_offered(
 async def test_a_capture_the_model_can_no_longer_read_reads_no_pixels(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The reproduced failure, refused at the root: advertised honestly, then the server changed.
+    """A tool advertised while the server had a projector reads no pixels once the server changes.
 
-    Scripted True for the advertisement and False from then on, which is exactly what a model
+    The probe is scripted True for the advertisement and False from then on, which is what a model
     host recreated without its projector does to a running brain. The assertion that matters is
     on the **body**: nothing was blitted, so no notification fired and no turn was tainted for a
     picture that would have come back as an HTTP 500.
@@ -305,7 +306,7 @@ async def test_the_owners_off_switch_needs_no_server_to_be_believed(
 async def test_without_a_body_nothing_is_built_to_probe_with(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No body, no capture, so there is no reason to ask a model server anything.
+    """Without a body there is no capture to take, so no model server is asked anything.
 
     ``CORTEX_VISION=on`` would answer True without touching the network, which is why the guard
     is asserted on the tool never being *registered* under a mode that would otherwise register
@@ -319,10 +320,10 @@ async def test_without_a_body_nothing_is_built_to_probe_with(
 async def test_the_capture_bounds_the_tool_asks_for_come_from_body_config(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The knobs, asserted at the far end: what the body was actually asked for.
+    """The configured bounds are asserted at the far end, on what the body was actually asked for.
 
     A composition root that built the tool with its defaults instead of the configured numbers
-    leaves every other test green, so the bound is measured by invoking the tool the root built
+    leaves every other test passing, so the bound is measured by invoking the tool the root built
     and reading the request that reached the fake body.
     """
     root = await _compose(
@@ -346,14 +347,15 @@ async def test_the_capture_bounds_the_tool_asks_for_come_from_body_config(
 async def test_the_deep_tier_is_never_offered_the_screen(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The tier that swaps in is text-only by construction, so it must not be offered eyes.
+    """The tier that swaps in is text-only by construction, so the screen tool is never offered
+    to it.
 
     The probe asked the cortex's endpoint and the deep model serves at another one, so a set
     registered from that answer would advertise `capture_screen` to a model with no projector:
     the full privacy cost of a screen read (pixels blitted, receipt fired, turn tainted and
-    opaque) for a picture nothing can read. Read off the capabilities the root handed the real
-    ``BrainPhase``, not off the sets it built, because building the right set and passing the
-    wrong one is the mistake with no other symptom.
+    opaque) for a picture nothing can read. This is read off the capabilities the root handed the
+    real ``BrainPhase`` rather than off the sets it built, because building the right set and
+    passing the wrong one is the mistake with no other symptom.
     """
     root = await _compose(
         monkeypatch,

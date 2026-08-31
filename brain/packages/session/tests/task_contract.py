@@ -41,12 +41,12 @@ async def check_task_round_trips(store: TaskStore) -> None:
     """A stored task reads back field-for-field, the resolution inputs included (ADR-0018).
 
     The spawning dispatch's attribution is on that record too (ADR-0009 named-work and fired-work
-    addenda), and it must survive the round trip for the same reason the taint must: the runner
-    reads the task back to know whose work it is doing, so an attribution lost in the store would
-    put a delegated call in the audit trail under nobody at all. All three identities are set here
-    even though no single spawn carries all three, because what the codec must not do is drop a
-    field it was handed, and a fixture that left one empty could not tell a dropped field from an
-    honest absence.
+    addenda), and it has to survive the round trip for the same reason the taint does: the runner
+    reads the task back to learn whose work it is doing, so an attribution lost in the store would
+    file a delegated call in the audit trail under no work identity at all. All three identities
+    are set here even though no single spawn carries all three, because the codec must not drop a
+    field it was handed, and a fixture that left one empty could not distinguish a dropped field
+    from a field that was never set.
     """
     task = replace(
         make_task(
@@ -67,8 +67,9 @@ async def check_task_round_trips(store: TaskStore) -> None:
 async def check_result_round_trips(store: TaskStore) -> None:
     """A stored result reads back field-for-field, failures and taint included.
 
-    Taint MUST survive the round-trip (ADR-0018): a result re-read after a restart that lost
-    ``tainted`` would fail open. That is the exact gap the slice 8.6 review closed.
+    Taint has to survive the round trip (ADR-0018): a result re-read after a restart that lost
+    ``tainted`` would be treated as untainted, which is the gap a review of the subagent slice
+    found and this check closes.
     """
     task_id = _task_id()
     ok = SubagentResult(task_id=task_id, output="done")

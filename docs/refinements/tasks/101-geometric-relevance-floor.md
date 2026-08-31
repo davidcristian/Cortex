@@ -27,11 +27,11 @@ take, or a calibration run that gives the floor a defensible number.
 **Closed 2026-08-08 as declined on measurement, the second arm of its own trigger having been run**
 ([ADR-0038](../../adr/ADR-0038-ranked-recall.md) relevance-floor addendum). **The consumer was bigger
 than the entry's own framing**, which is the first thing the re-derivation turned up and the reason
-this was measured rather than shrugged at: `recall_policy_from_config` (`memory_builders.py`)
+this was measured rather than assumed: `recall_policy_from_config` (`memory_builders.py`)
 builds `JudgeRecallPolicy` with no `fallback` argument, so the shipped default carries
 `RAW_RECALL_POLICY` and hands it the pool on an `InferenceError`, on a reply outside the envelope,
 and on an order that parses to nothing usable. The cosine therefore ranks inside the **default**
-deployment every time the model cannot be reached or believed, which is exactly the moment nothing
+deployment every time the model cannot be reached or its answer accepted, which is exactly the moment nothing
 else is watching, so a floor would have been a default-path guard and not the opt-out nicety this
 entry describes. **The design was settled before the measurement could bias it, and it is not the
 fifth policy this entry proposes:** a fifth `MemoryRecallName` is a policy a deployment runs
@@ -65,8 +65,8 @@ answer has the same geometry as a question whose answer is worded unlike it, so
 `CORTEX_MEMORY_RECALL=raw` is an opt-out of exactly that capability and the runbook now says so.
 The calibration ships as `packages/inference/tests/test_recall_floor_live.py` rather than staying
 in a scratchpad, needing only the CPU embedder, and its instrument was proved able to fail before
-its result was believed: an operator that drops a hit reddens the floor-of-zero identity, one that
-ignores its floor reddens the absurd end, and the finding assertion itself fails with **+0.2104**
+its result was trusted: an operator that drops a hit fails the floor-of-zero identity, one that
+ignores its floor fails the absurd end, and the finding assertion itself fails with **+0.2104**
 on a corpus restricted to the categories whose populations do separate, which is the reopening
 condition wired as a test. **Reopens** behind an embedder whose populations separate, or on a
 signal that is not an absolute cosine; the already-filed **cross-encoder** rank is the candidate,
@@ -84,4 +84,4 @@ since it reads the pair rather than measuring the distance. Nothing opened in it
   answerable from the unanswerable populations behind either embedder the repo ships a path for, so
   the floor fails before portability is reached. The re-derivation also found the consumer bigger
   than the entry's own framing, the shipped default's own fallback being the cosine, which is why
-  this was measured rather than shrugged at.
+  this was measured rather than assumed.

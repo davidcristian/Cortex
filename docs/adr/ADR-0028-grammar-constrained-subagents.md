@@ -215,7 +215,7 @@ addendum recorded.
    that already holds both directions of the envelope, because they are one contract said twice:
    once to the server, which enforces it, and once to the model, which is the only half of the pair
    that can read anything. A sentence typed at a call site would be a prompt. A sentence beside the
-   schema is the contract that schema was always trying to express and could not.
+   schema states the contract the schema itself has no way to express.
 2. **It is appended to the instruction, and it is last.** `task_messages(task, *, constrain)` now
    takes the decision that used to be made after it, so a constrained ask is
    `f"{task.instruction} {REPLY_INSTRUCTION}"` and an unconstrained one is exactly what the cortex
@@ -223,7 +223,7 @@ addendum recorded.
    the cortex composed out of content it read, and inside the user message rather than a system one
    because a subtask is one ask and because that is the shape the recovery was measured on.
 3. **It names the answer and never a genre.** The wording the answer addendum measured said "the
-   summary itself", which was written for a summarization probe and would be a lie on the two other
+   summary itself", which was written for a summarization probe and would be wrong on the two other
    shapes this tier is asked for. What ships says "the answer itself", and the price of that
    generalisation is measured below rather than assumed.
 4. **It rides with the envelope and gets no knob of its own.** `CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT`
@@ -328,8 +328,8 @@ Three things about it that the earlier reading could not see.
 
 - **It is not one body's quirk.** The eight fall on two of the four bodies (warehouse and clinic)
   and on all three subtask shapes, including the lookup, where the whole answer is two words.
-- **It is not the sentence's alone.** The bare arm produced one, on a lookup, so the door exists
-  without anything pushing on it. What the sentence does is make it about eight times as likely.
+- **It is not the sentence's alone.** The bare arm produced one, on a lookup, so the failure path
+  exists with no prompt provoking it. What the sentence does is make it about eight times as likely.
 - **It is mostly not deliberation.** Two of the eight open in the register the earlier reading
   described ("Here's a thinking process to ensure all details are captured"). The other six open
   with a **malformed channel marker**, the literal strings `t</c>`, `t <|channe|s_input>`, `h</c>`
@@ -734,9 +734,9 @@ bodies, the same three instructions, the same eight draws, the same cap, the sam
 image digest and the same `-ngl`, one server at a time with the other torn down, and the `bare` arm
 asserts on every draw that it removed a sentence rather than reporting the shipped path twice.
 
-**A prediction that cannot fail is not a prediction.** This one could have: the same column called
-the E4B and the E2B wrong-side and they wrote 22 traces between them, and the entry naming the
-prediction also named the half it does not reach, which is exactly the half that surprised.
+**The prediction could have failed.** The same column called the E4B and the E2B wrong-side and they
+wrote 22 traces between them, and the entry naming the prediction also named the half it does not
+reach, which is exactly the half that surprised.
 
 ### What moves
 
@@ -803,7 +803,7 @@ and is why decision 5's reading about what a detector over prose can do is untou
 attributable to the envelope only while the unconstrained arm is near its ceiling. Nine tenths is
 where that stops being true of this row: its envelope arms have measured as low as 66 and 70 of 96,
 so a control arm under nine tenths is doing no better than the arms it exists to explain, and a
-difference read between two such arms is noise in a table's clothes. It sits well clear of every
+difference read between two such arms is noise presented as a result. It sits well clear of every
 honest control cell this arc has produced, the worst being the 4B's extraction at 28 of 32, and
 well above the collapse it exists to catch. An exact figure read off one sweep would have been a
 dated reading rather than a property, which is the reason the shape is a floor with an interval
@@ -813,11 +813,11 @@ under it rather than a number to hit.
 when its whole Wilson 95% interval lies under it. On a swept cell of 32 that is 25 or worse and 26
 passes; pooled at 96 it is 80; at the default knobs, where an arm is four runs, a cell is refused
 only once half of it has failed, one loss in four being evidence of nothing. The alternative,
-redding whenever the observed rate is under the floor, would have made a 40-minute measurement fail
+refusing whenever the observed rate is under the floor, would have made a 40-minute measurement fail
 on sampling noise, which is the way an instrument gets switched off. Where this interval parts from
 an exact binomial test it parts at small n and toward refusing, and that is the harmless direction:
 a refusal withholds a comparison from a run that measured almost nothing, where publishing hands a
-reader a rate about the pick wearing the envelope's name.
+reader a rate about the pick under the envelope's name.
 
 **The floor is held per subtask shape**, a shape being the instruction a run was given, because a
 pick that answers a summarization and cannot do an extraction has one cell at ceiling and one on
@@ -836,7 +836,7 @@ who would reach for it is the one whose control arm just failed.
 driver writes `control` per sample, true for the arm whose request carries no schema, which is also
 the arm the runner appends no sentence to. So the reader finds the control without knowing that any
 arm is called `raw`, and a run configured with no control arm at all, which `CORTEX_ENVELOPE_ARMS`
-allows and a probe legitimately wants, is refused as no comparison rather than published as a
+allows and a probe legitimately needs, is refused as no comparison rather than published as a
 weaker one.
 
 ### Distrust green
@@ -848,7 +848,7 @@ suite that covers it** (`cd scripts && uv run pytest tests/test_envelopefloor.py
 | mutation | result |
 | --- | --- |
 | the floor set to nothing (`FLOOR = 0.0`) | 4 failed, 25 passed |
-| the rule made two-sided (refuse on the interval's low end) | 5 failed, 24 passed |
+| the rule made two-sided (reject on the interval's low end) | 5 failed, 24 passed |
 | the echo lapse dropped, so the ask handed back counts as an answer | 7 failed, 22 passed |
 | the echo lapse widened from equality to containment | 1 failed, 28 passed |
 | the empty lapse dropped | 2 failed, 27 passed |
@@ -863,11 +863,11 @@ suite that covers it** (`cd scripts && uv run pytest tests/test_envelopefloor.py
 
 **The half that no suite can hold is named rather than left implied.** The driver's own change,
 recording the instruction and the control flag, is in an integration-marked file that neither CI
-nor the coverage gate runs, so nothing red-greens it. What stands in for that is the reader's
+nor the coverage gate runs, so no gate exercises it. What stands in for that is the reader's
 refusal: a driver that stopped writing either field is refused by name, and one that marked no arm
 as the control is refused as no comparison, which are exactly the two mutations tabled above.
 
-**The arithmetic could have been a new arithmetic wearing the old numbers.** It is not: ten rates
+**The new module could have computed something different and still printed the old numbers.** It is not: ten rates
 drawn from the tables above, spanning 9 of 32 to 96 of 96, are asserted against this module's own
 interval, and all ten reproduce to the two decimals the tables print.
 
@@ -933,7 +933,7 @@ Qwen3.5-0.8B, are entries of the **lineup** in [ADR-0004](ADR-0004-model-lineup.
 by pointing `CORTEX_MODEL_FILE_SUBAGENT` or `CORTEX_MODEL_FILE_SUBAGENT_QWEN` at another GGUF, which
 is a `command:` argument of a `llama-server` container. Nothing in the brain reads it:
 `SingleResidentModelManager(name, endpoint)` matches the logical id against itself and dials the
-endpoint, and the logical id is the roster name. The brain therefore knows which door it knocks on
+endpoint, and the logical id is the roster name. The brain therefore knows which endpoint it dials
 and never which weights answer.
 
 Three consequences, and the first is the whole decline.
@@ -955,7 +955,8 @@ Three consequences, and the first is the whole decline.
 - **gemma-4-E2B**: 90 of 96 bare against 84 constrained, the losses on extraction (32 to 28) and on
   the one-fact lookup (31 to 24), with 14 of 96 constrained draws written into the reasoning channel
   a delegated run drops. The mechanism is a template that answers the thinking kwarg by dropping the
-  block, so the sentence pushes on a door already open. No milder wording has been asked of it, and
+  block, so the reasoning channel is already open and the sentence sends more into it. No milder
+  wording has been asked of it, and
   nothing measured says one exists that recovers its summarization without costing its lookup.
 - **Qwen3.5-0.8B**: 70 bare against 66 constrained, intervals overlapping, which the row addendum
   calls a small cost rather than a measured harm. Its failure is handing the ask back, once as a

@@ -16,7 +16,7 @@
 // two readers, and no second source: a placement cannot cap the panel at one height and the sections
 // at another, because the number is the same number.
 //
-// This is NOT a new input to `panelWatch`. The property is only ever written from inside `place`,
+// This is not a new input to `panelWatch`. The property is only ever written from inside `place`,
 // which the watch already brackets by dropping its observation for the frame the panel is written
 // in, so the section resize this causes lands in that same frame and is answered by the placement
 // that caused it rather than by a second one.
@@ -28,7 +28,7 @@ export const CEILING_PROPERTY = "--ceiling";
  * Cap `element` at `ceiling` pixels, and say so where the stylesheet can hear it.
  *
  * Every layout write of the panel's `max-height` goes through here, which is what keeps the two
- * numbers equal. The KEYFRAMES are deliberately not routed through it: a move carries its ceiling
+ * numbers equal. The keyframes are deliberately not routed through it: a move carries its ceiling
  * along so the cap is never tighter than the height it is clamping (`panelGeometry.frame`), but that
  * cap is a visual override on the way to a destination whose layout is already settled, and handing
  * the sections an interpolating budget would resize them once a frame for the length of every move.

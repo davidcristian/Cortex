@@ -324,7 +324,7 @@ inherits the confirmer and the tainted-turn denial (a gated call on a tainted tu
 `BodyService`, whose only guard is the seam token. Building the Windows `SendInput` adapter and wiring
 the server handler ahead of that tool would let the body move the real mouse for anyone holding the
 seam token, shipping an irreversible machine-control primitive (click "OK", approve a dialog, drag a
-file) without the front door that would gate it. That is the same fail-closed reasoning the
+file) without the check that would gate it. That is the same fail-closed reasoning the
 `GetVolume` and real-file-attachment declines turned on, on the most dangerous surface in this
 catalogue.
 
@@ -442,12 +442,12 @@ it on the very first capture the cortex tries.
 the exception. One exception type rather than a subclass tree, so every existing `except
 BodyGatewayError` keeps its meaning, and a caller that wants to branch reads one attribute instead
 of running an `isinstance` ladder. The kinds are a designed family, not a transcription of gRPC's
-code list, and the family's structure is the journey a call takes:
+code list, and the family's structure is how far the call got before it failed:
 
 | Kind | The call got as far as | The lead the core renders |
 | --- | --- | --- |
 | `UNREACHABLE` | nowhere: no answer arrived, whether for want of a route or of time | `could not reach the body to {action}` |
-| `REFUSED` | the door: a standing policy answer, not a transient one | `the body refused to {action}` |
+| `REFUSED` | the body's policy check, which gave a standing answer rather than a transient one | `the body refused to {action}` |
 | `UNSUPPORTED` | the body, which has no such capability | `this body has no way to {action}` |
 | `UNREADY` | the capability, whose host state is not there | `the host is not in a state to {action}` |
 | `OVERSIZE` | done, and the result will not fit the seam's budget | `the body could not {action} within the size the seam allows` |
@@ -504,12 +504,12 @@ The capture set was re-read whole rather than at the one variant the backlog nam
 | --- | --- | --- | --- |
 | `NoDisplay` | `UNAVAILABLE` | `FAILED_PRECONDITION` | aliased with a dead channel; host state, fixed by opening the lid |
 | `Disabled` | `PERMISSION_DENIED` | unchanged | already exact, and it is the shipping default's answer |
-| `Backend` | `INTERNAL` | unchanged | a fault is a fault |
+| `Backend` | `INTERNAL` | unchanged | a backend fault is what `INTERNAL` is for |
 | `TooLarge` | `INTERNAL` | `RESOURCE_EXHAUSTED` | a picture that was taken and will not fit is not a broken backend |
 
 `AudioError::NoEndpoint` and `NotifyError::Unavailable` move with `NoDisplay` for the same reason,
 and they had to: the classifier is shared, so leaving volume on the old codes would have made the
-same table honest for capture and lying for volume, in the very file this change is fixing the
+same table right for capture and wrong for volume, in the very file this change is fixing the
 lead in.
 
 ### 4. No proto change, verified
@@ -614,7 +614,7 @@ is all `check-body` does to it. So this declaration is read by the cross-tree sc
 and compiled by nothing on most of them. The brain's seam port has had the mirror of that since
 the survey: it is declared in a tree every gate builds and spent by two mentions in this same
 unbuilt crate. What makes both safe is that the scan fails closed. A declaration it cannot find is
-a fault and never a skip, so a rename in the shell reddens `just check` before the compiler that
+a fault and never a skip, so a rename in the shell fails `just check` before the compiler that
 would have caught it ever runs, and the gate that reads the value runs more often than the
 compiler that builds it. That is the argument for reading it here rather than the objection to it.
 
@@ -625,7 +625,7 @@ site, the shell's declaration, and five mentions, the body override's endpoint d
 runbook's bind sentence, the WSL runbook's table cell, the scheduling runbook's recipe line, and
 the brain's live gateway fallback in `test_gateway_live.py`. The live test module is the second
 `integration`-marked file the registry reaches and it is registered for the same reason as the
-first: the suite that would notice never runs in CI.
+first: the suite that would fail on the drift never runs in CI.
 
 `seamcouplings.py` is the right part rather than `shippedcouplings.py`, by that file's own test.
 The question that files a coupling there is whether the far side's own code has to hold the value
@@ -720,7 +720,7 @@ The exclusion is a consequence of the shape rather than a decision applied on to
 
 Three wiring tests are out for the other reason, and the entry had this right. Each sets
 `CORTEX_BODY_ENDPOINT` to a string and asserts the composition root read it back; any port would
-pass, and tying a fixture to a deployment default would redden on a change that broke nothing. The
+pass, and tying a fixture to a deployment default would fail on a change that broke nothing. The
 contrast with `capture_bytes.rs` is the useful one: that suite's `BRAIN_EDGE` **is** the brain's
 number and was promoted to a site the same day (the ADR-0029 legibility-prose addendum), because
 what it measures is meaningless at any other value. A test constant is a far side when the test is
@@ -776,7 +776,7 @@ entries, 1 of those sites and 23 of those mentions.
 All eighteen exited 1 and all eighteen restorations returned the gate to green. Four **controls**
 ran the other way and all four stayed green: the volume runbook's dated record of the address a
 fake server once served on, and the three wiring tests' fixture endpoints. The two counted mentions
-are what the eighth, ninth and sixteenth rows show, a file losing one of a pair reddening as loudly
+are what the eighth, ninth and sixteenth rows show, a file losing one of a pair failing as loudly
 as one losing both.
 
 ### What this opened
@@ -811,7 +811,7 @@ and names three. Counted off the tree, the port is spelled **32 times in 19 file
 decision records, the backlog and this gate's own suite, and **six** documents carry it, fourteen
 times between them.
 
-The load-bearing error is not arithmetic. The entry is titled for a port held in code and loose in
+The error that matters is not arithmetic. The entry is titled for a port held in code and loose in
 prose, and that is not what the tree looks like: **eight of the loose spellings are code**, in
 files the entry never reaches. `brain/Dockerfile` declares `EXPOSE 50051`, so an image could go on
 advertising a port the server had stopped binding. `body/crates/rpc/src/client.rs` carries the
@@ -840,8 +840,8 @@ That is the same line `capture_bytes.rs` was promoted to a site across, `#[ignor
 `integration`-marked but unrun for the same reason, and it is a sharper rule than the one the body
 port's sort wrote down. That one said a test constant is a far side when the test would be wrong
 without it and a fixture when the test is merely specific, which is true and still needs a reader
-to judge. **When the suite runs is a fact about the file.** A suite CI runs holds itself; a suite
-CI does not run is held here or nowhere.
+to judge. **When the suite runs is a fact about the file.** A suite CI runs catches its own drift;
+a suite CI does not run is held by this registry or by nothing.
 
 ### The shapes, and the one paste that stays out
 
@@ -893,8 +893,8 @@ table is about. This entry is 1 of those entries, 1 of those sites and 23 of tho
 All twenty three exited 1 and all twenty three restorations returned the gate to green. Three
 **controls** ran the other way and all three stayed green: the WSL runbook's captured log line
 rewritten to another port, `test_config.py` rewritten to another port throughout, and this gate's
-own contract rewritten so the substring defect it records reads `6006` inside `60061`. A sort that
-cannot be shown to exclude anything is a sort nobody made.
+own contract rewritten so the substring defect it records reads `6006` inside `60061`. Without
+those controls, nothing would show that the sort excludes anything.
 
 ### What this opened
 
@@ -962,7 +962,7 @@ properties keep that from being a coupling:
   declaration and every needle goes on rendering the old digits, green.
 - The fault **names the wrong constant**. This was measured rather than argued: moving the compose
   publish's host-side interface, and moving the body app contract's `CORTEX_BRAIN_ADDR` default,
-  each reddened *the brain's seam port*, a value neither of them spells.
+  each produced a fault naming *the brain's seam port*, a value neither of them spells.
 
 And the fourth property is the one that decides the remedy: a shadow is not evidence the value is
 there. Reading those 24 needles as coverage of the loopback address would have been reading four
@@ -1032,8 +1032,8 @@ has were both stale by this change, and this addendum.
 ## Addendum (2026-08-23): what an unfound needle now says about whose literal moved
 
 The bind-host sort above measured a misattribution and left it standing: a needle is a value plus
-shape, the shape is other people's text, and moving a neighbour's value reddens the entry beside it
-under a fault naming a constant that did not move
+shape, the shape is other people's text, and moving a neighbour's value makes the gate fault on the
+entry beside it, naming a constant that did not move
 ([R-403](../refinements/tasks/403-a-needles-literal-reddens-the-wrong-entry.md)). This is that
 fault answered. It is a message change and a new module; no registry row moved and no value changed.
 
@@ -1057,7 +1057,7 @@ unfound needle with two readings.
 
 **Whether the file still spells this constant's own value** as a token of its own. If it does, what
 stopped matching is shape, and the entry the fault names is probably not the entry to change. That
-is the misattribution said out loud, and it is deliberately worded as a likelihood: a file may
+states the misattribution in the fault itself, worded as a likelihood on purpose: a file may
 spell the same digits under two meanings, which is the same reason a survey by number cannot be
 trusted. A mention rendering only a name spells no value at all and is told that instead.
 

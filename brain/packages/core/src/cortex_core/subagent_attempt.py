@@ -2,8 +2,8 @@
 
 Split out of ``runner.py`` so that file holds only the composition (resolve, admit, place, retry,
 persist) and this one holds the run itself. The split exists because placement gained a second
-attempt: ADR-0012 deferred, and ADR-0030 schedules, a **single CPU re-run after a GPU-placed
-failure**, which needs "run once and say what happened" to be separable from "store the outcome".
+attempt: ADR-0012 deferred, and ADR-0030 schedules, a single CPU re-run after a GPU-placed
+failure, which needs "run once and say what happened" to be separable from "store the outcome".
 
 So an attempt returns an ``AttemptOutcome`` rather than persisting a ``SubagentResult``. That
 outcome vocabulary (``AttemptFailure``, ``AttemptOutcome``, ``reran_on_cpu``, and every refusal
@@ -101,9 +101,9 @@ class PlacedAttempt:
     ) -> None:
         self._clock = clock
         self._tools = tools
-        # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
+        # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), which closes
         # format-laundering on the weak-model niche. Gated to the tool-less path below so the JSON
-        # grammar never fights llama.cpp's tool-calling grammar (ADR-0028 decision 3).
+        # grammar never conflicts with llama.cpp's tool-calling grammar (ADR-0028 decision 3).
         self._constrain_output = constrain_output
         # How far one attempt may go (ADR-0005 total-cap addendum). Shared across the runner's two
         # attempts and armed fresh for each: a re-run handed the remains of a spent deadline would
@@ -123,8 +123,8 @@ class PlacedAttempt:
         # flag differently.
         # ``trace_tokens`` is left unnamed too, though the engine now reads one off the request and
         # it does reach this shape: every subagent server this repo starts already carries
-        # ``--reasoning-budget 0``, and every request here wants that same zero, which is what a
-        # per-server flag says best (ADR-0005 request-lever addendum, decision 7).
+        # ``--reasoning-budget 0``, and every request here needs that same zero, which a per-server
+        # flag expresses directly (ADR-0005 request-lever addendum, decision 7).
         self._generation = (
             None if bounds.max_tokens is None else GenerationBounds(max_tokens=bounds.max_tokens)
         )
@@ -154,7 +154,7 @@ class PlacedAttempt:
 
         ``aclosing`` is the discipline ``tool_loop`` already applies to its own two generators,
         applied to it: the cancellation a deadline delivers lands wherever the task is suspended,
-        and everywhere but one that is *inside* the loop generator, which therefore unwinds and
+        and everywhere but one that is inside the loop generator, which therefore unwinds and
         runs every ``finally`` on the way out, the model lease released with them. The exception
         is a suspension in ``progress.emit`` below, where the loop generator is left at its yield
         instead, and closing it at a point in the code rather than at asynchronous-generator
@@ -165,7 +165,7 @@ class PlacedAttempt:
         """
         # Structurally, `self._tools is None` is exactly the niche a weak model is reachable in
         # (ADR-0017), which is the niche the envelope defends. Decided before the prompt is built,
-        # because the envelope now reaches the model as words as well as as a grammar.
+        # because the envelope now reaches the model in words as well as in the grammar.
         constrain = self._tools is None and self._constrain_output
         working = task_messages(task, constrain=constrain)
         # A tools-enabled subagent reads untrusted content too, so it gets the same standing rule
@@ -187,7 +187,7 @@ class PlacedAttempt:
             nonce=new_nonce(),
             # A subagent run has no chat, turn or fired item of its own, so all three come off
             # the stored task: the spawning dispatch wrote them there through its stamp, and the
-            # audit trail is the consumer the attribution waited for (ADR-0027, ADR-0009
+            # audit trail is the consumer that attribution exists for (ADR-0027, ADR-0009
             # named-work and fired-work addenda). The chat and turn are "" for a run nothing
             # conversational spawned, which is the schedule ticker's fire, and the item is ""
             # for every run a conversation spawned, which is all the rest.
@@ -260,13 +260,13 @@ class PlacedAttempt:
         except MalformedToolCallError as err:
             # A tool call the model was still writing when a token limit ended the completion
             # (ADR-0005 tool-call-cut addendum). Two facts make that verdict, and neither does it
-            # alone: this error says the fragment is the **model's own** and not the transport's,
+            # alone: this error says the fragment came from the model rather than the transport,
             # and the ledger says a completion of this loop stopped at a limit. Together they are
             # the same truncation ``settle_reply`` reports below, reached on the one path that
             # cannot get there, since assembling the calls raises before the loop ends; so it is
             # reported in the same words, and the runner declines to re-place it for the same
             # reason. Apart, each keeps today's answer: an unparsable call with no cap reported is
-            # a backend this attempt cannot vouch for, and a transport failure after a capped
+            # a backend that did not answer correctly, and a transport failure after a capped
             # round is still a transport failure, which is the ambiguity that kept this open.
             if not stops.capped:
                 return AttemptOutcome(

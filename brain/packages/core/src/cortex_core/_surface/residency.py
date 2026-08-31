@@ -1,8 +1,7 @@
-"""Public core names for which model is on the GPU, and the handoff that changes the answer.
+"""Public core names for which model is resident on the GPU and the handoff that swaps it.
 
-One of the area sub-barrels the ``cortex_core`` barrel re-exports wholesale, so the
-import path for every name below stays ``cortex_core``. ``__all__`` is what that
-wildcard re-exports, and it is this file's contract.
+Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
+stays ``cortex_core``. ``__all__`` is this file's contract.
 """
 
 from cortex_core.cadence import (

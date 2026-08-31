@@ -4,7 +4,7 @@ Split out of ``schedule_verbs.py``, which owned the UTC-only ``utc_str`` its sib
 a timezone is policy, not a formatting detail, so it becomes a value the composition root
 constructs and injects rather than a constant compiled into the core. The lookup that turns an
 IANA key into a concrete zone reads the system tz database, which is an edge concern, so it
-lives in ``cortex_orchestrator``; this module knows only the abstract ``tzinfo`` it is handed.
+lives in ``cortex_orchestrator``; this module reads only the abstract ``tzinfo`` it is handed.
 That keeps the core free of ``zoneinfo`` and every test here deterministic. ``UTC_DISPLAY`` is
 the default, so an unconfigured deployment renders exactly what v1 rendered.
 """
@@ -32,12 +32,12 @@ class DisplayZone:
         """The one canonical rendering for specs, creation results, and listing lines.
 
         The offset rides the string (``isoformat`` on an aware datetime), so the model reads
-        a local wall time *and* the offset that disambiguates it, and can always echo an
-        explicit ``at`` back. The hop through UTC is load bearing, not a no-op: ``astimezone``
-        returns ``self`` unchanged when the input already carries this very zone, which would
-        print a *nonexistent* wall time verbatim (03:30+02:00 inside a spring-forward gap)
-        while the same instant read back from the store printed the canonical 04:30+03:00.
-        Normalizing to the instant first makes one instant render one way everywhere.
+        a local wall time together with the offset that disambiguates it, and can always echo
+        an explicit ``at`` back. The hop through UTC is not a no-op: ``astimezone`` returns
+        ``self`` unchanged when the input already carries this very zone, which would print a
+        nonexistent wall time verbatim (03:30+02:00 inside a spring-forward gap) while the same
+        instant read back from the store printed the canonical 04:30+03:00. Normalizing to the
+        instant first makes one instant render one way everywhere.
         """
         return moment.astimezone(UTC).astimezone(self.tz).isoformat(timespec="seconds")
 
@@ -66,7 +66,7 @@ otherwise."""
 class ZoneResolver(Protocol):
     """Turn an IANA key into a ``DisplayZone``, or ``None`` when the key names no known zone.
 
-    A per-rule timezone (ADR-0025 per-rule addendum) is an *open* set of zones, so unlike the
+    A per-rule timezone (ADR-0025 per-rule addendum) is an open set of zones, so unlike the
     single deployment zone it cannot be resolved once at boot: a name reaches the system only as
     model input or as a stored record, and each is where a name becomes a zone. The lookup reads
     the system tz database (the impure edge step the core never takes), so the core depends on
@@ -82,7 +82,7 @@ class ZoneResolver(Protocol):
 
 
 class _UtcOnlyResolver:
-    """The core default: it knows only ``UTC``, since every other key reads the tz database.
+    """The core default: it resolves only ``UTC``, since every other key reads the tz database.
 
     A deployment that offers per-rule zones injects the real resolver; an unconfigured one (and
     every pure-core test) resolves ``UTC`` to the stdlib constant and rejects the rest, so a rule
@@ -94,8 +94,10 @@ class _UtcOnlyResolver:
 
 
 UTC_ONLY_RESOLVER: ZoneResolver = _UtcOnlyResolver()
-"""The default ``ZoneResolver``: UTC only, so the core resolves no key it cannot without the tz
-database. The real, ``zoneinfo``-backed resolver is injected at the composition root."""
+"""The default ``ZoneResolver``, which resolves UTC and nothing else.
+
+The core has no tz database, so it can answer no other key. The real ``zoneinfo``-backed
+resolver is injected at the composition root."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,7 +105,7 @@ class ZoneContext:
     """The deployment display zone plus the resolver a per-rule ``in_zone`` is validated against.
 
     Bundled so a schedule tool that both renders times and resolves a per-rule zone takes one
-    collaborator, not two, staying under the constructor injection ceiling (ADR-0025 per-rule
+    collaborator rather than two, staying under the constructor injection ceiling (ADR-0025 per-rule
     addendum, the ``TickerSettings`` bundle's reasoning). ``default`` is the zone a zone-less
     schedule renders in; ``resolver`` turns an ``in_zone`` key into its own zone or a correction.
     """

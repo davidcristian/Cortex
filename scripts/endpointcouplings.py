@@ -1,22 +1,22 @@
 """The couplings around each side's own endpoint: the address it answers on, and its port.
 
 One of the data files `crosscheck.py` reads as a single registry, split off `seamcouplings.py` when
-the two port sorts grew past half that file and pushed it to the 300-line cap. The seam it fell on
-is the one both entries were already written to: an endpoint is not a number two trees compute with
-but a place one of them listens and the other dials, restated in compose, in an image, in two
-runbooks, in four module contracts and in the sitting notes an operator reads before starting.
+the two port entries grew past half that file and pushed it to the 300-line cap. Both entries were
+already written to the seam it fell on: an endpoint is a place one tree listens and the other
+dials, restated in compose, in an image, in two runbooks, in four module contracts and in the
+sitting notes an operator reads before starting.
 
-Nothing in the scan asks which file an entry sits in, so a coupling moves house without the gate
-noticing; what a file buys is a reader who can hold one subject at a time.
+Nothing in the scan asks which file an entry sits in, so an entry can move between parts with every
+gate still green; a file of its own gives a reader one subject at a time.
 
-**One value per needle, and the digits inside a needle are shape.** Two dozen templates here spell
-`127.0.0.1`, and the brain's bind host is one of them. The rest are the body's own bind, the two
-`CORTEX_*_ADDR` client defaults, the compose publish's host-side interface and a handful of
-loopback dials, each of which goes on saying `127.0.0.1` after the bind host moves. So a value a
-needle carries as a literal is SHADOWED and not held: the comparison there runs against the
-registry's own text rather than against any declaration, it can only fail in the direction where
-the far side moved, and it names the wrong constant when it does. A value gets held by getting an
-entry, which is what the bind host now has, and its own needle carries only its own value.
+One value per needle, and the digits inside a needle are part of its shape. Two dozen templates
+here write `127.0.0.1`, and the brain's bind host is one of them. The rest are the body's own bind,
+the two `CORTEX_*_ADDR` client defaults, the compose publish's host-side interface and a handful of
+loopback dials, each of which goes on saying `127.0.0.1` after the bind host moves. A value a
+needle carries as a literal is therefore shadowed rather than held: the comparison there runs
+against the registry's own text rather than against any declaration, it can only fail where the far
+side moved, and it names the wrong constant when it does. A value is held by getting an entry,
+which is what the bind host now has, and its needle carries only its own value.
 """
 
 from couplings import Constant, Mention, Site
@@ -57,18 +57,18 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
             "(ADR-0003 seam-config contract)"
         ),
         sites=(Site(SEAM_CONFIG, "DEFAULT_SEAM_HOST"),),
-        # Three places, and not the two dozen needles below that spell the same digits. Those
+        # Three places, and not the two dozen needles below that carry the same digits. Those
         # carry four other values: the body's own bind, the two `CORTEX_*_ADDR` client defaults,
         # the compose publish's host-side interface and the loopback dials of a healthcheck, two
         # live suites and two one-liners. Every one of them still says `127.0.0.1` the day this
-        # default moves, so reaching them from here would manufacture the coupling the derived
-        # literal ruling refuses, wearing the same digits.
+        # default moves, so reaching them from here would create the coupling the derived-literal
+        # ruling refuses, in the same digits.
         #
-        # Two things stay out for the reasons already settled. `docker/docker-compose.yml` sets
+        # Two things stay out for reasons already settled. `docker/docker-compose.yml` sets
         # `CORTEX_SEAM_HOST=0.0.0.0`, which is the shipped override rather than a restatement of
         # the default, and `brain/Dockerfile` says the in-process default is "loopback" without
-        # spelling it, which is not a spelling of anything. The ADR that decided this contract is
-        # out on the rule that keeps every decision record out.
+        # writing the address, which restates nothing. The ADR that decided this contract is out
+        # under the rule that keeps every decision record out.
         #
         # Each needle carries this value and no neighbour's: the RPC contract writes the host and
         # the port on one line and the two entries pay it once each, from opposite ends.
@@ -149,8 +149,8 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
         ),
         # The one Rust declaration in the ungated Tauri shell. The scan reads it as text, so it
         # is held on every `just check` while the compiler that builds it runs only in CI's
-        # `check-shell`, which is the split the entry above already lives with the other way up:
-        # the brain declares that port and this same crate spends it twice.
+        # `check-shell`. The entry above is the same split reversed: the brain declares that port
+        # and this same crate spends it twice.
         sites=(Site(BODY_SERVER, "DEFAULT_BODY_PORT"),),
         # Sorted by the survey's tense test: a sentence that becomes WRONG when the port moves is
         # a far side, and one that becomes HISTORY is not. Four shapes carry the sort, so no
@@ -162,11 +162,10 @@ ENDPOINT_COUPLINGS: tuple[Constant, ...] = (
         # and it is a dated reading rather than an instruction. The three wiring tests are out
         # too, each setting `CORTEX_BODY_ENDPOINT` to a string and asserting the composition root
         # read it back, which any port would pass; tying a fixture to a deployment default would
-        # redden on a change that broke nothing. The four `docs/host/` files are IN, and that is
-        # the judgement this entry settles: a host file is a live instruction, not a record.
-        # Its prerequisites open "Sittings die on setup. Have these before starting", and a
-        # completed check's file shrinks to a heading, its status and a pointer, so the sentence
-        # naming this port exists only while somebody may still read it and act on it.
+        # fail on a change that broke nothing. The four `docs/host/` files are in, which is
+        # the judgement this entry settles: a host file is a live instruction rather than a
+        # record. A completed check's file shrinks to a heading, its status and a pointer, so the
+        # sentence naming this port exists only while somebody may still read it and act on it.
         mentions=(
             Mention(BODY_SERVER, "default `127.0.0.1:{value}`"),
             Mention(BODY_SERVER, "CORTEX_BODY_ADDR=0.0.0.0:{value}"),

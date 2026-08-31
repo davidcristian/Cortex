@@ -18,12 +18,12 @@ lines in three modules between them.
 
 Until this morning a runbook could not have printed one: `logcalls.logged` matched a call whose
 first argument was a literal, so a correct sample of any of these lines failed
-`check-samplecheck` as a message no module logs, which is a gate refusing a true statement. That is
+`check-samplecheck` as a message no module logs, which is a gate failing on a true statement. That is
 fixed, and the sample gate is found rather than registered, so a fenced sample added to a runbook is
 held to its call site the moment it is written, level, logger, message and fields in printed order.
 
-**What to weigh.** Not every one of the five wants printing. The tool audit's line builds its
-`extra=` across statements and by condition, so `logcalls.py` refuses to read a field list off it
+**What to weigh.** Not every one of the five needs printing. The tool audit's line builds its
+`extra=` across statements and by condition, so `logcalls.py` does not read a field list off it
 and any fenced sample of it fails as a call the reader cannot account for, which the constant
 registry already says in as many words. The abandonment warning and the spill trio each write a
 literal `extra=` at the call and would be held. The question for each is whether an operator
@@ -40,8 +40,8 @@ already in `docs/runbooks/` were written to.
   quotable-line addendum). It says the spill trio writes a literal `extra=` at the call and would
   be held; two thirds of the trio do not, `_report_cadence` building one `extra` above both
   number-carrying lines and handing it over, unioned with `{"shortfall": ...}` for the warning and
-  bare for the reading. `logcalls._keys` refuses both with `extra= is not a mapping written out at
-  the call`, exactly as it refuses the tool audit's, so the line this entry is named after is the
+  bare for the reading. `logcalls._keys` raises on both with `extra= is not a mapping written out at
+  the call`, exactly as it does on the tool audit's, so the line this entry is named after is the
   one line of the five still not quotable and three of the five are out rather than one. Of the two
   that remain, the abandonment warning is described by no runbook, so printing it would mean
   writing the passage around it first; the no-reading INFO is described in the swap runbook's spill

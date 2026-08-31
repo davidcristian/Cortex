@@ -5,7 +5,7 @@ Integration-marked: excluded from CI and the coverage gate by the workspace addo
 `cd brain && uv run pytest -m integration --no-cov packages/session`. Here the `--no-cov`
 matters, the 100% gate in addopts would otherwise fail the run. The store it drives is the
 live-run database (see tests/live_redis.py), emptied before the suite and again after every
-check, so each check starts from the empty store the fakeredis fixture also grants it and no
+check, so each check starts from the same empty store the fakeredis fixture gives it and no
 real session is ever read, written, or deleted.
 """
 
@@ -26,8 +26,8 @@ async def test_redis_session_store_satisfies_the_contract_live() -> None:
         await live_redis.reset(cleanup)  # a killed prior run may have left records behind
         for check in contract.ALL_CHECKS:
             await check(store)
-            # Per check, not once at the end: a check that FAILS still leaves an empty
-            # database behind, so one bad run cannot poison every later one.
+            # Per check, not once at the end: a check that FAILS still leaves an empty database
+            # behind, so a failure cannot leave records behind for the checks that follow.
             await live_redis.reset(cleanup)
     finally:
         await live_redis.reset(cleanup)

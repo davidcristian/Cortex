@@ -26,7 +26,7 @@ so passing it in keeps a shared window correct for every stream rather than rely
 built per stream). `CharBudgetHistoryWindow` ignores it; the summarizing window emits one
 `StatusUpdate(state="folding", detail="summarizing the earlier part of this conversation")`
 before the pass and only when a pass is really about to happen, so a cache hit and a deferred
-fold stay silent rather than putting a chip on screen for work that is not happening.
+fold emit nothing rather than putting a chip on screen for work that is not happening.
 `assemble_inference_messages` passes `caps.progress`, and because the sink writes onto the
 stream's own queue rather than through the suspended turn generator, the chip lands before the
 reply's first token, which a converse-level test asserts by event order. **No overlay change was

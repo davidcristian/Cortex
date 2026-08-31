@@ -13,7 +13,7 @@ export interface ThemeTokens {
   readonly panel: string;
   /** The panel's face when a liquid edge carries it (ADR-0036): the same ground, nearly opaque,
    *  because a path-clipped panel cannot keep its backdrop blur (Chromium composites the blur
-   *  un-clipped) and a hair more opacity is the honest trade. */
+   *  un-clipped), and opacity is what stands in for the blur. */
   readonly panelSolid: string;
   readonly stroke: string;
   readonly text: string;
@@ -60,8 +60,8 @@ export const MIDNIGHT: Theme = {
     field: "rgba(255, 255, 255, 0.06)",
     control: "rgba(255, 255, 255, 0.05)",
     // The status trio is drawn from the user's own eight-hue palette (the rings' gradient
-    // stops), so the indicator belongs to the design language instead of importing a
-    // traffic-light green from nowhere.
+    // stops), so the indicator uses the overlay's own colours rather than a traffic-light
+    // green from outside the design.
     ok: "#43D675",
     warn: "#FFB347",
     bad: "#FF5F6D",
@@ -86,7 +86,7 @@ export const DAYLIGHT: Theme = {
     field: "rgba(20, 16, 40, 0.04)",
     control: "rgba(20, 16, 40, 0.05)",
     // The same three hues, deepened: the palette's own values are tuned for a dark ground and
-    // wash out on a light panel, and a status colour that cannot be read is not a status.
+    // wash out on a light panel, where the status would not be readable.
     ok: "#1EA95C",
     warn: "#C07408",
     bad: "#D93B4A",
@@ -145,25 +145,16 @@ export const THEME_SWAP_MS = 400;
 let crossing: ReturnType<typeof setTimeout> | undefined;
 
 /**
- * Apply a theme to an element: write its CSS custom properties + the scheme dataset.
+ * Apply a theme to an element: write its CSS custom properties and the scheme dataset.
  *
- * The whole surface CROSSES TOGETHER, which takes one step more than writing the tokens. A theme
- * moves the same `color` that every control eases for its own hover, so left alone each of them
- * crossed at its own pace: measured at 60Hz with the session list up, the titles and previews took
- * the new value in the frame of the click, the pin, the pencil, the trash and the tab labels spent
- * another nine to twenty frames arriving, and the chat's title and the reminder lines, the only text
- * in the panel that inherits the ground's colour rather than setting its own, followed a 0.4s ease
- * on the ground itself. One swap at three speeds reads as the window coming apart and going back
- * together.
- *
- * So `data-swapping` puts ONE transition on everything for the length of the crossing, which is
- * what makes it a crossing rather than each element's own idea of one. It goes on before the tokens
- * so the rule is in the after-change style, which is the style a transition is started from, and it
- * comes off on a timer rather than a style flush: taken off in the same task, there is nothing left
- * to ease and the swap is instant.
- *
- * The FIRST application is not a crossing. Nothing is on screen to cross from, and the tokens
- * arriving over 400ms would be the overlay fading up into its own colours on boot.
+ * The whole surface crosses together, which takes one step more than writing the tokens: a theme
+ * moves the same `color` every control eases for its own hover, so left alone the swap ran at three
+ * different speeds over about twenty frames. `data-swapping` puts one transition on everything for
+ * the length of the crossing. It goes on before the tokens, because a transition is started from
+ * the after-change style, and it comes off on a timer rather than a style flush, because taking it
+ * off in the same task leaves nothing to ease. The first application is not a crossing: nothing is
+ * on screen to cross from, and the tokens arriving over 400ms would be the overlay fading up into
+ * its own colours on boot. docs/modules/body-app.md records the measurement behind all three rules.
  */
 export function applyTheme(theme: Theme, root: HTMLElement): void {
   if (root.dataset.theme !== undefined) {

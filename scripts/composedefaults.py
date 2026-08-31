@@ -1,4 +1,4 @@
-"""Read every variable substitution a compose file spends, refusing every form it cannot name.
+"""Read every variable substitution a compose file spends, raising on every form it cannot name.
 
 Split out of `defaultcheck.py`, which owns the rule, exactly as `composemounts.py` is split out
 of `bindcheck.py`: this module owns only the reading. It is a character walk rather than a YAML
@@ -15,9 +15,9 @@ message an operator sees when the variable is missing. The operator is kept **as
 than folded: `:-` and `-` disagree about a variable set to the empty string, so a reader that
 called them one form would hand the rule two behaviours under one name.
 
-**Anything else is raised, never skipped.** A `$` that opens none of those forms, a brace that
+Anything else raises rather than being skipped. A `$` that opens none of those forms, a brace that
 never closes, a nested expansion, and a name that is not an identifier are each a fault, because a
-reader that quietly walks past the one spend a new override adds is a gate that cannot fail.
+reader that walked past the one spend a new override adds would leave the gate unable to fail.
 
 **Nesting is the one of those four compose itself accepts, and it is still refused.**
 `${A:-${B:-x}}` resolves to `B`'s value and then to `x`, measured on compose v2.39.1 (ADR-0029's
@@ -25,8 +25,8 @@ addendum on a non-chat artifact naming itself in the family, which wanted that s
 compatibility shim and did not take it). It is refused here because every rule over these spends
 compares a default as a value, and a default that is itself a variable has no value until a
 deployment supplies one, so a reader that returned something for it would hand those rules a
-comparison none of them can make. Refusing is therefore the honest answer and not the ignorant one,
-and teaching this reader the form is a decision about what those rules should then compare.
+comparison none of them can make. Raising is therefore the answer here, and teaching this reader
+the form would first mean deciding what those rules should compare in that case.
 
 **A whole-line comment is not read, and a trailing one is read like any other text.** Compose
 interpolates neither, a comment not surviving the parse the interpolation runs over, so a default
@@ -63,7 +63,7 @@ _NAME = re.compile(r"[A-Za-z_]\w*")
 
 
 class SubstitutionReadError(Exception):
-    """A compose file carries a `$` form this reader will not guess at."""
+    """A compose file carries a `$` form this reader cannot read."""
 
 
 class Substitution(NamedTuple):

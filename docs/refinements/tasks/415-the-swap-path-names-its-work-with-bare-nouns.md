@@ -21,7 +21,7 @@ it on three lines.
 
 The turn half is a plain second spelling of a name the brain has now settled, and it is held by
 nothing: `scripts/logcouplings.py` ties every place that spells `turn_id` to one declaration, and a
-bare `turn` is not that string, so the registry cannot see it. The handoff half is a different
+bare `turn` is not that string, so the registry does not reach it. The handoff half is a different
 question, because a handoff is a **sixth** identity that the dispatch stamp does not carry, so it
 has no settled name to be wrong against yet; what makes it worth deciding together is that the
 answer for the turn decides the shape of the answer for the handoff.
@@ -38,7 +38,7 @@ module with the turn entry in `scripts/logcouplings.py`, which is a mechanical c
 gate then holds. Then decide whether a handoff joins the vocabulary as `handoff_id`, which would
 make `log_fields.py` carry six names and needs the swap runbook's pasted line updated with it, or
 whether the swap path's nouns are deliberately its own and that is written down where a reader of
-those lines will find it. The pasted line is the tell either way: it renders the field as
+those lines will find it. The pasted line shows the problem either way: it renders the field as
 `handoff=<turn id>`, so a reader is already being told that this id and a turn id are the same
 number under two names, which is the question the rename would answer or retire.
 
@@ -55,7 +55,7 @@ number under two names, which is the question the rename would answer or retire.
   `EscalationSlot.snapshot` writes `handoff_id=turn_id` and is the only production construction of
   a record, so a handoff id **is** the escalating turn's id and there is no sixth identity. All
   eleven now name the work `turn_id`, the one line that names two turns spells the second
-  `active_turn_id` with the qualifier in front so the family grep still reaches it, and the swap
+  `active_turn_id` with the qualifier in front so a grep for `turn_id` still reaches it, and the swap
   runbook's pasted line follows with a sentence saying why the two words are one number. The
   registry's turn entry grew from four mentions to eleven, two of them pinned to a count, and it
   holds the qualified spelling through a template rendering the same declared value. Proved able to

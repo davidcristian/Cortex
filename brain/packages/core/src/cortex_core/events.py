@@ -46,7 +46,7 @@ class ToolOutcome:
     """How an announced dispatch ended (proto ``ToolOutcome``), emitted after it resolves
     (ADR-0029 outcome addendum). The settling half of ``ToolActivity``: exactly one rides the
     turn's stream per activity the turn itself dispatched, on every path out of that dispatch,
-    so a surface lit by such an activity has something honest to settle it with.
+    so a surface that rendered such an activity has something truthful to settle it with.
 
     The pairing covers the turn's own dispatches and not the stream (ADR-0029 delegated-pairing
     addendum). A delegating turn also puts a ``ToolActivity`` on the same stream for each of its
@@ -55,8 +55,8 @@ class ToolOutcome:
 
     ``tool_name`` is the same registry-authored name the activity carried. ``ok`` is the audit
     trail's own verdict, so the consent surface and the audit log agree by construction. It may
-    only ever **strengthen** what a surface claims and never retract it: a capture that failed
-    after the shutter fired is indistinguishable here from one that never happened, so
+    only ever strengthen what a surface claims and never retract it: a capture that failed
+    after the screen was read is indistinguishable here from one that never happened, so
     ``ok=False`` means "the brain cannot say the screen was read", never "it was not read".
     Ephemeral like ``ToolActivity``: never reply text, never persisted.
     """

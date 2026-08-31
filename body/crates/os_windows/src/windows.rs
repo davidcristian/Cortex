@@ -5,10 +5,10 @@
 //! `Modifiers`/`Code`, registers it, and forwards each press to the callback.
 //!
 //! On Windows, `global-hotkey` owns a hidden message-only window on its own
-//! thread and delivers presses on a process-global channel, so the backend
-//! integrates by reading that channel from a listener thread, with no coupling to
-//! Tauri's event loop (the ADR-0011 risk the `Hotkey` port was designed to
-//! absorb). `global-hotkey` keeps `unsafe` off our side of the seam.
+//! thread and delivers presses on a process-global channel, so the backend reads
+//! that channel from a listener thread and never couples to Tauri's event loop,
+//! which is the ADR-0011 risk the `Hotkey` port was designed to absorb.
+//! `global-hotkey` keeps `unsafe` out of this crate's own code.
 
 use std::str::FromStr;
 use std::thread;
@@ -67,8 +67,8 @@ fn to_hotkey(accelerator: &Accelerator) -> Result<HotKey, HotkeyError> {
 }
 
 /// Maps one canonical [`Modifier`] to its `global-hotkey` flag. `Super` is the OS
-/// key (Windows key); if it ever fails to bind on the host, `Modifiers::META` is
-/// the alternative (validated on Windows, not here).
+/// key, the Windows key. If it ever fails to bind on the host, `Modifiers::META`
+/// is the alternative, which only a Windows host can confirm.
 fn to_modifiers(modifier: Modifier) -> Modifiers {
     match modifier {
         Modifier::Ctrl => Modifiers::CONTROL,
@@ -80,8 +80,8 @@ fn to_modifiers(modifier: Modifier) -> Modifiers {
 
 /// Spawns the listener that forwards each matching press to `on_activate`.
 /// `global-hotkey` publishes every hotkey's events on one process-global channel,
-/// so we filter to our hotkey's `id` and the pressed edge. The thread ends when
-/// the channel closes (process teardown).
+/// so the listener filters to this hotkey's `id` and the pressed edge. The thread
+/// ends when the channel closes at process teardown.
 fn spawn_listener(id: u32, on_activate: HotkeyCallback) {
     thread::spawn(move || {
         let receiver = GlobalHotKeyEvent::receiver();

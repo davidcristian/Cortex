@@ -1,9 +1,9 @@
 """FastMCP server exposing the email tools over an EmailReader (ADR-0009, ADR-0022).
 
-Three read tools (``list_folders``, ``search_emails``, ``read_email``) always register;
-the ``send_email`` write twin registers **only** when a sender is passed (``main`` builds
-one only under ``CORTEX_EMAIL_SEND_ENABLED=true``, ADR-0022), so an unconfigured server is
-byte-for-byte the read-only Slice 6 sidecar. ``build_server`` wires them (covered
+Three read tools (``list_folders``, ``search_emails``, ``read_email``) always register; the
+``send_email`` write twin registers only when a sender is passed (``main`` builds one only under
+``CORTEX_EMAIL_SEND_ENABLED=true``, ADR-0022), so an unconfigured server is byte-for-byte the
+read-only sidecar that shipped before the send path existed. ``build_server`` wires them (covered
 in-process via ``FastMCP.call_tool``); ``main`` reads the env config and runs the server
 over streamable-http. Sync IMAP/SMTP work runs in a thread so the async MCP loop is never
 blocked. Brain-side, ``send_email`` is stamped ``gated`` at the composition root
@@ -42,9 +42,9 @@ _DEFAULT_SEARCH_LIMIT = 20
 # The MCP result `_meta` key the brain's tool registry reads a declared source from (ADR-0027).
 # A cross-deployable wire contract with the brain's `cortex_tools` (this sidecar deliberately
 # cannot import the core): `read_email` declares the message sender here so the turn's provenance
-# names *who* the content came from, not merely the tool it came through. It rides in `_meta`, never
-# in the readable content, so the string the model reads is untouched; the brain alone decides trust
-# (admitting it only as a claimed, sanitized source, never a trusted label).
+# names who the content came from rather than only the tool it came through. It travels in `_meta`
+# rather than in the readable content, so the string the model reads is untouched; the brain alone
+# decides trust, admitting it only as a claimed, sanitized source and never as a trusted label.
 _SOURCE_META_KEY = "cortex/source"
 
 
@@ -52,10 +52,10 @@ def _one_text(text: str, *, failed: bool = False) -> CallToolResult:
     """One readable text block as the whole tool result, ``isError`` when it reports a failure.
 
     A tool that lets an exception out is restated by FastMCP as ``Error executing tool <name>:
-    <the exception>``, which is the truth for a mailbox that could not answer and a falsehood for
-    a search the server read and declined: the tool ran, and what it has to say is a correction
-    the model can act on. Returning the result itself is how that text reaches the model as
-    written, and ``isError`` still marks it a failure for the brain's audit trail.
+    <the exception>``, which is accurate for a mailbox that could not answer and wrong for a
+    search the server read and rejected: that tool ran, and its result is a correction the model
+    can act on. Returning the result itself is how that text reaches the model as written, and
+    ``isError`` still marks it a failure for the brain's audit trail.
     """
     return CallToolResult(content=[TextContent(type="text", text=text)], isError=failed)
 
@@ -77,10 +77,10 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
     cannot reassemble. One string keeps the result clean end to end. Two of them build that one
     block into a ``CallToolResult`` themselves, each for something the block alone cannot carry:
     ``read_email`` adds a result ``_meta`` declaring the message sender (``_SOURCE_META_KEY``),
-    which rides beside the text and so leaves what the model reads unchanged, and both of the
+    which travels beside the text and so leaves what the model reads unchanged, and both of the
     folder-taking tools mark a correction ``isError`` while keeping its own wording (`_one_text`).
-    A guessed folder reaches both of them, so both answer it the same way; a refused query reaches
-    only the one that takes a query.
+    A guessed folder reaches both of them, so both answer it the same way; a rejected query
+    reaches only the one that takes a query.
     """
     server = FastMCP(
         "cortex-email", host=_SERVER_HOST, port=_SERVER_PORT, streamable_http_path="/mcp"
@@ -136,9 +136,9 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
             )
         )
         # PLR0913's ceiling is a dependency-injection one (see ruff.toml): bundle collaborators
-        # before asking for a seventh. These are not collaborators, they are the draft's fields
-        # as the model sees them, and this signature IS the advertised JSON schema, so folding
-        # them into an object would rewrite a working tool contract to satisfy a lint rule.
+        # before asking for a seventh. These parameters are the draft's fields as the model sees
+        # them rather than collaborators, and this signature is the advertised JSON schema, so
+        # folding them into an object would rewrite a working tool contract to satisfy a lint rule.
         async def send_email(  # noqa: PLR0913
             to: str,
             subject: str,

@@ -56,8 +56,8 @@ class SwapRuntime:
     same object in both roles: a swap that did not hold the lease would preempt a live round.
 
     ``healer`` is the one background loop this capability owns: it reads what every evictable
-    peer tier is doing and puts back the ones that are not serving, whether or not anything ever
-    refused to start them (ADR-0030 tier-outage and tier-sweep addenda). It is started by boot
+    peer tier is doing and puts back the ones that are not serving, whether or not a start of them
+    ever failed (ADR-0030 tier-outage and tier-sweep addenda). It is started by boot
     recovery and stopped by ``close``, rather than by two more lines at a composition root that
     was at its line cap when it landed, which is also why it owns its own task.
     """
@@ -83,7 +83,8 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
 
     ``placer`` is the same object the subagent pool places against, handed here so the residency
     scope can tell it which model holds the card while a handoff runs (ADR-0030 handoff-window
-    addendum). One instance in both roles or the correction is written to a ledger nobody reads.
+    addendum). It has to be one instance in both roles, or the correction would be written to a
+    second placer nothing reads.
 
     The endpoint map is composition-root config by design (ADR-0030 decision 5): the core is
     handed logical id to URL and never discovers either. With the echo inference backend the
@@ -91,7 +92,7 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
     exercises every path over the scripted host.
 
     Which host it is comes from ``CORTEX_MODELHOST_BACKEND``, and the config validator is what
-    guarantees a backend was named, so there is no silent no-host path here.
+    guarantees a backend was named, so there is no unreported no-host path here.
     """
     if not swap.escalation:
         return None
@@ -120,7 +121,7 @@ def _build_model_host(
     and stops actual ``llama-server`` processes, and its residency is therefore whatever that
     container is really running (nothing is asserted here, which is why boot recovery converges
     residency before the seam serves). ``scripted`` is the in-core twin, which tracks residency
-    honestly and starts nothing, so it is told the standing resident is up.
+    and starts nothing, so it is told the standing resident is up.
     """
     if swap.modelhost_backend == "supervisor":
         client = build_control_client(swap.modelhost_timeout_s)
@@ -132,16 +133,16 @@ def build_control_client(timeout_s: float) -> httpx.AsyncClient:
     """The control plane's HTTP client: one bounded deadline for every phase of a call.
 
     Deliberately unlike the generation clients (``builders.py``), whose read bound is a per-chunk
-    stall ceiling and not a deadline on the exchange: a control call streams nothing, so it has no
-    gap to be patient about, and every phase of it answers to one number. The bound has to clear
-    the sidecar's own worst-case stop, which is why its default is a whole minute
+    stall ceiling rather than a deadline on the exchange: a control call streams nothing, so it has
+    no such gap, and every phase of it is bounded by one number. The bound has to clear the
+    sidecar's own worst-case stop, which is why its default is a whole minute
     (``config_swap.DEFAULT_MODELHOST_TIMEOUT_S``).
     """
     return httpx.AsyncClient(timeout=httpx.Timeout(timeout_s))
 
 
 async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None:
-    """Refuse a deployment whose model host can outlast the deadline the brain bounds it with.
+    """Raise when the model host's worst stop can outlast the deadline the brain bounds it with.
 
     The pairing (``probe_timeout_s + stop_grace_s + reap_timeout_s`` under
     ``CORTEX_MODELHOST_TIMEOUT_S``) spans two containers' env, so it used to be documented in
@@ -151,19 +152,19 @@ async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None
     than passed beside it, so this and the swap's re-reading of the same rule after a sidecar
     restart cannot be comparing against two different numbers.
 
-    **Three outcomes, and only one of them refuses.** A host that answers bounds the deadline
+    There are three outcomes and only one of them raises. A host that answers bounds the deadline
     does not clear is a static misconfiguration whose failure is intermittent (a stop pays the
-    whole grace only when the tier it evicts was busy), so it is refused loudly here rather than
-    discovered inside one user's handoff, exactly as an escalation without a model host is. A
-    host that cannot be asked is **not** refused: boot recovery already argues that a brain must
+    whole grace only when the tier it evicts was busy), so it raises here rather than being
+    discovered inside one user's handoff, exactly as an escalation without a model host does. A
+    host that cannot be reached does not raise: boot recovery already argues that a brain must
     start beside a sidecar that is down, since the restart policy revives one whose own boot
     default is cortex-up, and an unreachable sidecar is a condition that heals itself while a
-    mispaired deadline is not. A host that answers no bounds at all is the scriptable twin, which
+    mispaired deadline is not. A host that answers no bounds at all is the scripted twin, which
     stops no process and therefore has no stop to bound.
 
     The runtime is handed straight back, so the composition root gates on the way through rather
-    than holding an unchecked one for a statement. A refusal releases what that runtime already
-    holds before it raises, because the root's own shutdown hook is not armed until it returns.
+    than holding an unchecked one for a statement. The raising path releases what that runtime
+    already holds first, because the root's own shutdown hook is not armed until it returns.
     """
     if swap is None:
         return swap
@@ -189,11 +190,11 @@ async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None
             extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s},
         )
         return swap
-    # The three readings above ride the record alone, because the process entry's formatter
-    # appends whatever a record carries and a second copy in the message would print each of them
-    # twice. This refusal is the one place the numbers stay in the prose: the same string is the
-    # exception's text, read where no formatter runs, and a caller told only that the pairing
-    # failed would have to go back to the logs to learn by how much.
+    # The three readings above are attached to the record alone, because the process entry's
+    # formatter appends whatever a record carries and a second copy in the message would print each
+    # of them twice. This failure is the one place the numbers stay in the prose: the same string
+    # is the exception's text, read where no formatter runs, and a caller told only that the
+    # pairing failed would have to go back to the logs to learn by how much.
     msg = (
         f"CORTEX_MODELHOST_TIMEOUT_S is {deadline_s} s and the model host's worst stop is "
         f"{bounds.worst_case_stop_s} s (probe {bounds.probe_timeout_s} s, grace "
@@ -218,15 +219,15 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
     reach the model host still serves, and the report is what says so.
 
     Convergence writes the peers it could not start into the manager's own record rather than
-    into its answer, so a boot whose delegation tier is broken publishes a **serving** report that
+    into its answer, so a boot whose delegation tier is broken publishes a serving report that
     names that tier instead of the amber one that says the usual assistant never came up. The
     record is reached through the manager because that is the object that owns it; the alternative
     was two records for one fact.
 
     The tier retry loop starts here too, at the one moment residency is as settled as this
     process can make it, and deliberately after the publish: a pass that ran first would be
-    retrying against beliefs the boot seed had not replaced yet. A boot that marked a tier is
-    exactly the case that loop then has work to do on, from its very first pass.
+    retrying against a residency record the boot seed had not replaced yet. A boot that marked a
+    tier is exactly the case that loop has work to do on, from its very first pass.
     """
     if swap is None:
         return

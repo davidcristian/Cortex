@@ -1,4 +1,4 @@
-"""THE chaos suite: kill the handoff at every step boundary, and prove it always converges.
+"""The chaos suite: kill the handoff at every step boundary, and prove it always converges.
 
 This is the CI half of ADR-0030 decision 7 and the gate the one hard rule is proven by. The
 same real composition the conductor suite drives (real conductor, real residency manager, real
@@ -36,95 +36,95 @@ assumed. Nothing shuffles tests here: this environment has no test-ordering plug
 a ``-p no:randomly`` on a command line is inert and citing it establishes nothing. What
 establishes it is a real shuffled run, done on 2026-07-18 with the plugin supplied for the run
 only (``uv run --with pytest-randomly pytest -p randomly --randomly-seed=N``): three seeds over
-``packages/core`` and one over the whole brain workspace, all green, with the collected order
+``packages/core`` and one over the whole brain workspace, all passing, with the collected order
 confirmed to differ between seeds so the shuffle was doing something. Repeat that command rather
 than a flag that names a plugin nothing installed.
 
-Distrust-green proofs. Every mutation below was applied on its own, measured against the whole
-``packages/core`` suite, and then restored, on 2026-07-18. Each bullet names the cases **in this
-file** that it reddens and then, in brackets, the package-wide failure count, because a mutation
-to production code reddens the other suites over that same code too (the conductor, residency,
-recovery and drain-contract ones); "and nothing else" therefore means nothing else in the
-package. Four cases here can never be reddened by a swap-window mutation, asserting other
+Mutations proving these tests can fail. Every one below was applied on its own, measured against
+the whole ``packages/core`` suite, and then restored, on 2026-07-18. Each bullet names the cases
+**in this file** that it fails and then, in brackets, the package-wide failure count, because a
+mutation to production code fails the other suites over that same code too (the conductor,
+residency, recovery and drain-contract ones); "and nothing else" therefore means nothing else in
+the package. Four cases here can never be failed by a swap-window mutation, asserting other
 invariants and never calling ``assert_stream_ended_honestly``: the taint case, the boot-recovery
 case, the BRAIN_ACTIVE ordering case and the mid-drain boundary case. Where a status bullet below
 says "every case that ...", read it as every case that also checks the window.
 
-- restoring the cortex only on the scope's success path (no ``finally``) reddens
+- restoring the cortex only on the scope's success path (no ``finally``) fails
   ``after-cortex-stop``, ``mid-brain-stream``, ``after-brain-persist``, the three scripted
   failures whose swap really breaks (``brain-start-fails``, ``health-gate-times-out``,
   ``mid-brain-stream-server-death``), ``settle-failed-refused`` and the close case [17];
-- moving the record's BRAIN_ACTIVE transition ahead of the residency scope reddens
+- moving the record's BRAIN_ACTIVE transition ahead of the residency scope fails
   ``test_the_record_reaches_brain_active_only_once_the_deep_model_serves`` [3];
-- dropping the conductor's ``except`` that fails the record on teardown reddens ``mid-drain``,
+- dropping the conductor's ``except`` that fails the record on teardown fails ``mid-drain``,
   ``after-drain``, ``after-cortex-stop``, ``mid-brain-stream``, ``after-brain-persist``,
   ``during-swap-back``, the close case, the second-cancellation case and
   ``test_the_record_reaches_brain_active_only_once_the_deep_model_serves`` [10];
-  ``after-snapshot`` is reddened by dropping the same guard around the record's first write
+  ``after-snapshot`` fails when the same guard is dropped around the record's first write
   instead, which is a separate mutation and a separate defect (one this suite found: a kill there
-  used to strand a live record that refused every later handoff), and that one reddens
+  used to strand a live record that refused every later handoff), and that one fails
   ``after-snapshot`` and nothing else [1];
-- dropping ``undrain`` from the conductor's ``finally`` reddens every case here that got as far
+- dropping ``undrain`` from the conductor's ``finally`` fails every case here that got as far
   as the drain, ``mid-drain`` included, plus the conductor suite's own drain-timeout case [22].
   Two cases here survive it: ``after-snapshot``, killed before the window was ever opened, and
   the BRAIN_ACTIVE ordering case, which asserts the record and nothing about the pool;
-- a drain that reports clean on timeout reddens
+- a drain that reports clean on timeout fails
   ``test_a_drain_that_times_out_converges_without_evicting_anything``, together with the
   conductor suite's abort case and the pool's own drain contract [3];
 - skipping the stranded-record failure in boot recovery [2], or the stop of a still-running deep
-  model [3], reddens
+  model [3], fails
   ``test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_run``; the rest of each
   count is the recovery suite's unit cases;
 - refusing a handoff because the store still holds a record under that turn id, rather than
-  because one is still live, reddens that same boot-recovery case [3], which is the only place
+  because one is still live, fails that same boot-recovery case [3], which is the only place
   the suite escalates a turn whose record a crash left behind;
 - taking the single-handoff precondition as a store read rather than as the residency claim
-  reddens ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched`` and
+  fails ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched`` and
   nothing else [1], which the in-memory store alone cannot do (hence ``_YieldingHandoffStore``);
-- dropping the conductor's ``aclose`` on its swap generator reddens
+- dropping the conductor's ``aclose`` on its swap generator fails
   ``test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it``, and
   nothing else here, because every other case cancels; the second failure is that same close
   driven through the escalating wrapper [2];
-- each of the swap window's four statuses, moved off the work it announces, reddens through the
+- each of the swap window's four statuses, moved off the work it announces, fails through the
   harness's per-status witness. None of the four changes the ORDER the details arrive in, which
   is what the old assertion read and why it caught none of them. "draining" moved after the drain
-  reddens every case that got PAST the drain [16] (an aborted drain emits no status at all under
-  that mutation, so the drain-timeout cases stay green); "loading" moved inside the residency
-  scope reddens every case whose deep model actually loaded [13]; "working on this" moved above
-  that scope reddens every case that entered the swap at all [18] (it used to redden only the
+  fails every case that got PAST the drain [16] (an aborted drain emits no status at all under
+  that mutation, so the drain-timeout cases keep passing); "loading" moved inside the residency
+  scope fails every case whose deep model actually loaded [13]; "working on this" moved above
+  that scope fails every case that entered the swap at all [18] (it used to fail only the
   cases that never reached the deep model, which is why the witness replaced the old check);
-  "restoring" moved below the scope reddens every case whose stream got as far as that status
+  "restoring" moved below the scope fails every case whose stream got as far as that status
   [7], which is fewer than the cases whose model answered: a kill can land in between;
 - one shielded wait for the restore instead of one per cancellation (which is what the seam
   actually delivers: ``ConverseStream`` cancels the turn from its pump, then again from
-  ``events()``'s teardown) reddens
+  ``events()``'s teardown) fails
   ``test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_window_shut`` and
   nothing else [1], that being the only case that cancels twice;
-- hoisting the conductor's ``undrain`` above the ``aclose`` that unwinds the swap reddens
+- hoisting the conductor's ``undrain`` above the ``aclose`` that unwinds the swap fails
   ``test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it`` and nothing
   else [1], for the same reason as the ``aclose`` mutation above: every other case cancels, and a
   cancellation has already unwound the scope by the time the conductor's ``finally`` runs;
 - dropping the ``aclose`` on the DEEP MODEL's own round (the innermost of the three teardowns)
-  reddens that same close case and nothing else [1]. Only the round's own witness can see it: the
+  fails that same close case and nothing else [1]. Only the round's own witness can see it: the
   swap back and the drain window are both intact under this mutation, so every other assertion
   in the suite, including the two the close case made before, passes;
-- restarting nothing after the cortex comes back reddens
+- restarting nothing after the cortex comes back fails
   ``test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends`` and the
   second-cancellation case, the two here that evict a tier at all [4];
 - pausing the mid-drain case before the pool's own ``drain`` opens the refusal window (which is
-  where it used to pause, making it a duplicate of ``after-snapshot``) reddens
+  where it used to pause, making it a duplicate of ``after-snapshot``) fails
   ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing`` and nothing else [1];
-- the pool's own ``drain`` no longer opening the refusal window at all reddens ``mid-drain``,
+- the pool's own ``drain`` no longer opening the refusal window at all fails ``mid-drain``,
   that same boundary case and the racing case [8], the other five being the drain contract this
   fake shares with the real pool. It is the mutation that proves the boundary is REACHED rather
   than staged: with the straggler setting the draining flag itself instead, as the harness used
   to, both mid-drain cases pass under it (measured the same way);
-- releasing the record's claim only when the settling write landed reddens both cases of
+- releasing the record's claim only when the settling write landed fails both cases of
   ``test_a_store_that_refuses_the_settling_write_still_frees_the_next_handoff``, with the
   conductor suite's two store-failure cases [4];
-- persisting the snapshot AFTER the pool is drained rather than before it reddens 20 cases here
+- persisting the snapshot AFTER the pool is drained rather than before it fails 20 cases here
   and the conductor suite's two window cases [22], nearly all of them on the record states a
-  case reads once its handoff has ended. One reddens on the ordering itself, while the drain is
+  case reads once its handoff has ended. One fails on the ordering itself, while the drain is
   still running: ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing``, at its
   own record assertion, that boundary being the only place the store is looked at mid-drain
   (measured with the reordering made well formed, so the case fails on the ordering and not on a
@@ -216,7 +216,7 @@ class _PausingScheduler(WitnessingScheduler):
 
     Worth knowing before trusting it: what every assertion downstream reads is where the
     HANDOFF is suspended, and no assertion pins this straggler's own wait. Dropping
-    ``_the_pool_closes_around_it`` leaves the whole suite green, because the loop resumes the
+    ``_the_pool_closes_around_it`` leaves the whole suite passing, because the loop resumes the
     handoff into ``drain`` before this test gets to look either way. The wait is here so the
     boundary is deterministic rather than true by ready-queue order, which is not the same
     thing as being proven.
@@ -268,7 +268,7 @@ class _YieldingHandoffStore(RecordingHandoffStore):
     The single-handoff precondition is a read followed by a write. Over a store that cannot
     suspend between them two concurrent handoffs can never interleave there, so the in-memory
     fake structurally cannot exhibit the race the residency claim exists to close, and a suite
-    built only on it would call the defect green. This one can: every verb yields the loop
+    built only on it would report the defect as absent. This one can: every verb yields the loop
     first, and the first ``put`` is held at a gate, which is precisely the window a second
     escalating turn would slip through.
     """

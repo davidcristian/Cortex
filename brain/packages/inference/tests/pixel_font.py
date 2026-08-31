@@ -1,19 +1,19 @@
 """A 5x8 bitmap font for the injection harness's rendered-payload corpus (ADR-0029).
 
-Data only, standard library only, no dependency. The image arm of the injection harness has to
-draw an attacker's instruction into pixels, and it has to do so **deterministically** and with
-no image library: a corpus a future agent cannot regenerate byte for byte is a corpus that
-cannot be re-run when the ``SECURITY_PREAMBLE`` changes, and adding Pillow to the brain's
-dependency graph for a live-only harness would put a decoder in the tree the vision design went
-out of its way to keep out (``cortex_core.images``: the core never decodes an image).
+This module is data and standard library only. The image arm of the injection harness draws an
+attacker's instruction into pixels, and it has to do so **deterministically** and with no image
+library. A corpus a future agent cannot regenerate byte for byte cannot be re-run when the
+``SECURITY_PREAMBLE`` changes, and adding Pillow to the brain's dependency graph for a live-only
+harness would put a decoder in the tree the vision design went out of its way to keep out
+(``cortex_core.images``: the core never decodes an image).
 
 Each glyph is eight rows of five columns, written as the bits themselves so a wrong pixel is
 visible in the source rather than hidden in a hex table. The baseline is row 6, so capitals and
 digits fill rows 0..6 and leave row 7 blank, lowercase sits on rows 2..6, and the five
-descenders (g, j, p, q, y) keep a full four-row body and hang their tails into row 7. Spending
-the eighth row on descenders rather than cramming them is the difference between a legible
-payload and one the measurement would have to caveat: at 5x7 the ``g`` of "Ignore" reads as an
-``s`` and the ``p`` of "previous" as a small capital, which was measured by rendering it.
+descenders (g, j, p, q, y) keep a full four-row body and hang their tails into row 7. The eighth
+row is spent on descenders rather than cramming them into seven because at 5x7 the ``g`` of
+"Ignore" reads as an ``s`` and the ``p`` of "previous" as a small capital, which was measured by
+rendering it.
 
 ``glyph`` returns the rows for one character; ``missing`` names the characters a string cannot
 render, which is what lets the corpus assert up front that no payload is being silently mangled

@@ -20,7 +20,8 @@ async def check_pairs_round_trip(store: PreferenceStore) -> None:
 
 
 async def check_last_write_wins(store: PreferenceStore) -> None:
-    """Setting the same key again replaces the value: the record is a value, not a log."""
+    """Setting the same key again replaces the value; the record holds one value per key rather
+    than a history of them."""
     await store.set("overlay.mark", "sheen")
     await store.set("overlay.mark", "ping")
     assert dict(await store.all()) == {"overlay.mark": "ping"}
@@ -29,8 +30,8 @@ async def check_last_write_wins(store: PreferenceStore) -> None:
 async def check_empty_value_clears_the_key(store: PreferenceStore) -> None:
     """An empty value REMOVES the key, so a reader falls back to its own default.
 
-    The distinction that matters: cleared is absent, not present-and-empty. A reader that sees
-    the key at all would apply "" as a choice and resolve it to a default it never chose.
+    A cleared key is absent rather than present with an empty value. A reader that saw the key at
+    all would apply "" as a choice and resolve it to a default the user never picked.
     """
     await store.set("overlay.theme", "daylight")
     await store.set("overlay.theme", "")

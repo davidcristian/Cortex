@@ -11,7 +11,7 @@ Opened 2026-08-29 by the close of
 trace budget, measured the leak that entry had recorded, and found a worse shape than the one it
 described.
 
-A trace budget is a sampler: it watches for the thought's start sequence and forces its end tag, so
+A trace budget is a sampler: it detects the thought's start sequence and forces its end tag, so
 the forcing necessarily lands **after** the start has been written. What the model had already
 emitted of that tag can therefore end up in the answer. The shape is visible even without a budget:
 a completion capped at one token on the shipped subagent pick returns `"<|channel>"` as its reply,
@@ -68,4 +68,4 @@ since a sampler that emits half a tag into content is a bug wherever it is fixed
   the two are not one mechanism: that one is a model closing a thought the template never opened,
   and this one, the tag arriving inside the reply, is still the forced close and is still this
   entry's own. What survives of the link is the reading instrument, since a probe that counts leaks
-  and one that reads what a trace opens with want the same column.
+  and one that reads what a trace opens with need the same column.

@@ -19,7 +19,7 @@ exactly reversible by closing the trace, so this is a comfort item rather than a
 is not "follow the tail": that scrolls the trace's own top edge off the screen as it grows and
 leaves the reader reading its bottom half. It is to scroll the history by the same curve and over
 the same 300ms, by as much as the growth that falls below the fold and no more, so the trace ends
-fully visible with as much of the reply below it as still fits. That wants a scroll animation
+fully visible with as much of the reply below it as still fits. That needs a scroll animation
 alongside `Collapse`'s height animation (`components/Collapse.tsx` owns the only clock either
 could share), and it wants a rule for what "as much as fits" means when the trace alone is taller
 than the visible history. Deferred because it is a second motion to keep in step with the roll,

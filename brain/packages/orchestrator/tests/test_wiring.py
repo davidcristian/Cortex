@@ -267,7 +267,7 @@ async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
 
     A real socket rather than a mocked transport, for the reason the wedged server below is one:
     what the lever probe has to get right is a whole request over a real client, and a faked
-    transport would prove the branch and never the exchange.
+    transport would cover the branch and never the exchange.
     """
     payload = body.encode()
 
@@ -292,12 +292,13 @@ async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
 
 
 async def test_the_trace_lever_is_measured_when_the_deployment_left_it_on_auto() -> None:
-    """``auto`` believes the engine, over a real exchange (ADR-0005 request-lever addendum).
+    """``auto`` takes its answer from the engine, over a real exchange (ADR-0005 request-lever
+    addendum).
 
-    The floor under the port's trace budget. A build that parses the key range-checks it and says
-    so by name; this asserts the whole chain from the mode through a client this function makes
-    to the verdict, because each link alone is uninteresting and the failure this exists to stop
-    is a key nobody reads riding every request.
+    This is the floor under the port's trace budget. A build that parses the key range-checks it
+    and says so by name, and the assertion covers the whole chain from the mode through a client
+    this function makes to the answer, because each link alone says little and the failure it
+    exists to stop is a key nobody reads travelling on every request.
     """
     refusal = '{"error":{"message":"Field \'reasoning_budget_tokens\': out of range"}}'
     async with _canned_llama_server(400, refusal) as endpoint:
@@ -316,7 +317,7 @@ async def test_the_two_fixed_modes_answer_without_asking_anything() -> None:
     """``on`` and ``off`` open no socket at all, which is what makes them usable with no server.
 
     The endpoint is deliberately one nothing is listening on: a mode that probed anyway would
-    fail to connect and answer ``False``, so the ``on`` half of this would redden rather than
+    fail to connect and answer ``False``, so the ``on`` half of this would fail rather than
     pass by accident.
     """
     dead = "http://127.0.0.1:1"
@@ -372,9 +373,9 @@ async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever
 
     The whole chain in one assertion, because each link is uninteresting alone: the config's
     seconds reach the client, the client applies them to the read, and the adapter translates
-    what comes back into the port's own error. Bounded by `asyncio.timeout`, so restoring
-    ``read=None`` (or hard-coding a ceiling in place of the config's) reddens this in ten
-    seconds rather than hanging the suite, which proves nothing.
+    what comes back into the port's own error. It is bounded by `asyncio.timeout`, so restoring
+    ``read=None`` (or hard-coding a ceiling in place of the config's) fails this case in ten
+    seconds rather than hanging the suite, which would show nothing.
     """
     async with _wedged_llama_server() as endpoint:
         config = InferenceConfig(
@@ -1174,7 +1175,7 @@ async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
 ) -> None:
     """The opt-in path: the endpoint, the shared seam token, and BOTH deadlines all reach
     GrpcBodyGateway.connect. The deadlines are asserted because a knob the composition root
-    silently drops leaves the suite green and the turn hanging."""
+    drops silently leaves the rest of the suite passing and the turn hanging."""
     seen: dict[str, object] = {}
     closed: list[str] = []
 
@@ -1228,8 +1229,8 @@ async def test_build_cortex_tools_adds_volume_tools_when_body_is_wired() -> None
 
 
 async def test_capture_screen_is_advertised_only_when_vision_is_available() -> None:
-    """It needs a body to take the picture and a model that can see it. Advertising it without
-    both spends the whole privacy cost of a screen read on an image nothing can read."""
+    """The tool needs a body to take the picture and a model that can read it. Advertising it
+    without both spends the whole privacy cost of a screen read on an image nothing can read."""
     without = build_builtin_tools(None, InMemoryBodyGateway())
     assert [tool.spec.name for tool in without] == [GET_VOLUME_TOOL_NAME, SET_VOLUME_TOOL_NAME]
 
@@ -1244,8 +1245,9 @@ async def test_capture_screen_is_advertised_only_when_vision_is_available() -> N
 
 
 async def test_the_capture_bounds_reach_the_body_through_the_built_tool() -> None:
-    """A knob the composition root drops leaves the suite green and the bound unenforced, so
-    the plumbing is asserted at the far end: what the body was actually asked for."""
+    """A knob the composition root drops leaves the rest of the suite passing and the bound
+    unenforced, so the plumbing is asserted at the far end: what the body was actually asked
+    for."""
     body = InMemoryBodyGateway()
     builtins = build_builtin_tools(
         None, body, vision=CaptureBounds(max_edge=1280, max_bytes=4_000_000)

@@ -2,7 +2,7 @@
 
 The cortex decides mid-turn that a task is out of its depth and calls this like any tool; the
 ``brief`` argument is its handover, the statement of what the deep model should do and what has
-been learned so far. The spec is **gated**, which buys both existing protections at zero new
+been learned so far. The spec is gated, which reuses both existing protections and adds no
 mechanism (ADR-0030 decision 1): on an untainted turn the user approves the disruption via the
 ADR-0022 confirm card (whose per-tool reason says what is true about the swap), and on a
 tainted turn the dispatcher hard-denies the call with the confirmer never consulted
@@ -17,13 +17,13 @@ up rather than pretending anything already swapped. The brief is model-authored 
 conversation's own trust domain; it is bounded here before it can enter the handoff record,
 and it rides WITH the record's serialized taint ledger, never instead of it.
 
-A turn that looked at the user's screen cannot hand over either, and **this tool is not where
-that is decided**. Pixels are turn-local by design (ADR-0029), so a swap would carry a loop tail
-whose tool message says "the picture is attached to this message" with no picture attached. But a
-capture always taints the turn, and this tool is gated, so the dispatcher's existing hard-deny
-already answers every call that follows a capture: an opaque-turn check here could never fire.
-The ordering that matters runs the other way (escalate approved, capture afterwards), and the
-conductor refuses it at the loop boundary, which is the first point that sees the whole turn.
+A turn that looked at the user's screen cannot hand over either, and that is decided elsewhere.
+Pixels are turn-local by design (ADR-0029), so a swap would carry a loop tail whose tool message
+says "the picture is attached to this message" with no picture attached. A capture always taints
+the turn and this tool is gated, so the dispatcher's existing hard-deny already answers every call
+that follows a capture, and an opaque-turn check here could never fire. The ordering that matters
+runs the other way (escalate approved, capture afterwards), and the conductor rejects it at the
+loop boundary, which is the first point that sees the whole turn.
 """
 
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -70,8 +70,8 @@ _ERR_ALREADY_REQUESTED = (
     "REFUSED: a handoff to the deep model is already requested for this turn, so it was not "
     "requested again. Finish your reply; the deep model takes over when you are done."
 )
-# Honest about the cost (the spawn spec's measured-trade-off precedent): the swap is disruptive
-# and slow, so the description says so plainly instead of selling a free upgrade.
+# The description states the cost (the spawn spec's measured-trade-off precedent): the swap is
+# disruptive and takes minutes, so the model reads that before choosing to call this.
 _DESCRIPTION = (
     "Hand the current task over to the deeper reasoning model. Only for tasks that genuinely "
     "exceed what you can do here: the swap unloads this assistant, claims the whole GPU, and "

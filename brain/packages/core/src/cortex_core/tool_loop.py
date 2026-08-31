@@ -11,9 +11,8 @@ far any one completion decodes, ADR-0005 total-cap addendum; the
 budget is a pool the whole turn shares, so a spawned subagent draws from the same allowance
 rather than starting a fresh one, while salience and the round cap are per loop and per round,
 since a repeat is redundant only against the context that holds its answer and a round is only
-as wide as the model made it). That loop (inlined in ``handle_turn`` before Slice 7)
-lives here so both
-callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
+as wide as the model made it). That loop, once inlined in ``handle_turn``, lives here so both
+callers reuse it verbatim under one bound and one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
 assistant reply delta (a ``str``), any ``ReasoningDelta`` a reasoning model streams (ADR-0020),
 a ``ToolStep`` per audited dispatch (ADR-0009 addendum), and the ``StepOutcome`` settling it
@@ -25,8 +24,8 @@ The module owns the loop and nothing else. Running one round of dispatches (and 
 ``ToolLoopContext`` almost every field of which a round reads) lives in ``dispatch_round.py``,
 split off when the outcome landed and this file reached both the complexity ceiling and the
 300-line cap; the context is re-exported here so every existing import keeps resolving. How wide
-a round may be is ``tool_round.py``'s pure arithmetic. The seam between the three is the loop's
-own sentence: infer, plan the round, run it.
+a round may be is ``tool_round.py``'s pure arithmetic. The seam between the three follows the
+loop's own steps: infer, plan the round, run it.
 
 The loop is also where the untrusted-content boundary is drawn (ADR-0013): an UNTRUSTED result
 is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger``
@@ -111,10 +110,10 @@ async def stream_tool_loop(
     ``step_text``, so they are neither persisted with the assistant message nor fed back into
     the next step's context.
 
-    Steps and outcomes are **paired** by the round that emits them: exactly one ``StepOutcome``
-    follows each ``ToolStep``, so nothing a consumer lit on a step is left without a settling
-    event. The one exception is this generator being closed mid-dispatch, which ends the turn
-    and the surface with it.
+    Steps and outcomes are paired by the round that emits them: exactly one ``StepOutcome``
+    follows each ``ToolStep``, so an indicator a consumer turned on for a step always gets its
+    settling event. The one exception is this generator being closed mid-dispatch, which ends
+    the turn and the surface with it.
     """
     dispatcher = context.dispatcher
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()

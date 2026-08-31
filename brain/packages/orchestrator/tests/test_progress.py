@@ -1,11 +1,11 @@
 """SeamProgressSink: best-effort, credit-balanced progress onto the Converse queue (ADR-0010).
 
-The sink rides the reply's own buffer credits rather than the confirmer's control path, so a
+The sink spends the reply's own buffer credits rather than the confirmer's control path, so a
 delegating turn's many steps cannot drift the buffer bound: an emitted event takes a credit that
 `events()` releases on dequeue, exactly like a reply delta, and a saturated buffer drops the event
-rather than blocking the subagent behind it. (The real wire mapping belongs to `converse_stream`
-and is proven end to end in test_converse_progress.py; this file's `_to_wire` twin keeps the unit
-isolated.)
+rather than blocking the subagent behind it. The real wire mapping belongs to `converse_stream`
+and is covered end to end in test_converse_progress.py; the `_to_wire` twin below keeps this file
+a unit test.
 """
 
 import asyncio
@@ -51,8 +51,8 @@ async def test_a_status_event_maps_onto_the_wire() -> None:
 
 
 async def test_a_successful_emit_takes_a_buffer_credit() -> None:
-    # It rides the data path: the credit it takes is what `events()` releases on dequeue, so the
-    # bound stays exact. An unconditional control-path `put` would leave the credit untouched here.
+    # The credit taken here is the one `events()` releases on dequeue, so the bound stays exact.
+    # An unconditional control-path `put` would leave the credit untouched.
     sink, emitted, sem = _sink(1)
     await sink.emit(ToolActivity(tool_name="read", summary="x"))
     assert len(emitted) == 1
@@ -67,4 +67,4 @@ async def test_drops_when_no_credit_is_free_instead_of_blocking() -> None:
     async with asyncio.timeout(5.0):
         await sink.emit(ToolActivity(tool_name="read", summary="x"))
     assert emitted == []  # dropped, best-effort
-    assert sem.locked()  # and no credit was conjured
+    assert sem.locked()  # and the drop released no credit

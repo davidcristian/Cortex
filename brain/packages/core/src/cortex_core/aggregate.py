@@ -1,21 +1,15 @@
-"""Port-preserving ToolRegistry combinators (ADR-0009 refinements addendum).
+"""Port-preserving ``ToolRegistry`` combinators (ADR-0009 refinements addendum).
 
-``AggregateToolRegistry`` fans one ``ToolRegistry`` across several. It is the multi-server
-refinement that lets the filesystem and email sidecars coexist behind the unchanged port and
-the same audited ``ToolDispatcher``. ``FilteredToolRegistry`` restricts one registry to an
-allowlist. This is the advertised-tool refinement that stops the model seeing write tools the
-read-only mount would only ``EROFS`` (the mount stays the security boundary; this is UX plus
-defense in depth). ``SkipUnavailableToolRegistry`` marks one registry optional, giving the
-skip-and-report degraded mode (ADR-0009 degraded-mode addendum) that keeps an aggregate
-serving its healthy sidecars while a dead one is reported, never silently dropped.
-``UngatedToolRegistry`` strips gated tools at the subagent hand-off boundary (ADR-0013
-subagent-exclusion addendum): a jailbroken subagent must have nothing dangerous to call, not
-merely be denied at the gate. ``GatedToolRegistry`` stamps named remote tools ``gated``, forming
-the composition-root gating overlay (ADR-0022): gating is declared in code under review on
-the brain side, never by a sidecar's own metadata. All are pure routing over the port: no
-I/O of their own, no cached state (the one hard rule). Aggregation and the gated-tool
-check resolve by a live ``describe_tools`` walk, so a tool dropped or re-flagged
-server-side mid-turn fails closed instead of routing stale.
+``AggregateToolRegistry`` fans one registry across several, so the filesystem and email
+sidecars coexist behind the unchanged port and the same audited ``ToolDispatcher``.
+``FilteredToolRegistry`` restricts one registry to an allowlist. ``SkipUnavailableToolRegistry``
+marks one registry optional (ADR-0009 degraded-mode addendum). ``UngatedToolRegistry`` strips
+gated tools at the subagent hand-off boundary (ADR-0013 subagent-exclusion addendum), and
+``GatedToolRegistry`` stamps named remote tools ``gated`` (ADR-0022).
+
+All are pure routing over the port, with no I/O of their own and no cached state (the one hard
+rule). Aggregation and the gated-tool check resolve by a live ``describe_tools`` walk, so a tool
+dropped or re-flagged server-side mid-turn fails closed instead of routing stale.
 """
 
 from collections.abc import Callable, Sequence
@@ -32,7 +26,7 @@ class AggregateToolRegistry:
     Construction order is precedence order: a name advertised by more than one registry
     belongs to the first (the ``CompositeToolRegistry`` shadowing rule). Later duplicates
     are neither advertised nor invokable. A listing failure anywhere propagates as
-    ``ToolError``: one dead server is a loud failure, never a silently smaller tool set.
+    ``ToolError``, so one dead server fails the call instead of shrinking the tool set.
     """
 
     def __init__(self, registries: Sequence[ToolRegistry]) -> None:
@@ -69,13 +63,12 @@ class SkipUnavailableToolRegistry:
     """A ``ToolRegistry`` whose unavailable inner registry lists as empty and is reported.
 
     The skip-and-report degraded mode (ADR-0009 degraded-mode addendum): a listing failure
-    (``ToolError``) becomes an empty advertisement plus one ``report(name, error)`` call, so
-    an aggregate keeps serving its healthy sidecars while the operator hears about the dead
-    one on every walk, degraded but never silent. The reporter is mandatory: there is no way
-    to construct the skipping behavior without the reporting. Only discovery is softened, and
-    ``invoke`` delegates untouched, so directly invoking a tool on an unavailable registry
-    still fails loudly; through an aggregate, an unadvertised tool fails closed as
-    ``ToolNotFoundError``.
+    (``ToolError``) becomes an empty advertisement plus one ``report(name, error)`` call, so an
+    aggregate keeps serving its healthy sidecars and the dead one is reported on every walk.
+    The reporter is a required constructor argument, so the skipping cannot be had without the
+    reporting. Only discovery is softened, and ``invoke`` delegates untouched, so invoking a
+    tool on an unavailable registry directly still raises; through an aggregate, an
+    unadvertised tool fails closed as ``ToolNotFoundError``.
     """
 
     def __init__(
@@ -94,19 +87,19 @@ class SkipUnavailableToolRegistry:
             return ()
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate untouched. Execution failures are never skipped, only discovery is."""
+        """Delegate untouched: only discovery is softened, never execution."""
         return await self._inner.invoke(call)
 
 
 class UngatedToolRegistry:
-    """A ``ToolRegistry`` stripped of gated tools is what a subagent may be handed (ADR-0013).
+    """A ``ToolRegistry`` with the gated tools removed, for handing to a subagent (ADR-0013).
 
-    ``describe_tools`` drops every ``gated`` spec; ``invoke`` refuses a name the inner
-    registry currently advertises as gated (resolved by a live walk, never a cached view), so
-    the exclusion is a real layer, not advisory. Framing is unreliable on the small subagent
-    tier, so a subagent must never *hold* an outbound/irreversible capability. Wrapping its
-    tool subset here makes that structural: a gated tool added to the shared registry later
-    simply does not exist from a subagent's point of view.
+    ``describe_tools`` drops every ``gated`` spec, and ``invoke`` raises ``ToolNotFoundError``
+    for a name the inner registry currently advertises as gated (resolved by a live walk, never
+    a cached view), so the exclusion is enforced rather than advisory. Prompt framing is
+    unreliable on the small subagent tier, so a subagent must never hold an outbound or
+    irreversible capability at all; wrapping its tool subset here makes that structural, and a
+    gated tool added to the shared registry later is not visible to a subagent either.
     """
 
     def __init__(self, inner: ToolRegistry) -> None:
@@ -117,7 +110,7 @@ class UngatedToolRegistry:
         return tuple(spec for spec in await self._inner.describe_tools() if not spec.gated)
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate an ungated call; refuse a gated name as not found (fail closed)."""
+        """Delegate an ungated call; a gated name raises ``ToolNotFoundError`` (fail closed)."""
         gated = {spec.name for spec in await self._inner.describe_tools() if spec.gated}
         if call.name in gated:
             msg = f"unknown tool {call.name!r}"
@@ -128,13 +121,13 @@ class UngatedToolRegistry:
 class GatedToolRegistry:
     """A ``ToolRegistry`` whose named tools are advertised ``gated`` (ADR-0022).
 
-    The composition-root gating overlay for *remote* tools: ``McpToolRegistry`` builds specs
-    generically and must never honor a sidecar's own gating claim (a compromised server
-    could un-gate itself), so the brain declares gating here, over the shared registry root.
-    ``describe_tools`` stamps ``gated=True`` onto matching specs; ``invoke`` delegates
-    untouched. The *dispatcher* enforces the gate (ADR-0013), this overlay only declares
-    it, and ``UngatedToolRegistry`` downstream strips the stamped tools from subagents. A
-    name that never appears is harmless, so a fail-closed default set costs nothing.
+    The composition-root gating overlay for remote tools: ``McpToolRegistry`` builds specs
+    generically and must never honor a sidecar's own gating claim, since a compromised server
+    could then un-gate itself, so the brain declares gating here over the shared registry root.
+    ``describe_tools`` stamps ``gated=True`` onto matching specs and ``invoke`` delegates
+    untouched. The dispatcher enforces the gate (ADR-0013), this overlay only declares it, and
+    ``UngatedToolRegistry`` downstream strips the stamped tools from subagents. A name in the
+    set that no registry advertises has no effect, so a fail-closed default set costs nothing.
     """
 
     def __init__(self, inner: ToolRegistry, *, gated: Sequence[str]) -> None:
@@ -152,17 +145,20 @@ class GatedToolRegistry:
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate untouched. Enforcement is the dispatcher's, declaration is ours."""
+        """Delegate untouched; the dispatcher enforces the gate this overlay declares."""
         return await self._inner.invoke(call)
 
 
 class FilteredToolRegistry:
     """A ``ToolRegistry`` restricted to an allowlist of tool names.
 
-    ``describe_tools`` advertises only allowlisted names; ``invoke`` refuses anything else,
-    so the filter is a real layer, not advisory. It only *restricts*. An allowlisted name
-    the inner registry does not advertise stays unadvertised, and invoking it surfaces the
-    inner registry's own not-found.
+    ``describe_tools`` advertises only allowlisted names and ``invoke`` raises for anything
+    else, so the filter is enforced rather than advisory. It only restricts: an allowlisted
+    name the inner registry does not advertise stays unadvertised, and invoking it surfaces
+    the inner registry's own not-found.
+
+    The read-only filesystem mount stays the security boundary; keeping write tools out of
+    the advertisement stops the model attempting calls the mount would answer with ``EROFS``.
     """
 
     def __init__(self, inner: ToolRegistry, *, allow: Sequence[str]) -> None:
@@ -178,7 +174,7 @@ class FilteredToolRegistry:
         return tuple(spec for spec in specs if spec.name in self._allow)
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Delegate an allowlisted call; refuse any other name as not found."""
+        """Delegate an allowlisted call; any other name raises ``ToolNotFoundError``."""
         if call.name not in self._allow:
             msg = f"unknown tool {call.name!r}"
             raise ToolNotFoundError(msg)

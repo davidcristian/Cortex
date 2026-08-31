@@ -17,9 +17,9 @@ ports a turn runs over, and releases everything on the way out:
   external service is off by default so CI and the no-GPU dev loop run free of them
   (the pure guardrail, like the window, ships on).
 
-What runs once per **Converse stream** rather than once per process is not a composition step
-and does not live here: `engines.py` holds it, an object taking these names once and answering
-the `EngineFactory` `serve` asks for.
+What runs once per Converse stream rather than once per process is not a composition step and
+does not live here: `engines.py` holds it, an object that takes these names once and returns the
+`EngineFactory` that `serve` asks for.
 
 Everything below the edge receives ports, never settings objects or env access.
 """
@@ -90,25 +90,25 @@ async def run_from_env(
     swap_config = SwapConfig()
     reply_bounds = ReplyBoundsConfig().bounds()
     clock = SystemClock()
-    # The settings record rides the same Redis the conversation state does: durable for the same
-    # reason (append-only + a named volume), so a choice outlives a body reinstall.
+    # The settings record is kept in the same Redis the conversation state is: durable for the
+    # same reason (append-only + a named volume), so a choice outlives a body reinstall.
     stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)
     # The handoff's process-wide half (ADR-0030), or None when CORTEX_ESCALATION is off, which
     # is the default: nothing below changes shape for a deployment that never escalates. When it
-    # is on, the inference backend must lease through the very manager the residency scope swaps
+    # is on, the inference backend must lease through the same manager the residency scope swaps
     # under, so it is built first and handed in.
     # One placer for the process: the subagent pool places against it, and the residency scope
-    # tells it which model holds the card while a handoff runs, so the two must be one object
+    # tells it which model holds the GPU while a handoff runs, so the two must be one object
     # (ADR-0030 handoff-window addendum).
     placer = VramBudgetPlacer(
         soft_cap_gb=runtime.vram_soft_cap_gb,
         cortex_reservation_gb=runtime.cortex_reservation_gb,
     )
-    # The runtime passes one gate on its way out: the pairing neither container can check for
-    # itself, a control call bounded here against the stop it waits on being bounded in the
-    # sidecar's own env. Checked before anything else is built, so a mispaired deployment is
-    # refused with almost nothing to release, and before boot recovery, whose own stops are
-    # issued under exactly this deadline.
+    # The swap runtime passes one gate before anything is built on it: the pairing neither
+    # container can check for itself, this side's control-call deadline against the stop
+    # timeouts bounded in the sidecar's own env. It runs before anything else is built, so a
+    # mispaired deployment is rejected with almost nothing to release, and before boot
+    # recovery, whose own stops are issued under exactly this deadline.
     swap = await check_control_deadline(
         build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer)
     )
@@ -124,7 +124,7 @@ async def run_from_env(
     # (CORTEX_TOOLS_GATED) covers subagents too, composing with the UngatedToolRegistry
     # strip inside build_subagent_tools (ADR-0022), and so the tool prices
     # (CORTEX_TOOLS_COSTS) charge delegated work at the same rate (ADR-0009 cost addendum) and
-    # the salience rule (CORTEX_TOOLS_SALIENCE) refuses a delegate's repeats the way it refuses
+    # the salience rule (CORTEX_TOOLS_SALIENCE) rejects a delegate's repeats the way it rejects
     # the cortex's, each against its own rounds (ADR-0009 salience addendum). One policy value
     # carries all three, which is also what keeps these builders under the argument ceiling.
     spawn_tool, scheduler, close_subagents = await build_subagents(

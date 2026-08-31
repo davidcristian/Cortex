@@ -1,10 +1,10 @@
 """The one place a ``llama-server`` command line is assembled (ADR-0005, ADR-0030 decision 3).
 
-Pure: a tier's knobs in, a ``ModelSpec`` out. It is its own module because the flags are the
-deployment contract this sub-slice inherits: the resident cortex must come up with byte-identical
-flags to the ones its always-on compose service used, or a stack that never escalates would
-regress merely by being supervised. Every flag below is copied from that ``command`` block, in its
-order, and the per-tier tail (the subagent tier's reasoning-off pair) rides ``extra``.
+Pure: a tier's knobs in, a ``ModelSpec`` out. It is its own module because the flags are a
+deployment contract. The resident cortex must come up with byte-identical flags to the ones its
+always-on compose service used, or a stack that never escalates would regress merely by being
+supervised. Every flag below is copied from that ``command`` block, in its order, and the per-tier
+tail (the subagent tier's reasoning-off pair) is passed through ``extra``.
 """
 
 from dataclasses import dataclass, field

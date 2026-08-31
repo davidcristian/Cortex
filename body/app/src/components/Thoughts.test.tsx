@@ -6,8 +6,8 @@ import { Thoughts } from "./Thoughts";
 describe("Thoughts", () => {
   it("starts shut, with a real button that says so", () => {
     const { container } = render(<Thoughts trace="step one" />);
-    // Not a `<summary>` in a `<details>` any more: the roll needs an element whose height something
-    // else can animate, and the semantics have to survive that swap.
+    // No longer a `<summary>` in a `<details>`, because the roll needs an element whose height
+    // something else can animate, and the semantics have to survive that change.
     expect(screen.getByRole("button", { name: "Thoughts" })).toHaveAttribute(
       "aria-expanded",
       "false",
@@ -31,9 +31,9 @@ describe("Thoughts", () => {
   it("rolls the body rather than swapping it in, so the panel can follow the same motion", () => {
     const { container } = render(<Thoughts trace="step one" />);
     fireEvent.click(screen.getByRole("button", { name: "Thoughts" }));
-    // The wrapper is what carries the height animation and the `data-morphing` contract with it. A
-    // body rendered as a bare sibling of the button would open in one frame, which is the defect
-    // this component was rebuilt to fix.
+    // The wrapper carries the height animation and the `data-morphing` contract with it. A body
+    // rendered as a bare sibling of the button would open in one frame, which is the defect this
+    // component was rebuilt to fix.
     expect(container.querySelector(".collapse > .thoughts-body")).not.toBeNull();
   });
 
@@ -73,9 +73,9 @@ describe("Thoughts", () => {
   });
 
   it("renders the trace as plain text and linkifies nothing in it", () => {
-    // Model output is untrusted-adjacent, and the overlay never parses markup or turns a URL into a
-    // link anywhere it renders text (ADR-0020). Moving the trace out of `<details>` must not have
-    // quietly bought it a renderer.
+    // The trace is model output, and the overlay never parses markup or turns a URL into a link
+    // anywhere it renders text (ADR-0020). Moving the trace out of `<details>` must not have given
+    // it a renderer.
     const trace = "visited https://example.com/x and <b>weighed</b> it";
     const { container } = render(<Thoughts trace={trace} />);
     fireEvent.click(screen.getByRole("button", { name: "Thoughts" }));

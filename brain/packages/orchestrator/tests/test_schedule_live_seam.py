@@ -96,7 +96,7 @@ async def test_reminder_fires_and_round_trips_over_the_live_seam() -> None:
             assert fired.tainted is False
             assert fired.session_id == "live-seam"
             assert (await _ack(stub, item_id)).acked is True
-            # Delivered: gone from the pull view, and a second ack is a no-op.
+            # Once acked the reminder leaves the pull view, and a second ack does nothing.
             assert [r for r in (await _list(stub)).reminders if r.reminder_id == item_id] == []
             assert (await _ack(stub, item_id)).acked is False
     finally:

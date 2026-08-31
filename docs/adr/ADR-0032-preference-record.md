@@ -19,8 +19,8 @@ everything except this window, or a record the brain owns. The maintainer chose 
 The same slice closes the other recorded overlay deferral, because they turn out to be one
 problem. The mark picker lived on the panel's empty state and was reachable **only** there, so
 once a chat had messages there was no way to change the mark at all, and no click-away close.
-Both are symptoms of the overlay having no settings surface; a preference that persists but
-cannot be reached is not much better than one that does not persist.
+Both are symptoms of the overlay having no settings surface, and persisting the mark would not
+have helped a user who could no longer reach the picker that changes it.
 
 ## Decision
 
@@ -44,8 +44,8 @@ cannot be reached is not much better than one that does not persist.
 3. **An empty value CLEARS a key.** The `rename_session` empty-title convention, and the reason
    the overlay can express "follow the system" at all: `theme = null` is stored as a cleared key,
    not as the string `"auto"`, so the default lives in one place (the reader) instead of being a
-   magic value the store has to know about. Cleared is *absent*, never present-and-empty; a reader
-   that saw the key would apply `""` as a choice.
+   magic value the store would have to handle. Cleared is *absent*, never present-and-empty; a
+   reader that found the key present would apply `""` as a choice.
 
 4. **Reads retry, writes do not.** `GetPreferences` joins the repeatable reads. `SetPreference`
    follows the catalog-write convention (`SeamMethod::SetPreference` is not repeatable): last
@@ -94,7 +94,7 @@ cannot be reached is not much better than one that does not persist.
 - A brain that is unreachable at startup means the overlay opens with default appearance and then
   does not correct itself until the next launch: hydration is once per mount, not a subscription.
   At personal scale, with the body launching alongside the brain, that is a fair trade against
-  polling; if it bites, the fix is to re-read on the same rising edge of visibility the reminder
-  pull already uses.
+  polling; if that becomes a problem, the fix is to re-read on the same rising edge of visibility
+  the reminder pull already uses.
 - The record is readable by any future surface, which was the point of choosing the brain over
   `localStorage`, and is also the reason keys are namespaced from day one.

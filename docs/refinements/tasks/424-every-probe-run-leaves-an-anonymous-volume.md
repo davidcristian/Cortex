@@ -10,7 +10,7 @@ image does with the two paths it declares volumes at.
 
 `dovecot/dovecot:2.3.21` declares `VOLUME /etc/dovecot` and `VOLUME /srv/mail`. The mail root is
 covered: `docker/docker-compose.imap-probe.yml` mounts a tmpfs there, and the entrypoint now
-refuses to start if that mount is missing, so nothing is written to a volume under it. The
+exits if that mount is missing, so nothing is written to a volume under it. The
 configuration directory is not. The compose file binds one file inside it,
 `/etc/dovecot/dovecot.conf`, which leaves the directory itself to docker, and docker fills it with
 an anonymous volume for the life of the container. `just down-imap-probe` runs `docker compose
@@ -24,7 +24,7 @@ but the compose file's own comment says the fixture leaves nothing behind and th
 today.
 
 **Why it was left.** The close it came out of was about the mail root, and this is a different
-path with a different remedy. It also wants a decision rather than a keystroke: `down --volumes`
+path with a different remedy. It also needs a decision rather than a keystroke: `down --volumes`
 in the recipe is the obvious fix and it is a blunter instrument than it looks, since it would also
 remove a named volume if this stack ever grew one, so the choice between it and mounting
 `/etc/dovecot` in a way that leaves docker nothing to fill is worth making deliberately.
@@ -55,12 +55,12 @@ is unchanged across the cycle.
   over as `CORTEX_IMAP_PROBE_CONFIG_ROOT`, so the fixture ends with one rule about both of the
   paths its image declares. The conf is bound in at `/probe.conf` and copied onto that mount by the
   entrypoint rather than bound straight at the path dovecot reads, which is what makes a moved
-  anchor loud: dovecot's configuration directory is compiled in, so any other root is a server
-  loading the image's own settings and seven red tests, where a bind would have left the suite
-  green and the leak back. The conf names the files the symlinks name, and STARTTLS was verified
+  anchor visible: dovecot's configuration directory is compiled in, so any other root is a server
+  loading the image's own settings and seven failing tests, where a bind would have left the suite
+  green and the leak in place. The conf names the files the symlinks name, and STARTTLS was verified
   over the wire rather than by reading the setting back. **Four planted mutations plus the
   pre-change and reverted rows**, over the probe's live suite, seven `integration`-marked tests
   that never run in CI, tabled in the configuration-directory addendum; the volume set was read
   before and after every cycle and ends where it started, at 37. One residue filed: nothing here
-  notices an image declaring a volume no compose file mounts, which is how both halves of this were
+  reports an image declaring a volume no compose file mounts, which is how both halves of this were
   found by hand ([R-425](425-nothing-notices-an-image-volume-nobody-mounts.md)).

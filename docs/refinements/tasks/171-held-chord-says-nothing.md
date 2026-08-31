@@ -14,8 +14,8 @@ on an input labelled "New chat name", `Ctrl+N` produces no event, no focus move 
 change, so nothing distinguishes a chord the editor held from a chord the application ignored.
 The shapes are the overlay's existing live region saying the editor is waiting, a `role="status"`
 line the editor owns, or nothing at all on the argument that a key doing nothing needs no
-narration. This wants the same measurement in a real reader that the silent-shrink entry below
-wants, and the two should probably be picked up together, since both are about what the region's
+narration. This needs the same measurement in a real reader that the silent-shrink entry below
+needs, and the two should probably be picked up together, since both are about what the region's
 contract is allowed to carry beyond "the conversation that arrived". Nothing blocks it.
 - **SHARPENED 2026-08-07 by the silent-shrink entry below, which settled the shared question and
   did NOT bundle this** ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). The contract
@@ -67,7 +67,8 @@ contract is allowed to carry beyond "the conversation that arrived". Nothing blo
   and `Ctrl+→` moved it 6 to 2 and 6 to 7, `Ctrl+Backspace` deleted a word (`a brand new name` to
   `a d new name`), and `Ctrl+Z` undid the whole edit back to `Everything about model swaps`.
   **Seven of the nine did something anyway, two of them changing the text.**
-  **So the region is refused because the sentence would be false at most of its doors.** Raised at
+  **So the region is refused because the sentence would be false for most of the chords it would
+  fire on.** Raised at
   the `hold` branch it fires on all nine, so a reader who pressed `Ctrl+Z` and watched their name
   come back would be told the editor is waiting. Making it true means teaching `fieldKeys.ts`
   which chords the overlay binds, which is exactly the coupling the hold rule removed by deciding

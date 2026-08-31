@@ -7,7 +7,7 @@ matters, the 100% gate in addopts would otherwise fail the run. The store it dri
 live-run database (see tests/live_redis.py), emptied before the suite and again after every
 check. Its checks assert exact global views (``list_active``/``deliverable``) and claim
 whatever is due, which is why this suite used to skip the moment the shared database held a
-real schedule: a green run that had asserted nothing. On a database of its own there is
+real schedule: a passing run that had asserted nothing. On a database of its own there is
 nothing real to disturb and nothing to skip for (ADR-0025, ADR-0002).
 """
 

@@ -48,7 +48,7 @@ export function measure(bubble: HTMLElement): Metrics {
 }
 
 /**
- * The box the bubble wants while the condensation front stands at the end of a letter at
+ * The box the bubble needs while the condensation front stands at the end of a letter at
  * (`fx`, `fy`). On the first line the width walks with the front (plus room for the mist); past
  * the first wrap it is simply the final one. The height's target steps at a wrap, and the frame
  * loop's easing is what turns that step into a curve, while a re-pose after the loop has stopped

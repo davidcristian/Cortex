@@ -3,7 +3,7 @@ r"""One seam comment in both of its spellings: as the proto writes it, as prost 
 Split out of `stubcheck.py`, which owns the rule; this module owns only the reading and the
 normalization that lets the two spellings be compared at all. It is a line reader rather than a
 protobuf parse, because these gates are stdlib-only (`pyproject.toml` in this directory), and it
-stays honest about that by refusing what it does not know rather than walking past it.
+raises on a shape it was not taught rather than walking past it.
 
 **Where the proto body starts.** Everything up to and including the `syntax = ` line is the file
 header. A comment there attaches to no declaration, so protoc records it against nothing and
@@ -15,9 +15,9 @@ reader would then have no way to tell that header from the body.
 the line carries code before it (`optional float level = 1; // clamped to [0.0, 1.0]`) or nothing
 at all. The string rule is why this is a scan and not a `split("//")`: a `https://` inside a proto
 option would otherwise be read as the start of a comment, and the real comment it truncated would
-go unchecked. A `/*` block comment is refused, never skipped, for the reason `composemounts.py`
-refuses a shape it has not met: prost copies those too, in a form this reader does not know, and a
-reader that quietly walked past one is a gate that cannot fail on what it skipped.
+go unchecked. A `/*` block comment raises rather than being skipped, for the reason
+`composemounts.py` raises on a shape it was not taught: prost copies those too, in a form this
+reader does not parse, so walking past one would leave its text unchecked.
 
 **How prost re-spells a comment on its way into `///`**, which is the whole of `normalize`. Three
 things happen to it, each mechanical:
@@ -42,7 +42,7 @@ says a thing anywhere and asking whether it still says it in both places, which 
 opening either module actually reads. A comment belongs to a service when it stands inside the
 block or in the unbroken run of comment lines directly above the `service` line; a blank line
 between the run and the declaration detaches it, and a detached comment is claimed for nothing,
-since claiming one copy too many is a red on a tree that is perfectly in sync.
+since claiming one copy too many would fail on a tree that is perfectly in sync.
 """
 
 import re
@@ -67,7 +67,7 @@ _HEADING = re.compile(r"^#+[ \t]*")
 
 
 class ProtoReadError(Exception):
-    """A proto file this reader will not guess at: no syntax line, or a block comment."""
+    """A proto file this reader cannot read: no syntax line, or a block comment."""
 
 
 class Comment(NamedTuple):
@@ -107,7 +107,7 @@ def split_comment(number: int, line: str) -> tuple[str, str | None]:
 
 
 def proto_comments(text: str) -> list[Comment]:
-    """Return every comment in the proto body, in file order, refusing a file with no body.
+    """Return every comment in the proto body, in file order, raising on a file with no body.
 
     The walk carries two things past each line: how deep in braces it is, so a comment inside a
     `service` block is known for one, and the unbroken run of comment-only lines it has just

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-// The header's outline icon set (design/overlay-ux.md §3) is one vocabulary with the theme
-// toggle: 1.7px round-cap strokes on a 24 grid, `currentColor`, hollow. Kept tiny and static
-// so the buttons stay presentational; state and behavior live in the reducer/hook.
+// The header's outline icon set (design/overlay-ux.md §3), drawn to the same rules as the theme
+// toggle: 1.7px round-cap strokes on a 24 grid, `currentColor`, hollow. Each icon is small and
+// static so the buttons stay presentational; state and behaviour live in the reducer and hook.
 function Icon({ children }: { readonly children: ReactNode }) {
   return (
     <svg
@@ -41,8 +41,8 @@ export function PencilIcon() {
   );
 }
 
-/** Settings: three sliders, not a gear. The console holds choices to set, not machinery to
- *  configure, and sliders read as taste while a gear reads as plumbing. */
+/** Settings: three sliders rather than a gear, because the console holds appearance choices rather
+ *  than machinery to configure. */
 export function SlidersIcon() {
   return (
     <Icon>
@@ -56,7 +56,7 @@ export function SlidersIcon() {
   );
 }
 
-/** Dismiss: a downward chevron for "tuck it away" (the chat is saved; re-summon restores it). */
+/** Dismiss: a downward chevron for putting the panel away; the chat is saved and re-summoned. */
 export function TuckIcon() {
   return (
     <Icon>
@@ -74,7 +74,7 @@ export function ShieldIcon() {
   );
 }
 
-/** A due reminder: a hollow bell, the one thing on screen the user did not just ask for. */
+/** A due reminder: a hollow bell, marking the one thing on screen the user did not just ask for. */
 export function BellIcon() {
   return (
     <Icon>
@@ -84,8 +84,8 @@ export function BellIcon() {
   );
 }
 
-/** Delete a chat: an outline trash can. The one destructive control, so it reads as removal, not
- *  the dismiss chevron (which tucks a saved chat away) or the check (which acks, never deletes). */
+/** Delete a chat: an outline trash can. It is the one destructive control, so it must not be
+ *  confused with the dismiss chevron (which hides a saved chat) or the check (which acks). */
 export function TrashIcon() {
   return (
     <Icon>
@@ -97,8 +97,8 @@ export function TrashIcon() {
 }
 
 /** Pin a chat: a pushpin that keeps a chat reachable above the recency window (ADR-0021 pinning
- *  addendum). `filled` inks the head solid for a currently-pinned row, so the one control both
- *  toggles the pin and shows its state, the way the rename pencil and delete trash read. */
+ *  addendum). `filled` draws the head solid for a currently-pinned row, so one control both
+ *  toggles the pin and shows its state. */
 export function PinIcon({ filled = false }: { readonly filled?: boolean }) {
   return (
     <Icon>
@@ -121,8 +121,8 @@ export function CloseIcon() {
   );
 }
 
-/** Back to the chat from the panel's other view: a left chevron, because that view is a place the
- *  panel went to rather than a dialog laid over it, and leaving it is a return rather than a close. */
+/** Back to the chat from the panel's other view: a left chevron, because that view replaces the
+ *  chat rather than sitting over it, so leaving it is a return rather than a close. */
 export function BackIcon() {
   return (
     <Icon>
@@ -131,8 +131,8 @@ export function BackIcon() {
   );
 }
 
-/** Dismiss a reminder: a check for "got it", never an X. Acking is delivery, not cancellation:
- *  a recurring series re-arms afterwards, so the glyph must not read as "delete this". */
+/** Dismiss a reminder: a check rather than an X. Acking confirms delivery rather than cancelling
+ *  anything, and a recurring series re-arms afterwards, so the glyph must not read as a delete. */
 export function CheckIcon() {
   return (
     <Icon>

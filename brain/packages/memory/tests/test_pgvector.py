@@ -126,8 +126,9 @@ async def test_search_wraps_a_backend_error() -> None:
     with pytest.raises(MemoryStoreError, match="search failed") as excinfo:
         await PgVectorMemoryStore(db).search((1.0,), k=1)
     assert isinstance(excinfo.value.__cause__, asyncpg.InterfaceError)
-    # The healing kind, so it must NOT wear the data subclass: the core degrades this turn on it
-    # and would fail the turn outright if it read as a defect (ADR-0008 data-defect addendum).
+    # This failure heals on its own, so it must NOT be the data subclass: the core degrades this
+    # turn on it and would fail the turn outright if it read as a defect (ADR-0008 addendum on a
+    # data defect).
     assert not isinstance(excinfo.value, MemoryDataError)
 
 

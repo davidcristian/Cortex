@@ -12,8 +12,8 @@ The two legs are held to different depths on purpose, exactly as the cadence con
 **adapter** leg the answer is derived: the transcript is a real llama.cpp body carrying the words a
 live server emits, and passing means the parser found the reason in bytes nobody shaped for it. On
 the **scripted** leg the events the fixture handed the twin come back verbatim, and what those
-cases pin is that the twin honours the world-condition it was given. That is what a fake owes a
-contract, and it is exactly why the real adapter is driven through the same checks.
+cases pin is that the twin honours the world-condition it was given. That is all a fake can be
+held to, which is why the real adapter is driven through these same checks.
 
 The world-condition no verb can create is what the engine behind a backend says about why a
 completion ended, so each implementation supplies it as three named builders: a completion the
@@ -74,8 +74,8 @@ def _text(events: Sequence[InferenceEvent]) -> str:
 async def check_a_cut_completion_says_it_was_cut(subject: BackendUnderTest) -> None:
     """A completion a token limit ended reports exactly one stop, carrying ``CAPPED``.
 
-    This is the whole point of the arm: without it a reply that stopped where the count ran out is
-    a reply that stopped where the answer did, and no consumer can tell.
+    Without this event a reply that stopped where the token count ran out looks exactly like a
+    reply that stopped where the answer did, and no consumer can tell the two apart.
     """
     events = await events_of(subject.capped())
     assert _stops(events) == [DecodeStop(StopReason.CAPPED)], f"expected one cap, got {events!r}"
@@ -92,8 +92,8 @@ async def check_a_finished_completion_is_not_a_cut_one(subject: BackendUnderTest
 
 
 async def check_the_stop_follows_the_text_it_explains(subject: BackendUnderTest) -> None:
-    """The stop arrives after the reply text, why a completion ended being unknowable before it
-    has."""
+    """The stop arrives after the reply text, since why a completion ended is not known until the
+    text has been produced."""
     events = await events_of(subject.capped())
     text_at = [index for index, event in enumerate(events) if isinstance(event, TextChunk)]
     stop_at = next(index for index, event in enumerate(events) if isinstance(event, DecodeStop))
@@ -105,7 +105,7 @@ async def check_silence_is_a_legal_answer(subject: BackendUnderTest) -> None:
     """A backend whose engine reports no reason emits no stop, and nothing else changes.
 
     The port permits this, so a consumer may never read the absence of a stop as a model that
-    finished; this check is what keeps that permission real rather than a sentence in a docstring.
+    finished, and this check holds every implementation to that permission.
     """
     events = await events_of(subject.silent())
     assert not _stops(events), f"expected no stop at all, got {events!r}"

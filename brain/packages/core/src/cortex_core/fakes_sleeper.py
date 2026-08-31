@@ -21,7 +21,7 @@ class AsyncioSleeper:
 class RecordingSleeper:
     """Sleeper twin that yields instead of waiting, recording what was asked for.
 
-    ``waits`` holds every requested duration in order, so a test asserts the *schedule* a poll
+    ``waits`` holds every requested duration in order, so a test asserts the schedule a poll
     loop asked for rather than measuring elapsed time (the body's ``FakeSleeper`` discipline).
     Each call still yields the loop once, so a bounded poll loop makes progress and any deadline
     the caller measures off its ``Clock`` is reached in scheduling order, never in real time.

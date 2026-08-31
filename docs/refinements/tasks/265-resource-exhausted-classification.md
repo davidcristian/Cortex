@@ -4,10 +4,9 @@
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
-A capture the ladder refuses maps to `Internal`, which
-is honest but coarse: the brain cannot tell "your screen is too complex to send" from "the
-backend broke". A distinct status (and a distinct message the cortex could relay) is a small
-mapping change on both sides.
+A capture the ladder refuses maps to `Internal`, which is accurate but coarse: the brain cannot tell
+"your screen is too complex to send" from "the backend broke". A distinct status (and a distinct
+message the cortex could relay) is a small mapping change on both sides.
 
 **Re-read 2026-08-06 against the raised capture edge, and it has not fired, for a reason that
 outlives the numbers.** The trigger was re-read because `CORTEX_BODY_CAPTURE_MAX_EDGE` moved 0 to
@@ -35,7 +34,7 @@ The second finding narrows the coarseness the entry claims. The status *code* re
 `GrpcBodyGateway.capture_screen` catches `aio.AioRpcError` and keeps only `err.details()`, so
 what reaches the model is the body's own sentence, and the three sentences are entirely
 different ("the capture is too large for the seam: N bytes", "screen capture backend error: ...",
-"Deadline Exceeded"). The distinction the entry wants already reaches the only reader there is.
+"Deadline Exceeded"). The distinction the entry asks for already reaches the only reader there is.
 A code the brain does not read is worth adding for a caller that would branch on it, and there
 is none yet.
 
@@ -43,12 +42,12 @@ is none yet.
 separately**, since one sitting fixes both and a near-duplicate name would inflate the area.
 `CaptureScreenTool.invoke` prefixes every failure with `could not reach the body to capture the
 screen`, which is false for all but one of them: a refused capture, a broken backend, a reply the
-gateway will not vouch for, and above all the shipping default, where `CORTEX_HOST_CAPTURE` is
-unset and the body answers `PermissionDenied` promptly and precisely. The model is told the body
-is unreachable and then, after the colon, the true reason. It is a mis-framing rather than a lost
-fact, which is why it waits, but it is reachable on a default install and this entry's own
-trigger clause is about sending a reader to the wrong place. `volume.py` carries the same
-prefix and is more defensible there, having no kill switch behind it.
+gateway does not accept, and above all the shipping default, where `CORTEX_HOST_CAPTURE` is unset
+and the body answers `PermissionDenied` promptly and precisely. The model is told the body is
+unreachable and then, after the colon, the true reason. It is a mis-framing rather than a lost fact,
+which is why it waits, but it is reachable on a default install and this entry's own trigger clause
+is about sending a reader to the wrong place. `volume.py` carries the same prefix and is more
+defensible there, having no kill switch behind it.
 
 **Both halves landed 2026-08-08, so this entry closes whole and the count moves 12 to 11**
 ([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)'s addendum of that date, which is the right
@@ -82,8 +81,8 @@ A new deferral opens beside it, recorded below.
 
 ## Trail
 
-- 2026-07-18: recorded in this area when the vision slice landed, with its trigger written as
-  "the first time that coarseness sends a reader to the wrong place".
+- 2026-07-18: recorded in this area when the vision slice landed, with its trigger written as "the
+  first time that coarseness sends a reader to the wrong place".
 - 2026-08-06: re-read against the raised capture edge and ruled not fired, which moved no count at
   all and was written down so that would be visibly a decision rather than an oversight. A re-read
   that confirms a deferral is the one event in this file that should leave the arithmetic exactly
@@ -102,10 +101,11 @@ A new deferral opens beside it, recorded below.
 - 2026-08-08: closed whole, both the classification it is named for and the wording defect folded
   into it, moving the area's count 12 to 11. The 2026-08-06 re-read had counted it right on the
   mechanism and wrong on the conclusion: what it found, that nothing brain-side read the status
-  code, was not a reason the distinction was already reaching its reader but the reason the reader
-  could not be told the truth. The deferral this close opens is not this area's; it is a coupling
-  the constant scan cannot hold, folded into [repo-gates.md](../index.md#repo-gates)'s existing entry rather
-  than counted beside it, so no name arrived here to replace the one that left.
+  code, was the reason the reader could not be told the truth, rather than a reason the distinction
+  was already reaching its reader. The deferral this close opens is not this area's; it is a
+  coupling the constant scan cannot hold, folded into [repo-gates.md](../index.md#repo-gates)'s
+  existing entry rather than counted beside it, so no name arrived here to replace the one that
+  left.
 - 2026-08-09: a trigger sweep of the fix-when-it-bites bucket read this landing against the
   retryable-code table's trigger in [seam-transport.md](../index.md#seam-transport), which names a
   brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED` and so reads as fired by what landed
@@ -114,5 +114,5 @@ A new deferral opens beside it, recorded below.
   consumed by the brain as a client, which maps it to `BodyFailure.OVERSIZE`
   (`brain/packages/body_client/src/cortex_body_client/failures.py:40`), while that retry policy
   classifies the body-to-brain direction at `body/crates/core/src/retry/policy.rs:26`, whose
-  transient set is still exactly `Unavailable`. That trigger wants a producer on the seam the policy
+  transient set is still exactly `Unavailable`. That trigger needs a producer on the seam the policy
   reads, and what landed here is a producer on the other one.

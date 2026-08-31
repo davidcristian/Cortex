@@ -27,19 +27,19 @@ class RawEmail:
 class Mailbox(Protocol):
     """Read-only slice of IMAP the reader needs; the imap-tools adapter and a fake both match.
 
-    The port fails in exactly three ways, and every implementation owes all three (`errors.py`).
-    Two of them are the caller's to fix, one per argument it guessed: `SearchRefusedError` when
-    the server reads a query and refuses it as malformed, fixed by writing a different one, and
-    `FolderUnknownError` when no mailbox has the folder that was named, fixed by reading
-    `list_folders`. The third is `MailboxError`, for every way the mailbox could not answer at
-    all, and it is what a refusal that cannot be proved to be either of the first two stays. No
-    implementation may let its own library's exception out, which is why the fake raises these
+    The port fails in exactly three ways and every implementation raises all three (`errors.py`).
+    Two of them the caller can correct, one per argument it guessed: `SearchRefusedError` when the
+    server rejects a query as malformed, corrected by writing a different one, and
+    `FolderUnknownError` when no mailbox has the folder that was named, corrected by reading
+    `list_folders`. The third is `MailboxError`, for every other way the mailbox could not answer,
+    and a rejection that cannot be shown to be either of the first two stays a `MailboxError`. No
+    implementation may let its own library's exception escape, which is why the fake raises these
     too and the contract test drives the same checks over both.
 
-    Every name `list_folders` answers with is a name the other two calls may be given. A server
-    can list a name that is only a node in its folder hierarchy, and an implementation owes the
-    caller the filtering: a node handed on would come back `FolderUnknownError`, sending a model
-    to the list for a name that list had just given it.
+    Every name `list_folders` returns is a name the other two calls may be given. A server can
+    list a name that is only a node in its folder hierarchy, so an implementation has to filter
+    those out: a node passed on comes back as `FolderUnknownError`, sending a model to the list
+    for a name that list had just given it.
     """
 
     def list_folders(self) -> Sequence[str]: ...

@@ -20,7 +20,8 @@ def test_every_open_state_parses_and_names_one_heading(state: str) -> None:
 
 
 def test_the_two_waiting_states_are_open_states() -> None:
-    """A trigger rule spelled over a state nothing can reach would gate nothing."""
+    """Every state that needs a trigger is an open state, so the trigger rule is spelled over
+    states a task file can really carry."""
     assert set(backlog.OPEN_STATES) >= backlog.NEEDS_TRIGGER
 
 
@@ -89,7 +90,7 @@ def test_a_status_outside_the_grammar_is_rejected(raw: str, message: str) -> Non
 
 
 def test_a_bad_date_is_reported_against_the_whole_status_line() -> None:
-    """The line is what a person has to fix, so the message quotes it, not the fragment."""
+    """The message quotes the whole status line, which is what a person has to fix."""
     with pytest.raises(backlog.TaskFileError, match=r"status 'landed 2026-13-04' needs a real"):
         backlog.parse_status("landed 2026-13-04")
 

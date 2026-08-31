@@ -1,13 +1,13 @@
 """The RedisScheduleStore's claim path + the WATCH-fenced transition helpers (ADR-0025).
 
-Split from ``schedules.py`` by responsibility (the 300-line cap) when the post-review
-hardening made every guarded transition **optimistically atomic**: the token/status guard
-and the state write now share one WATCH→MULTI/EXEC transaction, so a ``cancel``/``ack``
-racing a fire can no longer land between a guard read and its write and be silently
-overwritten. A concurrent touch of the record key makes ``EXEC`` raise ``WatchError``,
-which every caller treats as "the other transition won" (``False``/skip, the same answer
-as a stale fencing token). Module functions over the injected client; ``schedules.py``
-delegates and owns the ``RedisError``→``ScheduleStoreError`` wrapping at the port edge.
+Split from ``schedules.py`` by responsibility (the 300-line cap) when the post-review hardening
+made every guarded transition optimistically atomic: the token/status guard and the state write
+now share one WATCH→MULTI/EXEC transaction, so a ``cancel``/``ack`` racing a fire can no longer
+land between a guard read and its write and be overwritten with nothing reporting it. A concurrent
+touch of the record key makes ``EXEC`` raise ``WatchError``, which every caller reads as the other
+transition having landed first (``False``/skip, the same answer as a stale fencing token). Module
+functions over the injected client; ``schedules.py`` delegates and owns the
+``RedisError``→``ScheduleStoreError`` wrapping at the port edge.
 """
 
 import logging
@@ -98,7 +98,7 @@ async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
 
     For a text or interval change only the record moves: those fields live in it, not the
     indexes, and ``due_at`` is left intact, so the due order and the fired slot are untouched
-    and the transition is a bare watched ``SET``. A **calendar rule** change is the exception,
+    and the transition is a bare watched ``SET``. A calendar rule change is the exception,
     because it re-derives ``due_at``: the item takes its new due position and comes off the
     deliverable index, which is exactly ``snooze``'s write set and for the same reason. Leaving
     a fired reminder DONE on the deliverable index while adding it to the due index would put a
@@ -151,8 +151,8 @@ def _replaced(value: bytes | str) -> str:
 async def dead_letters(client: Redis) -> tuple[DeadLetter, ...]:
     """The quarantined records, id order: `quarantine`'s operator-facing counterpart.
 
-    Never surfaced through a model tool. The raw bytes are exactly the corrupt or hostile
-    content the codec refused, so they stay unparsed inspection data (dead-letter addendum).
+    Never surfaced through a model tool. The raw bytes are the corrupt or hostile content the
+    codec rejected, so they stay unparsed inspection data (dead-letter addendum).
     """
     raw = await client.hgetall(DEAD_KEY)
     letters = [

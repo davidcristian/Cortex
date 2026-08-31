@@ -1673,7 +1673,7 @@
 .skey .row-keys b {
   background: var(--panel);
 }
-/* Two of the strip's caps are real buttons in keycap clothing: the sliders and the ?, each a door
+/* Two of the strip's caps are real buttons styled as keycaps: the sliders and the ?, each a control
    into the console on the tab it names (ADR-0035). They dress as keys because they sit in a row of
    keys, so the rule strips the button chrome rather than adding any. */
 .qbtn {

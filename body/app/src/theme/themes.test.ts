@@ -77,7 +77,7 @@ describe("themes", () => {
 
     // A change is. One transition goes on everything for the duration, because a theme moves the
     // same colour every control eases for its own hover: left alone they crossed at three different
-    // speeds, which reads as the window coming apart and going back together.
+    // speeds, so one swap read as several.
     applyTheme(MIDNIGHT, el);
     expect(el.dataset.swapping).toBe("");
     expect(el.style.getPropertyValue("--theme-swap")).toBe(`${THEME_SWAP_MS}ms`);

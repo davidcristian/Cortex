@@ -12,11 +12,11 @@ from cortex_core.tools import ToolCall
 def new_turn_id() -> str:
     """A fresh id for one turn of a conversation.
 
-    What a turn id *looks like* is the domain's, so it lives beside the ``Message.turn_id`` it
-    fills; **when** one is minted is the caller's, and the caller is whoever schedules the turn
-    (ADR-0038 named-turn addendum). A ``TurnRunner`` is handed the id it is to serve rather than
-    inventing one, so a turn that never reaches its own completion event can still be named by
-    the code reporting that it failed.
+    The shape of a turn id belongs to the domain, so it is minted beside the ``Message.turn_id``
+    it fills, while the moment one is minted belongs to whoever schedules the turn (ADR-0038
+    named-turn addendum). A ``TurnRunner`` is handed the id it is to serve rather than inventing
+    one, so a turn that never reaches its own completion event can still be named by the code
+    reporting that it failed.
     """
     return str(uuid4())
 
@@ -56,13 +56,12 @@ class Message:
     ordinary dialogue; v1 does not persist tool-bearing messages (the loop is turn-local),
     so the session store never serializes these.
 
-    ``images`` carries pixels a tool returned (ADR-0029), and **only a ``Role.TOOL`` message may
-    carry them**. That is an invariant, not a convention: an image lives on the tool result in the
-    tool loop's working list and dies with the turn, exactly like the security preamble and a
-    recalled-memory SYSTEM message. Constructing an image-bearing message under any other role
-    raises here, before any store is asked to refuse it, so the rule holds even for code paths
-    that never touch a store, and so the domain cannot express a shape the inference adapter
-    would drop on the way to the model.
+    ``images`` carries pixels a tool returned (ADR-0029), and only a ``Role.TOOL`` message may
+    carry them. An image lives on the tool result in the tool loop's working list and dies with
+    the turn, like the security preamble and a recalled-memory SYSTEM message. Constructing an
+    image-bearing message under any other role raises here, before any store is asked to reject
+    it, so the rule holds even for code paths that never touch a store, and so the domain cannot
+    express a shape the inference adapter would drop on the way to the model.
     """
 
     role: Role

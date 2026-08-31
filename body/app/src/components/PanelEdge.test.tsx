@@ -42,8 +42,8 @@ describe("PanelEdge", () => {
     const wrapper = container.querySelector(".edge") as HTMLElement;
     expect(wrapper).toHaveAttribute("aria-hidden", "true");
     expect(wrapper.className).toBe("edge edge-settled");
-    // The wrapper bleeds past the panel by the geometry module's own number, so the liquid
-    // breathes around the panel's real edge rather than inside it.
+    // The wrapper extends past the panel by the geometry module's own constant, so the liquid
+    // swings around the panel's real edge rather than inside it.
     expect(wrapper.style.inset).toBe(`${-BLEED}px`);
     const slab = container.querySelector(".edge-glass") as HTMLElement;
     expect(slab.style.clipPath).toContain('path("M');
@@ -89,8 +89,9 @@ describe("PanelEdge", () => {
   });
 
   it("re-measures through the platform's observer when its box changes size", () => {
-    // jsdom has no ResizeObserver, so the observer path gets a hand-driven fake: what matters is
-    // that the edge observes its own box, redraws to the delivered size, and lets go on unmount.
+    // jsdom has no ResizeObserver, so the observer path uses a hand-driven fake. What is asserted
+    // is that the edge observes its own box, redraws to the delivered size, and disconnects on
+    // unmount.
     let deliver: (() => void) | null = null;
     const disconnect = vi.fn();
     class FakeResizeObserver {
@@ -128,8 +129,8 @@ describe("PanelEdge", () => {
     tick(2400);
     const later = hairOf(container);
     expect(later).not.toBe(early);
-    // Going to work mid-flight: the next frames carry the pose toward the deeper one instead of
-    // jumping there, so the same instant reads differently as the depth eases in.
+    // A turn starting mid-animation: the next frames move the depth toward the working value
+    // instead of jumping to it, so the same clock time draws differently as the depth eases in.
     rerender(<PanelEdge style={LUCID} working={true} animated={true} idPrefix="t5" />);
     tick(2500);
     const easing = hairOf(container);

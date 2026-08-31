@@ -5,8 +5,8 @@
 //! is COM, so this module uses `unsafe`, which ADR-0023 authorizes narrowly for `os_windows`
 //! (`Cargo.toml`'s per-crate `[lints]`); the rest of the workspace keeps `unsafe_code = forbid`.
 //!
-//! Host-authored, **validated on Windows by the user**. Like `WindowsHotkey`, it is never
-//! built or measured in CI (the whole crate is `cfg(windows)`, compiling to nothing on Linux).
+//! Host-authored and validated on Windows by the user. Like `WindowsHotkey`, it is never built
+//! or measured in CI, since the whole crate is `cfg(windows)` and compiles to nothing on Linux.
 //!
 //! [`AudioControl`]: body_core::AudioControl
 #![allow(unsafe_code)] // ADR-0023: Core Audio (IAudioEndpointVolume) is COM.
@@ -38,7 +38,8 @@ impl WindowsAudioControl {
     /// Takes no `self`: the backend is stateless, so the lookup depends only on the OS.
     fn endpoint() -> Result<IAudioEndpointVolume, AudioError> {
         unsafe {
-            // Idempotent per thread; a prior initialization returns a non-fatal status we ignore.
+            // Idempotent per thread: a prior initialization returns a non-fatal status, which
+            // is ignored.
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)

@@ -1,29 +1,22 @@
-"""The residency record every other half reads: what the GPU serves, and who waits on it changing.
+"""The residency bookkeeping the swap publishes into: what the GPU serves, and who waits on it.
 
-Split out of ``residency.py`` along the third seam that module's docstring already draws.
-``residency_moves.py`` owns *what the host is asked to do* and ``residency_restore.py`` owns *what
-the swap back is promised to do*; this owns **the bookkeeping both of them publish into**, which is
-the one thing a reader of either has to go somewhere else to find. ``SwappingModelManager`` keeps
-what neither a move nor a record can decide: when the GPU may change hands, and the lease every
-move runs under.
+``residency_moves.py`` owns what the host is asked to do and ``residency_restore.py`` owns what the
+swap back promises; both publish here. ``SwappingModelManager`` keeps what neither a move nor this
+record can decide: when the GPU may change hands, and the lease every move runs under.
 
-One invariant, and it is why these four facts are one object rather than four attributes on the
-manager: the resident and the report are published **together**, under one condition and with
-nothing awaited between them, so the lease's own view of the GPU and the seam's answer about it
-cannot drift apart. The single exception is stated as its own verb rather than hidden in an
-argument (``publish_report``), because a report written without a resident is a claim about
-display and deliberately not about what may be leased.
+These four facts are one object because of one invariant: the resident and the report are published
+together, under one condition and with nothing awaited between them, so the lease's view of the GPU
+and the seam's answer about it cannot drift apart. ``publish_report`` is the one exception, a
+separate verb because a report written without a resident is a claim about what to display and not
+about what may be leased. ``publish_between_handoffs`` adds a condition on when the write may
+happen, and is a verb here rather than a check at its caller because only a write that tests the
+fence under this object's own condition can be sure a handoff did not begin in between
+(``residency_regain.py``).
 
-The third writer is the same invariant plus a condition on **when** it may be written
-(``publish_between_handoffs``), and it is a verb here rather than a check at its caller for the
-same reason the others are: a background pass concludes something about the GPU over several
-awaits, and only a write that tests the fence under this object's own condition can be sure a
-handoff did not begin in between (``residency_regain.py``).
-
-The condition is the second thing this owns, and it is why the scope flag lives here too: an
-acquire of a model no active scope is about **waits** on that condition rather than failing, and
-the scope's end is the only thing that wakes it. Reading the report is deliberately lock free,
-because the seam probes it every few seconds precisely while a swap holds everything else.
+The scope flag lives here too, since an acquire of a model no active scope is about waits on this
+same condition rather than failing, and the scope's end is the only thing that wakes it. Reading
+the report takes no lock, because the seam probes it every few seconds while a swap holds
+everything else.
 """
 
 import asyncio
@@ -35,9 +28,8 @@ from cortex_core.residency_state import RESIDENCY_SERVING, Fence, ResidencyRepor
 class ResidencyBoard:
     """Which model the GPU serves, what to tell a human about it, and the queue behind both.
 
-    ``resident`` seeds what a fresh manager assumes, which is the standing residency; the seed is
-    only ever an assumption, which is why boot recovery republishes it from an observation before
-    the seam serves anything.
+    ``resident`` seeds a fresh manager with the standing residency. The seed is an assumption, so
+    boot recovery republishes it from an observation before the seam serves anything.
     """
 
     def __init__(self, resident: str | None) -> None:
@@ -50,8 +42,8 @@ class ResidencyBoard:
     def condition(self) -> asyncio.Condition:
         """The one condition residency is published and waited on under.
 
-        Handed to ``HandoffClaim`` so a claim and a scope can never be deciding about the same GPU
-        at the same instant, which is the only reason it is exposed at all.
+        Exposed only so ``HandoffClaim`` can share it, which is what keeps a claim and a scope from
+        deciding about the same GPU at the same instant.
         """
         return self._condition
 
@@ -67,7 +59,7 @@ class ResidencyBoard:
 
     @property
     def scope_active(self) -> bool:
-        """Whether a residency scope owns the card, for the callers that must stand down if so."""
+        """Whether a residency scope owns the card, for the callers that must back off if so."""
         return self._scope_model is not None
 
     async def publish(self, model: str | None, report: ResidencyReport) -> None:
@@ -82,20 +74,19 @@ class ResidencyBoard:
     async def publish_between_handoffs(
         self, model: str | None, report: ResidencyReport, fence: Fence
     ) -> bool:
-        """Publish only while nothing owns the GPU, and answer whether the write landed.
+        """Publish only while nothing owns the GPU, and return whether the write landed.
 
-        The background pass's writer (``residency_regain.py``), and a verb of its own rather than a
-        check the caller makes before ``publish``: that pass reads the machine over several awaits,
-        so a handoff can begin between what it observed and what it concludes, and a publish
-        ordered after such a check would overwrite the swap's own report with a reading taken
-        before the swap started. So the fence is read **here**, under this condition, which is the
-        one ``HandoffClaim`` sets its flag under and ``enter_scope`` sets the scope under, with
-        nothing awaited between the answer and the write. A handoff therefore either loses the race
-        and finds the report already published, or wins it and this returns ``False``.
+        The background pass's writer (``residency_regain.py``). It is a verb of its own rather than
+        a check the caller makes before ``publish`` because that pass reads the machine over
+        several awaits, so a handoff can begin between what it observed and what it concludes, and
+        a publish ordered after such a check would overwrite the swap's own report with a reading
+        taken before the swap started. The fence is therefore read here, under this condition,
+        which is the one ``HandoffClaim`` sets its flag under and ``enter_scope`` sets the scope
+        under, with nothing awaited between the answer and the write. A handoff either loses the
+        race and finds the report already published, or wins it and this returns ``False``.
 
-        In-process ordering and nothing more, exactly like every other guard here: it settles two
-        coroutines of this process and says nothing about a second one (ADR-0030 fenced-claim
-        addendum).
+        This is in-process ordering only, like every other guard here: it settles two coroutines of
+        this process and says nothing about a second process (ADR-0030 fenced-claim addendum).
         """
         async with self._condition:
             if not fence():
@@ -104,27 +95,27 @@ class ResidencyBoard:
             return True
 
     def _write(self, model: str | None, report: ResidencyReport) -> None:
-        """The invariant in one place: both fields land together, then the queue is woken.
+        """Land both fields together, then wake the queue.
 
-        Called with the condition already held, always, which is what makes "nothing awaited
-        between them" a property of this object rather than of each caller.
+        Always called with the condition already held, which is what makes "nothing awaited between
+        them" a property of this object rather than of each caller.
         """
         self._resident = model
         self._report = report
         self._condition.notify_all()
 
     async def publish_report(self, report: ResidencyReport) -> None:
-        """Replace what a human is told, and leave what may be leased exactly where it is.
+        """Replace what a human is told, and leave what may be leased where it is.
 
         Boot recovery's publish and nothing else. Failing to confirm the cortex is not the same as
-        knowing it is gone, so the honest report goes out while the lease keeps the forgiving
-        posture boot recovery has always had.
+        confirming it is gone, so the report is updated while the lease keeps boot recovery's
+        forgiving posture.
         """
         async with self._condition:
             self._report = report
 
     async def await_resident(self, model: str) -> None:
-        """Wait out any scope this is not about, then refuse unless ``model`` is the resident.
+        """Wait out any scope this is not about, then raise unless ``model`` is the resident.
 
         The wait is what makes a queued cortex turn survive a handoff instead of failing: an
         acquire that arrives mid swap blocks until the scope ends and then runs. A scope for
@@ -140,9 +131,9 @@ class ResidencyBoard:
     async def enter_scope(self, model: str) -> None:
         """Claim the one residency scope, so every other model's acquire starts queuing.
 
-        The backstop under ``HandoffClaim``: a caller that swaps without claiming first is still
-        refused, and with the same typed error, because a second swap is a second handoff however
-        it was reached and never a swap that broke.
+        The backstop under ``HandoffClaim``: a caller that swaps without claiming first still
+        raises, and with the same typed error, because a second swap is a second handoff however it
+        was reached rather than a swap that broke.
         """
         async with self._condition:
             if self._scope_model is not None:

@@ -2,21 +2,21 @@
 
 Hot, short-lived state on the ``TaskStore`` precedent: a handoff record is written and read
 back within one handoff (minutes) by one deployment, so it carries no ``v``/``kind`` markers,
-and a missing key is a corrupt record that fails LOUDLY as ``HandoffStoreError`` naming its
-key, never a silent skip (losing the taint fields silently would fail open after the swap).
-The whole record round-trips: the taint ledger's two bits (``tainted``, and the ``opaque`` bit
-that says the untrusted content was unfenceable, ADR-0029), its sources in read order (each
+and a missing key is a corrupt record that raises ``HandoffStoreError`` naming its key rather
+than being skipped (dropping the taint fields with nothing reporting it would fail open after the
+swap). The whole record round-trips: the taint ledger's two bits (``tainted``, and the ``opaque``
+bit that says the untrusted content was unfenceable, ADR-0029), its sources in read order (each
 kind's string plus its already-sanitized value), the laundering-evidence URL set (stored sorted
 for a deterministic document, read back as a set), the budget position, and the tool-loop tail
 with each message's tool calls. A tool call's ``stamp`` is a transient live handle and is never
 persisted (``tools.py``: the loop persists the unstamped calls), so a decoded call carries the
 default ``UNSTAMPED``, exactly as the loop appended it.
 
-``failure`` rides the same document under the same rule, ``null`` on every record that has not
-been settled failed. It is written last because it is the only field written after the snapshot,
-and it is a required key like the rest: a document without it is a record from something that is
-not this codec, and reading one as "no reason given" would be indistinguishable from a handoff
-that really was settled without one, which is exactly the state this field exists to end.
+``failure`` travels in the same document under the same rule, ``null`` on every record that has
+not been settled failed. It is written last because it is the only field written after the
+snapshot, and it is a required key like the rest: a document without it is a record from something
+that is not this codec, and reading one as "no reason given" would be indistinguishable from a
+handoff that really was settled without one, which is the state this field exists to end.
 """
 
 import json

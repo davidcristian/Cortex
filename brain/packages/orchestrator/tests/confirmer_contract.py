@@ -5,11 +5,11 @@ runs only if a human said yes, out of band, and the model can neither forge that
 around it. So the checks below are short, and each of them is a sentence about what may become
 `True`.
 
-Each fixture supplies the conditions of the world no method of the port can create: what the
-person on the other side will do when the next card reaches them. A fake has nobody on the other
-side, so it satisfies `will_say_nothing` by being scripted with the answer the port owes when no
-one answers, which is the honest widening the vision probe's contract already uses: the check
-states what an implementation must *return*, not how the silence arose.
+Each fixture supplies the condition no method of the port can create: what the person on the
+other side will do when the next card reaches them. A fake has nobody on the other side, so it
+satisfies `will_say_nothing` by being scripted with the answer the port requires when no one
+answers. The vision probe's contract widens its knob the same way, because the check states what
+an implementation must return rather than how the silence arose.
 """
 
 from collections.abc import Awaitable, Callable, Sequence
@@ -48,13 +48,13 @@ async def an_explicit_approval_is_the_only_true(under_test: ConfirmerUnderTest) 
 
 
 async def an_explicit_refusal_blocks_the_call(under_test: ConfirmerUnderTest) -> None:
-    """A no is a no, answered rather than raised, so the turn continues and the tool does not."""
+    """A refusal is returned rather than raised, so the turn continues and the tool does not."""
     under_test.will_refuse()
     assert await under_test.confirmer.confirm(_SEND) is False
 
 
 async def a_person_who_never_answers_denies(under_test: ConfirmerUnderTest) -> None:
-    """Silence is a denial. This is the fail-closed half and the reason the port exists.
+    """A person who never answers is read as a refusal, which is the fail-closed half.
 
     An irreversible action must never run because nobody was there to object: a confirmer that
     defaulted to yes, or that waited forever, would turn an unattended overlay into permission.

@@ -11,13 +11,13 @@ that could not be reached and wrap nothing else. That argument is true of `_WRAP
 of the second `except` in `PgVectorMemoryStore.search` and `count_candidates`, which wrap
 `(KeyError, IndexError, TypeError, ValueError)` from a malformed row or an unreadable total into
 the same `MemoryStoreError`. A corrupt row therefore reaches a turn as an outage and costs it
-its notes quietly rather than failing loudly, which is exactly the swallowing the close said it
+its notes without reporting a failure rather than failing outright, which is exactly the swallowing the close said it
 would not do. It is visible (the `warning` carries the traceback and the adapter's own
 "malformed memory row in search result"), so this is a sharpening rather than a hole. The shape
 is the `ModelNotHostedError` precedent: a subclass of `MemoryStoreError` for the data failures,
 so every existing `except MemoryStoreError` keeps catching it, plus a narrower `except` ahead of
 the degrading one in the two core catches. **Trigger:** the first malformed row anybody actually
-meets, or the next port to draw this same line, since the rule wants to be one rule.
+meets, or the next port to draw this same line, since the rule should be one rule.
 
 **Closed 2026-08-11**, hours after it opened and **ahead of its trigger, neither arm of which
 fired**: no malformed row was met and no other port drew this line. What moved it is that the
@@ -33,7 +33,7 @@ catch and re-raises it.
 The decision the entry left open was what the core should do with the narrower error, and the
 answer is that the read fails rather than degrading more loudly. The criterion is whether the
 condition heals without anybody touching the deployment: a stopped server comes back and every
-turn degraded meanwhile was a bridge, while a row that will not decode decodes no better next
+turn degraded meanwhile covered the gap, while a row that will not decode decodes no better next
 week, so degrading around it buys a permanent thinness nobody chose. Logging it at a level that
 reaches somebody was the alternative and it was refused on the previous close's own words, that
 a failure only a log records is the silence the degradation was written to end. The user-facing
@@ -54,7 +54,7 @@ implementations can answer, that a gone backend must not arrive as the subclass,
 in-memory twin decodes nothing and a scripted data defect would be a check asserting on its own
 scripting; `test_pgvector.py` holds the other half where the rows are. Proven able to fail
 before it was trusted, in both directions: a store scripted to call an outage a data defect
-reddens the shared check, and removing the core's re-raise reddens its test, the degrading catch
+fails the shared check, and removing the core's re-raise fails its test, the degrading catch
 swallowing the subclass. Both breaks restored ([ADR-0008](../../adr/ADR-0008-memory-v1.md)
 data-defect addendum). **One opened in its place**, the next entry here.
 

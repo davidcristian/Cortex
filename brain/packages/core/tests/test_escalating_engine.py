@@ -1,18 +1,17 @@
 """The escalating wrapper: one turn, one stream, one completion, whichever model answers.
 
-What the wrapper owes is small and exact, so it is pinned exactly: it is transparent when no
-escalation was requested, it suppresses the inner completion when one was, it emits exactly one
-completion at the true end carrying the whole turn's text, and it never leaves the inner turn
-half-suspended.
+The wrapper owes four things and each is asserted here: it is transparent when no escalation was
+requested, it suppresses the inner completion when one was, it emits exactly one completion at the
+true end carrying the whole turn's text, and it never leaves the inner turn half-suspended.
 
-Distrust-green proofs (each mutation reddened the named test, then was restored):
-- passing the inner ``TurnCompleted`` through instead of suppressing it reddens
+Mutations proving these tests can fail (each was applied on its own, then restored):
+- passing the inner ``TurnCompleted`` through instead of suppressing it fails
   ``test_an_escalating_turn_completes_once_at_the_true_end``;
-- emitting the completion before the conductor's events reddens the same test's ordering
+- emitting the completion before the conductor's events fails the same test's ordering
   assertion;
-- dropping the inner generator's ``aclose`` reddens
+- dropping the inner generator's ``aclose`` fails
   ``test_closing_the_stream_mid_cortex_phase_tears_the_inner_turn_down``;
-- dropping the conductor stream's ``aclose`` reddens
+- dropping the conductor stream's ``aclose`` fails
   ``test_closing_the_stream_mid_handoff_unwinds_the_swap_at_the_wrapper_too``.
 """
 
@@ -118,7 +117,7 @@ async def _drain(engine: EscalatingTurnEngine) -> list[TurnEvent]:
 
 
 async def test_a_turn_that_does_not_escalate_is_passed_through_unchanged() -> None:
-    """The wrapper is transparent until the model actually asks for the deep tier."""
+    """A turn that never asks for the deep tier passes through the wrapper unchanged."""
     live = build_harness()
     completed = TurnCompleted(turn_id=harness.TURN, full_text="just this")
     thinking = StatusUpdate(state="thinking", detail="hmm")
@@ -132,7 +131,7 @@ async def test_a_turn_that_does_not_escalate_is_passed_through_unchanged() -> No
 
 
 async def test_the_escalated_turn_answers_under_the_id_it_was_asked_to_serve() -> None:
-    """The wrapper's id is the caller's, never whatever the inner runner claimed.
+    """The wrapper answers under the caller's turn id rather than the inner runner's.
 
     An inner runner that completes under some other id is the shape this guards against: the
     handoff is recorded under the turn the caller named, and so is the completion the client
@@ -154,7 +153,8 @@ async def test_the_escalated_turn_answers_under_the_id_it_was_asked_to_serve() -
 
 
 async def test_an_escalating_turn_completes_once_at_the_true_end() -> None:
-    """The inner completion is suppressed; the real one carries the whole turn's text."""
+    """The inner completion is suppressed, and the one the wrapper emits carries the whole
+    turn's text."""
     live = build_harness()
     await live.seed_session()
     engine, _built = _wrapper(
@@ -188,7 +188,8 @@ async def test_the_wrapper_hands_the_conductor_the_turn_id_the_inner_engine_mint
 
 
 async def test_closing_the_stream_mid_cortex_phase_tears_the_inner_turn_down() -> None:
-    """A consumer that walks away leaves no half-suspended turn and no handoff behind."""
+    """Closing the stream during the cortex phase closes the inner turn and starts no
+    handoff."""
     live = build_harness()
     engine, built = _wrapper(
         live.conductor, events=(TextDelta(text="thinking"),), block=asyncio.Event()
@@ -226,7 +227,8 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_at_the_wrapper_to
 
 
 async def test_an_inner_turn_that_never_completes_hands_nothing_off() -> None:
-    """No completion means the turn was torn down, not finished, so there is nothing to swap."""
+    """An inner turn with no completion was torn down rather than finished, so no handoff
+    runs."""
     live = build_harness()
     engine, _built = _wrapper(
         live.conductor, events=(TextDelta(text="cut short"),), brief=harness.BRIEF

@@ -1,9 +1,9 @@
 // The browser-dev demo's canned script: everything `demoBridge.ts` says or serves, with no
 // behaviour of its own. Split out on 2026-08-03 when the line cap started measuring the overlay
-// (ADR-0011 line-cap addendum) and the bridge stood at 351 lines. A data record rather than an
-// implementation of the port, so the shared check list has nothing to say about it; measured all
-// the same, the bridge's own suite reaching every line, so a line here that no demo turn can
-// reach reads as a coverage failure rather than sitting in the tree as dead script.
+// (ADR-0011 line-cap addendum) and the bridge stood at 351 lines. It holds data rather than an
+// implementation of the port, so the shared check list does not run over it. Coverage still does:
+// the bridge's own suite reaches every line here, so a line no demo turn can reach fails the
+// coverage gate instead of sitting in the tree as dead script.
 import type { DueReminder, SessionMessage, SessionSummary } from "./types";
 
 export const ANSWER =
@@ -65,9 +65,9 @@ export const DEGRADED_DETAIL = "Unavailable: the session store is down";
 export function sessions(): SessionSummary[] {
   return [
     {
-      // Pinned, and the OLDER of the two by activity, so it demonstrates pinning by hand: it
-      // sorts ABOVE the newer chat in the switcher and carries the pin indicator, exactly the
-      // read-path union the brain applies (ADR-0021 pinning addendum).
+      // Pinned, and the older of the two by activity, so pinning can be seen by hand: it sorts
+      // above the newer chat in the switcher and carries the pin indicator, which is the read-path
+      // union the brain applies (ADR-0021 pinning addendum).
       sessionId: "demo-2",
       title: "Summarize my unread email",
       preview: "You have three unread threads…",
@@ -86,10 +86,10 @@ export function sessions(): SessionSummary[] {
       pinned: false,
     },
     {
-      // A third chat so the seeded list has a MIDDLE row, which is the only row whose exit shows
+      // A third chat so the seeded list has a middle row, which is the only row whose exit shows
       // both halves of the motion: the neighbour below it travelling up and the neighbour above it
-      // holding still. Two chats can only ever demonstrate one of those. It sorts last, so the
-      // renamed and pinned rows above it keep the arrangement the other addenda were measured on.
+      // holding still. Two chats can show only one of those. It sorts last, so the renamed and
+      // pinned rows above it keep the arrangement the other addenda were measured on.
       sessionId: "demo-3",
       title: "Reminders and recurrence",
       preview: "Every weekday at nine, in your timezone…",
@@ -132,8 +132,8 @@ export function reminders(): readonly DueReminder[] {
 }
 
 /** The stored history behind each seeded chat, so re-opening one in the switcher restores a
- *  conversation rather than an empty stage. Any id but `demo-2` gets the model-swap chat, which
- *  is also the one a cold start adopts. */
+ *  conversation rather than an empty log. Any id but `demo-2` gets the model-swap chat, which is
+ *  also the one a cold start adopts. */
 export function transcript(sessionId: string): readonly SessionMessage[] {
   if (sessionId === "demo-2") {
     return [

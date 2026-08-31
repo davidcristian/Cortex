@@ -187,7 +187,7 @@ describe("useOverlay", () => {
     bridge.link = { state: "degraded", detail: "store down" };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    // Nothing is on screen to be honest about yet, so nothing is claimed.
+    // Nothing is on screen for the dot to report yet, so nothing is claimed.
     expect(result.current.state.link).toEqual({ state: "unknown", detail: "", probing: false });
     expect(bridge.linkCalls).toBe(0);
 
@@ -215,8 +215,8 @@ describe("useOverlay", () => {
     expect(result.current.state.link).toEqual({ state: "ready", detail: "", probing: false });
     expect(bridge.linkCalls).toBe(probes);
 
-    // And a turn that dies at the transport is the failure the user is watching, so the
-    // indicator learns it at the same moment the reply does.
+    // A turn that dies at the transport is the failure the user is watching, so the indicator
+    // takes it in the same moment the reply does.
     act(() => bridge.fail({ kind: "connection", message: "brain went away" }));
     expect(result.current.state.link).toEqual({
       state: "down",
@@ -237,7 +237,7 @@ describe("useOverlay", () => {
   it("adopts the most recent chat on cold start, staying hidden, with its switcher title", async () => {
     const bridge = new FakeBridge();
     // The switcher row for "recent" carries a renamed/generated title distinct from its first
-    // message; the adopted header must match that row, not the locally re-derived first message.
+    // message; the adopted header must match that row rather than the local re-derivation.
     bridge.sessions = [
       { sessionId: "recent", title: "Everything about cats", preview: "p", lastActivityUnixMs: 1000, pinned: false },
       summary("older"),
@@ -263,7 +263,7 @@ describe("useOverlay", () => {
 
   it("attempts cold-start adoption once: a later newest-session change re-fetches nothing", async () => {
     // The latch's job: after the one mount attempt, a `latestSessionId` change (a completed turn
-    // makes its session the newest) must NOT re-run adoption. Without the latch the effect
+    // makes its session the newest) must not re-run adoption. Without the latch the effect
     // re-fires and fetches that session's history; the reducer's `touched` guard would then no-op
     // the dispatch, but the wasted fetch already happened. This pins the latch by the fetch count.
     const bridge = new FakeBridge();
@@ -372,7 +372,7 @@ describe("useOverlay", () => {
     const nextId = idFactory();
     const { result } = renderHook(() => useOverlay(bridge, nextId));
     await flush();
-    // Cold start adopts the most recent chat "a"; delete the OTHER chat "b".
+    // Cold start adopts the most recent chat "a"; delete the other chat "b".
     expect(result.current.state.sessionId).toBe("a");
     const listsBefore = bridge.listCalls;
     act(() => result.current.deleteSession("b"));
@@ -512,7 +512,7 @@ describe("useOverlay", () => {
     act(() => result.current.cyclePrev());
     await flush();
     expect(result.current.state.notice).toEqual({ text: "Switched to title newest.", count: 2 });
-    // The switcher's own door, over the same controller call.
+    // The switcher's own control, over the same controller call.
     act(() => result.current.openSession("oldest", false));
     await flush();
     expect(result.current.state.sessionId).toBe("oldest");

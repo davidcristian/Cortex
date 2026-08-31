@@ -23,8 +23,8 @@ should start by re-measuring, since the engine moves. Placed here 2026-07-21.
   counting, having been open since 2026-07-21 and carried in the index's running record under this
   same area the whole time while no count either doc published had ever named it. There was no
   compensating error hiding it: the area header and the table cell simply agreed on a number that
-  had never included it, and agreement between two summaries of the same set is worth nothing when
-  both were written from each other.
+  had never included it, and each of those two summaries was written from the other, so their
+  agreement established nothing.
 - 2026-08-09: A costing pass over the feature-breadth bucket re-read it and left it parked exactly
   as written. The measurement it rests on is still the one in the sheet, `body/app/src/overlay.css`
   lines 297 to 299 recording that Chromium does not clip `backdrop-filter` output by a `path()`

@@ -1,9 +1,9 @@
 """The preference RPCs over a real loopback grpc.aio server (CI-safe).
 
-The user's settings record: what the overlay reads once at startup and writes on every
-appearance change. A failing store aborts the unary RPC UNAVAILABLE; an unwired store answers
-benignly (empty / accepted-and-dropped), the ScheduleStore precedent, so a brain without the
-capability still lets a body apply a choice for the session.
+These RPCs carry the user's settings record, which the overlay reads once at startup and writes
+on every appearance change. A failing store aborts the unary RPC with UNAVAILABLE. An unwired
+store reads empty and accepts a write it then drops, following the ScheduleStore precedent, so a
+brain without the capability still lets a body apply a choice for the session.
 """
 
 from collections.abc import Mapping
@@ -102,7 +102,8 @@ async def test_pairs_come_back_in_a_stable_order() -> None:
 
 
 async def test_an_unwired_store_reads_empty_and_accepts_a_write() -> None:
-    """No capability is indistinguishable from an empty record; a write is dropped, not refused."""
+    """A brain with no preference store reads as an empty record, and a write to it is accepted
+    and dropped rather than rejected."""
     stored = await _round_trip(None, [("overlay.mark", "ping")])
     assert stored == {}
 

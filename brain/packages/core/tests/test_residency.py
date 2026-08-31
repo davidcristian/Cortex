@@ -9,105 +9,105 @@ Every wait here is event-driven: leases are held open on ``asyncio.Event``s, rea
 that must elapse are passed as ``load_timeout_s=0.0`` (already expired), and ``_settle`` yields
 the loop a few turns, which is scheduling, not time. No test sleeps wall-clock.
 
-Distrust-green proofs (each mutation reddened the named test, then was restored):
-- removing the ``finally`` around ``_restore`` (restoring only on the happy path) reddens
+Mutations proving these tests can fail (each was applied on its own, then restored):
+- removing the ``finally`` around ``_restore`` (restoring only on the happy path) fails
   ``test_a_failed_swap_in_still_restores_the_cortex``,
   ``test_an_exception_inside_the_scope_still_restores_the_cortex`` and
   ``test_cancelling_the_scope_still_restores_the_cortex``;
-- swapping in without taking the lease first reddens
+- swapping in without taking the lease first fails
   ``test_the_swap_waits_for_the_in_flight_round_to_fall_free``, and taking the lease for the
-  stops but not for the restore reddens
+  stops but not for the restore fails
   ``test_the_restore_waits_for_the_new_resident_s_own_round``;
 - awaiting the restore directly instead of shielding it (so a cancellation abandons it midway)
-  reddens ``test_a_cancelled_scope_cannot_abandon_the_restore_halfway``;
-- making ``ResidencyBoard.await_resident`` raise for a non-scope model instead of waiting reddens
+  fails ``test_a_cancelled_scope_cannot_abandon_the_restore_halfway``;
+- making ``ResidencyBoard.await_resident`` raise for a non-scope model instead of waiting fails
   ``test_an_acquire_of_another_model_waits_out_the_scope_instead_of_failing``;
 - dropping ``ResidencyBoard.leave_scope``'s ``notify_all`` leaves a queued acquire asleep whenever
-  the restore did not itself publish a residency change, which reddens
+  the restore did not itself publish a residency change, which fails
   ``test_a_queued_acquire_is_woken_even_when_the_swap_back_failed`` by timeout (the
   happy-path test alone does NOT discriminate it, which is why that second test exists);
-  re-measured on 2026-08-09 after the bookkeeping moved into ``residency_board.py``, it reddens 3,
+  re-measured on 2026-08-09 after the bookkeeping moved into ``residency_board.py``, it fails 3,
   that case plus the two other waits that then never wake;
-- reading the claim and setting it two statements apart (an await between them) reddens the
+- reading the claim and setting it two statements apart (an await between them) fails the
   chaos suite's ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched``, and
-  dropping the refusal outright (``residency_claim.py``, where the rule now lives) reddens that
+  dropping the refusal outright (``residency_claim.py``, where the rule now lives) fails that
   case plus ``test_the_handoff_claim_refuses_a_second_holder_without_touching_the_host``;
-- restarting nothing after the cortex comes back reddens
+- restarting nothing after the cortex comes back fails
   ``test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it``.
 
 Three more for the residency report the seam publishes, each applied to production code alone
-with the whole brain workspace re-run, so the counts are what actually reddened:
+with the whole brain workspace re-run, so the counts are what actually failed:
 
 - answering from the board's resident instead of the report the swap publishes (the wrong source: it
-  cannot tell a swap in from a swap back) reddens 5, the three report cases here plus
+  cannot tell a swap in from a swap back) fails 5, the three report cases here plus
   ``test_health_reports_the_swap_window_it_is_in`` and
   ``test_health_tells_the_truth_about_residency_through_the_whole_wiring`` in the orchestrator.
   It does **not** discriminate the two stalled-load cases, because nothing is resident there
   either, which is why the restore and give-up cases exist beside them;
 - dropping the give-up report (so a manager that stopped trying still says it is restoring)
-  reddens exactly 1, ``test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring``;
-- publishing not-ready as soon as a handoff is claimed reddens exactly 1,
+  fails exactly 1, ``test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring``;
+- publishing not-ready as soon as a handoff is claimed fails exactly 1,
   ``test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_serves``.
 
 Four more, added because the three above pin only *which* value was published and nothing about
 what it says: an audit measured that flipping ``RESIDENCY_RESTORING.serving`` or
 ``RESIDENCY_LOST.serving`` to ``True``, or blanking every not-serving ``detail``, left the whole
-workspace green. Each below was applied to production code alone and the workspace re-run:
+workspace passing. Each below was applied to production code alone and the workspace re-run:
 
-- ``serving=True`` on ``RESIDENCY_RESTORING`` reddens 2,
+- ``serving=True`` on ``RESIDENCY_RESTORING`` fails 2,
   ``test_every_published_report_says_what_the_seam_and_the_human_actually_read`` plus the seam's
   ``test_health_stays_not_ready_through_the_swap_back``; the same edit to ``RESIDENCY_LOST``
-  reddens that first case plus ``test_health_stays_not_ready_after_a_restore_that_gave_up``, and
+  fails that first case plus ``test_health_stays_not_ready_after_a_restore_that_gave_up``, and
   to ``RESIDENCY_BOOT_FAILED`` that first case plus the composition root's boot case;
-- blanking all five not-serving details reddens exactly 1, that same first case, which is also
+- blanking all five not-serving details fails exactly 1, that same first case, which is also
   what keeps the four swap windows from collapsing into one indistinguishable report;
-- dropping the not-serving branch of ``publish_boot_residency`` reddens 2,
+- dropping the not-serving branch of ``publish_boot_residency`` fails 2,
   ``test_boot_recovery_s_observation_replaces_the_seed_a_fresh_manager_started_with`` and the
   composition root's boot case;
 - clearing the resident in that publish (treating an unconfirmed boot as a known-dead GPU)
-  reddens exactly 1, ``test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one``.
+  fails exactly 1, ``test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one``.
 
 One more for who says a thing, rather than what is said. ``caplog``'s handler sits on the root
 logger, so a ``logger=`` argument to ``at_level`` decides only whether a record is enabled, never
 which records are collected: at WARNING and above the root level enables them all, and naming a
 module there pins nothing. Measured, with the emission of "the model host failed while restoring
 the cortex" moved to a logger of another name: under a ``logger=`` filter naming its real module
-the restore case stayed green, and only once the assertions carried ``record.name`` did the same
-move redden both restore cases below. So the two of them assert the emitting module, and the
+the restore case still passed, and only once the assertions carried ``record.name`` did the same
+move fail both restore cases below. So the two of them assert the emitting module, and the
 filter names it for the reader.
 
 Two more for the daemon a handoff is about to spend its beliefs against, measured the same way
 (``residency_watch.py`` holds the rest of that suite). Dropping the reconcile from ``_swap_in``
-reddens 9: the three cases here that watch a restart or read the op log, plus
+fails 9: the three cases here that watch a restart or read the op log, plus
 ``test_swap_conductor.py``'s clean handoff and four chaos boundaries, all of which pin the ask as
-the first thing a swap does to the host. Dropping the seed from ``publish_boot_residency`` reddens
+the first thing a swap does to the host. Dropping the seed from ``publish_boot_residency`` fails
 2, both restart cases here, since a comparison with nothing on the other side of it never fires.
 
 Three more for the model a restore failure names, measured once the eviction and the start stopped
 sharing a ``try``, each applied to production code alone with the whole brain workspace re-run:
 
-- naming the cortex on the eviction's failure reddens **1**,
+- naming the cortex on the eviction's failure fails **1**,
   ``test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_cortex``;
-- naming the swapped-in model on the cortex's own failure reddens **1**,
+- naming the swapped-in model on the cortex's own failure fails **1**,
   ``test_a_restore_that_fails_once_retries_and_succeeds``, which is what the fields added to that
-  case's assertions buy: on the message alone it stayed green;
-- putting the eviction, the start and the gate back under one ``try`` reddens **1**, the eviction
+  case's assertions buy: on the message alone it still passed;
+- putting the eviction, the start and the gate back under one ``try`` fails **1**, the eviction
   case, which is the only one whose failure the collapsed arm would name wrongly.
 
 Six more for carrying that model out of the attempt rather than a bool, measured the same way
 (each applied to production code alone, the whole brain workspace re-run at 2753 tests):
 
-- the eviction answering the cortex reddens **2**, the eviction retry case and the give-up that
+- the eviction answering the cortex fails **2**, the eviction retry case and the give-up that
   never evicts;
-- the cortex's own start answering the swapped-in model reddens **2**, the retry case and the
+- the cortex's own start answering the swapped-in model fails **2**, the retry case and the
   give-up that never starts;
-- a stalled gate answering the swapped-in model reddens **1**,
+- a stalled gate answering the swapped-in model fails **1**,
   ``test_a_restore_whose_gate_never_reports_ready_also_gives_up``, which is the one path where
   nothing refused anything and the model still did not come up;
-- the retry line's ``failed_model`` pinned to the cortex reddens **1**, the eviction retry case,
+- the retry line's ``failed_model`` pinned to the cortex fails **1**, the eviction retry case,
   which is the only one where the two models differ and therefore the only one that can catch it;
-- the give-up line dropping ``failed_model`` reddens **2**, both give-up cases;
-- the give-up message dropping the tier it failed on reddens **3**, all three give-ups, which is
+- the give-up line dropping ``failed_model`` fails **2**, both give-up cases;
+- the give-up message dropping the tier it failed on fails **3**, all three give-ups, which is
   the sentence an operator carries to the runbook.
 """
 
@@ -322,7 +322,8 @@ async def test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it(
 async def test_a_tier_that_will_not_restart_does_not_make_the_cortex_look_gone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The evicted tier's restart is best effort, because the note for a failed restore lies here.
+    """The evicted tier's restart is best effort, because a failed-restore note would be
+    inaccurate here.
 
     Telling the user "the usual assistant could not be reloaded" when the cortex is serving and
     only the delegation tier is down would be the opposite of honest, so the failure is loud in
@@ -410,7 +411,7 @@ async def test_the_restore_waits_for_the_new_resident_s_own_round() -> None:
 
 
 async def test_a_second_scope_is_refused_because_there_is_one_gpu() -> None:
-    """And refused as a handoff already in flight, never as a swap that broke.
+    """A second scope is refused as a handoff already in flight rather than as a swap that broke.
 
     The distinction is what the user is told: a broken swap means nothing is loaded and the
     cortex is back, which is the opposite of what is true while another handoff holds the GPU.
@@ -427,7 +428,7 @@ async def test_a_second_scope_is_refused_because_there_is_one_gpu() -> None:
 async def test_the_precondition_reads_the_roster_of_the_daemon_answering_right_now() -> None:
     """The port's three answers, and the tolerance that makes only one of them a refusal.
 
-    A tier the host says it does not carry is the deployment fact the conductor refuses on. A
+    A tier the host says it does not carry is the deployment fact the conductor rejects. A
     tier it does carry is not, and neither is a host that could not be asked: over-refusing there
     would turn one unreachable moment into "this deployment cannot escalate". Nothing is
     remembered between the three, which is the property the whole design rests on, so the same
@@ -600,7 +601,8 @@ async def test_a_card_with_exactly_the_room_is_a_fit_and_one_mib_short_is_not() 
 
 
 async def test_a_host_that_can_see_no_card_refuses_a_swap_that_asked_for_a_fit() -> None:
-    """Fail closed: a deployment that asked to be checked and cannot be is refused, not run."""
+    """The swap fails closed: a deployment that asked to be checked and cannot be is refused
+    rather than run."""
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host, _plan(brain_vram_mib=19125))
     with pytest.raises(SwapFailedError, match="reports no device memory"):
@@ -861,7 +863,8 @@ async def test_the_report_tracks_the_swap_window_from_load_to_deep_work_and_back
 
 
 async def test_the_report_says_the_usual_assistant_is_coming_back_while_it_restores() -> None:
-    """The swap back is its own answer: nothing is resident either way, and they read apart."""
+    """The swap back publishes a report of its own: nothing is resident either way, and the two
+    reports read differently."""
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
     manager = _manager(host)
     scope = _OpenScope(manager)
@@ -876,7 +879,7 @@ async def test_the_report_says_the_usual_assistant_is_coming_back_while_it_resto
 
 
 async def test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring() -> None:
-    """The one honest answer that outlives its turn: nothing is resident and no retry is left.
+    """A restore that gave up reports that nothing is resident and no retry is left.
 
     Reporting the restore as still under way would tell the user to wait for a thing that
     already stopped happening, and the runbook's manual recovery is what clears it.
@@ -896,7 +899,7 @@ async def test_the_report_answers_at_an_instant_when_the_gpu_cannot_be_leased() 
     move and the scope is active, so a turn asking for the cortex at that instant genuinely
     cannot proceed, which is witnessed here before the report is read. That the read cannot
     block at all is the port's signature (a ``def``, not an ``async def``); what this pins is
-    that it answers the truth at the worst moment, and it reddens if the answer becomes a
+    that it answers the truth at the worst moment, and it fails if the answer becomes a
     coroutine or a stale ``serving``.
     """
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "brain")])
@@ -916,11 +919,11 @@ async def test_the_report_answers_at_an_instant_when_the_gpu_cannot_be_leased() 
 
 
 async def test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_serves() -> None:
-    """The drain window is deliberately green: nothing is unloaded and turns still run.
+    """The drain window still reports serving: nothing is unloaded and turns still run.
 
-    ADR-0030 decision 6 keys not-ready on the cortex having stopped serving, not on a handoff
-    existing, so the indicator stays green while delegated work quiesces and turns the moment
-    something is actually evicted.
+    ADR-0030 decision 6 keys not-ready on the cortex having stopped serving rather than on a
+    handoff existing, so the report stays serving while delegated work quiesces and changes the
+    moment something is actually evicted.
     """
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     async with manager.handoff_claim():
@@ -934,7 +937,7 @@ def test_every_published_report_says_what_the_seam_and_the_human_actually_read()
 
     ``assert manager.residency() == RESIDENCY_RESTORING`` proves the manager published *that*
     value and nothing whatsoever about what the value says, so flipping a ``serving`` or blanking
-    a ``detail`` leaves every one of them green while ``Health`` answers ready through the swap
+    a ``detail`` leaves every one of them passing while ``Health`` answers ready through the swap
     back and the overlay renders "The brain is not serving" with no reason after it. ``serving``
     is the whole verdict the seam maps to ``ready``; ``detail`` is the line the overlay shows
     verbatim, so it is app-authored user-facing text and belongs under the same gate as any
@@ -1040,7 +1043,7 @@ async def test_a_boot_that_could_not_reach_the_host_leaves_the_first_handoff_rec
 async def test_a_sidecar_that_restarted_since_the_boot_publish_is_reconciled_before_the_swap(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The entry's own case: a fresh daemon under a brain that never restarted.
+    """The case the backlog entry described: a fresh daemon under a brain that never restarted.
 
     The replacement's boot default brings the cortex up and nothing else, so the standing peers
     this plan keeps co-resident are gone and the brain does not know. The next handoff asks who is

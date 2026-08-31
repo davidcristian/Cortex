@@ -7,21 +7,21 @@ CPU subagent tier on this repo's own machine (llama.cpp build ``b9879-72874f559`
 q4_0), one from a request capped at ``max_tokens: 8`` and one from an uncapped reply, so what the
 parser is held to is bytes the server actually emits.
 
-Mutations run against production code, each reverted and each with the whole ``packages`` suite
-re-run, proving these checks can fail rather than trusting that they pass:
+These checks were proved able to fail. Each mutation below was run against production code and
+then reverted, with the whole ``packages`` suite re-run, and the counts are over that suite:
 
-- dropping the ``finish_reason`` read from ``decode._stop`` reddens 14, which on this file is
+- dropping the ``finish_reason`` read from ``decode._stop`` fails 14, which on this file is
   ``check_a_cut_completion_says_it_was_cut``, ``check_a_finished_completion_is_not_a_cut_one`` and
   ``check_the_stop_follows_the_text_it_explains`` on the adapter leg and **no scripted case**, which
   is the derived half doing its work;
-- mapping ``"length"`` to ``StopReason.FINISHED`` reddens 4, the cap check on the adapter leg and
+- mapping ``"length"`` to ``StopReason.FINISHED`` fails 4, the cap check on the adapter leg and
   the three cases in ``test_backend.py`` that read that word;
-- reporting ``DecodeStop(StopReason.FINISHED)`` when no reason was read reddens 29, of which
+- reporting ``DecodeStop(StopReason.FINISHED)`` when no reason was read fails 29, of which
   ``check_silence_is_a_legal_answer`` on the adapter leg is one. The other 28 are the point: every
   chunk before a stream's last carries no reason, so the mutation puts a stop after every delta in
-  the suite. Silence is most of what a stream is, not a corner of it.
+  the suite. Most of what a stream carries is chunks with no reason on them.
 
-**Yielding the stop before the text in ``_chunk_events`` reddens 3, and none of them is
+**Yielding the stop before the text in ``_chunk_events`` fails 3, and none of them is
 ``check_the_stop_follows_the_text_it_explains``.** The cadence contract beside this one records the
 identical finding about itself, and the cause is the same: a real final chunk carries its
 ``finish_reason`` on a content-less delta, so text and stop stay in order across chunks whatever
@@ -80,7 +80,7 @@ def _body(tail: str | None) -> bytes:
 
 @pytest.fixture
 def scripted() -> BackendUnderTest:
-    """The core twin, scripted with the world-condition rather than asked to derive it."""
+    """Build the core twin, scripted with the world-condition rather than asked to derive it."""
 
     def build(*, reason: StopReason | None) -> InferenceBackend:
         events: list[InferenceEvent] = [TextChunk(delta) for delta in _DELTAS]
@@ -101,7 +101,7 @@ def scripted() -> BackendUnderTest:
 
 @pytest.fixture
 def adapter() -> BackendUnderTest:
-    """The real adapter over a MockTransport serving the real llama-server body."""
+    """Build the real adapter over a MockTransport serving the real llama-server body."""
     clients: list[httpx.AsyncClient] = []
 
     def build(*, tail: str | None) -> InferenceBackend:
@@ -147,10 +147,11 @@ async def test_llamacpp_backend_meets_the_stop_contract(
 async def test_the_adapter_leg_really_reads_the_servers_own_word(
     adapter: BackendUnderTest,
 ) -> None:
-    """The contract's derived half, stated once outside the shared checks.
+    """The adapter reads ``length`` off the server's own final chunk.
 
-    The scripted twin cannot fail this: it is handed a ``DecodeStop``. The adapter is handed bytes,
-    so this pins that ``length`` was read out of a real llama.cpp final chunk and not out of
+    This is the contract's derived half, stated once outside the shared checks. The scripted twin
+    cannot fail it, because it is handed a ``DecodeStop``. The adapter is handed bytes, so this
+    pins that ``length`` was read out of a real llama.cpp final chunk and not out of
     anything the test built for it, and that the core's own word for it is nowhere on the wire,
     which is the whole reason the reason is a closed set rather than the string the server sent.
     """

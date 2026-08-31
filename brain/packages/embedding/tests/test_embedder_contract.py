@@ -30,7 +30,7 @@ type Build = Callable[[], tuple[EmbedderUnderTest, httpx.AsyncClient | None]]
 
 
 def _server_vector(text: str) -> list[int]:
-    """What the stand-in embedding server answers: deterministic, one width, whole numbers."""
+    """Return the stand-in server's answer: deterministic, one width, whole numbers."""
     digest = hashlib.sha256(text.encode("utf-8")).digest()
     return [digest[i] for i in range(_SERVER_DIM)]
 
@@ -45,7 +45,7 @@ def _hash() -> tuple[EmbedderUnderTest, httpx.AsyncClient | None]:
 
 
 def _llamacpp() -> tuple[EmbedderUnderTest, httpx.AsyncClient | None]:
-    """The real adapter over a transport a test can take away between calls."""
+    """Build the real adapter over a transport a test can take away between calls."""
     world = {"broken": False}
 
     def handler(request: httpx.Request) -> httpx.Response:

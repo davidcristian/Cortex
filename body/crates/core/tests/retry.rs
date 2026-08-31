@@ -2,17 +2,17 @@
 //! `RetryPolicy` schedule, the `is_transient` classifier, and the `Sleeper` seam (ADR-0024).
 //!
 //! Deterministic and network-free: a `FlakyTransport` fake fails a scripted number of times
-//! before succeeding (and counts every inner call), and a `FakeSleeper` records the backoff
-//! *schedule* while returning instantly, so no wall-clock elapses. Both share their state via
-//! `Arc` so the test can inspect them after they are moved into the decorator. The same fake
-//! answers the clock's other question: it records the deadline every attempt was given, and an
-//! expiring one scripts the deadline into winning, so what the decorator does with a call that
-//! never answers is asserted without a call that never answers.
+//! before succeeding and counts every inner call, and a `FakeSleeper` records the backoff
+//! schedule while returning instantly, so no wall-clock time elapses. Both share their state
+//! via `Arc` so the test can inspect them after they are moved into the decorator. The same
+//! fake answers the clock's other question: it records the deadline every attempt was given,
+//! and an expiring one scripts the deadline into expiring first, so the decorator's behaviour
+//! on a call that never answers is asserted without waiting on one.
 //!
-//! The gate itself (`SeamMethod`, `RetryPlan`) is pure data and is tested in `retry_plan.rs`;
-//! what this file adds is what the decorator *does* under one: a refused method makes one
-//! call, the probe budget shortens the probe without touching the reads, and an expired
-//! deadline ends the call rather than buying it another try.
+//! `SeamMethod` and `RetryPlan` are pure data and are tested in `retry_plan.rs`. What this file
+//! adds is what the decorator does under a plan: a refused method makes one call, the probe
+//! budget shortens the probe without touching the reads, and an expired deadline ends the call
+//! rather than buying it another try.
 
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -104,9 +104,10 @@ impl BrainTransport for FlakyTransport {
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        // A scripted turn that ends in a transport error. The decorator must forward both
-        // items verbatim and never retry (converse is non-idempotent). The decisions stream is
-        // dropped and the failure counter untouched, proving converse bypasses the retry path.
+        // A scripted turn that ends in a transport error. The decorator forwards both items
+        // verbatim and never retries, since converse is not idempotent. The decisions stream is
+        // dropped and the failure counter is left untouched, which is how a test shows converse
+        // does not run through the retry loop.
         drop(decisions);
         let _ = session_id;
         tokio_stream::iter(vec![
@@ -193,12 +194,13 @@ impl BrainTransport for FlakyTransport {
 /// A `Sleeper` that records each requested delay and returns immediately (no real time). `Clone`
 /// shares the log so the test can read the schedule after the sleeper is moved into the decorator.
 ///
-/// The clock's second question, `bounded`, is logged separately: `bounds()` records the deadline
-/// each attempt was given, which is how a test proves the *right* deadline reached the effect
-/// for that method. `expires` scripts which side of the race wins. Granting (the default) runs
-/// the call, so every schedule assertion in this file is about backoff and nothing else;
-/// expiring drops the call unpolled, which is what a real `tokio::time::timeout` does to the
-/// loser and therefore what a cancelled attempt looks like from inside the decorator.
+/// The clock's second method, `bounded`, is logged separately: `bounds()` records the deadline
+/// each attempt was given, which is how a test shows that the deadline the plan resolved for a
+/// method is the one that reached the effect. `expires` scripts whether the deadline or the
+/// call finishes first. The default runs the call, so every schedule assertion in this file is
+/// about backoff and nothing else; an expiring sleeper drops the call unpolled, which is what a
+/// real `tokio::time::timeout` does to an abandoned call and therefore what a cancelled attempt
+/// looks like from inside the decorator.
 #[derive(Clone, Default)]
 struct FakeSleeper {
     recorded: Arc<Mutex<Vec<Duration>>>,
@@ -208,9 +210,10 @@ struct FakeSleeper {
 
 impl Sleeper for FakeSleeper {
     fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
-        // Recover the guard from a poisoned lock without unwrap/expect (clippy-denied in
-        // non-test-fn helpers). The bare fn ref keeps the never-taken poison path in stdlib,
-        // so it adds no uncovered region (mirrors `os.rs`'s `FakeAudio`).
+        // Recovers the guard from a poisoned lock without `unwrap` or `expect`, which clippy
+        // denies in helpers that are not `#[test]` functions. The bare function reference keeps
+        // the never-taken poison path inside stdlib, so it adds no uncovered region here, the
+        // same way `os.rs`'s `FakeAudio` does.
         self.recorded
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -234,8 +237,9 @@ impl Sleeper for FakeSleeper {
         let expires = self.expires;
         async move {
             if expires {
-                // The deadline won: the call is dropped without ever being polled, so the
-                // fake's own call counter proves the attempt was abandoned, not merely lost.
+                // The deadline expired first, so the call is dropped without ever being polled
+                // and the fake's own call counter shows the attempt was abandoned rather than
+                // merely losing its result.
                 drop(call);
                 return None;
             }
@@ -245,7 +249,7 @@ impl Sleeper for FakeSleeper {
 }
 
 impl FakeSleeper {
-    /// A sleeper whose every deadline expires: the clock always beats the call.
+    /// A sleeper whose every deadline expires before the call it bounds finishes.
     fn expiring() -> Self {
         Self {
             expires: true,
@@ -269,8 +273,8 @@ impl FakeSleeper {
     }
 }
 
-/// A fast, generous policy for the retry-succeeds cases (cap never bites): `max_attempts` tries,
-/// 100 ms base, ×2, capped at 10 s.
+/// A fast policy for the retry-succeeds cases, where the cap never applies: `max_attempts`
+/// tries, 100 ms base, ×2, capped at 10 s.
 fn policy(max_attempts: u32) -> RetryPolicy {
     RetryPolicy {
         max_attempts,
@@ -280,10 +284,10 @@ fn policy(max_attempts: u32) -> RetryPolicy {
     }
 }
 
-/// A plan whose probe budget cannot bind, so a test about the retry *loop* sees the schedule it
-/// configured rather than the trimmed probe. `health` is the loop's usual vehicle here and the
-/// trim would otherwise shorten every schedule assertion in the file; the trim has its own
-/// tests, where the arithmetic is the point rather than the noise.
+/// A plan whose probe budget cannot bind, so a test about the retry loop sees the schedule it
+/// configured rather than the trimmed probe. Most of these tests drive the loop through
+/// `health`, and the trim would otherwise shorten every schedule assertion in the file. The
+/// trim has its own tests, where the arithmetic is the subject.
 fn untrimmed(reads: RetryPolicy) -> RetryPlan {
     RetryPlan {
         reads,
@@ -545,7 +549,7 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     while let Some(item) = stream.next().await {
         events.push(item);
     }
-    // Both items forwarded, including the terminal error. There is no retry, no sleep, no tick.
+    // Both items are forwarded, including the terminal error, with no retry and no sleep.
     assert_eq!(events.len(), 2);
     assert_eq!(events[0], Ok(TurnEvent::Delta(String::from("passed:hi"))));
     assert_eq!(
@@ -554,9 +558,9 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     );
     assert_eq!(flaky.call_count(), 0);
     assert!(sleeper.delays().is_empty());
-    // The gaps the items passed under, in the order the stream spent them: the first event is
-    // measured against the first-event gap and everything after it against the idle one, the
-    // fourth wait being the one that found the stream ended (ADR-0024 idle-gap addendum).
+    // The gaps the items passed under, in the order the stream used them: the first event is
+    // measured against the first-event gap and everything after it against the idle one, and
+    // the last wait is the one that found the stream ended (ADR-0024 idle-gap addendum).
     let gaps = RetryPlan::default().turn_gaps;
     assert_eq!(sleeper.bounds(), vec![gaps.first, gaps.idle, gaps.idle]);
 }
@@ -608,7 +612,6 @@ fn retry_policy_default_is_the_documented_schedule() {
     assert_eq!(default.base_delay, Duration::from_millis(200));
     assert_eq!(default.multiplier, 2);
     assert_eq!(default.max_delay, Duration::from_secs(2));
-    // Copy + Eq + Debug.
     let copy = default;
     assert_eq!(copy, default);
     assert_ne!(
@@ -637,11 +640,10 @@ fn is_transient_classifies_every_variant() {
 
 #[test]
 fn an_expired_deadline_is_terminal_and_never_buys_another_attempt() {
-    // The decision the deadline forced, in its smallest form. A timeout is not the brain's
-    // report about the call, it is this side's decision to stop waiting, so it cannot say a
-    // repeat would go better; and a retried deadline multiplies the very wait it was created
-    // to bound, on a peer already too slow to answer. Terminal, and pinned here so widening it
-    // is a decision someone makes rather than a line that drifts in.
+    // A timeout is this side's decision to stop waiting rather than the brain's report about
+    // the call, so it cannot say a repeat would go better, and a retried deadline multiplies
+    // the wait it was created to bound on a peer already too slow to answer. It is terminal,
+    // pinned here so that widening it is a deliberate change.
     assert!(!is_transient(&TransportError::Timeout {
         after: Duration::from_millis(250),
     }));
@@ -649,18 +651,18 @@ fn an_expired_deadline_is_terminal_and_never_buys_another_attempt() {
 
 #[test]
 fn the_codes_a_wider_table_would_have_added_are_still_terminal() {
-    // The three statuses a retryable-code table would have widened this classifier to, each
-    // pinned terminal so widening is a decision someone makes here rather than a line that
-    // drifts in. `Unavailable` is the whole set on purpose: the other three are conventionally
-    // retryable at a *service* whose meaning for them is known, and this seam has no producer
-    // for any of them, so each would ship as a guess about a failure nobody has seen.
-    // `ResourceExhausted` is the sharpest of the three, because the one producer anywhere on
-    // this seam pair raises it for a payload too large to send (the body's own screen capture),
-    // and a repeat sends the same payload again. `Aborted` needs a store-contention retry no
-    // handler performs. `DeadlineExceeded` used to be listed as merely unreachable, and is not
-    // any more: this side sets deadlines now, so once the brain is told about one it can send
-    // that status, and it is terminal for the reason the local `Timeout` variant is (above),
-    // not for want of a producer. A repeat of any of them buys a second identical answer.
+    // The three statuses a wider retryable-code table would have added, each pinned terminal so
+    // that widening the set is a deliberate change. `Unavailable` is the whole retryable set on
+    // purpose: the other three are conventionally retryable at a service whose meaning for them
+    // is known, and this seam has no producer for any of them, so each would ship as a guess
+    // about a failure nobody has seen. `ResourceExhausted` is the clearest of the three,
+    // because the one producer anywhere on this seam pair raises it for a payload too large to
+    // send (the body's own screen capture), and a repeat sends the same payload again.
+    // `Aborted` would need a store-contention retry no handler performs. `DeadlineExceeded` is
+    // no longer merely unreachable: this side sets deadlines now, so once the brain is told
+    // about one it can send that status, and it is terminal for the same reason the local
+    // `Timeout` variant is rather than for want of a producer. A repeat of any of them returns
+    // a second identical answer.
     for code in ["ResourceExhausted", "Aborted", "DeadlineExceeded"] {
         assert!(
             !is_transient(&TransportError::Rpc {
@@ -747,18 +749,18 @@ async fn out_of_range_and_non_finite_draws_are_sanitized_not_panicked() {
     );
 }
 
-/// A patient read schedule (as `retry_plan.rs` uses): 6 attempts, 100 ms base, ×2, no cap in
-/// play, so its backoffs are 100/200/400/800/1600 ms and its worst case is 3.1 s.
+/// A long read schedule, the same one `retry_plan.rs` uses: 6 attempts, 100 ms base, ×2, and no
+/// cap in play, so its backoffs are 100/200/400/800/1600 ms and its worst case is 3.1 s.
 fn patient_reads() -> RetryPolicy {
     policy(6)
 }
 
 #[tokio::test]
 async fn an_unavailable_write_is_still_not_retried() {
-    // The sharpest form of the gate: `Unavailable` is *the* retryable gRPC status, and the
-    // plan still refuses, because retryability is decided by what the call does, not by what
-    // the failure is called. A status saying the brain could not serve the ack never says the
-    // brain did not already clear the reminder.
+    // `Unavailable` is the one retryable gRPC status, and the plan still refuses, because
+    // repeatability is decided by what the call does rather than by what the failure is called.
+    // A status saying the brain could not serve the ack never says the brain did not already
+    // clear the reminder.
     let flaky = FlakyTransport::new(FailKind::Unavailable, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), patient_reads());
@@ -775,8 +777,8 @@ async fn an_unavailable_write_is_still_not_retried() {
 
 #[tokio::test]
 async fn the_probe_budget_shortens_the_health_probe() {
-    // The connection indicator renders this probe's answer, so its patience is time the dot
-    // spends claiming a state the seam has stopped proving. The budget counts what the whole
+    // The connection indicator renders this probe's answer, so time spent retrying is time the
+    // dot spends claiming a state the seam has stopped proving. The budget counts what the whole
     // probe costs: two 50 ms attempts and the 100 ms wait between them fit inside 250 ms, and
     // a third attempt would need 450 ms, so the probe reports Down after two tries instead of
     // burning the reads' whole 3.1 s.
@@ -870,9 +872,9 @@ async fn retry_with_fails_fast_on_a_non_transient_error() {
 
 #[tokio::test]
 async fn each_attempt_carries_the_plans_deadline_for_that_method() {
-    // The clock is asked once per attempt, with the duration the plan resolved for that
-    // method: the probe's own for `health`, the general one for a session read. This is the
-    // half a fake could quietly make vacuous, so it is asserted as a value rather than a count.
+    // The clock is asked once per attempt, with the duration the plan resolved for that method:
+    // the probe's own for `health`, the general one for a session read. A fake that ignored the
+    // duration would make this vacuous, so it is asserted as a value rather than as a count.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let plan = RetryPlan {
@@ -893,12 +895,11 @@ async fn each_attempt_carries_the_plans_deadline_for_that_method() {
 
 #[tokio::test]
 async fn a_hung_attempt_becomes_a_timeout_and_is_not_retried() {
-    // The case the whole deadline exists for: a brain that accepts the call and never answers.
-    // The schedule is deliberately patient (6 attempts) and the failure would be transient if
-    // it were a status, so anything that retried on a timeout would show up as more attempts
-    // here. Exactly one attempt is made, its call is dropped unpolled (the inner transport
-    // never ran), and the caller gets the deadline that expired rather than a status the brain
-    // never sent.
+    // The case the deadline exists for: a brain that accepts the call and never answers. The
+    // schedule allows six attempts and the failure would be transient if it were a status, so
+    // anything that retried on a timeout would show up as more attempts here. Exactly one
+    // attempt is made, its call is dropped unpolled so the inner transport never ran, and the
+    // caller gets the deadline that expired rather than a status the brain never sent.
     let flaky = FlakyTransport::new(FailKind::Connection, 0);
     let sleeper = FakeSleeper::expiring();
     let transport = RetryingTransport::new(
@@ -949,11 +950,11 @@ async fn a_refused_write_is_bounded_even_though_it_is_never_retried() {
 
 #[tokio::test]
 async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_instead() {
-    // `Converse` is exempt from the per-attempt deadline by decision (a turn is long by design),
-    // and what it gets instead is a bound on its SILENCE (ADR-0024 idle-gap addendum). So the
-    // clock does see the turn, and what reaches it is the plan's first-event gap rather than any
-    // deadline: an expiring one therefore ends the turn on its first wait, before a single
-    // scripted event, with the gap that expired.
+    // `Converse` is exempt from the per-attempt deadline because a turn is long by design, and
+    // it is bounded by its silence instead (ADR-0024 idle-gap addendum). The clock does see the
+    // turn, and what reaches it is the plan's first-event gap rather than any deadline, so an
+    // expiring sleeper ends the turn on its first wait, before a single scripted event, with
+    // the gap that expired.
     let flaky = FlakyTransport::new(FailKind::Connection, 0);
     let sleeper = FakeSleeper::expiring();
     let plan = RetryPlan::default();
@@ -965,15 +966,15 @@ async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_in
     let first = plan.turn_gaps.first;
     assert_eq!(events, vec![Err(TransportError::Timeout { after: first })]);
     assert_eq!(sleeper.bounds(), vec![first]);
-    // And it is a gap, not a deadline: no `deadline_for` answer exists to have produced it.
+    // And it is a gap rather than a deadline, since `deadline_for` answers `None` here.
     assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
 }
 
 #[tokio::test]
 async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
-    // The composition itself, driven directly: the three answers it has. The `None` case is
-    // what `Converse` would take if the decorator ever routed a stream through the loop, and
-    // it is also what a caller composing this around a non-seam future can ask for.
+    // The composition driven directly, through the three answers it has. The `None` case is
+    // what `Converse` would take if the decorator ever routed a stream through the loop, and it
+    // is also what a caller composing this around a non-seam future can ask for.
     let granting = FakeSleeper::default();
     assert_eq!(
         within_deadline(
@@ -1012,8 +1013,8 @@ async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
             after: Duration::from_secs(2),
         }
     );
-    // No deadline: the clock is still asked, at the end of time, which is what unbounded means
-    // to a clock and what keeps this generic function free of an arm no caller could take.
+    // With no deadline the clock is still asked, with `Duration::MAX`, which is how unbounded
+    // is spelled here and what keeps this generic function free of an arm no caller could take.
     let granted = FakeSleeper::default();
     assert_eq!(
         within_deadline(

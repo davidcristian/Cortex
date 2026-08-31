@@ -1,19 +1,19 @@
 //! The screen-capture port (ADR-0029), the third OS capability the brain drives over
 //! `BodyService` after [`AudioControl`](super::AudioControl) and [`Notify`](super::Notify),
-//! and the first whose *return value* is a payload rather than a status.
+//! and the first whose return value is a payload rather than a status.
 //!
-//! This module is the port and nothing else: the trait, the raw pixels that cross it, the
+//! This module holds the port and nothing else: the trait, the raw pixels that cross it, the
 //! failures it can report, the refusing backend a switched-off host wires, and the fixed
-//! strings of the receipt the body shows afterwards. Every size decision lives next door in
+//! strings of the receipt the body shows afterwards. Every size decision lives in
 //! [`screen_policy`](super::screen_policy), what a capture is pointed at in
 //! [`screen_target`](super::screen_target), and the pixel arithmetic behind both in
 //! `screen_image`.
 //!
-//! Why the policy is core rather than backend: this is the [`escape_xml`] argument verbatim
-//! ([`super::notify`]). The only real backend is `cfg(windows)`, which CI never compiles and
-//! coverage never measures, so leaving the byte ceiling and the downscale ladder there would
+//! The policy is core rather than backend for the reason [`escape_xml`] is pure
+//! ([`super::notify`]): the only real backend is `cfg(windows)`, which CI never compiles and
+//! coverage never measures, so keeping the byte ceiling and the downscale ladder there would
 //! rest the seam's size guarantee on code no gate can see. It also means nothing in Cortex
-//! ever *decodes* a foreign image: the body encodes pixels it captured itself.
+//! decodes a foreign image, because the body encodes pixels it captured itself.
 //!
 //! [`escape_xml`]: super::escape_xml
 
@@ -23,8 +23,8 @@ use crate::os::screen_target::CapturedFrame;
 /// The heading of the body-authored receipt shown after a capture.
 ///
 /// Fixed and body-owned, like [`UNTRUSTED_ATTRIBUTION`](super::UNTRUSTED_ATTRIBUTION): the
-/// notice that tells the user their screen was read may never be built from anything the
-/// brain sent, or a brain that has been talked into it could word its own alibi.
+/// notice telling the user their screen was read is never built from anything the brain sent,
+/// so a brain acting on injected instructions cannot word the notice about its own capture.
 pub const CAPTURE_RECEIPT_TITLE: &str = "Screen captured";
 
 /// The message of the body-authored capture receipt when the whole display was sent. Says what
@@ -34,11 +34,10 @@ pub const CAPTURE_RECEIPT_BODY_DISPLAY: &str =
 
 /// The message of the same receipt when only one window was sent.
 ///
-/// A second **fixed** string rather than one sentence with the target interpolated, for the
-/// reason the first one is fixed: a receipt is body-owned wording, and the body picks between
-/// two sentences it wrote. It deliberately does **not** name the window. A title is
-/// attacker-chosen text, this ADR keeps titles out of the capture result for exactly that
-/// reason, and a notice about untrusted content is the last place to start quoting it.
+/// A second fixed string rather than one sentence with the target interpolated, so the body
+/// picks between two sentences it wrote itself. It does not name the window: a window title
+/// is attacker-chosen text, which is why ADR-0029 keeps titles out of the capture result at
+/// all, and quoting one in the receipt would put that text back in front of the user.
 pub const CAPTURE_RECEIPT_BODY_WINDOW: &str = "A picture of one window was sent to the assistant.";
 
 /// The correlation id the capture receipt carries. `Notification` was shaped for reminders,
@@ -62,8 +61,8 @@ pub enum CaptureError {
     Backend(String),
     /// A targeted capture found nothing to point at: no window on this desktop passed the
     /// resolution rules, or the one that did lies entirely off the captured display. `0` says
-    /// which. Never a silent fallback to the whole display, which would send more of the screen
-    /// than was asked for without the model or the receipt knowing.
+    /// which. There is no silent fallback to the whole display, which would send more of the
+    /// screen than was asked for without the model or the receipt reflecting it.
     #[error("there is no window to capture: {0}")]
     NoTarget(String),
     /// The capture still exceeded [`MAX_CAPTURE_BYTES`] after the shrink ladder ran out.
@@ -85,7 +84,8 @@ pub struct RawFrame {
 }
 
 impl RawFrame {
-    /// Builds a frame from a backend's buffer, checking that it *is* one.
+    /// Builds a frame from a backend's buffer, checking that the buffer matches the
+    /// dimensions it claims.
     ///
     /// # Errors
     ///
@@ -135,9 +135,10 @@ impl RawFrame {
 /// are stubs until built, per ADR-0011). The third OS capability the brain drives over
 /// `BodyService`, after [`AudioControl`](super::AudioControl) and [`Notify`](super::Notify).
 ///
-/// **Synchronous**, because the OS is: a blit is a blocking call, and an `async fn` here would
-/// wrap it in a lie. Keeping it off the async worker is the server's job, which hands the call
-/// to the blocking pool exactly as it does for the volume and notification ports.
+/// The method is synchronous because the OS call is: a blit blocks, and declaring it
+/// `async fn` would not make it yield. Keeping it off the async worker is the server's job,
+/// which hands the call to the blocking pool exactly as it does for the volume and
+/// notification ports.
 ///
 /// `Send + Sync` for the same reason those two carry the bound and single-threaded
 /// [`Hotkey`](super::Hotkey) does not: the body's `BodyService` server holds the backend
@@ -147,13 +148,13 @@ pub trait ScreenCapture: Send + Sync {
     /// Reads the primary display and returns its raw BGRA pixels, with the request's target
     /// resolved to a rectangle inside them.
     ///
-    /// The backend does **not** downscale, encode, crop, or bound anything. It resolves the
+    /// The backend does not downscale, encode, crop, or bound anything. It resolves the
     /// target, because only the OS knows where windows are, and reports what it found beside
-    /// the whole frame; `request`'s size hints are passed so a future backend that can ask the
+    /// the whole frame. `request`'s size hints are passed so a future backend that can ask the
     /// OS for a cheaper read has the numbers, and the policy in [`Capture::from_bgra`]
-    /// re-applies all of them either way. Widening the answer rather than the signature is
-    /// deliberate: the trait stays one method, and everything a crop can get wrong stays in
-    /// pure core where the coverage gate reaches it.
+    /// re-applies all of them either way. The extra information is carried in the return value
+    /// rather than in a second method, which keeps everything a crop can get wrong in the pure
+    /// core where the coverage gate reaches it.
     ///
     /// # Errors
     ///
@@ -165,9 +166,9 @@ pub trait ScreenCapture: Send + Sync {
 /// The [`ScreenCapture`] backend that always refuses, answering [`CaptureError::Disabled`].
 ///
 /// This is what the host shell wires unless the user opts in, and what it falls back to if
-/// the overlay cannot exclude itself from capture. Refusing is a *capability* here rather than
-/// a missing platform, so it is real gated code on every platform, not an `unimplemented!()`
-/// stub: a host that answers "no" has to keep answering "no" under test.
+/// the overlay cannot exclude itself from capture. Refusing is a capability here rather than
+/// a missing platform, so this is real gated code on every platform rather than an
+/// `unimplemented!()` stub, and the refusal stays under test.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct DeniedScreenCapture;
 

@@ -2,28 +2,25 @@
 //! the brain drives over `BodyService` after [`AudioControl`](super::AudioControl).
 //!
 //! Pure, like the rest of the core. [`Notification`] carries the text a backend renders and
-//! owns the rule that makes it **inert**; [`escape_xml`] is the escaper a markup-templated
-//! backend needs (a Windows toast is an XML document); [`Notify`] is the trait the
-//! per-platform crates implement.
+//! makes it inert at construction; [`escape_xml`] is the escaper a markup-templated backend
+//! needs, since a Windows toast is an XML document; [`Notify`] is the trait the per-platform
+//! crates implement.
 //!
-//! Why the value sanitizes rather than each backend: a fired reminder's text is the one
-//! string the body renders that **no output guardrail inspected** (ADR-0015 filters streamed
-//! replies, not store rows), so it may carry whatever an attacker got into the brain's
-//! context, and the `tainted` bit says only that the brain knows it. Making the text
-//! harmless at construction means no backend can forget to, and a backend that never
-//! interprets markup pays nothing for it.
+//! The value sanitizes rather than each backend, because a fired reminder's text is the one
+//! string the body renders that no output guardrail inspected (ADR-0015 filters streamed
+//! replies, not store rows). It may carry whatever an attacker got into the brain's context,
+//! and the `tainted` bit says only that the brain knows it. Sanitizing at construction means
+//! no backend can forget to, and a backend that never interprets markup pays nothing for it.
 
 /// The longest raw title or body a [`Notification`] keeps, in characters.
 ///
-/// Longer text is truncated with a trailing ellipsis rather than refused: an oversized
-/// payload is rejected by the OS as a whole, which would turn a long reminder into no
-/// reminder, and the bias this seam has chosen everywhere else is that an irregularity
-/// degrades an occurrence and never deletes one.
+/// Longer text is truncated with a trailing ellipsis rather than refused, because the OS
+/// rejects an oversized payload as a whole and a long reminder would become no reminder.
 pub const MAX_TEXT_CHARS: usize = 200;
 
 /// The provenance line a backend renders beneath a reminder the brain does not trust.
 ///
-/// Fixed and body-authored: the badge that describes untrusted text may never itself be
+/// The string is fixed and body-authored, so the badge describing untrusted text is never
 /// built from that text.
 pub const UNTRUSTED_ATTRIBUTION: &str = "from an untrusted source";
 
@@ -42,11 +39,10 @@ pub enum NotifyError {
 /// One notification the body shows, with its text already inert.
 ///
 /// Constructed only through [`Notification::new`], so an existing value is always safe to
-/// render: the title and body carry no control characters (a toast template is a document,
-/// and a raw control byte makes it unparseable rather than merely ugly) and are bounded by
-/// [`MAX_TEXT_CHARS`]. Markup escaping is a *renderer's* concern, not the value's, because
-/// the right escape differs per backend, so it stays with [`escape_xml`] for the backends
-/// that template markup.
+/// render: the title and body carry no control characters and are bounded by
+/// [`MAX_TEXT_CHARS`]. Control characters are removed because a toast template is a document
+/// that a raw control byte makes unparseable. Markup escaping stays with the renderer in
+/// [`escape_xml`] rather than happening here, because the right escape differs per backend.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Notification {
     title: String,
@@ -105,10 +101,11 @@ impl Notification {
     }
 }
 
-/// Makes one line of untrusted text inert: every control character becomes a space (a
-/// replacement, not a deletion, so two words never fuse across a stripped newline), and the
-/// result is bounded at [`MAX_TEXT_CHARS`] with a trailing ellipsis marking the cut. Working
-/// in `char`s keeps the bound honest for non-ASCII text and can never split a code point.
+/// Makes one line of untrusted text inert: every control character becomes a space, and the
+/// result is bounded at [`MAX_TEXT_CHARS`] with a trailing ellipsis marking the cut. A
+/// control character is replaced rather than deleted so two words never fuse across a
+/// stripped newline, and counting in `char`s keeps the bound right for non-ASCII text and
+/// cannot split a code point.
 fn inert(raw: &str) -> String {
     let mut text: String = raw
         .chars()
@@ -129,10 +126,10 @@ fn inert(raw: &str) -> String {
 
 /// Escapes `text` for an XML text node or a quoted attribute value.
 ///
-/// The five predefined XML entities, so injected reminder text lands in a toast template as
-/// characters rather than markup. Pure and gated here because the backend that needs it (the
-/// Windows toast) is `cfg(windows)` and never measured in CI: leaving the escape there would
-/// leave the seam's data-not-instructions posture resting on untested code.
+/// It replaces the five predefined XML entities, so injected reminder text lands in a toast
+/// template as characters rather than markup. It is pure and gated here because the backend
+/// that needs it, the Windows toast, is `cfg(windows)` and never measured in CI, so keeping
+/// the escape there would leave the seam's data-not-instructions posture on untested code.
 #[must_use]
 pub fn escape_xml(text: &str) -> String {
     let mut escaped = String::with_capacity(text.len());
@@ -150,9 +147,9 @@ pub fn escape_xml(text: &str) -> String {
 }
 
 /// The port a notification backend implements (`os_windows` real; other platforms are stubs
-/// until built, per ADR-0011). The sibling of [`AudioControl`](super::AudioControl), and the
-/// push half of reminder delivery: the brain's ticker calls `BodyService.Notify`, the body
-/// server translates it onto this port, and a shown notification *is* delivery.
+/// until built, per ADR-0011). It is the sibling of [`AudioControl`](super::AudioControl) and
+/// the push half of reminder delivery: the brain's ticker calls `BodyService.Notify`, the body
+/// server translates it onto this port, and showing the notification is what delivers it.
 ///
 /// `Send + Sync` for the same reason as [`AudioControl`](super::AudioControl): the body's
 /// `BodyService` server holds the backend across async tasks. Backends are stateless, so
@@ -160,11 +157,11 @@ pub fn escape_xml(text: &str) -> String {
 pub trait Notify: Send + Sync {
     /// Shows `notification` on the host.
     ///
-    /// Answers whether the OS displayed it. `Ok(false)` is a **state report**, not a failure:
-    /// the host is reachable and declined, typically because the user turned notifications
-    /// off. It rides the `Ok` channel for the same reason the brain's ack answer does, and
-    /// the caller treats it exactly like an error anyway (the reminder stays deliverable and
-    /// the overlay's pull path surfaces it on the next open).
+    /// Returns whether the OS displayed it. `Ok(false)` reports a state rather than a
+    /// failure: the host is reachable and declined, typically because the user turned
+    /// notifications off. It is carried on the `Ok` channel for the same reason the brain's
+    /// ack answer is, and the caller handles it like an error anyway, since the reminder
+    /// stays deliverable and the overlay's pull path surfaces it on the next open.
     ///
     /// # Errors
     ///

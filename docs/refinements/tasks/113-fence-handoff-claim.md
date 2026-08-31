@@ -30,7 +30,7 @@ single-process, which is a worse record than the honest state today.
 **And the fix is not the `SET NX` this entry sketches.** `active()` self-heals: a pointer left
 dangling, or naming a terminal record, reads as no handoff and mutates nothing
 ([handoffs.py](../../../brain/packages/session/src/cortex_session/handoffs.py)). A bare `NX` on the
-active key loses that, so a stale pointer would refuse every handoff until a human cleared it.
+active key loses that, so a stale pointer would block every handoff until a human cleared it.
 Keeping the self-heal inside an atomic claim means a Lua script that reads the pointer, reads the
 record it names and claims only when it is absent or terminal, plus the ownership or lease story
 this entry already admits it needs so recovery can tell its own strand from a live one. That is a

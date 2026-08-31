@@ -10,18 +10,18 @@ The numbers are this machine's, measured 2026-08-07 and recorded in ADR-0030's c
 addendum: a 24 GB card, a deep tier costing 19125 MiB, an E4B peer tier costing 2878 MiB. They
 are used rather than round stand-ins so a reader can check the assertions against the table.
 
-Distrust-green proofs (each mutation applied to production code alone, the core suite re-run,
-then reverted):
-- deleting ``charge_handoff``'s call in ``residency._swap_in`` reddens
+Mutations proving these tests can fail (each applied to production code alone, the core suite
+re-run, then reverted):
+- deleting ``charge_handoff``'s call in ``residency._swap_in`` fails
   ``test_a_spawn_inside_the_handoff_is_fit_tested_against_the_deep_model`` and
   ``test_the_window_opens_before_the_fit_check_reads_the_card``;
-- deleting ``charge_standing``'s call after the restore reddens
+- deleting ``charge_standing``'s call after the restore fails
   ``test_the_cortex_is_charged_again_once_it_is_genuinely_serving``;
-- hoisting that call out of the ``if`` (so a give-up also restores the standing charge) reddens
+- hoisting that call out of the ``if`` (so a give-up also restores the standing charge) fails
   ``test_a_restore_that_gave_up_keeps_charging_the_model_that_may_still_hold_the_card``;
-- dropping ``residency_charge``'s ``brain_vram_mib > 0`` guard reddens
+- dropping ``residency_charge``'s ``brain_vram_mib > 0`` guard fails
   ``test_a_deployment_that_declared_no_figure_keeps_the_arithmetic_it_always_had``;
-- charging in ``place`` from ``_cortex_reservation_gb`` instead of ``_resident_gb`` reddens the
+- charging in ``place`` from ``_cortex_reservation_gb`` instead of ``_resident_gb`` fails the
   first two cases above.
 """
 
@@ -107,7 +107,7 @@ def _host(**overrides: object) -> ScriptedModelHost:
 
 
 async def test_a_spawn_inside_the_handoff_is_fit_tested_against_the_deep_model() -> None:
-    """The whole point: the same spawn, the same placer, opposite answers either side of a swap.
+    """The same spawn and the same placer give opposite answers either side of a swap.
 
     Outside the window this scenario's 5.5 GiB ask fits the 11.7 GiB the cap leaves beside the
     cortex (the module header says why these are a scenario rather than the defaults). Inside
@@ -124,7 +124,7 @@ async def test_a_spawn_inside_the_handoff_is_fit_tested_against_the_deep_model()
 
 
 async def test_the_cortex_is_charged_again_once_it_is_genuinely_serving() -> None:
-    """The reversal, and it is not a flag flip: the standing figure has to come back exactly."""
+    """The reversal restores the standing figure exactly, rather than merely clearing a flag."""
     placer = _placer()
     manager = _manager(_host(), placer)
     async with manager.swap_scope("brain"):
@@ -133,7 +133,8 @@ async def test_the_cortex_is_charged_again_once_it_is_genuinely_serving() -> Non
 
 
 async def test_the_window_opens_before_the_fit_check_reads_the_card() -> None:
-    """Ordering, against the one hazard the fit check cannot see on its own.
+    """The window opens before the fit check reads the card, which is the one hazard the check
+    cannot see on its own.
 
     The check reads free memory between the last eviction and the load, and the load takes
     seconds to minutes. A spawn admitted to the GPU in that gap would spend exactly the room the
@@ -155,7 +156,8 @@ async def test_the_window_opens_before_the_fit_check_reads_the_card() -> None:
 async def test_a_restore_that_gave_up_keeps_charging_the_model_that_may_still_hold_the_card() -> (
     None
 ):
-    """The safe direction on the one path where nobody knows what is resident.
+    """A restore that gave up keeps the handoff charge, which is the safe direction on the one
+    path where nothing knows what is resident.
 
     The restore ran out of attempts, so the cortex is not serving and the deep model may or may
     not still be on the card. Crediting the cortex's reservation back here would admit GPU work
@@ -171,7 +173,8 @@ async def test_a_restore_that_gave_up_keeps_charging_the_model_that_may_still_ho
 
 
 async def test_a_deployment_that_declared_no_figure_keeps_the_arithmetic_it_always_had() -> None:
-    """No declared cost is not a licence to charge nothing: that would credit the evicted cortex.
+    """A deployment that declared no deep-tier cost keeps the arithmetic it always had, since
+    charging nothing would credit the evicted cortex.
 
     ``brain_vram_mib`` is zero on the shipped defaults, and there is then no honest number for the
     deep model, so the window is not entered at all and the placer answers exactly as it did
@@ -188,7 +191,7 @@ async def test_a_deployment_that_declared_no_figure_keeps_the_arithmetic_it_alwa
 
 
 async def test_a_swap_with_no_placer_at_all_still_swaps() -> None:
-    """A deployment with no subagent pool: the edges are written to nobody and nothing breaks."""
+    """With no subagent pool wired, the charge edges are written to nobody and the swap runs."""
     host = _host()
     manager = _manager(host, None)
     async with manager.swap_scope("brain"):
@@ -197,7 +200,8 @@ async def test_a_swap_with_no_placer_at_all_still_swaps() -> None:
 
 
 async def test_a_spawn_placed_before_the_window_keeps_its_reservation_across_both_edges() -> None:
-    """The ledger is not the resident: a running spawn's VRAM did not move when the card did.
+    """A spawn placed before the window keeps its reservation across both edges, because its
+    VRAM did not move when the card changed hands.
 
     Charging the window must not double-count or forget what is already placed, or the release
     that follows the spawn would credit the budget an amount it never debited.

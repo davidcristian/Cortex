@@ -102,22 +102,21 @@ later move to macOS or Linux is plausible.
 ## Addendum (2026-08-10): decision 2's contract-test half, read against the whole tree
 
 Decision 2 says ports are "defined, contract-tested, and faked before any real adapter
-exists", and AGENTS.md sharpens it into a sentence about arithmetic rather than intent: *the
-real adapter must pass the same contract test as the fake.* On 2026-08-09 that sentence was
-found half-true for `MemoryStore`. A shared file, `memory_contract.py`, held the checks and a
-tuple naming them, and only the integration-marked pgvector run read the tuple. The fake was
-checked by a separate hand-written suite in `cortex_core`. The shared file therefore looked
-like the guarantee and was not one: a check appended to it reached CI only if somebody also
-remembered to write it a second time, and nobody would notice the omission, because the
-omission's symptom is a test that never runs rather than a test that fails. That was fixed by
-adding a fake-driven test parametrized over the same tuple.
+exists", and AGENTS.md states it as a checkable requirement: *the real adapter must pass the
+same contract test as the fake.* On 2026-08-09 that requirement was found half-met for
+`MemoryStore`. A shared file, `memory_contract.py`, held the checks and a tuple naming them, and
+only the integration-marked pgvector run read the tuple. The fake was checked by a separate
+hand-written suite in `cortex_core`. The shared file looked like the guarantee without being one:
+a check appended to it reached CI only if somebody also wrote it a second time, and the omission
+produced a test that never runs rather than a test that fails, so nothing reported it. That was
+fixed by adding a fake-driven test parametrized over the same tuple.
 
-This addendum is the sweep that asks whether it was the only one. The method was mechanical
-and is worth repeating rather than re-derived: enumerate every port in both languages, find
-its shared check list if it has one, find every driver of that list, and ask which drivers CI
-actually runs. A list read by one driver and restated by another is the defect; a list read by
-every driver cannot drift; a port with a single driver parametrized over its implementations
-has no list to drift.
+This addendum records the sweep that looked for other ports in the same state. The method was
+mechanical, and is written down here so the next sweep does not re-derive it: enumerate every port
+in both languages, find its shared check list if it has one, find every driver of that list, and
+determine which drivers CI runs. A list read by one driver and restated by another can drift
+apart, which is the defect. A list read by every driver cannot, and a port with a single driver
+parametrized over its implementations has no second copy to drift.
 
 ### The Python ports
 
@@ -175,12 +174,12 @@ paragraph is the sweep's measurement rather than today's.
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` only incidentally, `ShellRandomness` never |
 | `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `app/src/bridge/bridgeContract.ts` | yes | `DemoBridge` yes, `TauriBridge` no, it crosses Tauri IPC |
 
-The Rust picture is not that a shared list drifted; it is that none exists. There is no
-`macro_rules!` anywhere under `body/crates`, no contract module in that workspace, and no generic
-function carrying assertions. `BrainTransport` is the strongest row regardless, its real adapter driven end to
-end in CI against an in-process fake `BrainService` on loopback, and it is also the row where a
-shared list would pay most, three independent hand-written suites currently describing the same
-eleven-method trait.
+No shared list has drifted on the Rust side, because none exists. There is no `macro_rules!`
+anywhere under `body/crates`, no contract module in that workspace, and no generic function
+carrying assertions. `BrainTransport` is the strongest row regardless, its real adapter driven end
+to end in CI against an in-process fake `BrainService` on loopback, and it is also the row where a
+shared list would pay most, since three independent hand-written suites currently describe the
+same eleven-method trait.
 
 ### What the sweep found, and what it fixed
 
@@ -188,22 +187,21 @@ eleven-method trait.
 about.** `session/tests/contract.py` exports fourteen checks and a tuple naming them, and the
 tuple's only reader was `test_store_live.py`, the integration-marked live-Redis run. The
 CI-visible driver, `test_store_contract.py`, restated all fourteen as hand-written wrappers.
-The list happened to agree at the moment it was read, fourteen against fourteen, and the
-agreement was worth exactly what the refinements index says such an agreement is worth: it
-recorded that nobody had yet forgotten, and promised nothing about the next person. Fixed the
-way the memory one was, by parametrizing over `contract.ALL_CHECKS` across the existing
-two-implementation fixture, which is the arrangement the other four stores in that directory
-already used.
+The two lists happened to agree at the moment they were read, fourteen against fourteen, which
+only showed that nobody had yet forgotten to copy a check across; it said nothing about the next
+edit. Fixed the way the memory one was, by parametrizing over `contract.ALL_CHECKS` across the
+existing two-implementation fixture, which is the arrangement the other four stores in that
+directory already used.
 
 **Proven able to fail, which is the only evidence that the fix is real.** A fifteenth check
 that raises unconditionally was appended to `contract.py` and to `ALL_CHECKS`, and the
 CI-visible driver was run twice over it, once as it now stands and once as it stood before.
-Parametrized, it reddens twice, once per implementation, the ids being
+Parametrized, it makes two tests fail, one per implementation, the ids being
 `check_a_check_nobody_hand_wrote_a_wrapper_for` under each of the fixture's `in-memory` and
-`redis` arms, alongside 66 passing. Restated, the same poisoned shared file gives `66 passed`, green, with the failing
-check never executed at all. That is the defect measured rather than asserted, and it is the
-same shape the memory fix demonstrated. Both files were restored afterwards and the whole
-`packages/session` suite is green at 268 passed.
+`redis` arms, alongside 66 passing. Restated, the same poisoned shared file gives `66 passed`,
+green, with the failing check never executed at all. That is the defect measured rather than
+asserted, and it is the same shape the memory fix demonstrated. Both files were restored
+afterwards and the whole `packages/session` suite is green at 268 passed.
 
 **No other Python port drifts, and the reason is structural rather than lucky.** The other
 eight shared lists are read by `pytest.mark.parametrize` in their CI driver, so a check
@@ -263,10 +261,10 @@ expectations. The generic helpers that look like shared drivers (`register_via`,
 `show_via`, `capture_via`, `probe`) carry no assertions; they prove the trait is usable as a
 bound and nothing more. The four Windows adapters cannot run in CI, which is gate 3 and not a
 defect, but a shared list would still be the only artifact holding them to the description
-their fakes are held to, and it would be waiting the day the host runs it. The overlay's
+their fakes are held to, and it would run the day the host runs the suite. The overlay's
 `BrainBridge` is the sharpest single case, its 100% coverage threshold met while two of its
-three implementations are named in `vite.config.ts`'s coverage `exclude`, which is a gate
-reading green over code it was never pointed at. That row is the one closed since, on 2026-08-11,
+three implementations are named in `vite.config.ts`'s coverage `exclude`, so the gate reported
+green over code it was never pointed at. That row is the one closed since, on 2026-08-11,
 by the addendum below; the Python and Rust rows are as the sweep left them, and its overlay row
 above has been updated to what the tree now holds.
 
@@ -291,10 +289,10 @@ exclude list holds only `main.tsx` and `tauriBridge.ts`, each with the reason wr
 
 **The sweep's open design question is answered rather than deferred.** It asked whether the
 overlay's fake and its Tauri bridge can share a driver at all when one answers from a record and
-the other crosses an IPC boundary. They cannot, and the line is not where the question put it.
-`TauriBridge` is out because every one of its methods is an `invoke` call, so holding it to these
-checks would mean faking `invoke` and measuring the fake. What the list does hold is both
-implementations CI can run, at the altitude where they genuinely agree: the turn HANDLE rather
+the other crosses an IPC boundary. They cannot, and the boundary falls elsewhere than the question
+assumed. `TauriBridge` is out because every one of its methods is an `invoke` call, so holding it
+to these checks would mean faking `invoke` and measuring the fake. What the list does hold is both
+implementations CI can run, at the level where they genuinely agree: the turn HANDLE rather
 than the stream, since the demo plays a recorded conversation on a timer while the fake streams
 nothing until its test says so; the pinned grouping rather than the whole listing order, since the
 demo sorts a catalog it holds and the fake serves the table it was assigned; the ack's boolean
@@ -315,14 +313,14 @@ description in `types.ts`, which is the arbiter when a check finds the two disag
 came from the turn-handle check rather than from the two arms disagreeing: `DemoBridge` announced
 a capture activity inside the `converse` call, a delivery the real bridge cannot make, its events
 arriving over a Tauri channel after the call has handed back the cancellation its caller stores.
-That ask rides a short timer now, which is also what it looks like by hand.
+That request is now issued on a short timer, which is also how it behaves when driven by hand.
 
-**Proven able to fail, three times, once per kind of thing it claims.** With `DemoBridge`'s
-`deleteSession` put back to the no-op it once was, `checkADeletedChatStaysGone` reddens on the
+**Proven able to fail, three times, once per kind of claim it makes.** With `DemoBridge`'s
+`deleteSession` put back to the no-op it once was, `checkADeletedChatStaysGone` fails on the
 `DemoBridge` arm alone (25 passed, 1 failed). With the turn's cancellation no longer clearing its
-timers, `checkACancelledTurnGoesSilent` reddens the same way, the recorder holding 87 events where
-the check demands none. With the completion moved ahead of the reply's words,
-`demoBridge.test.ts`'s ordering claim reddens while all 26 shared checks stay green, which is the
+timers, `checkACancelledTurnGoesSilent` fails the same way, the recorder holding 87 events where
+the check requires none. With the completion moved ahead of the reply's words,
+`demoBridge.test.ts`'s ordering claim fails while all 26 shared checks stay green, which is the
 division of labour working: the shared list holds the port, the demo's suite holds the script.
 Each break was restored and the tree is green.
 
@@ -334,7 +332,7 @@ half, and every Rust row, where the fakes themselves are still written twice.
 
 The sweep's Python worklist, taken one port per commit in the order the table lists them. Each
 section below records what the list holds, where the two implementations legitimately diverge and
-so what altitude the checks sit at, what the list found on its first run, and the break that
+so what level of abstraction the checks sit at, what the list found on its first run, and the break that
 proved it able to fail. `InferenceBackend` is deliberately not in this addendum: its decode
 cadence is already shared and the rest of its streaming contract is a design question of its own
 (what a list can say about an event stream two implementations produce at different rates), so it
@@ -364,16 +362,16 @@ port documents, so nothing in the core could exercise a remember or a recall aga
 embedding server, and the fake could not stand in for the adapter on the only path where the two
 have anything to disagree about. It gained `fail_with(EmbedderError(...))`, the same scripted
 failure `InMemoryBodyGateway` has carried since it was written. No behavioural disagreement was
-found between the two on the paths both could already walk, which is the honest outcome for a port
-one method wide, and it is worth writing down rather than leaving as a silence.
+found between the two on the paths both could already walk, which is the expected outcome for a
+port one method wide, and it is recorded here rather than left unstated.
 
-**Proven able to fail, once per arm.** Dropping the adapter's `float(value)` coercion reddens
-`text_embeds_to_a_vector_of_real_numbers[llamacpp]` alone (1 failed, 7 passed); making the fake's
-width depend on the text's parity reddens `every_text_embeds_at_one_width[hash]` alone; letting
-the adapter's `httpx.HTTPError` escape instead of wrapping reddens
-`a_backend_that_cannot_answer_raises_embedder_error[llamacpp]`; and making the new `fail_with` a
-no-op reddens the same check on the `hash` arm, which is what proves the knob is load-bearing
-rather than decorative. Each break was restored.
+**Proven able to fail, once per arm.** Dropping the adapter's `float(value)` coercion makes
+`text_embeds_to_a_vector_of_real_numbers[llamacpp]` fail on its own (1 failed, 7 passed); making
+the fake's width depend on the text's parity makes `every_text_embeds_at_one_width[hash]` fail on
+its own; letting the adapter's `httpx.HTTPError` escape instead of wrapping it makes
+`a_backend_that_cannot_answer_raises_embedder_error[llamacpp]` fail; and making the new
+`fail_with` a no-op makes the same check fail on the `hash` arm, which shows that the knob is
+exercised rather than decorative. Each break was restored.
 
 ### `ToolRegistry`
 
@@ -388,10 +386,10 @@ ran and failed is an `is_error` result rather than an exception; that a name the
 serve never comes back as a success; and that an unreachable backend raises `ToolError` from both
 verbs.
 
-**Where the two kinds legitimately diverge, and what the port now says about it.** An unknown name
-is the case, and the sweep's assumption that the port already settled it was wrong. The port's
-parenthetical promised `ToolNotFoundError`, which only a registry that knows its whole set can
-keep: `McpToolRegistry` asks a server, and an MCP server answers an unknown tool with an error
+**Where the two kinds legitimately diverge, and what the port now says about it.** They diverge on
+an unknown tool name, and the sweep's assumption that the port already settled that case was wrong.
+The port's parenthetical promised `ToolNotFoundError`, which only a registry holding its whole set
+can deliver: `McpToolRegistry` asks a server, and an MCP server answers an unknown tool with an error
 *result*, so the adapter has never raised there and cannot without either sniffing an error string
 or paying a listing round trip per call. Neither implementation is wrong, so the fix went into the
 description: the port now states the safety half both owe, that a name an implementation does not
@@ -400,30 +398,29 @@ dispatcher stamping its own `ToolError` sentence `TRUSTED` while a relayed error
 `UNTRUSTED`, which is the correct reading of each. A caller needing the distinction resolves
 ownership by a live walk first, which is what `AggregateToolRegistry` already does.
 
-**What it found: the fake could express neither the port's central case nor its world.**
+**What it found: the fake could produce neither the port's central case nor a changing tool set.**
 `InMemoryToolRegistry`'s handlers returned result text, so the fake could never produce a result
 with `is_error` set, which is the case the port draws its whole `is_error`/raise distinction
 around; every core test of a failing tool went through a handler *raising*, which is the other
 branch, and the dispatcher labels the two differently. The handler's answer is now text or a whole
 `ToolResult`, with the call's own id stamped on either. The fake also copied its tool set at
-construction, so no test could move the world the port promises to re-read (it gained `serve`), and
+construction, so no test could change the set the port re-reads on every walk (it gained `serve`), and
 it had no way to be unreachable, so nothing held it to the `ToolError` that
 `SkipUnavailableToolRegistry` is built on (it gained `fail_with`, the same knob `HashEmbedder`
 took the day before).
 
-**Proven able to fail, four times, and the arms it reddens are the ones that can carry each
+**Proven able to fail, four times, and the failing arms are the ones that can carry each
 defect.** With the adapter reading `isError` as always false, the failed-tool check and the
-unknown-name check both redden on the `mcp` and `reconnecting` arms while the fake stays green, 4
-failed against 15 passed, which is the unknown-name check earning its altitude: it is the only
-thing standing between a relayed "Unknown tool" and the model being told it succeeded. With the
-adapter dropping the call's arguments, the id-and-text check and the failed-tool check redden on
-the same two arms. With the fake answering an empty listing instead of raising when it is
-unreachable, which is the silent degradation `SkipUnavailableToolRegistry` exists to prevent, the
-backend check reddens on the `in-memory` arm alone. And with a listing cache added to
-`McpToolRegistry`, the re-read check reddens on the `mcp` arm **only**, not on `reconnecting`,
-because that wrapper builds a fresh inner registry per call and is structurally immune to the
-defect. That last one is why both MCP arms are in the list rather than one: they are not the same
-implementation of this promise. Each break was restored.
+unknown-name check both fail on the `mcp` and `reconnecting` arms while the fake stays green, 4
+failed against 15 passed. That is what the unknown-name check is for: without it, a relayed
+"Unknown tool" would reach the model as a success. With the adapter dropping the call's arguments,
+the id-and-text check and the failed-tool check fail on the same two arms. With the fake answering
+an empty listing instead of raising when it is unreachable, which is the silent degradation
+`SkipUnavailableToolRegistry` exists to prevent, the backend check fails on the `in-memory` arm
+alone. And with a listing cache added to `McpToolRegistry`, the re-read check fails on the `mcp`
+arm **only**, not on `reconnecting`, because that wrapper builds a fresh inner registry per call
+and is structurally immune to the defect. That last case is why both MCP arms are in the list
+rather than one: they implement this obligation differently. Each break was restored.
 
 ### `BodyGateway`
 
@@ -446,8 +443,9 @@ the check asks only that a legal state comes back. Both are written into
 [docs/modules/brain-body-client.md](../modules/brain-body-client.md).
 
 **What it found: the fake handed back a capture the adapter would have refused.** A non-zero
-`max_edge`/`max_bytes` is a bound on the *reply*, because a proto3 field an older body ignores is
-a constraint the brain only believes it set, and `GrpcBodyGateway` has verified it on receipt
+`max_edge`/`max_bytes` is a bound on the *reply*, because an older body ignores the proto3 field
+and the brain has no way to tell that its constraint was applied, and `GrpcBodyGateway` has
+verified it on receipt
 since the capture slice. `InMemoryBodyGateway` did not: it answered its scripted capture verbatim
 whatever bound the call asked for. So a core test could watch a turn accept a picture production
 would have thrown away, which is the fake being *more permissive* than the adapter it stands in
@@ -459,13 +457,13 @@ a host that switches toasts off are conditions two of the checks need and constr
 cannot supply.
 
 **Proven able to fail, four times, once per side.** With the bounds rule taken back out of the
-fake, the refusal check reddens on the `in-memory` arm alone (1 failed, 19 passed), which is the
+fake, the refusal check fails on the `in-memory` arm alone (1 failed, 19 passed), which is the
 defect above measured rather than asserted. With the adapter sending a zero for an absent level
-instead of leaving the field unset, the presence check reddens on the `grpc` arm alone, which is
-the mute that would silence the host. With the adapter stamping the asked target onto the answer
-instead of reading the body's, the target check reddens the same way. And with the fake recording
-a notification without its taint bit, the notification check reddens on `in-memory`. Each break
-was restored.
+instead of leaving the field unset, the presence check fails on the `grpc` arm alone, and that
+zero is the value that would mute the host. With the adapter stamping the asked target onto the
+answer instead of reading the body's, the target check fails the same way. And with the fake
+recording a notification without its taint bit, the notification check fails on `in-memory`. Each
+break was restored.
 
 ### `Confirmer`
 
@@ -493,15 +491,15 @@ asked once about one answer could not stand in for it across two asks. It gained
 whose whole contract is "only an explicit yes is `True`" is the answer worth having.
 
 **Proven able to fail, three times, and once deliberately not.** A timeout that approves instead
-of denying reddens `a_person_who_never_answers_denies` on the `seam` arm alone; a card emitted
-without its reason reddens the two checks that read what the person was shown, on the `seam` arm;
-and a fake that stops recording what it was shown reddens the same two on `recording`. The fourth
-attempt is the informative one: `resolve` rewritten to answer whichever ask is pending rather than
-the one whose id it was given leaves all ten green, because through the port only one ask is ever
-outstanding. That is not a hole in the list, it is the division of labour the overlay's closure
-described in the other direction: the shared list holds the port, and `test_confirm.py` holds the
-stream, where a stale or forged `confirm_id` resolving nothing is checked directly. Each break was
-restored.
+of denying makes `a_person_who_never_answers_denies` fail on the `seam` arm alone; a card emitted
+without its reason makes the two checks that read what the person was shown fail on the `seam`
+arm; and a fake that stops recording what it was shown makes the same two fail on `recording`. The
+fourth attempt is the informative one: `resolve` rewritten to answer whichever request is pending
+rather than the one whose id it was given leaves all ten green, because through the port only one
+request is ever outstanding. That is the division of labour rather than a hole in the list, the
+same split the overlay's closure described from the other side: the shared list holds the port, and
+`test_confirm.py` holds the stream, where a stale or forged `confirm_id` resolving nothing is
+checked directly. Each break was restored.
 
 ### What is left after these four
 
@@ -541,9 +539,9 @@ sizes one, or asks when it arrives:
    described only here.
 6. **A completion with nothing to say is a completion**, owing no stop, no cadence and no error.
 7. **An abandoned completion costs the backend nothing**, the next one arriving whole. Every
-   `finally: aclose()` in the core is written for this, a user's Stop being a consumer that walks
-   away mid-completion, and an implementation holding a GPU lease for the stream's duration has to
-   let go when the stream is dropped.
+   `finally: aclose()` in the core is written for this, since a user's Stop closes the iterator
+   mid-completion, and an implementation holding a GPU lease for the stream's duration must
+   release it when the stream is dropped.
 8. **A backend that cannot answer fails its caller with `InferenceError`**, at a moment the port
    deliberately leaves open: an implementation may fail before it hands back an iterator or on the
    first event of one, and both shapes are live in this tree (`drain_text` guards its `aclose` for
@@ -556,8 +554,8 @@ scripted from what an implementation produced. The same sentence called the cade
 "closes the stream", which is false in the other direction, since the calls trail both closing
 events. Neither implementation was wrong, so the fix went into the description, in `ports.py` and
 in `inference.py`, and the list holds the half both owe: a call never precedes the words beside it.
-That is the `ToolRegistry` outcome again, a promise nobody could keep replaced by the one everybody
-already kept.
+That repeats the `ToolRegistry` outcome, where an obligation no implementation could meet was
+replaced by the one both already met.
 
 **And once against the fake: it could not fail.** `ScriptedInferenceBackend` had no way to raise
 the port's one error, so ten test files under `core/tests` and `orchestrator/tests` hand-roll a
@@ -579,48 +577,50 @@ determinism, and a sampled model could not keep it.
 
 **`EchoInferenceBackend` is deliberately not a third leg**, though it is shipped wiring rather than
 a double (the GPU-less default in `builders.py`). It has no thinking, calls no tool and always
-answers, so three of the four worlds cannot be put to it, and teaching it any of them would turn a
+answers, so three of the four worlds cannot be put to it, and adding any of them would turn a
 backend a real deployment runs into a test stub, which is the argument `fakes_inference.py` already
 makes about the cadence it must never fabricate. What it owes stays in `core/tests/test_fakes.py`.
-Whether the twin should also refuse a model it does not serve, where the adapter refuses one its
+Whether the twin should also reject a model it does not serve, where the adapter rejects one its
 manager cannot lease, is the one question this list left open; it was filed as its own entry and is
 answered by the served-model addendum below.
 
 **Proven able to fail, seven times, and once informatively not.** Each break was made against
 production code, measured with the whole `packages` suite (2517 passing), and restored:
 
-| Break | Result | Shared checks reddened |
+| Break | Result | Shared checks that fail |
 | --- | --- | --- |
 | `_chunk_events` yields the reply before the thinking | 2 failed | the thinking check on `llamacpp` alone; the other is the adapter's own reasoning case |
 | `_chunk_events` yields the cadence before the stop | 4 failed | the closing-order check on `llamacpp` alone; the other three are adapter cases |
 | `consume_chunk` overwrites a call's arguments instead of accumulating them | 4 failed | both call checks on `llamacpp`, plus the derived case; the fourth is an adapter case |
-| `ScriptedInferenceBackend.fail_with` made a no-op | 1 failed | the failure check on `scripted` alone, which is what proves the new knob load-bearing |
+| `ScriptedInferenceBackend.fail_with` made a no-op | 1 failed | the failure check on `scripted` alone, which shows the new knob is exercised |
 | the twin appends a `DecodeStop(FINISHED)` to every round | 5 failed | the nothing-to-say and closing-order checks on `scripted`; the other three are the stop list on the same arm |
 | `SingleResidentModelManager.acquire` releases its lock outside a `finally` | 3 failed | the abandonment check on `llamacpp`; the others are the two lease tests elsewhere |
 | `_chunk_events` stops dropping the engine's padding | 23 failed | exactly one, and for an ordering reason rather than an emptiness one; the other 22 are the adapter's own suite |
 
-The last row is the informative one, the shape the `Confirmer` list found in the other direction:
-the shared list holds the port and the adapter's suite holds the translation, so a change that only
-makes the adapter chatty leaves seven of the eight checks green. That is the division of labour
-rather than a hole. The one check it does redden fails because the role-only opening chunk becomes
-a text delta ahead of the thinking, which is the ordering promise doing its job.
+The last row is the informative one, and it repeats what the `Confirmer` list found from the other
+side: the shared list holds the port and the adapter's suite holds the translation, so a change
+that only makes the adapter emit more events leaves seven of the eight checks green. That is the
+division of labour rather than a hole. The one check that does fail fails because the role-only
+opening chunk becomes a text delta ahead of the thinking, which is the ordering obligation working
+as written.
 
 ## Addendum (2026-08-17): a backend answers only for a model it serves
 
-The question the streaming list above left open, settled by measuring what the two implementations
-actually did with a model id no deployment hosts. `LlamaCppBackend` asked for `'scribe'` against a
-manager holding one resident raised `InferenceError: model manager could not lease 'scribe' for
-inference`, before any HTTP request left the process. `ScriptedInferenceBackend` asked for the same
-id streamed its whole script, recorded the id in `calls`, and said nothing about it. So the fake
+This settles the question the streaming list above left open, by measuring what the two
+implementations did with a model id no deployment hosts. `LlamaCppBackend`, asked for `'scribe'`
+against a manager holding one resident, raised `InferenceError: model manager could not lease
+'scribe' for inference` before any HTTP request left the process. `ScriptedInferenceBackend`, asked
+for the same id, streamed its whole script and recorded the id in `calls` without reporting
+anything. So the fake
 was more permissive than the adapter it stands in for, which is the direction that hides defects
 rather than inventing them: a wiring change naming an id nobody serves would pass every core test
 written over the twin and fail on the first real turn.
 
-**Both sides were wrong, in the sense the question offered.** The port had no answer to give, so
-neither implementation could be measured against one, and the twin's permissiveness was the port's
-silence rather than a decision. The answer written into `ports.py` is the narrowest one that closes
-the gap: an implementation answers only for the ids it serves, and asked for one it does not it
-fails with `InferenceError`. What it deliberately does not say is **who checks or when**. Which ids
+**Neither implementation was wrong, because the port did not state the case.** With nothing in the
+port to measure against, the twin's permissiveness was an unstated default rather than a decision.
+The sentence written into `ports.py` is the narrowest one that closes the gap: an implementation
+answers only for the ids it serves, and asked for one it does not, it fails with `InferenceError`.
+What it deliberately does not say is **who checks or when**. Which ids
 a deployment serves stays the `ModelManager`'s subject here, and a backend fronting a router would
 legitimately recognise its whole table and take the refusal off the wire; both satisfy the
 obligation, because the obligation is about the reply and not about the check. The reason it is an
@@ -630,25 +630,25 @@ mark it, so a caller cannot detect the substitution the way it detects a failure
 
 **What the twin gained.** `ScriptedInferenceBackend(rounds, serves=[...])` names the ids it stands
 for, the wiring rather than the script, and refuses anything outside it with the port's one error
-after recording the call, which is `fail_with`'s existing stance about a request a backend took and
-could not answer. `serves=None` stays the default and answers for any id, since a twin told nothing
-about a deployment has made no claim to violate and the fifty-odd scripts written about events
-rather than wiring should not have to invent one. The shared list is driven over a twin that has
-been told, `CONTRACT_MODEL` and nothing else, which is exactly the wiring the adapter leg gets from
-its `SingleResidentModelManager`.
+after recording the call, which matches `fail_with`'s existing treatment of a request a backend took
+and could not answer. `serves=None` stays the default and answers for any id, because a twin given
+no deployment to stand for has made no claim to violate, and the fifty-odd scripts written about
+events rather than wiring should not have to invent one. The shared list is driven over a twin
+given `CONTRACT_MODEL` and nothing else, which is exactly the wiring the adapter leg gets from its
+`SingleResidentModelManager`.
 
-**The ninth check needs no fifth world**, and writing it that way is the point:
+**The ninth check needs no fifth world**, and that is why it is written this way:
 `check_a_backend_answers_only_for_a_model_it_serves` asks the *deliberating* backend for
 `UNSERVED_MODEL` and requires a failure. Every builder in the list already stands for a deployment
-serving `CONTRACT_MODEL` alone, so the world the check wants is the one the fixtures already
+serving `CONTRACT_MODEL` alone, so the world the check needs is the one the fixtures already
 arrange, and a fifth builder would have described the same deployment twice.
 
 **Proven able to fail, twice, once per leg.** Each break was made against production code, measured
 with the whole `packages` suite (2625 tests), and restored:
 
-| Break | Result | Shared checks reddened |
+| Break | Result | Shared checks that fail |
 | --- | --- | --- |
-| the twin's refusal made a no-op | 1 failed | the served-model check on `scripted` alone, which is what proves the new knob load-bearing |
+| the twin's refusal made a no-op | 1 failed | the served-model check on `scripted` alone, which shows the new knob is exercised |
 | `SingleResidentModelManager.acquire` stops checking residency | 3 failed | the served-model check on `llamacpp`; the others are the manager's own test and the adapter's wrapping test |
 
 The asymmetry between the rows is the division of labour again: the twin's refusal is reachable
@@ -659,8 +659,8 @@ recorded as its own entry rather than settled here.
 
 ## Addendum (2026-08-20): each configured caller's model id, pinned against its own deployment
 
-The served-model answer closed the port's silence and left the exposure the other way round. The
-obligation is on the implementation, and no test in the tree was in a position to notice a caller
+The served-model sentence closed the gap in the port's description and left the opposite exposure
+open. The obligation falls on the implementation, and no test in the tree could catch a caller
 asking for the wrong id in the first place. `serves` is opt-in and exactly one fixture passes it,
 the shared list's own builder in `test_stream_contract.py`; everywhere else the id is discarded
 outright, `del model` appearing 53 times across 18 hand-rolled backends under `core/tests` and
@@ -670,7 +670,7 @@ another would have passed the whole suite and refused the first real turn.
 [R-298](../refinements/tasks/298-served-ids-are-opt-in-everywhere.md) weighed three shapes for that
 and this is the cheapest of them, one test per configured caller pinning that the id it asks for is
 the id its deployment hosts. Nothing in production changed and `serves` stays `None` by default,
-for the reason it was kept: a twin told nothing about a deployment has made no claim to violate.
+for the reason it was kept: a twin given no deployment to stand for has made no claim to violate.
 
 **The three callers, and why each pin is more than a restatement of a constructor argument.** The
 resident tier a turn asks for is `CORTEX_MODEL_CORTEX` read twice by `run_from_env`, once into
@@ -685,19 +685,19 @@ just started. The subagent entry every untrusted spawn is forced onto is `config
 apart from the entries `named_roster` keys, meeting only in the builder, and `SubagentRoster`
 refuses to be constructed when the two disagree.
 
-**Every one of the three renames its tiers, and that is the whole method.** Under the shipped ids
-the deployment's value and the module's own constant are the same string, so a builder reaching for
-the constant is indistinguishable from one reading the config, and every case that existed here
-left the defaults in place. `test_the_enabled_runtime_is_the_one_lease_and_the_one_residency`
-already leased both tiers and asserted both endpoints, and it stays green under a map keyed by
-literals; the renamed twin beside it does not. The renaming is the difference between a test that
-watches the wiring and one that watches the literals.
+**Every one of the three renames its tiers, which is the whole method.** Under the shipped ids the
+deployment's value and the module's own constant are the same string, so a builder reaching for the
+constant is indistinguishable from one reading the config, and every case that existed here left
+the defaults in place. `test_the_enabled_runtime_is_the_one_lease_and_the_one_residency` already
+leased both tiers and asserted both endpoints, and it stays green under a map keyed by literals;
+the renamed twin beside it does not. Renaming the tiers is what separates a test that exercises
+the wiring from one that only repeats the literals.
 
 **Proven able to fail.** Each mis-wiring was applied to production code alone and measured over the
 whole `packages` suite, then restored. Each is the same realistic slip: a root reaching for the
 module constant instead of the deployment's own value.
 
-| Mis-wiring | Reddened |
+| Mis-wiring | Test that fails |
 | --- | --- |
 | `TurnEngine`'s `cortex_model` becomes the literal `"cortex"` | the resident-tier pin, failing as "model manager could not lease" |
 | the inference backend is built for the literal `"cortex"` | the same one, failing on the other id |
@@ -706,7 +706,7 @@ module constant instead of the deployment's own value.
 
 **What is left over** is the fourth configured caller, the recall judge, which asks the resident
 model to rank a pool and falls back to the unjudged ranking on any `InferenceError`. A lease
-refused for a wrong id is exactly that error, so a mis-wiring there is not a failed turn but every
-recalling turn quietly ranked the way `CORTEX_MEMORY_RECALL=raw` ranks, recorded once per recall in
-a warning nobody is watching. That is its own entry rather than settled here, since pinning it
-costs the memory wiring a fixture the other three did not need.
+refused for a wrong id is exactly that error, so a mis-wiring there produces no failed turn.
+Instead every recalling turn is ranked the way `CORTEX_MEMORY_RECALL=raw` ranks, with one warning
+logged per recall that nobody is reading. That is recorded as its own entry rather than settled
+here, since pinning it costs the memory wiring a fixture the other three did not need.

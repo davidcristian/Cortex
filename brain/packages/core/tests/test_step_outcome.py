@@ -148,8 +148,8 @@ def _steps(yielded: Sequence[object]) -> list[ToolStep]:
 
 
 async def test_a_capture_that_reached_the_model_settles_ok() -> None:
-    """The control arm, and the only one that may ever strengthen the indicator's claim: the
-    body answered, the pixels are on the result, and the outcome says so."""
+    """The control arm, and the only one that may strengthen the indicator's claim: the body
+    answered, the pixels are on the result, and the outcome says so."""
     yielded, audit = await _capture_turn(body=InMemoryBodyGateway())
 
     assert _outcomes(yielded) == [StepOutcome(tool_name=CAPTURE_SCREEN_TOOL_NAME, ok=True)]
@@ -352,8 +352,8 @@ async def test_a_call_matching_no_advertised_spec_announces_nothing_and_settles_
 
 
 async def test_a_consumer_that_closes_on_the_step_gets_no_outcome() -> None:
-    """The one honest gap, stated rather than papered over: closing the loop between the step
-    and its outcome ends the turn, and a turn with no stream has no surface left to settle."""
+    """The one gap, stated rather than papered over: closing the loop between the step and its
+    outcome ends the turn, and a turn with no stream has no surface left to settle."""
     body = InMemoryBodyGateway()
     dispatcher = ToolDispatcher(
         _CaptureRegistry(CaptureScreenTool(body)), RecordingAuditSink(), _Clock()

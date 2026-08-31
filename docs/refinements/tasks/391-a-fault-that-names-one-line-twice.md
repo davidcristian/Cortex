@@ -40,13 +40,13 @@ lines of both shapes.
 
 - 2026-08-23: filed by the close of
   [R-385](385-a-note-beside-a-compose-value-is-read-as-a-spend.md), which measured this message
-  while proving the strictness it comes from is loud rather than silent, and left the wording as
-  the residue of that decline.
+  while proving that the strictness it comes from is reported rather than passing unnoticed, and
+  left the wording as the residue of that decline.
 - 2026-08-23: landed as `defaultcheck.one_line_hint`, appended to the value disagreement's own
-  fault. **This entry's statement of the condition was wrong, and the tree said so.** It reads "a
+  fault. **This entry's statement of the condition was wrong, and the tree shows it.** It reads "a
   group whose spends share one file and one line is the whole of the condition"; replanting the
-  note it quotes reddens a group of **five** spends across **four** files, only two of which are
-  that line, so a whole-group test would have stayed silent on the very case the entry was written
+  note it quotes makes the gate fail over a group of **five** spends across **four** files, only
+  two of which are that line, so a whole-group test would not have fired on the very case the entry was written
   from. The condition shipped is a **repeated** `path:line` within the group, which is what the
   quoted fault actually shows. The care the entry asked for is kept: no `#` is looked for, the
   sentence names the line the two spends share, and the note is offered as the likely reading

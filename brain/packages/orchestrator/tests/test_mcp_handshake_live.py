@@ -1,15 +1,14 @@
 """Integration: what the MCP per-call session costs a turn, in handshakes and in seconds.
 
 The registry opens a fresh MCP session per call (ADR-0009 boot-tolerance addendum), and the
-deferral behind that trade never had a number on it. This puts one there, in the same currency
-the recall work is priced in: milliseconds on the path to the first token.
+refinement deferred behind that trade never had a number on it. This file measures one, in the
+same unit the recall work uses: milliseconds on the path to the first token.
 
-It measures two separable things, and the separation is the point. **How many** session opens a
-turn pays is deterministic and is asserted exactly, against the production registry stack, by
-counting opens through a wrapping opener. **What one costs** is a property of the sidecar on the
-other end, so it is measured rather than asserted absolutely; what the run does assert is that
-the seconds track the count, since a timing harness that reports the same number whatever the
-system does is worth nothing.
+Two separable things are measured. **How many** session opens a turn pays is deterministic and is
+asserted exactly, against the production registry stack, by counting opens through a wrapping
+opener. **What one costs** is a property of the sidecar on the other end, so it is measured rather
+than asserted absolutely, and what the run asserts is that the seconds track the count. A timing
+harness that reported the same number whatever the system did would measure nothing.
 
 The control arm is a **pre-warmed** session: the same `McpToolRegistry` calls with the open
 already paid. Fresh minus warm is the open, and the run fails if that difference collapses.
@@ -82,7 +81,8 @@ class CountingOpener:
 
 
 def _endpoint(counter: CountingOpener, allow: Sequence[str]) -> ToolRegistry:
-    """One configured endpoint as `build_tool_registry` assembles it: the filter over the dial."""
+    """One configured endpoint as `build_tool_registry` assembles it: the allow-list filter over
+    the reconnecting registry."""
     return FilteredToolRegistry(ReconnectingMcpToolRegistry(counter), allow=allow)
 
 
@@ -94,7 +94,7 @@ def _roots(counters: Sequence[CountingOpener], allows: Sequence[Sequence[str]]) 
 
 
 async def _opens(counters: Sequence[CountingOpener], work: Callable[[], Awaitable[object]]) -> int:
-    """How many sessions ``work`` opened."""
+    """Return how many sessions ``work`` opened."""
     before = sum(c.opens for c in counters)
     await work()
     return sum(c.opens for c in counters) - before
@@ -119,8 +119,8 @@ async def test_a_turn_pays_one_session_open_per_advertisement_and_per_dispatch()
     by re-listing each registry until one claims the name, deliberately (a live walk, so a tool a
     sidecar dropped or re-flagged fails closed rather than routing stale). A **subagent** pays
     N more on top, because `UngatedToolRegistry.invoke` re-lists to recompute the gated set
-    before delegating. Both walks are by design; what nothing recorded is that they make a
-    delegated dispatch cost twice a cortex one.
+    before delegating. Both walks are deliberate. What was recorded nowhere is that together they
+    make a delegated dispatch cost twice what a cortex dispatch costs.
     """
     assert _TOOLS is not None
     call = ToolCall(id="hs-1", name=_READ_TOOL, arguments={"path": _READ_PATH})
@@ -145,14 +145,15 @@ async def test_a_turn_pays_one_session_open_per_advertisement_and_per_dispatch()
 
 @pytest.mark.integration
 async def test_the_open_is_what_a_fresh_session_costs_over_a_warm_one() -> None:
-    """Price the open, and prove the instrument is reading the open rather than the sidecar.
+    """Measure what one session open costs, and check that the harness is reading the open rather
+    than the sidecar's own work.
 
     Three arms over the same live server: a bare open with no tool traffic, the registry's own
-    per-call opens, and the control, the identical calls on a session already open. The
-    assertions are all relative, since the absolute numbers belong to whatever sidecar answers:
-    a fresh call must exceed its warm twin by most of a bare open, and a two-open dispatch (the
-    subagent stack) must exceed a one-open dispatch by the same margin. If either collapses the
-    harness is measuring something other than the open and the run says so.
+    per-call opens, and the control, the identical calls on a session already open. The assertions
+    are all relative, since the absolute numbers belong to whatever sidecar answers: a fresh call
+    has to exceed its warm twin by most of a bare open, and a two-open dispatch (the subagent
+    stack) has to exceed a one-open dispatch by the same margin. If either difference collapses,
+    the harness is measuring something other than the open, and the run fails.
     """
     assert _TOOLS is not None
     url = _TOOLS  # A local, so the None narrowing reaches into the closure below.
@@ -165,7 +166,7 @@ async def test_the_open_is_what_a_fresh_session_costs_over_a_warm_one() -> None:
         async with streamable_http_session(url):
             pass
 
-    await bare_open()  # Warm whatever the first dial pays for once (DNS, the sidecar's own boot).
+    await bare_open()  # Pay whatever the first connection costs once (DNS, the sidecar's boot).
     handshake, hs_lo, hs_hi = await _median_ms(bare_open)
     fresh_list, fl_lo, fl_hi = await _median_ms(fresh.describe_tools)
     fresh_call, fc_lo, fc_hi = await _median_ms(partial(fresh.invoke, call))

@@ -11,12 +11,12 @@ second full brain suite running beside them, the widest sliver in 200 replays wa
 is a thirteenfold margin, and it was chosen deliberately over tightening the bound to the observed
 worst case, which would promote one machine's synthetic load to a suite-wide invariant.
 
-The judgement is defensible and it is also unwatched. Nothing samples that margin again. A slower
-CI runner, a busier developer box, or a grpc release that delivers cancellations differently could
-walk the sliver up toward 0.1 s, and the first anyone would learn of it is this case reddening,
-which is the failure mode the exact assertion was replaced to avoid. The number that would tell
-anyone in advance, the widest reading seen across many runs, is produced by every run of the case
-and kept by none of them.
+The judgement is defensible and it is also unwatched. Nothing samples that margin again. A slower CI
+runner, a busier developer box, or a grpc release that delivers cancellations differently could walk
+the sliver up toward 0.1 s, and the first anyone would learn of it is this case failing, which is
+the failure mode the exact assertion was replaced to avoid. The number that would tell anyone in
+advance, the widest reading seen across many runs, is produced by every run of the case and kept by
+none of them.
 
 **What would close it.** Cheapest first, and none of these is obviously the right size:
 
@@ -35,23 +35,23 @@ Deliberately last of the three in cost order, because the third may be the answe
 
 ## Trail
 
-- 2026-08-21: Filed by the close of
-  [370](370-an-expiry-reading-is-asserted-exactly.md), whose measurement chose the bound's margin
-  and left nothing sampling it. Recorded in the ADR-0024 addendum dated the same day.
+- 2026-08-21: Filed by the close of [370](370-an-expiry-reading-is-asserted-exactly.md), whose
+  measurement chose the bound's margin and left nothing sampling it. Recorded in the ADR-0024
+  addendum dated the same day.
 - 2026-08-22: Declined, on the entry's own third option, and the reason is what
   [R-371](371-a-floor-and-a-sliver-are-indistinguishable.md) landed rather than that watching is
-  awkward. The margin was worth watching because a growing sliver would eventually redden the
+  awkward. The margin was worth watching because a growing sliver would eventually fail the
   half-window bound, and the bound's only remaining value was the floor-versus-sliver distinction;
   that distinction now lives in a case where the sliver cannot occur at all, so a growing sliver
   costs nothing it used to cost. Neither sampling shape was taken. `just shuffle` and a periodic
   turn-cost-shaped reading would both sample a number whose upper bound is already enforced by the
-  case's own precondition: a sliver is bounded by the call setup this scenario must complete
-  before the handler is entered, and a sliver approaching half the announced window means setup
-  taking half the announced window, at which point no line is written and the case reddens on the
-  latch timing out, louder and naming a real problem. What is not claimed is that the margin
-  cannot narrow, because it did: 400 saturated replays here read a widest sliver of 0.0107 s
-  against the 0.0073 s this entry recorded, taking the margin under the 0.1 s bound from
-  thirteenfold to nine and a halffold. The bound is unchanged, for the reason it was chosen. See
-  also [R-351](351-two-readings-only-a-fake-ever-produced.md), decided in the same pass, and
-  [R-381](381-the-header-encoding-error-is-larger-than-recorded.md), which that measurement
-  opened. Recorded in the ADR-0024 addendum dated the same day.
+  case's own precondition: a sliver is bounded by the call setup this scenario must complete before
+  the handler is entered, and a sliver approaching half the announced window means setup taking half
+  the announced window, at which point no line is written and the case fails on the latch timing
+  out, louder and naming a real problem. What is not claimed is that the margin cannot narrow,
+  because it did: 400 saturated replays here read a widest sliver of 0.0107 s against the 0.0073 s
+  this entry recorded, taking the margin under the 0.1 s bound from thirteenfold to nine and a
+  halffold. The bound is unchanged, for the reason it was chosen. See also
+  [R-351](351-two-readings-only-a-fake-ever-produced.md), decided in the same pass, and
+  [R-381](381-the-header-encoding-error-is-larger-than-recorded.md), which that measurement opened.
+  Recorded in the ADR-0024 addendum dated the same day.

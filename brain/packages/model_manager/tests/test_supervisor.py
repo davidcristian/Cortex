@@ -5,37 +5,37 @@ process per model however many starts arrive, a signal escalation that is bounde
 does not return early, and a failure that keeps reporting a process it could not kill. Every wait
 here is a fraction of a second and driven by a fake child, so nothing sleeps for a real grace.
 
-Distrust-green proofs, each applied to production code alone with the whole
-``packages/model_manager`` suite re-run, so the counts are measured:
+These checks were proved able to fail. Each mutation below was applied to production code alone
+with the whole ``packages/model_manager`` suite re-run, and every count is over that suite:
 
-- deleting the child from ``_children`` **before** ``_end`` reddens 9 cases, including
+- deleting the child from ``_children`` **before** ``_end`` fails 9 cases, including
   ``test_a_child_that_survives_sigkill_keeps_being_reported`` and
   ``test_stop_does_not_return_until_the_child_is_reaped`` here, three of the shared contract's
   supervisor cases, and two in ``test_api.py``;
-- returning from ``stop`` without awaiting the child's exit (signalling and moving on) reddens 5
+- returning from ``stop`` without awaiting the child's exit (signalling and moving on) fails 5
   cases: ``test_stop_does_not_return_until_the_child_is_reaped``,
   ``test_a_wedged_child_is_killed_after_the_grace``,
   ``test_a_child_that_survives_sigkill_keeps_being_reported``,
   ``test_stop_all_stops_every_model_and_survives_one_that_will_not_die``, and the api suite's 503
   case;
-- skipping the SIGKILL escalation (returning after the grace instead) reddens 4 cases: the three
+- skipping the SIGKILL escalation (returning after the grace instead) fails 4 cases: the three
   stop cases here plus the api suite's 503 case;
-- dropping the per-model lock from ``start`` reddens exactly 1,
+- dropping the per-model lock from ``start`` fails exactly 1,
   ``test_two_concurrent_starts_spawn_one_process``, which is why the fake suspends inside its spawn
   rather than merely counting calls;
-- dropping the dead child before spawning its replacement reddens exactly 1,
+- dropping the dead child before spawning its replacement fails exactly 1,
   ``test_a_spawn_that_fails_over_a_dead_child_keeps_reporting_that_childs_exit_code``;
-- logging a lifecycle line without attaching the tier and pid it is about reddens exactly 1,
+- logging a lifecycle line without attaching the tier and pid it is about fails exactly 1,
   ``test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about``.
 
 Two more for the failure this module raises and does not print, measured over the whole brain
 workspace:
 
-- logging the survived-SIGKILL sentence here again reddens 2,
+- logging the survived-SIGKILL sentence here again fails 2,
   ``test_a_child_that_survives_sigkill_keeps_being_reported`` and the api suite's 503 case, which
   is the pair that says the event is written once at each of its two ends rather than twice at
   one of them;
-- dropping the shutdown sweep's own ``exception`` call reddens exactly 1,
+- dropping the shutdown sweep's own ``exception`` call fails exactly 1,
   ``test_stop_all_stops_every_model_and_survives_one_that_will_not_die``, which is the assertion
   that keeps the raise safe to leave unlogged on the path the API never touches.
 """
@@ -57,7 +57,7 @@ _TINY = 0.05
 def _supervisor(
     processes: FakeChildProcesses | None = None, probe: FakeProbe | None = None
 ) -> tuple[ModelSupervisor, FakeChildProcesses, FakeProbe]:
-    """A supervisor over the contract roster with sub-second bounds, plus its two fakes."""
+    """Build a supervisor over the contract roster with sub-second bounds, plus its two fakes."""
     children = processes or FakeChildProcesses()
     health = probe or FakeProbe()
     supervisor = ModelSupervisor(
@@ -72,9 +72,10 @@ def test_the_roster_is_what_the_daemon_serves_and_nothing_else() -> None:
 
 
 def test_each_supervisor_names_a_different_boot_and_keeps_naming_it() -> None:
-    """The property the brain's whole reconciliation rests on, and the only two it needs.
+    """Two supervisors name different boots, and each keeps naming its own.
 
-    A supervisor is one daemon process, so two of them must never agree: a value that repeated
+    The brain's whole reconciliation rests on these two properties and needs no others. A
+    supervisor is one daemon process, so two of them must never agree: a value that repeated
     across a restart would let a brain go on believing what it believed about a child table that
     no longer exists, which is exactly what a monotonic counter reset to one would do. And it must
     not change while a process lives, or every handoff would reconcile a machine nothing moved.
@@ -87,7 +88,7 @@ def test_each_supervisor_names_a_different_boot_and_keeps_naming_it() -> None:
 
 @pytest.mark.parametrize("verb", ["start", "stop", "status"])
 async def test_every_verb_refuses_an_id_the_roster_does_not_hold(verb: str) -> None:
-    """A request cannot name a model into existence: that is the whole safety of the control API."""
+    """A request cannot name a model into existence, which is what keeps the control API safe."""
     supervisor, processes, _ = _supervisor()
     with pytest.raises(UnknownModelError, match="unknown model 'ghost'"):
         await getattr(supervisor, verb)("ghost")
@@ -95,7 +96,7 @@ async def test_every_verb_refuses_an_id_the_roster_does_not_hold(verb: str) -> N
 
 
 async def test_a_start_spawns_the_specs_argv_once_however_often_it_is_asked() -> None:
-    """Idempotence is a single process, not a tolerated second one holding the same port."""
+    """Repeated starts leave one process, never a second one holding the same port."""
     supervisor, processes, _ = _supervisor()
     await supervisor.start(CORTEX)
     await supervisor.start(CORTEX)
@@ -121,7 +122,8 @@ async def test_two_concurrent_starts_spawn_one_process() -> None:
 
 
 async def test_a_spawn_that_fails_starts_nothing_and_raises_a_typed_error() -> None:
-    """A failed start must leave the model absent, or a swap would health-gate a phantom."""
+    """A failed start leaves the model absent, so a swap cannot health-gate a model that is
+    not running."""
     supervisor, processes, _ = _supervisor()
     processes.error = OSError("no such file or directory")
     with pytest.raises(SupervisorError, match="could not start 'cortex'"):
@@ -131,7 +133,7 @@ async def test_a_spawn_that_fails_starts_nothing_and_raises_a_typed_error() -> N
 
 
 async def test_a_spawn_that_fails_over_a_dead_child_keeps_reporting_that_childs_exit_code() -> None:
-    """A failed replacement does not erase the corpse: this tier's last process really did die.
+    """A failed replacement keeps the dead child's exit code: that process really did die.
 
     The spawn failure itself is what the ``start`` answers with (a 503 carrying the OS error), so
     nothing is hidden by leaving the slot alone. What ``status`` then reports is the exit code of
@@ -176,7 +178,7 @@ async def test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about(
 
 
 async def test_status_reads_the_exit_code_without_asking_the_probe_at_all() -> None:
-    """The probe is never consulted for a dead child: the witness is that it was not called.
+    """The probe is never consulted for a dead child, and the assertion is that it was not called.
 
     Measured hazard: a start that could not bind dies at once while the model it was replacing
     keeps answering 200 on that port. Asking would get the wrong answer, so it is not asked.
@@ -236,7 +238,7 @@ async def test_a_wedged_child_is_killed_after_the_grace() -> None:
 async def test_a_child_that_survives_sigkill_keeps_being_reported(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The one stop that can fail: a process still holding VRAM must not vanish into STOPPED.
+    """A stop can fail, and a process still holding VRAM must not be reported STOPPED.
 
     The caller retries (``restore_standing`` does, once), and a slot reported STOPPED would have
     told the swap the GPU was free when it is not.

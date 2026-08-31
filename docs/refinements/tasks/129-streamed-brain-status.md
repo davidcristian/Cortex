@@ -12,7 +12,7 @@ entry originally assumed, still unbuilt, and now with a named blocker rather tha
 the overlay on the `Converse` stream as a chip. So the amber "not ready" path ships shaped and
 tested with no producer, and the rule that any successful call means ready is honest only
 while that holds. Both change together when the model manager (Slice 11) can make the brain
-not-ready *between* turns: that is when a push earns its keep and when "any success means
+not-ready *between* turns: that is when a push becomes worth building and when "any success means
 ready" stops being true.
 **Half the producer landed 2026-07-17 with the brain-handoff conductor
 ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) decisions 6 and 7).** An escalating turn now
@@ -22,7 +22,7 @@ proto change (the overlay renders it as a chip today).
 **The producer is whole as of 2026-07-18** (the honesty-surfaces sub-slice, ADR-0030 decision
 6): `Health` reads the swapping manager's published residency and answers `ready=false` with a
 truthful detail while the deep model is loading, working, or being swapped back, after a
-restore that gave up, and (from the 2026-07-18 audit repair) after a boot whose recovery could
+restore that failed, and (from the 2026-07-18 audit repair) after a boot whose recovery could
 not settle the cortex, which was the one machine state the first landing still called ready.
 The blocker this entry named is therefore met and the entry is **no
 longer blocked**, with **zero overlay change**, exactly as designed: the landed indicator

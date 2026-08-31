@@ -2,21 +2,14 @@
 
 A thin translator between the core's tool values and the MCP client SDK: `describe_tools`
 lists the server's tools, `invoke` calls one and renders its text content back. It holds no
-state (the one hard rule) beyond the injected `McpSession`. Every transport/protocol failure
-crosses the port as `ToolError` with the cause chained; a tool that ran but reported an error
-comes back as an ``is_error`` `ToolResult` (the dispatcher audits it, the model recovers).
+state (the one hard rule) beyond the injected `McpSession`. Every transport or protocol
+failure crosses the port as `ToolError` with the cause chained; a tool that ran but reported
+an error comes back as an ``is_error`` `ToolResult`.
 
-Sessions are opened per call via `streamable_http_session` (a structured, *same-task*
-``async with``) and driven by `ReconnectingMcpToolRegistry` (ADR-0009 boot-tolerance
-addendum). That replaces holding a session on a long-lived ``AsyncExitStack``, whose anyio
-task-group cancel scopes cannot be exited from a different task (the source of the boot-time
-``CancelledError`` the old eager wiring hit); the per-call open also makes a sidecar down at
-boot tolerable and a recovered one rejoin without a restart.
-
-Coverage without a server: the adapter talks to the injected `McpSession` port (the slice of
-`mcp.ClientSession` it uses), which the real session satisfies in production and a fake
-satisfies in CI (the MCP analog of the accepted MockTransport pattern). The behavioral
-contract against a real MCP server is the integration-marked `test_registry_live.py`.
+Sessions are opened per call by `ReconnectingMcpToolRegistry` (ADR-0009 boot-tolerance
+addendum), because a session held on a long-lived ``AsyncExitStack`` cannot be exited from a
+different task than opened it: anyio's task-group cancel scopes raised ``CancelledError`` at
+boot under the old eager wiring. docs/modules/brain-tools.md states the rest of the contract.
 """
 
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
@@ -33,9 +26,9 @@ from cortex_core import Provenance, ToolCall, ToolError, ToolResult, ToolSpec, c
 
 # The MCP result `_meta` key a sidecar declares a content source under (ADR-0027/0009). It rides
 # beside the readable content blocks, so a declaration never disturbs the string the model consumes
-# (unlike `structuredContent`). A cross-deployable wire contract: a sidecar (which cannot import the
-# core, e.g. the standalone email server) writes this key, and the core's `claimed_source` is the
-# trust gate, admitting only a claimed SENDER/URI and sanitizing its value.
+# (unlike `structuredContent`). The key is a wire contract because a sidecar cannot import the
+# core, the standalone email server being one; the core's `claimed_source` admits only a claimed
+# SENDER/URI and sanitizes its value.
 _SOURCE_META_KEY = "cortex/source"
 
 # McpError covers protocol-level failures; OSError covers socket-level transport failures.
@@ -52,10 +45,9 @@ _OPEN_WRAPPED = (McpError, OSError, httpx.HTTPError)
 def _declared_source(result: CallToolResult) -> Provenance | None:
     """The source a sidecar declared for this result, as a claimed ``Provenance`` (ADR-0027/0009).
 
-    Read from the result's MCP ``_meta`` side channel, so a declaration rides beside the readable
-    content blocks and never disturbs the string the model consumes. The core's ``claimed_source``
-    is the trust gate: a malformed or absent declaration, or one naming an attested kind a hostile
-    sidecar might forge, yields ``None``; only a sanitized, bounded, claimed SENDER/URI passes.
+    Read from the result's MCP ``_meta`` side channel. ``claimed_source`` returns ``None`` for a
+    malformed or absent declaration, and for one naming an attested kind a hostile sidecar might
+    forge; only a sanitized, bounded, claimed SENDER/URI passes.
     """
     meta: Mapping[str, object] = result.meta or {}
     declaration = meta.get(_SOURCE_META_KEY)
@@ -79,12 +71,9 @@ class McpSession(Protocol):
 async def streamable_http_session(url: str) -> AsyncGenerator[McpSession, None]:
     """Open a structured, same-task streamable-http MCP session at ``url`` (ADR-0009).
 
-    Unlike a session held on a long-lived ``AsyncExitStack`` (whose anyio task-group cancel
-    scopes cannot be exited from a different task, which is the source of the boot-time
-    ``CancelledError`` the eager wiring hit), this opens and closes the session inside one
-    ``async with`` in the caller's task, so a refused dial surfaces as a clean, catchable
-    error. Real network I/O is driven by `ReconnectingMcpToolRegistry` and exercised for real only
-    by the host-only live test.
+    The session opens and closes inside one ``async with`` in the caller's task, so a refused
+    dial surfaces as a catchable error rather than the boot-time ``CancelledError`` a session
+    held across tasks produced. Only the host-only live test exercises the real network I/O.
     """
     async with (
         streamable_http_client(url) as (read, write, _),
@@ -137,18 +126,17 @@ class McpToolRegistry:
 class ReconnectingMcpToolRegistry:
     """A ``ToolRegistry`` that opens a fresh MCP session per call (ADR-0009 boot tolerance).
 
-    The composition root no longer dials at startup; this dials on demand from an injected
+    The composition root does not dial at startup; this dials on demand from an injected
     ``opener``, a same-task session context manager (`streamable_http_session` in production).
-    Two properties fall out: a sidecar **down at boot is tolerated** (the first call's open
-    fails as ``ToolError``, which an outer `SkipUnavailableToolRegistry` reports and serves
-    around) and a **recovered sidecar rejoins without a brain restart** (the next call re-dials).
+    A sidecar down at boot is therefore tolerated, since the first call's open fails as
+    ``ToolError`` for an outer `SkipUnavailableToolRegistry` to serve around, and a recovered
+    sidecar rejoins on the next call without a brain restart.
 
     An open failure (`_OPEN_WRAPPED`, unwrapped from anyio's ``ExceptionGroup`` by ``except*``)
     crosses the port as ``ToolError`` with the cause chained; a failure from the live session's
-    own ``describe``/``invoke`` is already a ``ToolError`` (`McpToolRegistry`) and passes
-    through untouched. Holds no session between calls, so nothing to close, no cross-task state
-    (the one hard rule). It trades a per-call open for that robustness; a session cache is a
-    later optimization behind this same port.
+    own ``describe``/``invoke`` is already a ``ToolError`` and passes through untouched. No
+    session is held between calls, so there is nothing to close and no cross-task state. The
+    cost is one open per call; a session cache would go behind this same port.
     """
 
     def __init__(self, opener: Callable[[], AbstractAsyncContextManager[McpSession]]) -> None:

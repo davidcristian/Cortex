@@ -4,24 +4,24 @@
 //
 // Four rules share one measurement:
 //
-//   1. ENTERING ANOTHER VIEW resizes it in place. Opening the console, or moving between its tabs,
+//   1. Entering another view resizes it in place. Opening the console, or moving between its tabs,
 //      resizes the panel to what that view needs from the bottom edge the chat is standing on, the
 //      way growth inside a view does. It shipped sliding to the true middle of the screen instead,
 //      and the user, having lived with it, chose the standing edge (2026-07-21); the slide stays
 //      one flip away behind `VIEW_CHANGE_RECENTRES`, both settings under test.
-//   2. COMING BACK TO THE CHAT restores it. The chat's own bottom edge is parked on the way out and
+//   2. Coming back to the chat restores it. The chat's own bottom edge is parked on the way out and
 //      handed back on the way in, so a trip to the console and back leaves the conversation exactly
 //      where the eye left it. With rule 1 holding the edge anyway, the park is a no-op today; it is
 //      kept because it is what makes the return correct the moment the slide is switched back on.
-//   3. GROWTH INSIDE THE CHAT pushes the top edge up. A reply arriving, the switcher list opening,
+//   3. Growth inside the chat pushes the top edge up. A reply arriving, the switcher list opening,
 //      a new chat emptying the panel, the composer taking a second line: the bottom stays pinned
 //      where it was, so the composer never slides out from under the hand that just typed into it.
 //      Minting a new chat belongs here and not in rule 1: it is the same view with less in it.
-//   4. A RESIZE INSIDE ANY OTHER VIEW pushes the bottom edge down instead, holding the top. Which
+//   4. A resize inside any other view pushes the bottom edge down instead, holding the top. Which
 //      edge holds is decided by where the hand is, and the console's chrome is its tab strip, at
 //      the top: changing tabs must not slide the strip out from under the cursor that clicked it.
 //      Rule 3 is the same principle at the chat's other end. A view with more than one shape is
-//      entered at the top its TALLEST shape would take (`tabSlack`), so that held top is the same
+//      entered at the top its tallest shape would take (`tabSlack`), so that held top is the same
 //      one whichever tab the console is opened on, and a shorter tab ends higher rather than
 //      starting lower.
 //
@@ -82,7 +82,7 @@ export function pinnedBottom(
   if (parked !== null) {
     return parked;
   }
-  // A resize INSIDE a view other than the chat holds that view's TOP edge, so the growth happens
+  // A resize inside a view other than the chat holds that view's top edge, so the growth happens
   // at the bottom. Which edge holds is decided by where the hand is: a console tab is changed
   // from the strip at the top, and that strip must not move out from under the cursor that just
   // clicked it. The chat is the other way round for the same reason, its composer being the edge

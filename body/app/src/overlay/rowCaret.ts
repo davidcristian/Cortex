@@ -1,29 +1,29 @@
 import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from "react";
 
-// WHERE THE CARET GOES WHEN A LIST RESHAPES UNDER THE HAND.
+// Where the caret goes when a list reshapes under the hand.
 //
 // The caret follows the conversation whenever one arrives (`OverlayState.arrival`, `Composer`).
-// That rule answers every gesture that REPLACES the chat and nothing else, and the overlay's two
+// That rule answers every gesture that replaces the chat and nothing else, and the overlay's two
 // lists spend most of their gestures not replacing it: a rename opens an editor over a row, a
 // confirm opens over another, each of them closes again, a row is deleted, a reminder is acked.
 // Every one of those takes the pressed control off the page, and measured at 900x900 every one of
 // them left `document.activeElement` on `<body>`, outside the panel and one Tab from the top of the
 // whole document, which is further from the list than the reader was before they touched it.
 //
-// So a list keeps the caret. The rule, one sentence: a row that changes SHAPE hands the caret to
-// the control its new shape puts in the place of the one that left; a row that LEAVES hands it to
+// So a list keeps the caret. The rule, in one sentence: a row that changes shape hands the caret
+// to the control its new shape puts in the place of the one that left; a row that leaves hands it to
 // the same control in the row that inherits its place; and a list with no row left to give it hands
 // it to its anchor, the one control outside itself that the reader is left standing on.
 //
-// AT THE COMMIT, NOT AT THE END OF THE ROLL, which is the same call the arrival rule made and for a
-// second reason of its own. The control the caret is being sent to has been on screen all along:
-// the heir of a deleted row never left, and a row changing shape mounts its new controls in the
-// very commit the old ones go. So there is nothing to wait for, and waiting would mean the caret
-// sitting somewhere for the length of a 300ms roll. Measured at HEAD, waiting means two different
-// somewheres, which is the other half of the argument: a switcher row is `inert` and unmounted the
-// moment its chat leaves `sessions`, so the caret is already on `<body>` and would stay there for
-// the roll, while an acked reminder's button survives its whole roll, so the caret would ride an
-// element animating to nothing. One clock answers both, and it is the earliest one.
+// At the commit rather than at the end of the roll, which is the call the arrival rule made and
+// which has a second reason of its own here. The control the caret is being sent to has been on
+// screen all along: the heir of a deleted row never left, and a row changing shape mounts its new
+// controls in the very commit the old ones go. So there is nothing to wait for, and waiting would
+// mean the caret sitting somewhere for the length of a 300ms roll. Measured at HEAD, waiting means
+// two different somewheres, which is the other half of the argument: a switcher row is `inert` and
+// unmounted the moment its chat leaves `sessions`, so the caret is already on `<body>` and would
+// stay there for the roll, while an acked reminder's button survives its whole roll, so the caret
+// would ride an element animating to nothing. One clock answers both, and it is the earliest one.
 
 /** The attribute a control carries so a list can send the caret to it by name. */
 const CARET_ATTRIBUTE = "data-caret";
@@ -73,7 +73,7 @@ export function heir(keys: readonly string[], gone: string): string | null {
  * container ref and a selector, applied to focus instead of to position.
  *
  * `anchor` is where the caret goes when no row claims the key, which is a list that has just
- * emptied. It is a control the LIST does not own, since the whole point is that the list has
+ * emptied. It is a control the list does not own, since the whole point is that the list has
  * nothing left, so it is passed in by whoever renders both.
  */
 export function useRowCaret(
@@ -87,7 +87,7 @@ export function useRowCaret(
   // And counted, so that asking is what schedules the move rather than the caller's own state
   // change happening to. Every gesture that calls this does change what its list renders, so the
   // render would come anyway and this costs no commit (one handler is one batch); what it buys is a
-  // hook that is true on its own terms instead of one that works because of its callers.
+  // hook that does not depend on its callers happening to re-render.
   const [handoff, setHandoff] = useState(0);
   useLayoutEffect(() => {
     const want = wanted.current;
@@ -104,7 +104,7 @@ export function useRowCaret(
     // never has to know what a session id may contain.
     const found = [...controls].find((control) => control.dataset.caret === want.key);
     if (found === undefined) {
-      // WITHOUT SCROLLING ANYTHING, here and below, for the reason the composer's own focus gives
+      // Without scrolling anything, here and below, for the reason the composer's own focus gives
       // at length: the panel clips its overflow, which makes it a scroll box the user can never
       // scroll and the engine can, and bringing a newly focused element into view is exactly when
       // it does.
@@ -113,7 +113,7 @@ export function useRowCaret(
     }
     found.focus({ preventScroll: true });
     if (found instanceof HTMLInputElement) {
-      // A LIST ONLY EVER SENDS THE CARET INTO A FIELD TO HAVE THAT FIELD REPLACED. The one field
+      // A list only ever sends the caret into a field in order to replace that field. The one field
       // this reaches is the rename editor, which opens carrying the title it is about to stand in
       // for; selecting it makes typing replace the name, which is what renaming a thing means
       // everywhere else, and makes one Backspace the way to clear a custom title back to the

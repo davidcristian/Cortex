@@ -1,20 +1,19 @@
 //! `Converse` translation for `BrainSeamClient`, forming the streaming half of the
 //! `body_core::BrainTransport` port.
 //!
-//! One turn per call (ADR-0011): send a `ClientEvent{session_id, user_turn}`
-//! on a fresh stream, followed by one `confirm_response` per caller decision
-//! (ADR-0022), and map each `ServerEvent` to a typed `TurnEvent`. The client
-//! half-closes when the caller's decision stream ends (so a caller with no
-//! confirm surface keeps the pre-confirm one-shot shape). The turn is terminal
-//! on `TurnComplete` (→ [`TurnEvent::Complete`]) or `SeamError` (→
-//! [`TurnEvent::Failed`] means the brain reported a turn error, the connection is
-//! fine); a mid-turn `ConfirmRequest` (→ [`TurnEvent::ConfirmRequest`]) and the
-//! `ConfirmResolved` that ends one the caller never answered (→
-//! [`TurnEvent::ConfirmResolved`]) are both non-terminal, as is the `ToolOutcome`
-//! settling an announced dispatch (→ [`TurnEvent::ToolOutcome`]). A stream that ends
-//! without a terminal event, or an empty
-//! `ServerEvent`, is a [`TransportError::Protocol`]; a non-OK gRPC status maps
-//! the same way `health` does (via [`crate::status::status_to_error`]).
+//! One turn per call (ADR-0011): send a `ClientEvent{session_id, user_turn}` on a fresh stream,
+//! followed by one `confirm_response` per caller decision (ADR-0022), and map each `ServerEvent`
+//! to a typed `TurnEvent`. The client half-closes when the caller's decision stream ends, so a
+//! caller with no confirm surface keeps the one-shot shape that predates confirms.
+//!
+//! The turn is terminal on `TurnComplete`, which maps to [`TurnEvent::Complete`], and on
+//! `SeamError`, which maps to [`TurnEvent::Failed`] and means the brain reported a turn error
+//! while the connection is fine. A mid-turn `ConfirmRequest` ([`TurnEvent::ConfirmRequest`]),
+//! the `ConfirmResolved` that ends one the caller never answered
+//! ([`TurnEvent::ConfirmResolved`]), and the `ToolOutcome` settling an announced dispatch
+//! ([`TurnEvent::ToolOutcome`]) are all non-terminal. A stream that ends without a terminal
+//! event, or an empty `ServerEvent`, is a [`TransportError::Protocol`], and a non-OK gRPC status
+//! maps the same way `health` does (via [`crate::status::status_to_error`]).
 
 use async_stream::stream;
 use body_core::{ConfirmDecision, TransportError, TurnEvent};
@@ -28,10 +27,9 @@ use crate::generated::{
 };
 use crate::status::status_to_error;
 
-/// The one-turn client request: a single `UserTurn`, then one
-/// `confirm_response` per decision, then end-of-stream when `decisions` ends
-/// (ADR-0022 defines the caller's sender going away as the half-close). v1 sends
-/// text only. `UserTurn.images` (vision) arrives in Slice 10 (ADR-0011).
+/// The one-turn client request: a single `UserTurn`, then one `confirm_response` per decision,
+/// then end-of-stream when `decisions` ends, since ADR-0022 defines the caller's sender going
+/// away as the half-close. It sends text only; `UserTurn.images` arrives with screen capture (ADR-0011).
 fn turn_request(
     session_id: String,
     text: String,

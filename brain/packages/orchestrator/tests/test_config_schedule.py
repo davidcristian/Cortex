@@ -67,6 +67,7 @@ def test_a_configured_zone_resolves_to_that_zone() -> None:
 
 @pytest.mark.parametrize("bad", ["Europe/Bucarest", "not a zone", "../../etc/passwd", ""])
 def test_an_unknown_zone_fails_at_boot_not_at_the_first_listing(bad: str) -> None:
-    """A typo must stop the process where it can be read, never inside a later tool call."""
+    """A typo raises while the config is built, where an operator can read it, rather than inside
+    a later tool call."""
     with pytest.raises(ValidationError, match="unknown timezone"):
         ScheduleConfig(tz=bad)

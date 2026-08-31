@@ -8,7 +8,7 @@ Opened 2026-08-21 by the close of [R-333](333-compose-defaults-that-restate-a-de
 survey settled that a compose default no tree declares is not a coupling and closed the question,
 because `scripts/crosscheck.py` compares a declaration against the places restating it and there is
 no declaration here to read. It also found the one real defect that answer leaves standing, which
-is a different shape and wants its own gate.
+is a different shape and needs its own gate.
 
 **A variable spelled several times must carry one default in all of them.**
 `${CORTEX_PG_PASSWORD:-cortex}` appears three times in `docker/docker-compose.memory.yml`, once as

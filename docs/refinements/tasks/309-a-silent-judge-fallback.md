@@ -11,11 +11,11 @@ answer. The three are not one failure either: an empty pool (a legitimate no-op)
 `InferenceError` (the backend), and `parse_order` returning `None` (a reply that is not the
 envelope). Only the first is uninteresting.
 
-This is the same blindness the recap fold just had, and it is worse here for two reasons. The
-fold's fallback at least logged a line, so a reader knew a fold had been attempted and rejected;
-this one leaves no trace whatever, and a deployment whose judge has never once answered is
-indistinguishable from one where it answers every turn. And the judge is the shipped default
-recall policy, so it is the path most turns take.
+This is the same gap the recap fold just had, and it is worse here for two reasons. The fold's
+fallback at least logged a line, so a reader knew a fold had been attempted and rejected; this one
+leaves no trace whatever, and a deployment whose judge has never once answered is indistinguishable
+from one where it answers every turn. And the judge is the shipped default recall policy, so it is
+the path most turns take.
 
 The work is a logger and three call sites, plus the question of what each line carries.
 `parse_order` already distinguishes a failure from a refusal (the empty tuple), and that

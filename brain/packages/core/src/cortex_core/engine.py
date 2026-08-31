@@ -77,9 +77,9 @@ class TurnEngine:
     before inference starts; the assistant message is persisted only on completion. A consumer
     that closes the event stream mid-generation keeps the user message and drops the partial reply.
 
-    **One inference failure ends the turn instead of failing it** (ADR-0005 cortex-cut addendum):
-    a tool call the model wrote and this repo cannot parse. That one says the fragment is the
-    model's own rather than the transport's, so it is not worth another attempt, and the reply
+    One inference failure ends the turn instead of failing it (ADR-0005 cortex-cut addendum): a
+    tool call the model wrote and this repo cannot parse. That error says the fragment is the
+    model's own rather than the transport's, so retrying would produce it again, and the reply
     before it has already been streamed. The turn therefore keeps that text, adds the note the
     ledger picks, persists once, and completes. Every other ``InferenceError`` still propagates
     and reaches the user as a seam error.
@@ -99,7 +99,7 @@ class TurnEngine:
         self._clock = clock
         self._caps = capabilities if capabilities is not None else TurnCapabilities()
         # Model choice is keyed off the routed tier. Only the cortex tier is servable
-        # in Slice 3 (route_turn with default hints always selects it); subagent and
+        # originally (route_turn with default hints always selects it); subagent and
         # brain entries join the map when the ModelManager lands (Slices 4/7).
         self._model_by_tier: Mapping[Tier, str] = {Tier.CORTEX: cortex_model}
 
@@ -123,7 +123,7 @@ class TurnEngine:
         taint = TaintLedger()
         # Where each completion of this turn reports why it ended (ADR-0005 capped-reply
         # addendum). The cortex turn passed none until this arm, on the argument that a user
-        # watching the reply arrive sees it stop; what they cannot see is *why* it stopped, and a
+        # watching the reply arrive sees it stop; what they cannot see is why it stopped, and a
         # reply the context window cut reads exactly like one the model finished tersely.
         stops = StopLedger()
         context = ToolLoopContext(
@@ -171,11 +171,11 @@ class TurnEngine:
             # The model was writing a tool call and what it wrote will not parse (ADR-0005
             # cortex-cut addendum). Ending the turn here rather than raising is what the narrower
             # error is for: the fragment is the model's own, so the retry a seam error invites
-            # produces it again, and the partial reply has already been shown, which makes losing
-            # it the second falsehood. So the reply is kept, a note says what happened, and the
-            # persist path below runs exactly once, the way it does for a turn that ended itself.
-            # The channels are flushed here because ``stream_turn_events`` flushes only on a clean
-            # end, which is the brain phase's discipline for the same reason.
+            # produces it again, and discarding the partial reply would lose text the user has
+            # already seen. The reply is kept, a note says what happened, and the persist path
+            # below runs exactly once, the way it does for a turn that ended itself. The channels
+            # are flushed here because ``stream_turn_events`` flushes only on a clean end, which
+            # is the brain phase's discipline for the same reason.
             _logger.warning(
                 "a tool call the model wrote could not be read; ending this turn where it broke",
                 extra={"session_id": session_id, "turn_id": turn_id, "capped": stops.capped},
@@ -189,10 +189,9 @@ class TurnEngine:
             await events.aclose()
         # After the channels have flushed, so the note lands under the whole reply rather than
         # ahead of a guardrail's held tail, and before the text is joined, so what is persisted is
-        # what was shown. It runs on the arm above too, and is the whole of what that arm says
-        # when a limit is what cut the call: one situation, the sentence the ordinary capped reply
-        # already uses, and never two notes, since the two helpers read the same ledger and
-        # disagree on it by construction.
+        # what was shown. It runs on the unreadable-call path above too, where a limit that cut
+        # the call gets the sentence the ordinary capped reply already uses. The two helpers read
+        # the same ledger and their conditions cannot both hold, so a turn never gets two notes.
         for event in cap_note(stops, parts):
             yield event
         full_text = "".join(parts)

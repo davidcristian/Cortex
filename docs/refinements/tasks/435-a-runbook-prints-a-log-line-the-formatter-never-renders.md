@@ -13,8 +13,8 @@ while somebody is waiting. Until today it printed the fields in the order the ca
 them, `turn_id` then `reason`. The shipped formatter prints them in **name** order
 (`render_fields` sorts, ADR-0038 rendered-fields addendum), so what a container really emits is
 `reason=... turn_id=...` and always was. The sample had been wrong since the day the field was
-renamed onto the turn's name, and nothing noticed, because nothing compares a documented sample
-against what the code would render.
+renamed onto the turn's name, and nothing reported it, because nothing compares a documented
+sample against what the code would render.
 
 The crosscheck registry gets close and stops short: it ties the field *names* in that sample to
 their declarations, so `turn_id` cannot drift there. It says nothing about the order they appear
@@ -33,7 +33,7 @@ runbook and [tools-mcp.md](../../runbooks/tools-mcp.md) tell an operator to run
 test harness's fixture ids (`swap_harness.py` sets `SESSION = "s-handoff"`, `TURN = "t-handoff"`)
 and they read in the runbooks as a real prefix to grep for. The registry pins that sentence, so the
 fiction is held in place by a gate. It was left because it spans two runbooks, two registry needles
-and possibly other docs, and it wants one deliberate pass rather than a drive-by; the sentence
+and possibly other docs, and it needs one deliberate pass rather than a drive-by; the sentence
 R-417 added writes `grep session_id=` with no prefix rather than adding a third instance.
 
 **Why it was left.** The close it came out of was about which fields the swap path attaches, and
@@ -49,7 +49,7 @@ start being generated, which removes the question and costs a build step.
 a gate and that the two live samples (this one, and the audit lines ADR-0009 prints) are few
 enough to re-derive by hand whenever a field moves. If it is the gate, note that only one runbook
 sample and two ADR samples exist today, so whatever is built will be watching a very small set,
-and that `logcouplings.py` already knows which files quote these lines.
+and that `logcouplings.py` already names which files quote these lines.
 
 ## Trail
 

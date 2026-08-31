@@ -1,20 +1,18 @@
 """Read and validate the per-task backlog files under `docs/refinements` and `docs/host`.
 
-One task is one file, and its **Status:** line is the only place its state is written
-down. The predecessor of this layout kept the same status in three places (the entry
-itself, its area header, and a cell in the index table) and spent thousands of words
-recording the drift that followed: a header and a cell agreeing at every moment while
-both named the wrong set, because two errors of the same size in opposite directions
-are the one thing a checksum cannot see. Nothing here counts anything a reader has to
-trust. The index is rendered from these files by `backlogindex.py`, and `backlogcheck.py`
-fails when the rendered form and the committed one disagree.
+One task is one file, and its **Status:** line is the only place its state is written down. The
+layout before this one kept the same status in three places, the entry itself, its area header and
+a cell in the index table, and the three drifted apart while agreeing with each other: a header and
+a cell both named the wrong set and matched, so nothing compared them to the entries. The index is
+rendered from these files by `backlogindex.py`, and `backlogcheck.py` fails when the rendered form
+and the committed one disagree (ADR-0039).
 
-The two backlogs hold different kinds of not-done and so carry different fields, which
-is why `Kind` exists rather than one union of optional fields:
+The two backlogs hold different kinds of not-done and so carry different fields, which is why
+`Kind` exists rather than one union of optional fields:
 
-- **refinements** is deferred design: work anyone can pick up once a seam, a consumer, or
-  a decision unblocks it. It carries an `Area` and, when its state is one whose whole
-  point is a named trigger, a `Trigger`.
+- **refinements** is deferred design: work anyone can pick up once a seam, a consumer, or a
+  decision unblocks it. It carries an `Area` and, when its state is one defined by a named trigger,
+  a `Trigger`.
 - **host** is built code waiting on hardware this repo is not developed on. It carries the
   `Sitting` one bring-up covers and the `Capability` that bring-up needs.
 """
@@ -27,14 +25,14 @@ from pathlib import Path
 FILENAME = re.compile(r"^(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 FIELD = re.compile(r"^\*\*([A-Za-z]+):\*\* +(.+?) *$")
 # A title names the work, never its state. "closed" and "done" are left out of this list on
-# purpose: both are ordinary adjectives in these titles (a closed section, a closed list),
-# and a rule that costs honest names buys nothing. A year is banned outright, since a date
-# in a title is a status restatement every time.
+# purpose: both are ordinary adjectives in these titles (a closed section, a closed list), so
+# banning them would reject honest names. A year is banned outright, a date in a title being a
+# status restatement every time.
 TITLE_BANS = ("landed", "declined", "satisfied")
 TITLE_YEAR = re.compile(r"\b(19|20)\d{2}\b")
 
-# The open states, each mapped to the heading it is filed under. A state is a promise
-# about what unblocks the task, so the reader picks a bucket and not a priority number.
+# The open states, each mapped to the heading it is filed under. A state says what unblocks the
+# task, so a reader picks a bucket rather than a priority number.
 OPEN_STATES = {
     "actionable": "Actionable now",
     "a seam or port change comes first": "Actionable, once a seam or port changes",
@@ -43,23 +41,21 @@ OPEN_STATES = {
     "feature breadth": "Feature breadth, on request",
     "blocked on host hardware": "Blocked on hardware this repo is not developed on",
 }
-# Two states are defined by waiting for something nobody is doing yet, so each must name
-# the thing that would reopen it. Without that a deferral is indistinguishable from a
-# task that was quietly dropped.
+# Two states are defined by waiting for something nobody is doing yet, so each must name the
+# thing that would reopen it. Without that, a deferral cannot be told from a task that was dropped.
 NEEDS_TRIGGER = frozenset({"fix when it bites", "dead until a consumer"})
-# The one legal way to satisfy that requirement without inventing a trigger. Twelve tasks
-# arrived from the per-area layout in a waiting state with nothing recorded about what would
-# fire them, which is the gap this rule exists to expose, so writing the gap down beats both
-# guessing a trigger and dropping the rule. The index counts these, so the number can be
-# driven to zero by reading them rather than by anyone remembering they exist.
+# The one legal way to satisfy that requirement without inventing a trigger. Twelve tasks arrived
+# from the per-area layout in a waiting state with nothing recorded about what would fire them,
+# which is the gap this rule exposes, so writing the gap down is preferred to guessing a trigger or
+# dropping the rule. The index counts these, so the number can be driven to zero by reading them.
 UNRECORDED = "unrecorded"
 CLOSED_VERBS = ("landed", "declined", "satisfied")
 
 HOST_STATES = ("never attempted", "attempted", "done")
-# A standing item is neither open nor closed: an observation made over months of real use, or
-# an obligation on every change rather than once. Counting it as open overstates what remains
-# and counting it as closed claims it finished, so it is counted on its own. Host only: a
-# refinement is deferred work, and work that never closes is not deferred.
+# A standing item is neither open nor closed: an observation made over months of real use, or an
+# obligation on every change rather than once. Counting it as open overstates what remains and
+# counting it as closed claims it finished, so it is counted on its own. Host only, since a
+# refinement is deferred work and work that never closes is not deferred.
 STANDING = "standing"
 
 KIND_FIELDS = {
@@ -172,9 +168,9 @@ def _parse_date(text: str, raw: str) -> date:
 def _read_header(text: str) -> tuple[str, dict[str, str]]:
     """Return the H1 title and the field block that follows it.
 
-    A field wraps like every other line of prose here, and the block ends where markdown
-    ends its paragraph: at a blank line. Reading only a field's first line would render a
-    long value truncated mid-sentence while the file itself, opened, reads whole.
+    A field wraps like every other line of prose here, and the block ends where markdown ends its
+    paragraph, at a blank line. Reading only a field's first line would render a long value
+    truncated mid-sentence while the file itself, opened, reads whole.
     """
     lines = text.splitlines()
     if not lines or not lines[0].startswith("# ") or not lines[0][2:].strip():
@@ -275,8 +271,8 @@ def load(directory: Path, kind: str) -> list[Task]:
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as err:
-            # A directory wearing a task name, or bytes that are not text. The stray scan
-            # names both too, so the gate must report this rather than die reading it.
+            # A directory named like a task file, or bytes that are not text. The stray scan
+            # names both too, so the gate reports this rather than failing while reading it.
             msg = f"{path}: cannot be read as a task file: {err}"
             raise TaskFileError(msg) from err
         try:

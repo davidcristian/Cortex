@@ -1,36 +1,37 @@
 """The real ``ModelHost``: the port's six verbs over the supervisor's control API (ADR-0030 d3).
 
-This half runs in the **brain** container and holds no process knowledge at all. It sends a
-logical id and reads back one of the port's four states, which is the whole reason artifact paths,
-ports and ``-ngl`` never cross the port: a deployment re-points a tier by changing the sidecar's
-env, and the brain never learns.
+This half runs in the brain container and handles no processes. It sends a logical id and reads
+back one of the port's four states, which is why artifact paths, ports and ``-ngl`` never cross
+the port: a deployment re-points a tier by changing the sidecar's env, and nothing on the brain's
+side changes with it.
 
-Two policies, both deliberate:
+Four policies:
 
-- **Every failure is a ``ModelHostError``, and nothing is retried here.** A transport failure, a
-  refusal, a body that will not decode, a state word this version does not know: all of them mean
-  the same thing to the swap, which is "the model host did not answer the question", and the swap
-  is what decides whether that aborts a handoff or fails a restore. Retrying inside the adapter
-  would hide a dead supervisor behind the load timeout instead of failing the swap fast.
-- **With one exception, because the daemon already draws it.** A 404 on a per-model route is the
-  supervisor's ``UnknownModelError``: the id is not in its roster, which is env read once at its
-  boot, so that answer will not change while the container lives. It is raised as the port's
-  ``ModelNotHostedError``, a subclass, so nothing that catches the base type notices and the
-  callers that can act on it (boot recovery, and both halves of the swap) stop having to guess
-  from a message string. The distinction is carried only where the sidecar makes it:
+- Every failure becomes a ``ModelHostError``, and nothing is retried here. A transport failure, a
+  rejected request, a body that will not decode, and a state word this version cannot decode all
+  mean the same thing to the swap, which is that the model host did not answer the question, and
+  the swap is what determines whether that aborts a handoff or fails a restore. Retrying inside the
+  adapter would hide a dead supervisor behind the load timeout instead of failing the swap fast.
+- One failure is distinguished, because the daemon distinguishes it. A 404 on a per-model route is
+  the supervisor's ``UnknownModelError``: the id is not in its roster, which is env read once at
+  its boot, so that answer cannot change while the container lives. It is raised as the port's
+  ``ModelNotHostedError``, a subclass, so anything catching the base type still catches it while
+  the callers that can act on it (boot recovery, and both halves of the swap) no longer have to
+  parse a message string. The distinction is carried only where the sidecar makes it:
   ``GET /health`` names no model, so a 404 there is a wrong endpoint rather than a missing tier
   and stays the broad error.
-- **A FAILED state is a normal answer, logged loudly.** The health gate returns FAILED at once
+- A FAILED state is a normal answer, logged at error. The health gate returns FAILED at once
   rather than waiting out its bound, and the sidecar's ``detail`` is the only place the exit code
   appears on the brain's side, so it is logged where the swap's own failure note will be read.
-- **A missing device reading is a normal answer too, and never an error.** The fourth verb asks
-  how much of the card is free, and a daemon with no GPU (or one too old to report it) says so
-  with a body that carries neither figure. Refusing on that belongs to the swap, which knows
-  whether anything asked for a fit; the adapter's job is only to say what came back. The fifth
-  verb reads the daemon's own timing bounds off the same body and answers the same way, so a
+- A missing device reading is a normal answer too, never an error. The fourth verb asks how much
+  of the card is free, and a daemon with no GPU (or one too old to report it) answers with a body
+  that carries neither figure. Failing on that is the swap's decision, since the swap is where it
+  is known whether anything asked for a fit, and this adapter reports only what came back. The
+  fifth verb reads the daemon's own timing bounds off the same body and answers the same way, so a
   daemon older than those fields leaves the composition root's pairing check with nothing to
-  compare rather than with a number it invented, and the sixth reads which daemon is answering at
-  all, for the same reason and with the same fallback: an unnamed boot reconciles nothing.
+  compare rather than with a number the adapter made up. The sixth reads which daemon is answering
+  at all, with the same fallback: a daemon that names no boot leaves the brain's record of what is
+  resident unchanged.
 """
 
 import logging
@@ -59,9 +60,9 @@ def _about(model: str) -> str:
 def _seconds(value: object) -> float | None:
     """A second count off the wire, or ``None`` for anything this version cannot read as one.
 
-    A bool is refused although Python calls it an int, and so is a negative: both would reduce
-    the worst case the caller checks its own deadline against, and a bound that flatters itself
-    is worse than an absent one, which at least says so.
+    A bool reads as no value although Python treats it as an int, and so does a negative. Either
+    would shrink the worst case the caller checks its own deadline against, which is worse than
+    reporting no bound at all, since no bound leaves the pairing check unrun rather than passed.
     """
     if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
         return None
@@ -139,9 +140,9 @@ class HttpModelHost:
         Off the same ``GET /health`` again, and read at the two moments the answer can change
         something: once when boot recovery publishes what it observed, and once per handoff before
         anything is evicted. A body carrying no id, or one carrying something that is not a
-        non-empty string, reads as no answer, which leaves the brain's beliefs exactly where they
-        were rather than reconciling them against a value it invented. Compared for equality only:
-        the daemon states which boot it is, never how many there have been.
+        non-empty string, reads as no answer, which leaves the brain's record of what is resident
+        where it was rather than reconciling it against a made-up value. Compared for equality
+        only: the daemon states which boot it is, never how many there have been.
         """
         payload = await self._request("GET", "/health", "which daemon is answering")
         boot = payload.get("boot_id")
@@ -151,7 +152,7 @@ class HttpModelHost:
         return boot
 
     async def _act(self, model: str, verb: str) -> None:
-        """Run a lifecycle verb and read the state it left behind, for the log."""
+        """Run a lifecycle verb and read the state it left the model in, for the log."""
         payload = await self._request(
             "POST", f"{self._model_path(model)}/{verb}", _about(model), tier=True
         )
@@ -199,7 +200,7 @@ class HttpModelHost:
         return cast("dict[str, Any]", body)
 
     def _read(self, model: str, payload: dict[str, Any]) -> ModelHostState:
-        """The state word from a control answer, refusing anything this version cannot name."""
+        """The state word from a control answer, raising on anything this version cannot decode."""
         raw = payload.get("state")
         try:
             state = ModelHostState(raw)

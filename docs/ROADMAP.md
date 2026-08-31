@@ -139,7 +139,7 @@ entirely behind the existing `ToolRegistry`/`ToolDispatcher`/tool-loop seams plu
   that read untrusted content is confirmed through the `Confirmer` before it runs, and a
   denial (including the fail-closed no-confirmer default) returns a message without
   invoking the tool. Ships inert but complete, since every tool here is a read.
-- **Taint propagation + memory hygiene.** A subagent's taint rides home and aggregates, so
+- **Taint propagation + memory hygiene.** A subagent's taint returns to the caller and aggregates, so
   a subagent that reads a malicious file taints the cortex, and a tainted turn records
   nothing to memory, keeping recall trustworthy.
 
@@ -204,7 +204,7 @@ reference `VramBudgetPlacer` fit-tests each spawn against
 spills it to CPU (`-ngl 0`), never a straddle, with the ledger bounding concurrency instead
 of a separate knob. `SubagentScheduler.admit` gained a two-dimensional CPU/RAM budget whose
 over-budget spawns queue and whose impossible charge is a typed refusal the runner degrades
-to a failed result and the config refuses at boot. `SubagentRunner` composes admit → place →
+to a failed result and the config rejects at boot. `SubagentRunner` composes admit → place →
 route → release, and `InferenceBackend` and the proto are untouched. The ledgers are
 live-resource state rebuilt from zero, never the durable state the hard rule governs. The
 runtime mechanism landed with the Slice 11 lifecycle behind these corrected ports, and in a
@@ -270,14 +270,15 @@ parts:
   verbatim.
 - **Gate composition.** An *untainted* gated call prompts the user and proceeds only on
   approval; a **tainted** turn stays fail-closed, since a send demanded by injected content
-  is never merely a confirm away. Subagents never see the tool at all.
+  must never become reachable by approving a card. Subagents never see the tool at all.
 
 The one hard rule holds throughout: no confirmation state lives in a model process, and a
 pending confirm is one awaiting coroutine, reconstructed like taint. Validated as the card
 in a real browser, gating over real MCP, and a live IMAP + SMTP round-trip against the real
 ProtonMail Bridge. An adversarial review of the landed diff then hardened it (15 findings,
-all fixed), the load-bearing one being that the dispatcher, not the advertisement snapshot,
-holds the authoritative gated-name set, so a flaky sidecar cannot open a bypass window.
+all fixed), the most consequential being that the dispatcher, and not the advertisement
+snapshot, holds the authoritative gated-name set, so a flaky sidecar cannot open a bypass
+window.
 **Gate proven:** the first outbound/irreversible capability under the capability gate, and
 the `Confirmer` round-trip over the seam.
 
@@ -323,7 +324,7 @@ external store, never in a model process:
 
 - **The fenced store.** A `ScheduleStore` port whose `claim_due` claims due and lease-expired
   items oldest-first under fresh per-claim fencing tokens (at-least-once, with corrupt
-  records quarantined to a dead-letter hash rather than poison-pilling the pass), whose
+  records quarantined to a dead-letter hash rather than failing the whole pass), whose
   transitions apply only under the live token, and whose `cancel` deletes outright and so
   sticks through an in-flight fire. One contract suite runs the in-memory fake and the Redis
   adapter interchangeably, races included.
@@ -371,7 +372,7 @@ The shape: a model-initiated built-in `capture_screen` tool over the unchanged `
 (the volume precedent, so it inherits audit, the dispatch budget, taint marking, and
 cortex-only reachability), a `ScreenCapture` OS trait returning **raw pixels** with all
 downscale, encode, and byte-bounding policy in pure `body_core` (since `cfg(windows)` code
-is invisible to the coverage gate), a GDI `BitBlt` Windows backend under its own `unsafe`
+does not compile where the coverage gate runs), a GDI `BitBlt` Windows backend under its own `unsafe`
 authorization, and the image riding `ToolResult.images` onto the `Role.TOOL` message with
 `InferenceBackend.stream` unchanged. **Pixels are turn-local**, enforced as an invariant
 rather than a convention: a `Message` invariant allows images on the `Role.TOOL` message
@@ -399,8 +400,9 @@ handoff at every step boundary of the swap sequence and asserts convergence back
 cortex, an intact store, a terminal record, and an honest stream. The real process lifecycle
 is the `model-host` supervisor sidecar behind the `ModelHost` port, one `llama-server` child
 per tier, whose mechanism is validated against real processes with two small stand-ins
-(started, health-gated, evicted, swapped, killed under the daemon, and restarted over their
-own corpses). The honesty surfaces are complete: the swap window emits status updates, and
+(started, health-gated, evicted, swapped, killed under the daemon, and restarted in the slot
+of the child that had died). The honesty surfaces are complete: the swap window emits status
+updates, and
 `Health` reads the swapping manager's published residency and answers `ready=false` with a
 truthful detail between turns, which lights the overlay's connection dot amber with no
 overlay change. Runbook: [runbooks/model-swap.md](runbooks/model-swap.md).
@@ -423,7 +425,7 @@ pointer.
 ## Host-side work
 
 Moved to [host/](host/index.md) on 2026-07-19, mirroring the extraction above, and split one file
-per item on 2026-08-11: the load-bearing wording is kept verbatim, and that index carries the
+per item on 2026-08-11: the wording that carries the requirements is kept verbatim, and that index carries the
 prerequisites each **sitting** needs, the recommended order, and a generated roll call of every
 item with its status. Two capabilities, tagged per item
 because the layout must not assume they are one machine or two: a **real Win32 desktop

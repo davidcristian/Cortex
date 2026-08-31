@@ -1,31 +1,19 @@
 """The couplings around a shipped number: one tree declares it, and other files restate it.
 
-One of the data files `crosscheck.py` reads as a single registry, split off `seamcouplings.py`
-along the line that file's own second paragraph had been drawing since the deadlines arrived: the
-entries there tie two trees whose code must hold the same value and neither of which can import the
-other's, and the entries here cross a boundary of the same kind that is not a language. A default
-the brain declares once, the compose stack spelling it again as a shell substitution, the container
-limit that is its hard twin, the runbook quoting it to an operator as the shipped number, and the
-module contract a future agent reads instead of the tree. Retuning the declaration alone leaves
-every composed deployment running the old number and every reader told the old one, with nothing
-saying so, which is the same drift with a different far side.
+One of the data files `crosscheck.py` reads as a single registry. What is left here after the
+compose survey is the brain container's own env: a default the brain declares once, the compose
+stack restating it as a shell substitution, the container limit that is its hard twin, the runbook
+quoting it to an operator as the shipped number, and the module contract a future agent reads
+instead of the tree. Retuning the declaration alone leaves every composed deployment running the
+old number and every reader told the old one. The subagent tier's budgets are in
+`subagentcouplings.py`, the model host's tiers in `modelhostcouplings.py`, and one capture's own
+numbers in `capturecouplings.py`, each split off when this file reached the 300-line cap.
 
-What is left here after the compose survey is **the brain container's own env**: the numbers and
-the names the always-on service ships. The subagent tier's budgets moved to `subagentcouplings.py`,
-the model-host sidecar's tiers to `modelhostcouplings.py`, and one capture's own numbers to
-`capturecouplings.py`, each when this file reached the 300-line cap, and each on a seam that was
-already a paragraph or a comment in it.
-
-An ADR is deliberately not among those far sides. It records what was decided on a date and must go
-on saying that after the number moves, where a runbook and a module contract describe what the tree
-does now and are wrong the moment it changes. The same test settles every other far side outside
-`docker/` (ADR-0029's compose-default survey addendum): a sentence that becomes **wrong** when the
-value moves is a far side, and one that becomes **history** is not.
-
-Several of the paths below are spelled in other parts too, the base compose file and the scheduling
-runbook among them, each registered on both sides of that line for different values. The
-duplication is safe rather than merely tolerated: a path that drifts in one file names something
-the scan cannot read, and an unreadable place is a fault here and never a skip.
+An ADR is deliberately not among those far sides: it records what was decided on a date and stays
+true after the number moves, where a runbook and a module contract describe what the tree does now.
+That test settles every far side outside `docker/` (ADR-0029 compose-default survey addendum): a
+sentence that becomes wrong when the value moves is a far side, and one that becomes history is
+not.
 """
 
 from couplings import Constant, Mention, Site, Spelling
@@ -170,7 +158,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the grace above is only a margin while the header can carry the announcement in "
             "milliseconds; one rung higher the unit is a whole second and the announcement arms "
-            "tonic's own clock under the bound the core enforces, so the adapter refuses it "
+            "tonic's own clock under the bound the core enforces, so the adapter rejects it "
             "there, and its contract quotes the rung as the number a future agent reads instead "
             "of the tree (ADR-0024 unit-ladder addendum)"
         ),

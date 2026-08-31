@@ -1,4 +1,4 @@
-"""Argument parsing for the schedule *lifecycle* verbs (ADR-0025): validate, never raise.
+"""Argument parsing for the schedule lifecycle verbs (ADR-0025): validate, never raise.
 
 Split from ``schedule_args.py`` at the 300-line cap, along the responsibility line
 ``schedule_verbs.py`` already draws against ``schedule_tools.py``: creation arguments stay
@@ -78,7 +78,7 @@ def _parse_edit_rule(
     model writes the wall time it means and never a due time it would have to keep consistent
     with the recurrence. That derivation is also why the pure ``apply_edit`` can stay clockless
     (ADR-0025 rule-edit addendum). ``every_seconds`` is refused alongside, keeping the item's
-    one-recurrence-shape invariant true at the boundary; giving it *alone* still switches a
+    one-recurrence-shape invariant true at the boundary; giving it on its own still switches a
     calendar item back to an interval, which is what the correction points at. ``in_zone`` names
     the new rule's zone, refused without ``at_time`` the way a day selector is (per-rule addendum).
     """

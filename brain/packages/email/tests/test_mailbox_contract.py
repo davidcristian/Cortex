@@ -22,8 +22,8 @@ from mailbox_fake import FakeMailbox
 from cortex_email import ImapMailbox, RawEmail
 
 _FOLDER = "INBOX"
-# The name each fixture's server lists and no mailbox has, spelled as a parent so it reads as
-# what it is; the live probe's own is a real one a real Dovecot builds.
+# The name each fixture's server lists and no mailbox has, named as a parent so it reads as
+# what it is; the live probe uses a real one that a real Dovecot builds.
 _NODE = "Parent"
 _SIMPLE = (
     b"From: Alice <alice@example.com>\r\nSubject: Lunch\r\n"
@@ -45,7 +45,7 @@ def _fake(_monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
 
 
 def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
-    """The real adapter over a stand-in box whose server can be made to refuse."""
+    """The real adapter over a stand-in box whose server can be made to answer BAD."""
     box = FakeBox(names=[_FOLDER], messages=[Msg("7", _SIMPLE)], nodes=[_NODE])
 
     def refuse() -> None:
@@ -54,7 +54,8 @@ def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
 
     def break_folder_opening() -> None:
         # A NO to SELECT that is not the missing-mailbox one, which is the only way to reach the
-        # fail-safe branch: no server this repo can reach refuses a select for any other reason.
+        # fail-safe branch: no server this repo can reach answers NO to a select for any other
+        # reason.
         box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
 
     patch_box(monkeypatch, box)

@@ -9,35 +9,35 @@ Every check here runs inside an outer ``asyncio.timeout``, because the defect is
 and a regression that hangs the suite proves nothing; the deadlines under test are small enough
 that the whole file costs the suite no measurable wall-clock time.
 
-Distrust-green proofs, each mutation applied to production code alone with the whole ``packages``
-suite re-run, so the counts are measured rather than aimed at:
+Mutations proving these tests can fail, each applied to production code alone with the whole
+``packages`` suite re-run, so the counts are measured rather than estimated:
 
-- dropping the ``asyncio.timeout`` wrapper entirely reddens 9, every deadline case below plus the
+- dropping the ``asyncio.timeout`` wrapper entirely fails 9, every deadline case below plus the
   real-socket one in ``test_wiring.py``, each at its outer bound rather than by hanging;
-- treating every ``TimeoutError`` as the deadline reddens 1,
+- treating every ``TimeoutError`` as the deadline fails 1,
   ``test_a_timeout_from_below_the_deadline_is_the_backend_failing_not_a_truncation``, which is
   also the case that would have crashed formatting a bound an unbounded attempt does not have;
-- reporting a stopped run as ``AttemptFailure.INFERENCE`` rather than ``TRUNCATED`` reddens 1,
+- reporting a stopped run as ``AttemptFailure.INFERENCE`` rather than ``TRUNCATED`` fails 1,
   ``test_a_stopped_gpu_attempt_is_not_re_run_on_the_cpu``, since the runner would then spend a
   second whole deadline re-running a runaway on the slower tier;
-- letting the envelope check win over the deadline reddens 2,
+- letting the envelope check win over the deadline fails 2,
   ``test_a_deadline_that_lands_mid_envelope_is_reported_as_the_deadline`` and the real-socket case
   in ``test_wiring.py``, whose shipped wiring is that same constrained tool-less niche;
-- dropping ``bounds`` from the loop's ``backend.stream`` call reddens 1,
+- dropping ``bounds`` from the loop's ``backend.stream`` call fails 1,
   ``test_the_token_cap_rides_every_completion_of_a_delegated_loop``. The unbounded case beside it
-  is deliberately **not** a redden proof for that mutation: it pins that a caller who asked for
+  is deliberately **not** the proof for that mutation: it pins that a caller who asked for
   nothing still sends ``None``, which is what makes the whole bound opt-in;
 - deleting the ``MalformedToolCallError`` arm so a cut tool call falls through to the wide one
-  reddens 2, the two cut-call cases at the bottom of this file;
-- letting that arm answer without consulting the ledger reddens 1,
+  fails 2, the two cut-call cases at the bottom of this file;
+- letting that arm answer without consulting the ledger fails 1,
   ``test_an_unparsable_tool_call_with_no_cap_reported_is_still_the_backends_fault``, which is the
   half that keeps a build reporting no reason at all behaving as it did;
 - reading the ledger in the **wide** arm instead, which is the one-line fix the deferral warned
-  about, reddens 1, ``test_a_dead_backend_after_a_capped_round_is_still_a_dead_backend``: a
+  about, fails 1, ``test_a_dead_backend_after_a_capped_round_is_still_a_dead_backend``: a
   transport failure on a round after a capped one would be reported as a truncation and skip the
   re-place that exists for exactly it.
 
-Dropping ``aclosing`` reddens **nothing**, and that is reported rather than hidden: the
+Dropping ``aclosing`` fails **no test**, and that is reported rather than hidden: the
 cancellation a deadline delivers lands inside the loop generator at every suspension point this
 shape has but one, so the chain unwinds and every ``finally`` runs without it. The wrapper is kept
 as the discipline ``tool_loop`` already applies to its own two generators, and the ADR addendum
@@ -323,7 +323,7 @@ async def test_a_subagent_that_never_stops_talking_is_stopped_at_its_deadline() 
 
 
 async def test_the_cortex_can_tell_a_stopped_run_from_a_short_answer() -> None:
-    """A cap that reported a fragment as an answer would have traded a hang for a lie.
+    """A cap that reported a fragment as an answer would have traded a hang for a wrong answer.
 
     What the aggregate carries is the refusal and its reason, never the fragment: the fragment is
     what the model had said when the clock ran out, which is mid-sentence by construction. It is
@@ -375,12 +375,12 @@ async def test_a_stopped_run_releases_its_admission_and_its_placement() -> None:
 
 
 async def test_a_stopped_run_has_already_released_the_model_lease_when_it_returns() -> None:
-    """Not "the lease comes back eventually" but "it was back before ``run`` returned".
+    """The lease is back before ``run`` returns, rather than at some later moment.
 
     A backend holds its lease for the whole stream and gives it up in the generator's own
     ``finally``, so what this pins is that the deadline unwinds the generator chain rather than
     abandoning it to asynchronous-generator finalization. It is the property, not the mechanism:
-    dropping the ``aclosing`` wrapper leaves this green, because the cancellation lands inside the
+    dropping the ``aclosing`` wrapper leaves this passing, because the cancellation lands inside
     loop generator and unwinds it anyway, which is measured and argued at the ADR addendum.
     """
     store = InMemoryTaskStore()
@@ -868,7 +868,7 @@ async def test_a_cap_inside_a_tool_call_is_reported_as_the_cap_not_a_dead_backen
 
 
 async def test_a_cut_tool_call_is_not_re_run_on_the_cpu() -> None:
-    """What the reporting buys: the second model load this shape used to spend, not spent."""
+    """What the reporting buys: this shape no longer spends a second model load."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     error = MalformedToolCallError('malformed tool-call arguments: \'{"path":"no\'')

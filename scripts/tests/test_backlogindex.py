@@ -15,7 +15,7 @@ def _task(
     trigger: str | None = None,
     kind: str = "refinements",
 ) -> backlog.Task:
-    """Build one parsed task; the fields are the ones the renderer actually reads."""
+    """Build one parsed task, carrying the fields the renderer reads."""
     fields = {"Status": status, "Origin": "ADR-0001"}
     fields["Area" if kind == "refinements" else "Sitting"] = group
     if trigger is not None:
@@ -68,7 +68,8 @@ def test_render_lays_out_the_headline_the_open_half_and_the_roll_call() -> None:
 
 
 def test_the_open_half_follows_the_reader_order_not_the_file_order() -> None:
-    """Order is the answer to "what should I pick up", so it cannot come from the numbers."""
+    """The open half is ordered by bucket rather than by task number, since it answers what to pick
+    up next."""
     states = [f"open, {state}" for state in backlog.OPEN_STATES]
     states += ["never attempted", "attempted 2026-03-04, inconclusive: the card was busy"]
     tasks = [
@@ -107,7 +108,8 @@ def test_a_waiting_task_says_what_would_reopen_it() -> None:
 
 
 def test_a_trigger_on_a_state_that_waits_for_nothing_is_not_shown() -> None:
-    """Only the two waiting states promise a trigger; elsewhere it is a note, not a heading."""
+    """Only the two waiting states render a trigger; on any other state it stays a field of the
+    task file."""
     task = _task(1, "open, actionable", trigger="a second adapter arrives")
     assert "Reopens when" not in backlogindex.render([task], "area")
 
@@ -173,7 +175,7 @@ def test_splice_replaces_the_generated_block_and_nothing_else() -> None:
 
 
 def test_splice_of_an_already_fresh_index_changes_nothing() -> None:
-    """The gate compares two texts, so a second pass must reproduce the first byte for byte."""
+    """The gate compares two texts, so a second splice reproduces the first byte for byte."""
     block = backlogindex.render([_task(1, "open, actionable")], "area")
     existing = f"# The backlog\n\n{backlogindex.BEGIN}\n{backlogindex.END}\n\nA footer.\n"
     once = backlogindex.splice(existing, block)

@@ -22,7 +22,8 @@ model host has moved the honest answer without touching the brain.
 **Why it was left.** The direction of the staleness is the safe one. A brain that booted before the
 key existed goes on sending the request it always sent, which costs a capability rather than
 corrupting anything; the opposite, a brain that booted against a knowing build and now talks to an
-older one, sends a key that is ignored in silence, which is exactly where this repo already was.
+older one, sends a key that is ignored with nothing reporting it, which is exactly where this repo already
+was.
 Both are fixed by a restart, and `CORTEX_INFERENCE_TRACE_LEVER=on` fixes the first without one. The
 cost of the alternative is real and was priced: a probe per call adds a round trip to every
 completion and decodes a token on the servers that most need not to.

@@ -142,8 +142,8 @@ async def test_gated_tool_on_a_tainted_turn_is_blocked_without_a_confirmer() -> 
 async def test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_would_approve() -> (
     None
 ):
-    # A send demanded by injected content is never merely a confirm-away (ADR-0022): the
-    # confirmer is deliberately not consulted on a tainted turn. An approver changes nothing.
+    # Injected content must not be able to reach a send through one approval (ADR-0022), so the
+    # confirmer is not consulted on a tainted turn and an approving one changes nothing.
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
@@ -369,7 +369,7 @@ async def test_an_over_budget_gated_call_on_a_tainted_turn_reports_the_budget() 
 
 
 async def test_a_within_budget_call_is_unaffected() -> None:
-    # The default keeps every existing path byte-for-byte: no refusal is the old dispatch.
+    # With no refusal the dispatch behaves exactly as it did before the argument existed.
     result = await _outbound(RecordingAuditSink(), None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         refusal=None,
@@ -416,9 +416,10 @@ async def test_a_redundant_call_is_refused_without_running_the_tool_and_is_audit
 
 
 async def test_a_redundant_gated_call_never_reaches_the_confirmer() -> None:
-    # What caps confirmation spam: the gate consults the Confirmer per dispatch, so a model
-    # re-emitting a declined send would re-ask the user every round with only the budget of
-    # thirty two stopping it. Refusing ahead of the gate turns that into at most two cards.
+    # This is what caps confirmation prompts: the gate consults the Confirmer per dispatch, so
+    # a model re-emitting a declined send would re-ask the user every round, with only the
+    # budget of thirty two stopping it. Refusing ahead of the gate turns that into at most two
+    # cards.
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
@@ -587,7 +588,7 @@ async def test_the_audit_line_names_the_call_that_was_dispatched() -> None:
 async def test_a_refused_and_a_denied_call_name_themselves_too() -> None:
     # The two early returns. A budget refusal and a taint denial never reach the registry, so
     # their lines are the only trace the call existed at all, and a trace that cannot say which
-    # call it was is what the entry behind this addendum was about.
+    # call it was is the gap this addendum closed.
     sink = RecordingAuditSink()
     await _outbound(sink, None).dispatch(
         ToolCall(id="call-8", name="send", arguments={}), refusal=DispatchRefusal.BUDGET

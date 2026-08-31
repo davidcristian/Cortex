@@ -2,11 +2,11 @@
 
 Split out of ``fakes.py`` for the line cap (the ``fakes_body``/``fakes_handoff`` precedent).
 ``ResourceBudgetScheduler`` is itself pure and is what production wires; this twin exists for
-composition tests (the swap conductor's chaos suite) that want admission always granted, with no
-budget arithmetic to stage, while keeping the port's drain contract observable: admit refuses
-while draining, drain waits bounded for in-flight admissions, undrain reverses the window. It
-passes the same drain contract suite as the real scheduler (``test_scheduler_drain.py``), which
-is what makes it a twin rather than a stub.
+composition tests (the swap conductor's chaos suite) that need admission always granted, with no
+budget arithmetic to stage, while keeping the port's drain contract observable: admit raises while
+draining, drain waits bounded for in-flight admissions, undrain reopens admission. It passes the
+same drain contract suite as the real scheduler (``test_scheduler_drain.py``), which is what makes
+it a twin rather than a stub.
 """
 
 import asyncio
@@ -33,7 +33,7 @@ class AdmitAllScheduler:
 
     @asynccontextmanager
     async def admit(self, request: PlacementRequest) -> AsyncGenerator[None, None]:
-        """Grant the request immediately; refuse (typed) while the pool is draining."""
+        """Grant the request immediately; raise ``SubagentAdmissionError`` while draining."""
         async with self._pool:
             if self._draining:
                 raise SubagentAdmissionError(POOL_DRAINING_MSG)
@@ -50,7 +50,7 @@ class AdmitAllScheduler:
         """Stop admitting, then wait (bounded) for in-flight admissions to release.
 
         Same contract as the real scheduler's: True means drained clean, False means the bound
-        elapsed with work still in flight (nothing killed), and the refusal window holds either
+        elapsed with work still in flight (nothing killed), and admission stays closed either
         way until ``undrain``.
         """
         async with self._pool:

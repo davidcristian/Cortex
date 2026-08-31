@@ -67,6 +67,6 @@ number, and the standing decision is that a document's tallies are its own busin
   the entry proposed. A cross-tree scan is not a file, so the members are read from the two files
   that run one: the unbroken run of `just check-*` lines the `check` recipe opens with, and every
   step of CI's `cross-tree` job, resolved to a module through each recipe's own body since
-  `check-backlog` runs `backlogcheck.py`. The two must agree or the reader refuses to answer, which
-  makes a scan wired into one file and not the other an exit 2 naming both lists rather than a
-  quiet half answer.
+  `check-backlog` runs `backlogcheck.py`. The two must agree or the reader exits rather than
+  answering, which makes a scan wired into one file and not the other an exit 2 naming both lists
+  rather than a half answer nothing reports.

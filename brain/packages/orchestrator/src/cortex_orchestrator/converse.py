@@ -23,8 +23,9 @@ Stream contract (proto/body.proto `BrainService.Converse`):
   A turn that spawns subagents also surfaces their progress on the same stream,
   through this stream's `SeamProgressSink`: a `StatusUpdate{state="delegating"}`
   for the batch's scale and a `ToolActivity` per subagent tool step (ADR-0010).
-  Those ride while the turn is suspended inside the spawn dispatch (its generator
-  cannot yield), best-effort and credit-balanced, so a stalled consumer drops them.
+  Those are emitted while the turn is suspended inside the spawn dispatch (its
+  generator cannot yield), best-effort and credit-balanced, so a stalled consumer
+  drops them.
   A delegated step carries no outcome: the outcome exists for a consent surface over
   a cortex-only built-in, so pairing holds for the turn's own dispatches and a
   subagent's step stays activity-only.
@@ -32,7 +33,7 @@ Stream contract (proto/body.proto `BrainService.Converse`):
   `UserTurn` arriving mid-turn is queued and starts when the in-flight turn
   finishes, and later client events (a `Cancel` above all) are still acted on
   immediately.
-- `Cancel` stops the in-flight turn (if any) AND drops every queued-but-not-started
+- `Cancel` stops the in-flight turn (if any) and drops every queued-but-not-started
   turn. The user asked to stop, so nothing not-yet-started runs; a dropped turn's
   user message is never persisted. A `Cancel` with nothing running is a no-op. The
   stream stays open for the next `UserTurn` either way. Core semantics apply to the

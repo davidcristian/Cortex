@@ -104,7 +104,7 @@ class FolderManager:
     parent: they come back from `list` carrying `NODE_FLAGS` and are refused by `set` exactly
     as a name no mailbox has is, because that is what the probe measured Dovecot doing.
     ``open_nodes`` are the Bridge's answer to the same question: listed with the same flags and
-    opening anyway, which is why the adapter asks rather than believes.
+    opening anyway, which is why the adapter selects the folder rather than trusting the flags.
     """
 
     def __init__(

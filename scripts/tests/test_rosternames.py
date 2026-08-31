@@ -1,9 +1,9 @@
-"""Behaviour of the reader that says what a roster on a page names.
+"""Tests for the reader that says which names a roster on a page holds.
 
-Two questions, kept apart on purpose: where a roster is written (a passage bounded by two phrases
+It answers two questions kept apart: where a roster is written (a passage bounded by two phrases
 the document carries) and how a name is spelled inside it (a bullet's first code span, or every
-code span matching the roster's own pattern). Every case below is an edit somebody could really
-make to a module contract, since that is the only kind of edit this reader ever sees.
+code span matching the roster's own pattern). Every case below is an edit somebody could make to a
+module contract, which is the only kind of edit this reader sees.
 """
 
 import re
@@ -36,7 +36,7 @@ MODULE = re.compile(r"[a-z_]+\.py")
 
 
 def bullets() -> str:
-    """The live-checks passage of the page above, the one both spellings are read out of."""
+    """Return the live-checks passage of the page above, which both spellings are read out of."""
     return passage(PAGE, "**Live checks**", "Being ignored, they never run in CI")
 
 
@@ -51,7 +51,8 @@ def test_a_passage_is_the_run_between_its_two_phrases() -> None:
 
 
 def test_an_opening_phrase_the_document_lost_is_named() -> None:
-    """The shape a rewrite makes: the roster is still there and its boundary is not."""
+    """A missing opening phrase is named in the error. This is the shape a rewrite leaves behind,
+    with the roster still on the page and its boundary gone."""
     with pytest.raises(PassageError, match="opening phrase 'Interface contract' appears 0"):
         passage(PAGE, "Interface contract", "Being ignored, they never run in CI")
 
@@ -62,7 +63,8 @@ def test_a_closing_phrase_the_document_lost_is_named() -> None:
 
 
 def test_a_phrase_the_document_started_carrying_twice_is_refused() -> None:
-    """An ambiguous boundary is no boundary: two runs are two answers and neither is the roster."""
+    """A phrase the document carries twice raises, since the two candidate passages give two
+    different rosters and nothing picks between them."""
     doubled = PAGE + "\n**Live checks** are described above.\n"
     with pytest.raises(PassageError, match="appears 2 time"):
         passage(doubled, "**Live checks**", "Being ignored, they never run in CI")
@@ -74,7 +76,8 @@ def test_a_closing_phrase_written_before_its_opening_one_is_refused() -> None:
 
 
 def test_a_passage_that_would_be_empty_is_refused_rather_than_read_as_none() -> None:
-    """Both phrases resolving to one point is the degenerate case, and an empty roster passes."""
+    """Two phrases resolving to the same point raise, because an empty passage would name no
+    members and the comparison over it would pass."""
     with pytest.raises(PassageError, match="is written before the opening phrase"):
         passage(PAGE, "**Live checks**", "**Live checks**")
 
@@ -87,12 +90,14 @@ def test_a_bulleted_roster_names_the_first_code_span_of_every_bullet() -> None:
 
 
 def test_a_bulleted_roster_ignores_the_code_spans_its_prose_carries() -> None:
-    """The prose beside a name is free, which is the whole reason this list is written by hand."""
+    """Only the first code span of a bullet is a name, so the prose beside it may cite anything in
+    code spans of its own."""
     assert "Health" not in names(bullets(), Bulleted())
 
 
 def test_a_bullet_that_opens_without_a_name_is_a_fault_and_not_a_skip() -> None:
-    """Skipping it would leave a member outside the roster, which is the silence being closed."""
+    """A bullet whose first token is not a code span raises; skipping it would leave that member
+    out of the roster and out of the comparison."""
     unnamed = bullets().replace("- `the_probe_gives_up`", "- the probe gives up")
     with pytest.raises(PassageError, match="opens with no name"):
         names(unnamed, Bulleted())
@@ -109,18 +114,21 @@ def test_a_spelled_roster_takes_every_code_span_matching_its_pattern() -> None:
 
 
 def test_a_spelled_roster_refuses_a_span_that_only_contains_a_name() -> None:
-    """A path or a flag beside a module name is a mention of it, never a roster entry."""
+    """A span holding more than the name, such as a path or a name followed by a flag, is a mention
+    rather than a roster entry."""
     written = "`scripts/linecap.py` and `linecap.py [--root DIR]` and `linecap.py`"
     assert names(written, Spelled(pattern=MODULE)) == ["linecap.py"]
 
 
 def test_a_spelled_roster_reads_a_name_written_twice_twice() -> None:
-    """The scan compares sets; the reader reports the page, so a repeat is not hidden here."""
+    """A name written twice is reported twice, because this reader reports what the page holds and
+    the scan over it is what compares sets."""
     assert names("`a.py` then `a.py`", Spelled(pattern=MODULE)) == ["a.py", "a.py"]
 
 
 def test_a_bare_roster_takes_every_whole_word_matching_its_pattern() -> None:
-    """The shape a repo map needs: plain text in columns, where a backtick would be a backtick."""
+    """This is the shape the repo map needs, being plain text in columns where a backtick would
+    render as a backtick."""
     mapped = """\
 scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation) + couplings.py (the vocabulary)
@@ -129,10 +137,11 @@ scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash a
 
 
 def test_a_bare_roster_ignores_a_name_sitting_inside_a_longer_word() -> None:
-    """The guard the other two shapes get from their own delimiters and this one has to carry.
+    """A name inside a longer word is not read, which is the guard the other two shapes get from
+    their delimiters and this one applies itself.
 
-    Three edges, because a word character is three things here: a letter the pattern will not
-    take, a digit, and the underscore a file name is as likely to end on as to start with.
+    Three edges, because a word character is three things here: a letter the pattern does not
+    take, a digit, and the underscore a file name may end on as well as start with.
     """
     assert names("test_linecap.pyc is not a module", Bare(pattern=MODULE)) == []
     assert names("R2linecap.py is not one either", Bare(pattern=MODULE)) == []
@@ -140,17 +149,19 @@ def test_a_bare_roster_ignores_a_name_sitting_inside_a_longer_word() -> None:
 
 
 def test_a_bare_name_is_read_at_either_end_of_its_passage() -> None:
-    """A passage opening or closing on a name has no character to guard against, and is not one."""
+    """A name at the start or end of a passage is read, since there is no neighbouring character to
+    guard against."""
     assert names("linecap.py", Bare(pattern=MODULE)) == ["linecap.py"]
 
 
 def test_a_bare_roster_reads_a_path_as_the_name_it_ends_with() -> None:
-    """A slash is not a word character, so `scripts/linecap.py` in a map is that module named."""
+    """A slash is not a word character, so `scripts/linecap.py` in a map names that module."""
     assert names("scripts/linecap.py holds the cap", Bare(pattern=MODULE)) == ["linecap.py"]
 
 
 def test_a_bare_roster_does_not_care_whether_a_name_is_in_a_code_span() -> None:
-    """It exists for pages with no spans, and a page mixing the two is one roster either way."""
+    """A name is read whether or not it sits in a code span. The shape exists for pages with no
+    spans, and a page mixing the two still holds one roster."""
     assert names("`linecap.py` and linecap.py", Bare(pattern=MODULE)) == [
         "linecap.py",
         "linecap.py",
@@ -162,7 +173,8 @@ def test_a_passage_with_no_bullets_at_all_names_nothing() -> None:
 
 
 def test_a_starred_bullet_is_a_bullet() -> None:
-    """Both markdown bullet markers, since a document may write either and mean one list."""
+    """Both markdown bullet markers are read, since a document may write either and mean one
+    list."""
     assert names("* `starred.py` counts too", Bulleted()) == ["starred.py"]
 
 
@@ -174,6 +186,6 @@ def test_a_code_span_stops_at_its_own_backtick() -> None:
 
 
 def test_a_bullet_is_read_from_the_marker_and_not_from_the_indent() -> None:
-    """An indented bullet is still a bullet: a nested list under a roster is part of it."""
+    """An indented bullet is still a bullet, so a nested list under a roster is part of it."""
     assert BULLET.match("  - `nested.py` is indented") is not None
     assert BULLET.match("-not a bullet") is None

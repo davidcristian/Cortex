@@ -12,21 +12,21 @@ one does not. `SwappingModelManager` holds `_resident`, `_scope_model` and `_han
 instance attributes ([residency.py](../../../brain/packages/core/src/cortex_core/residency.py)), and
 `recover_handoffs` runs **only** at brain startup
 ([wiring.py](../../../brain/packages/orchestrator/src/cortex_orchestrator/wiring.py)), so a sidecar
-that restarts mid handoff leaves the brain believing the deep model is resident and holding a
+that restarts mid handoff leaves the brain recording the deep model as resident and holding a
 claim while the fresh sidecar serves the cortex. The turn then fails at the backend (the deep
 tier's endpoint answers nothing), the swap back's `stop`/`start` are idempotent and harmless
 against a sidecar that already did both, and the claim is released in the conductor's `finally`,
 so the failure is honest and self-limiting; what is lost is that one handoff, plus a window where
 `Health` misreports residency. That last half stopped being a prediction on 2026-07-18: the
 honesty-surfaces sub-slice made `Health` answer from the manager's published report, so a brain
-whose beliefs a sidecar restart invalidated now shows an amber dot naming a swap that is not
+whose recorded residency a sidecar restart invalidated now shows an amber dot naming a swap that is not
 happening (or a green one over a GPU that lost its model), until the handoff fails and the scope
 restores. **Nothing is at stake with escalation off** (the default), because the plain
 `SingleResidentModelManager` holds no residency state: a sidecar restart is then invisible to the
 brain, which was confirmed live (a turn answered normally straight after the restart).
 **What would close it:** the daemon exposing a boot id or generation counter on `GET /health`, the
-adapter carrying it, and the manager treating a change in it as "everything I believe about
-residency is stale, converge again" (which is `converge_residency`, already written, called from
+adapter carrying it, and the manager treating a change in it as a signal that everything it
+records about residency is stale and must be converged again (which is `converge_residency`, already written, called from
 somewhere other than startup). That is a wire addition plus a caller, not a port change. The
 residency state that landed on 2026-07-18 is where the answer would be published, but it did
 **not** close any of this: `ResidencyReport` says what the GPU is serving in one line for a human,
@@ -34,7 +34,7 @@ and carries no generation to compare a boot id against. Its writers are the swap
 that day's audit repair, boot recovery publishing what it observed (`publish_boot_residency`),
 which is a *startup* observation and so still leaves nothing that re-reads the machine while the
 process runs. The same landing added two ways for the report to go stale, both with this same
-fix. After a restore that gave up, an operator who brings the cortex back by hand
+fix. After a restore that failed, an operator who brings the cortex back by hand
 (`docs/runbooks/model-swap.md` step 2) leaves the report saying the usual assistant could not be
 reloaded until the brain restarts, which is why that runbook's recovery ends by restarting it.
 And a boot whose recovery could not confirm the cortex publishes `RESIDENCY_BOOT_FAILED`, which
@@ -73,7 +73,7 @@ what a `coresident` plan exists not to do to its peers, so a first observation h
 rather than a change and the seeding had to happen at boot. And the scope hazard is narrower than
 it looks: the reconciliation runs inside the one scope there can be, a concurrent one having been
 refused by the handoff claim and by `_begin_scope`, so `_scope_model` never needs rebuilding and
-the beliefs that do are the resident and the report.
+what does is the resident and the report.
 **What did not close is the staleness with no restart behind it**, which is the residue this
 opened and which is filed as its own entry below: the two report cases quoted above (an operator
 who recovers by hand, and a cortex that comes up on its own after a failed boot) have no

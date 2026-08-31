@@ -31,7 +31,7 @@ class MemoryRecaller:
     for a caller that passes no policy and not what the brain ships (the composition root selects
     the model rank, ADR-0038 turn-cost addendum). The optional ``RecallAuditSink`` (ADR-0038)
     receives one ``RecallAudit`` per recall, carrying the ranking the policy returned; ``None``
-    (the default) is the founding silent recall path.
+    (the default) is the unaudited recall path this class started with.
     """
 
     def __init__(  # noqa: PLR0913 -- four optional policy seams, each independently swappable
@@ -85,23 +85,23 @@ class MemoryRecaller:
         way, so the two lines pair. Nothing is fetched to pass it; this method already held it.
 
         The policy returns a ``Ranking`` (its keys and their basis, ADR-0038) and this method
-        unwraps it: turn assembly wants hits, and widening this return would push a ranking through
+        unwraps it: turn assembly needs hits, and widening this return would push a ranking through
         turn context and the seam for no consumer. The ranking instead goes to the ``audit`` sink
         when one is wired, which is where "why did recall return these?" is answerable.
 
-        The audit also carries what the rank *dropped*, since a pool the caller never sees is the
+        The audit also carries what the rank dropped, since a pool the caller never sees is the
         other half of that question, and the whole record including that difference is assembled
         inside the ``audit is not None`` guard: a deployment with no sink wired walks the pool once
         for the policy and never again. The store's own count of the read scopes rides the same
         guard for the same reason (ADR-0038 candidate-count addendum), and it is what tells a pool
         that filled to its requested width from a store that held exactly that many.
 
-        **An empty ranking is an answer and is returned as one.** A policy may keep nothing, either
+        An empty ranking is an answer and is returned as one. A policy may keep nothing, either
         because the store held nothing or because the model read the pool and declined it (the
         ``DEMUR`` basis, ADR-0038 abstention addendum), and this method neither re-runs the search
         nor substitutes the pool: it returns no hits and the turn is assembled without a memory
         block. The audit is written for an empty ranking exactly as for a full one, so the trail
-        distinguishes a considered refusal from an empty store by the basis it carries.
+        tells a declined rank from an empty store by the basis it carries.
         """
         embedding = await self._embedder.embed(query)
         scopes = self._scope.read_scopes(session_id)
@@ -125,15 +125,15 @@ class MemoryRecaller:
         return ranking.memories
 
     async def _count_candidates(self, scopes: Sequence[str] | None) -> int:
-        """How many memories the read scopes hold, or ``0`` when no trail is there to read it.
+        """How many memories the read scopes hold, or ``0`` when no audit sink is wired.
 
-        Asked of the store rather than measured off the pool, which is the whole point: a length
-        over returned rows would report the cutoff back to itself. Asked here, straight after the
+        Asked of the store rather than measured off the pool, which is the point: a length over
+        returned rows would report the cutoff back to itself. Asked here, straight after the
         search rather than after the rank, because these are two reads and not one transaction,
         and a model rank sits between them for the best part of a second; adjacent statements are
         the closest two reads get to describing one moment. Asked only when a sink exists, so the
-        silent path stays at exactly one store read and the ``0`` never reaches a line, the record
-        being assembled under the same condition.
+        unaudited path stays at exactly one store read and the ``0`` never reaches a line, the
+        record being assembled under the same condition.
         """
         if self._audit is None:
             return 0

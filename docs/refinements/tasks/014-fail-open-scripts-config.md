@@ -5,7 +5,7 @@
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
 `scripts/pyproject.toml` enumerated the modules it measured, once in the pytest `--cov=` list and
-again in pyright's `include`; adding `dashcheck.py` silently escaped BOTH the 100% coverage gate
+again in pyright's `include`; adding `dashcheck.py` escaped BOTH the 100% coverage gate
 and strict typing until the omission was spotted by eye (the tree still reported 100%,
 because a module nobody measures cannot lower the average). Both now measure the tree
 rather than a list: `--cov=.` with an explicit coverage omit for `tests/` and `.venv/`

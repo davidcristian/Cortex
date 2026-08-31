@@ -16,7 +16,7 @@ real ``SingleResidentModelManager`` and its real non-reentrant lock rather than 
 it is tested in both directions: the disciplined window's selection is followed by a second
 acquire that must succeed, and a deliberately undisciplined summarizer is followed by the same
 acquire, which must deadlock. Without that second test the first proves nothing, because a
-harness whose lock is never really held is green either way.
+harness whose lock is never really held passes either way.
 """
 
 import asyncio
@@ -429,7 +429,7 @@ async def test_a_summarizer_that_abandoned_its_stream_would_strand_the_lease() -
     A selection-time call that reads one event and walks away leaves the generator suspended
     inside the adapter's acquire block, so the reply's acquire waits on a lease nobody is using.
     ``drain_text`` is what the summarizing window uses instead, and this test is what makes its
-    green mean something: without it, a lock that was never really held would pass either way.
+    passing mean something: without it, a lock that was never really held would pass either way.
     """
     manager = SingleResidentModelManager("cortex", "http://127.0.0.1:8080")
     backend = _LeasedBackend(manager, "half a recap")
@@ -551,7 +551,7 @@ async def test_a_forged_closing_marker_in_the_transcript_cannot_end_the_prompt_f
 
 
 async def test_a_recap_that_obeyed_an_injection_still_enters_the_turn_as_data() -> None:
-    """The load-bearing one: even a summarizer that was talked into repeating the payload cannot
+    """The case that matters most: even a summarizer talked into repeating the payload cannot
     put it into the turn as instruction. The recap is a durable, cached, system-role artifact,
     so an unfenced one would be the most valuable position in the system to hand an attacker.
     """
@@ -830,8 +830,8 @@ async def test_a_cut_fold_and_a_wandering_one_are_told_apart(
     """The whole point of the change, asserted as a difference rather than as a string.
 
     Both folds produce the byte-identical unusable account, so `clean_recap` rejects both on the
-    same rule and every other thing the log carries is equal. They want opposite fixes: the cut
-    one wants a larger `RECAP_MAX_TOKENS` or a smaller fold, the wandering one wants the
+    same rule and every other thing the log carries is equal. They need opposite fixes: the cut
+    one needs a larger `RECAP_MAX_TOKENS` or a smaller fold, the wandering one needs the
     instruction rewritten. Before this, the reader had no way to choose.
     """
     caplog.set_level(logging.WARNING, logger="cortex_core.summarizing")

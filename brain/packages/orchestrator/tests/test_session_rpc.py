@@ -3,8 +3,8 @@
 The end-to-end handler wiring is covered over a real loopback server in `test_session_reads.py`;
 these pin the pieces that live below the seam: the seam-edge title bound, that `rename_session`
 writes the *clamped* title through `SessionStore.set_title`, and that `delete_session` deletes the
-chat and cascades to its memories in the right order (so the mutation that drops the clamp, never
-writes, skips the delete, or skips the cascade each reddens exactly one test here).
+chat and cascades to its memories in that order. A mutation that drops the clamp, never writes,
+skips the delete, or skips the cascade makes exactly one test here fail.
 """
 
 import inspect
@@ -132,9 +132,9 @@ async def test_rename_session_passes_an_empty_title_to_clear_the_override() -> N
 
 
 async def test_delete_session_deletes_the_chat_then_cascades_to_memory() -> None:
-    # The whole point of the slice: the visible chat is deleted first, then its private memories
-    # are forgotten. The shared `events` list pins that order (a mutation swapping them reddens).
-    # A real SessionMemoryCascade under session scoping deletes the chat's own scope ("gamma").
+    # The visible chat is deleted first, then its private memories. The shared `events` list pins
+    # that order, so a mutation swapping the two makes this test fail. A real
+    # SessionMemoryCascade under session scoping deletes the chat's own scope ("gamma").
     events: list[str] = []
     store = RecordingStore(events)
     mem = RecordingMemoryStore(events)
@@ -156,8 +156,9 @@ async def test_delete_session_skips_the_cascade_when_memory_is_off() -> None:
 
 
 async def test_set_session_pinned_writes_the_pin_through_set_pinned() -> None:
-    # The handler forwards the target state straight to `SessionStore.set_pinned` (a mutation that
-    # drops the write, or inverts the flag, reddens here). Pinning then unpinning both cross.
+    # The handler forwards the target state straight to `SessionStore.set_pinned`, so a mutation
+    # that drops the write or inverts the flag makes this test fail. Both directions are covered:
+    # pinning first, then unpinning.
     store = RecordingStore()
     pinned_reply = await set_session_pinned(store, "epsilon", pinned=True)
     assert isinstance(pinned_reply, SetSessionPinnedReply)
@@ -182,9 +183,10 @@ def test_session_deletion_is_a_user_only_seam_path_never_a_tool() -> None:
     # (which takes store ports, never a ToolRegistry), driven by the `BrainService.DeleteSession`
     # servicer method the overlay calls out of band behind the seam-token interceptor. A model's
     # ENTIRE reach into the system is the ToolRegistry surface, which is exactly describe_tools/
-    # invoke and carries no delete verb; deletion is a store capability, not a tool, and never runs
-    # through the turn engine. So no model, tool, or tainted turn can delete a chat. If deletion is
-    # ever wired as a tool (a ToolRegistry verb, or `delete_session` taking one), this reddens.
+    # invoke and carries no delete verb. Deletion is a store capability rather than a tool, and it
+    # never runs through the turn engine, so no model, tool, or tainted turn can delete a chat. If
+    # deletion is ever wired as a tool, a ToolRegistry verb or a `delete_session` that takes one,
+    # this test fails.
     assert callable(BrainService.DeleteSession)  # the user-only seam method exists
     assert callable(SessionStore.delete)  # the store verb it drives, not a tool
     tool_surface = {name for name in vars(ToolRegistry) if not name.startswith("_")}

@@ -9,9 +9,10 @@
 Slice 8.6 (heterogeneous subagent models) will let the cortex pick the subagent model **per
 spawn** from the full ADR-0004 roster, including the injection-weak small models
 (`gemma-4-E2B` 4/10, `Qwen3.5-2B` 1/10 framed-obeyed; ADR-0013 harness). Treating the cortex's
-model choice as pure discretion is a footgun: the plausible failure is not an injection tricking
-the framing-robust cortex (0/10, since it resists that) but a **well-behaved** cortex routing an
-untrusted-content subtask to a cheap model to save latency, not knowing the content is hostile.
+model choice as pure discretion opens a failure the deterministic layers do not cover. The
+plausible failure is not an injection tricking the framing-robust cortex, which scores 0/10 against
+that harness. It is a **well-behaved** cortex routing an untrusted-content subtask to a cheap model
+to save latency, with no way to know the content is hostile.
 
 The deterministic layers contain a subagent's *actions* regardless of model. No outbound/gated
 tools ([ADR-0013](ADR-0013-untrusted-content.md) subagent-exclusion addendum), fail-closed gate,
@@ -48,7 +49,7 @@ is a live runtime choice.
   moot" false.
 - The cheap-fast models keep a **real but narrow** niche (trusted pure-text subtasks); 8.6's spec
   still advertises them to the cortex with their robustness trade-offs, so the cortex can choose
-  them *there*. The wiring just refuses to honor that choice on an untrusted path.
+  them *there*. On an untrusted path the wiring overrides that choice.
 - Additive behind the Slice 8.6 seams (spawn-tool spec, the `SubagentResources` roster, the
   `SubagentPlacer`): the override lives in the wiring/runner that selects a spawn's resources.
   CI-gated 100% over fakes, covering tainted-turn + weak-requested → robust resources; clean +
@@ -59,8 +60,8 @@ is a live runtime choice.
 
 - **The case-2 subtlety, recorded so the implementer does not miss it.** The tainted-turn rule
   (2a) alone misses a subagent that reads untrusted content *itself*, since at that spawn the cortex
-  turn is not yet tainted. Rule 2b closes it by binding to tool-enablement, which is known
-  structurally at spawn time; the two together, not either alone, are the constraint.
+  turn is not yet tainted. Rule 2b covers that case by binding to tool-enablement, which is known
+  structurally at spawn time. Both rules together form the constraint; neither alone does.
 - **Deliberate loss** of the "cheap model for a trivial *untrusted* lookup" optimization, as that
   path is precisely what is being closed.
 - **Per-role escape hatch, if ever justified:** a future subagent role needing a cheap model on
@@ -70,10 +71,10 @@ is a live runtime choice.
 ## Composes with (deferred, separate)
 
 - **Grammar-constrained subagent output** is schema-constrained decoding behind
-  `InferenceBackend` (option (c) in the discussion): it kills *format*-laundering (appended
+  `InferenceBackend` (option (c) in the discussion): it prevents *format*-laundering (appended
   footers/links/sections) even on a weak model, for the narrow trusted-tool-less niche where one
   is still used. Orthogonal to this ADR; recorded in the ROADMAP for when 8.6 or a hardening
-  pass wants it. This ADR is the *which-model* boundary; grammar constraint is the
+  pass needs it. This ADR is the *which-model* boundary; grammar constraint is the
   *what-shape-of-output* boundary.
 
 ## Addendum (2026-07-13): grammar-constrained output landed (ADR-0028)

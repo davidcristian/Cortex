@@ -2,7 +2,7 @@
 //! ADR-0003 decision 3; the Rust counterpart of ADR-0002 decision 8's
 //! `integration` marker): `#[ignore]`d so they never run in CI or count
 //! toward coverage. Run them manually against a real brain
-//! (e.g. `docker compose up brain`, Slice 2 runbook) with:
+//! (e.g. `docker compose up brain`, per the local-dev runbook) with:
 //!
 //! ```text
 //! cargo test -p body-rpc --test live -- --ignored
@@ -12,13 +12,13 @@
 //! (default `http://127.0.0.1:50051`); a token-protected brain (ADR-0016)
 //! additionally needs `CORTEX_SEAM_TOKEN` set to the same value it serves with.
 //!
-//! One check, `a_rejected_seam_token_is_answered_at_once_and_never_retried`, *requires* that
-//! token: a token-free brain accepts anything, so there is no rejection for it to observe. It
-//! fails with that as its message rather than skipping, since a live check that quietly opts
-//! out is worse than one that says what it needs. Run the whole suite against a protected
-//! brain with `CORTEX_SEAM_TOKEN=… just up` and the same value exported here; `just
-//! seam-health` refuses to start without it rather than let that check fail as a regression
-//! (ADR-0016 addendum on the checked precondition).
+//! One check, `a_rejected_seam_token_is_answered_at_once_and_never_retried`, requires that
+//! token, because a token-free brain accepts anything and leaves it no rejection to observe. It
+//! fails with that as its message rather than skipping, so the missing precondition is visible
+//! rather than silent. Run the whole suite against a protected brain with
+//! `CORTEX_SEAM_TOKEN=… just up` and the same value exported here. `just seam-health` refuses to
+//! start without it rather than let that check fail as a regression (ADR-0016 addendum on the
+//! checked precondition).
 //!
 //! Two checks need no brain at all, both of them about what the connection indicator's probe
 //! spends against a peer that cannot serve. They stay here because they measure the wall clock
@@ -51,7 +51,7 @@ fn seam_token() -> Option<String> {
 }
 
 /// A session id unique per test run, so reruns against the same live brain
-/// never share session state (Slice 3's deterministic reply counts the user
+/// never share session state (the deterministic reply counts the user
 /// turns accumulated in the session store under this id).
 fn unique_session_id() -> String {
     let nanos = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -67,13 +67,13 @@ fn unique_session_id() -> String {
 /// Returns the address to dial and the number of dials answered so far, which is the attempt
 /// count read off the wire rather than inferred from a clock.
 ///
-/// It exists because **a dead address is not a portable fixture**. A dial to a closed loopback
-/// port is refused instantly by a Linux stack, and under WSL's mirrored networking, where
-/// loopback belongs to the Windows host, a port outside the distro's own ephemeral range is
-/// silently dropped instead: the connect then sits until something above it stops waiting. The
-/// probe classifies both `Down` and is right both times, but only the refusing shape leaves a
-/// retry to observe inside a budget, so a check that measures patience has to own the peer it
-/// dials.
+/// It exists because a dead address is not a portable fixture. A dial to a closed loopback port
+/// is refused immediately by a Linux stack, and under WSL's mirrored networking, where loopback
+/// belongs to the Windows host, a port outside the distro's own ephemeral range is dropped
+/// instead, so the connect sits until something above it stops waiting. The probe classifies
+/// both as `Down` and is correct both times, but only the refusing shape leaves a retry to
+/// observe inside a budget, so a check that measures how long retrying takes has to own the peer
+/// it dials.
 async fn dial_dropping_peer() -> (String, Arc<AtomicUsize>) {
     let listener = match TcpListener::bind("127.0.0.1:0").await {
         Ok(listener) => listener,
@@ -119,8 +119,8 @@ async fn brain_reports_ready_over_the_live_seam() {
 async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve() {
     // What the overlay's connection indicator runs (ADR-0011 addendum), against the real seam:
     // the running brain must probe Ready and carry its own detail, and a peer that cannot serve
-    // must probe Down rather than raise. A probe never fails; the failure is the answer, which
-    // is what lets the dot render a state instead of an error.
+    // must probe Down rather than raise. A probe never fails, because the failure is itself the
+    // answer, which is what lets the dot render a state instead of an error.
     let addr = brain_addr();
     let token = seam_token();
     let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
@@ -143,9 +143,9 @@ async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve()
     // A loopback peer that answers the dial and nothing else: the call fails Connection, so the
     // probe is Down and says why. Lazy again, since an eager connect would fail before the probe
     // could classify. This client is bare, with no decorator and therefore no deadline over it,
-    // which is exactly why the peer must be one that fails rather than one that hangs: a dial to
-    // a *closed* port is refused on one host and dropped on the next, and on the second one an
-    // unbounded attempt sits there until the kernel gives up retrying its SYN, which is minutes.
+    // which is why the peer must be one that fails rather than one that hangs: a dial to a closed
+    // port is refused on one host and dropped on the next, and on the second one an unbounded
+    // attempt sits there until the kernel gives up retrying its SYN, which takes minutes.
     let (unserved, dials) = dial_dropping_peer().await;
     let dead = match BrainSeamClient::connect_lazy_with_token(&unserved, None) {
         Ok(client) => client,
@@ -170,8 +170,8 @@ async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve()
 }
 
 /// The real `Sleeper` the shell composes, repeated here because the shell is un-gated and this
-/// suite cannot import it. Real time on purpose: these checks measure the wall clock the
-/// deterministic fakes deliberately avoid.
+/// suite cannot import it. It uses real time on purpose, since these checks measure the wall
+/// clock the deterministic fakes avoid.
 struct RealSleeper;
 
 impl Sleeper for RealSleeper {
@@ -188,7 +188,7 @@ impl Sleeper for RealSleeper {
     }
 }
 
-/// A patient read schedule, as someone tuning `CORTEX_BRAIN_RETRY_*` for a slow brain restart
+/// A long read schedule, as someone tuning `CORTEX_BRAIN_RETRY_*` for a slow brain restart
 /// would set it: 5 attempts, 400 ms base, ×2, so the reads spend up to 6 s backing off.
 fn patient_reads() -> RetryPolicy {
     RetryPolicy {
@@ -202,20 +202,20 @@ fn patient_reads() -> RetryPolicy {
 #[tokio::test]
 #[ignore = "live seam check: dials a dead loopback address on real time (needs no brain)"]
 async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
-    // The connection indicator's honesty, measured on the real transport rather than a fake
+    // What the connection indicator spends, measured on the real transport rather than a fake
     // sleeper, against the one peer no fixture can imitate: a loopback address with nothing
-    // listening at all. **What the verdict costs here is a fact about the host, and only its
-    // bound is a fact about this code**, which is why the bound is all this asserts.
+    // listening at all. How long the verdict takes here is a fact about the host and only its
+    // bound is a fact about this code, which is why the bound is all this asserts.
     //
-    // Two shapes, both honest and both `Down`. Where the stack refuses the dial, every attempt
-    // fails `Connection` in microseconds, that failure is transient, and the probe spends the
-    // two attempts its budget allows with one 400 ms wait between them. Where the stack drops
+    // Two shapes reach `Down`, and both are correct. Where the stack refuses the dial, every
+    // attempt fails `Connection` in microseconds, that failure is transient, and the probe spends
+    // the two attempts its budget allows with one 400 ms wait between them. Where the stack drops
     // the dial instead (WSL's mirrored networking hands loopback to the Windows host, which
     // answers nothing outside the distro's own ephemeral range), the first attempt reaches its
     // 250 ms deadline, and an expired deadline is terminal by decision (ADR-0024 deadline
-    // addendum), so the verdict is one attempt old. A clock cannot tell those apart, so the
-    // check that the probe still retries counts attempts against a peer this suite owns
-    // instead: `the_probe_trims_its_attempts_where_a_read_spends_them_all` below.
+    // addendum), so the verdict comes after one attempt. A clock cannot tell those apart, so the
+    // check that the probe still retries counts attempts against a peer this suite owns instead:
+    // `the_probe_trims_its_attempts_where_a_read_spends_them_all` below.
     let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
         Ok(client) => client,
         Err(error) => panic!("cannot build a lazy client for the dead address: {error}"),
@@ -242,9 +242,9 @@ async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
     );
     // The budget counts attempts and waits together: two 250 ms attempts plus the 400 ms wait
     // between them fit inside 1 s and a third would need 1.95 s, so the probe can spend at most
-    // 900 ms of its own however the dial fails. The slack above that is the wall clock's, not
-    // the schedule's. This is the honesty claim: patience the indicator cannot afford is a dot
-    // claiming a state the seam stopped proving, and no read knob may buy it.
+    // 900 ms of its own however the dial fails. Anything above that is the wall clock rather than
+    // the schedule. Time spent retrying past the budget would be the dot claiming a state the
+    // seam stopped proving, and no read knob may extend it.
     assert!(
         probe_took < Duration::from_secs(2),
         "probe took {probe_took:?}, past anything its 1 s budget can spend"
@@ -254,14 +254,15 @@ async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
 #[tokio::test]
 #[ignore = "live seam check: runs entirely against a loopback peer of its own (needs no brain)"]
 async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
-    // The other half of the budget's promise, and the half a clock cannot prove: the probe is
+    // The other half of the budget's guarantee, and the half a clock cannot show: the probe is
     // trimmed to the attempts its budget affords while the same schedule leaves the reads every
-    // one of theirs. Raising `CORTEX_BRAIN_RETRY_ATTEMPTS` for a slow brain restart must buy a
-    // session read more patience without ever buying the indicator a longer lie.
+    // one of theirs. Raising `CORTEX_BRAIN_RETRY_ATTEMPTS` for a slow brain restart gives a
+    // session read more attempts without extending how long the indicator may show a stale
+    // state.
     //
     // Attempts are counted on the wire, off a peer that accepts each dial and drops it, because
     // an elapsed time cannot say how many attempts produced it and because a dead address does
-    // not fail the same way on every host (see `dial_dropping_peer`). Real time all the same:
+    // not fail the same way on every host (see `dial_dropping_peer`). The time is still real:
     // the wait between the attempts is a real 400 ms of the real `Sleeper`.
     let (unserved, dials) = dial_dropping_peer().await;
     let client = match BrainSeamClient::connect_lazy_with_token(&unserved, None) {
@@ -290,7 +291,7 @@ async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
         detail = status.detail
     );
     // Two attempts and no more: the first fails `Connection`, which is transient, so the budget
-    // buys the retry it can afford (250 + 400 + 250 fits 1 s) and refuses the third (1.95 s).
+    // allows the one retry that fits (250 + 400 + 250 fits 1 s) and refuses a third (1.95 s).
     assert_eq!(
         probe_dials, 2,
         "the probe made {probe_dials} attempts on a 5-attempt schedule trimmed to a 1 s budget"
@@ -320,15 +321,15 @@ async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
 #[tokio::test]
 #[ignore = "live seam check: needs a TOKEN-PROTECTED brain (CORTEX_SEAM_TOKEN set on both sides)"]
 async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
-    // The other half of the indicator's contract, and the error-code audit's live evidence:
-    // a wrong `CORTEX_SEAM_TOKEN` makes the brain *answer* `Unauthenticated`, which is not
-    // transient, so it must reach the caller on the first attempt with no backoff at all. The
-    // classification is `Degraded` (the brain answered), never `Down`.
+    // The other half of the indicator's contract, and the error-code audit's live evidence: a
+    // wrong `CORTEX_SEAM_TOKEN` makes the brain answer `Unauthenticated`, which is not transient,
+    // so it must reach the caller on the first attempt with no backoff at all. The classification
+    // is `Degraded`, because the brain answered, and never `Down`.
     //
-    // Unlike its neighbours this one needs the brain serving *with* a token (ADR-0016): a
-    // token-free brain's interceptor is a pass-through, so there is no rejection to observe
-    // and the probe comes back Ready. That is a precondition, not a regression, and the
-    // assertion below says so rather than reading as a broken classifier.
+    // Unlike its neighbours this one needs the brain serving with a token (ADR-0016): a
+    // token-free brain's interceptor is a pass-through, so there is no rejection to observe and
+    // the probe comes back Ready. That is a missing precondition rather than a regression, and
+    // the assertion below says so rather than reading as a broken classifier.
     let addr = brain_addr();
     let client = match BrainSeamClient::connect_lazy_with_token(&addr, Some("not-the-token")) {
         Ok(client) => client,
@@ -366,10 +367,9 @@ async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
 #[tokio::test]
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn the_ack_write_is_answered_once_against_the_live_brain() {
-    // The gate, live: `ack_reminder` is the one write on the port and the plan refuses it, so
-    // it crosses the decorator exactly once. A brain with no schedule backend answers `false`
-    // benignly (ADR-0025), which is the answer this asserts; the point is that it is *an*
-    // answer and arrives with no backoff spent on it.
+    // The refusal, live: `ack_reminder` is the one write on the port and the plan does not retry
+    // it, so it crosses the decorator exactly once. A brain with no schedule backend answers
+    // `false` (ADR-0025), which is what this asserts, and it arrives with no backoff spent on it.
     let addr = brain_addr();
     let token = seam_token();
     let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
@@ -393,8 +393,8 @@ async fn the_ack_write_is_answered_once_against_the_live_brain() {
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn converse_round_trips_one_turn_over_the_live_seam() {
     let addr = brain_addr();
-    // Raw generated client on purpose: the `BrainTransport` port does not
-    // grow a typed converse method this slice (it lands with the body slices).
+    // The raw generated client on purpose, because the `BrainTransport` port does not grow a
+    // typed converse method this slice; it lands with the body slices.
     let mut client = match BrainServiceClient::connect(addr.clone()).await {
         Ok(client) => client,
         Err(error) => panic!("cannot reach the brain at {addr}: {error}"),
@@ -448,21 +448,20 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
                 code = error.code,
                 message = error.message
             ),
-            // Tool/status traffic is legal on the stream, an announced dispatch's outcome
-            // included; this check only cares about the reply text and turn completion.
+            // Tool and status traffic is legal on the stream, an announced dispatch's outcome
+            // included, and this check only reads the reply text and the turn completion.
             Some(
                 server_event::Event::ToolActivity(_)
                 | server_event::Event::ToolOutcome(_)
                 | server_event::Event::Status(_),
             ) => {}
-            // Nothing gated is asked for here, and this raw one-shot client
-            // could not answer anyway (ADR-0022). A confirm request means
-            // something is wrong brain-side.
+            // Nothing gated is asked for here, and this raw one-shot client could not answer
+            // one anyway (ADR-0022), so a confirm request means something is wrong brain-side.
             Some(server_event::Event::ConfirmRequest(request)) => panic!(
                 "unexpected confirm request for tool {tool} on session {session_id}",
                 tool = request.tool_name
             ),
-            // Likewise its resolution: with nothing asked, nothing can have been resolved.
+            // The same holds for a resolution: with nothing asked, nothing can be resolved.
             Some(server_event::Event::ConfirmResolved(resolved)) => panic!(
                 "unexpected confirm resolution ({outcome}) on session {session_id}",
                 outcome = resolved.outcome
@@ -485,8 +484,8 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
     );
 }
 
-/// Drives one turn to completion over the raw client, so a session exists in the
-/// store for the read RPCs to list. Panics on any failure (this is a live check).
+/// Drives one turn to completion over the raw client, so a session exists in the store for the
+/// read RPCs to list. It panics on any failure, as a live check does.
 async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
     let mut client = match BrainServiceClient::connect(addr.to_owned()).await {
         Ok(client) => client,
@@ -529,9 +528,9 @@ async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
 #[tokio::test]
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn session_reads_round_trip_over_the_live_seam() {
-    // ListSessions / GetSessionMessages (ADR-0021) end to end: seed a turn, then read
-    // the chat back over the typed BrainTransport port. Needs only the brain + Redis
-    // (no GPU), since the echo backend serves the turn.
+    // ListSessions and GetSessionMessages (ADR-0021) end to end: seed a turn, then read the
+    // chat back over the typed BrainTransport port. It needs only the brain and Redis, with no
+    // GPU, since the echo backend serves the turn.
     let addr = brain_addr();
     let token = seam_token();
     let session_id = unique_session_id();

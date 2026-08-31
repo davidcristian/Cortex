@@ -2,54 +2,34 @@
 
 `brain/packages/orchestrator/tests/test_envelope_cost_live.py` measures what the reply envelope
 costs a narrow subtask, running several shapes of one request over the same report bodies
-(ADR-0028), and every rate it produces is read against the arm carrying no grammar and no appended
+(ADR-0028). Every rate it produces is read against the arm carrying no grammar and no appended
 sentence: "the envelope costs this pick 24 of 96 answers" means something only while the same pick
 over the same bodies answers them without it. That arm returned 96 of 96 on three picks of the
-subagent row and the record began quoting it as a constant. It is not one. Two later picks answered
-93 and 92 of 96, both times because the pick failed the subtask rather than because the envelope
-took an answer away, and nothing noticed: the driver asserts that the arms saw the same bodies and
-that every run reported timings, so a control arm collapsed to 40 of 96 would leave the same tidy
-table behind for somebody to price the envelope against.
+subagent row and the record began quoting it as a constant. Two later picks answered 93 and 92 of
+96, both times because the pick failed the subtask rather than because the envelope took an answer
+away, and nothing reported it: the driver asserts that the arms saw the same bodies and that every
+run reported timings, so a control arm collapsed to 40 of 96 would leave the same tidy table behind
+for somebody to price the envelope against.
 
 This is the floor under it, and it lives here for the reason `contrast.py` and `trailwidth.py` do:
-the arithmetic behind a published number belongs in a gated tool and not in an integration-marked
-driver no gate ever runs. The driver records what each run did, this turns those records into
-rates, and the refusal therefore lands where the comparison is published rather than where it is
-measured.
+the arithmetic behind a published number belongs in a gated tool rather than in an
+integration-marked driver no gate ever runs. The driver records what each run did, this module
+turns those records into rates, and the refusal therefore lands where the comparison is published
+rather than where it is measured.
 
-**What a run standing means, and what it deliberately does not.** A reply is judged `delivered` in
-the addenda by number recall against its body or by whether a lookup names the body's own period,
-and both judgements are about a subtask this reader is not told. What is held here is the weaker
-property every delivered reply also has: the runner accepted the run, the reply is not empty, and
-it is not the instruction handed back, all three readable whatever was asked. Everything else a
-failing reply can be, a narration, a plan, an answer simply wrong, is invisible here and stays a
-reading, so `stood` bounds `delivered` from above and never substitutes for it: a cell refused here
-is under the floor there too, while one that clears the floor has cleared only what a machine sees.
+What a run **stood** means here is weaker than the `delivered` the ADR-0028 addenda judge by hand,
+which is number recall against a body or a lookup naming the body's own period, both about a
+subtask this reader is not told. What is held here is the weaker property every delivered reply
+also has: the runner accepted the run, the reply is not empty, and it is not the instruction handed
+back, all three readable whatever was asked. Everything else a failing reply can be, a narration, a
+plan, an answer simply wrong, is invisible here and stays a reading, so `stood` bounds `delivered`
+from above and never substitutes for it.
 
-**The rule is one-sided: a point estimate under the floor is not enough.** A cell is refused only
-when the whole Wilson 95% interval on its rate lies under it. That is the difference between an
-instrument and a hair trigger: a cell of 32, which is the four bodies at eight draws one subtask
-shape is swept at, is refused at 25 and passes at 26; a pooled 96 is refused at 80; and a four-run
-probe at the default knobs is refused only once half of it has failed, one loss in four being
-evidence of nothing. The interval is the same arithmetic the addenda quote beside every published
-rate, which is the second reason it belongs in a covered file: it was being done in a scratchpad.
-Where the interval parts from an exact binomial test it parts at small n and toward refusing, a
-single failed run of one being refused where an exact test would not reject. That is the harmless
-direction: what a refusal costs is a comparison withheld from a run that measured almost nothing,
-where publishing costs a rate about the pick read as a rate about the envelope.
-
-**The floor is nine tenths, and it is argued rather than drawn from a run.** A rate is attributable
-to the envelope only while the unconstrained arm is near its ceiling, and nine tenths is where that
-stops being true of this row: its envelope arms have measured as low as 66 and 70 of 96, so a
-control arm under nine tenths is doing no better than the arms it exists to explain, and a
-difference read between two such arms is noise wearing a table's clothes. It sits far from every
-honest reading this row has produced, whose worst control cell is 28 of 32, and far above the
-collapse it is here to catch. What it is not is a measurement: an exact figure read off one sweep
-would be a dated reading, which is why the shape is a floor with an interval under it rather than a
-number to hit.
-
-**What is deliberately not offered is a way to lower it.** A floor with a `--floor` beside it is a
-suggestion, and the one reader who would reach for it is the one whose control arm just failed.
+The floor is nine tenths of a cell's own runs, argued rather than drawn from a run, and the rule is
+one-sided: a cell is refused only when the whole Wilson 95% interval on its rate lies under the
+floor. There is deliberately no `--floor`. The ADR-0028 control-arm addendum and
+`docs/modules/repo-gates.md` argue all three, and that interval is the same arithmetic the ADR-0028
+tables publish beside every rate.
 
 Reads the driver's own per-arm sample files, `just envelope-floor measurements/envelope-*.json`.
 Exit 0 published the comparison, 1 refused to (no control arm in these samples, or one proven under
@@ -63,8 +43,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, cast
 
-# The fraction of its own runs a control arm must not be proven to have fallen under. Argued in
-# full above; nine tenths is where a control stops outrunning the arms it is supposed to explain.
+# The fraction of its own runs a control arm must not be proven to have fallen under. Nine tenths
+# is where a control stops doing better than the arms it exists to explain (ADR-0028).
 FLOOR = 0.9
 # The two-sided 95% normal quantile, which is the interval every rate in the ADR-0028 addenda is
 # published with. Ten of those intervals were recomputed here when this landed and all ten agree.
@@ -86,15 +66,14 @@ class Turn(NamedTuple):
     def lapse(self) -> str | None:
         """Which visible failure this run is, or ``None`` when nothing visible failed.
 
-        Ordered, and the order is the reading. A refused run is refused whatever its text held,
-        because the runner already settled that (a run cut at the cap reports the raw text it had
-        got to, envelope and all), and blaming its wording would send a reader to the model where
-        the limit is the answer. An accepted run is then empty or it is the instruction handed
-        back, which is this tier's own quiet failure mode: `"Summarize the report below, keeping
-        every detail."` is the whole of one recorded reply. The comparison is over letters and
-        digits alone, so punctuation, case and wrapping cannot hide an echo, and it is equality
-        rather than containment, so a reply that quotes the instruction on its way to answering is
-        not one.
+        The order matters. A refused run is refused whatever its text held, because the runner
+        already settled that (a run cut at the cap reports the raw text it had got to, envelope and
+        all), and reporting its wording instead would send a reader to the model where the limit is
+        the answer. An accepted run is then empty or it is the instruction handed back, which is
+        this tier's own quiet failure mode: `"Summarize the report below, keeping every detail."`
+        is the whole of one recorded reply. The comparison is over letters and digits alone, so
+        punctuation, case and wrapping cannot hide an echo, and it is equality rather than
+        containment, so a reply that quotes the instruction on its way to answering is not one.
         """
         if not self.ok:
             return "refused"
@@ -145,9 +124,9 @@ def reduced(text: str) -> str:
 def wilson(stood: int, runs: int) -> tuple[float, float]:
     """The Wilson 95% score interval on ``stood`` of ``runs``.
 
-    The interval the addenda publish beside every rate, and the one a proportion near a boundary
-    needs: the normal approximation puts the ceiling of a 32 of 32 cell above 1 and its floor
-    below where anybody would defend it.
+    The interval the ADR-0028 addenda publish beside every rate, and the one a proportion near a
+    boundary needs: the normal approximation puts the ceiling of a 32 of 32 cell above 1 and its
+    floor far below where anybody would defend it.
     """
     seen = stood / runs
     spread = 1 + Z * Z / runs
@@ -187,21 +166,21 @@ def _require(condition: bool, message: str) -> None:  # noqa: FBT001 -- a bare p
 
 
 def _text(source: dict[str, object], key: str, where: Path) -> str:
-    """One string field of a sample, or a refusal naming the file and the key."""
+    """One string field of a sample; raises naming the file and the key when it is absent."""
     value = source.get(key)
     _require(isinstance(value, str), f"{where}: {key} is missing or is not a string")
     return cast("str", value)
 
 
 def _flag(source: dict[str, object], key: str, where: Path) -> bool:
-    """One boolean field of a sample, or a refusal naming the file and the key."""
+    """One boolean field of a sample; raises naming the file and the key when it is absent."""
     value = source.get(key)
     _require(isinstance(value, bool), f"{where}: {key} is missing or is not a boolean")
     return cast("bool", value)
 
 
 def _turn(entry: object, where: Path) -> Turn:
-    """One turn of a sample, refusing a run written before the driver recorded what it asked."""
+    """One turn of a sample, raising on a run written before the driver recorded what it asked."""
     _require(isinstance(entry, dict), f"{where}: a turn is not a JSON object")
     turn = cast("dict[str, object]", entry)
     return Turn(
@@ -212,7 +191,7 @@ def _turn(entry: object, where: Path) -> Turn:
 
 
 def load(path: Path) -> Arm:
-    """Read one arm's sample file, refusing anything it cannot read as a set of runs."""
+    """Read one arm's sample file, raising on anything it cannot read as a set of runs."""
     try:
         parsed: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as err:

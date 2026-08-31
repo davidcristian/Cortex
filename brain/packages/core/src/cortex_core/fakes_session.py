@@ -3,7 +3,7 @@
 Split out of ``fakes.py`` to keep both under the line cap (the ``fakes_body``/``fakes_schedule``
 precedent), and because the session store is the one fake carrying real read-path logic (the
 pinned/recency union, ADR-0021 pinning addendum) rather than a dict passthrough. Like the other
-in-memory fakes it does NOT survive a process restart; the Redis adapter is what proves the hard
+in-memory fakes it does not survive a process restart; the Redis adapter is what proves the hard
 rule, and this twin only has to be observably interchangeable with it behind the ``SessionStore``
 port.
 """
@@ -23,8 +23,8 @@ from cortex_core.sessions import (
 class InMemorySessionStore:
     """SessionStore held in dicts/sets and meant for tests and single-process experiments only.
 
-    It intentionally does NOT survive a process restart; the Redis adapter is the
-    runtime store precisely because this one cannot prove the hard rule.
+    It deliberately does not survive a process restart; the Redis adapter is the runtime store
+    because this one cannot prove the hard rule.
     """
 
     def __init__(self) -> None:
@@ -36,9 +36,9 @@ class InMemorySessionStore:
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message at the end of the session's history.
 
-        Refuses an image-bearing message, exactly as the Redis adapter does (ADR-0029): a fake
-        that accepted what the real store rejects would let the turn-local invariant pass CI
-        and fail in production.
+        Raises ``SessionStoreError`` for an image-bearing message, exactly as the Redis adapter
+        does (ADR-0029): a fake that accepted what the real store rejects would let the
+        turn-local invariant pass CI and fail in production.
         """
         if message.images:
             msg = "a session store never persists images: pixels are turn-local"
@@ -55,7 +55,7 @@ class InMemorySessionStore:
         Every stored session has at least one message (a key exists only after an append),
         so each summarizes; a stored title (``set_title``) overrides the first-message one, and
         ``set_pinned`` sets each summary's ``pinned`` flag. The result is the newest ``limit`` by
-        recency UNIONED with the pinned set (deduplicated), so a pinned chat older than the window
+        recency unioned with the pinned set (deduplicated), so a pinned chat older than the window
         still lists; ``merge_pinned`` then orders it pinned-first, recency-descending in each group.
         Ties on ``last_activity`` keep insertion order (unspecified, as for the Redis twin, since
         the contract test uses distinct timestamps)."""

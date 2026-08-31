@@ -1,22 +1,21 @@
 """``python -m cortex_model_manager``: wire the supervisor from env and serve its control API.
 
-The sidecar's composition root, the ``cortex_email`` precedent: read settings once, build the
-adapters, hand the pure-ish supervisor its two seams, and run. Nothing here holds policy.
+The sidecar's composition root, built like ``cortex_email``'s: read settings once, build the
+adapters, hand the supervisor its two seams, and run. Nothing here holds policy.
 
-The probe client is given a **bounded** timeout, unlike the generation clients the brain dials
-llama-server with (which deliberately have no read deadline, since a completion may stream for
-minutes). A readiness probe that could hang would hold the per-model lock and therefore stall the
-swap step waiting on it, so the control plane and the data plane get opposite timeout policies on
-purpose.
+The probe client is given a bounded timeout, unlike the generation clients the brain dials
+llama-server with, which deliberately have no read deadline since a completion may stream for
+minutes. A readiness probe that could hang would hold the per-model lock and stall the swap step
+waiting on it, so the control plane and the data plane run under opposite timeout policies.
 
-``main`` also configures the **root** logger, which is not boilerplate here. ``uvicorn.run``
-configures uvicorn's own loggers and leaves root untouched, so without this every lifecycle line
-this package logs at INFO is dropped and the one WARNING that escapes goes through logging's
-last-resort handler: measured in the image, ``docker logs model-host`` carried llama.cpp's own
-stderr and not one daemon line naming which tier was started or stopped, while
-``docs/runbooks/model-swap.md`` sends an operator to exactly that log. It configures the
-**formatter** as well as the level, so each line's own fields reach that log rather than being
-attached to a record the stdlib's default format then prints nothing of.
+``main`` also configures the root logger. ``uvicorn.run`` configures uvicorn's own loggers and
+leaves root untouched, so without this every lifecycle line this package logs at INFO is dropped
+and the one WARNING that escapes goes through logging's last-resort handler: measured in the
+image, ``docker logs model-host`` carried llama.cpp's own stderr and not one daemon line naming
+which tier was started or stopped, while ``docs/runbooks/model-swap.md`` sends an operator to
+exactly that log. It configures the formatter as well as the level, so each line's own fields
+reach that log rather than being attached to a record the stdlib's default format prints nothing
+of.
 """
 
 import logging
@@ -40,14 +39,14 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
     """The supervisor and the probe client it reads readiness through, both wired from env.
 
     Split out of ``build_model_host`` so all three timing knobs are readable off the objects that
-    were handed them: nothing else in this process observes them, so a knob dropped here would
-    silently change how long an eviction may take by tens of seconds while the runbook's pairing
-    rule went on being reasoned about the configured numbers.
+    were handed them: nothing else in this process reads them, so a knob dropped here would change
+    how long an eviction may take by tens of seconds with nothing reporting it, while the
+    runbook's pairing rule went on being reasoned about the configured numbers.
 
-    The probe's deadline is handed over **twice on purpose**: once to the client that spends it,
-    and once to the supervisor, which spends none of it and is the only object here that can
-    state the whole worst case of its own slowest call. That statement is what ``GET /health``
-    publishes and what the brain checks its own control deadline against.
+    The probe's deadline is handed over twice: once to the client that spends it, and once to the
+    supervisor, which spends none of it and is the only object here that can state the whole worst
+    case of its own slowest call. That statement is what ``GET /health`` publishes and what the
+    brain checks its own control deadline against.
     """
     client = httpx.AsyncClient(timeout=httpx.Timeout(config.probe_timeout_s))
     supervisor = ModelSupervisor(
@@ -65,8 +64,8 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
     """The ASGI app for this deployment's roster, with the probe's client closed on shutdown.
 
     The device probe is wired unconditionally, because whether this container can see a card is
-    the probe's own question to answer and not something env should assert: on a CPU-only stack
-    the binary is simply not in the image, and the seam reports no reading.
+    something the probe reads at runtime rather than something env asserts: on a CPU-only stack
+    the binary is not in the image, and the seam reports no reading.
     """
     supervisor, client = build_supervisor(config)
     _logger.info(

@@ -276,10 +276,10 @@ record the listing never saw.
 
 **The cache is rejected outright**, not deferred again. It would add a third write to `append`
 (after the `RPUSH` and the `ZADD`) that is not atomic with them, so a crash between them leaves
-a preview that is **permanently wrong** and self-heals only on the next message to that chat, a
+a preview that is **permanently wrong** and is corrected only by the next message to that chat, a
 silent-wrong failure mode traded for a read that is already 1 ms. It also duplicates state the
-list itself holds, which is the kind of derived-copy invariant that rots. Bounded reads need no
-new state at all.
+list itself holds, and a derived copy diverges from its source as soon as one write of the pair
+is lost. Bounded reads need no new state at all.
 
 **One deliberate behavior change.** A listing no longer decodes the middle of a chat, so a
 corrupt record between the ends can no longer take the whole chat list down; the affected chat
@@ -297,7 +297,7 @@ index entry (empty list) stays skipped, as before.
   passes, so the recency ordering and title/preview derivation hold on real Redis, not only on
   fakeredis.
 - CI-gated at 100% over fakeredis, with the three new guards mutation-proven (reverting each
-  individually turns exactly its test red): the tail index derived from `LLEN` (fixing it to the
+  individually fails exactly its own test): the tail index derived from `LLEN` (fixing it to the
   read position mis-names the record), the wrapping covering the batched read (a `WRONGTYPE`
   inside the pipeline escapes unwrapped when it does not), and the ends-only read itself (a
   corrupt middle record fails the listing when the whole history is read).
@@ -316,16 +316,17 @@ check RETURNS, so a check that failed leaked its keys as well.
 Those two compound into a suite that breaks itself. `check_list_sessions_orders_and_summarizes`
 asserts over `list_sessions(limit=50)`, filtered to the two sessions it just created. Once the
 accumulated dangling members push past 50, its own sessions fall outside the window and the check
-fails with a bare `AssertionError`, blaming the adapter for the test's own residue. Observed with
-54 stale `contract-*` members; removing them by hand made the suite green, which is the tell.
+fails with a bare `AssertionError`, reporting the adapter as broken when the cause is the test's
+own residue. Observed with 54 stale `contract-*` members; removing them by hand made the suite
+pass, which confirms the cause.
 
 `tests/test_schedule_live.py` already had the right shape, so the fix is to match it: a `_sweep`
 that deletes by key pattern **and** removes prefix-matching members from the index, running after
 each check and again in a `finally`. Sweeping by pattern rather than by returned ids is the
 substance of it, since a pattern covers what a raising check never got to report. The checks now
-return `None`, no caller wanting the ids. A sweep also runs before the first check, so a run that
-was killed outright heals the store instead of poisoning the next run. Prefix scoping is what
-keeps this safe on a shared server: real sessions are never matched, so unlike the schedule suite
+return `None`, since no caller uses the ids. A sweep also runs before the first check, so a run
+that was killed outright clears the store instead of leaving residue for the next run. Prefix
+scoping is what keeps this safe on a shared server: real sessions are never matched, so unlike the schedule suite
 this one still needs no skip.
 
 **Evidence (agent, Docker + real Redis).** Seeding 60 stale `contract-*` members reproduces the
@@ -353,7 +354,8 @@ be arbitrarily old by the time anyone looks: the body is resident in the tray, s
 once and may be days back, and the last turn may be older still. It now also refreshes on the
 **rising edge of visibility**, sharing the `useSummonEffect` latch with the reminder pull and
 the connection probe: one re-list per summon, none while the overlay merely changes shape, none
-while it is hidden. That is what a push would have been for, at the moment it can be seen.
+while it is hidden. The list is therefore refreshed at the moment the user can read it, which is
+what a push would have delivered.
 
 **Why the push itself is not deferred again: nothing can produce it.** Session history has
 exactly one writer, `ConversationEngine` inside a turn (`engine.py`); the schedule ticker
@@ -410,8 +412,8 @@ cortex can spend its whole generation budget thinking and emit **no** content: o
 produced 13,882 characters of `reasoning_content` and zero reply, so `generate_title` (which keeps
 only `TextChunk`, never `ReasoningChunk`) returned empty and the first-message derivation stood; a
 second case produced a clean `"Quick Vegetarian Dinner"`. The empty-fallback and the
-reasoning-filter are therefore proven correct live, and the finding is honest: reliable title
-*content* from a reasoning cortex wants thinking disabled or a small token budget for this one
+reasoning-filter are therefore proven correct live, and the finding stands: reliable title
+*content* from a reasoning cortex needs thinking disabled or a small token budget for this one
 call, which `InferenceBackend.stream` cannot yet express (no thinking-control or `max_tokens`
 param). That reopens as a consumer of the existing disable-thinking/token-budget inference
 deferral, not as new title work.
@@ -437,7 +439,7 @@ title-override, first-turn-only, empty-title, and reasoning-filter guards each m
 The deferred management surface ("session deletion / rename / pinning") lands, but as **rename
 only**. The three verbs are not one change: rename is a reversible metadata write and reuses a
 catalog write that already exists; pin reshapes the read path; delete is destructive and cannot
-yet be honest about what it destroys. So this slice ships rename end to end and records pin and
+yet state accurately what it destroys. So this slice ships rename end to end and records pin and
 delete as their own deferrals with what blocks each.
 
 **What "gated" means here, and why it is not the Confirmer.** The backlog framed these as "gated
@@ -473,13 +475,13 @@ bounded and cannot inject markup or a multi-line row.
   does not answer: whether a pinned chat escapes the recency `ZREVRANGE` window (the expected UX)
   and so must be unioned in, reshaping the tuned `list_sessions`. It is a genuine design change, not
   a drop-in, which is why it did not ride rename.
-- *Deletion.* Destructive and irreversible, and it cannot yet tell the truth about scope: a session
-  delete would remove the transcript and catalog entry, but **not** memories derived from that
+- *Deletion.* Destructive and irreversible, and its scope cannot yet be described accurately: a
+  session delete would remove the transcript and catalog entry, but **not** memories derived from that
   session, because `MemoryStore` is `add`/`search` only (no delete verb, a separately blocked
   backlog item). It also needs a tombstone-vs-hard-delete decision and an **overlay-local** confirm
   ("are you sure"), since the `SeamConfirmer` above does not fit a unary management RPC. Landing it
-  half-honest (implying a cascade it cannot perform) was rejected in favour of designing it with the
-  memory delete verb and the confirm surface.
+  partially, so that it implies a cascade it cannot perform, was rejected in favour of designing it
+  with the memory delete verb and the confirm surface.
 
 **Evidence (agent, Docker + real Redis).** A direct `RedisSessionStore` run through the orchestrator
 rename path showed the derived title (`about cats`) replaced by the chosen label
@@ -487,10 +489,11 @@ rename path showed the derived title (`about cats`) replaced by the chosen label
 chars and displayed at 49 (one line, `TITLE_MAX`), and an empty rename clearing the override back to
 the derivation; the `:messages` and `:title` keys are durable (no TTL) and the session stays in the
 `cortex:sessions` recency index. The live-Redis session contract suite is green. CI-gated at 100%
-across all three trees, with the rename write mutation-proven in each: the brain drops the clamp
-(over-long test reddens) and the write itself (spy test reddens) and aborts `UNAVAILABLE` on a store
-failure; the body refuses to retry it (`SeamMethod::RenameSession` not repeatable, and the
-one-attempt decorator test); the overlay writes then re-lists, and swallows a failed write.
+across all three trees, with the rename write mutation-proven in each: dropping the brain's clamp
+fails the over-long test, dropping the write itself fails the spy test, and a store failure aborts
+`UNAVAILABLE`; the body never retries it (`SeamMethod::RenameSession` not repeatable, and the
+one-attempt decorator test); the overlay writes then re-lists, and a failed write raises nothing to
+the user.
 
 ## Addendum (2026-07-16): the open-chat header carries the switcher's title, no proto change
 
@@ -536,11 +539,11 @@ locally. The only path today that opens such a chat is a reminder deep-link (`Re
 chat past `listSessions(50)`, and there the switcher shows no row for that chat either, so no
 header/switcher disagreement is user-visible. The `GetSessionMessages` title field remains the
 authoritative closure for that path (the same read path the reasoning-persistence deferral
-independently wants widened), deferred until a consumer that opens an out-of-window chat beside the
+independently needs widened), deferred until a consumer that opens an out-of-window chat beside the
 switcher exists.
 
 **Evidence.** Gated at 100% over fakes, the carry mutation-proven: reverting `headerTitle` to the
-local derivation reddens exactly the switcher-title tests in `openSession`, `adoptSession`, and the
+local derivation fails exactly the switcher-title tests in `openSession`, `adoptSession`, and the
 cold-start-adoption hook. Live-validated (agent, Docker + real Redis): a `RedisSessionStore` session
 whose stored `:title` differs from its first message listed with the brain title, and opening it
 over the real `GetSessionMessages` + the overlay reducer showed that same brain title in the header;
@@ -559,12 +562,12 @@ and it is idempotent. The deferral proposed a tombstone "so an in-flight read fa
 read against the code that reason does not hold: the read RPCs are stateless snapshots and an unknown
 session already reads as an empty `history`, so a deleted chat degrades to exactly that, with no
 in-flight id to protect. It is the same reasoning the same-day `MemoryStore.delete_scope` hard delete
-turned on, and a privacy-motivated "forget this chat" wants true erasure over a hidden-but-kept
+turned on, and a privacy-motivated "forget this chat" calls for true erasure rather than a hidden-but-kept
 transcript.
 
 **The cascade is off the turn path by construction.** The forget verb (`MemoryStore.delete_scope`)
-must never sit on the turn-facing `MemoryRecaller`, whose surface is record/recall so no tool or
-tainted turn can spell "forget everything" (pinned by
+must never sit on the turn-facing `MemoryRecaller`, whose surface is record/recall, so no tool or
+tainted turn can reach a forget verb at all (pinned by
 `test_the_recaller_exposes_no_forget_verb...`). So the cascade is a separate trusted
 `SessionMemoryCascade(store, scope)` (`cortex_core.memory_cascade`), holding the same `MemoryStore` +
 `MemoryScope` the recaller uses but exposing only `delete_session_memories(session_id)`, wired by the
@@ -575,7 +578,7 @@ so nothing session-private cascades. The `GLOBAL_SCOPE` guard is checked FIRST, 
 never be handed to `delete_scope` (which would erase every conversation's memory) even for a session
 whose id happens to equal `GLOBAL_SCOPE`. The handler deletes the session first (the visible chat is
 the user's primary intent), then cascades; a `SessionStoreError`/`MemoryStoreError` aborts
-`UNAVAILABLE`, and both steps being idempotent, a retry after a failure heals.
+`UNAVAILABLE`, and both steps being idempotent, a retry after a failure completes the deletion.
 
 **The gate is structural user-only reachability, and the confirm is overlay-local.** Exactly as
 rename: `DeleteSession` is a `BrainService` method the overlay drives out of band, no tool in any
@@ -593,10 +596,11 @@ deleted transcript is never rendered; deleting any other chat only drops its swi
 
 **Evidence.** CI-gated at 100% across all four trees, with the safety guards mutation-proven: the
 flagship one seeds a memory under `GLOBAL_SCOPE` and deletes a session named `GLOBAL_SCOPE` under
-session scoping, and dropping the first-checked `GLOBAL_SCOPE` guard reddens it (the shared memory is
-swept); dropping the cascade reddens the session-scoped forget test; dropping the `:title` removal
-leaves an orphan the raw-key test catches; making the current-chat branch skip its reset reddens the
-reducer test; making `DeleteSession` repeatable reddens the body's forward-without-retry test. Live
+session scoping, and dropping the first-checked `GLOBAL_SCOPE` guard fails it, the shared memory
+being swept. Dropping the cascade fails the session-scoped forget test; dropping the `:title`
+removal leaves an orphan the raw-key test catches; making the current-chat branch skip its reset
+fails the reducer test; making `DeleteSession` repeatable fails the body's forward-without-retry
+test. Live
 (agent, Docker + real Redis + pgvector): a seeded chat with messages, a title, and derived memories
 deleted through the real store left zero `cortex:session:{id}:*` keys and no recency member, its
 session-scoped memories gone, while a `GLOBAL_SCOPE` memory was untouched.
@@ -624,9 +628,9 @@ there, so the order cannot drift between them, pinned once by the shared contrac
 **Costs the "verb + field" framing hid.** The union is additive, so a heavily-pinned catalog lists
 more than `limit` (bounded by the small pinned set, a handful by construction). `delete` must also
 `SREM` the pinned member in its transactional pipeline, or a deleted-then-pinned id lingers as a
-dangling pin that forces a ghost into every listing; the contract check re-creates a deleted id and
-asserts it lists unpinned to pin that. `set_pinned(session_id, *, pinned)` is keyword-only (the
-repo's boolean-argument convention). `SessionSummary` gains a `pinned: bool = False` field across the
+dangling pin and every listing carries a row for a session that no longer exists; the contract
+check re-creates a deleted id and asserts it lists unpinned to pin that.
+`set_pinned(session_id, *, pinned)` is keyword-only (the repo's boolean-argument convention). `SessionSummary` gains a `pinned: bool = False` field across the
 proto and both stubs, and `summarize_ends`/`summarize_session` a `pinned=` parameter.
 
 **The gate and the retry classification.** `SetSessionPinned` is a new `BrainService` unary write with
@@ -647,12 +651,12 @@ cycling, and cold-start adoption, which now adopts the top pinned chat when any 
 
 **Evidence.** CI-gated at 100% across all four trees, with the union mutation-proven: the flagship
 contract check pins a chat older than a `limit=3` window and asserts it still lists above the recency
-group (removing the read-path union reddens `old in ids`); a pinned-and-recent chat is asserted to
-appear exactly once (removing the dedup reddens the count); over the raw keyspace, the pinned set
+group (removing the read-path union fails `old in ids`); a pinned-and-recent chat is asserted to
+appear exactly once (removing the dedup fails the count assertion); over the raw keyspace, the pinned set
 holds and drops its member, the union lifts a pinned old chat past the window in the exact order
 `["old", "n3", "n2", "n1"]`, and a dangling pinned entry is skipped; and the user-only path is pinned
-by a no-tool structural test. The body proves `SeamMethod::SetSessionPinned` is refused a retry
-however patient the plan. Live-validated (agent, Docker + real Redis): four chats seeded with the
+by a no-tool structural test. The body proves `SeamMethod::SetSessionPinned` is never retried,
+whatever the retry plan allows. Live-validated (agent, Docker + real Redis): four chats seeded with the
 oldest pinned and a `limit=3` listing returned the pinned old chat FIRST, above the three newer chats,
 exactly once, and unpinning dropped it back out of the window.
 
@@ -675,8 +679,8 @@ The switcher this ADR designed (decision list, "The switcher (`⌄`) shows the l
 carrying `role="listbox"`, and its rows do not satisfy that role. Each is an `<li>` holding four
 ordinary buttons (the row itself, then pin, rename and trash) with no `role="option"` anywhere, so
 the container announces a listbox whose required children are absent. Measured in Chromium at
-900x900 while giving the console's tab strip its keyboard half: one open switcher offers eight tab
-stops across two rows.
+900x900 during the pass that added the keyboard half of the console's tab strip: one open switcher
+offers eight tab stops across two rows.
 
 No code changed here, and none should until the shape is chosen, because there are two and they lead
 different places. Either the rows become options and the list becomes one tab stop moved through
@@ -698,7 +702,7 @@ The question above was answered the same day it was written down. The user chose
 behaves like, with all four buttons per row still individually reachable and `Ctrl+↑` and `Ctrl+↓`
 untouched, being an application-wide cycle rather than movement inside a list. The rows needed no
 role written on them, the implicit list and listitem semantics returning as soon as the container
-stopped claiming to be something else.
+no longer declared a different one.
 
 One addition came with the removal, and it belongs to this ADR's design rather than to the pass that
 found the mismatch. The switcher marks the chat that is open, and it marked it with a background
@@ -717,12 +721,12 @@ recorded in [refinements/index.md#body-overlay](../refinements/index.md#body-ove
 ## Addendum (2026-08-03): one bound governs a title's length, and a gate now holds the two copies
 
 `TITLE_MAX` was 48 in the brain and 32 in the overlay, and the comment above the brain's
-declaration claimed the overlay "applies the same rule and is kept documented in step". It did
+declaration said the overlay "applies the same rule and is kept documented in step". It did
 not. The header-title carry above records the same gap as one of the three disagreements it
 closed, and read against the code that claim was too broad: the carry covers `openSession` and
 `adoptSession`, so it closed the gap for a chat being **loaded**, and left it open for the chat
-being **had**, whose header `turnState.submit` writes from the local derivation and never
-revisits. The overlay is now 48 as well, and `scripts/crosscheck.py` holds the two declarations
+**currently in progress**, whose header `turnState.submit` writes from the local derivation and
+never revisits. The overlay is now 48 as well, and `scripts/crosscheck.py` holds the two declarations
 equal, which is the third entry in that gate's registry and the first in TypeScript.
 
 **What governs a title's length at each surface.** Every path below ends at one of two functions,
@@ -763,7 +767,7 @@ could honestly differ is if the header had less room than a switcher row. Measur
 a 900x900 viewport, it has more: the header's title box is 339px and fits 42 characters of the
 sample string, while a switcher row's is 314px and fits 39, the header being the wider of the two
 despite carrying four buttons and two indicators, because a row spends width on a reserved
-timestamp column. So the shorter bound was answering nothing. 48 is also not a new number, which is
+timestamp column. So the shorter bound had no justification. 48 is also not a new number, which is
 what keeps this a removal rather than an invention: it is the bound already governing every title
 the brain lists, and the only titles the brain does not list are the two the overlay derives
 locally, a chat's own first turn and an out-of-window deep link.
@@ -785,11 +789,11 @@ at column 0 so a function-local one is not mistaken for it, with an optional typ
 the pair as its third registered constant. Proved to fail before it was trusted: with the overlay
 alone set back to 32, `python3 scripts/crosscheck.py --root .` exits 1 naming both sites and both
 values. Each side also pins its own literal, `test_the_title_bound_is_forty_eight_characters` in
-the brain and the reducer's title tests in the overlay, so an edit to one constant alone reddens a
-suite and an edit to a constant and its pin together reddens the gate.
+the brain and the reducer's title tests in the overlay, so an edit to one constant alone fails a
+suite and an edit to a constant and its pin together fails the gate.
 
 **Evidence.** `just check` green over the whole repo. Mutation-proven in the overlay: setting
-`TITLE_MAX` back to 32 reddens both the truncation test and the new
+`TITLE_MAX` back to 32 fails both the truncation test and the new
 `titles a fresh chat exactly as the brain will title it once the chat is listed`, which asserts
 the submit-path header equals the `SessionSummary.title` the brain sends for the same first
 message. Browser-validated as measured above.
@@ -803,7 +807,8 @@ the run fails over a correct adapter. It sized that residual against
 `check_list_sessions_orders_and_summarizes` and its `limit=50` window, which needs fifty real
 sessions. The pinning addendum then landed
 `check_a_pinned_chat_escapes_the_recency_window`, whose `limit=3` window needs three, and the
-residual was never resized. Sixteen real sessions later it bit, exactly as written.
+residual was never resized. Sixteen real sessions later the run failed, exactly as the residual
+described.
 
 It is fixed where it belongs, in the test runner rather than in this seam: the live runs now
 select a Redis logical database of their own, so every check starts from the empty store the
@@ -818,19 +823,19 @@ it rejected, and the evidence are in the
 The titles addendum above shipped the feature off by default for two reasons and named the second
 as waiting on the inference port: a reasoning cortex can spend its whole budget thinking and emit
 no content at all (one live case produced 13,882 characters of `reasoning_content` and zero reply,
-so the first-message derivation stood), and reliable title content wanted thinking disabled or a
+so the first-message derivation stood), and reliable title content needed thinking disabled or a
 token budget, which `InferenceBackend.stream` could not express. It can now, and this is that
 consumer arriving.
 
-`generate_title` sends `TITLE_BOUNDS`, which is `max_tokens=32, thinking=False`. The two ride
-together because either alone is worse than neither: the cap exists so nothing else has to bound
-the request (`clean_title` cuts the stored text only after the model has spoken), and the switch
-exists because a model that deliberates first reaches a cap sized from the answer with the answer
-still unwritten. Measured on the shipped cortex over one title prompt, that is not the fold's coin
-flip but a certainty, three times in three at each of 16, 32 and 64 tokens: `finish_reason:
-"length"`, and an empty reply.
+`generate_title` sends `TITLE_BOUNDS`, which is `max_tokens=32, thinking=False`. The two are sent
+together because either one alone performs worse than sending neither: the cap exists so nothing
+else has to bound the request (`clean_title` cuts the stored text only after the model has
+answered), and the switch exists because a model that deliberates first reaches a cap sized for the
+answer while the answer is still unwritten. Measured on the shipped cortex over one title prompt,
+that failure is not occasional the way the fold's is: it occurred three times in three at each of
+16, 32 and 64 tokens, with `finish_reason: "length"` and an empty reply.
 
-32 is `TITLE_MAX` said in the request's own unit with room to spare, 48 characters being 12 tokens
+32 is `TITLE_MAX` expressed in tokens with room to spare, 48 characters being 12 tokens
 at the roughly 4 characters per token this repo's budgets assume. **Running into it cannot change
 a stored title**, because a reply that reaches 32 tokens has already written past the 48 characters
 `clean_title` keeps, so the cut lands beyond the stored text; and the failure that remains, an
@@ -846,6 +851,6 @@ the sibling change to the recall rank are in the
 `packages/inference/tests/test_session_title_live.py`, integration-marked.
 
 **`CORTEX_GENERATE_TITLES` still ships off.** The reason that survives is the first one, that this
-is an extra inference call per new session on a shared GPU; it is simply a cheap one now. What is
+is an extra inference call per new session on a shared GPU; it is now a cheap one. What is
 closed is the second reason, and with it the recorded deferral of reliable content on a reasoning
 cortex.

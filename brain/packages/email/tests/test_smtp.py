@@ -166,9 +166,9 @@ def test_enabling_send_with_credentials_validates(monkeypatch: pytest.MonkeyPatc
 def test_the_smtp_prefixed_enable_name_is_not_a_second_channel(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Distrust green: prove CORTEX_EMAIL_SMTP_ENABLED does NOT enable send. The one switch
-    # is CORTEX_EMAIL_SEND_ENABLED, so a stray prefixed var can't silently open the outbound
-    # path (ADR-0022; no validate_by_name on SmtpConfig).
+    # CORTEX_EMAIL_SMTP_ENABLED does not enable send. The one switch is CORTEX_EMAIL_SEND_ENABLED,
+    # so a stray prefixed variable cannot open the outbound path without anyone noticing
+    # (ADR-0022; no validate_by_name on SmtpConfig).
     monkeypatch.setenv("CORTEX_EMAIL_SMTP_ENABLED", "true")
     monkeypatch.setenv("CORTEX_EMAIL_SMTP_USER", "me@example.com")
     monkeypatch.setenv("CORTEX_EMAIL_SMTP_PASSWORD", "pw")
@@ -304,7 +304,8 @@ def test_send_carries_the_maximum_attachment_count(monkeypatch: pytest.MonkeyPat
 
 
 def test_send_refuses_more_attachments_than_the_cap(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Refused, not truncated: a dropped attachment is a send the user approved and did not get.
+    # An oversized set is refused rather than truncated, because a dropped attachment would be a
+    # send the user approved and did not get.
     client = _FakeSmtp()
     _patch(monkeypatch, client, "starttls")
     with pytest.raises(ValueError, match=f"at most {MAX_ATTACHMENTS} attachments"):

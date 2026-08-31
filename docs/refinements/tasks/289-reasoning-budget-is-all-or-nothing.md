@@ -32,20 +32,20 @@ characters of answer under a budget of 128.
 `CORTEX_REASONING_BUDGET_BRAIN` rendering llama.cpp's own flag onto the tier's argv, with `-1` the
 default and no flag emitted at all. Nothing crosses `InferenceBackend`: the engine reads the budget
 per server and ignores it on a request, measured in both directions, so the port keeps saying
-whether a request wants deliberation while the tier says how long a wanted one may be.
+whether a request asks for deliberation while the tier says how long a requested one may be.
 
 ## Trail
 
-- 2026-08-16: Opened by the capped-reply landing, which measured the trace as the whole of the
-  wait and then found no way to bound it separately. The two levers that did land,
-  `CORTEX_REPLY_THINKING` and `CORTEX_REPLY_MAX_TOKENS`, are the ends of the dial this entry wants
-  a middle of ([119-disable-thinking-token-budget.md](119-disable-thinking-token-budget.md)).
+- 2026-08-16: Opened by the capped-reply landing, which measured the trace as the whole of the wait
+  and then found no way to bound it separately. The two levers that did land,
+  `CORTEX_REPLY_THINKING` and `CORTEX_REPLY_MAX_TOKENS`, are the ends of the dial this entry needs a
+  middle of ([119-disable-thinking-token-budget.md](119-disable-thinking-token-budget.md)).
 - 2026-08-17: Landed as a per-tier trace budget, after re-deriving the engine claim this entry
   rested on and finding it false: `--reasoning-budget` reads `N > 0` as a token budget on the image
-  this repo runs, and `0` works too, so the lever the entry waited for was already in the box. The
+  this repo runs, and `0` works too, so the lever the entry waited for was already available. The
   measured dial and the argument for keeping it out of the port are in the
   [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) trace-budget addendum. What the close opens is
   that one tier still has one budget
-  ([295-per-request-trace-budget.md](295-per-request-trace-budget.md)) and that what a bounded
-  trace costs a hard answer is unmeasured
+  ([295-per-request-trace-budget.md](295-per-request-trace-budget.md)) and that what a bounded trace
+  costs a hard answer is unmeasured
   ([296-trace-budget-quality-floor.md](296-trace-budget-quality-floor.md)).

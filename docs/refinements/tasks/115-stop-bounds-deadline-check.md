@@ -15,7 +15,7 @@ what is deferred is **enforcement**, not the knowledge. It was left unenforced b
 sides are separate processes' env and neither can read the other's, which is the reason the
 original landing gave. That reason is now weaker in one direction: `GET /health` reports the two
 stop bounds the daemon was actually given, so the brain **could** read them at wiring time and
-refuse to boot (or log loudly) when its own deadline does not clear their sum plus the probe
+fail at boot (or log a warning) when its own deadline does not clear their sum plus the probe
 timeout. **What would close it:** the probe timeout on that same body (it belongs to the health
 probe's client rather than to the supervisor, so it needs a small widening of what the daemon
 reports), and a check in `swap_builders.build_control_client` that fails closed exactly as the
@@ -41,7 +41,7 @@ before the seam serves. What it deliberately does not do is raise, so the real q
 whether to make a tolerant boot dependency fatal, and the answer is only for an **answered**
 mismatch: an unreachable host is logged at warning and let through (a restart policy heals it), a
 host reporting no bounds is the scripted twin, and a static mispairing that no restart can heal
-refuses to serve, since its failure is otherwise intermittent (a stop pays the whole grace only
+stops the runtime from serving, since its failure is otherwise intermittent (a stop pays the whole grace only
 when the tier it evicts was busy). The one staleness left, a sidecar that restarts under a
 running brain with different env, is the same staleness with the same fix as the residency entry
 above and is folded into it rather than counted as a new deferral.
@@ -59,7 +59,7 @@ above and is folded into it rather than counted as a new deferral.
 - 2026-08-09: Landed ahead of its own trigger and its line in the index's fix-when-it-bites bucket
   was struck, its account of the code re-derived first and held: the third term joined the health
   body, the three became one core value with the rule as a method on it, a fifth `ModelHost` verb
-  reads them back, and the composition root refuses to serve on an answered mismatch while an
+  reads them back, and the composition root fails on an answered mismatch while an
   unreachable sidecar stays tolerated exactly as boot recovery already argued it must be. One out
   and none in, the one staleness left having been folded into the residency entry that shares its
   cause and its fix.

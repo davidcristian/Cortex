@@ -8,7 +8,7 @@ It was recorded inside the model-independent output guardrail entry, in its list
 behind the same seam (ADR-0015 deferred). The fragment, verbatim: footer/boilerplate heuristics
 (screening-model territory).
 
-**Declined, and the finding is that the fragment names two questions wearing one word, neither of
+**Declined, and the finding is that the fragment names two questions under one word, neither of
 them this guardrail's.** Re-derived against the tree rather than against the note, its ground is
 already divided: a clickable number is in scope (`tel:` is a matched scheme), a link in a footer was
 never treated differently from a link anywhere else, a bare number in prose is out on the standing

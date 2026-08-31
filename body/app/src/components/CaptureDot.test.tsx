@@ -10,15 +10,15 @@ describe("CaptureDot", () => {
   it("says only that the assistant asked, until an outcome proves more", () => {
     render(<CaptureDot claim="asked" />);
     const dot = screen.getByRole("status");
-    // Pinned against the literal: this is a consent surface, and what it says IS the feature.
-    // "asked to look" rather than "looked" is the load-bearing part of this rung. It is what a
-    // capture the host refused, one whose self-exclusion failed closed, one the body never
-    // answered, and a gated one the user declined all leave on screen, so a label claiming the
-    // screen was read would be a false statement in every one of them.
+    // Asserted against the exact string, because this is a consent surface and its wording is what
+    // it delivers. "asked to look" rather than "looked" is the whole of this level's claim: a
+    // capture the host refused, one whose self-exclusion failed closed, one the body never answered,
+    // and a gated one the user declined all leave this label on screen, so a label claiming the
+    // screen was read would be false in every one of them.
     expect(dot).toHaveAttribute("aria-label", ASKED);
     expect(dot).toHaveAttribute("title", ASKED);
     expect(dot.getAttribute("aria-label")).not.toContain("looked at your screen");
-    // Ring only: the eye is shut until the dispatch says otherwise.
+    // The ring alone, with no centre, until the dispatch reports an outcome.
     expect(dot.className).toBe("capturedot");
   });
 
@@ -27,10 +27,10 @@ describe("CaptureDot", () => {
     const dot = screen.getByRole("status");
     expect(dot).toHaveAttribute("aria-label", READ);
     expect(dot).toHaveAttribute("title", READ);
-    // And it no longer hedges: the seam proved the pixels reached the model.
+    // The claim is now unqualified, because the seam reported that the capture reached the model.
     expect(dot.getAttribute("aria-label")).not.toContain("asked");
-    // The ring opens its eye rather than filling in, which would make it the connection dot's
-    // amber twin sitting right beside it.
+    // The ring gains a centre rather than filling in solid, which would make it look like a second
+    // connection dot beside the real one.
     expect(dot.className).toBe("capturedot read");
   });
 

@@ -83,9 +83,9 @@ async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> None
 
     It filters the global list down to the two sessions it created, then asserts their
     relative order and summaries, the filtered sublist of a sorted list being sorted too.
-    Filtering is belt and braces now that both runners start it from an empty store: what
-    actually broke this check was being crowded out of the `limit=50` window by more-recent
-    sessions it never created, which no filter can survive and only an empty store prevents
+    Filtering is redundant now that both runners start it from an empty store. What used to
+    break this check was being crowded out of the `limit=50` window by more-recent sessions it
+    never created, which no filter can survive and only an empty store prevents
     (see tests/live_redis.py)."""
     older, newer = _session_id(), _session_id()
     early = datetime(2026, 7, 3, 9, 0, tzinfo=UTC)
@@ -109,9 +109,9 @@ async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> None
 async def check_set_title_overrides_the_first_message(store: SessionStore) -> None:
     """A stored title wins over the first-message derivation; the preview is unaffected.
 
-    Proves both stores honor ``set_title`` behind the port (ADR-0021 titles addendum): the
-    override replaces only the title, a later call overwrites it, and it survives being read
-    back through ``list_sessions``. It filters to its own id, so the read names one row.
+    Both stores implement ``set_title`` behind the port (ADR-0021 titles addendum): the override
+    replaces only the title, a later call overwrites it, and it survives being read back through
+    ``list_sessions``. The check filters to its own id, so the read names one row.
     """
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "a rambly first question about cats"))
@@ -190,12 +190,13 @@ async def check_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> 
 async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) -> None:
     """A pinned chat OLDER than the recency window still lists, above the recency group.
 
-    This is the whole point of pinning (ADR-0021 pinning addendum), and the flagship distrust-green
-    check: with a window of three and three newer chats, the old chat is crowded out of recency and
-    appears ONLY because it is pinned. Removing the read-path union (so ``list_sessions`` returns
-    just the recency window) reddens the ``old in ids`` assertion. Its three newer chats have to BE
-    the window, which is the assumption no filtering can rescue and the reason the live run gets a
-    database of its own rather than a share of the brain's (tests/live_redis.py).
+    This is the whole point of pinning (ADR-0021 pinning addendum), and the clearest case that
+    this suite can fail: with a window of three and three newer chats, the old chat is crowded out
+    of recency and appears ONLY because it is pinned. Removing the read-path union, so that
+    ``list_sessions`` returns just the recency window, makes the ``old in ids`` assertion fail.
+    Its three newer chats have to BE the window, which is the assumption no filtering can rescue
+    and the reason the live run gets a database of its own rather than a share of the brain's
+    (tests/live_redis.py).
     """
     old = _session_id()
     newer = [_session_id() for _ in range(3)]
@@ -226,8 +227,9 @@ async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) ->
 async def check_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> None:
     """A chat both pinned AND inside the recency window appears exactly once (pinning addendum).
 
-    The union deduplicates ids before fetching, so a pinned-and-recent chat is one row, not two.
-    Removing the dedup (concatenating the window and the pinned set) reddens the count assertion.
+    The union deduplicates ids before fetching, so a pinned-and-recent chat is one row rather than
+    two. Removing the dedup, by concatenating the window and the pinned set, makes the count
+    assertion fail.
     """
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "pinned and recent"))
@@ -239,7 +241,7 @@ async def check_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> N
 
 
 async def check_append_refuses_an_image_bearing_message(store: SessionStore) -> None:
-    """No store ever persists pixels (ADR-0029): they are turn-local and die with the turn.
+    """No store persists pixels (ADR-0029); images are turn-local and go away with the turn.
 
     ``Message`` already refuses images on every role but ``TOOL``, so the message this check builds
     is the one a caller could plausibly reach a store with: the ``Role.TOOL`` message the tool

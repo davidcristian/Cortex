@@ -33,8 +33,8 @@ both `addopts` carry `--cov-fail-under=100` and a randomized run inherits it. Th
 than the check recorded above in two ways: the whole brain workspace at every seed rather than
 `packages/core` at three seeds and the workspace once, and the `scripts/` suite, which had never
 been shuffled at all. That workspace has also grown from the 1642 tests this entry records to
-2306, which is the other reason not to carry an old verdict forward. The shuffle was doing
-something, proven the same way it was the first time: `--collect-only` under seeds 2 and 3 lists
+2306, which is the other reason not to carry an old verdict forward. The shuffle moved the order,
+proven the same way it was the first time: `--collect-only` under seeds 2 and 3 lists
 the same 2306 node ids with **not one** in the same position, and under seeds 1 and 2 the
 `scripts/` suite lists the same 400 with 2 in the same position.
 
@@ -46,7 +46,7 @@ so neither is in the tree today, and the second kind turns out to have no reacha
 either suite: the only draw in the whole of the gated Python is `scripts/contrast.py:161`, whose
 bootstrap resampler is a `random.Random(seed)` instance of its own rather than the module global
 the plugin reseeds (its tests pass the seed explicitly and assert the interval is a function of
-it), and the one place that wants unpredictability, the per-turn marker id in
+it), and the one place that needs unpredictability, the per-turn marker id in
 `cortex_core.untrusted`, draws from `secrets.token_hex`, which no seed reaches. So the cost this
 entry weighs against adoption is really its first half alone, a different order every run and a
 seed to recover from the log.
@@ -73,14 +73,14 @@ seed does not re-draw as the suite grows**, which both earlier passes assumed it
 turns out to be the opposite of true: adding a file left the other 578 `scripts/` node ids in the
 same relative order, and growing an isolated module from eight tests to nine inserted the ninth and
 left the eight in theirs. The order is per item and stable. So the middle option those passes named
-and dismissed is not one lottery ticket held forever; it is an order in which every new test draws
+and dismissed is not a single order frozen forever: it is an order in which every new test draws
 its own position once, against everything already there, which is exactly the moment this entry's
-trigger describes, and it does it with a red that always reproduces. That is what landed:
+trigger describes, and its failures always reproduce. That is what landed:
 `pytest-randomly` in both dev groups with a fixed `--randomly-seed` in each `addopts`, `sequence:
 { shuffle: true, seed: N }` in `body/app/vite.config.ts`, and `just shuffle [seed]` for the
 deliberate sweep over the orders a fixed seed never draws.
 
-The cost this entry weighed is paid rather than avoided: the standing draw is a coin flip per pair,
+The cost this entry weighed is paid rather than avoided: the standing draw is about even per pair,
 measured at 11 of 20 seeds on a planted dependency, and the first plant written did not fire at the
 frozen seed until its two tests were renamed. What is left over is written down as
 [R-287](287-rust-tests-run-in-one-fixed-order.md), the Rust suite that this decision does not
@@ -108,7 +108,7 @@ reach, and [R-288](288-nothing-schedules-the-shuffle-sweep.md), the sweep that n
 - 2026-08-16: closed by measuring a third time, adding the overlay's Vitest suite to the scope and
   correcting 2306 to 2576 and 400 to 578. Fifteen shuffled runs, all green, so the trigger has
   still never fired; what changed the verdict is that a fixed seed was measured to keep its order
-  stable as the suite grows, which makes it a draw per new test rather than the frozen lottery both
+  stable as the suite grows, which makes it a draw per new test rather than the frozen order both
   earlier passes took it for. The shuffle is standing under a fixed seed in all three suites, with
   `just shuffle` for the sweep, proved able to fail by a planted pair in `scripts/` and another in
   the overlay. It opened [R-287](287-rust-tests-run-in-one-fixed-order.md) and

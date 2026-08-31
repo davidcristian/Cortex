@@ -5,9 +5,9 @@ confirmation is turn-local by construction: it lives only in the awaiting corout
 denied on timeout, and dies (as a denial) with the stream. Nothing is persisted and nothing
 survives the turn; re-asking is the recovery from any interruption (the one hard rule).
 
-The request rides the stream's **control path** (the emit callback is the queue's
+The request goes out on the stream's control path (the emit callback is the queue's
 ``put_nowait``, bypassing the data-credit semaphore exactly like the terminal ``SeamError``):
-the turn task is suspended *inside* the dispatcher awaiting the answer, so a credit-acquired
+the turn task is suspended inside the dispatcher awaiting the answer, so a credit-acquired
 put could deadlock against a stalled consumer. At most one confirmation is outstanding per
 stream (turns are sequential, the tool loop is sequential, subagents cannot confirm per
 ADR-0013), so the unbounded queue grows by at most two control events per confirmation.
@@ -16,7 +16,7 @@ The second is ``ConfirmResolved`` (ADR-0022 resolution addendum), emitted on the
 for the two endings the overlay cannot see for itself: the timeout, and client input ending.
 An answered request emits none (the client authored that answer and closed its own card), a
 cancelled one emits none (the turn is dying, and its terminal event closes the card), and an
-ask refused after ``close`` emits none because it emitted no request either.
+ask denied after ``close`` emits none because it emitted no request either.
 """
 
 import asyncio

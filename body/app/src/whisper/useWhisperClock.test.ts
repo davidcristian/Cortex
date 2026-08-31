@@ -122,10 +122,10 @@ describe("useWhisperClock", () => {
     tick(300);
     tick(400);
     expect(result.current).toBe("talking");
-    // The first letter is condensing (fractional opacity and blur, written inline)...
+    // The first letter is condensing (fractional opacity and blur, written inline),
     expect(Number.parseFloat(letters[0]!.style.opacity)).toBeGreaterThan(0);
     expect(letters[0]!.style.filter).toContain("blur");
-    // ...while a letter of the held trailing word stays exactly as the class left it.
+    // while a letter of the held trailing word stays exactly as the class left it.
     expect(letters[11]!.style.opacity).toBe("");
     // A tick with nothing new arrived keeps the collected list (the cheap branch).
     tick(416);
@@ -365,7 +365,7 @@ describe("useWhisperClock", () => {
     expect(bubble.style.width).toBe("142px");
     expect(bubble.style.height).toBe("42px");
     expect(grew).toHaveBeenCalled();
-    // And it is a pose, not a restart: nothing was scheduled.
+    // It is a pose rather than a restart: nothing was scheduled.
     expect(request.mock.calls.length).toBe(scheduled);
   });
 

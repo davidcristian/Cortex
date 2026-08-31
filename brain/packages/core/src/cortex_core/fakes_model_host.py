@@ -34,10 +34,10 @@ class ScriptedModelHost:
     while a paused ``stop`` has genuinely stopped its model, which is what makes a kill at that
     boundary the honest analogue of a process death after the eviction.
 
-    ``device_memory`` is the card this twin claims to sit beside, and ``None`` (the default) is
-    the honest answer for a twin that starts no process on any GPU: it says "this host cannot see
-    a card", which is what the scripted backend genuinely cannot. A test that needs a swap to get
-    past a fit check hands it a reading, and one that needs the fail-closed path leaves it out.
+    ``device_memory`` is the card this twin stands beside, and ``None`` (the default) is the
+    truthful answer for a twin that starts no process on any GPU: it reports that this host sees
+    no card, which the scripted backend genuinely does not. A test that needs a swap to get past
+    a fit check hands it a reading, and one that needs the fail-closed path leaves it out.
     The reading is a fixed value rather than a ledger over ``running``, deliberately: this twin
     models the port, and modelling VRAM arithmetic here would invent numbers no measurement
     backs.

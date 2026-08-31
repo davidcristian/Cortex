@@ -114,7 +114,7 @@ assumption and lowered the trigger to three, without the recorded residual being
 **The other two suites had answered the same hazard by going quiet.** The handoff suite skipped
 whenever a real handoff was active, and the schedule suite skipped the moment a single real
 schedule existed, both because their checks assert exact global views. A skip is the same broken
-signal wearing the other mask: it reports green having asserted nothing, and it gets more likely
+signal in the other form: it reports green having asserted nothing, and it gets more likely
 exactly as the machine gets more real state on it.
 
 **Decision: the live runs select their own Redis logical database.** Redis serves sixteen
@@ -155,8 +155,8 @@ prefix sweeps exist to avoid. Leaving the skips in place keeps two suites that a
 **Evidence (agent, Docker plus the real compose Redis, 2026-08-03).** With the sixteen real
 sessions still present, `uv run pytest -m integration --no-cov packages/session` goes from one
 failure to `3 passed`, and database 0 is byte-identical across the run (18 keys and 16 recency
-members before and after) while database 15 is left empty. The check still has teeth: deleting
-the pinned union from `RedisSessionStore.list_sessions` (`ids = recency_ids` alone) reddens
+members before and after) while database 15 is left empty. The check still detects the defect:
+deleting the pinned union from `RedisSessionStore.list_sessions` (`ids = recency_ids` alone) fails
 `assert old in ids` at `contract.py:207`, which is the assertion the pinning addendum said it
 should. Both guards were fired rather than reasoned about: `CORTEX_REDIS_URL=redis://127.0.0.1:6379/15`
 fails the run with `selects database 15, which the live contract runs reserve and empty`, and
@@ -172,7 +172,7 @@ or a schema plus `search_path`, and `docker/postgres/init.sql` applied to it):
 `memory_contract.check_empty_search` asserts `search(k=5) == []` over the whole `memories` table
 and `check_ranks_by_similarity` asserts an exact top-2, both of which hold today only because
 that table happens to be empty. That was measured rather than assumed: with Postgres up and the
-table empty the suite passes, and inserting a single real (non `contract-`) memory row reddens
+table empty the suite passes, and inserting a single real (non `contract-`) memory row fails
 `check_empty_search` at `memory_contract.py:36` with no code changed. Recorded in
 [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates).
 
@@ -184,7 +184,7 @@ because Postgres has no numbered-database equivalent of Redis's `SELECT n`.
 
 **The failure, reproduced before it was fixed.** With the compose Postgres up and the `memories`
 table empty, `uv run pytest -m integration --no-cov packages/memory` passed. Inserting one real
-(non `contract-`) row, `the user takes their coffee black`, turned it red at
+(non `contract-`) row, `the user takes their coffee black`, made it fail at
 `memory_contract.py:36`, `assert list(await store.search((1.0, 0.0, 0.0), k=5)) == []`, with no
 code changed. So the suite was reporting on the table's contents, and the first memory the brain
 actually recorded would have blamed a correct adapter. It had stayed green only because this
@@ -256,8 +256,8 @@ statements. The initdb path was proven on a fresh data dir rather than assumed, 
 same compose up under a throwaway project name: the entrypoint logs
 `running /docker-entrypoint-initdb.d/live-contract-db.sql`, `\l` lists `cortex_contract`, and
 `\dx vector` plus `\d memories` show the extension, the six columns, and `memories_scope_idx`. The
-suite still has teeth in its new database: reporting the score as raw distance rather than
-`1 - distance` reddens `check_ranks_by_similarity` at `assert hits[0].score > hits[1].score`.
+suite still detects a defect in its new database: reporting the score as raw distance rather than
+`1 - distance` fails `check_ranks_by_similarity` at `assert hits[0].score > hits[1].score`.
 
 **Known limits.** A schema change to `init.sql` now has two databases to reach on an existing data
 dir, not one; the runbook's upgrade section says so, and both get the same `ALTER TABLE ... IF NOT
@@ -551,7 +551,7 @@ the argument, which costs milliseconds and spares the recipe a temp file to carr
 two shells.
 
 **What this closes of that entry, and what it does not.** Something reads the printed versions now,
-and the reading is load-bearing rather than decorative: the attribution is a required field of the
+and the reading affects the verdict rather than being decorative: the attribution is a required field of the
 input, so it cannot be lost by editing a recipe. The stamp shape that entry costed wanted the last
 green toolchain in the gate's own output rather than in a log, and that is what a green run now
 prints, obtained from the artifact the gate already reads. Cross-side comparison stays declined on
@@ -705,8 +705,8 @@ the property (it runs a committed recipe, not a hand-typed command list) and bre
 on purpose: it gates nothing, is required by nothing, and cannot block a merge or a push. Adding a
 `schedule:` trigger to ci.yml instead would have been worse than untidy. That workflow's `changes`
 job classifies a diff range, a scheduled run has none, and the fail-closed default is to run all
-three toolchains, so the sweep would have arrived as a second full run of the gate wearing the
-name of a sweep.
+three toolchains, so the sweep would have arrived as a second full run of the gate under the name
+of a sweep.
 
 **It sweeps all four arms, not the two the narrowing left open.** The Rust arm is not redundant, by
 the argument above about a binary that has stopped growing. And carving the recipe down to the two
@@ -859,8 +859,8 @@ lines later to yield nothing. That line runs in `body/` in a shell of its own, s
 half of the argument. (**The distance is corrected here**, having been written as two lines. The
 tool probe, the instrumented run and a `uv sync` stand between the compiler probe and the relay,
 which is four lines and not two. Nothing in the argument turns on the number, and a distance
-written down wrong is still written down wrong.) The load-bearing half is that both relays are
-filled on **one** recipe line, by two command substitutions in one shell with one working directory
+written down wrong is still written down wrong.) The half the argument rests on is that both relays
+are filled on **one** recipe line, by two command substitutions in one shell with one working directory
 and one toolchain resolution:
 
 ```
@@ -894,8 +894,9 @@ argparse's own usage error.
 
 ## Addendum (2026-08-20, later): a mutation table is a self report until somebody replays it
 
-This record's most valuable habit is the mutation table: a change says which edits it reddens and
-how many cases each one takes down, which is what distrusting green amounts to in practice. A
+This record's most valuable habit is the mutation table: a change says which edits make the suite
+fail and how many cases each one takes down, which is what distrusting green amounts to in
+practice. A
 close-out review of a fourteen change run observed the obvious thing about all of them at once.
 Not one table had been re-run by anybody other than the agent that wrote it.
 
@@ -903,7 +904,7 @@ A mutation count is a claim that the suite would have caught something, and its 
 a tree that no longer exists, since the tree that survives is the unmutated one. After the fact the
 claim is unfalsifiable without redoing the work: reconstruct the edit from the sentence describing
 it, apply it, run the suite. Where the sentence names the file and the exact edit that is minutes.
-Where it says something like "reverting the way out reddens six" it is a reading exercise first. Two
+Where it says something like "reverting the way out fails six" it is a reading exercise first. Two
 of the run's messages state that every mutation was read back off disk before its result was
 trusted, which is the discipline the tables rest on and is itself a self report; the review was
 told, and did not measure, that at least one table had first been trusted off an edit that landed
@@ -934,7 +935,7 @@ and compared byte for byte against the pre-mutation file before the next one was
 | asserting the deadline clamp the abandonment case describes | 3 | 4, 4, 4 over the file's seven cases | 4, 4, 4, the named wire case among them each time | 4 min |
 | withholding a credential before the bound cuts it away | 5 | the credential case, the same one, six, the value that grows under withholding, six | 1, 1, 6, 1, 6, each named case the one named | 10 min |
 | letting a failed turn name itself | 5 | 5, 5, 3, 27, 1 | 5, 5, 3, 27, 1 over the whole brain suite | 15 min |
-| holding the heading gate to the sentences it prints | 14 | all fourteen green before at 41 passed, all fourteen red after, the two on the shared remedy reddening six at once | exactly that, twelve reddening one and two reddening six | 4 min |
+| holding the heading gate to the sentences it prints | 14 | all fourteen green before at 41 passed, all fourteen red after, the two on the shared remedy failing six at once | exactly that, twelve failing one and two failing six | 4 min |
 | tying every compose default that restates a declaration | 5 of 27 | each of twenty six planted drifts exits 1 naming its entry, and a suite guard names its case | all five, including `found 1, pinned 2` on the override row and the named case on the suite guard | 6 min |
 
 The paired claim on the first row was replayed too: all three constants were run against the wire
@@ -950,8 +951,8 @@ value and its new one on every row, and the heading gate table names its constan
 and its suite by its size, at 41 passed. Replaying any of them is mechanical. The two expensive
 ones name none of the three, and the file and the edit were recovered from the commit's own diff in
 both cases, because a mutation is always a perturbation of a line the change itself touched. The
-suite is the one fact the diff does not carry. `reddens 27` was reproduced over the whole brain
-suite at 2,786 cases; a reader who guessed the package, or the file, would have got a different
+suite is the one fact the diff does not carry. The row claiming 27 failures was reproduced over the
+whole brain suite at 2,786 cases; a reader who guessed the package, or the file, would have got a different
 number and concluded the table was wrong. So the requirement worth writing down is narrower than
 the entry proposed and is now in AGENTS.md beside imperative mood, as a rule no machine checks: a
 mutation table names the suite its counts are over.
@@ -967,6 +968,11 @@ a change whose body says there is no assertion to prove able to fail, meaning th
 output would be a false accusation against a message that correctly declares it carries no table.
 A gate that can be satisfied by naming any file at all, while refusing most honest messages and
 accusing one that told the truth, is the shape this record has declined before.
+
+A later note on those two numbers, 2026-08-31: the vocabulary they count has since been retired
+across the repo, so `reddens` now appears in no commit body at all. The reading above stands as a
+dated one and the decision rests on it unchanged, since what refused the gate was the proportion
+of honest messages it would have condemned, not the particular word they used.
 
 **The script over the messages is declined with it.** Extracting the tables from `git log` is
 thirty lines and was written ad hoc for the census above; the replay itself was forty minutes.
@@ -1007,8 +1013,8 @@ refused gate keeps its trigger
 The addendum above replayed five tables and settled affordability. What it left undecided is
 everything about a second pass: how often one runs, what it draws from, and where its result goes
 ([R-357](../refinements/tasks/357-a-replay-pass-has-no-cadence.md)). All three are decided here,
-and the third one, what a pass does when a row does not reproduce, is the one with teeth, since the
-one pass this practice has had never had to exercise it.
+and the third one, what a pass does when a row does not reproduce, is the one that matters most,
+since the one pass this practice has had never had to exercise it.
 
 **The census the entry wanted to draw from does not exist.** That entry proposes reusing "the
 census that supported the close", which "already sorts every body in the record by which vocabulary

@@ -1,6 +1,6 @@
-"""One turn, one stream, two models: the wrapper that carries a handoff (ADR-0030 d5/d6).
+"""The wrapper that carries a handoff through one turn on one stream (ADR-0030 d5/d6).
 
-The handoff happens **inside** the escalating turn, on the stream the user already holds. This
+The handoff happens inside the escalating turn, on the stream the user already holds. This
 wrapper is what makes that true, and it is deliberately thin: per turn it builds the
 ``EscalationSlot``, constructs the inner ``TurnEngine`` around it (engines are stateless, so
 per-turn construction is free), passes every event through, and then, only if the cortex
@@ -31,8 +31,9 @@ class EscalatingTurnEngine:
     """A ``TurnRunner`` that can hand its turn to the deep model without ending it.
 
     ``make_inner`` builds this turn's engine around the slot it is given; the composition root
-    supplies it so the wrapper never learns what an engine needs. The wrapper holds no state
-    between turns: the slot, the inner engine, and the accumulated text all die with the turn.
+    supplies it, so the wrapper is not written against an engine's constructor. The wrapper holds
+    no state between turns: the slot, the inner engine, and the accumulated text all die with the
+    turn.
     """
 
     def __init__(

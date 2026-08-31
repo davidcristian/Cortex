@@ -139,7 +139,7 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
 
 @pytest.mark.usefixtures("clean_env")
 def test_the_shipped_budget_places_one_subagent_on_the_gpu_and_overflows_the_next() -> None:
-    """What the three shipped numbers mean together, stated as placements, not as arithmetic.
+    """The three shipped numbers, read as placements rather than as arithmetic.
 
     The ask is the deployment's own (``SubagentsConfig``, equal to what
     ``docker-compose.subagents.yml`` sets), so this reads the shipped budget rather than a
@@ -360,8 +360,9 @@ def test_body_defaults_to_disabled() -> None:
 def test_a_capture_bound_outside_the_seam_fails_at_boot(
     monkeypatch: pytest.MonkeyPatch, name: str, value: str
 ) -> None:
-    """Unbounded, each of these turned every capture into a turn-killing exception instead: the
-    request could not be built, and neither the tool nor the dispatcher catches a ValueError."""
+    """Without this validation each of these values turned every capture into an exception that
+    ended the turn: the request could not be built, and neither the tool nor the dispatcher
+    catches a ValueError."""
     monkeypatch.setenv(name, value)
     with pytest.raises(ValidationError):
         BodyConfig()
@@ -595,12 +596,13 @@ def test_the_subagent_stall_ceiling_is_settable_and_must_be_positive(
 def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Zero is a policy here, unlike the ceiling above: never queue, refuse what does not fit.
+    """Zero is a valid policy here, unlike the ceiling above: it means never queue and refuse what
+    does not fit.
 
     A deployment whose batches are smaller than the shipped cap can tighten the two hours, down to
     the hold that has to fit inside it and no further; one that would rather hear "busy" than
-    wait at all sets zero. Negative is the only nonsense, and it would read like a generous bound
-    while refusing every queued spawn.
+    wait at all sets zero. A negative value is the only one refused, since it would read like a
+    generous bound while refusing every queued spawn.
     """
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "6000")
     assert SubagentsConfig().admission_wait_s == 6000.0
@@ -637,12 +639,12 @@ def test_the_total_generation_cap_is_settable_and_both_halves_must_be_real_bound
 def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The precedence between the two bounds, made a wiring error rather than a doc claim.
+    """The precedence between the two bounds is enforced at boot rather than only written down.
 
     Under a deadline at or below the ceiling, every wedged stream would be reported as a run that
     would not stop, and the CPU re-run this repo schedules for a wedge would silently stop firing.
-    Equality fails for the same reason strict inequality is the relation: a ceiling that can only
-    tie is a ceiling that never reports.
+    Equality fails for the same reason the relation is a strict inequality: a ceiling that can
+    only tie with the deadline never reports a stall.
     """
     monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "600")
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "600")
@@ -656,13 +658,13 @@ def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boo
 def test_a_hold_no_queued_peer_would_outlast_fails_the_brain_at_boot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The other half of the deadline's place, refused rather than merely written down.
+    """The other half of the deadline's ordering is refused at boot rather than only written down.
 
     A deployment that raises the deadline to the wait, or lowers the wait to the deadline, ships a
     pool whose queued spawns give up while the run in front of them is still inside the time they
     were granted, and the refusal an operator then reads names the queue rather than the deadline
-    that filled it. Equality fails for the neighbour's reason: a peer giving up at the instant the
-    room comes back is the race, not the relation holding.
+    that filled it. Equality fails for the same reason as the case above: a peer giving up at the
+    instant the room comes back is the race this ordering exists to prevent.
     """
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "1800")
     # A hold exactly equal to the wait, which is the boundary and the arm the strictness is for.
@@ -681,7 +683,8 @@ def test_a_hold_no_queued_peer_would_outlast_fails_the_brain_at_boot(
 def test_what_the_wait_is_compared_with_is_the_hold_and_not_one_attempts_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The factor the comparison carries, isolated from the ordering it is part of.
+    """The comparison uses the whole hold, which is two attempts, rather than one attempt's
+    deadline.
 
     A deadline strictly under the wait and at or above half of it passes a bare comparison and
     still lets a task outlast the queue, because a GPU-placed inference failure is re-run once on
@@ -702,7 +705,7 @@ def test_what_the_wait_is_compared_with_is_the_hold_and_not_one_attempts_deadlin
 def test_a_pool_that_never_queues_keeps_whatever_deadline_it_was_given(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Zero is a policy rather than the smallest inversion, so the ordering above skips it.
+    """A zero wait is a policy rather than the smallest inversion, so the ordering above skips it.
 
     A deployment that would rather hear "busy" than wait sets the wait to zero, and then no spawn
     ever queues behind a running one: there is no peer to outlast, so a deadline of any length is
@@ -793,7 +796,7 @@ def test_subagents_roster_key_naming_the_default_is_rejected(
 def test_subagents_reject_a_default_ask_larger_than_the_whole_budget(
     monkeypatch: pytest.MonkeyPatch, knob: str, value: str
 ) -> None:
-    """A spawn the scheduler could only ever refuse is a wiring error, caught at boot."""
+    """A spawn the scheduler could only ever reject is a wiring error, caught at boot."""
     _llamacpp_env(monkeypatch)
     monkeypatch.setenv(knob, value)  # against the 4.0 cpu / 8.0 GB budget defaults
     with pytest.raises(ValidationError, match="no spawn of it could ever be admitted"):
@@ -1003,11 +1006,11 @@ def test_a_call_timeout_that_is_not_a_duration_fails_at_boot(timeout_s: float) -
 
 def test_the_shipped_call_timeout_is_the_cores_own_bound() -> None:
     # What this pins is the *wiring*: the field defaults to the core's constant rather than to a
-    # copy of the number, so retyping the `Field(...)` default as a literal reddens here even when
+    # copy of the number, so retyping the `Field(...)` default as a literal fails here even when
     # the literal is today's value. It deliberately claims no more than that. Both sides read the
     # one imported symbol, so a retune of the constant itself moves them together and leaves this
-    # green, which is right: what catches a retune is `scripts/crosscheck.py`, holding the compose
-    # substitution, the runbook and the module contract to the declaration.
+    # passing, which is right: what catches a retune is `scripts/crosscheck.py`, holding the
+    # compose substitution, the runbook and the module contract to the declaration.
     assert ToolsConfig().call_timeout_s == DEFAULT_TOOL_CALL_TIMEOUT_S
 
 

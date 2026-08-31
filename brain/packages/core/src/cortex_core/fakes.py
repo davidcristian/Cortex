@@ -1,7 +1,7 @@
 """Reference implementations of the ports (pure, deterministic, fully covered).
 
 These are not test-only stubs: EchoInferenceBackend and SystemClock are the real
-runtime wiring until Slice 4 delivers an engine adapter. The in-memory ``SessionStore``
+runtime wiring until a real engine adapter exists. The in-memory ``SessionStore``
 twin of the Redis adapter lives beside these in ``fakes_session.py``, and the memory area's
 three (embedder, store, recall trail) in ``fakes_memory.py`` (both line-cap splits).
 """
@@ -27,7 +27,7 @@ from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, Too
 
 
 class EchoInferenceBackend:
-    """The scripted fake behind CI chat: deterministic, observable state survival.
+    """The scripted fake behind CI chat: deterministic, and it makes state survival observable.
 
     For a history whose latest user message has text ``T`` and which contains ``n``
     user messages in total (including the current one), the reply is exactly
@@ -35,13 +35,13 @@ class EchoInferenceBackend:
     the store-backed history alone, it keeps counting across a process restart,
     which is what makes external session state observable end to end.
 
-    It closes with ``DecodeStop(StopReason.FINISHED)``, and that is not the fabrication the
-    decode cadence would be here (``fakes_inference.py`` argues at length why this backend must
-    never report a rate). The two facts differ in who knows them: a rate is a measurement only a
-    real server has taken, so an echo inventing one would put a made-up number in a real log,
-    while why this completion ended is something the echo itself decided and can state truthfully.
-    It ends because its script does, which is a model ending its own turn. It honours no
-    ``bounds``, so it can never end any other way (ADR-0005 finish-reason addendum).
+    It closes with ``DecodeStop(StopReason.FINISHED)``, which is not the fabrication a decode
+    cadence would be here (``fakes_inference.py`` says why this backend must never report a
+    rate). The two differ in where the fact comes from: a rate is a measurement only a real
+    server has taken, so an echo reporting one would put a made-up number in a real log, while
+    why this completion ended is settled by this backend's own script. It ends because the script
+    ends, which is a model ending its own turn. It honours no ``bounds``, so it can never end any
+    other way (ADR-0005 finish-reason addendum).
     """
 
     async def stream(
@@ -103,12 +103,12 @@ class InMemoryToolRegistry:
     """ToolRegistry held in a dict as the contract twin of the MCP adapter (ADR-0009).
 
     Constructed with ``{name: (spec, handler)}``, where a handler maps call arguments to
-    result text, or to a whole ``ToolResult`` when the tool has to have **run and failed**:
-    that is the port's central case (``is_error`` reflects the tool, not the dispatch) and
-    text alone cannot say it. The call's own id is stamped on either answer, so a handler
-    never has to know it. ``invoke`` raises ``ToolNotFoundError`` for an unknown name and lets
-    a handler's own ``ToolError`` propagate (the dispatcher turns it into an error result).
-    ``serve`` replaces the tool set mid-run, which is how a test moves a world the port
+    result text, or to a whole ``ToolResult`` when the tool has to have run and failed:
+    that is the port's central case (``is_error`` describes the tool rather than the dispatch)
+    and text alone cannot express it. The call's own id is stamped on either answer, so a handler
+    is not written against it. ``invoke`` raises ``ToolNotFoundError`` for an unknown name and
+    lets a handler's own ``ToolError`` propagate (the dispatcher turns it into an error result).
+    ``serve`` replaces the tool set mid-run, which is how a test changes the set the port
     promises to re-read, and ``fail_with`` takes the whole registry away the way a dead
     sidecar does. For tests, CI, and single-process experiments, with no server and fully
     deterministic.
@@ -169,10 +169,9 @@ class RecordingConfirmer:
     ``answer=True`` approves every gated call, ``False`` denies; ``requests`` exposes what the
     dispatcher asked to confirm so a test can assert the tool name and the reason shown to the
     user. ``answer_with`` changes the answer between two asks, which the shared contract needs
-    because a person is not a constant: the real confirmer's next answer is whatever the overlay
-    sends next, and a fake whose answer is fixed at construction cannot be asked twice about two
-    different calls. The real confirmer round-trips the overlay; this one is deterministic and
-    offline.
+    because the real confirmer's next answer is whatever the overlay sends next, and a fake whose
+    answer is fixed at construction cannot be asked twice about two different calls. The real
+    confirmer round-trips the overlay; this one is deterministic and offline.
     """
 
     def __init__(self, *, answer: bool) -> None:

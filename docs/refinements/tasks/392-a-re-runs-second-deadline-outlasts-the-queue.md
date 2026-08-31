@@ -23,15 +23,14 @@ pair that clears the doubled relation is a re-derivation of one of them. The can
 them free: raise the wait above twice the deadline, which lengthens how long a refused spawn takes
 to come back and wants the batch measured rather than single subtasks, which is the measurement
 [207](207-whole-subtask-figure-off.md) is already waiting on and names a retune of either bound as
-its own trigger, so the two want doing together; lower
+its own trigger, so the two should be done together; lower
 the deadline, which cuts a legitimate long subtask on the slowest tier this repo ships; or bound
-the whole task rather than each attempt, which trades the re-run's own reason for existing, a
-second attempt being worth nothing if it starts against a spent clock.
+the whole task rather than each attempt, which removes the re-run's own reason for existing, since
+a second attempt starting with whatever the first left of the deadline has almost no time to run.
 
-The narrow reading is that the re-run path is rare (only a GPU placement, only an inference
-failure, never a truncation) and the honest one is that the relation as written is false along it.
-Whichever number moves, the runbook sentence and the validator's own "what it does not promise"
-both want rewriting with it.
+The re-run path is rare (only a GPU placement, only an inference failure, never a truncation), and
+the relation as written is still false along it. Whichever number moves, the runbook sentence and
+the validator's own "what it does not promise" both have to be rewritten with it.
 
 ## Trail
 
@@ -51,7 +50,7 @@ both want rewriting with it.
   overstates as the whole re-run path. A stalled stream is an `INFERENCE` failure rather than a
   truncation: the attempt's `TimeoutError` arm reports the inner-timeout message under
   `AttemptFailure.INFERENCE` whenever the timer that fired was not the attempt's own. So the
-  ordinary wedge does re-place, and it re-places at the moment the stall ceiling fired rather than
+  ordinary stall does re-place, and it re-places at the moment the stall ceiling fired rather than
   at the deadline, which puts the common doubled hold at 600 s plus a fresh 2400 s, comfortably
   inside the 3600 s wait. The shipped pair fails the doubled relation only when a first attempt
   ends in `INFERENCE` after spending more than 1200 s of its deadline, which is a backend dying
@@ -59,12 +58,12 @@ both want rewriting with it.
   twice the deadline and is not a reason to close this, but it is the window a retune should be
   sized against rather than the factor of two.
 - 2026-08-25: Landed, by raising the wait and comparing the hold. Re-derived first, and the
-  mechanism in the entry above is wrong in one load-bearing sentence: a stalled stream does **not**
+  mechanism in the entry above is wrong in one sentence the rest depends on: a stalled stream does **not**
   reach `INFERENCE` through the attempt's `TimeoutError` arm, because `httpx.ReadTimeout` is no
   subclass of the builtin `TimeoutError` and `LlamaCppBackend` turns it into an `InferenceError`
   first. The verdict survives the wrong route, but the window does not: a read timeout bounds one
-  socket read, so a wedge fires at the last chunk plus the ceiling rather than at the ceiling, and
-  the violating window is every wedge after the first ten minutes of a stream plus every mid-stream
+  socket read, so a stall fires at the last chunk plus the ceiling rather than at the ceiling, and
+  the violating window is every stall after the first ten minutes of a stream plus every mid-stream
   transport failure at any elapsed time. Wider than the 2026-08-23 narrowing, not narrower.
   Of the entry's three candidates the measurement chose the first. A live full batch put the
   deadline's own derivation on two independent routes to 2400 s, so lowering it would cut work on

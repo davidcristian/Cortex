@@ -116,7 +116,6 @@ fn parse_rejects_empty_input() {
 
 #[test]
 fn parse_rejects_empty_segments() {
-    // Empty modifier segment in the middle, at the front, and on its own.
     assert_eq!(
         HotkeyChord::parse("ctrl++space"),
         Err(HotkeyParseError::EmptySegment)
@@ -130,7 +129,7 @@ fn parse_rejects_empty_segments() {
         Err(HotkeyParseError::EmptySegment)
     );
     assert_eq!(HotkeyChord::parse("+"), Err(HotkeyParseError::EmptySegment));
-    // Empty key segment after a trailing separator.
+    // A trailing separator leaves an empty key segment rather than a missing key.
     assert_eq!(
         HotkeyChord::parse("ctrl+"),
         Err(HotkeyParseError::EmptySegment)
@@ -160,7 +159,7 @@ fn parse_rejects_duplicate_modifiers() {
         HotkeyChord::parse("ctrl+ctrl+space"),
         Err(HotkeyParseError::DuplicateModifier(String::from("ctrl")))
     );
-    // Duplicates via aliases are caught too; the second spelling is reported.
+    // A duplicate reached through an alias is caught too, and the second spelling is reported.
     assert_eq!(
         HotkeyChord::parse("ctrl+Control+space"),
         Err(HotkeyParseError::DuplicateModifier(String::from("control")))
@@ -177,7 +176,7 @@ fn parse_rejects_chords_that_end_in_a_modifier() {
         HotkeyChord::parse("ctrl+alt"),
         Err(HotkeyParseError::MissingKey(String::from("alt")))
     );
-    // A single bare modifier is a missing key, not a key.
+    // A single bare modifier reports a missing key.
     assert_eq!(
         HotkeyChord::parse("ctrl"),
         Err(HotkeyParseError::MissingKey(String::from("ctrl")))
@@ -241,14 +240,12 @@ fn error_debug_output_names_the_variant() {
 
 #[test]
 fn error_equality_compares_variant_and_payload() {
-    // Same variant, same payload.
     assert_eq!(
         HotkeyParseError::UnknownModifier(String::from("a")),
         HotkeyParseError::UnknownModifier(String::from("a"))
     );
     let empty = HotkeyParseError::Empty;
     assert_eq!(empty, HotkeyParseError::Empty);
-    // Same variant, different payload.
     assert_ne!(
         HotkeyParseError::UnknownModifier(String::from("a")),
         HotkeyParseError::UnknownModifier(String::from("b"))
@@ -261,7 +258,6 @@ fn error_equality_compares_variant_and_payload() {
         HotkeyParseError::MissingKey(String::from("a")),
         HotkeyParseError::MissingKey(String::from("b"))
     );
-    // Different variants.
     assert_ne!(HotkeyParseError::Empty, HotkeyParseError::EmptySegment);
 }
 

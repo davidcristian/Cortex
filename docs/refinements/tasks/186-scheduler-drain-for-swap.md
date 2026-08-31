@@ -12,8 +12,8 @@ port, implemented by `ResourceBudgetScheduler` and the new `AdmitAllScheduler` f
 contract suite. The semantics the original one-liner could not carry: entering drain refuses
 every `admit` (typed `SubagentAdmissionError`, `POOL_DRAINING_MSG`) instead of queuing, since
 a brain-phase spawn queued against its own drain would deadlock the turn against its own swap;
-a spawn already waiting on a full budget is woken and refused, not left to sleep through the
-handoff; the wait for in-flight admissions is bounded by the conductor-passed timeout
+a spawn already waiting on a full budget is woken and refused rather than left to sleep through
+the handoff; the wait for in-flight admissions is bounded by the conductor-passed timeout
 (`CORTEX_SWAP_DRAIN_TIMEOUT_S`, default 60 s, arriving with the conductor's wiring) and a
 timeout reports not-clean with nothing killed, so the swap aborts before anything is evicted;
 and the window holds until `undrain`, which the conductor owes in a `finally` on swap-back and

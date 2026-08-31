@@ -1,9 +1,9 @@
 """Behavior tests for the dispatch budget: the pool, and the per-tool prices spent from it.
 
-The policy itself is a value: what a named tool costs, and what everything else costs. The pool
-is a handle. Their consumers are tested where they consume them (``test_dispatch.py`` for the
-dispatcher's lookup, ``test_tool_loop.py`` for the loop actually spending it, ``test_spawn.py``
-for a batch of subagents sharing one turn's pool).
+The policy is a value saying what a named tool costs and what everything else costs, and the
+pool is a handle. Their consumers are tested where they consume them: ``test_dispatch.py`` for
+the dispatcher's lookup, ``test_tool_loop.py`` for the loop actually spending it, and
+``test_spawn.py`` for a batch of subagents sharing one turn's pool.
 """
 
 import pytest
@@ -83,7 +83,7 @@ def test_a_charge_that_does_not_fit_is_refused_and_costs_nothing() -> None:
 def test_a_closed_pool_refuses_a_charge_that_would_still_have_fit() -> None:
     # ADR-0009 cost addendum decision 3, now at the turn's scale: the trailing 1 fits in the
     # unspent unit, and is refused anyway, because BUDGET_EXHAUSTED_MSG told the model to stop
-    # calling tools and a pool that kept admitting small calls would make that a lie.
+    # calling tools, and a pool that kept admitting small calls would contradict it.
     budget = DispatchBudget(limit=4)
     assert [budget.charge(3), budget.charge(3), budget.charge(1)] == [True, False, False]
     assert budget.spent == 3

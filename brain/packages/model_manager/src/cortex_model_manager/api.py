@@ -10,11 +10,11 @@ holds the GPU and the models mount, and its client is the brain, which runs mode
     POST /models/{id}/start       begin loading it (idempotent)
     POST /models/{id}/stop        end it, returning once it is reaped (idempotent)
 
-**A request carries a logical id and nothing else.** No path, no argv, no flag, no layer count is
+A request carries a logical id and nothing else. No path, no argv, no flag, no layer count is
 readable from a body or a query, so the worst a compromised client can do is start and stop the
-models the deployment already declared in the daemon's own env. That is the whole point of
-decision 3's rejected alternatives: a docker socket or a compose-aware controller would hand the
-same client host-root, where a child-process supervisor's blast radius is its own container.
+models the deployment already declared in the daemon's own env. That is why decision 3 rejected
+the alternatives it did: a docker socket or a compose-aware controller would give the same client
+root on the host, while a child-process supervisor can reach nothing outside its own container.
 
 An unknown id is a 404 and a supervisor failure is a 503, which the adapter turns into the port's
 ``ModelHostError`` either way; the body's ``detail`` is what the log and the runbook read.
@@ -56,8 +56,8 @@ def build_app(
 ) -> Starlette:
     """The ASGI app driving ``supervisor``, starting ``boot_model`` when it comes up.
 
-    ``device`` reads the card this daemon's children load onto; omitted, the daemon answers that
-    it has none, which is what a CPU-only deployment truthfully has.
+    ``device`` reads the card this daemon's children load onto; when it is omitted the daemon
+    reports no device memory, which is the right answer for a CPU-only deployment.
     """
     card: DeviceMemoryProbe = NoDeviceMemory() if device is None else device
 
@@ -73,7 +73,7 @@ def build_app(
                 "status": "ok",
                 "models": list(supervisor.models),
                 # Which daemon is answering, so a brain can tell this one from the one that ran
-                # before a restart and reconcile what it believes about the GPU (ADR-0030's
+                # before a restart and reconcile its own record of the GPU (ADR-0030's
                 # host-generation addendum). Nothing else in the body says that: a roster and a
                 # set of bounds are identical across a restart that invalidated everything.
                 "boot_id": supervisor.boot_id,
@@ -125,9 +125,10 @@ def model_host_lifespan(
         try:
             await supervisor.start(boot_model)
         except SupervisorError:
-            # Serve anyway, loudly. Failing to come up would crash-loop under compose's restart
-            # policy and hide the cause; a control API that answers can be asked what went wrong,
-            # and the brain's own boot recovery starts the standing resident again regardless.
+            # Serve anyway, with the failure logged. Failing to come up would crash-loop under
+            # compose's restart policy and bury the cause; a control API that answers can be asked
+            # what went wrong, and the brain's own boot recovery starts the standing resident
+            # again regardless.
             _logger.exception(
                 "the boot-default model could not be started; serving without it",
                 extra={"model": boot_model},
@@ -135,8 +136,8 @@ def model_host_lifespan(
         try:
             yield
         finally:
-            # Children first: the probe client is what tells a stop whether a child is still
-            # serving, so closing it before the last stop would blind the shutdown.
+            # Children first: ``close`` shuts the probe client the supervisor was wired with, so
+            # this order keeps that client alive until the last stop has returned.
             await supervisor.stop_all()
             await close()
 
@@ -144,7 +145,7 @@ def model_host_lifespan(
 
 
 def _then_status(supervisor: ModelSupervisor, action: Callable[[str], Awaitable[None]]) -> _Action:
-    """Run a verb, then report what it left behind, so a caller sees one state per request."""
+    """Run a verb, then report the state it left the model in, so one request yields one state."""
 
     async def act(model: str) -> ModelStatus:
         await action(model)
@@ -168,22 +169,21 @@ async def _answer(action: _Action, request: Request) -> Response:
 
 
 def _refused(model: str, err: SupervisorError, code: HTTPStatus) -> Response:
-    """Encode a typed refusal, logged with the id that asked for it (never a stack per request).
+    """Encode a typed failure, logged with the id that asked for it (never a stack per request).
 
-    The level follows the status code, the code being this module's own judgement about whose
-    fault the refusal is: a 4xx is a caller asking after a tier this daemon never had, worth a
-    line and no more, while a 5xx is the daemon unable to do a thing it accepts. That distinction
-    used to be carried by a second, louder line at the raise, which said the same sentence over
-    again; the sentence rides the ``error`` field, so the level has to ride the line that is left
-    or a child holding GPU memory nothing can free reads exactly like a typo in a model id.
+    The level follows the status code, which records whose fault the failure is: a 4xx is a caller
+    asking after a tier this daemon never had, worth a line and no more, while a 5xx is the daemon
+    unable to do something it accepts. That distinction used to be carried by a second, louder line
+    at the raise, which repeated this same sentence; the sentence is carried by the ``error`` field
+    instead, so the level has to be carried by the line that is left, or a child holding GPU memory
+    nothing can free reads exactly like a typo in a model id.
 
-    It is not the only record of itself anywhere, and the level is not resting on that. Every
-    caller of these routes writes the sentence into the brain's log as well, the swap back and
-    boot recovery inside a traceback, the peer sweep in a field, and the swap in by settling it
-    onto the handoff record it fails and logging it once beside that write (ADR-0030's
-    refusal-reach addendum surveys all seven callers, and its failed-reason addendum is what
-    closed the one that used to keep nothing). Each of those messages was built out of this body,
-    so the level stands on what a 5xx means rather than on being unique.
+    Every brain-side caller of these routes also writes this sentence into the brain's own log, the
+    swap back and boot recovery inside a traceback, the peer sweep in a field, and the swap in by
+    settling it onto the handoff record it fails and logging it beside that write. ADR-0030's
+    refusal-reach addendum surveys all seven callers and its failed-reason addendum closed the one
+    that used to keep nothing, so the level rests on what a 5xx means rather than on this line
+    being the only record.
     """
     level = logging.ERROR if code >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING
     _logger.log(level, "a model-host request failed", extra={"model": model, "error": str(err)})

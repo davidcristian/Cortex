@@ -1,7 +1,7 @@
 """Which dates a calendar rule's wall time lands on: the ``DaySelector`` union (ADR-0025).
 
 Split from ``schedule_calendar.py`` at the 300-line cap when yearly rules landed (ADR-0025
-yearly addendum), along the responsibility line the union itself draws: *which dates* a rule
+yearly addendum), along the responsibility line the union itself draws: which dates a rule
 selects lives here, while the rule that names a wall time and the zone-aware occurrence math
 that resolves it stay there. The two are read together but change for different reasons, and
 a fourth selector would land here alone.
@@ -57,7 +57,7 @@ def _ordinal(day: int) -> str:
 class Weekdays:
     """The weekly day selector: which weekdays a rule's wall time fires on.
 
-    ``days`` holds ``date.weekday()`` numbers (0 = Monday) and is **never empty**, which is
+    ``days`` holds ``date.weekday()`` numbers (0 = Monday) and is never empty, which is
     what bounds the occurrence search to one week. Every-day is the full set rather than a
     ``None`` sentinel, so there is one representation and no second branch to carry.
     """
@@ -98,10 +98,10 @@ class MonthDays:
     """The monthly day selector: which days of the month a rule's wall time fires on.
 
     ``days`` holds calendar day numbers (1..``MAX_MONTH_DAY``) and is never empty, for the
-    same reason ``Weekdays.days`` is not. A day the month does not have **clamps to that
-    month's last day** rather than skipping the month (ADR-0025 monthly addendum): the same
-    policy daylight saving already takes here, where an irregularity moves an occurrence and
-    never deletes one, and a reminder that silently never fires is the worst outcome available.
+    same reason ``Weekdays.days`` is not. A day the month does not have clamps to that month's
+    last day rather than skipping the month (ADR-0025 monthly addendum): the same policy daylight
+    saving already takes here, where an irregularity moves an occurrence and never deletes one,
+    and a reminder that never fires and never reports it is the worst outcome available.
     Two consequences worth naming: ``{31}`` is how "the last day of every month" is written,
     and days that clamp together (30 and 31 in February) fire once, since the walk works in
     resolved dates.
@@ -144,7 +144,7 @@ class MonthDays:
 class MonthDay:
     """One date within a year: a month and a day, with no year of its own.
 
-    Ordered, and deliberately month-first, so sorting a set of these **is** putting them in
+    Ordered, and deliberately month-first, so sorting a set of these puts them in
     chronological order within the year, which both the occurrence walk and the listing line
     rely on rather than re-deriving. ``day`` is bounded by the longest that month ever gets,
     so 29 February constructs (a real date that clamps in common years) while 30 February does
@@ -180,7 +180,7 @@ class YearDays:
     """The yearly day selector: which calendar dates a rule's wall time fires on.
 
     ``days`` holds ``MonthDay`` pairs and is never empty, for the same reason its siblings'
-    day sets are not. A **set of pairs** rather than one month alongside a day set (which is
+    day sets are not. A set of pairs rather than one month alongside a day set (which is
     what the monthly addendum predicted): holidays, renewals, and birthdays cluster across
     months rather than within one, so "25 December and 1 January" is the common shape and the
     single-month form is reachable anyway as pairs sharing a month.

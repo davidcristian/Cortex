@@ -394,8 +394,8 @@ async def test_delete_session_store_failure_aborts_unavailable() -> None:
 async def test_set_session_pinned_lifts_an_old_chat_above_the_recency_window() -> None:
     # The whole point of pinning over the seam: 'alpha' is the OLDER chat, so a limit=1 window holds
     # only 'beta'. Pinning 'alpha' unions it back into the listing, ABOVE the recency group, with
-    # its wire `pinned` flag set. Unpinning drops it back out. This reddens if the servicer does not
-    # forward the pin, or if `list_sessions` stops unioning the pinned set.
+    # its wire `pinned` flag set. Unpinning drops it back out. This test fails if the servicer does
+    # not forward the pin, or if `list_sessions` stops unioning the pinned set.
     store = await _seeded_store()
     server, address = await _serve(store)
     try:
@@ -430,7 +430,7 @@ async def test_set_session_pinned_store_failure_aborts_unavailable() -> None:
 
 async def test_delete_session_memory_cascade_failure_aborts_unavailable() -> None:
     # The session delete succeeds, then the cascade raises MemoryStoreError; the handler surfaces it
-    # as UNAVAILABLE. The operation is idempotent, so a retry re-runs the cascade and heals.
+    # as UNAVAILABLE. The operation is idempotent, so a retry re-runs the cascade and finishes it.
     store = await _seeded_store()
     cascade = SessionMemoryCascade(FailingMemoryStore(), SessionMemoryScope())
     server, address = await _serve(store, cascade=cascade)
@@ -448,10 +448,10 @@ async def test_delete_session_undecodable_memory_reply_aborts_internal() -> None
     """The cascade's data defect is a fault of this side, so it is not reported as an outage.
 
     The two failures reach this handler through one port and one call, and the difference is
-    whether anything about the condition ends: an unreachable Postgres comes back, while a reply
+    whether the condition passes on its own: an unreachable Postgres comes back, while a reply
     nothing here can decode reads the same on every later attempt. `UNAVAILABLE` is the seam's
-    word for the first, and saying it about the second sends whoever reads the code, an operator
-    included, to look for an outage that is not there.
+    word for the first, and using it for the second sends whoever reads the code, an operator
+    included, looking for an outage that is not there.
 
     What is deliberately NOT claimed is a change of behaviour: the body classifies this method as
     non-repeatable and retries only `Unavailable` anyway, so nothing on either side ever repeated

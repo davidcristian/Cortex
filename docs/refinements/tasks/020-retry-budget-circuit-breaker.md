@@ -23,23 +23,23 @@ against a flapping brain is at most two extra connect attempts per user action, 
 supervised local process on loopback, where a refused connect returns at once. A breaker sheds
 load for a shared or remote peer with many clients; here it would save microseconds nobody spends.
 
-**And the mechanism does not fit the composition it claims to fit.** Breaker state is cross-call
+**And the mechanism does not fit the composition it would have to fit.** Breaker state is cross-call
 by definition, and there is no cross-call object to hold it: every IPC command builds a fresh
 transport through `seam::connect()` (the session reads, the reminder calls, the link probe, the
-preference calls), and the turn dials its own client, so state inside `RetryingTransport` dies
+preference calls), and the turn dials its own client, so state inside `RetryingTransport` is discarded
 with the call that made it. It would have to live in the shell as process-lifetime shared state,
 which is a composition change rather than a decorator change. The open-to-half-open transition
 then needs to read a clock, and `Sleeper` can only wait or bound one attempt, never say what time
-it is, so it needs a new effect port with its own fake and adapter. Two seam changes, not none.
+it is, so it needs a new effect port with its own fake and adapter. That is two seam changes rather than none.
 
 **A breaker would also introduce the failure the seam's other bounds were built to forbid.** A
-call refused by stale open state makes the connection indicator claim a state without asking the
+call refused by stale open state makes the connection indicator report a state without asking the
 brain, which is exactly what the probe budget and the per-attempt deadline exist to prevent.
 
 **What was actually unbounded here was never a flap.** It was a brain that accepts the connection
-and then goes quiet, which no breaker fixes and which the per-attempt deadline now bounds
+and then sends nothing, which no breaker fixes and which the per-attempt deadline now bounds
 ([301](301-seam-attempt-deadline.md)), with an expired deadline terminal because a retried
-deadline is the load amplifier a breaker is usually reached for.
+deadline is the load amplification a breaker is usually adopted to prevent.
 
 **What would reopen this**, as a new task rather than a resumption of this one: the body growing a
 background poller, so retries accumulate while nobody is watching; `CORTEX_BRAIN_ADDR` pointing at

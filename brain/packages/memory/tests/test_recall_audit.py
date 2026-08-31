@@ -1,8 +1,8 @@
 """Behavior of LoggingRecallSink: the recall trail carries the ranking and never the text.
 
 Answering "why did recall return these?" used to mean a throwaway script against the store. The
-trail answers it from the logs instead, and the one thing it must never do is take conversation
-content along for the ride (ADR-0038 decision 5).
+trail answers it from the logs instead, and it must never carry conversation content with it
+(ADR-0038 decision 5).
 """
 
 import logging
@@ -53,13 +53,13 @@ def _audit(
 
 
 def _logged(caplog: pytest.LogCaptureFixture) -> dict[str, object]:
-    """The fields the line carries, read off the record exactly as the formatter reads them."""
+    """Return the fields the line carries, read off the record as the formatter reads them."""
     (record,) = caplog.records
     return record_fields(record)
 
 
 def _rendered(caplog: pytest.LogCaptureFixture) -> str:
-    """The whole line an operator reads, through the formatter a process entry installs.
+    """Render the whole line an operator reads, through the formatter a process entry installs.
 
     The privacy assertions below are made against this rather than against the message, because
     the message is no longer where the fields are: a check that conversation text stays out of
@@ -87,9 +87,9 @@ async def test_a_full_pool_and_an_exhausted_store_are_different_lines(
 ) -> None:
     """A pool of 20 says nothing on its own about what it was drawn from (ADR-0038 count addendum).
 
-    Same pool, same hits, two stores: one holding exactly those 20 and one holding 4213. Only
-    `available` separates them, and it is the whole of what makes "never a candidate" readable, so
-    a line missing it cannot answer the question the dropped ids raised.
+    The two lines share a pool and hits and come from two stores, one holding exactly those 20
+    and one holding 4213. Only `available` separates them, and it is what makes "never a candidate"
+    readable, so a line missing it cannot answer the question the dropped ids raised.
     """
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(pool_size=20, available=20))
@@ -202,7 +202,7 @@ async def test_a_dropped_candidates_text_stays_out_of_the_line_too(
 async def test_the_fields_reach_the_line_an_operator_actually_reads(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The trail's whole value is that it prints, and the sink no longer spells it twice.
+    """The fields reach both the record and the rendered line, spelled once by the sink.
 
     The fields ride the record for a structured collector, and the formatter the process entry
     installs is what puts them on the line. Both halves are asserted here: dropping either one

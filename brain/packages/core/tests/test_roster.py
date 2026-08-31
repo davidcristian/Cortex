@@ -49,7 +49,7 @@ def test_profile_description_defaults_empty() -> None:
 
 
 # The ADR-0017 matrix: any spawn path that can carry untrusted content resolves to the robust
-# default, whatever was requested; the cortex's pick is honored only clean + tool-less.
+# default, whatever was requested, and the cortex's pick is honored only on a clean, tool-less path.
 @pytest.mark.parametrize(
     ("requested", "tainted", "tools_enabled", "expected"),
     [

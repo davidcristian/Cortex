@@ -1,27 +1,27 @@
 """Whether the running model can see, discovered rather than declared (ADR-0029).
 
 ``llama-server`` reports its own modalities at ``GET /props`` once a multimodal projector is
-loaded, so the brain asks it instead of believing a brain-side boolean. The two can disagree,
+loaded, so the brain asks it rather than relying on a brain-side boolean. The two can disagree,
 and both directions of that disagreement are bad: declaring vision the server does not have
 means a mid-turn error after the capture has already been taken and the user already notified,
 which is the full privacy cost for zero benefit; declaring it absent when the server has it
 means the capability is never offered.
 
-The answer used to be taken once, at startup, and frozen into the built-in set. It is asked
-**per advertisement and per call** now (``SightedToolRegistry``), because the process it
-describes is not the brain's: the model host recreates a ``llama-server`` child with whatever
-argv its own boot gave it, so a redeployment that drops the projector flips this server's answer
-under a brain that never restarts. Reproduced 2026-08-06 against the real stack, and the stale
-advertisement cost a real screen read and a real 500.
+The answer used to be taken once, at startup, and frozen into the built-in set. It is now asked
+per advertisement and per call (``SightedToolRegistry``), because the process it describes is not
+the brain's: the model host recreates a ``llama-server`` child with whatever argv its own boot
+gave it, so a redeployment that drops the projector flips this server's answer under a brain that
+never restarts. Reproduced 2026-08-06 against the real stack, where the stale advertisement cost a
+real screen read and a real 500.
 
 ``CORTEX_VISION=auto|on|off`` overrides. ``auto`` (the default) probes. ``on`` and ``off`` exist
 so CI and a deterministic test can fix the answer without a server, and so a user can switch
 capture off outright without editing compose; both are answered here, with no probe built at
 all, which is what makes them free of the network.
 
-A probe failure counts as **no vision**. Failing closed here is the honest default: the tool is
-simply not advertised, the user is never asked to pay a privacy cost for a picture nothing can
-read, and the warning names the endpoint so the cause is visible in the log.
+A probe failure counts as no vision. Failing closed here is the safe default: the tool is not
+advertised, the user is never asked to pay a privacy cost for a picture nothing can read, and the
+warning names the endpoint so the cause is visible in the log.
 """
 
 import logging
@@ -101,10 +101,10 @@ def build_vision(
       can take a picture, so there is nothing to ask a model server about.
     - ``on``: bounds and no probe. The owner has fixed the answer, which is what the switch is
       for, and the tool is advertised unconditionally as it was before any of this.
-    - ``auto``: bounds **and** a probe. The tool is registered and the registry asks the running
-      server on every advertisement and every call. A deployment whose model cannot see
-      therefore heals in both directions without a restart: the tool appears when a projector
-      is loaded beside the model and disappears when one stops being.
+    - ``auto``: bounds and a probe. The tool is registered and the registry asks the running
+      server on every advertisement and every call. A deployment therefore corrects itself in
+      both directions without a restart: the tool appears once a projector is loaded beside the
+      model and disappears once one is not.
     """
     if body is None or config.vision == "off":
         return None, None, noop_aclose

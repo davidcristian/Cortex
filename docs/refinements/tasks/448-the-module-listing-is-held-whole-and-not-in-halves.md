@@ -50,8 +50,8 @@ paragraph make a moved boundary easier rather than harder.
   said the split would force, whether a name may stand in both halves, is answered yes in one
   direction only: the second half names seven CLI modules while saying whose reader each library
   is, so a roster may declare the sibling set whose names it is allowed to carry, and nothing else
-  is let through. That allowance is deliberately blind to the difference between a name a sentence
-  refers to and one it claims, which is filed as
+  is let through. That allowance deliberately does not distinguish a name a sentence
+  refers to from one it claims, which is filed as
   [R-451](451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md). The count in front of the
   second list stays a hand count, as this entry asked, under the standing decision that a
   document's tallies are its own business. The same commit closed

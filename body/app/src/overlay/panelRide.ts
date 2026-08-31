@@ -11,14 +11,13 @@ import { centringHeight } from "./panelParts";
  *
  * A section rolling open can push the panel past the ceiling, and the panel is anchored by its
  * bottom edge, so the growth has only the top edge to go to and it stops there: the prediction
- * below is capped at the ceiling and the history gives the room up. It used to grow DOWNWARD
- * instead, walking the composer back down the screen, and that second bound was deleted 2026-07-20;
- * this sentence went on describing it until 2026-08-06. Sliding only once the roll
- * had ended made two beats out of one movement, and each beat overshot on its own. Traced at 60Hz:
- * opening the switcher on a panel already at its ceiling ran the top edge 12px off the top of the
- * screen and then slid the whole panel back down, and closing it dipped the top edge 120px and
- * brought it back up again. Riding along holds the top edge exactly still through both, which is
- * what the eye expects of a list rolling open underneath it.
+ * below is capped at the ceiling and the history gives the room up. It used to grow downward
+ * instead, walking the composer back down the screen, until that second bound was deleted on
+ * 2026-07-20. Sliding only once the roll had ended made two beats out of one movement, and each
+ * beat overshot on its own. Traced at 60Hz: opening the switcher on a panel already at its ceiling
+ * ran the top edge 12px off the top of the screen and then slid the whole panel back down, and
+ * closing it dipped the top edge 120px and brought it back up again. Riding along holds the top
+ * edge exactly still through both.
  *
  * The section's target height is what makes this possible: the panel will be as tall as it is now,
  * less what the section takes now, plus what it is about to take. Capped at the panel's own
@@ -27,11 +26,11 @@ import { centringHeight } from "./panelParts";
  * to the floor of the screen over the roll and then brought it back, the arithmetic having been
  * asked where a 874px panel goes in a viewport that allows 684.
  *
- * **A move of the panel's own can still be in the air when a roll starts**: Ctrl+K while a reply
+ * A move of the panel's own can still be in the air when a roll starts: Ctrl+K while a reply
  * streams, or acking a reminder and reaching for the switcher inside the same 120ms. Cancelling that
  * height ease and handing the used height straight back to layout is a teleport, traced at 60Hz as
  * the top edge falling 61px in one frame with nothing animating it. So the interrupted ease is
- * CARRIED through instead, over the roll's own duration and curve, from where the eye has the panel
+ * carried through instead, over the roll's own duration and curve, from where the eye has the panel
  * to where the roll will leave it. That curve is the section's own plus a residual that decays to
  * nothing by the end, which is why the panel can drive its height here without disagreeing with the
  * roll it is following. Composing the residual on top of the `auto` height would be neater and does
@@ -45,7 +44,7 @@ export function rideAlong(
   viewport: number,
   arrival: boolean,
 ): void {
-  // Read the box BEFORE cancelling and again after: a running animation overrides the properties it
+  // Read the box before cancelling and again after: a running animation overrides the properties it
   // animates, so the first read is what the eye has and the second is the panel's own layout.
   const live = memory.running !== null && memory.running.playState === "running";
   const shown = live ? measure(element, viewport) : null;
@@ -59,12 +58,12 @@ export function rideAlong(
     // after the fact: it ends centred on the height it is taking the panel to, and that is the edge
     // the session is then pinned to.
     //
-    // Counted through `centringHeight`, the SAME function the placement at the end of the roll
+    // Counted through `centringHeight`, the same function the placement at the end of the roll
     // counts its own measurement with, which is what makes this edge a measurement rather than a
     // guess at one. The section's current height cancels out of `raw`, so the prediction is exact,
     // and asking the two questions the same way is what makes the placement afterwards find
-    // nothing left to move. Written out here instead, it asked only whether the ROLLING section was
-    // the aside, so an aside merely STANDING in the panel was counted into the centring by the
+    // nothing left to move. Written out here instead, it asked only whether the rolling section was
+    // the aside, so an aside merely standing in the panel was counted into the centring by the
     // ride-along and out of it by the placement: measured at 900x1000 over the demo, Ctrl+N with
     // the switcher list open (the list rolls shut behind the summon while the reminder stack
     // stands) pinned the panel to 227 where the placement at the end of the roll re-centred it to
@@ -72,10 +71,10 @@ export function rideAlong(
     // left the session 97px low for the rest of it.
     //
     // Bounded at `openHeight`, the loose cap the placement measures the panel under, and bounded
-    // BEFORE the aside comes off for the same reason: that is the order the measurement happens in,
+    // before the aside comes off for the same reason: that is the order the measurement happens in,
     // the element having already been capped when its height is read. Bounding it after put the
     // ride-along a whole aside above the placement on any panel whose content outgrows that cap.
-    // Bounding it at the OLD edge's ceiling, tighter still, was worse than either: it centred the
+    // Bounding it at the old edge's ceiling, tighter still, was worse than either: it centred the
     // chat on a remainder, pinned an edge the whole panel could not fit above, and let the cap
     // written for that edge squeeze the chat under the rolling stack until the placement after the
     // roll undid it, which at 760px with the demo's reminders cost the history 119px over the roll
@@ -90,10 +89,10 @@ export function rideAlong(
   // the same cap it always was.
   const height = Math.min(raw, ceiling);
   const from = shown?.bottom ?? memory.applied;
-  // Only a HEIGHT ease has to be carried. The other thing that can be in the air here is a slide of
+  // Only a height ease has to be carried. The other thing that can be in the air here is a slide of
   // the bottom edge alone (an earlier ride-along), which leaves the height to the section anyway.
   //
-  // An ARRIVAL whose section outgrows the ceiling is the third case, and it carries the height
+  // An arrival whose section outgrows the ceiling is the third case, and it carries the height
   // on purpose rather than because something was interrupted. Left to `auto`, the panel follows
   // the roll one-for-one until the cap bites, and the section's remaining growth then squeezes
   // the chat under it: two phases inside one roll, the empty state holding its size and

@@ -1,13 +1,13 @@
-"""Behaviour of the reader behind the stub gate: what a comment is, and how prost re-spells one.
+"""Tests for the reader behind the stub gate: what a comment is, and how prost re-spells one.
 
 Every normalization here is a claim about what prost does to a comment on its way into `///`, so
 each is asserted on its own rather than only through the whole comparison: an escaped bracket, a
 heading marker, a collapsed rule line. `test_stubcheck.py` puts the same three claims against the
-real proto and the real committed stub, where they are true or the gate is worthless.
+real proto and the real committed stub.
 
-The string rule gets the same treatment. A `//` inside a string literal punctuates nothing, and a
-reader that took it for a comment would truncate the real comment on that line and then never
-check what it cut off, which is a miss reported as a pass.
+The string rule is asserted the same way. A `//` inside a string literal opens no comment, and a
+reader that read one there would truncate the real comment on that line and never compare what it
+cut off, so the gate would pass over a difference.
 """
 
 import pytest
@@ -31,7 +31,8 @@ UNTERMINATED = 'option (q) = "unterminated // still a string'
 
 
 def test_the_header_above_the_syntax_line_is_not_a_comment() -> None:
-    """It attaches to no declaration, so prost copies it nowhere and nothing may expect it."""
+    """The header above the syntax line attaches to no declaration, so prost copies it nowhere and
+    the stub is not owed it."""
     header = "// body.proto is the source of truth.\n// Regenerate with `just proto`.\n"
     assert proto_comments(header + HEAD + "// in the body\n") == [
         Comment(line=6, text=" in the body", leading=True),
@@ -44,7 +45,8 @@ def test_a_trailing_comment_on_the_syntax_line_is_header_too() -> None:
 
 
 def test_a_file_with_no_syntax_line_is_refused() -> None:
-    """Fail closed: without it the header cannot be told from the body, so neither is read."""
+    """A file with no syntax line raises, since without it the header cannot be told from the
+    body."""
     with pytest.raises(ProtoReadError, match="cannot be told from the body"):
         proto_comments("// orphaned comment\n")
 
@@ -55,7 +57,8 @@ def test_an_empty_file_is_refused_for_the_same_reason() -> None:
 
 
 def test_a_comment_is_numbered_by_the_whole_file_not_by_the_body() -> None:
-    """The number is a pointer a reader opens the proto with, so it counts the skipped header."""
+    """Line numbers count the skipped header, since the number is where a reader opens the
+    proto."""
     assert [comment.line for comment in proto_comments(HEAD + "\n\n// here\n")] == [6]
 
 
@@ -83,18 +86,20 @@ def test_split_comment_reads_only_a_double_slash_outside_a_string(
 
 
 def test_a_block_comment_is_refused_rather_than_guessed_at() -> None:
-    """prost copies these too, in a shape this reader does not know; a skip is a lost check."""
+    """A block comment raises. prost copies these too, in a shape this reader does not parse, so
+    skipping one would drop it from the comparison."""
     with pytest.raises(ProtoReadError, match="line 4: block comment"):
         proto_comments(HEAD + "/* a block comment */\n")
 
 
 def test_a_block_opener_inside_a_line_comment_is_just_text() -> None:
-    """The refusal is about code, and the `//` came first, so this is prose about C."""
+    """A `/*` written after a `//` is text inside that comment rather than a block comment, so it
+    does not raise."""
     assert split_comment(1, "// C spells it /* so */") == ("", " C spells it /* so */")
 
 
 def test_whether_a_comment_stands_alone_is_recorded() -> None:
-    """The two kinds are read by different rules, so the count of each is worth stating."""
+    """Leading and trailing comments are recorded apart, since the rules that read them differ."""
     comments = proto_comments(HEAD + "// leading\nuint32 edge = 1; // trailing\n")
     assert [(comment.text, comment.leading) for comment in comments] == [
         (" leading", True),
@@ -106,7 +111,7 @@ def test_whether_a_comment_stands_alone_is_recorded() -> None:
 
 
 def _claimed(body: str) -> list[str]:
-    """The texts a service claims, which is what the stub is then owed two of."""
+    """Return the comment texts a service claims, which the stub then carries two copies of."""
     return [comment.text for comment in proto_comments(HEAD + body) if comment.service]
 
 
@@ -118,7 +123,8 @@ def test_a_comment_inside_a_service_block_is_claimed_by_it() -> None:
 
 
 def test_the_banner_standing_directly_above_a_service_is_claimed_too() -> None:
-    """It is the service's own leading comment, so it comes out wherever the service does."""
+    """A banner directly above a service is that service's leading comment, so it is copied
+    wherever the service is."""
     banner = "// ---\n// S is hosted here.\nservice S {}\n"
     assert _claimed(banner) == [" ---", " S is hosted here."]
 
@@ -128,9 +134,10 @@ def test_a_trailing_comment_on_the_service_line_is_claimed() -> None:
 
 
 def test_a_blank_line_between_the_banner_and_the_service_detaches_it() -> None:
-    """protoc reads a detached comment as documenting nothing, and claiming a copy too many
+    """A blank line between a banner and a service detaches the banner from it.
 
-    would be a red on a tree that is perfectly in sync. Fewer claims is the safe direction.
+    protoc reads a detached comment as documenting nothing, and claiming one copy too many would
+    fail on a tree that is in sync, so claiming fewer is the safe direction.
     """
     assert _claimed("// detached\n\nservice S {}\n") == []
 
@@ -140,12 +147,14 @@ def test_a_comment_above_something_that_is_not_a_service_is_not_claimed() -> Non
 
 
 def test_a_comment_after_the_service_block_closes_is_not_claimed() -> None:
-    """The depth is what closes the claim, so a message following a service is read plainly."""
+    """The closing brace ends the claim, so a comment after a service is read as an ordinary
+    one."""
     assert _claimed("service S {}\n// after it\nmessage M {}\n") == []
 
 
 def test_a_service_nested_in_no_braces_claims_only_its_own_block() -> None:
-    """A brace block opened by anything else is not a service, however deep the comment sits."""
+    """A brace block opened by anything other than a service claims nothing, however deep the
+    comment sits."""
     body = "message M {\n  // inside a message\n}\nservice S {\n  // inside the service\n}\n"
     assert _claimed(body) == [" inside the service"]
 
@@ -164,7 +173,8 @@ def test_an_ordinary_comment_in_the_stub_is_not_a_doc_comment() -> None:
 
 
 def test_an_empty_doc_line_says_nothing() -> None:
-    """prost writes one between a leading block and what follows, and the proto writes it too."""
+    """An empty `///` reads as empty text. prost writes one between a leading block and what
+    follows, and the proto writes it too."""
     assert rust_docs("///\n") == [""]
 
 

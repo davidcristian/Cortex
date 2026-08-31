@@ -1,74 +1,75 @@
 # scripts/ (`repo-gates`)
 
-**Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
-line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
-check, the compose defaults check, the image-volume check, the seam-stub comment check, the
-documented-log-sample check, the document-roster check, the subagent-server flag check, the
-backlog gate, the Rust coverage threshold, the CI path
-classifier, the commit-message style hook,
-and, since 2026-08-09, the modules here that gate nothing: the interval a live measurement
-reports, the width its widest logged field renders at, the floor an envelope measurement's
-control arm is published against, and the rendered prompt a tier's constrained verdict is
-predicted by.
-What they have in common is not that each is a gate; it is that each is pure Python that
-belongs to neither the brain nor the body and is gated exactly like both. A standalone uv project
-(not a brain workspace member, per ADR-0002).
+**Purpose.** The repo's own tooling, in the tree neither shipped artifact contains. Fourteen
+gates: the cross-tree line cap, the punctuating-dash ban, the cross-language constant check, the
+compose bind-mount check, the compose defaults check, the image-volume check, the seam-stub
+comment check, the documented-log-sample check, the document-roster check, the subagent-server
+flag check, the backlog gate, the Rust coverage threshold, the CI path classifier and the
+commit-message style hook. Four more modules gate nothing and report a measurement, added from
+2026-08-09: the interval a live measurement reports, the width its widest logged field renders at,
+the floor an envelope measurement's control arm is published against, and the rendered prompt a
+tier's constrained verdict is predicted by.
 
-**Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
-`bindcheck.py`, `defaultcheck.py`, `volumecheck.py`, `stubcheck.py`, `samplecheck.py`,
-`rostercheck.py`, `flagcheck.py`, `backlogcheck.py` and
-`coverage_gate.py` invoked by `just`
-recipes, `ci_paths.py`
-by the CI
-workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`,
-`trailwidth.py` by `just recall-width`, `envelopefloor.py` by `just envelope-floor` and
-`switchtail.py` by `just switch-tail`;
-each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, forty six modules,
-most split out under the line cap and each named for what it holds: `couplings.py` is the
-vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
-written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
-`boundscouplings.py`, `subagentcouplings.py`,
-`modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`,
-`overlaycouplings.py`, `logcouplings.py` and `trailcouplings.py` are those parts, `values.py`
-is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
-is how a set of those values must then stand, `needles.py` is how a rendered needle is looked for
-and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s mount
-reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composeservices.py` is
-`volumecheck.py`'s reader of what each service runs, covers and is built from, with
-`composetargets.py` split out of it again for the container path one mount entry names,
-`composestarts.py` is the reader of the two keys that one steps over, what a service is started
-with and what environment it is given, and `subagentservers.py` derives from those two which
-servers a composed stack starts as subagents, one of the two sets `flagcheck.py` holds to its
-tier's flags, `hostedtiers.py` is the other, the tier the model host starts itself, read off the
-sidecar's own declaration with `moduleconstants.py` answering underneath it for what a Python
-module's top level binds, `artifactnames.py` is what both of those sets rest on, every model
-artifact this tree names and the variable each one is named under, so the same gate can hold a
-spelling those two readings would otherwise have to assume, `imagevolumes.py` is the recorded
-answer that gate reads, in the two dimensions one row has, with `imagedrift.py` asking a real
-docker for both and reporting every row that has since moved, `dockerfilevolumes.py` is what a
-Dockerfile in this tree declares against the row for the image built from it and what a base's
-recorded trigger would declare into it, with `dockerfilebases.py`
-answering the other half of that row, the image the file's last stage stands on and whose own
-row is pulled because a built row never is, and carrying the line joining both readers work
-over, `protocomments.py` is what a proto comment is and how it normalizes into
-the Rust stub's spelling, `logsamples.py` is what a documented log line claims to print and
-`logcalls.py` is what the call writing it really attaches, with `loggernames.py` answering which
-module owns the logger that line is written under, the two sides `samplecheck.py` holds
-together, `rosters.py` is every roster this repo has written down with `rosternames.py` reading
-what a page's roster names and `rostermembers.py` reading the set it describes, the two sides
-`rostercheck.py` holds together, `scanrecipes.py` is the one of those sets that is not a listing
-of anything, which scans the single gate and CI both run, `composefiles.py` is
-which files the four compose gates walk, answered once so they cannot drift apart about it,
-`gitenv.py` is the environment every git call in this tree runs with, held in one place because
-a caller that forgets it is wrong in silence rather than red, `skippeddirs.py` is the directory
-components no walk here enters, held in one place for the same reason, and
-`switchsamples.py` is what one run of the thinking-switch probe recorded, read off the sample it
-wrote, the format half `switchtail.py` holds its rule over, and
-`backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
-`backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
-document offers with every pointer in the repo aimed at one, and what a heading may look like for
-that last question to have an answer.
+Not all of them are gates. What every module here shares is being pure Python that belongs to
+neither the brain nor the body, gated exactly like both. A standalone uv project rather than a
+brain workspace member (ADR-0002).
+
+**Public contract**. Eighteen modules have a command line. `just` recipes invoke `linecap.py`,
+`dashcheck.py`, `crosscheck.py`, `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`,
+`stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `backlogcheck.py` and
+`coverage_gate.py`; the CI workflow invokes `ci_paths.py`; the commit-msg pre-commit stage invokes
+`commitlint.py`; and the four measurement reporters run from their own recipes, `contrast.py` from
+`just turn-cost`, `trailwidth.py` from `just recall-width`, `envelopefloor.py` from
+`just envelope-floor` and `switchtail.py` from `just switch-tail`. Each also exposes a pure,
+unit-tested core function.
+
+**The rest have no CLI of their own**, forty six modules, most split out under the line cap and
+each named for what it holds. Grouped by the gate that reads them:
+
+- `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
+  `registry.py` for the names of the parts that registry is joined from, `values.py` for what a
+  value reduces to and the form a mention writes it in, `readings.py` for how a set of those
+  values must stand, and `needles.py` for how a rendered needle is searched for and what a file
+  missing one is told. The parts themselves are `seamcouplings.py`, `endpointcouplings.py`,
+  `shippedcouplings.py`, `boundscouplings.py`, `subagentcouplings.py`, `modelhostcouplings.py`,
+  `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`, `overlaycouplings.py`,
+  `logcouplings.py` and `trailcouplings.py`.
+- `bindcheck.py` reads `composemounts.py` for the mounts a compose file declares.
+- `defaultcheck.py` reads `composedefaults.py` for shell substitutions.
+- `volumecheck.py` reads `composeservices.py` for what each service runs, covers and is built
+  from, with `composetargets.py` split out of it for the container path one mount entry names;
+  `imagevolumes.py` for the recorded answer, in the two dimensions a row has; and
+  `dockerfilevolumes.py` for what a Dockerfile here declares against the row for the image built
+  from it, with `dockerfilebases.py` answering the other half of that row, the image the file's
+  last stage stands on. `imagedrift.py` asks a real docker for both and reports every row that has
+  moved, which `just image-volumes` runs.
+- `stubcheck.py` reads `protocomments.py` for what a proto comment is and how it normalizes into
+  the Rust stub's form.
+- `samplecheck.py` reads `logsamples.py` for what a documented log line claims to print,
+  `logcalls.py` for what the call writing it really attaches, and `loggernames.py` for which
+  module owns the logger that line is written under.
+- `rostercheck.py` reads `rosters.py` for every roster this repo has written down,
+  `rosternames.py` for what a page's roster names, and `rostermembers.py` for the set it
+  describes. `scanrecipes.py` answers the one such set that is no listing at all, which scans the
+  single gate and CI both run.
+- `flagcheck.py` reads `subagentservers.py` for which servers a composed stack starts as
+  subagents and `hostedtiers.py` for the tier the model host starts itself, taken off the
+  sidecar's own declaration with `moduleconstants.py` answering what a Python module's top level
+  binds. `composestarts.py` supplies what a service is started with and what environment it is
+  given, the two keys the volume gate's reader steps over. Both sets rest on `artifactnames.py`,
+  every model artifact this tree names and the variable each is named under.
+- `backlogcheck.py` reads `backlog.py` for the task-file grammar, `backlogindex.py` for the index
+  renderer, `backloganchors.py` for the anchors a document offers with every pointer in the repo
+  aimed at one, and `headingshapes.py` for what a heading may look like for that last question to
+  have an answer.
+- `switchtail.py` reads `switchsamples.py`, the format one run of the thinking-switch probe
+  writes.
+
+Three are shared rather than owned. `composefiles.py` is which files the four compose gates walk,
+answered once so they cannot drift apart. `gitenv.py` is the environment every git call in this
+tree runs with, held in one place because a caller that omits it reads the wrong repository
+without reporting an error. `skippeddirs.py` is the directory components no walk here enters,
+held in one place for the same reason.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
@@ -149,13 +150,13 @@ that last question to have an answer.
   turn named on a single line, through a template that renders the qualifier in front of the
   same declared value, so a rename of the family cannot leave the qualified name behind
   (sixth-name addendum); and the second such part, the words one line of either per-line trail is
-  found by, which are one line's where the vocabulary next door is one word's
+  found by, which are one line's where the log vocabulary is one word's
   across the brain: the recall trail's logger, held to the two runbooks and the module
   contract that restate it (ADR-0038 named-logger addendum), and the message and the field name
   `trailwidth.py` spells to find and cut the recall trail's widest value out of a captured line.
   Those two are the one place in the registry where the DECLARING side gates nothing: a reader
-  run by hand on a GPU is exactly the far side no suite would notice moving, which is the
-  argument the fixture part already makes for a subject nothing ships (ADR-0038 tied-needle
+  run by hand on a GPU is exactly the far side that can move without failing a suite, which is
+  the argument the fixture part already makes for a subject nothing ships (ADR-0038 tied-needle
   addendum). The tool audit's logger is the fourth entry there and the same shape as the first,
   held to the tools runbook, the local-dev runbook, the docstring that argues from it that the
   shipped level is not a knob, and that module's suite, which writes a line under the name to
@@ -219,7 +220,7 @@ that last question to have an answer.
   of those carries a number. So `Mention.name` is the name that far side spends it under and
   `{name}` renders it, which makes the pair two mentions of one entry, `{name}: {value}ms;` over
   the declaration and `var({name})` over the spends. A mention carries a name exactly when its
-  template renders one (either half alone is dead data and a fault), and the registry refuses a
+  template renders one (either half alone is dead data and a fault), and the registry rejects a
   name pinned as a spend that no mention of the same entry renders a value under, which would hold
   the name while quietly dropping the value. Two properties live in this shape, `--roll` and
   `--ease`, being the two the overlay's TypeScript declares the value of rather than the name.
@@ -240,7 +241,7 @@ that last question to have an answer.
   reading below, which searches the bare number and so sits next to every decimal in the file.
   **An unfound needle says whose literal stopped matching** (ADR-0023 misattributed-fault
   addendum). A needle is a value plus shape and the shape is other people's text, so moving a
-  neighbour's value out of a template reddens the entry beside it: the compose publish's host-side
+  neighbour's value out of a template fails the entry beside it: the compose publish's host-side
   interface and the body app contract's `CORTEX_BRAIN_ADDR` default each reported *the brain's
   seam port*, which neither of them spells. `needles.py` now answers the fault with two readings.
   The first is whether the file **still spells this constant's own value** as a token of its own,
@@ -473,7 +474,7 @@ that last question to have an answer.
   root git cannot answer about, which is `just check` refusing to run outside a git working tree;
   only the dash ban has a rule whose collection is git's answer. `test_skippeddirs.py` holds both
   claims: every walking module reads this list rather than a copy, and the eight-two partition
-  against git's own answer for this repo, which reddens from either side.
+  against git's own answer for this repo, which fails from either side.
 - `composemounts.py` is `bindcheck.py`'s mount reader and has no CLI. `read_mounts(text)` returns one
   `Mount(line, source)` per bind mount a compose file declares, skipping named volumes (long-form
   `type:` in `NON_BIND_TYPES`, short-form sources without a `PATH_PREFIXES` prefix) and the
@@ -855,7 +856,7 @@ that last question to have an answer.
   two places, as a compose service and as the model host's own hosted tier, so the scan runs
   `REQUIREMENTS` over the union of `subagentservers.py` and `hostedtiers.py`. A flag added to the
   rule therefore reaches both placements the day it is written, and a flag renamed on either side
-  reddens, the sidecar's own spelling being compared against this one rather than trusted.
+  fails, the sidecar's own spelling being compared against this one rather than trusted.
   `REQUIREMENTS` is the rule
   and it is production code here: each entry carries a label, the sentence saying why every server
   must meet it, and the flags it is made of. Two entries today. **The membership both readers
@@ -1134,7 +1135,7 @@ that last question to have an answer.
   tree attaches and therefore the value `cortex_core.VALUE_CHARS` is argued against. A line
   qualifies by carrying the trail's own message and that field, and **both of those words are
   registered in `logcouplings.py` against the sink that writes them** (ADR-0038 tied-needle
-  addendum), so a rename in the brain reddens `just check` on the day it is made rather than
+  addendum), so a rename in the brain fails `just check` on the day it is made rather than
   surfacing here weeks later as a capture holding no trail line at all. **The whole line that field
   sits on is reported beside it**, in the same cohorts, because the per-value bound leaves the line
   itself unbounded and the recall trail is the widest line the brain writes (ADR-0038 whole-line
@@ -1198,8 +1199,8 @@ that last question to have an answer.
   the native family and `<channel|>` on gemma-4, a vocabulary no endpoint offers and a probe run by
   hand may hold, so every verdict prints the tail it was read off. **An unmarked tail is two tiers
   and the key says which**: the failing pick answers by dropping a system turn at the front, so its
-  switched tail is byte identical to the one rendered with the key left alone and is the open door
-  itself, while an unmarked tail the key **changed** is a third family's spelling and is refused
+  switched tail is byte identical to the one rendered with the key left alone and leaves the
+  thought open, while an unmarked tail the key **changed** is an unrecognized format and is refused
   rather than read as open (ADR-0005 third-spelling addendum). That comparison is on the two tails
   and never on the two renderings, for the same reason the reading is. The two sides are **not
   equally strong and the report says which it is
@@ -1344,7 +1345,7 @@ that last question to have an answer.
   fixture's own aspect ratio. Retune the edge and the Rust suite fails with two numbers nothing in
   the file explains, while every gate here stays green, so the pull to register it is real. It is
   still wrong: a needle over the pair would tie the edge and the fixture's display shape into one
-  answer and would redden when the fixture changed, naming a coupling that never moved. So the
+  answer and would fail when the fixture changed, naming a coupling that never moved. So the
   suite computes the size from the constants it already declares, which **removes** the coupling
   instead of holding it, and the same reading keeps the halved `1024` in that file's prose out,
   a rung of the ladder below the edge being a consequence too. Proved both ways on the real tree:
@@ -1408,7 +1409,7 @@ that last question to have an answer.
   keeps a proto comment from being a master. It can only fail in the direction where the far side
   moved: move the declaration and every needle goes on rendering the old digits, green. And when it
   does fail it names the wrong constant, which was measured, not argued: moving the compose
-  publish's host-side interface, or the body app contract's `CORTEX_BRAIN_ADDR` default, reddens
+  publish's host-side interface, or the body app contract's `CORTEX_BRAIN_ADDR` default, fails
   **the brain's seam port**, a value neither of them spells. Worse, a shadow is not even evidence
   that the value is there. Of those two dozen `127.0.0.1`s exactly one is the brain's bind host;
   the rest are the body's own bind, the two `CORTEX_*_ADDR` client defaults, the publish's
@@ -1424,7 +1425,7 @@ that last question to have an answer.
   env paragraph, the two module contracts (one restating the field, one the constant), and that
   ordering comment. Out on the derived-literal ruling: the four sentences saying the bound is twice
   1800 s and four times 900 s, which are consequences of the wait and of a measured batch, so a
-  needle over one would redden when the measurement moved. Out on the rule that keeps decision
+  needle over one would fail when the measurement moved. Out on the rule that keeps decision
   records out: [index.md](../index.md)'s catalogue entry, which says what a dated addendum decided
   and stays true after the default moves. Out on the suite rule: the two unit tests asserting the
   default, which run on every commit.
@@ -1443,7 +1444,7 @@ that last question to have an answer.
   of the variable it names, so a stale note is two spends that disagree, reported by naming one
   `path:line` twice and nothing else. `defaultcheck.one_line_hint` appends the remedy when a group
   repeats a place. The condition is a **repeated** place and not one the whole group shares, which
-  the backlog entry had wrong: the planted note reddens a group of five spends across four files.
+  the backlog entry had wrong: the planted note fails a group of five spends across four files.
   No `#` is looked for, since `"${V:-a}/in:${V:-b}"` is one value spending one variable twice, so
   the sentence names the shared line and offers the note as a likely reading.
 - **And a copy the compiler can reach is an import, not a row**, which the registry's own suite
@@ -1501,7 +1502,7 @@ that last question to have an answer.
   not a migration, and
   `test_the_repo_really_offers_the_two_shapes_this_rule_must_not_report` fails if the tree ever
   stops carrying a code-span heading or an intraword-underscore one, those being the two shapes a
-  detector written slightly too wide would redden first.
+  detector written slightly too wide would fail first.
 - `samplecheck.py` is checked against the real tree by its own suite the way `crosscheck.py` and
   `stubcheck.py` are, so `check-scripts` catches a drift even when `check-samplecheck` is not the
   recipe that runs, and a second test holds the walk to having read something: a runbook tree that
@@ -1514,7 +1515,7 @@ that last question to have an answer.
   anywhere: `test_the_repos_own_rosters_hold` runs the gate over the committed tree, and
   `test_the_repo_really_writes_a_roster_in_both_shapes` fails if the registry ever stops
   exercising both ways a roster can be written, since a bulleted rule nothing bulleted would be a
-  rule that cannot redden. A third holds every registered boundary phrase to appearing exactly
+  rule that cannot fail. A third holds every registered boundary phrase to appearing exactly
   once in its own document, which is what turns a roster that quietly slid out of its passage into
   a failure of the registry rather than a silent shrinking of what is compared. This document is
   one of the two the gate reads, so a module added to `scripts/` and left unnamed above fails the
@@ -1526,7 +1527,7 @@ that last question to have an answer.
   runs, and `test_the_committed_tree_is_green_so_every_red_below_is_the_mutation` is what makes
   every red below it the edit. The test the gate exists for is
   `test_a_server_no_registry_names_is_held_the_day_its_override_is_written`, which ADDS a server
-  in a file nothing has heard of and asserts every requirement reddens: taking a flag off a known
+  in a file nothing has heard of and asserts every requirement fails: taking a flag off a known
   server was already catchable by naming that file, and this is the half that was not. Its twin on
   the other placement is `test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared`,
   which adds a tier to the sidecar's own tuple with the setting that makes it one and the tail its

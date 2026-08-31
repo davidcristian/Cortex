@@ -1,6 +1,6 @@
 """Email MCP server configuration: env-driven (ProtonMail Bridge by default).
 
-Two independent halves: `EmailConfig` (the Slice 6 read-only IMAP reader) and `SmtpConfig`
+Two independent halves: `EmailConfig` (the read-only IMAP reader) and `SmtpConfig`
 (the ADR-0022 send path, off unless CORTEX_EMAIL_SEND_ENABLED=true).
 """
 
@@ -13,11 +13,12 @@ TlsSecurity = Literal["starttls", "ssl"]
 # The reader's historical name for the same two modes; both halves accept the same values.
 ImapSecurity = TlsSecurity
 
-# The two shipped answers the email override spells again as its own substitution defaults, named
-# here rather than left inside the fields so `scripts/crosscheck.py` can read them: a default the
-# scan cannot compare is a default the stack may flip alone. One name covers both TLS hatches
-# because it is one answer rather than two that coincide: a hatch that ships open is not a hatch,
-# and the reader's and the sender's are shut for that single reason.
+# The two shipped answers the email compose override restates as its own substitution defaults,
+# named here rather than left inside the fields so `scripts/crosscheck.py` can read them: a default
+# the scan cannot compare is a default the stack may flip alone. One name covers both TLS escape
+# hatches because it is one answer rather than two that coincide: an escape hatch is worth nothing
+# unless it has to be opened deliberately, and the reader's and the sender's are shut for that
+# single reason.
 DEFAULT_TLS_INSECURE = False
 DEFAULT_SEND_ENABLED = False
 
@@ -28,7 +29,7 @@ class EmailConfig(BaseSettings):
     Defaults target a local ProtonMail Bridge: STARTTLS on 1143 with the Bridge's self-signed
     cert. Supply the Bridge username + generated password via env; verify the cert with
     ``ca_cert`` (the exported Bridge cert), or accept the self-signed cert on loopback with
-    ``tls_insecure``. It is an explicit, documented escape hatch, never a silent default.
+    ``tls_insecure``, which ships off and has to be set for that deployment.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_EMAIL_IMAP_")
@@ -46,10 +47,10 @@ class SmtpConfig(BaseSettings):
     """Where (and whether) the email server sends over SMTP (ADR-0022).
 
     Defaults target a local ProtonMail Bridge: STARTTLS on 1025 (the Bridge's SMTP
-    loopback) with the same cert-verification escape hatches as the IMAP half. The send
-    path is OFF unless ``CORTEX_EMAIL_SEND_ENABLED=true``, which is an explicit, documented act
-    (the sidecar stays byte-for-byte the read-only Slice 6 server otherwise), and
-    enabling it without credentials fails fast at startup, never at first send.
+    loopback) with the same cert-verification escape hatches as the IMAP half. The send path is
+    off unless ``CORTEX_EMAIL_SEND_ENABLED=true``, and the sidecar is byte-for-byte the read-only
+    server until that is set. Enabling it without credentials fails at startup rather than at the
+    first send.
     """
 
     # No `validate_by_name`: the env prefix would otherwise open a second, undocumented

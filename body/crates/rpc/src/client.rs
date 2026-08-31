@@ -10,15 +10,15 @@
 //! over this adapter (ADR-0024), and [`BrainSeamClient::connect_lazy_with_token`]
 //! gives it a reconnecting channel to retry over.
 //!
-//! **The deadline is announced here and enforced there** (ADR-0024 courtesy-header addendum).
+//! The deadline is announced here and enforced in the core (ADR-0024 courtesy-header addendum).
 //! A client told which `RetryPlan` the decorator above it runs ([`BrainSeamClient::announcing`])
 //! puts each call's `grpc-timeout` on the wire, so a brain still working on a call the body has
-//! abandoned learns that it has been. It is a courtesy and not a second enforcement point: the
-//! header is deliberately *longer* than the bound the core keeps, by the plan's grace margin,
-//! because tonic arms a clock of its own from that same header and the core's bound has to win
-//! that race by construction. The client is therefore rebuilt per call ([`SeamCall`]), which is
-//! the only way a per-call value reaches an interceptor built once per connection, and it is why
-//! the channel and the token are held here rather than folded into one generated client.
+//! abandoned can stop. The header is a courtesy rather than a second enforcement point, and it
+//! is longer than the bound the core keeps by the plan's grace margin, because tonic arms a
+//! clock of its own from that same header and the core's bound has to expire first. The client
+//! is therefore rebuilt per call ([`SeamCall`]), which is the only way a per-call value reaches
+//! an interceptor built once per connection, and it is why the channel and the token are held
+//! here rather than folded into one generated client.
 
 use std::fmt;
 
@@ -47,10 +47,9 @@ pub struct BrainSeamClient {
     plan: Option<RetryPlan>,
 }
 
-/// Redacting by construction: the token is a shared secret (ADR-0016) and the only thing here
-/// that must never reach a log, so it is printed as its presence and never as its value. Written
-/// out rather than derived for exactly that reason, the derive having printed the
-/// `MetadataValue` itself.
+/// The token is a shared secret (ADR-0016) and the only field here that must never reach a log,
+/// so this prints whether it is present and never its value. It is written out rather than
+/// derived for that reason, since the derive printed the `MetadataValue` itself.
 impl fmt::Debug for BrainSeamClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BrainSeamClient")
@@ -97,7 +96,7 @@ impl BrainSeamClient {
         Ok(Self::with_token(channel, token))
     }
 
-    /// Like [`BrainSeamClient::connect_with_token`], but over a **lazy** channel
+    /// Like [`BrainSeamClient::connect_with_token`], but over a lazy channel
     /// (`Channel::connect_lazy`): construction never dials, so it only fails on a
     /// bad URI or a non-ASCII token (never on reachability), and each RPC
     /// (re)establishes the connection on demand. This is the channel the
@@ -121,13 +120,13 @@ impl BrainSeamClient {
     /// `plan` (ADR-0024 courtesy-header addendum). Without this the client sends no header at
     /// all, which is what every constructor above returns.
     ///
-    /// `plan` must be the **same plan the `RetryingTransport` above this client enforces**, and
-    /// the shell's `seam::connect()` passes one value to both for that reason. The header is the
+    /// `plan` must be the same plan the `RetryingTransport` above this client enforces, and the
+    /// shell's `seam::connect()` passes one value to both for that reason. The header is the
     /// plan's `announced_deadline_for`, which is strictly longer than the `deadline_for` the core
-    /// keeps, so the two clocks the announcement inevitably starts are ordered: the core's own
-    /// bound expires first and the call fails `TransportError::Timeout` (terminal), rather than
-    /// tonic's expiring first and the call failing `TransportError::Connection` (retryable, and
-    /// so a deadline that amplifies load against a brain already too slow to answer).
+    /// keeps, so the two clocks the announcement starts are ordered: the core's own bound expires
+    /// first and the call fails `TransportError::Timeout`, which is terminal. Were tonic's to
+    /// expire first the call would fail `TransportError::Connection`, which is retryable and
+    /// would amplify load against a brain already too slow to answer.
     #[must_use]
     pub const fn announcing(mut self, plan: RetryPlan) -> Self {
         self.plan = Some(plan);
@@ -198,7 +197,7 @@ impl BrainTransport for BrainSeamClient {
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         // The one method that announces nothing, because it is the one the plan gives no
         // deadline: a turn is long by design, and a header would hand tonic a clock to end it
-        // with. Its statuses therefore map through the plain classifier.
+        // with. Its statuses therefore map through the classifier that reads no announcement.
         crate::converse::converse_turn(
             self.call(SeamMethod::Converse).client(),
             session_id.to_owned(),

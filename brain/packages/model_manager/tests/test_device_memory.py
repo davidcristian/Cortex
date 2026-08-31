@@ -8,12 +8,12 @@ Every path out of this seam is a decision about whether a co-resident deployment
 all, which is why "no reading" is asserted separately for each way it can happen rather than
 collapsed into one parametrized case: the brain refuses a handoff on any of them, and an
 implementation that turned a two-GPU host into a reading of the first row would silently license
-the configuration the check exists to refuse.
+the configuration the check exists to reject.
 
-Distrust-green proof, measured across ``packages/model_manager``: returning
+These checks were proved able to fail, over the ``packages/model_manager`` suite: returning
 ``DeviceMemory(free_mib=0, total_mib=0)`` instead of ``None`` from ``_parse``'s multi-row branch
-reddens exactly ``test_more_than_one_visible_gpu_is_no_reading_rather_than_a_guess``; swapping the
-parse to ``total, free`` reddens ``test_a_single_row_is_read_as_free_then_total``, which is the
+fails exactly ``test_more_than_one_visible_gpu_is_no_reading_rather_than_a_guess``; swapping the
+parse to ``total, free`` fails ``test_a_single_row_is_read_as_free_then_total``, which is the
 pair-ordering nothing else here would catch.
 """
 
@@ -29,7 +29,7 @@ _BINARY = "/usr/bin/nvidia-smi"
 
 
 class _StandInProcess:
-    """What ``create_subprocess_exec`` hands back: an exit code and one shot of stdout."""
+    """Stand in for what ``create_subprocess_exec`` hands back: an exit code and one stdout."""
 
     def __init__(self, stdout: str, returncode: int = 0) -> None:
         self.returncode = returncode
@@ -55,7 +55,7 @@ def _answering(
 
 
 def _rendered(caplog: pytest.LogCaptureFixture) -> str:
-    """The one captured line as an operator reads it, fields and all.
+    """Render the one captured line as an operator reads it, fields and all.
 
     The seam's readings ride their records as `extra` and the process entry's formatter is what
     puts them on the line, so `caplog.text`, which renders no field, would pass over a warning
@@ -66,7 +66,7 @@ def _rendered(caplog: pytest.LogCaptureFixture) -> str:
 
 
 async def test_a_host_with_no_probe_reports_no_card_without_asking_anything() -> None:
-    """The default a CPU-only deployment gets: an answer, not an error and not a guess."""
+    """A CPU-only deployment reads ``None``, which is an answer rather than an error."""
     assert await NoDeviceMemory().read() is None
 
 
@@ -113,7 +113,7 @@ async def test_a_row_with_the_wrong_number_of_fields_is_no_reading(
 async def test_a_failed_query_is_no_reading_rather_than_an_error(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A driver that is present but will not answer: the control API still serves its health."""
+    """A driver that is present and does not answer leaves the control API serving health."""
     _answering(monkeypatch, "", returncode=9)
     with caplog.at_level(logging.WARNING, logger="cortex_model_manager.device_memory"):
         assert await NvidiaSmiMemory(_BINARY, 5.0).read() is None

@@ -6,8 +6,8 @@ path, decodes the card the user would see back into a `ConfirmationRequest`, and
 same call by handing the id to `resolve`, which is exactly what the Converse stream does with the
 `ConfirmResponse` it reads. Nothing about the adapter is stubbed; only the person is scripted.
 
-Silence is the one thing the overlay does by not acting, and the adapter's own deadline is what
-turns it into a denial, so the seam fixture runs on a 10 ms timeout. The adapter's other endings
+The overlay stays silent by not acting at all, and the adapter's own deadline is what turns that
+silence into a denial, so the seam fixture runs on a 10 ms timeout. The adapter's other endings
 (the resolution event the overlay is sent for a card it cannot see close, an answer after
 `close`, a cancelled ask) stay in `test_confirm.py`, which is where a claim about the stream
 belongs.
@@ -26,8 +26,8 @@ from cortex_seam import ServerEvent
 
 type Build = Callable[[], ConfirmerUnderTest]
 
-# Long enough that a scheduled answer always wins the race, short enough that the silent check
-# costs a blink. The adapter's own suite uses the same order of magnitude for its timeout case.
+# Long enough that a scheduled answer always arrives first, short enough that the silent check
+# costs 10 ms. The adapter's own suite uses the same order of magnitude for its timeout case.
 _TIMEOUT_S = 0.01
 
 
@@ -37,7 +37,8 @@ def _recording() -> ConfirmerUnderTest:
         confirmer=confirmer,
         will_approve=lambda: confirmer.answer_with(approved=True),
         will_refuse=lambda: confirmer.answer_with(approved=False),
-        # A fake has nobody to fall silent, so it is scripted with what silence must produce.
+        # A fake has no overlay that can fall silent, so it is scripted with the denial that
+        # silence produces.
         will_say_nothing=lambda: confirmer.answer_with(approved=False),
         shown=lambda: confirmer.requests,
     )

@@ -4,7 +4,7 @@ The ``integration``-marked suite here drives the real Postgres at ``CORTEX_MEMOR
 a developer machine is the database the brain keeps its real memories in. Sharing the ``memories``
 table with them made the run report on the table's contents rather than the adapter's behaviour:
 ``memory_contract.check_empty_search`` asserts ``search(k=5) == []`` over the whole table and
-``check_ranks_by_similarity`` asserts an exact top-2, so one real memory reddens a correct adapter.
+``check_ranks_by_similarity`` asserts an exact top-2, so one real memory fails a correct adapter.
 
 So the live run opens a database of its own, ``LIVE_DB``, which the brain never opens: production
 points ``CORTEX_MEMORY_DSN`` at ``cortex`` (docker/docker-compose.memory.yml). That is the same

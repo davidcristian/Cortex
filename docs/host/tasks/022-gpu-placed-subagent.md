@@ -6,8 +6,8 @@
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 
 A spawn was placed on the hosted `-ngl 99` tier while the 12B cortex stayed resident and kept
-serving, and the ledger accounted for it, which is this item's pass line met. The finding is a
-numbers one, which is the failure this item predicted for itself.
+serving, and the ledger accounted for it, which is this item's pass line met. The finding is about the
+shipped numbers, which is the failure this item predicted for itself.
 
 **The measurement has left this directory**, per [index.md](../index.md)'s exit contract: its home is
 the dated fit-test addendum in [ADR-0012](../../adr/ADR-0012-resource-governance.md), with the
@@ -23,7 +23,7 @@ was written to answer turned out to be a question about the shipped numbers rath
 card. The placeholder pair sums to 16.8 GB (an 11.3 GB cortex reservation and a 5.5 GB subagent ask)
 against a 14 GB soft cap the two tiers very nearly meet as measured: 13353 MiB of total used is
 14.00 GB, of which 12.02 GB is the tiers themselves above the 1888 MiB the card reads with both
-stopped. So what refused every placement was the arithmetic and not the hardware: the reservation
+stopped. So what blocked every placement was the arithmetic and not the hardware: the reservation
 runs about 0.8 GB above what this build of llama.cpp needs for the cortex, and the ask about 2 GB
 above what the subagent tier measured (3.48 GB). The more interesting failure this item named did
 not happen either: with both tiers generating at once the cortex fell from 71.82 to 50.54 tok/s and
@@ -42,7 +42,7 @@ kept as the record of what the numbers were when this item closed.
 `CORTEX_SWAP_EVICT_MODELS` was left unset: what it buys is a handoff stopping the tier before the
 deep model loads, which is items 2 to 4's territory and needs the overlay they wait on. And the
 spawn came from the live delegation suite invoking the spawn tool directly, which is what this
-item's own opening blessed as a placement without a desktop, rather than from a cortex that decided
+item's own opening allowed as a placement without a desktop, rather than from a cortex that decided
 to delegate inside a turn.
 
 ## Trail

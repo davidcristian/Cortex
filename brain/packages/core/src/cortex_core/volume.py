@@ -2,12 +2,12 @@
 
 The cortex calls these like any tool. Each runs through the audited ``ToolDispatcher`` and
 calls the ``BodyGateway`` port, which reaches the host body over ``BodyService`` (the first
-brain→body seam direction). Both are **internal** built-ins (not MCP), so they are cortex-only
-by construction, since a subagent never gets one (ADR-0010/0013).
+brain→body seam direction). Both are internal built-ins rather than MCP tools, so they are
+cortex-only by construction, since a subagent never gets one (ADR-0010/0013).
 
-Volume is reversible and low-harm, so both tools are **ungated** (``gated=False``): a spoken
-"set volume to 30%" should not demand an approval card. The gate is still inherited for free by
-later irreversible OS actions (``gated=True``), and a user can opt volume in by adding
+Volume is reversible and low-harm, so both tools are ungated (``gated=False``): a spoken
+"set volume to 30%" should not demand an approval card. The gate is still inherited by later
+irreversible OS actions (``gated=True``), and a user can opt volume in by adding
 ``set_volume`` to ``CORTEX_TOOLS_GATED`` (the dispatcher's authoritative backstop, ADR-0022).
 Every result is ``Trust.TRUSTED`` since host state is system-generated, never third-party content,
 so a volume call never taints the turn. Bad arguments and a failed body call both become an

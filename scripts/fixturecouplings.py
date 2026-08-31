@@ -1,38 +1,36 @@
 """The couplings inside a measurement fixture: what a stack is built to hold, and what names it.
 
-One of the data files `crosscheck.py` reads as a single registry, and the seventh part to arrive.
-Like `emailcouplings.py` before it, it arrived as a subject rather than as a split under the
-300-line cap: a new part is a data file plus one line in `registry.py`, and the scan never learns
-the registry grew. The subject is the one no other part holds. Every other part ties something the
-repo **ships**, a default a container boots on or a value one tree's code hands another's. These tie
-something the repo **measures with**: a stack that exists only so a suite can watch a real server
-answer, and the suite that names what the stack was built to contain.
+One of the data files `crosscheck.py` reads as a single registry. Like `emailcouplings.py` before
+it, it arrived as a subject rather than as a split under the 300-line cap: a new part is a data file
+plus one line in `registry.py`. Every other part ties something the repo **ships**, a default a
+container boots on or a value one tree's code hands another's. These tie something the repo
+**measures with**: a stack that exists only so a suite can watch a real server answer, and the suite
+that names what the stack was built to contain.
 
-**Why a fixture needs a gate more than a shipped value does, not less.** A shipped default has a
-suite that runs on every commit and would notice. The suite here is `integration`-marked, so it
-never runs in CI and runs on a host only when somebody chooses to measure. Rename a mailbox in the
-script and every gate stays green, for months, while the fixture builds one tree and the suite
-asks about another; the failure surfaces on the next measurement, worded as a server behaving
-oddly rather than as a fixture that moved. This scan is the only thing that reads both files.
+A fixture needs this gate more than a shipped value does. A shipped default has a suite that runs on
+every commit. The suite here is `integration`-marked, so it never runs in CI and runs on a host only
+when somebody chooses to measure. Rename a mailbox in the script and every gate stays green, for
+months, while the fixture builds one tree and the suite asks about another; the failure surfaces on
+the next measurement, worded as a server behaving oddly rather than as a fixture that moved. This
+scan is the only thing that reads both files.
 
-**What is deliberately not here.** Neither the probe's address nor its port: `just
-email-folder-probe` reads both back off docker, the publish when it answers and the container's
-own address when it does not, so neither is written down anywhere a rename could strand. Nor the
-name the suite invents to be refused, `Nonexistent`, whose whole point is that the script does not
-build it; a coupling needs two places holding one value, and that one is a value with one place on
-purpose. Nor the login's password, which is the account's own name spent a second time in one
-expression, `nopassword=y` leaving nothing on the server to agree with it: a value spelled twice in
-one file under one constant is not two places, and the far side here is an absence.
+Four values are deliberately not here. Neither the probe's address nor its port: `just
+email-folder-probe` reads both back off docker, the publish when it answers and the container's own
+address when it does not, so neither is written down anywhere a rename could strand. Nor the name
+the suite invents to be refused, `Nonexistent`, whose point is that the script does not build it; a
+coupling needs two places holding one value. Nor the login's password, which is the account's own
+name spent a second time in one expression, `nopassword=y` leaving nothing on the server to agree
+with it: a value written twice in one file under one constant is not two places, and the far side
+here is an absence.
 
-**And the mail root above the account is not here, because there is no longer a coupling to hold.**
-It was spelled three times, in the script, in `docker/dovecot/probe.conf` and in the compose tmpfs
+The mail root above the account is not here either, because there is no longer a coupling to hold.
+It was written three times, in the script, in `docker/dovecot/probe.conf` and in the compose tmpfs
 that makes the store throwaway, with no tree declaring it and so nothing this scan could read: it
 compares a declaration against the places restating one, and inventing a declaration in a suite
-with no use for the value would be the gate editing the contract it watches. The fixture answered
-that by spelling the root once, in the compose file, and handing it to the other two files in the
-environment (ADR-0022 one-mail-root addendum). A value with one place is not a coupling, which is
-the same reason the name the suite invents to be refused is not registered here, so the prefix
-still rides inside the account's own template as shape and the registry gained no row.
+with no use for the value would change the contract this gate reads. The fixture answered that by
+writing the root once, in the compose file, and handing it to the other two files in the
+environment (ADR-0022 one-mail-root addendum). A value with one place is not a coupling, so the
+prefix stays inside the account's own template as part of its shape and the registry gained no row.
 """
 
 from couplings import Constant, Mention, Site
@@ -74,7 +72,7 @@ FIXTURE_COUPLINGS: tuple[Constant, ...] = (
         # A rename that moved the first and left the second puts the ACL under a directory
         # dovecot never reads, and the mailbox then opens like any other. The suite would still
         # find the name listed and would fail on the refusal, which is a measurement wasted on a
-        # fixture fault; the count is what refuses the half applied rename here.
+        # fixture fault; the count is what catches the half applied rename here.
         mentions=(Mention(PROBE_SCRIPT, "mailboxes/{value}/dbox-Mails", occurrences=2),),
     ),
     Constant(
@@ -116,8 +114,8 @@ FIXTURE_COUPLINGS: tuple[Constant, ...] = (
         # line, which is the whole of what the script says about it: there is no directory to pin,
         # the absence of one being the point. The line's own end is deliberately not pinned. It
         # was once, when this was the only subscription, and the needle went stale the moment a
-        # second name was written under it: what a subscription needs is a line of its own, not
-        # the last one in the file.
+        # second name was written under it: a subscription needs a line of its own, and that line
+        # need not be the last in the file.
         mentions=(Mention(PROBE_SCRIPT, "\\n\\n{value}"),),
     ),
     Constant(

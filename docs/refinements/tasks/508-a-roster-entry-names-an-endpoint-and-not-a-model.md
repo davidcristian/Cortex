@@ -15,7 +15,7 @@ inside `SingleResidentModelManager(name, endpoint)` are both that same name, mat
 and never sent anywhere that could disagree; what the backend actually does is dial `endpoint`. The
 weights are named in a `command:` argument of a `llama-server` container,
 `CORTEX_MODEL_FILE_SUBAGENT` for the default entry and `CORTEX_MODEL_FILE_SUBAGENT_QWEN` for the
-alternate, in a compose file the brain never reads. So the brain knows which door it knocks on and
+alternate, in a compose file the brain never reads. So the brain knows which endpoint it dials and
 has no way to learn which model answers, and every per-entry claim this repo has measured is
 attached to an artifact the roster cannot name.
 
@@ -43,7 +43,7 @@ sink it.
   entry serving an artifact nobody expected still answers.
 - **Whether an expectation is declarable at all.** There is no field today saying which artifact an
   entry should be serving, and adding one is a config knob that can be wrong in a new way, since it
-  is typed by the same hand that typed the compose `command:` and would drift from it silently.
+  is typed by the same hand that typed the compose `command:` and would drift from it with nothing reporting the drift.
   Without an expectation the probe reports rather than checks, which may be the whole honest scope.
 - **Where it lives.** Per advertisement, like the vision probe, would cost an HTTP call per spawn
   spec for a value that changes only on a container restart; once at `build_subagents` costs

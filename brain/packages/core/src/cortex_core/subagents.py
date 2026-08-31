@@ -20,17 +20,17 @@ class SubagentTask:
     the task). ``at`` must be timezone-aware: task state outlives the process and any swap (the
     one hard rule), so a naive timestamp is ambiguous. ``model`` is the roster entry the cortex
     requested (``""`` = the default) and ``tainted`` whether the spawning turn had read untrusted
-    content at spawn time (the two resolution inputs only the spawn site knows), riding on the
-    record so the runner resolves safely from the store alone (ADR-0017/0018).
+    content at spawn time (the two resolution inputs available only at the spawn site), riding on
+    the record so the runner resolves safely from the store alone (ADR-0017/0018).
 
     ``session_id`` and ``turn_id`` are the spawning turn's attribution, written from the spawn
     dispatch's ``TurnStamp`` and read back by the runner, so this task's own tool calls are
     audited under the chat and the turn that asked for them (ADR-0009 named-work addendum;
     both ``""`` when nothing conversational spawned it, which is the schedule ticker's fire).
     ``item_id`` is the third and is that fire's own (ADR-0009 fired-work addendum): the
-    scheduled item whose firing spawned this task, ``""`` for every spawn a conversation made,
-    so a delegate's calls say which item they are the work of and a turn's delegate keeps
-    saying honestly that no item is behind it.
+    scheduled item whose firing spawned this task, ``""`` for every spawn a conversation made, so
+    a delegate's calls name the item they are the work of and a delegate a conversation spawned
+    reports no item at all.
     All three ride the record rather than the call for the reason everything else here does: a
     subagent is a stateless function over the store, so an attribution that lived only in a
     parameter would be lost by the first re-read (the one hard rule).
@@ -54,8 +54,7 @@ class SubagentTask:
 
 @dataclass(frozen=True, slots=True)
 class AttemptBounds:
-    """How far one placed attempt at a task may go before it must stop (ADR-0005 total-cap
-    addendum).
+    """How far one placed attempt at a task may go before it stops (ADR-0005 total-cap addendum).
 
     Two knobs that answer the same question in the two units a runaway can be measured in, and
     they are one value because a deployment that sets one and not the other has bounded half of
@@ -66,9 +65,9 @@ class AttemptBounds:
     model happens to stop.
 
     Neither replaces the other. The token cap is what bounds a fast tier, where a deadline's worth
-    of decoding is an essay; the deadline is what bounds a slow one, where the pool decodes at
-    between 0.18 and 1.35 tok/s depending on what else the host is doing, which makes even a small
-    token budget minutes of held admission.
+    of decoding is a very long reply; the deadline is what bounds a slow one, where the pool
+    decodes at between 0.18 and 1.35 tok/s depending on what else the host is doing, which makes
+    even a small token budget minutes of held admission.
 
     The defaults are ``None`` and ``None``, meaning no cap and no deadline, so an attempt built
     without bounds sends the request this repo has always sent and runs as long as it always did.
@@ -97,15 +96,16 @@ UNBOUNDED_ATTEMPT = AttemptBounds()
 
 # The shipped numbers, declared here beside the value they fill and imported by
 # ``SubagentsConfig`` rather than restated there, the ``DEFAULT_ADMISSION_WAIT_S`` precedent: one
-# declaration is stronger than any scan tying two, and nothing outside this language spells either.
+# declaration cannot drift the way two tied by a scan can, and nothing outside this language
+# spells either.
 # Both derivations are measurements taken on the shipped CPU entry and are argued in full at the
 # ADR-0005 total-cap addendum.
 #
 # The cap is roughly five times the longest reply a narrow subtask produced there, a
 # summarization answering in 199 tokens where an extraction took 125 and a lookup 4. Sized from the
 # answer rather than from the context, the way the recap fold's six times and the title's eight
-# are: what makes a cap safe is that reaching it is itself the evidence, and a reply five times the
-# longest one this tier has been measured writing is a model that is talking rather than working.
+# are: a cap is safe when reaching it is itself the evidence, and a reply five times the longest
+# one this tier has been measured writing is a model narrating rather than answering.
 #
 # Those five replies were all measured on the tools-enabled shape, and a subagents-only stack runs
 # the constrained one, so the number is confirmed rather than derived on the shape that ships
@@ -143,9 +143,9 @@ DEFAULT_SUBAGENT_MAX_TOKENS = 1024
 # The cap above is the one neighbour this deadline is not ordered against, by decision rather than
 # by oversight (ADR-0005 independence addendum). A time and a count are commensurable only through
 # the tier's decode rate, which is measured rather than configured and moves by a factor of seven
-# on one machine with nothing but the host's load changing, so a boot check would have to hold a
-# hardware fact this process has no way to know. Both bounds refuse honestly whichever fires; what
-# the ordering would buy is which diagnosis a reader gets, since nothing downstream branches on it.
+# on one machine with nothing but the host's load changing, so a boot check would have to depend on
+# a hardware fact this process cannot read. Both bounds report accurately whichever fires, and the
+# ordering would only decide which diagnosis a reader gets, since nothing downstream branches on it.
 DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0
 
 # How many attempts at one task fit inside one ``scheduler.admit``, which is what makes the queue

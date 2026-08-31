@@ -3,9 +3,9 @@
 // and adding one to EDGES makes it pickable with no other code change. All geometry lives in
 // liquid.ts; this file is only the numbers.
 //
-// The labels are a ladder of dream depth, Still to Trance, so the order of this registry IS the
-// explanation of intensity and the tile row needs no caption (the naming language, ADR-0031
-// addendum). `name` is the storage key the preference record holds (ADR-0032); keys are the
+// The labels are a ladder of dream depth, Still to Trance, so the order of this registry is itself
+// the explanation of intensity and the tile row needs no caption (the naming language, ADR-0031
+// addendum). `name` is the storage key the preference record holds (ADR-0032); the keys are the
 // lowercase labels from day one and are frozen the way the mark's are.
 
 /** One wave of the edge's spectrum. `waves` is the spatial order around the loop and must be an
@@ -20,9 +20,9 @@ export interface EdgeWave {
   readonly phase: number;
 }
 
-/** What rides the outline. `none` is bare glass and hairline; `settled` is neutral at rest and
- *  takes the accent while a turn runs; `ember` keeps a low accent lit at rest, the one written
- *  exception to color-is-activity (ADR-0036). */
+/** The glow drawn on the outline. `none` is bare glass and hairline; `settled` is neutral at rest
+ *  and takes the accent while a turn runs; `ember` keeps a low accent lit at rest, the one written
+ *  exception to the rule that colour means activity (ADR-0036). */
 export type EdgeGlow = "none" | "settled" | "ember";
 
 /** The parameters that make one window edge. */
@@ -104,8 +104,8 @@ export const EDGES: readonly EdgeStyle[] = [STILL, LUCID, REVERIE, TRANCE];
 /** Reverie carries Lucid's spectrum on purpose (the glow is the whole difference), so the
  *  difference is data the tests can pin rather than a coincidence. */
 
-/** Resolve the active edge: a known name wins, anything else falls back to the default, which is
- *  Lucid by the user's explicit call (ADR-0036): a fresh overlay breathes. */
+/** Resolve the active edge: a known name is returned, and anything else falls back to the default,
+ *  which is Lucid by the user's explicit choice, so a fresh overlay ships liquid (ADR-0036). */
 export function resolveEdge(preference: string | null): EdgeStyle {
   if (preference !== null) {
     const chosen = EDGES.find((edge) => edge.name === preference);

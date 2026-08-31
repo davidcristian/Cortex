@@ -67,7 +67,7 @@ _TIMEOUT_S = 600.0
 
 
 async def test_a_real_server_reports_its_decode_cadence_and_the_watch_judges_it() -> None:
-    """One tier, `_RUNS` completions, through the shipped adapter and the shipped watch.
+    """Run `_RUNS` completions against one tier, through the shipped adapter and watch.
 
     Asserts only what is true of any working tier: that the figure arrives at all, that it is
     reported once per completion, and that it is a rate a real card could produce. The verdict is

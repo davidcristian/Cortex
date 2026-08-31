@@ -21,7 +21,7 @@ import { ThemeIcon } from "./ThemeIcon";
 
 export interface ChatViewProps {
   readonly state: OverlayState;
-  /** The column the panel renders this view into, where the log hears a roll in the chrome. */
+  /** The column the panel renders this view into, where the log listens for a roll in the chrome. */
   readonly column: RefObject<HTMLElement | null>;
   readonly open: boolean;
   readonly dark: boolean;
@@ -36,8 +36,9 @@ export interface ChatViewProps {
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  /** Load a chat. Whether the swap is announced belongs to the door, and this view holds both of
-   *  them: a switcher row and a reminder's open control answer it differently (`notice.ts`). */
+  /** Load a chat. Whether the swap is announced depends on which control opened it, and this view
+   *  holds both: a switcher row passes false and a reminder's open control passes true
+   *  (`notice.ts`). */
   readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
@@ -51,7 +52,7 @@ const EXAMPLE_PROMPTS = ["Summarize my unread email", "Remind me to stretch in 2
 
 /** The panel's resting view: header, the roll-open sections, the scrolling history, the composer,
  *  and the shortcut hints. The history follows the stream unless the reader has scrolled up, and
- *  holds its place under a roll that takes its window (`overlay/logRide.ts`). The switcher list and
+ *  holds its place while a roll shortens its window (`overlay/logRide.ts`). The switcher list and
  *  the reminder stack roll through `Collapse`, so the panel's height follows them frame by frame. */
 export function ChatView({
   state,
@@ -74,26 +75,25 @@ export function ChatView({
   onRespondConfirm,
   onDismissReminder,
 }: ChatViewProps) {
-  // The chat is the view on screen while no console tab is up, which is the one thing the log's
-  // scroll position cannot look after itself through (`useLogScroll`).
+  // The chat is the view on screen while no console tab is up, and a view change is the one thing
+  // the log's scroll position cannot survive on its own (`useLogScroll`).
   const showing = state.consoleTab === null;
   const log = useLogScroll(showing, column);
 
-  // WHERE EACH LIST SENDS THE CARET WHEN IT HAS NO ROW LEFT TO SEND IT TO. Both are lists whose
-  // rows can leave under the hand, and each keeps the caret among its own rows while it has any
-  // (`overlay/rowCaret.ts`); this view holds the two controls that answer for them when they run
-  // out, because neither is a control the list itself owns.
+  // Where each list sends the caret when it has no row left to send it to. Both are lists whose
+  // rows can be removed while the reader is inside them, and each keeps the caret among its own
+  // rows while it has any (`overlay/rowCaret.ts`). This view holds the two controls that receive
+  // the caret when a list runs out, because neither control belongs to the list itself.
   //
-  // They differ because what the reader is left with differs. Delete the last other chat and the
-  // switcher is still open in front of you, saying it has nothing, so the caret goes to the header
-  // control that opened it and would close it again. Ack the last reminder and the stack goes with
-  // it, delivery being over, and what is left is the conversation underneath, whose caret has one
-  // home: the field a summon already lands in.
+  // The two differ because what the reader is left with differs. Delete the last other chat and the
+  // switcher is still open and empty, so the caret goes to the header control that opened it and
+  // would close it again. Ack the last reminder and the stack is removed with it, leaving the
+  // conversation underneath, whose caret belongs in the field a summon already lands in.
   //
-  // The chats button answers twice over, for the list emptying and for the list CLOSING
-  // (`overlay/sectionCaret.ts`), which is the same reader left in the same place by two different
-  // things happening to the same list. The field answers twice as well: for the stack's last ack,
-  // and for an example chip below, whose press takes the whole empty state away.
+  // The chats button receives the caret in two cases, the list emptying and the list closing
+  // (`overlay/sectionCaret.ts`), which leave the same reader in the same place. The field receives
+  // it in two as well: the stack's last ack, and an example chip below, whose press removes the
+  // whole empty state.
   const chatsButton = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLTextAreaElement>(null!);
 
@@ -105,29 +105,27 @@ export function ChatView({
   return (
     <>
       <header className="head">
-        {/* The title opens the row and the two state indicators close it, immediately left of the
-            button cluster. They sit together because they are one row of state, not two ornaments:
-            splitting them would leave a lone capture ring beside the title that only ever appears
-            mid-capture, so the header's left edge would gain and lose a dot per turn. Against the
-            buttons they read as "what the panel currently is" next to "what you can do to it", and
-            the title gets the corner to itself.
+        {/* The title starts the row and the two state indicators end it, immediately left of the
+            button cluster. They sit together as one group, because separating them would leave a
+            lone capture ring beside the title that only appears mid-capture, so the header's left
+            edge would gain and lose a dot every turn. Beside the buttons they read as what the panel
+            currently is, next to what can be done to it, and the title keeps the corner.
 
-            The capture ring comes FIRST, which is a layout fact rather than a preference. The title
-            is the row's only flexible item, so it absorbs every width change; a fixed item inserted
-            directly against it costs the title 17px and moves nothing else. Put the ring on the far
-            side of the connection dot instead and that dot, plus all four buttons, slide 17px left
-            the moment a capture starts, mid-turn, while the user is watching the header. This way a
-            capture beginning causes no motion anywhere in the row: the ring simply fades in, in
-            space the title gives up. */}
+            The capture ring comes first for a layout reason. The title is the row's only flexible
+            item, so it absorbs every width change; a fixed item inserted directly against it costs
+            the title 17px and moves nothing else. With the ring on the far side of the connection
+            dot, that dot and all four buttons slide 17px left the moment a capture starts, mid-turn,
+            while the user is watching the header. In this order a capture starting moves nothing:
+            the ring fades in, in space the title gives up. */}
         <span className="title">{state.title}</span>
         <CaptureDot claim={state.capture} />
         <LinkDot link={state.link} />
-        {/* `aria-expanded` is the whole of what this control says about the list, and measured, the
-            whole of what the overlay said about it: opening the list by key moved no caret and
-            raised no live region anywhere. So the key says what the list holds and this button does
-            not, being the one place the state is already read back under the reader's own caret
+        {/* `aria-expanded` is all this control says about the list, and measured, it was all the
+            overlay said about it: opening the list by key moved no caret and raised no live region
+            anywhere. So the key announces what the list holds and this button does not, since
+            pressing the button already reads the state back under the reader's own caret
             (`overlay/notice.ts`). Its name is imported for the same reason the empty line's words
-            are: the button, the list and the sentence are three renderings of one name. */}
+            are: the button, the list and the sentence render one name. */}
         <button
           className="hbtn"
           ref={chatsButton}
@@ -152,25 +150,25 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
-          // The list answers for its own closing as well as for its own rows, and both answers are
-          // the anchor below (`overlay/sectionCaret.ts`); `arrival` is how it stands down for the
+          // The list places the caret for its own closing as well as for its own rows, and both
+          // land on the anchor below (`overlay/sectionCaret.ts`). `arrival` is how it skips the
           // closings that are really chat swaps.
           open={state.switcherOpen}
           arrival={state.arrival}
           anchor={chatsButton}
-          // Silent: the row IS the chat's name, so announcing would read the label back.
+          // Not announced: the row's own label is the chat's name, so announcing would read it back.
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
           onRename={onRenameSession}
           onDelete={onDeleteSession}
           onPin={onPinSession}
         />
       </Collapse>
-      {/* Keyed by the chat, because a session change is a content swap, not a section toggle.
-          Minting a new chat over a conversation flips this stack open in the same render that
-          empties the log, and rolled open there it fought the panel's own ease and read as a
-          jump; remounted instead, it arrives with the empty state in the panel's one movement,
-          exactly as it does coming back from the console. Within one chat the key holds still,
-          so a reminder dismissed or arriving on the empty state still rolls. */}
+      {/* Keyed by the chat, because a session change is a content swap rather than a section
+          toggle. Minting a new chat over a conversation opens this stack in the same render that
+          empties the log, and rolling it open there ran against the panel's own ease and read as a
+          jump. Remounted instead, it arrives with the empty state in the panel's one movement, as
+          it does coming back from the console. Within one chat the key does not change, so a
+          reminder dismissed or arriving on the empty state still rolls. */}
       <Collapse
         aside
         key={state.sessionId}
@@ -181,48 +179,48 @@ export function ChatView({
           currentId={state.sessionId}
           anchor={field}
           onDismiss={onDismissReminder}
-          // Announced: "open chat" names the act and not the chat, so the title is news.
+          // Announced: the control is labelled "open chat" rather than with the chat's name, so the
+          // title the reader lands on has not been read out yet.
           onOpen={(sessionId) => onSelectSession(sessionId, true)}
         />
       </Collapse>
       <div className="history" ref={log.ref} onScroll={log.onScroll}>
         {/* Everything the history holds lives in one inner column, `.log`, because the floor that
             stops the first send from shrinking the panel (its `min-height`, which is `--chat-floor`
-            measured off the empty state below) has to sit on the CONTENT rather than on the scroll
-            box. A floor on `.history` itself cannot yield: with the switcher and the reminder stack
-            both open at the body's 720px window there is 76px left for the history, and a box that
-            refuses to go below 195px there pushes the composer and the hint strip out past the
-            panel's own clipped edge (measured in Chromium before this was written). Floored content
-            just scrolls instead.
+            measured off the empty state below) has to sit on the content rather than on the scroll
+            box. A floor on `.history` itself cannot shrink: with the switcher and the reminder
+            stack both open at the body's 720px window there is 76px left for the history, and a box
+            held at 195px there pushes the composer and the hint strip past the panel's own clipped
+            edge (measured in Chromium before this was written). Floored content scrolls instead.
 
-            `bare` says the log holds the empty state and nothing else, which is the one case where
-            the column may be SHORTER than its content: an opening screen that scrolls is a wrong
-            thing to have made, so it shrinks and stays centred instead (`.log.bare`). It is asked
-            of the same two pieces of state the empty state itself is rendered from, so the class
-            and the child can never disagree. */}
+            `bare` marks the case where the log holds the empty state and nothing else, the one case
+            where the column may be shorter than its content: an opening screen should not scroll,
+            so it shrinks and stays centred (`.log.bare`). The class is computed from the same two
+            pieces of state the empty state itself is rendered from, so the class and the child
+            cannot disagree. */}
         <div className={`log${state.messages.length === 0 && state.pendingConfirm === null ? " bare" : ""}`}>
           {state.messages.length === 0 ? (
-            // The ref is that floor, measured: this element stands for the whole life of an empty
-            // chat and leaves as the first message lands (overlay/measured.ts).
+            // The floor is measured off this element, which is present for the whole life of an
+            // empty chat and is removed as the first message lands (overlay/measured.ts).
             <div className="empty" ref={chatFloorRef}>
               <button
                 className="markbtn"
                 onClick={() => onToggleConsole("appearance")}
-                // Named for where it lands, which is the console's appearance tab: the settings
-                // sheet this used to open is gone, and a label naming a view that no longer
-                // exists is the one part of a rename a screen reader would still be reading out.
+                // Named for where it lands, the console's appearance tab. The settings sheet this
+                // used to open is gone, and an accessible name is the one place a stale view name
+                // would still be read out after a rename.
                 aria-label={`Mark: ${mark.label}. Open appearance`}
                 type="button"
               >
                 <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
               </button>
               <p className="empty-line">Ask me anything</p>
-              {/* A chip is a control its own press unmounts, the empty state going with the first
-                  message, and it is the one such control that is not in a list with an heir to
-                  hand the caret to: measured at 900x900, pressing one left `document.activeElement`
-                  on `<body>` at 39ms, taking the reminder stack above it away in the same commit.
-                  It hands the caret to the field, which is where the answer to the prompt it just
-                  sent gets written and where the composer's own send leaves it
+              {/* Pressing a chip unmounts it, because the empty state goes with the first message,
+                  and it is the one such control that is not in a list with a next row to receive
+                  the caret: measured at 900x900, pressing one left `document.activeElement` on
+                  `<body>` at 39ms, removing the reminder stack above it in the same commit. It
+                  passes the caret to the field, where the reply to the prompt it just sent gets
+                  written and where the composer's own send leaves it
                   (`overlay/sectionCaret.ts`). */}
               <div className="empty-chips">
                 {EXAMPLE_PROMPTS.map((prompt) => (
@@ -241,9 +239,9 @@ export function ChatView({
               </div>
             </div>
           ) : null}
-          {/* The whisper's drain outlives the turn's last render (ADR-0037), so a streamed
-              bubble reports its growth and the tail pin answers exactly as it does for a new
-              message: pinned readers follow, a reader who scrolled up holds their place. */}
+          {/* The whisper's drain outlives the turn's last render (ADR-0037), so a streamed bubble
+              reports its growth and the tail pin responds as it does for a new message: a pinned
+              reader follows, and a reader who scrolled up holds their place. */}
           {state.messages.map((message) => (
             <Message key={message.id} message={message} onGrow={log.toTail} />
           ))}
@@ -252,20 +250,20 @@ export function ChatView({
           ) : null}
         </div>
       </div>
-      {/* The pill's growth is the log's loss: they are flex siblings and the log is the one that
+      {/* Growing the pill shortens the log: they are flex siblings and the log is the one that
           yields, so a draft that restacks or wraps takes the height out of the window above it
           while the engine leaves `scrollTop` where it was. Measured at a 720px window with the
           panel at its ceiling, a two-line draft left the newest reply 52px below the visible edge,
-          clipped mid-line, and a draft at the field's own ceiling 122px. The reader is answering
-          that reply, so it is exactly the thing that must not slide away under them. */}
-      {/* The chat is only the ACTIVE view while no console tab is up, so the composer is handed
-          which conversation it is sitting in only then, and null otherwise. It takes focus on every
-          change: coming back from the console puts the caret back in the draft (intact, this field
-          never being unmounted) rather than on a tab strip the browser is about to display:none out
-          from under it, and a chat arriving lands it in the conversation that arrived.
-          What that caret lands IN is the arriving chat's own half-typed sentence, which is the same
-          fact stated about the text instead of the focus: the field renders this conversation's
-          draft, so it changes with the conversation (`overlay/drafts.ts`). */}
+          clipped mid-line, and a draft at the field's own ceiling 122px. That reply is what the
+          reader is answering, so it must not slide out of view. */}
+      {/* The chat is the active view only while no console tab is up, so the composer is told which
+          conversation it is sitting in only then, and null otherwise. It takes focus on every
+          change: coming back from the console puts the caret back in the draft (intact, since this
+          field is never unmounted) rather than on a tab strip the browser is about to display:none
+          out from under it, and a chat arriving lands the caret in the conversation that arrived.
+          The text that caret lands in is the arriving chat's own half-typed sentence, because the
+          field renders this conversation's draft and so changes with the conversation
+          (`overlay/drafts.ts`). */}
       <Composer
         field={field}
         busy={isTurnActive(state)}

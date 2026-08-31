@@ -58,8 +58,8 @@ unknown.
   in the same file gate their reasoning rule on it, so the omission is per handler rather than a
   property of constrained decoding. The split between the picks is then the **template**: with the
   switch sent, the cortex's renders a pre-closed empty thought (`<|channel>thought` then
-  `<channel|>`) and the E4B's renders nothing, so on the constrained shape one pick's door is
-  already shut and the other's is open.
+  `<channel|>`) and the E4B's renders nothing, so on the constrained shape one pick's thought block
+  is already closed and the other's is open.
   Written into the ADR-0005 switch-is-advisory addendum as its mechanism section, which also
   qualifies that addendum's first reading and its one-draw table. The committed probe now draws each
   cell `CORTEX_THINKING_REPEATS` times and reads the rendered prompt for all four shapes ahead of
@@ -67,5 +67,5 @@ unknown.
   free over HTTP is now a line of its output rather than a session's notes.
   Opened by it: [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md). Naming the cause
   turned up the lever: this build reads `reasoning_budget_tokens` off the request body, and sent as
-  zero on the exact failing cell it holds 5 draws of 5, while the spelling this repo recorded as
+  zero on the exact failing cell it holds 5 draws of 5, while the name this repo recorded as
   ignored, `reasoning_budget`, is still ignored on the same build in the same minute.

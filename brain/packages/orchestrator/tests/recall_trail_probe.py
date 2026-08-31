@@ -1,4 +1,4 @@
-"""How wide is the recall trail's `dropped` field on a line a real stack wrote?
+"""Measure how wide the recall trail's `dropped` field renders on a line a real stack wrote.
 
 `VALUE_CHARS` is justified by clearing the widest value the tree attaches, and that value is this
 field. The number behind that justification was drawn in process, from `uuid4` ids and cosine
@@ -77,7 +77,7 @@ def _metadata() -> tuple[tuple[str, str], ...] | None:
 
 
 def _say(message: str) -> None:
-    """Progress, on stdout, where no trail line ever lands."""
+    """Print progress on stdout, where no trail line ever lands."""
     print(message, flush=True)  # noqa: T201 -- a probe's only output channel
 
 
@@ -94,11 +94,11 @@ async def _turn(stub: BrainServiceStub, session_id: str, question: str) -> None:
 
 
 def _unfit(config: MemoryConfig) -> str | None:
-    """Why this container can write no recall trail, or ``None`` when it can.
+    """Return why this container can write no recall trail, or ``None`` when it can.
 
-    The scope check is not fastidiousness: under global scoping every note this probe writes lands
-    in the one space every conversation shares, and the cascade below refuses to sweep that space,
-    so the corpus would stay in the brain's own memory forever.
+    The scope check earns its place: under global scoping every note this probe writes lands in
+    the one space every conversation shares, and the cascade below refuses to sweep that space, so
+    the corpus would stay in the brain's own memory indefinitely.
     """
     if config.backend != "pgvector":
         return f"memory backend is {config.backend!r}, so no recall trail exists"
@@ -116,7 +116,7 @@ async def _seed(recaller: MemoryRecaller, scope: str) -> None:
 
 
 async def _direct(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> None:
-    """The cheap phase: recalls through the composition root's own wiring, one rank each."""
+    """Run the cheap phase: recalls through the composition root's wiring, one rank each."""
     for index in range(_DIRECT_PASSES):
         scope = f"trail-width-direct-{stamp}-{index}"
         scopes.append(scope)
@@ -127,7 +127,7 @@ async def _direct(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> No
 
 
 async def _served(recaller: MemoryRecaller, scopes: list[str], stamp: int) -> None:
-    """The answerable phase: real turns, whose trail lines go out through the log driver."""
+    """Run real turns, whose trail lines go out through the container's log driver."""
     async with aio.insecure_channel(_SEAM) as channel:
         stub = BrainServiceStub(channel)
         for index in range(_TURNS):

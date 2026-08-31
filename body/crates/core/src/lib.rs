@@ -1,26 +1,27 @@
 //! Pure, I/O-free core logic for the Cortex body (the hexagonal core).
 //!
-//! No OS APIs, no network, no concrete backends. Those live in adapter
-//! crates behind traits. This crate hosts the typed global-hotkey chord used
-//! to summon the overlay (`docs/ROADMAP.md`, Slice 1); the `BrainTransport`
-//! port to the brain seam with `health` (Slice 2) plus a streaming `converse`
-//! turn yielding typed [`TurnEvent`]s (Slice 8, ADR-0011), along with the
-//! [`RetryingTransport`] decorator + [`Sleeper`] port that add bounded-retry
-//! resilience over it (ADR-0024), gated by the per-method [`RetryPlan`] that decides
-//! which calls may be repeated at all and which clock bounds each, a deadline on a
-//! call or a pair of [`TurnGaps`] on a turn's silence, the [`LinkStatus`]
-//! classification the overlay's
-//! connection indicator shows (`link`, ADR-0011 addendum), plus the reminder pull reads
-//! the overlay surfaces when it opens (Slice 9.5, ADR-0025); and the OS-capability ports (`os`): the
-//! [`Hotkey`] backend seam (Slice 8), the [`AudioControl`] volume seam the
-//! brain drives over `BodyService` (Slice 9, ADR-0023), the [`Notify`] seam that
-//! delivers a fired reminder as a native notification (Slice 9.5, ADR-0025), and the
-//! [`ScreenCapture`] seam that gives the cortex eyes (Slice 10, ADR-0029) along with the
-//! whole crop, downscale, encode, and byte-ceiling policy that bounds what it may send.
+//! No OS APIs, no network, no concrete backends; those live in adapter crates behind traits.
+//! Slice numbers below refer to `docs/ROADMAP.md`. The crate holds:
 //!
-//! No coverage escape is declared in this crate: every line of it is reachable from a test, which
-//! is the whole point of putting the capture's size policy here rather than in the `cfg(windows)`
-//! backend CI never compiles.
+//! - The typed global-hotkey chord that summons the overlay (`hotkey`).
+//! - The `BrainTransport` port to the brain seam (`transport`): `health` and a
+//!   streaming `converse` turn yielding typed [`TurnEvent`]s (ADR-0011), plus the
+//!   reminder pull reads the overlay surfaces when it opens (ADR-0025).
+//! - The [`RetryingTransport`] decorator and [`Sleeper`] port that add bounded-retry
+//!   resilience over that port (`retry`, ADR-0024), driven by the per-method [`RetryPlan`]:
+//!   which calls may be repeated at all, and which clock bounds each, either a deadline on a
+//!   unary call or a pair of [`TurnGaps`] on a turn's silence.
+//! - The [`LinkStatus`] classification behind the overlay's connection indicator (`link`,
+//!   ADR-0011 addendum).
+//! - The OS-capability ports (`os`): [`Hotkey`], the [`AudioControl`] volume seam the
+//!   brain drives over `BodyService` (ADR-0023), the [`Notify`] seam that delivers a
+//!   fired reminder as a native notification (ADR-0025), and [`ScreenCapture`]
+//!   (ADR-0029) with the crop, downscale, encode, and byte-ceiling policy that
+//!   bounds what it may send.
+//!
+//! This crate declares no coverage escape, because every line of it is reachable from a test.
+//! That is why the capture's size policy lives here rather than in the `cfg(windows)` backend,
+//! which CI never compiles.
 
 pub mod hotkey;
 pub mod link;

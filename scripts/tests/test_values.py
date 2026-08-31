@@ -30,14 +30,17 @@ import values
         ("-1", -1),  # the sentinel a tier's argv reads as "emit no flag"
         ("  -1  ", -1),
         ("-1  # llama.cpp's own word for unbounded", -1),
-        ("-2 * 3", -6),  # the sign is the expression's, and a product still reduces under one
+        ("-2 * 3", -6),  # the sign belongs to the expression, and a product still reduces under one
         ("False", values.Truth("False")),
         ("True", values.Truth("True")),
         ("False  # an escape hatch that ships open is not one", values.Truth("False")),
     ],
 )
 def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> None:
-    """The point of reducing rather than comparing text: two spellings of one number tie."""
+    """Every accepted form reduces to a value, so two spellings of one number compare equal.
+
+    Comparing the text instead would report `6 * 1024 * 1024` and `6291456` as different.
+    """
     assert values.parse_value(text) == expected
 
 
@@ -46,7 +49,7 @@ def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> No
     [
         '"unterminated',  # a lone opening quote
         '"a" + "b"',  # more than one literal
-        r'"a\tb"',  # an escape this reducer will not decode
+        r'"a\tb"',  # an escape this reducer does not decode
         "6 + 1024",  # arithmetic beyond a product
         "SOME_OTHER_CONST",  # an alias, not a literal
         "10.",  # a point with no digits behind it
@@ -61,10 +64,10 @@ def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> No
         "false",  # YAML's casing, which is a spelling at a mention and not a form at a site
         "TRUE",  # nor is any other casing of the word
         "None",  # an absence, which is not one of the two words a boolean has
-        "6 * 1.5",  # a product a decimal factor takes out of the integer form
+        "6 * 1.5",  # a decimal factor takes the product out of the integer form
         "cortex_seam.SEAM_TOKEN_HEADER",  # an alias whose dot is not a decimal point
         "",  # an empty right-hand side
-        "frozenset()",  # a collection with no member to hold anything
+        "frozenset()",  # a collection with no members
         'frozenset({"a"}) | OTHER',  # a union, whose other half is not a literal
         "frozenset({1, 2})",  # members that are not strings
         'frozenset({"a", b})',  # one member that is not
@@ -72,7 +75,10 @@ def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> No
     ],
 )
 def test_parse_value_refuses_what_it_cannot_reduce(text: str) -> None:
-    """Fail closed: a form the reducer does not understand is a fault, never a guess."""
+    """An unrecognized form raises instead of being guessed at.
+
+    A guessed reduction would report two values as equal that were never compared.
+    """
     with pytest.raises(values.CrossCheckError):
         values.parse_value(text)
 

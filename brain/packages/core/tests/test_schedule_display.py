@@ -57,7 +57,7 @@ def _schedule_tool(store: InMemoryScheduleStore) -> ScheduleTaskTool:
 def test_the_creation_spec_names_the_zone_and_renders_local() -> None:
     description = _schedule_tool(InMemoryScheduleStore()).spec.description
     assert "The current date-time is 2026-07-12T15:00:00+03:00 (Europe/Bucharest)." in description
-    assert "UTC" not in description  # the label must not outlive the values it describes
+    assert "UTC" not in description  # the description renders local times, so no UTC label
 
 
 def test_the_at_parameter_advertises_the_fold() -> None:
@@ -95,7 +95,7 @@ async def test_an_offset_less_at_reads_as_zone_local() -> None:
 
 
 async def test_an_explicit_offset_still_wins() -> None:
-    """The model can always be unambiguous; an offset is honored, never re-read as local."""
+    """An offset the model writes is honored as given and never re-read as zone-local."""
     store = InMemoryScheduleStore()
     result = await _schedule_tool(store).invoke(
         _call({"kind": "reminder", "text": "call", "at": "2026-07-12T18:00:00+00:00"})

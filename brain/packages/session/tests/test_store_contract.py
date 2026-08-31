@@ -43,10 +43,10 @@ async def test_session_store_contract(
 
 
 async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
-    """Distrust-green: inspect Redis directly and prove the delete leaves NOTHING behind.
+    """Inspect Redis directly to show the delete leaves NOTHING behind.
 
     The contract check drives the delete through the port; this asserts against the raw keyspace,
-    so it reddens if the messages key, the title key, or the recency-index member survives.
+    so it fails if the messages key, the title key, or the recency-index member survives.
     """
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
@@ -122,7 +122,7 @@ async def test_connection_failure_on_set_title_wraps_the_cause() -> None:
 
 
 async def test_set_pinned_persists_under_the_pinned_set_key() -> None:
-    """Distrust-green: pinning SADDs the id to `cortex:sessions:pinned`, unpinning SREMs it.
+    """Pinning SADDs the id to `cortex:sessions:pinned` and unpinning SREMs it.
 
     Asserted against the raw keyspace, so the summary's `pinned` flag cannot pass on a set the
     listing merely computes: the membership itself must land in (and leave) the shared pinned set.
@@ -138,10 +138,10 @@ async def test_set_pinned_persists_under_the_pinned_set_key() -> None:
 
 
 async def test_list_sessions_unions_a_pinned_chat_older_than_the_window() -> None:
-    """Distrust-green over raw Redis: a pinned old chat is unioned in past the recency window.
+    """Read over raw Redis: a pinned old chat is unioned in past the recency window.
 
     Three newer chats fill a `limit=3` window; the pinned older chat is outside it and lists ONLY
-    through the union, sorted above the recency group. Removing the union reddens `old in ids`.
+    through the union, sorted above the recency group. Removing the union fails `old in ids`.
     """
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
@@ -295,7 +295,8 @@ def _record(**overrides: object) -> str:
 
 
 async def test_records_are_written_with_schema_version_and_kind() -> None:
-    """The escape hatch is IN every persisted record: v/kind roundtrip through Redis."""
+    """Every persisted record carries the schema escape hatch: `v` and `kind` round-trip through
+    Redis."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     original = contract.make_message(Role.USER, "hi")
@@ -327,7 +328,7 @@ async def test_pre_versioning_records_decode_as_v1_messages() -> None:
 
 
 async def test_unknown_kind_raises_naming_index_kind_and_version() -> None:
-    """A record kind this reader does not know fails loudly, never silently skipped."""
+    """A record kind this reader does not recognize fails loudly, never silently skipped."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     await store.append("s", contract.make_message(Role.USER, "hi"))  # index 0 is fine
@@ -368,11 +369,11 @@ async def test_from_url_wires_a_client_for_the_given_or_default_url(
 
 
 async def test_recap_persists_as_one_versioned_document_under_its_own_key() -> None:
-    """Distrust-green over raw Redis: the recap is a kinded JSON document, not a bare string.
+    """Read over raw Redis: the recap is a kinded JSON document rather than a bare string.
 
     Both halves have to be on the wire, because a reader that got the text without the boundary
     could not tell a current recap from a stale one, and would prepend the wrong paragraph
-    forever. Asserting on the raw value reddens if either field or the schema markers go missing.
+    forever. Asserting on the raw value fails if either field or the schema markers go missing.
     """
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
@@ -387,7 +388,7 @@ async def test_recap_persists_as_one_versioned_document_under_its_own_key() -> N
 
 
 async def test_deleting_a_session_removes_its_recap_key() -> None:
-    """Distrust-green: the recap key is in the delete transaction, not merely forgotten."""
+    """The recap key is part of the delete transaction rather than merely dropped from a read."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     await store.append("s", contract.make_message(Role.USER, "hi"))
@@ -419,7 +420,8 @@ async def test_a_corrupt_recap_document_names_the_session() -> None:
 
 
 async def test_a_recap_document_that_would_be_an_invalid_value_is_corrupt() -> None:
-    """The value type's own rules are part of the read: a zero boundary is unusable, not None."""
+    """The value type's own rules are part of the read, so a zero boundary is reported as corrupt
+    rather than answered as None."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisSessionStore(client)
     await client.set(

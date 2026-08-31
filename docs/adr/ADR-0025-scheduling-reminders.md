@@ -17,7 +17,7 @@ this slice's ADR is 0025 and the pointer is fixed alongside it.)
 
 Facts that shape the design:
 
-- **The one hard rule is the headline.** A schedule *outlives every model swap* and
+- **The one hard rule governs this slice.** A schedule *outlives every model swap* and
   every brain restart. Nothing may live in the orchestrator process beyond the in-flight
   fire; every `ScheduledItem` lives in the external store, and firing is a stateless
   read-store → act → persist pass (the ROADMAP names this the gate the slice proves).
@@ -34,7 +34,7 @@ Facts that shape the design:
   shared contract-check suite pattern spans the in-memory fake and the fakeredis-covered
   adapter (`task_contract.py`); read-only overlay views are unary `BrainService` RPCs
   (ADR-0021); the brain→body call path is `BodyGateway` → `BodyService` (ADR-0023).
-- **Two naming landmines.** `Scheduler` already means resource *admission* in this
+- **Two names are already taken.** `Scheduler` already means resource *admission* in this
   codebase (`SubagentScheduler` port, `ResourceBudgetScheduler`), and `scheduler.py`
   exists in `cortex_core`. The time-based machinery is named **`ScheduleTicker`** /
   `schedule.py` throughout. Never "Scheduler".
@@ -424,7 +424,7 @@ tooling for the dead-letter key.
   while still running (a duplicate run; the stale finish is fenced off). The default
   (300 s) sits far above measured subagent latencies; the knob exists, and the risk is
   noted in the runbook.
-- **A tainted recurring reminder is a standing lure.** Its text is fenced on every
+- **A tainted recurring reminder puts attacker text in front of the user repeatedly.** Its text is fenced on every
   model-facing surface and badged on both wire paths, but a human can still read and
   obey it; the tainted-task refusal keeps it from becoming autonomous compute, and the
   active-items cap bounds the volume an injected turn can plant.
@@ -742,7 +742,7 @@ daylight-saving transition, which is exactly when a user notices. Decisions:
   wrong in ways that validate fine. A named time plus a weekday list is the subset a personal
   assistant actually uses, and it stays a value the model can read back in a listing.
 - **`days` is never empty, and every-day is the full set rather than a `None` sentinel.** One
-  representation means one code path, and non-emptiness is load bearing rather than cosmetic:
+  representation means one code path, and non-emptiness does real work rather than tidying:
   it is what bounds the occurrence search to a single week, so `next_calendar_due` terminates
   by construction instead of by a defensive iteration cap that could never be covered honestly.
 - **`ScheduledItem` takes an interval or a rule and never both**, enforced in `__post_init__`.
@@ -936,7 +936,7 @@ version bump and no migration. Decisions:
   **next** month, which is later by date and therefore later by instant in any zone, so
   `next_calendar_due` keeps one body, dispatches once, and terminates by construction with no
   defensive iteration cap and no unreachable branch to fake coverage over. A non-empty selector
-  stays load bearing for exactly the reason the calendar addendum gave.
+  still does that work, for exactly the reason the calendar addendum gave.
 - **The model writes `on_month_days`, a list of integers, refused alongside `on_days`.** Not one
   polymorphic `on_days` accepting either weekday names or numbers: the two selectors mean
   different things and a small model asked to mix vocabularies in one field will, whereas two
@@ -977,7 +977,7 @@ record version bump and no migration. Decisions:
   decision.** This is the monthly addendum's clamp policy applied to the one date the year-long
   window makes irregular, and it is the same policy daylight saving already set: an irregularity
   **moves** an occurrence and never deletes one. Skipping would mean a 29 February reminder fires
-  in one year of four, which is the silent-never-fires failure mode that policy exists to refuse.
+  in one year of four, which is the silent-never-fires failure mode that policy exists to prevent.
   The clamp collapses `{02-29, 02-28}` to one fire in a common year and two in a leap year, the
   same collision the monthly `{30, 31}` case already resolves in resolved dates.
 - **The walk stays total by the same `(candidates, wrapped)` construction.** `YearDays.walk`
@@ -1165,8 +1165,8 @@ cold-start-adopted chat's own card correctly offers none; clicking one loads tha
 ack; and the freshly-current chat's remaining cards drop their controls in the same render.
 The pass also settled the resting treatment, which is the same correction the badge needed:
 at the meta row's own `--dim` the label read as a third piece of metadata, so it rests one
-step brighter (`--muted`) and grows the switcher's panel-tinted pill on hover. An action
-nobody can see before hovering it is not an action.
+step brighter (`--muted`) and grows the switcher's panel-tinted pill on hover, because a
+control nobody can see before hovering it does not get used.
 
 ## Addendum (2026-07-15): a per-rule timezone for calendar recurrence
 
@@ -1398,7 +1398,7 @@ backlog's dead-until-a-consumer list. What was checked:
   its Rust and Tauri adapters, and a new overlay component. This ADR's own "Per-occurrence delivery
   records" rejection turned on the same point ("a second entity and a growth policy, to preserve
   duplicate fires nobody reads at personal scale"), so shipping the record now would ship the growth
-  policy it warned against with nothing to shape it. A real durable history wants queries and
+  policy it warned against with nothing to shape it. A real durable history needs queries and
   retention, which is the deferred Postgres durable twin rather than the Redis this would grow
   unbounded, so the two reopen together.
 
@@ -1435,8 +1435,8 @@ thing to build and one to sharpen.
 - **Double-delivery is barred by the same ack, not a resend timer.** A shown push acks (pull will
   not re-show), a failed or declined push stays deliverable (pull shows once, dismissal acks), so
   exactly one of push and pull ever clears the deliverable slot. Mutation-proven: dropping the task
-  delivery reddens the delivery tests, dropping the ack reddens the acked-not-deliverable tests, and
-  dropping the outcome mapping reddens the pull test. Validated live against the compose Redis (a
+  delivery fails the delivery tests, dropping the ack fails the acked-not-deliverable tests, and
+  dropping the outcome mapping fails the pull test. Validated live against the compose Redis (a
   one-shot task fired, pushed, acked, and left no `cortex:*` key; a body-down fire left the outcome
   on the deliverable index for pull).
 
@@ -1555,8 +1555,8 @@ icon's ink is aimed at now. The bell needed more than box-centring to get there,
 worth writing down: its ink box is dragged downward by the thin detached arc of its clapper while
 the eye weighs the dome, so box-centring left the dome 2.5px above the letters, which is the
 "sits higher than the title text" the user reported. At `margin-top: 4px` the dome sits 0.5px
-above the target and the full ink box 1.17px below it, straddling the letters, which is where a
-bell wants to be. The check reaches the same line by a 3.5px lift, its hit area intact and simply
+above the target and the full ink box 1.17px below it, straddling the letters, which is where the
+bell reads as level with them. The check reaches the same line by a 3.5px lift, its hit area intact and simply
 overhanging the card's own top padding.
 
 The control aligns to the title by its TEXT, not by its pill. `open chat` draws no pill until it

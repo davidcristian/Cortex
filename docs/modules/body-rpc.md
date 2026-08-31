@@ -231,12 +231,11 @@ cd body && CORTEX_REGEN_PROTO=1 cargo build -p body-rpc
 regenerating with an unchanged proto must leave `git diff` empty.
 
 **Live checks** (AGENTS.md gate 3, the Rust `integration` suite, ADR-0003 decision 3).
-The `#[ignore]`d tests in `tests/live.rs`, run by `just seam-health`. The roster below is every
-one of them and nothing else, held that way by `scripts/rostercheck.py`, so a check the suite
-gains and this list does not, or a name here whose check is gone, is a red rather than a reader
-misled (ADR-0003 live-roster addendum). It opens with no tally, a count restated beside a list
-being the half that drifts first here; each bullet says what its check needs, and not all of them
-need a brain:
+The `#[ignore]`d tests in `tests/live.rs`, run by `just seam-health`. The list below names every
+one of them and nothing else, which `scripts/rostercheck.py` enforces: a check the suite gains
+and this list does not, or a name here whose check is gone, fails the gate (ADR-0003 live-roster
+addendum). No count is given, because a tally written beside a list is the part that goes stale
+first. Each bullet says what its check needs, and not all of them need a brain:
 
 ```sh
 cargo test -p body-rpc --test live -- --ignored
@@ -307,7 +306,7 @@ Being ignored, they never run in CI and never count toward coverage.
   hanging brain still ends as `Timeout` with the announcement armed (the ordering, measured rather
   than asserted), and that a brain-sent `DEADLINE_EXCEEDED` arrives as the same `Timeout`. The
   rung case reads the truncation off `tonic::Request::set_timeout` itself rather than off tonic's
-  source, so a ladder that moves under a version bump reddens the case that rests on it.
+  source, so a ladder that moves under a version bump fails the case that rests on it.
 - Contract tests exercise a scripted in-process fake `BrainService` over loopback
   (`127.0.0.1:0`) only, which is CI-safe, with no real network. They cover both sides of the
   status-origin split, including brain death after a successful connect (graceful

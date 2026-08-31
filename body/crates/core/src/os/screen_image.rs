@@ -2,9 +2,9 @@
 //! [`Capture::from_bgra`](super::screen_policy::Capture::from_bgra) runs (ADR-0029).
 //!
 //! Split from [`screen_policy`](super::screen_policy) by responsibility rather than by size:
-//! that module decides how big a picture may be, this one owns pixels in and bytes out and
-//! knows nothing about requests, ladders, or the wire beyond the one error type it reports
-//! through.
+//! that module decides how big a picture may be, and this one turns pixels into bytes,
+//! referring to nothing from requests, ladders, or the wire beyond the one error type it
+//! reports through.
 //!
 //! Both steps are pure and fully gated, which is the point of doing them here instead of in
 //! the `cfg(windows)` backend that produces the frames.
@@ -44,16 +44,15 @@ impl Rgb {
 /// Reads `region` out of `frame` and shrinks it so its longest edge is at most `bound`,
 /// dropping alpha either way.
 ///
-/// A box filter, averaging each destination pixel over the source rectangle it covers. It is
-/// the cheap resampler that still tells the truth about a shrunk screen: dropping pixels
-/// instead (nearest neighbour) deletes exactly the thin strokes that text is made of, and a
-/// screenshot the model cannot read is the failure mode this whole slice is trying to avoid.
+/// The shrink is a box filter, averaging each destination pixel over the source rectangle it
+/// covers. Nearest-neighbour sampling would be cheaper, but it drops the thin strokes text is
+/// made of and yields a screenshot the model cannot read.
 ///
 /// The identity arm is separate and does no averaging, so a region already inside the bound
-/// crosses the seam pixel-for-pixel. That arm is the reason a targeted capture is worth having:
-/// a window inside the capture edge is carried at its own resolution, where the same desktop as
-/// a whole is resampled first and spends the same image tokens on fewer of the pixels the user
-/// asked about.
+/// crosses the seam pixel-for-pixel. That is what makes a targeted capture worth having: a
+/// window inside the capture edge is carried at its own resolution, where the same desktop
+/// captured whole is resampled first and spends the same image tokens on fewer of the pixels
+/// the user asked about.
 ///
 /// Cropping here rather than in a pre-cropped [`RawFrame`] keeps the display's own size intact
 /// for the size policy to report, and never copies a 4K frame twice.
@@ -82,8 +81,8 @@ fn scaled_dimensions(width: u32, height: u32, bound: u32) -> (u32, u32) {
 /// Scales one edge by `bound / longest`, floored, with a floor of one pixel.
 ///
 /// The multiply is done in `u64` so a wide frame cannot overflow it. The result is never
-/// larger than `value` (this is only reached when `bound < longest`), so the narrowing back to
-/// `u32` cannot lose anything and the fallback is arithmetic insurance, not a policy.
+/// larger than `value`, since this is only reached when `bound < longest`, so the narrowing
+/// back to `u32` cannot lose anything and the `unwrap_or` fallback is unreachable.
 fn scale_edge(value: u32, bound: u32, longest: u32) -> u32 {
     let scaled = u64::from(value) * u64::from(bound) / u64::from(longest);
     u32::try_from(scaled).unwrap_or(value).max(1)
@@ -93,8 +92,8 @@ fn scale_edge(value: u32, bound: u32, longest: u32) -> u32 {
 /// pixel and reordering the rest to RGB.
 ///
 /// Row by row rather than in one pass, because the region's rows are not contiguous in a frame
-/// wider than they are. When the region *is* the whole frame this walks it in order and costs
-/// what a straight copy costs, which is the whole-display path and the common one.
+/// wider than they are. When the region covers the whole frame, which is the common
+/// whole-display path, the rows are walked in order and this costs what a straight copy costs.
 fn copy_region(frame: &RawFrame, region: Region) -> Rgb {
     let source = frame.pixels();
     let stride = frame.width() as usize;
@@ -121,7 +120,7 @@ fn copy_region(frame: &RawFrame, region: Region) -> Rgb {
 /// columns always differ by at least one source column. That is why there is no empty-span
 /// guard here and no division by zero in [`average`].
 ///
-/// Every index is offset by the region's origin and strides by the **frame's** width, so the
+/// Every index is offset by the region's origin and strides by the frame's width, so the
 /// pixels outside the region are never read. `Region` is built only by
 /// [`CapturedFrame::region`](super::screen_target::CapturedFrame::region), which has already
 /// clamped it inside the frame, so the indexing needs no second bounds check of its own.
@@ -164,17 +163,16 @@ fn box_filter(frame: &RawFrame, region: Region, width: u32, height: u32) -> Rgb 
     }
 }
 
-/// The mean of `count` colour bytes. Every term is a byte so the mean is one too; the fallback
-/// is arithmetic insurance rather than a policy.
+/// The mean of `count` colour bytes. Every term is a byte so the mean is one too, which makes
+/// the `unwrap_or` fallback unreachable.
 fn average(total: u64, count: u64) -> u8 {
     u8::try_from(total / count).unwrap_or(u8::MAX)
 }
 
 /// PNG-encodes `rgb`, three bytes per pixel at eight bits per channel.
 ///
-/// Public because it is the one step of the policy whose failure a caller has to be able to
-/// provoke: the encoder is the only place a malformed buffer or a zero dimension turns into a
-/// [`CaptureError`], and a gate that cannot be made to fail is not a gate.
+/// Public because a test has to be able to provoke its failure: the encoder is the only place
+/// a malformed buffer or a zero dimension turns into a [`CaptureError`].
 ///
 /// # Errors
 ///
@@ -187,11 +185,11 @@ pub fn encode_png(width: u32, height: u32, rgb: &[u8]) -> Result<Vec<u8>, Captur
     Ok(encoded)
 }
 
-/// Writes the PNG stream into `out`, in the `png` crate's own error currency.
+/// Writes the PNG stream into `out`, returning the `png` crate's own error type.
 ///
-/// Separated from [`encode_png`] so the crate's error type is translated exactly once: the
-/// closing `finish` is the tail expression rather than a `?`, because with a `Vec` sink it
-/// cannot fail and a branch nothing can take is a coverage lie.
+/// Separated from [`encode_png`] so that error type is translated exactly once. The closing
+/// `finish` is the tail expression rather than a `?`, because with a `Vec` sink it cannot fail
+/// and a `?` would add a branch no test can take.
 fn write_png(
     width: u32,
     height: u32,

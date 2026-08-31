@@ -15,23 +15,23 @@ alone, so both are driven through the real ``SwappingModelManager`` over the scr
 - a peer that is down and a handoff that spilled can be true at once, have different remedies,
   and are therefore both said rather than one of them winning by whichever wrote last.
 
-Distrust-green proofs (each mutation applied to production code alone, the whole brain workspace
-re-run, then reverted, so the counts are measured rather than aimed at):
-- dropping the pace note from ``residency()``'s composition reddens 4: the three manager cases
+Mutations proving these tests can fail (each applied to production code alone, the whole brain
+workspace re-run, then reverted, so the counts are measured rather than estimated):
+- dropping the pace note from ``residency()``'s composition fails 4: the three manager cases
   below plus ``test_health_stays_ready_and_says_the_last_deep_task_ran_far_slower_than_measured``
   at the seam, which is the whole path this exists for;
-- letting ``with_note`` annotate a report that is not serving reddens 4, the three cases that
+- letting ``with_note`` annotate a report that is not serving fails 4, the three cases that
   hold a spill silent through a swap plus ``test_an_evicted_tier_is_not_a_missing_one``, the peer
   record's own version of the same rule;
-- letting ``with_note`` replace the note it found instead of joining it reddens 2, both cases
+- letting ``with_note`` replace the note it found instead of joining it fails 2, both cases
   that assert a down peer and a spilled handoff are said together;
-- a note that never lapses reddens 1, the dwell boundary; a second spill that does not re-arm the
-  dwell reddens 1, the case that pins the dwell to the handoff rather than to the first spill
+- a note that never lapses fails 1, the dwell boundary; a second spill that does not re-arm the
+  dwell fails 1, the case that pins the dwell to the handoff rather than to the first spill
   this process ever saw;
-- asking ``collapsed`` instead of ``verdict`` in ``BrainPhase._note_pace`` reddens 1,
+- asking ``collapsed`` instead of ``verdict`` in ``BrainPhase._note_pace`` fails 1,
   ``test_a_deployment_that_declared_no_floor_publishes_no_verdict`` in ``test_brain_phase.py``,
   which is what keeps an opinionless deployment from clearing a real note;
-- logging the verdict and publishing nothing, which is the state this entry closes, reddens 3,
+- logging the verdict and publishing nothing, which is the state this entry closes, fails 3,
   every case in that file's own published-verdict section.
 """
 
@@ -131,7 +131,7 @@ _IMPLEMENTATIONS = [_fake_under_test, _record_under_test]
 
 @pytest.mark.parametrize("build", _IMPLEMENTATIONS)
 def test_a_sink_starts_with_nothing_to_say(build: Callable[[], PaceSinkUnderTest]) -> None:
-    """A brain that has never escalated has no verdict, which is not the same as a good one."""
+    """A brain that has never escalated has no verdict, which is not the same as a clear one."""
     assert build().spill_stands() is False
 
 
@@ -139,7 +139,7 @@ def test_a_sink_starts_with_nothing_to_say(build: Callable[[], PaceSinkUnderTest
 def test_the_last_verdict_written_is_the_one_that_stands(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
-    """The port's whole promise: one write per handoff, and the newest handoff is the truth.
+    """One write per handoff, and the newest handoff is the verdict that stands.
 
     Both directions, because the clearing one is the half that keeps a note from outliving the
     condition it describes: a later handoff that reached its floor is direct evidence the card
@@ -158,7 +158,7 @@ def test_the_last_verdict_written_is_the_one_that_stands(
 def test_writing_the_same_verdict_twice_says_the_same_thing(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
-    """Two spilled handoffs in a row are not worse than one, and two good ones are not better."""
+    """Writing one verdict twice says what writing it once said, in either direction."""
     under = build()
     under.sink.note_pace(spilled=True)
     under.sink.note_pace(spilled=True)
@@ -172,7 +172,8 @@ def test_writing_the_same_verdict_twice_says_the_same_thing(
 def test_no_implementation_of_the_port_may_await(
     build: Callable[[], PaceSinkUnderTest],
 ) -> None:
-    """Synchronous by contract, not by accident: the phase calls this inside its persist path.
+    """No implementation may be a coroutine function, because the phase calls this inside its
+    persist path.
 
     An implementation that awaited would put an unrelated collaborator between the deep model's
     stream ending and its reply reaching the store, which is the one hard rule's own sequence.
@@ -184,7 +185,7 @@ def test_no_implementation_of_the_port_may_await(
 
 
 def test_a_spill_rides_a_serving_report_and_names_what_it_costs() -> None:
-    """The sentence a person reads, on the surface they already read it on.
+    """A standing spill annotates the serving report with the sentence a person reads.
 
     It is deliberately about lost time rather than about the card: a tooltip's reader can act on
     "deep tasks are taking much longer than they should" and cannot act on a decode rate.
@@ -198,7 +199,7 @@ def test_a_spill_rides_a_serving_report_and_names_what_it_costs() -> None:
 
 @pytest.mark.parametrize("report", [RESIDENCY_LOADING, RESIDENCY_DEEP, RESIDENCY_LOST])
 def test_a_spill_never_speaks_over_a_swap_that_is_in_flight(report: ResidencyReport) -> None:
-    """Mid handoff the seam is already saying what is happening, and to this one.
+    """Mid handoff the seam is already reporting the swap in flight, so no note is added.
 
     A verdict about the *previous* handoff printed under "a deep task is in progress" would be
     read as a verdict about the one running, which is a thing nobody can know yet.
@@ -209,7 +210,8 @@ def test_a_spill_never_speaks_over_a_swap_that_is_in_flight(report: ResidencyRep
 
 
 def test_a_note_stands_for_the_whole_dwell_and_not_a_moment_longer() -> None:
-    """The standing rule at its boundary: a fact about one handoff stops describing now.
+    """The note stands for the whole dwell and lapses at its end, since a fact about one handoff
+    stops describing the present.
 
     Escalation is rare, so waiting for a later handoff to decide it can mean waiting days, and a
     note that never lapsed would still be describing the morning by the evening.
@@ -235,7 +237,8 @@ def test_a_second_spill_starts_the_dwell_again_from_when_it_happened() -> None:
 
 
 def test_a_handoff_that_held_its_pace_clears_a_standing_note_at_once() -> None:
-    """The other way a note ends, and the only one that is evidence rather than a timeout."""
+    """A handoff that held its pace clears the note at once, which is the one ending that is
+    evidence rather than a timeout."""
     clock = _HeldClock()
     pace = HandoffPace(clock, dwell_s=100.0)
     pace.note_pace(spilled=True)
@@ -246,13 +249,14 @@ def test_a_handoff_that_held_its_pace_clears_a_standing_note_at_once() -> None:
 
 @pytest.mark.parametrize("dwell_s", [0.0, -1.0])
 def test_a_dwell_that_could_never_stand_is_refused(dwell_s: float) -> None:
-    """A note that lapses before it is written is a display that cannot work, so it is refused."""
+    """A dwell of zero or less would lapse before the note is written, so it is refused."""
     with pytest.raises(ValueError, match="dwell_s must be > 0"):
         HandoffPace(_HeldClock(), dwell_s=dwell_s)
 
 
 def test_a_missing_peer_and_a_spilled_handoff_are_both_said() -> None:
-    """Two true things with two different remedies: put the tier back, and give the card room.
+    """Two true things with two different remedies are both said: put the tier back, and give
+    the card room.
 
     Whichever wrote last winning would send an operator to fix one while the other stayed broken,
     so they join, in the order a probe composes them: the standing condition, then the handoff.
@@ -272,7 +276,8 @@ def test_a_missing_peer_and_a_spilled_handoff_are_both_said() -> None:
 
 
 async def test_a_spilled_handoff_reaches_a_probe_through_the_manager() -> None:
-    """The end of the path the entry was filed about: the fact leaves the log for the seam."""
+    """A spilled handoff reaches a probe through the manager, so the fact leaves the log for the
+    seam."""
     manager = _manager(ScriptedModelHost(running=[_CORTEX]))
     assert manager.residency() == RESIDENCY_SERVING
     manager.handoff_pace.note_pace(spilled=True)
@@ -280,7 +285,7 @@ async def test_a_spilled_handoff_reaches_a_probe_through_the_manager() -> None:
 
 
 async def test_the_pass_that_republishes_a_serving_cortex_does_not_erase_the_note() -> None:
-    """The constraint this was built under, asserted rather than trusted.
+    """The background pass that republishes a serving cortex does not erase the note.
 
     The background pass publishes the bare ``RESIDENCY_SERVING`` constant when it finds the cortex
     back, so a detail written **into** the record would last exactly until the next pass. The note

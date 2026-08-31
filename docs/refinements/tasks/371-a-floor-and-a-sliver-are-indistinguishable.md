@@ -13,10 +13,10 @@ The wire case in `brain/packages/orchestrator/tests/test_abandon.py` now asserts
 reading is not negative and is under half the announced window. Both survive a grpc that stopped
 flooring the reading at zero and began reporting the unspent sliver instead, because a real expiry
 under load already reads as a sliver: the two are the same number. The mutation that stands in for
-that release, a constant `0.05` in place of the reading, reddens three cases, and all three are the
-parameterized renderings, which redden on any constant at all because a constant is what they vary.
-None of them is evidence about grpc. The same is true of a release that floors to a float `0.0`
-rather than to an `int`.
+that release, a constant `0.05` in place of the reading, makes three cases fail, and all three are
+the parameterized renderings, which fail on any constant at all because a constant is what they
+vary. None of them is evidence about grpc. The same is true of a release that floors to a float
+`0.0` rather than to an `int`.
 
 What was given up is real but was also never as strong as it looked: before the bound, the wire
 case caught those two by demanding an exact `0`, and that demand was itself unsound, failing on

@@ -1,9 +1,9 @@
-"""Behaviour of the readers that say what the tree really holds under each roster.
+"""Tests for the readers that say what the tree holds under each roster.
 
 The fixtures are miniatures of the real things: one Rust suite with stacked attributes, one
-`scripts/` directory with a vocabulary file beside its parts. What every test here is really
-asking is whether the answer comes from the thing itself, since a roster held to a second
-description of the tree would be two sentences agreeing about nothing.
+`scripts/` directory with a vocabulary file beside its parts. Each test asks whether the answer
+comes from the thing itself, because a roster compared against a second description of the tree
+would compare two documents rather than the tree.
 """
 
 from pathlib import Path
@@ -76,7 +76,8 @@ def test_every_ignored_check_is_read_and_nothing_else_is(tmp_path: Path) -> None
 
 
 def test_a_helper_beside_the_checks_is_not_one() -> None:
-    """The reader keys on the attribute, so an ordinary function in the file is invisible."""
+    """The reader keys on the `#[ignore]` attribute, so an ordinary function in the file is not
+    read as a check."""
     assert "patient_reads" not in ignored_tests(SUITE)
 
 
@@ -95,22 +96,23 @@ def test_an_ignore_quoted_in_a_doc_comment_is_not_a_check() -> None:
 
 
 def test_a_check_nested_in_a_module_is_still_a_check() -> None:
-    """Indentation is allowed on purpose, and nothing in the tree spends the allowance yet.
+    """Indentation is allowed deliberately, and nothing in the tree uses the allowance yet.
 
     A Rust suite that groups its checks in a `mod` block indents every attribute inside it, so a
     reader that required column zero would report a whole group as no checks at all. The tree
-    carries no such block today, which is exactly why this shape is pinned here: an allowance
-    nothing exercises is an allowance nobody would notice losing.
+    carries no such block today, which is why the shape is pinned here: nothing else in the suite
+    would fail if the allowance were dropped.
     """
     nested = "mod live {\n" + "\n".join(f"    {line}" for line in SUITE.splitlines()) + "\n}\n"
     assert ignored_tests(nested) == ["the_brain_answers", "the_probe_gives_up"]
 
 
 def test_an_ignore_above_no_function_refuses_to_name_a_check(tmp_path: Path) -> None:
-    """Nothing to guess at: reporting the file's next name would invent a check.
+    """An `#[ignore]` above no function raises, since reporting the file's next name would invent
+    a check.
 
-    The line number is in the message because a suite where this happens is mid-edit, and the
-    reader is being told where to look rather than what the answer would have been.
+    The line number is in the message because a suite where this happens is mid-edit, so the
+    message says where to look rather than what the answer would have been.
     """
     dangling = SUITE + '\n#[ignore = "live seam check: needs nothing"]\n'
     with pytest.raises(MemberError, match="the ignore on line 22 sits above no function"):
@@ -118,7 +120,8 @@ def test_an_ignore_above_no_function_refuses_to_name_a_check(tmp_path: Path) -> 
 
 
 def test_a_suite_with_no_ignored_check_left_is_a_failure(tmp_path: Path) -> None:
-    """A comparison over nothing reports success forever, which is the one thing no gate may."""
+    """An empty answer raises, since a comparison over nothing would report success every time it
+    ran."""
     with pytest.raises(MemberError, match="came back empty"):
         live_seam_checks(suite(tmp_path, "//! Nothing ignored here.\n"))
 
@@ -168,14 +171,16 @@ def test_a_module_has_a_cli_exactly_when_it_carries_a_main_guard(tmp_path: Path)
 
 
 def test_the_two_halves_are_the_whole_tree_and_share_nothing(tmp_path: Path) -> None:
-    """The split is what makes each half holdable, so it has to be a partition of the directory."""
+    """The two halves are a partition of the directory, which is what lets each be held to a roster
+    of its own."""
     root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
     assert cli_gate_modules(root) | library_gate_modules(root) == gate_modules(root)
     assert not cli_gate_modules(root) & library_gate_modules(root)
 
 
 def test_a_guard_that_is_not_at_the_top_level_is_not_a_cli(tmp_path: Path) -> None:
-    """An indented guard is inside something, and a quoted one is a module writing about one."""
+    """An indented guard sits inside a function and a quoted one is prose about a guard, so neither
+    makes the module a CLI."""
     root = gates(tmp_path, "values.py")
     (tmp_path / rostermembers.GATES / "values.py").write_text(
         '"""Prose quoting `if __name__ == "__main__":` as the thing a CLI carries."""\n'
@@ -189,14 +194,16 @@ def test_a_guard_that_is_not_at_the_top_level_is_not_a_cli(tmp_path: Path) -> No
 
 
 def test_a_tree_whose_every_module_is_a_cli_leaves_the_other_half_empty(tmp_path: Path) -> None:
-    """Either half coming back empty is a failure, since an empty half agrees with any sentence."""
+    """Either half coming back empty raises, since an empty set matches any roster compared against
+    it."""
     root = split(tmp_path, runs=("linecap.py",), read=())
     with pytest.raises(MemberError, match="came back empty"):
         library_gate_modules(root)
 
 
 def test_a_module_that_cannot_be_read_is_named_rather_than_sorted(tmp_path: Path) -> None:
-    """Guessing a half for a file the reader cannot open would put a claim behind a shrug."""
+    """A file the reader cannot open raises, since sorting it into a half would report a claim
+    about a module nothing read."""
     root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
     (root / rostermembers.GATES / "values.py").write_bytes(b"\xff\xfe not text at all")
     with pytest.raises(MemberError, match=r"cannot read scripts/values\.py"):
@@ -207,7 +214,8 @@ def test_a_module_that_cannot_be_read_is_named_rather_than_sorted(tmp_path: Path
 
 
 def test_a_disagreement_between_the_two_files_arrives_as_a_member_failure(tmp_path: Path) -> None:
-    """The reader next door refuses to answer, and a roster's far side has one way to fail."""
+    """`rosternames.py` raises on the disagreement, and this is how that reaches a roster's far
+    side."""
     (tmp_path / scanrecipes.JUSTFILE).write_text(
         "check:\n    just check-linecap\n", encoding="utf-8"
     )
@@ -221,7 +229,8 @@ def test_a_disagreement_between_the_two_files_arrives_as_a_member_failure(tmp_pa
 
 
 def test_a_gate_that_runs_no_scan_at_all_is_a_failure(tmp_path: Path) -> None:
-    """Two files agreeing that there are no scans is the empty pass every floor here refuses."""
+    """Two files agreeing that there are no scans raises, which is the empty answer every floor
+    here rejects."""
     (tmp_path / scanrecipes.JUSTFILE).write_text("check:\n    echo nothing\n", encoding="utf-8")
     workflow = tmp_path / scanrecipes.WORKFLOW
     workflow.parent.mkdir(parents=True, exist_ok=True)
@@ -257,10 +266,10 @@ def test_a_registry_with_no_part_but_its_vocabulary_is_a_failure(tmp_path: Path)
 
 
 def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
-    """The fixtures above are miniatures, so a shape the real files carry is checked here too.
+    """The fixtures above are miniatures, so the real files are read here too.
 
-    Both floors are asserted rather than the exact sets: the counts are what this repo holds
-    today and a check or a part landing tomorrow is not a red.
+    Floors are asserted rather than the exact sets, since the counts are what this repo holds
+    today and a check or a part landing tomorrow should not fail here.
     """
     assert len(live_seam_checks(REPO_ROOT)) > 1
     assert len(registry_tuples(REPO_ROOT)) > 1
@@ -268,7 +277,7 @@ def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
 
 
 def test_the_real_tree_really_holds_both_halves() -> None:
-    """A half nothing in the tree fills is a rule that cannot redden, so both are pinned here."""
+    """Both halves are filled by the committed tree, so neither roster is held to an empty set."""
     assert "rostercheck.py" in cli_gate_modules(REPO_ROOT)
     assert "rostermembers.py" in library_gate_modules(REPO_ROOT)
     assert cli_gate_modules(REPO_ROOT) | library_gate_modules(REPO_ROOT) == gate_modules(REPO_ROOT)

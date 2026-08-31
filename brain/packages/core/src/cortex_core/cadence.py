@@ -1,32 +1,23 @@
-"""Watching a tier's decode cadence for the one failure a memory reading cannot see (ADR-0030).
+"""Decode-cadence policy: whether a tier ran at the rate its deployment measured for it (ADR-0030).
 
-Pure policy over the ``DecodeCadence`` events a backend reports, with no I/O and no logging of
-its own: the phase that owns the watch decides what to say, this decides what is true. It answers
-one question, "did this tier run at the rate its deployment measured for it", and it is the only
-instrument there is for a handoff that overcommitted the card, because such a handoff succeeds.
-Both tiers report ``ready``, the fit check has already passed on a figure that was too low or on
-room the desktop took during the load, and free memory afterwards reads identical to a genuine
-fit. What differs is throughput, roughly halved.
+Pure policy over the ``DecodeCadence`` events a backend reports, with no I/O and no logging of its
+own. It is the only instrument for a handoff that overcommitted the card, because such a handoff
+succeeds: both tiers report ``ready``, the fit check has already passed on a declared cost that was
+too low or on room the desktop took during the load, and free memory afterwards reads the same as a
+genuine fit. Throughput is what differs, roughly halved.
 
-Two rules keep the verdict honest, and both exist because a rate is easy to misread:
+Two rules follow, both argued in ADR-0030's spill-watch addendum. A completion shorter than
+``MIN_CADENCE_TOKENS`` is collected and never judged, since its rate is dominated by whatever the
+server was doing when it started, and a watch that saw only such samples has no reading at all,
+which is a third answer and not a pass. The fastest qualifying sample decides, because a spill is a
+ceiling that holds for every completion while the overcommit lasts, so a card that was momentarily
+busy during one round of a tool loop cannot alone produce a verdict.
 
-- **A sample too short to mean anything is not a sample.** A completion of a handful of tokens is
-  dominated by whatever the server was doing when it started, so anything under
-  ``MIN_CADENCE_TOKENS`` is collected and never judged. A watch that saw only such samples has no
-  reading at all, which is a third answer and not a pass.
-- **The fastest qualifying sample decides.** A spill is a ceiling on speed, not a spike: it holds
-  for every completion the tier serves while the overcommit lasts. Judging on the fastest is the
-  conservative direction, so a card that was momentarily busy during one round of a tool loop
-  cannot alone produce a verdict, while a tier that never once reached its floor is exactly what
-  a spill looks like.
-
-The floor itself is the deployment's own measurement of its own card, the twin of
-``ResidencyPlan.brain_vram_mib`` and just as unknowable from inside a container: zero (the
-default) means the deployment declared none, and then the watch reports what it saw and judges
-nothing. It arrives with the other half of the instrument's wiring, ``CadenceTerms``: what the
-tier is held to, and who is told how it did. What is then *done* with the verdict is no more this
-module's business than the logging is, which is why the second half is a port and not a record
-(``residency_pace.py`` is the one that answers a probe with it).
+The floor is the deployment's own measurement of its own card, the twin of
+``ResidencyPlan.brain_vram_mib`` and just as unknowable from inside a container; zero, the default,
+means none was declared, and then the watch reports what it saw and judges nothing. It travels with
+the ``PaceSink`` that receives the verdict, the pair being ``CadenceTerms``. What is done with the
+verdict belongs to the caller, and ``residency_pace.py`` is the one that answers a probe with it.
 """
 
 from dataclasses import dataclass
@@ -52,7 +43,7 @@ MIN_CADENCE_TOKENS = 32
 
 @dataclass(frozen=True, slots=True)
 class CadenceReading:
-    """What a watch has to say once the completions it watched are done.
+    """What one watch settled on once the completions it watched are done.
 
     ``observed`` is the fastest qualifying sample, so it is the best case the tier managed;
     ``floor`` is what the deployment declared, zero meaning it declared nothing. ``samples`` and
@@ -70,12 +61,11 @@ class CadenceReading:
     def verdict(self) -> bool | None:
         """Whether the tier spilled, or ``None`` when there was nothing to judge it against.
 
-        The three-state answer, kept here because it is a rule about what a rate means and not a
-        rule about what to say: a deployment that declared no floor gets the number and no
-        judgement at all, which is a different thing from a tier that was found to be fine. The
-        difference matters wherever a verdict is *published* rather than logged, since a note that
-        stands until something contradicts it must not be cleared by a deployment that never had
-        an opinion (``residency_pace.py``).
+        A deployment that declared no floor gets the number and no judgement at all, which is a
+        different answer from a tier that was found to be fine. The difference matters wherever a
+        verdict is published rather than logged, since a note that stands until something
+        contradicts it must not be cleared by a deployment that declared no floor
+        (``residency_pace.py``).
         """
         if self.floor <= 0:
             return None
@@ -85,8 +75,8 @@ class CadenceReading:
     def collapsed(self) -> bool:
         """Whether the tier never reached the rate its deployment measured for it.
 
-        False whenever no floor was declared, because a watch with nothing to compare against
-        cannot find a shortfall; that deployment gets the number and no verdict.
+        False whenever no floor was declared, since there is then nothing to compare the rate
+        against; that deployment gets the number and no verdict.
         """
         return self.verdict is True
 
@@ -101,8 +91,8 @@ class CadenceWatch:
 
     One watch per handoff, not per completion: a deep phase runs a whole tool loop, so several
     completions arrive under one swap and the question is about the tier across all of them.
-    Stateful by design and deliberately not stored anywhere (the one hard rule): a watch is
-    scratch for the duration of one phase, and its conclusion is said out loud rather than kept.
+    Stateful and deliberately not stored anywhere (the one hard rule): a watch is scratch for the
+    duration of one phase, and its conclusion is reported rather than persisted.
     """
 
     def __init__(self, floor: float = 0.0, *, min_tokens: int = MIN_CADENCE_TOKENS) -> None:
@@ -143,24 +133,23 @@ class CadenceWatch:
 
 @dataclass(frozen=True, slots=True)
 class CadenceTerms:
-    """The terms one deep phase's watch runs under: what the tier is held to, and who hears it.
+    """The terms one deep phase's watch runs under: the floor to judge against, and where to report.
 
-    Two halves of one instrument, travelling together because the dependency ceiling is a design
-    rule (ruff.toml) and because neither is worth much alone: a floor nobody is told about ends in
-    a log line, and a sink with no floor to judge against has no verdict to be told.
+    The two travel together because the dependency ceiling is a design rule (ruff.toml) and because
+    neither is much use alone: a floor with no sink ends in a log line, and a sink with no floor
+    carries no verdict.
 
     ``floor_tps`` is the deployment's own measurement of its own card, zero (the default, and
     every deployment that has not measured one) meaning the rate is reported and nothing is
     judged. ``sink`` is where the verdict goes beyond the log (``PaceSink``, implemented by the
-    residency record the seam reads), ``None`` being every caller that watches without publishing:
-    a test, and any deployment wired before the note existed.
+    residency record the seam reads), ``None`` covering every caller that watches without
+    publishing: a test, and any deployment wired before the note existed.
     """
 
     floor_tps: float = 0.0
     sink: PaceSink | None = None
 
 
-# The watch that judges nothing and tells nobody: the default a phase is built with when its
-# caller says nothing about cadence at all. Shared because it is frozen, exactly as the seam's
-# empty port bundle is.
+# The default a phase is built with when its caller says nothing about cadence: no floor to judge
+# against and no sink to report to. Shared because it is frozen, as the seam's empty port bundle is.
 NO_CADENCE_TERMS = CadenceTerms()

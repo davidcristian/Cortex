@@ -87,10 +87,10 @@ async def test_search_emails_tool_reports_no_matches() -> None:
 
 
 async def test_search_emails_tool_hands_a_refusal_to_the_model_in_its_own_words() -> None:
-    # The end of the path this slice exists for: what the model reads on a refused query is the
-    # port's own sentence, whole, with nothing of the IMAP library in it and no FastMCP
-    # "Error executing tool search_emails:" in front, which is what a tool that let the
-    # exception out would have produced. `isError` still marks it failed for the audit trail.
+    # On a refused query the model reads the port's own sentence, whole, with nothing of the IMAP
+    # library in it and no FastMCP "Error executing tool search_emails:" in front, which is what a
+    # tool that let the exception out would have produced. `isError` still marks the call failed
+    # for the audit trail.
     mailbox = FakeMailbox()
     mailbox.refuse()
     server = build_server(EmailReader(mailbox))
@@ -139,11 +139,11 @@ async def test_both_folder_taking_tools_answer_an_unknown_folder_in_the_same_wor
 
 
 async def test_a_mailbox_that_cannot_answer_is_still_a_tool_failure() -> None:
-    # The other side of that line, deliberately not caught: a mailbox that could not answer is
-    # a tool that failed, and FastMCP restating it as an execution error is the truth there.
-    # Only the refusal is an answer the tool has to give in its own words. FastMCP raises this
-    # `ToolError` and the low-level server renders `str(err)` as the isError text a client
-    # reads, so the sentence asserted here is the one that reaches the model, prefix and all.
+    # A mailbox that could not answer at all is deliberately not caught: that is a tool failure,
+    # and FastMCP restating it as an execution error describes it correctly. Only a refused query
+    # is an answer the tool gives in its own words. FastMCP raises this `ToolError` and the
+    # low-level server renders `str(err)` as the isError text a client reads, so the sentence
+    # asserted here is the one that reaches the model, prefix and all.
     class DownMailbox(FakeMailbox):
         def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
             del folder, query, limit
@@ -218,7 +218,8 @@ async def _tool_names(server: FastMCP) -> set[str]:
 
 
 async def test_without_a_sender_only_the_read_tools_register() -> None:
-    # The Slice 6 read-only-by-construction property, preserved by default (ADR-0022).
+    # Building without a sender registers no write tool at all, which is the read-only-by-
+    # construction default the send path preserved (ADR-0022).
     server = build_server(EmailReader(FakeMailbox()))
     assert await _tool_names(server) == {"list_folders", "search_emails", "read_email"}
 
@@ -309,9 +310,9 @@ async def test_the_search_tool_names_the_dialect_its_query_is_written_in() -> No
 
 
 async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
-    # The sibling guess in the same tools, and the cheaper one to get wrong: a folder name is
-    # taken verbatim, so an invented one is an error rather than an empty result. Both tools that
-    # take a folder say so, from one constant, which is what stops the two drifting apart.
+    # A folder name is taken verbatim, so an invented one is an error rather than an empty
+    # result. Both tools that take a folder say so, from one constant, which is what stops the
+    # two descriptions drifting apart.
     server = build_server(EmailReader(FakeMailbox()))
     tools = {t.name: t for t in await server.list_tools()}
     for name in ("search_emails", "read_email"):
@@ -322,8 +323,9 @@ async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
 
 
 async def test_the_search_limit_says_which_matches_it_keeps() -> None:
-    # A limit that silently means "the oldest N" is a trap the schema can close: the fetch is
-    # ascending-uid, so raising it is not how a model finds a recent message.
+    # A limit that means "the oldest N" without saying so misleads the model, so the description
+    # says it: the fetch is ascending-uid, and raising the limit is not how a recent message is
+    # found.
     server = build_server(EmailReader(FakeMailbox()))
     (tool,) = [t for t in await server.list_tools() if t.name == "search_emails"]
     limit = tool.inputSchema["properties"]["limit"]

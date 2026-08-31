@@ -1,4 +1,4 @@
-"""Behaviour of the anchor half of the backlog link gate.
+"""Tests for the anchor half of the backlog link gate.
 
 The path half of a link fails loudly when a file moves. The fragment half fails silently
 when a heading stops being rendered, which is what a renamed area, an emptied one, and a
@@ -80,11 +80,11 @@ def test_slug_lowercases_drops_punctuation_and_hyphenates_the_spaces() -> None:
 
 
 def test_slug_leaves_the_gap_a_dropped_symbol_stood_in_as_a_second_hyphen() -> None:
-    """The renderer's rule, and the two shapes this repo's own headings really carry.
+    """This is the renderer's rule, and the two shapes this repo's own headings carry.
 
-    Both spend a character between two spaces, and neither the renderer nor this collapses
-    the pair of hyphens that leaves behind. Getting it wrong would strand every pointer at
-    the fourteen headings here with an ampersand and the seven with an arrow.
+    Both drop a character standing between two spaces, and neither the renderer nor this rule
+    collapses the pair of hyphens that leaves behind. Getting it wrong would strand every pointer
+    at the fourteen headings here with an ampersand and the seven with an arrow.
     """
     assert backloganchors.slug("Risks & notes") == "risks--notes"
     assert backloganchors.slug("hotkey → overlay → chat") == "hotkey--overlay--chat"
@@ -152,7 +152,8 @@ def test_check_passes_a_pointer_at_a_heading_the_index_renders(tmp_path: Path) -
 
 
 def test_check_reports_a_pointer_at_a_heading_the_index_stopped_rendering(tmp_path: Path) -> None:
-    """The whole point: renaming an area leaves the link resolving and the anchor dead."""
+    """This is the case the check exists for: renaming an area leaves the link resolving and the
+    anchor gone."""
     indexes = _index(tmp_path, "# Deferred refinements\n\n### memory-and-recall\n")
     _write(tmp_path, "docs/adr/ADR-0008.md", "See [the area](../refinements/index.md#memory).\n")
     assert backloganchors.check(tmp_path, indexes) == [
@@ -185,7 +186,8 @@ def test_check_reads_an_index_pointer_at_its_own_hand_written_half(tmp_path: Pat
 def test_check_reports_a_fragment_aimed_at_a_heading_any_other_document_lacks(
     tmp_path: Path,
 ) -> None:
-    """The widening: a heading renamed in a decision record strands its readers the same way."""
+    """The scan reaches past the indexes, since a heading renamed in a decision record strands its
+    readers the same way."""
     indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
     _write(tmp_path, "docs/adr/ADR-0008.md", "# Memory\n\n## Risks flagged for maintainer review\n")
     _write(
@@ -224,7 +226,8 @@ def test_check_says_nothing_about_a_fragment_on_a_target_that_is_not_markdown(
 
 
 def test_check_reports_a_fragment_aimed_at_markdown_the_scan_never_read(tmp_path: Path) -> None:
-    """Fail closed: missing, outside the tree, or vendored all leave the question unanswered."""
+    """A target that is missing, outside the tree or vendored leaves the question unanswered, so
+    the pointer is reported."""
     indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
     _write(tmp_path, "node_modules/pkg/README.md", "# Vendored\n\n## Install\n")
     _write(
@@ -243,7 +246,7 @@ def test_check_reports_a_fragment_aimed_at_markdown_the_scan_never_read(tmp_path
 def test_check_reports_a_heading_whose_anchor_the_slug_rule_will_not_guess(
     tmp_path: Path,
 ) -> None:
-    """The refusal reaches the gate: a shape this rule reads too literally is named where it is."""
+    """A heading shape this rule reads too literally is reported at the line it sits on."""
     indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
     _write(tmp_path, "docs/adr/ADR-0008.md", "# Memory\n\n## Press <kbd>Ctrl</kbd>+N\n")
     assert backloganchors.check(tmp_path, indexes) == [
@@ -255,9 +258,10 @@ def test_check_reports_a_heading_whose_anchor_the_slug_rule_will_not_guess(
 def test_check_judges_nothing_aimed_at_a_document_whose_headings_it_refused(
     tmp_path: Path,
 ) -> None:
-    """Its anchor set is unknown, so saying it "does not offer" one would be an accusation.
+    """The document's anchor set is unknown, so reporting that it "does not offer" one would be
+    wrong as often as right.
 
-    The same silence an index too broken to render gets, and for the same reason: the run is
+    An index too broken to render is passed over the same way and for the same reason: the run is
     already failing on the heading, and a second problem about a pointer that may well be
     correct would send the reader after the wrong thing.
     """
@@ -274,7 +278,8 @@ def test_check_judges_nothing_aimed_at_a_document_whose_headings_it_refused(
 
 
 def test_check_reports_a_markdown_file_it_cannot_read(tmp_path: Path) -> None:
-    """A scan that dies on one file reports nothing about the rest, so it reports the file."""
+    """The unreadable file is reported as a problem, so one bad file does not stop the scan over
+    the rest."""
     indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
     (tmp_path / "docs" / "broken.md").write_bytes(b"# not \xff utf-8\n")
     problems = backloganchors.check(tmp_path, indexes)
@@ -300,7 +305,8 @@ def test_the_repo_itself_offers_every_anchor_aimed_at_it() -> None:
 
 
 def test_the_repo_really_aims_pointers_at_both_indexes_from_outside_the_backlog() -> None:
-    """A scan that matched nothing cannot fail, and the pointers most at risk are the far ones."""
+    """The tree really aims pointers at both indexes from outside the backlog, and those far
+    pointers are the ones a rename is most likely to strand."""
     indexes = _repo_indexes()
     aimed: dict[Path, int] = dict.fromkeys(indexes, 0)
     for path in backloganchors.markdown_files(ROOT):
@@ -314,7 +320,8 @@ def test_the_repo_really_aims_pointers_at_both_indexes_from_outside_the_backlog(
 
 
 def test_the_repo_really_aims_pointers_at_documents_that_are_not_a_backlog_index() -> None:
-    """The same guard for the half this scan grew: judging nothing new would be a silent no-op."""
+    """The same guard for the widened half: with no such pointer in the tree, the widening would
+    judge nothing."""
     indexes = _repo_indexes()
     elsewhere = 0
     for path in backloganchors.markdown_files(ROOT):

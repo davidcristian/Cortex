@@ -1,12 +1,12 @@
 """Behavior tests for VramBudgetPlacer: the GPU-first fit-test + VRAM ledger (ADR-0012).
 
-These pin the SubagentPlacer contract: Slice 11's process-lifecycle adapter must pass the same
+These pin the SubagentPlacer contract: the process-lifecycle adapter must pass the same
 checks against the same port. Headroom = soft_cap - cortex_reservation - placed.
 
 The port's other two verbs, ``close_gpu``/``open_gpu``, are pinned here and exercised end to end
 in the core's test_residency_tiers.py, where the residency scope is what writes them.
-Distrust-green: consulting the headroom before the closed flag in ``place`` reddens 7 across the
-workspace, two of them here.
+Mutation proving these tests can fail: consulting the headroom before the closed flag in ``place``
+fails 7 across the workspace, two of them here.
 """
 
 from cortex_core import (
@@ -74,7 +74,8 @@ def test_a_cortex_at_the_cap_leaves_no_gpu_headroom() -> None:
 
 
 def test_charging_a_handoff_fit_tests_against_the_deep_model_instead_of_the_cortex() -> None:
-    """The window's arithmetic: the resident term names what actually holds the card."""
+    """A charged handoff fit-tests against the deep model, since the resident term names what
+    actually holds the card."""
     placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)  # headroom 11.7
     assert placer.place(_request(2.81)).target is PlacementTarget.GPU
     placer.release(Placement(target=PlacementTarget.GPU, reserved_gb=2.81))
@@ -86,7 +87,8 @@ def test_charging_a_handoff_fit_tests_against_the_deep_model_instead_of_the_cort
 
 
 def test_charging_the_standing_residency_restores_the_cortex_s_own_reservation() -> None:
-    """The reversal puts back the constructor's figure, not the last thing charged."""
+    """The reversal puts back the constructor's reservation rather than the last figure
+    charged."""
     placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
     placer.charge_handoff(resident_gb=18.68)
     assert placer.place(_request(9.0)).target is PlacementTarget.CPU
@@ -95,7 +97,8 @@ def test_charging_the_standing_residency_restores_the_cortex_s_own_reservation()
 
 
 def test_charging_the_standing_residency_with_no_handoff_first_changes_nothing() -> None:
-    """Idempotent, because the residency scope's exit owes it on every path it can take."""
+    """``charge_standing`` is idempotent, because the residency scope's exit owes it on every
+    path it can take."""
     placer = _placer()  # headroom 3.0
     placer.charge_standing()
     placer.charge_standing()
@@ -114,7 +117,7 @@ def test_a_handoff_charge_does_not_disturb_what_is_already_placed() -> None:
 
 
 def test_a_closed_gpu_sends_a_fitting_spawn_to_the_cpu() -> None:
-    """Room is not the question a closed GPU answers: there is nowhere for the spawn to run.
+    """A closed GPU sends a spawn to the CPU whatever the headroom says.
 
     The ask here fits the headroom with 1.0 GiB to spare, so nothing about the arithmetic sends
     it to the CPU. What does is the tier a GPU placement lands on not being up
@@ -126,7 +129,7 @@ def test_a_closed_gpu_sends_a_fitting_spawn_to_the_cpu() -> None:
 
 
 def test_opening_the_gpu_again_restores_the_fit_test_unchanged() -> None:
-    """Both verbs are idempotent, and neither of them is a number."""
+    """Both verbs are idempotent, and neither of them changes the ledger."""
     placer = _placer()  # headroom 3.0
     placer.close_gpu()
     placer.close_gpu()
@@ -147,7 +150,8 @@ def test_closing_the_gpu_leaves_the_ledger_exactly_as_it_found_it() -> None:
 
 
 def test_a_handoff_charge_does_not_reopen_a_closed_gpu() -> None:
-    """The two pairs are independent: a swap heals its own charge and never a tier's outage."""
+    """The two pairs are independent: a swap restores its own charge and never a tier's
+    outage."""
     placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
     placer.close_gpu()
     placer.charge_handoff(resident_gb=18.0)

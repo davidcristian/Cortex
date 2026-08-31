@@ -17,8 +17,8 @@ modules under it.
 
 **Why it was left.** The reader that holds the other copies takes a name from a **code span**, and
 the repo map has none: it is a fenced block of plain text laid out in columns, where every module
-name is a bare word. Teaching the name reader to take bare words needs a third spelling shape, and
-that shape is only safe inside a bounded passage, since a bare `linecap.py` in ordinary prose
+name is a bare word. Making the name reader take bare words needs a third way of writing a name down,
+and that way is only safe inside a bounded passage, since a bare `linecap.py` in ordinary prose
 would otherwise read as a roster entry wherever it appeared. That is a real design decision rather
 than a line of code, and it was not the decision either closing entry was about.
 

@@ -1,8 +1,8 @@
 """Resolve an IANA timezone key against the system tz database (ADR-0025 per-rule addendum).
 
-The edge lookup a per-rule zone needs. The core's ``ZoneResolver`` port turns a name into a
-``DisplayZone`` without importing ``zoneinfo``, and this adapter is the ``zoneinfo``-backed
-implementation of it. It lives in the session package because the schedule codec depends on it to
+The core's ``ZoneResolver`` port turns a name into a ``DisplayZone`` without importing
+``zoneinfo``, and this adapter is the ``zoneinfo``-backed implementation of it. It lives in the
+session package because the schedule codec depends on it to
 reconstruct a stored rule's zone on decode; the composition root imports the same instance to
 inject into the model-facing schedule tools, so one lookup serves durable deserialization and
 creation-time validation alike. ``None`` (never an exception) is the "no such zone" answer, which

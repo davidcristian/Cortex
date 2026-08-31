@@ -18,7 +18,7 @@ all. Neither exists as anything runnable. The probe stack ships one configuratio
 thrown away with it.
 
 That is the right shape for a negative result nobody needs to reproduce, and the wrong shape for
-one the pinned image could quietly overturn. The image is pinned precisely because the wordings it
+one the pinned image could overturn without anyone noticing. The image is pinned precisely because the wordings it
 produces are the evidence the folder classification is built on, and the runbook already says to
 rerun the probe after a bump. A bump that made either configuration work would make the flag rule
 provable in the listing that matters ([400](400-the-keep-in-the-adapters-listing-is-one-account.md))
@@ -28,8 +28,8 @@ and nothing would say so.
 namespace collision, which is the near miss, and which needs a second `.conf` and a compose profile
 or override rather than a second stack. Then a rerun after a bump is one command instead of a
 reading of prose and an afternoon of rebuilding what somebody already built. The honest alternative
-is to decline it and let the addendum's table be the record, on the grounds that a fixture nothing
-asserts over is a fixture nobody runs; the reason to prefer keeping it is that the table's own
+is to decline it and let the addendum's table be the record, on the grounds that a fixture no test
+asserts over will not be run; the reason to prefer keeping it is that the table's own
 value is entirely in being reproducible.
 
 ## Trail

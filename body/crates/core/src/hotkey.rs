@@ -2,7 +2,7 @@
 //!
 //! The overlay is summoned by a global hotkey; the default chord is
 //! `ctrl+alt+space` and it is configurable from day one (`docs/ROADMAP.md`,
-//! assumption 7). This module is pure. Parsing and formatting only, no OS
+//! assumption 7). This module parses and formats chords and touches no OS
 //! APIs; registering the chord with the OS is an adapter concern.
 
 use std::fmt;

@@ -6,76 +6,77 @@ pure questions that follow: which attributes are the record's own and which came
 and what a caller's value looks like once it is printed. ``log_format.py`` is the stdlib adapter
 that spends both, and it is the only caller that has to exist.
 
-**Redaction lives here rather than at the call sites** because the whole point of a formatter is
-that it prints fields nobody enumerated. A future adapter attaching ``extra={"token": ...}``
-reaches an operator's terminal without anyone having reviewed that line, and AGENTS.md bans
-secrets in logs outright, so the defence has to sit where the printing happens. It has two halves
-because the leak has two shapes:
+Redaction lives here rather than at the call sites because a formatter prints fields nobody
+enumerated. A future adapter attaching ``extra={"token": ...}`` reaches an operator's terminal
+without anyone having reviewed that line, and AGENTS.md bans secrets in logs outright, so the
+defence has to sit where the printing happens. It has two halves because the leak has two shapes:
 
-- A field **named** for a secret is withheld by name, and withheld *visibly*: an absent key and a
+- A field named for a secret is withheld by name, and withheld visibly: an absent key and a
   held-back one are different facts, and a reader who cannot tell them apart will go looking for
   the field that was never attached.
-- A credential **inside a URL** is withheld by shape, over the whole rendered line, because that
-  one arrives in the message and in a traceback at least as often as in a field.
+- A credential inside a URL is withheld by shape, over the whole rendered line, because that one
+  arrives in the message and in a traceback at least as often as in a field.
   ``redis://:pw@redis:6379`` is what a connection error prints, and the connection URL is how
-  both the session store and the mail bridge are configured. It is *also* withheld per value,
-  before the bound below cuts one, and the order there is the defence rather than a tidiness:
-  ``_USERINFO`` is anchored on the ``@`` that ends a userinfo, so a cut falling between a URL's
-  ``://`` and that ``@`` leaves the whole-line pass nothing to match and prints the credential in
-  full. A defence that runs after the value has already been shortened is not a defence.
+  both the session store and the mail bridge are configured. It is also withheld per value,
+  before the bound below cuts one, and that order is what makes the defence work rather than
+  merely tidy: ``_USERINFO`` is anchored on the ``@`` that ends a userinfo, so a cut falling
+  between a URL's ``://`` and that ``@`` leaves the whole-line pass nothing to match and prints
+  the credential in full.
 
 The name list is a denylist and not an allowlist on purpose. An allowlist would have to be edited
-for every new field, which is the invisible-field defect this module exists to end wearing a
-different hat: a field nobody had registered would be silently dropped instead of never printed,
-and a silent drop is the harder of the two to notice. A denylist errs the other way, toward
+for every new field, which is the same invisible-field defect this module exists to end: a field
+nobody had registered would be dropped with nothing said instead of never printed, and a drop
+nobody is told about is the harder of the two to notice. A denylist errs the other way, toward
 printing a name it does not recognize, and it is deliberately blunt about matching: ``token``
 withholds a field called ``max_tokens`` too. Withholding a token count costs a reader one number
 they can recover from the message; printing a bearer token costs the deployment its seam.
 
-**One name per work identity**, written down beside those two lists because it is the same kind
-of fact: what a field *is*, rather than what it holds. A line that says which work it is about
+One name per work identity is written down beside those two lists because it is the same kind of
+fact: what a field is, rather than what it holds. A line that says which work it is about
 picks from the fixed vocabulary of five the dispatch stamp carries, the conversation, the turn,
 the delegated task, the fired schedule item and the call itself, each spelled the way that stamp
 and the tool audit already spell it (ADR-0009 one-vocabulary addendum). It is written down because
 it was spelled two ways before it was: the recall trail and the rank's fallbacks named a
 conversation ``session`` where six other modules named it ``session_id``, and the schedule ticker
-named a fired item ``reminder_id`` where the trail named it ``item_id``, so a grep for one spelling
-silently missed every line carrying the other. Only the tool audit spends these names as code,
+named a fired item ``reminder_id`` where the trail named it ``item_id``, so a grep for one name
+missed every line carrying the other with nothing to show that it had. Only the tool audit spends
+these names as code,
 being the one place that writes the whole vocabulary out as a list; every other site names one
 identity inside its own ``extra=`` and keeps the literal an operator greps, and
 `scripts/logcouplings.py` is what ties those literals, and the runbooks that quote them, back to
 the declarations here.
 
-**A bound on how much of a value reaches the line** sits here for the same reason the redaction
-does: the size of a field nobody enumerated is not something its call site was asked about, and
-the tool audit already attaches one the model writes (``arguments`` carries a spawn's whole
-instruction verbatim). The bound is spent on the *rendered* text rather than on the value, because
-the rendered text is what the line costs: a string of quotes escapes to twice its length and an
-emoji to six times its own, so a bound on the input would not bound the output. Both renderings a
-value can take are cut on the way out of ``render_value``, so neither branch has a bound of its
-own to drift from the other. The bound runs *after* both defences above and never before either:
-a secret-named field has already lost its value to one short constant no cut can reach inside, and
-the rendering being cut has already had its credentials withheld.
+A bound on how much of a value reaches the line sits here for the same reason the redaction does:
+the size of a field nobody enumerated is not something its call site was asked about, and the tool
+audit already attaches one the model writes (``arguments`` carries a spawn's whole instruction
+verbatim). The bound is spent on the rendered text rather than on the value, because the rendered
+text is what the line costs: a string of quotes escapes to twice its length and an emoji to six
+times its own, so a bound on the input would not bound the output. Both renderings a value can
+take are cut on the way out of ``render_value``, so neither branch has a bound of its own to drift
+from the other. The bound runs after both defences above and never before either: a secret-named
+field has already lost its value to one short constant no cut can reach inside, and the rendering
+being cut has already had its credentials withheld.
 
-**A cut structure stops parsing, and that is the choice.** The alternative, dropping whole elements
-and carrying a count the way the recall trail's ``dropped_omitted`` does, needs somewhere to put
-the count, and that sink has one because it owns the whole line: the count is a sibling field
-beside the list it describes. This function renders a value it does not own, so a count would have
-to go *inside* the caller's own structure, under a key the caller may already use, and the shape
-most at risk is a long string, which has no elements to drop at all. So the rendering is cut where
-the bound falls and the marker says how much went: a truncated line that no longer parses fails
-loudly at whatever reads it, where a truncated list that still parses is read as the whole of it.
+A cut structure stops parsing, which is the deliberate choice. The alternative, dropping whole
+elements and carrying a count the way the recall trail's ``dropped_omitted`` does, needs somewhere
+to put the count, and that sink has somewhere because it owns the whole line: the count is a
+sibling field beside the list it describes. This function renders a value it does not own, so a
+count would have to go inside the caller's own structure, under a key the caller may already use,
+and the shape most at risk is a long string, which has no elements to drop at all. So the rendering
+is cut where the bound falls and the marker says how many characters went: a truncated line that
+no longer parses fails at whatever reads it, where a truncated list that still parses is read as
+the whole of it.
 
-**A cut rendering is never bare, and so the marker cannot be read as the value's own text.** Bare
-is what a value gets for printing whole: nothing to quote, because it carries no whitespace to run
-it into the pair beside it. The marker carries two spaces, so appending it to a bare rendering
-would write a field boundary inside a field, and ``endpoint=http://aaa<cut 9 chars> next=1`` reads
-as a plausible whole endpoint followed by two stray tokens, which is the silent failure this
-module refuses everywhere else. So a rendering that will be cut is quoted instead, and every cut
-rendering therefore ends mid-syntax, its closing quote or bracket among the characters that did
-not print. That is what leaves the marker unambiguous: it only ever follows a rendering that
-stopped, while a field whose own text spells it carries the marker's whitespace and lands inside a
-quote that closes, which is where a value's text always lives and where this module never writes.
+A cut rendering is never bare, which is what stops the marker being read as the value's own text.
+A value printed whole is left bare, having no whitespace to run it into the pair beside it and no
+quote of its own. The marker carries two spaces, so appending it to a bare rendering would write a
+field boundary inside a field, and ``endpoint=http://aaa<cut 9 chars> next=1`` reads as a plausible
+whole endpoint followed by two stray tokens, which is the unreported failure this module avoids
+everywhere else. So a rendering that will be cut is quoted instead, and every cut rendering
+therefore ends mid-syntax, its closing quote or bracket among the characters that did not print.
+That is what leaves the marker unambiguous: it only ever follows a rendering that stopped, while a
+field whose own text contains those characters carries them inside a quote that closes, which is
+where a value's text always lives and where this module never writes.
 """
 
 import json
@@ -98,7 +99,7 @@ CUT = "<cut {chars} chars>"
 # than each opening one of their own, a piece boundary carrying no newline: re-measured on the
 # ``json-file`` driver, a split message reads back as one line of 16,446 bytes with two timestamps
 # in it, while ``--tail 1`` returns only the last piece. This bound is that cliff divided by
-# eight, and what that buys is room for *seven* fields at it rather than eight:
+# eight, and what that buys is room for seven fields at it rather than eight:
 # eight come to 16,384 characters, one past the cliff before a single ``key=``, separator, marker
 # or word of the message is counted. Measured through the shipped formatter, with the level and
 # logger prefix and a marker on every field, seven cut fields make a line of 14,536 characters and
@@ -116,8 +117,8 @@ VALUE_CHARS = 2048
 # The attributes ``logging`` puts on every record itself, plus the two a ``Formatter`` adds while
 # it runs. Anything else on a record was attached by a caller and is what a reader came for.
 # Written down rather than derived from a sample record: a Python release that adds an attribute
-# then reddens a test here instead of quietly printing a new stdlib field as if a caller had
-# attached it, which is the one way this set can go wrong without anyone touching this repo.
+# then fails a test here instead of printing a new stdlib field as if a caller had attached it,
+# which is the one way this set can go wrong without anyone touching this repo.
 RESERVED_ATTRS = frozenset(
     {
         "args",
@@ -156,7 +157,7 @@ RESERVED_ATTRS = frozenset(
 #
 # Five and not six: the swap path's `handoff` looked like a sixth identity and was not one, a
 # handoff id being the escalating turn's id at the only place that mints one (`handoff.py`), so
-# those lines name a turn and say so. A line naming a SECOND instance of one identity qualifies
+# those lines name a turn and say so. A line naming a second instance of one identity qualifies
 # the name in front and keeps the family word, `active_turn_id` for the turn already holding the
 # swap, so the two are told apart on the line and a grep for the family still reaches both.
 SESSION_FIELD = "session_id"
@@ -182,7 +183,7 @@ SECRET_NAMES = (
 
 # The userinfo half of a URL: everything between the scheme's ``://`` and an ``@``. A bare email
 # address is untouched, having no scheme in front of it, and so is a URL that carries no
-# credential, there being no ``@`` to end the match. That the match *ends* on the ``@`` is why
+# credential, there being no ``@`` to end the match. The match ends on the ``@``, which is why
 # nothing may shorten a rendering before this has run over it: cut the ``@`` away and the same
 # credential no longer matches anything.
 _USERINFO = re.compile(r"(?<=://)[^/\s@]*@")
@@ -220,7 +221,7 @@ def _bound_value(rendering: str) -> str:
     between a URL's ``://`` and that ``@`` deletes the one character the pattern is anchored on,
     and the whole-line pass ``log_format`` runs afterwards finds nothing left to match. Withholding
     first also spends the bound on what will actually print rather than on a credential that will
-    not, so the count in the marker is honest about the rendering the reader was given.
+    not, so the count in the marker describes the rendering the reader was given.
     """
     text = redact_urls(rendering)
     if len(text) <= VALUE_CHARS:
@@ -232,8 +233,8 @@ def render_value(value: object) -> str:
     """One field's value, written so the pair it sits in can still be told from the next one.
 
     Scalars print the way Python prints them, which is what keeps ``capped=True`` reading the way
-    the runbooks read it: JSON would spell that boolean ``true`` and quietly invalidate every
-    documented reading of a line. Anything else is JSON, compact, so a list of ranked hits arrives
+    the runbooks read it: JSON would write that boolean ``true``, invalidating every documented
+    reading of a line. Anything else is JSON, compact, so a list of ranked hits arrives
     as the object it is rather than as a Python repr no tool can parse, and arrives without the
     spaces that would scatter it across what look like several fields. A string is quoted exactly
     when it would otherwise run into its neighbour, by carrying whitespace or a quote of its own.
@@ -242,9 +243,9 @@ def render_value(value: object) -> str:
     written: the cut is the last thing done to a rendering rather than the first thing done to a
     value, since escaping is what a line actually spends.
 
-    Bare is the reward for printing whole, so a rendering the bound will cut forfeits it and is
-    quoted. Otherwise the marker's two spaces would land in a rendering chosen for carrying none,
-    and the pair the sentence above promises could no longer be told from the next one.
+    A rendering the bound will cut is quoted rather than left bare. Otherwise the marker's two
+    spaces would land in a rendering chosen for carrying none, and the pair could no longer be
+    told from the next one.
     """
     if isinstance(value, str):
         text = value

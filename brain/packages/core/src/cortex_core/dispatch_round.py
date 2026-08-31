@@ -1,9 +1,9 @@
 """Running one planned round of tool dispatches, and the context every round is configured by.
 
 Split from ``tool_loop.py`` when the post-dispatch outcome landed (ADR-0029 outcome addendum)
-and the loop reached both the complexity ceiling and the 300-line cap. The seam between the two
-modules is the loop's own sentence: ``tool_loop.py`` infers, then runs the round this module
-owns. ``tool_round.py`` is the third piece and stays pure arithmetic (how wide a round may be);
+and the loop reached both the complexity ceiling and the 300-line cap. The split follows the
+loop's own order: ``tool_loop.py`` infers, then runs the round this module owns.
+``tool_round.py`` is the third piece and stays pure arithmetic (how wide a round may be);
 nothing here decides that.
 
 ``ToolLoopContext`` lives here rather than beside the loop because the round is what reads
@@ -37,54 +37,26 @@ from cortex_core.untrusted import TaintLedger
 @dataclass(frozen=True, slots=True)
 class ToolLoopContext:
     """The per-invocation collaborators of one tool loop (ADR-0013), bundled to stay under the
-    argument ceiling. ``dispatcher`` is the audited tool gateway (``None`` = a no-tools turn);
-    ``taint`` is the turn-local ledger the loop marks on each untrusted result; ``nonce`` fences
-    those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
-    (ADR-0027; ``""`` for a caller with no chat behind it); ``turn_id`` is the conversation turn
-    this loop serves, ``task_id`` the subagent task it is running and ``item_id`` the scheduled
-    item whose fire is behind it, which with the chat are the four the audit trail names each
-    dispatch's work by (ADR-0009 named-work and fired-work addenda). A turn's loop sets the turn
-    and leaves the rest empty; a subagent's sets the task and takes the chat, the turn and the
-    item off its stored task, so a delegated call names its task and whatever spawned it, and a
-    ticker-rooted run honestly names no turn while naming the item that fired. The four are kept
-    as their own keywords rather than bundled into one work-identity value: each is independently
-    present or absent, every combination of them is a caller this tree really has, so a bundle
-    would exclude no invalid state, and the same four are flat on ``TurnStamp`` and on the audit
-    record, so one here would cost a translation at each end. What this loop's own messages are
-    grouped under is
-    neither field but ``unit_id`` below, the work they belong to; ``schema`` (ADR-0028), when
-    set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-    envelope; ``None`` for the cortex and every tool-enabled path); ``bounds`` (ADR-0005
-    total-cap addendum), when set, caps how far **each** of the loop's completions may decode,
-    which together with ``MAX_TOOL_STEPS`` is what makes an attempt's decoding finite (``None``,
-    the default, leaves every completion to the server's own ``n_predict: -1``, which is the
-    cortex turn and every caller that has not asked for a cap); ``budget`` (ADR-0009 budget
-    addendum) caps what may be spent on dispatches across the loop's rounds. What each call
-    spends comes from the dispatcher's ``ToolCostPolicy`` (ADR-0009 cost addendum), so the price
-    of a tool travels with the gateway that runs it rather than being restated here.
+    argument ceiling. ``docs/modules/brain-core.md`` describes every field; three of them carry a
+    reason the field names do not.
 
-    The budget is the one collaborator a caller may **share**: a context built without one gets
-    its own pool at ``MAX_TOOL_DISPATCHES``, while a subagent spawned from a cortex turn is
-    handed that turn's pool (via the dispatch ``TurnStamp``), so delegation cannot multiply the
-    total the way a per-invocation count did (ADR-0009 turn-wide addendum). ``progress`` (ADR-0010
-    progress addendum) is the stream's side channel the loop stamps onto each dispatch, so a
-    built-in that spawns further work (``spawn_subagents``) can surface a subagent's steps onto
-    the overlay while the loop's own generator is suspended inside that dispatch; ``None`` (a
-    subagent's own inner loop, a session-less caller) leaves such work unsurfaced, keeping
-    delegation depth-1 in what reaches the overlay as it is in the tree. ``escalation``
-    (ADR-0030) is the turn's handoff slot, threaded exactly like ``progress`` so the
-    ``escalate_to_brain`` built-in reads it off each dispatch's stamp; ``None`` (the default,
-    every escalation-less caller) leaves the tool refusing honestly. ``cadence`` (ADR-0030
-    spill-watch addendum) is where the loop hands each completion's reported decode rate, and it
-    is deliberately not a yielded event: how fast a tier decoded is a fact about the machine, not
-    about the turn, so it must never reach a stream the user reads. ``None`` (the default, the
-    cortex turn and every subagent) drops the report, which costs nothing because the only caller
-    that has a rate to compare against is the deep phase. ``stops`` (ADR-0005 finish-reason
-    addendum) is its twin on the other closing event, threaded the same way and for the same
-    reason: why a completion ended is a fact about the machine that stopped it, so it is collected
-    here rather than yielded into a stream the user reads. ``None`` (the default, the cortex turn,
-    which streams live and whose reader sees the reply stop) drops the report; the delegated run
-    passes one, a capped subagent reply otherwise being indistinguishable from a finished one.
+    The four identities a dispatch is stamped with (``session_id`` the originating chat,
+    ``turn_id`` the conversation turn this loop serves, ``task_id`` the subagent task it is
+    running, and ``item_id`` the scheduled item whose fire is behind it) stay four keywords rather
+    than one bundled work-identity value. Each is independently present or absent, every
+    combination of them is a caller this tree really has, so a bundle would exclude no invalid
+    state, and the same four are flat on ``TurnStamp`` and on the audit record, where one bundle
+    would cost a translation at each end (ADR-0009 named-work and fired-work addenda).
+
+    ``budget`` is the one collaborator a caller may share: a context built without one gets its
+    own pool at ``MAX_TOOL_DISPATCHES``, while a subagent spawned from a cortex turn is handed
+    that turn's pool through the dispatch ``TurnStamp``, so delegation cannot multiply the total
+    the way a per-invocation count did (ADR-0009 turn-wide addendum).
+
+    ``cadence`` (ADR-0030 spill-watch addendum) and ``stops`` (ADR-0005 finish-reason addendum)
+    are where the loop hands each completion's reported decode rate and reported stop reason.
+    Neither is ever yielded as an event, because both describe the machine rather than the turn
+    and must not reach a stream the user reads.
     """
 
     dispatcher: ToolDispatcher | None
@@ -131,7 +103,7 @@ def _refused_by(
     reaches nothing, so neither the turn's allowance nor this loop's repeat count should record
     it. It is a fact about the round's shape, settled before anything about the call itself.
 
-    Salience is asked next, and a call it refuses is never charged: the budget bounds reach
+    Salience is checked next, and a call it refuses is never charged: the budget bounds reach
     into the outside world and a repeat reaches nothing, so charging it would spend the turn's
     allowance on the model's own repetition (ADR-0009 salience addendum). The order's one cost is
     that a repeat emitted past a closed budget reports redundancy rather than exhaustion, the
@@ -141,7 +113,7 @@ def _refused_by(
     cheaper call behind an unaffordable one does not trickle through (ADR-0009 cost addendum).
     Closing is turn-wide once a subagent shares the pool: a runaway delegate stops its siblings
     and the rest of this loop too, which is what keeps ``BUDGET_EXHAUSTED_MSG``'s "this turn has
-    reached its limit" true. Both calls have side effects, so the order is behavior, not style.
+    reached its limit" true. Both calls have side effects, so this order is part of the behavior.
     """
     if oversized:
         return DispatchRefusal.ROUND_OVERSIZED
@@ -162,11 +134,10 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
     addendum). The fired item is among them wherever the loop was handed one, which is a
     delegate of a fire and nothing else, so the item's own dispatch and every dispatch its
     delegate makes carry the same id (ADR-0009 fired-work addendum). The budget, the progress
-    channel and
-    the escalation slot are live shared handles that travel to whatever the call spawns: a
-    subagent draws from the turn's remaining allowance instead of a fresh one, surfaces its own
-    steps onto this turn's overlay while the loop is suspended inside the dispatch, and the
-    escalate built-in writes its brief into the turn's own slot rather than into tool state.
+    channel and the escalation slot are live shared handles that travel to whatever the call
+    spawns: a subagent draws from the turn's remaining allowance instead of a fresh one, surfaces
+    its own steps onto this turn's overlay while the loop is suspended inside the dispatch, and
+    the escalate built-in writes its brief into the turn's own slot rather than into tool state.
     """
     return TurnStamp(
         session_id=context.session_id,
@@ -192,8 +163,8 @@ async def run_round(
     """Dispatch every call one planned round answers, appending each result to ``working``.
 
     Yields a ``ToolStep`` before each announced dispatch and the ``StepOutcome`` that settles it
-    after, **paired**: both are guarded by the identical condition, so nothing a consumer lit on
-    a step is left unsettled. The one way out without an outcome is this generator being closed
+    after, paired: both are guarded by the identical condition, so a step a consumer rendered is
+    never left unsettled. The one way out without an outcome is this generator being closed
     mid-dispatch, which ends the turn and takes the surface with it.
 
     ``dispatcher`` is a plain ``ToolDispatcher`` rather than the context's optional one, because
@@ -201,8 +172,6 @@ async def run_round(
     per-round history, appended to before this round runs so the salience policy sees the round
     in progress as its last group (ADR-0009 salience addendum).
     """
-    # This round's dispatched calls, appended to the loop's history before the round runs so
-    # the policy sees the round in progress as its last group (ADR-0009 salience addendum).
     this_round: list[ToolCall] = []
     dispatched.append(this_round)
     for call, oversized in plan.answered():

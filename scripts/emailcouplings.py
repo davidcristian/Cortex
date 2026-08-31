@@ -1,17 +1,15 @@
 """The couplings around the email sidecar's shipped answers: the two hatches and the switch.
 
-One of the data files `crosscheck.py` reads as a single registry, and the sixth part to arrive,
-added the way `registry.py` was built to take one: a data file plus one line there, with the scan
-never learning the registry grew. The subject is the one env surface no other part holds, the
-read-only IMAP sidecar's own, and the three variables in it whose default is an answer rather than a
-number.
+One of the data files `crosscheck.py` reads as a single registry, added the way `registry.py` was
+built to take one: a data file plus one line there, with nothing in the scan naming the registry's
+parts. The subject is the one env surface no other part holds, the read-only IMAP sidecar's own,
+and the three variables in it whose default is an answer rather than a number.
 
-**Why these three are worth a gate of their own.** Each is off, and each is off for a safety
-reason rather than a tuning one: two are the TLS escape hatches that accept a self-signed
-certificate on loopback, and the third is the write capability that turns a read-only server into
-one that can send mail. A default flipping open in the compose stack while the field it restates
-still declares shut is exactly the drift nobody would notice, since every read path goes on
-working and only the guarantee is gone.
+Each of the three is off for a safety reason rather than a tuning one: two are the TLS escape
+hatches that accept a self-signed certificate on loopback, and the third is the write capability
+that turns a read-only server into one that can send mail. A default flipping open in the compose
+stack while the field it restates still declares shut is the drift nobody would notice, since every
+read path goes on working and only the guarantee is gone.
 
 They could not be registered until the reducer could read a boolean, and the compose stack cannot
 spell the answer the way Python declares it: `False` there is `false` here. So each mention takes

@@ -56,7 +56,8 @@ def test_rejects_nonpositive_budget(cpu_budget: float, mem_budget: float) -> Non
     [(5.0, 1.0), (1.0, 9.0)],  # cpus over the whole cpu budget; memory over the whole mem budget
 )
 async def test_a_charge_over_the_whole_budget_is_rejected(cpus: float, memory_gb: float) -> None:
-    """The budget's one wall: refused outright, not queued, and typed so the runner can catch it."""
+    """A charge over the whole budget is refused outright rather than queued, and typed so the
+    runner can catch it."""
     scheduler = ResourceBudgetScheduler(4.0, 8.0)
     with pytest.raises(SubagentAdmissionError, match="exceeds the whole budget"):
         async with scheduler.admit(_request(cpus, memory_gb)):
@@ -145,7 +146,7 @@ async def _peer_holding(
 
 
 async def test_a_wait_that_outlasts_the_bound_is_refused_and_names_it() -> None:
-    """The queue stopped being forever: the bound elapses and the wait becomes a typed refusal.
+    """A wait that outlasts the bound becomes a typed refusal rather than queuing forever.
 
     An already-expired bound drives the timeout path, exactly as `drain`'s own bound is driven,
     so nothing here spends wall-clock time proving it. The message carries this scheduler's

@@ -33,7 +33,7 @@ file and knowing the split is the first move rather than a surprise.
   taken on its own rather than inside the next coupling. The seam is the first of the three this
   entry named and it was already written down twice: `registry.py` describes
   `subagentcouplings` as the tier's admission budgets against the container limits that are their
-  hard twins, which was silent about the four bounds one delegated run stands between, and those
+  hard twins, which said nothing about the four bounds one delegated run stands between, and those
   four are the only entries in the file whose far sides are all documents, no stack under
   `docker/` spelling one of them. They are now `scripts/boundscouplings.py` at 175 lines, the
   eleventh part, leaving `scripts/subagentcouplings.py` at 163. The flag pair stayed with the

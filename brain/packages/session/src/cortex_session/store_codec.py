@@ -1,15 +1,14 @@
 """Keys and record codecs for ``RedisSessionStore``: what a session looks like on the wire.
 
 Split out of ``store.py`` for the line cap when the summarizing window's recap became a second
-kind of record (the ``handoff_codec``/``schedule_codec`` precedent), and it is a real seam
-rather than a file-size trick: everything here is the STORAGE FORMAT, so a change to how a
-session is laid out in Redis is a change to this module, while ``store.py`` stays the round
-trips and the error wrapping.
+kind of record (the ``handoff_codec``/``schedule_codec`` precedent). The split follows the
+responsibility: everything here is the storage format, so a change to how a session is laid out in
+Redis is a change to this module, while ``store.py`` holds the round trips and the error wrapping.
 
-Both record kinds carry ``"v"``/``"kind"`` as the schema escape hatch, and both readers follow
-one policy: unknown EXTRA keys are ignored (forward-compatible additions), while an unknown kind
-or unsupported version fails LOUDLY naming the record and is never a silent skip, which would
-invisibly corrupt a future handoff's context. Failures leave here as ``SessionStoreError``.
+Both record kinds carry ``"v"``/``"kind"`` as the schema escape hatch, and both readers follow one
+policy: unknown extra keys are ignored (forward-compatible additions), while an unknown kind or
+unsupported version raises naming the record rather than being skipped, since a skip would corrupt
+a future handoff's context with nothing reporting it. Failures leave here as ``SessionStoreError``.
 """
 
 import json
@@ -19,7 +18,7 @@ from typing import cast
 from cortex_core import Message, Role, SessionStoreError
 from cortex_core.sessions import HistoryRecap
 
-# The record schema this writer emits and the ONLY combination this reader accepts.
+# The record schema this writer emits and the only combination this reader accepts.
 # Records missing the markers decode as this combination (pre-versioning writers).
 RECORD_KIND = "message"
 RECORD_VERSION = 1
@@ -65,9 +64,9 @@ def refuse_images(message: Message) -> None:
 def decode_message(raw: bytes | str, index: int) -> Message:
     """Decode the record at ``index``; every failure names that record precisely.
 
-    Only the known keys are read, so unknown extra keys pass through untouched; an
-    unknown kind/version raises BEFORE field decoding so future record shapes fail
-    with the precise message, not as an arbitrary missing-field error.
+    Only the known keys are read, so unknown extra keys pass through untouched; an unknown
+    kind or version raises before any field is decoded, so a future record shape fails with
+    the precise message rather than with an arbitrary missing-field error.
     """
     try:
         fields = cast("dict[str, str]", json.loads(raw))
@@ -105,10 +104,10 @@ def encode_recap(recap: HistoryRecap) -> str:
 def decode_recap(raw: bytes | str, session_id: str) -> HistoryRecap:
     """Decode the stored recap document, failing loudly on anything this reader cannot read.
 
-    A recap is derived and disposable, so a corrupt one could in principle be discarded
-    silently; it is not, because a reader that quietly answered "no recap" would look exactly
-    like a session that has never been summarized, and would hide a schema mistake behind a
-    summarizer that merely seems expensive.
+    A recap is derived and disposable, so a corrupt one could in principle be discarded without a
+    word. It is not, because a reader that answered "no recap" and said nothing else would look
+    exactly like a session that has never been summarized, and would hide a schema mistake behind
+    a summarizer that merely seems expensive.
     """
     try:
         fields = cast("dict[str, object]", json.loads(raw))

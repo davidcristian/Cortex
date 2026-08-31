@@ -1,7 +1,7 @@
 """Read what each service in a compose file is started with, and the environment it is given.
 
 `subagentservers.py` owns the question of which of those services serve subagents; this module
-owns only the reading, and it knows nothing about any of them. It is the third reader over this
+owns only the reading, and it says nothing about any of them. It is the third reader over this
 file format and it asks what neither of the other two does. `composemounts.py` reads a mount's
 source, `composeservices.py` reads a mount's target and the image or build behind it, and both
 step over `command:` and `environment:` because a volume gate has no question for either. Those
@@ -21,11 +21,11 @@ shape with one difference, which is what the value ends up being part of, so the
 pair of methods and closed at the first line no deeper than the opener.
 
 Like every compose reader beside it, it is a line walk rather than a YAML parse, these gates being
-stdlib-only (`pyproject.toml` in this directory), and it stays honest about that by refusing every
-shape it was not taught: a command that is neither an inline list nor a block of items, an inline
-or list-form environment, an inline service body, and a line indented under no service are each
-raised, never stepped over. A reader that walked quietly past the one server a new override adds
-would be a gate that cannot fail.
+stdlib-only (`pyproject.toml` in this directory), and it raises on every shape it was not taught: a
+command that is neither an inline list nor a block of items, an inline or list-form environment, an
+inline service body, and a line indented under no service each raise rather than being stepped
+over. A reader that walked past the one server a new override adds would leave the gate unable to
+fail.
 """
 
 import json
@@ -42,14 +42,15 @@ SERVICES_KEY = "services"
 
 # What opens a block scalar, which is one value written over the lines under its own opener. What
 # opens a flow collection, which is the inline `["a", "b"]` spelling of a command, is
-# `composetargets.FLOW_OPENERS`, the same pair its own reader refuses a mount written in.
+# `composetargets.FLOW_OPENERS`, the same pair its own reader raises on for a mount written that
+# way.
 BLOCK_SCALARS = ("|", ">")
 
 _ITEM = re.compile(r"^[ \t]*-[ \t]*(?P<rest>.*)$")
 
 
 class ComposeStartError(Exception):
-    """A compose file carries a shape this reader will not guess at."""
+    """A compose file carries a shape this reader cannot read."""
 
 
 class Started(NamedTuple):

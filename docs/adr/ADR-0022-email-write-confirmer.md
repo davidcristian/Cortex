@@ -63,7 +63,7 @@ drafts survive; the overlay renders it as key→value lines and falls back to ra
 **Version skew** is fail-quiet by construction on the response side (an old brain
 debug-logs and ignores an unknown client event) but *terminal* on the request side: prost
 drops an unknown oneof member, so an old body decodes a `confirm_request` as an empty
-event and fails the turn with `TransportError::Protocol`. That only bites a mixed-version
+event and fails the turn with `TransportError::Protocol`. That reaches only a mixed-version
 deployment mid-confirm, impossible on this single-machine repo where both halves ship
 from one tree, and the slice's commits keep each tree green independently (the ADR-0021
 staging pattern).
@@ -83,15 +83,16 @@ supersedes that table (ADR-0013 carries a pointer addendum):
 
 Two reasons. First, an outbound/irreversible action should *always* be the user's explicit
 decision, so "gated" now means "the human approves each use", not "the human approves it only
-when the turn is suspicious". Second and load-bearing: on a tainted turn the model's
-arguments may themselves be injection-authored (the exfil-via-`send_email` corpus case,
-ADR-0013 harness), and a confirmation dialog showing attacker-drafted content to a user
-conditioned to click "approve" is not a boundary, since **a send demanded by injected content
-must never be merely a confirm-away**. The tainted block keeps the deterministic guarantee
-the whole untrusted-content posture rests on: after reading hostile bytes, the outbound
-surface is closed for the rest of the turn, full stop. The legitimate "read that email,
-then send a reply" flow still works: send in the next turn, because taint is turn-local, tool
-context does not persist (ADR-0013 decision 3), and the fresh turn confirms normally. The
+when the turn is suspicious". Second, and this is why the tainted row blocks rather than
+confirms: on a tainted turn the model's arguments may themselves be injection-authored (the
+exfil-via-`send_email` corpus case, ADR-0013 harness), and a confirmation dialog showing
+attacker-drafted content to a user conditioned to click "approve" is not a boundary, since
+**a send demanded by injected content must never be merely a confirm-away**. The tainted
+block keeps the deterministic guarantee the whole untrusted-content posture rests on: after
+reading hostile bytes, the outbound surface is closed for the rest of the turn. The
+legitimate "read that email, then send a reply" flow still works: send in the next turn,
+because taint is turn-local, tool context does not persist (ADR-0013 decision 3), and the
+fresh turn confirms normally. The
 cost (one extra user prompt-turn) is accepted; a confirm-with-provenance-display
 alternative for tainted turns is deferred, needing structured provenance first
 (ADR-0013/0019 deferral).
@@ -376,7 +377,7 @@ which stays host/Windows-only.
 `netsh` portproxy (the vEthernet-(WSL) adapter → the Bridge's `127.0.0.1:1143/1025`, since this
 distro is `nat`-mode with `interop=false` and can't reach Windows loopback directly), the
 `integration`-marked live tests passed against the real Bridge: the read-only IMAP reader
-(`test_reader_lists_and_reads_from_a_live_bridge`), and (the headline) **`send_email` really
+(`test_reader_lists_and_reads_from_a_live_bridge`), and, the main result, **`send_email` really
 sent one message over SMTP and the test found it back over IMAP by its unique subject within the
 60 s window** (`test_send_round_trips_between_the_two_test_addresses`, ~13 s end to end). The
 whole write path (`SmtpSender` → Bridge SMTP (STARTTLS) → delivery → IMAP search) is proven end
@@ -449,7 +450,7 @@ the user answering it. The brain's *own* endings were invisible on the wire, so 
 stayed interactive until the turn's terminal event cleared it. That is this ADR's
 approve-after-timeout risk seen from the overlay: at second 121 the user clicks Approve on a
 question the brain answered for them at second 120, the stale id is ignored, and the card
-leaves looking exactly as though the click did something.
+closes as though the click had done something.
 
 ### 1. The event, and the two endings it reports
 
@@ -468,14 +469,14 @@ closing signal rather than a chatty echo:
 | how the confirm ended | emitted? | why |
 |---|---|---|
 | the user answered (approve or deny) | no | the client authored that fact and cleared its own card when it sent the answer |
-| `CORTEX_SEAM_CONFIRM_TIMEOUT_S` elapsed | **yes**, `"timeout"` | the whole gap: the brain denied and the card is now a lie |
+| `CORTEX_SEAM_CONFIRM_TIMEOUT_S` elapsed | **yes**, `"timeout"` | the brain denied, so the card is offering a choice that no longer exists |
 | client input half-closed (`close`) | **yes**, `"unavailable"` | no answer can ever arrive, so the question is void |
 | the turn was cancelled or the stream died | no | the turn is dying and its terminal event (or the stream's death) already closes the card; `endTurn` in the reducer has always done this |
 | `confirm` called after `close` | no | it emitted no request either, so there is no card to close |
 
 That table is the whole contract. The overlay needs no rule beyond "a resolution for the
 card I am showing closes it", and every path that does *not* emit is one the overlay already
-handles, so nothing regresses to a timeout-shaped hole.
+handles, so no ending is left without a way to close the card.
 
 **`outcome` is a string, not a proto enum.** An enum would buy a typed value at the price of
 an unknown-value branch on both sides of any version skew, for a field whose only job is to
@@ -486,7 +487,7 @@ vocabulary is documented at the message and passed through as text.
 **The overlay closes the card and renders nothing else.** The explanation surface already
 exists and is the model's own reply: `USER_DECLINED_MSG` tells the model to relay the
 declined action to the user, so a resolved card pinned beside that sentence would be a second
-account of one fact, which the overlay design language spends nothing on. `outcome`
+account of one fact, which the overlay design language does not do. `outcome`
 nonetheless rides the wire documented, so a later surface (a badge on the reply, an audit
 view) needs no seam change. That is the `DueReminder.session_id` precedent from ADR-0025,
 where the field shipped one slice before the control that used it.
@@ -511,7 +512,7 @@ unknown oneof member, decodes an empty `ServerEvent`, and fails the turn with
 which side acted. The new case closes the card only when the id matches the one on screen; a
 resolution for anything else is a no-op, the same stale-id property every other confirm path
 has. Two behaviours then fall out of the card being gone rather than needing their own code:
-the ghost click cannot reach the bridge at all (`respondConfirm` already refuses an answer
+a late click cannot reach the bridge at all (`respondConfirm` already drops an answer
 that is not the live question), and the explicit deny each turn-ending action sends
 (`stop` / `dismiss` / `newChat` / `openSession`) is skipped for a resolved confirm, keeping
 the answer the user never gave off the wire.
@@ -531,9 +532,9 @@ the answer the user never gave off the wire.
 
 ## Addendum (2026-07-15): attachments are authored text, inline in the approved draft
 
-The last deferred send shape lands. The open question was never the field (the richer-shapes
-addendum built `EmailDraft` to take it) but **where the bytes come from**, and what settles it
-is not a transport comparison. It is this ADR's own rule, from the Risks above:
+The last deferred send shape lands. The open question was **where the bytes come from**, since
+the richer-shapes addendum had already built `EmailDraft` to take the field. A comparison of
+transports does not settle that question. This ADR's own rule from the Risks above settles it:
 **`arguments_json` is the executed contract.** The confirm card renders the draft the
 dispatcher is holding, and approving it runs exactly that. Apply the rule to each candidate
 and the decision falls out.
@@ -604,7 +605,7 @@ model sees why and the message never reaches the wire.
 
 The feature is brain-side, but "the card shows the content, verbatim" is half the argument
 above, so the card was driven in a browser with an attachment on it. Both defects it exposed
-are pre-existing gaps that only an attachment makes reachable, and neither is chrome:
+are pre-existing gaps that only an attachment makes reachable, and neither is cosmetic:
 
 - **The draft had no height bound.** An attachment is the first argument value *meant* to be
   long, and a long draft grew the card until Approve and Deny were pushed out of the history's
@@ -616,16 +617,16 @@ are pre-existing gaps that only an attachment makes reachable, and neither is ch
   arrived as `{"content":"# Week 30\n- one"}`, so the user consents to a file through its
   escapes. `formatDraftValue` (pure, beside the card) now renders structure as indented
   `key: value` lines and leaves every string untouched, giving a multi-line value its own
-  line. It knows about JSON shapes and nothing about `send_email`: the card stays generic
-  over whatever gated tool the brain asks about.
+  line. It is written against JSON shapes rather than against `send_email`: the card stays
+  generic over whatever gated tool the brain asks about.
 
 The demo bridge's scripted draft carries an attachment for the same reason, so the long-draft
 case stays drivable by hand on the host Windows shell too.
 
 ### 5. Binary attachments stay deferred, with a named blocker
 
-Not "attachments" any more, but specifically **bytes the assistant did not author**. What
-would have to be true first: a way for the card to be honest about a payload the user cannot
+The remaining shape is not attachments in general but **bytes the assistant did not author**.
+What would have to be true first: a way for the card to describe a payload the user cannot
 read (a digest plus size, with the sidecar re-reading at send and refusing on mismatch, so
 approval binds to bytes rather than to a path), on top of the capability grant the path form
 needs. Recorded in the ROADMAP.
@@ -692,8 +693,8 @@ entry means letting a tainted gated call reach the confirm card at all.
 ### 2. Why reversing it is rejected, independent of provenance
 
 The tainted block is a **deterministic guarantee**, not a gap left by a missing source string:
-after a turn reads hostile bytes, the outbound surface is closed for the rest of the turn, full
-stop (decision 2, `DENIED_MSG` at `cortex_core/untrusted.py`). On a tainted turn the model's
+after a turn reads hostile bytes, the outbound surface is closed for the rest of that turn
+(decision 2, `DENIED_MSG` at `cortex_core/untrusted.py`). On a tainted turn the model's
 arguments may themselves be injection-authored, so a card showing that draft to a user
 conditioned to approve is not a boundary. A send demanded by injected content must never be
 merely a confirm-away, and a source line on the card does not change what the card asks the user
@@ -715,9 +716,9 @@ fenced memory's id (`SourceKind.MEMORY`, `cortex_core/engine.py`). A card built 
 say "this turn used the read tool" or "recalled memory abc123", which names the user's own action,
 not the attacker. The kinds that would identify the attacker, `SENDER` and `URI` (the content's
 own claim), ship shaped and tested with **no producer**, because `ToolResult` carries no source
-field (the sidecar-declared-sender deferral, ADR-0027 addendum). So the provenance actually
-present at the confirm point is precisely the unhelpful kind, and the helpful kind is a second,
-independent blocker.
+field (the sidecar-declared-sender deferral, ADR-0027 addendum). So the provenance present at
+the confirm point is the unhelpful kind, and the helpful kind is a second, independent
+blocker.
 
 ### 4. Outcome
 
@@ -896,13 +897,13 @@ the rule. `_SUBTYPE_TOKEN` stays in `smtp.py`, being a rule rather than a number
   the artifact and it is generated: every attachment field carries a description holding the
   fact that settles its guess, and the array names both bounds from the constants themselves,
   so a description that restated a bound as a literal fails even while reading correctly.
-- **Five mutations, each measured.** Dropping any one field description reddens; restating the
-  filename bound as its own number reddens; hollowing `content` down to what its type already
-  says reddens; deleting the array description reddens. The sixth attempt is the finding worth
+- **Five mutations, each measured.** Each of these makes the suite fail: dropping any one field
+  description; restating the filename bound as its own number; hollowing `content` down to what
+  its type already says; deleting the array description. The sixth attempt is the finding worth
   recording: the subtype check first matched the bare string `text/`, which the description
   contains twice, once in the instruction and once in the counter-example warning against
   `text/markdown`. Deleting the instruction left the check green. It now matches the phrase
-  that locates the token, and reddens.
+  that locates the token, so deleting the instruction fails it.
 - **Not measured:** whether a model composes a correct call more often with the descriptions
   than without. That is this entry's actual claim and it stays an argument, resting on the
   four guesses above being real rather than on a rate. The A/B belongs on the CPU tier and is
@@ -1026,8 +1027,8 @@ could quietly break. The stand-in box and the fake mailbox moved into shared tes
 adapter is driven over one stand-in rather than two that could drift.
 
 **Validation.** `just check` green. Both new gates were proved able to fail: deleting the abort
-branch reds the connection-lost test, and removing the wrap entirely reds two contract checks on
-the `imap` arm with the wire text visible in the failure. Live against a real Bridge on this
+branch fails the connection-lost test, and removing the wrap entirely fails two contract checks
+on the `imap` arm with the wire text visible in the failure. Live against a real Bridge on this
 machine, `from:someone@example.com` came back as `SearchRefusedError` carrying that query, with
 `UID command error: BAD [b'[Error offset=38]: expected space']` on the chained cause where an
 operator finds it and the model does not. The live criterion guard now asserts that type rather
@@ -1100,11 +1101,11 @@ message names the folder and `list_folders` and carries no fragment of the libra
 that a folder which failed to open for any other reason is not reported missing.
 
 **Validation.** `just check` green. The new gates were proved able to fail, both mutations run in
-the session that landed this: dropping the measured phrase from `_FOLDER_MISSING_ANSWERS` reds the
-two unknown-folder contract checks on the `imap` arm, with the library's sentence visible in the
-failure, and classifying every select failure as missing reds the fail-safe contract check on that
-same arm plus the adapter test beside it. The fake arm cannot red on either, which is what the
-knob's honest widening means. Live against the real Bridge, the four wrong-name shapes and both
+the session that landed this: dropping the measured phrase from `_FOLDER_MISSING_ANSWERS` fails
+the two unknown-folder contract checks on the `imap` arm, with the library's sentence visible in
+the failure, and classifying every select failure as missing fails the fail-safe contract check on
+that same arm plus the adapter test beside it. The fake arm cannot fail on either, which is what
+the knob's honest widening means. Live against the real Bridge, the four wrong-name shapes and both
 folder-taking calls were driven for real, and every one of the nineteen folders the account lists
 opened.
 
@@ -1176,11 +1177,11 @@ which is [a third](../refinements/tasks/366-the-probe-fixture-and-its-test-are-u
 against the running Dovecot, driven through the whole `just` path, and the fail-safe half of it
 runs the port contract's own check over the real refusal rather than restating it. Three mutations
 were run in the session that landed this and each was reverted and re-read off disk: dropping the
-new measured phrase reds one test of the email package's unit suite and two of the probe's live
-suite; classifying every select failure as missing reds two of that unit suite (one of them the
+new measured phrase fails one test of the email package's unit suite and two of the probe's live
+suite; classifying every select failure as missing fails two of that unit suite (one of them the
 contract check on the `imap` arm) and one live test, at the contract's own assertion; and granting
 the guarded mailbox full rights in the fixture, which is the measurement's own premise rather than
-the code's, reds exactly the live test that says a listed mailbox refused to open.
+the code's, fails exactly the live test that says a listed mailbox refused to open.
 
 ## Addendum (2026-08-21): `list_folders` offers mailboxes, not every name a server lists
 
@@ -1250,9 +1251,9 @@ integration-marked tests against the running Dovecot 2.3.21, run through `just u
 `just email-folder-probe` and `just down-imap-probe`; the node test now asserts the fix, running
 both new contract checks over the live server and then asserting the child is still offered. Two
 mutations were run over the email package's unit suite (103 tests) and the probe's live suite (5),
-each reverted and re-read off disk: making `list_folders` keep every listed name reds two of the
+each reverted and re-read off disk: making `list_folders` keep every listed name fails two of the
 unit suite (the newer-spelling test and the contract check on the `imap` arm) and one live test,
-and making the fake stop filtering reds one, the same contract check on the `fake` arm, which is
+and making the fake stop filtering fails one, the same contract check on the `fake` arm, which is
 what proves the check is a statement about each implementation rather than about the adapter
 alone.
 
@@ -1322,10 +1323,10 @@ opened. That assertion is the one that would have caught this the day the filter
 against the real Bridge before and after, green after and red on the mutation below. Three
 mutations over the email package's unit suite (105 tests, integration deselected) and the live
 folder test (1 of the 4 in `test_email_live.py`), each reverted from a saved copy and the file
-re-read off disk: believing the flag again reds two of the unit suite and the live test; keeping a
-flagged name that the server refused reds three of the unit suite, one of them the port contract's
-own check on the `imap` arm; and asking every listed name rather than the flagged ones reds two,
-at the assertion that says which names were opened.
+re-read off disk: reading the flag alone again fails two of the unit suite and the live test;
+keeping a flagged name that the server refused fails three of the unit suite, one of them the port
+contract's own check on the `imap` arm; and asking every listed name rather than the flagged ones
+fails two, at the assertion that says which names were opened.
 
 ## Addendum (2026-08-22): a refused name is the folder correction, read off a code
 
@@ -1488,7 +1489,8 @@ ProtonMail Bridge, on one account, whose `Folders` and `Labels` happen to be fla
 That was filed as
 [the kept half has no fixture](../refinements/tasks/376-the-bridge-flag-reading-is-one-account.md),
 and the question it asked is whether Dovecot can be made to produce an openable flagged name at
-all. It can, and it cannot, and which of the two depends on the listing.
+all. It can in a subscribed listing and cannot in the plain one, so the answer depends on which
+listing is made.
 
 **It cannot, in the plain `LIST "" "*"` the adapter itself makes.** There, on dovecot 2.3.21, the
 flag and the refusal are computed from one fact, so a name flagged there is a name SELECT will
@@ -1502,7 +1504,7 @@ refuse. Two configurations were built and measured against that claim, and both 
 The first is the closer miss and the more instructive: the flagged line really is there in a plain
 LIST, and the name really is a mailbox in another namespace, and the server still refuses it,
 because a bare prefix resolves to the prefix node rather than to the mailbox it collides with. The
-second shows the rule from the other side: Dovecot knows INBOX is selectable, so it declines to
+second shows the rule from the other side: Dovecot treats INBOX as selectable, so it does not
 flag the prefix node at all. Both are one behaviour seen twice.
 
 **It can, in an `LSUB` of `%`, and there it is a requirement rather than a quirk.** RFC 3501
@@ -1522,8 +1524,8 @@ ordinary mailboxes. Verbatim, against dovecot/dovecot:2.3.21 (build `47349e2482`
 the third thing.** The live suite now reads the flag out of the subscribed listing, reads its
 absence out of the plain one, and opens the name through the port. What that establishes is the
 premise the keep rests on: a real server, one this repo builds and can rebuild after any bump,
-flags a name unselectable and opens it, so believing a flag is wrong against a standard and not
-only against somebody's mailbox. What it does not establish is that `list_folders` keeps such a
+flags a name unselectable and opens it, so treating the flag as decisive is wrong against a
+standard and not only against somebody's mailbox. What it does not establish is that `list_folders` keeps such a
 name, because the flag never reaches the listing `list_folders` makes on this server. That stays
 proved only by `test_email_live.py` against the Bridge, and it is now filed as its own narrower
 thing rather than as half of this one:
@@ -1540,7 +1542,7 @@ not taken: `Masked` and `Belied` for the parent, both true and neither as plain;
 half of the rule that keeps a name.
 
 **One measured thing that is not about IMAP at all.** The plain-LIST reading was first written as
-an exact tuple, `(\HasChildren)`, and it passed. It then reddened on the next run against the same
+an exact tuple, `(\HasChildren)`, and it passed. It then failed on the next run against the same
 container, which is how the transience was found: this server starts sending `\UnMarked` with a
 mailbox once something has searched it, and the port contract's own check searches every name
 `list_folders` offers, so the first run against a fresh container and every run after it see
@@ -1577,8 +1579,8 @@ restating it, and inventing one in a suite with no use for the value would be th
 contract it watches. That is why the fixture part of the registry could tie the account and not
 the root above it. The two halves failed differently. Move the conf's alone and dovecot resolves a
 home nothing built, every mailbox missing at once, which is loud. Move the tmpfs alone and the
-fixture keeps working while the store stops being throwaway, which is silent, and silence is what
-this closes.
+fixture keeps working while the store stops being throwaway, which reports nothing at all, and
+that second case is what this closes.
 
 The answer is smaller than a gate. The root is written once, in the compose file, and the other
 two files read it out of the environment.
@@ -1600,7 +1602,7 @@ variable is empty because the master process passes its children a named subset 
 environment; `import_environment` is the list, and the name has to be on it before the auth and
 mail processes that do the expanding can see anything. A configuration that reads the environment
 without that line fails in exactly the shape a wrong path fails in, so the line is not a detail
-and the conf says so beside it. `$ENV:` is not dovecot's spelling here at all: the parser does
+and the conf says so beside it. `$ENV:` is not dovecot's syntax here at all: the parser does
 expand `$name` references to settings, `mail_plugins = $mail_plugins acl` reaching `doveconf` as
 ` acl`, which is what makes the first row a measurement rather than a typo.
 
@@ -1685,7 +1687,7 @@ a scratch override pinning an explicit subnet and changed nothing else in the fi
 | 1 | the one spelling moved, anchor and all | everything moves together | 7 passed, `home /srv/probe-mail/probe`, the tmpfs there too |
 | 2 | the tmpfs re-spelled to another path, alias dropped | the entrypoint refuses | `up --wait` failed, container exit 1, `the mail root is not the tmpfs the compose file mounts` |
 | 3 | the name dropped from `import_environment` | the expansion empties and the homes go | 7 failed, `home /probe` |
-| 4 | the name misspelled in the script's `ROOT` alone | `set -u` stops it, and the account row reddens | container exit 2, `CORTEX_IMAP_PROBE_MAILROOT: parameter not set`; `check-crosscheck` red, found 1 pinned 2 |
+| 4 | the name misspelled in the script's `ROOT` alone | `set -u` stops it, and the account row fails | container exit 2, `CORTEX_IMAP_PROBE_MAILROOT: parameter not set`; `check-crosscheck` red, found 1 pinned 2 |
 | 5 | the tmpfs dropped entirely | the entrypoint refuses | `up --wait` failed, container exit 1, same line |
 | 6 | the name misspelled in `mail_home` alone, before it was removed | unknown, and the reason it was measured | 7 passed, home unchanged: the setting was inert, which is why it is gone |
 
@@ -1712,8 +1714,8 @@ compose file mounted a single file inside the first, `/etc/dovecot/dovecot.conf`
 directory itself to docker. Docker fills a declared volume path that nothing is mounted at with an
 anonymous volume, seeded from the image's own copy of the directory, and `docker compose down`
 without `--volumes` removes the container and the network and leaves that volume on the host under
-a name nobody chose. So every single run of a fixture whose compose file promises it leaves
-nothing behind left something behind.
+a name nobody chose. So every run of a fixture whose compose file promises to leave nothing behind
+did leave something behind.
 
 **Measured before the change**, on this host, with the recipes an operator runs. `docker volume
 ls` held 37 volumes; `just up-imap-probe` (with the scratch subnet override this host needs)
@@ -1778,7 +1780,7 @@ outside the repo and deleted afterwards, and changed nothing else.
 | 5 | all reverted | green, and nothing left behind | 7 of 7 live green, no volume made while up, `docker volume ls` identical at 37 before the `up` and after the `down` |
 
 Row 2 is the row the design is for. It is the only mutation that leaves a fixture which still
-starts and still looks like itself, and the copy is what makes it red instead of quiet.
+starts and still looks like itself, and the copy is what makes the suite fail instead of pass.
 
 ### What this does not check
 
@@ -1825,8 +1827,8 @@ tmpfs mounts the two addenda above put there, so this fixture is clean as it sta
 the server so that `pg_dump` matches the major version, and mounts only its dump directory and
 its script. It never opens a data directory of its own: `docker/postgres/backup.sh` dumps over the
 network from the `postgres` service, and the compose file overrides the image's entrypoint, so
-none of the upstream `PGDATA` bootstrap runs either. Docker does not care. The declaration is on
-the image, the path had nothing mounted at it, and the sidecar therefore collected a fresh
+none of the upstream `PGDATA` bootstrap runs either. Docker fills the path anyway. The declaration
+is on the image, the path had nothing mounted at it, and the sidecar therefore collected a fresh
 anonymous volume on every start of the memory stack. Reproduced with exactly that mount set and
 no others before the fix, and the third mount is the one nobody asked for:
 
@@ -1887,15 +1889,15 @@ expected green.
 | C9 | a trailing slash becomes a second spelling | red | caught (suite=1) |
 | C10 | an inspect failure skipped instead of reported | red | caught (suite=1) |
 | C11 | an unreadable compose file becomes a silent skip | red | caught (suite=1) |
-| C12 | the reader walks past a shape it was not taught | red | caught (suite=1) |
+| C12 | the reader skips a shape it does not recognize | red | caught (suite=1) |
 
 **The first pass was 18 of 19, and the miss is the useful row.** C6, a service fragment read as a
 definition, produced no fault, because the fixture's fragment was named `brain` and `tree-brain`
 happened to be a recorded row, so the mutant asked a question that had an answer. The fixture's
-fragment is now named for nothing in the record and the definition count is pinned, and C6
-reddens. The real tree cannot catch C6 either, both of its build-only services being recorded, so
-that one test is the only thing holding the guard: worth saying plainly, since a row that reddens
-only in a fixture is exactly the row a later reader is tempted to delete.
+fragment is now named for nothing in the record and the definition count is pinned, so C6 fails.
+The real tree cannot catch C6 either, both of its build-only services being recorded, so that one
+test is the only thing holding the guard: worth saying plainly, since a row that fails only in a
+fixture is exactly the row a later reader is tempted to delete.
 
 The rederive half was proved against a real daemon rather than a fake: with the pgvector row
 emptied, `just image-volumes` exits 1 saying `pgvector/pgvector:pg16: recorded nothing, docker

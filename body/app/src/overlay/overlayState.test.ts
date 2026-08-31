@@ -205,9 +205,9 @@ describe("overlayState reducer", () => {
     expect(fresh.switcherOpen).toBe(false);
   });
 
-  it("a chat arriving takes the console off the panel, from either tab and by either door", () => {
-    // The user's answer to which way this should surprise: a keystroke aimed at the conversation
-    // puts you in the conversation. Ctrl+N used to empty the chat BEHIND the console and leave
+  it("a chat arriving takes the console off the panel, from either tab and by either gesture", () => {
+    // Which way this should surprise was the user's call: a keystroke aimed at the conversation
+    // lands in the conversation. Ctrl+N used to empty the chat behind the console and leave
     // it showing, and Ctrl+Up / Ctrl+Down loaded another conversation behind it the same way.
     // Reddens if either arm stops clearing the tab.
     for (const tab of ["appearance", "shortcuts"] as const) {
@@ -227,7 +227,7 @@ describe("overlayState reducer", () => {
   });
 
   it("a delete and a cold-start adoption both leave the console where it was", () => {
-    // The other two chat swaps deliberately do NOT clear it. A delete is fired from a switcher
+    // The other two chat swaps deliberately do not clear it. A delete is fired from a switcher
     // row, so the user is managing chats rather than asking for one, and it keeps the surface
     // they are working in (the switcher stays open for the same reason); it is unreachable from
     // the console anyway, the chat view being display:none behind it. Adoption is a background
@@ -273,14 +273,14 @@ describe("overlayState reducer", () => {
       .toBe(`Recent chats open. ${NO_OTHER_CHATS}.`);
   });
 
-  it("stays silent for the door that carries the state under the reader's own caret", () => {
-    // The header's chats button flips `aria-expanded` where the caret already is, so its door
-    // passes false and the region says nothing. Reddens if the flag stops being the door's.
+  it("stays silent for the gesture that carries the state under the reader's own caret", () => {
+    // The header's chats button flips `aria-expanded` where the caret already is, so it passes
+    // false and the region says nothing. Reddens if the flag stops following the control pressed.
     const listed = run([{ kind: "open" }, { kind: "sessionsLoaded", sessions: [summary("a")] }]);
     expect(reduce(listed, { kind: "toggleSwitcher", announce: false }).notice).toBeNull();
   });
 
-  it("says nothing about a list closing, whichever door closed it", () => {
+  it("says nothing about a list closing, whichever gesture closed it", () => {
     // The sentence is the contents and not the toggle: closing delivers nothing to report, and the
     // caret landing on the chats button says it already (`overlay/sectionCaret.ts`).
     const open = run([
@@ -393,9 +393,9 @@ describe("overlayState reducer", () => {
       const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "openConsole", tab });
       // One press, not two: there is no second sheet stacked behind this one any more.
       expect(reduce(opened, { kind: "closeConsole" }).consoleTab).toBeNull();
-      // Dismissing does NOT close it. Clearing the tab here would change the view mid-dismiss, so
-      // the panel morphed back to the chat and only then faded, which reads as the window changing
-      // its mind on the way out. It fades wearing what it had on instead.
+      // Dismissing does not close it. Clearing the tab here would change the view mid-dismiss, so
+      // the panel morphed back to the chat and only then faded, which read as the panel reversing
+      // itself on the way out. It fades showing what it had up instead.
       const gone = reduce(opened, { kind: "dismiss" });
       expect(gone.consoleTab).toBe(tab);
       expect(gone.mode).toBe("hidden");
@@ -510,7 +510,7 @@ describe("overlayState reducer", () => {
     expect(after.touched).toBe(true);
   });
 
-  it("openSession says which chat arrived, unless the door that opened it already named one", () => {
+  it("openSession says which chat arrived, unless the gesture that opened it already named one", () => {
     // The swap replaces the whole panel and moves no focus, so the only thing that tells a
     // reader where they went is the notice behind the live region. What it names is the title
     // the header takes, read off the same `headerTitle` call, so the two cannot disagree.
@@ -528,8 +528,8 @@ describe("overlayState reducer", () => {
     });
     expect(cycled.notice).toEqual({ text: "Switched to Everything about cats.", count: 1 });
     expect(cycled.notice?.text).toContain(cycled.title);
-    // A switcher row is the other door and the reader pressed the title itself there, so the
-    // swap is silent AND what was said before comes down rather than standing in the region.
+    // A switcher row is the other control and the reader pressed the title itself there, so the
+    // swap is silent and what was said before comes down rather than standing in the region.
     const picked = reduce(cycled, {
       kind: "openSession",
       sessionId: "chat-7",
@@ -540,8 +540,8 @@ describe("overlayState reducer", () => {
   });
 
   it("counts each announcement, so two chats under one title are two things said", () => {
-    // A live region reports a mutation and not a value, so identical text landing twice is
-    // nothing landing twice. Reddens if the count stops moving: Ctrl+N over Ctrl+N is exactly
+    // A live region reports a mutation and not a value, so identical text landing twice announces
+    // nothing the second time. Reddens if the count stops moving: Ctrl+N over Ctrl+N is exactly
     // the case, both arrivals being called "New chat".
     const first = reduce(initialState, { kind: "newChat", sessionId: "a", announce: true });
     const second = reduce(first, { kind: "newChat", sessionId: "b", announce: true });
@@ -584,9 +584,9 @@ describe("overlayState reducer", () => {
   });
 
   it("a delete that also swaps the chat says both, in one sentence and in order", () => {
-    // The confirm button names the chat LEAVING ("Confirm delete <title>"), so the fresh chat
+    // The confirm button names the chat leaving ("Confirm delete <title>"), so the fresh chat
     // arriving in its place is news too, and this commit changes both the list and the panel.
-    // ONE region says both: a second region would put two announcements in flight at once and
+    // One region says both: a second region would put two announcements in flight at once and
     // leave which is spoken, and in what order, to the reader's speech queue. Reddens if the two
     // halves are ever split, or if the delete stops leading the arrival it caused.
     const started = run([{ kind: "open" }, submit("secret question")]);
@@ -607,7 +607,7 @@ describe("overlayState reducer", () => {
 
   it("says nothing for a delete that removed no row, on either path", () => {
     // A repeated dispatch (a double press, a stale row) filters nothing out, and a sentence about
-    // a list that did not change is a sentence that is false. Reddens if the announcement is
+    // a list that did not change would be false. Reddens if the announcement is
     // raised from the arm running rather than from a row actually leaving.
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
@@ -635,8 +635,8 @@ describe("overlayState reducer", () => {
 
   it("counts every gesture that replaces the conversation, and nothing else, as an arrival", () => {
     // The caret follows the conversation (`Composer`), and the count is what tells the composer a
-    // conversation arrived. Unlike the notice it is decided per ARM rather than per door, both
-    // doors on an arm wanting the same landing, so the two flag values below have to agree.
+    // conversation arrived. Unlike the notice it is decided per arm rather than per gesture, every
+    // gesture on an arm needing the same landing, so the two flag values below have to agree.
     const listed = reduce(initialState, { kind: "sessionsLoaded", sessions: [summary("chat-7")] });
     expect(listed.arrival).toBe(0);
     const row = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
@@ -683,7 +683,7 @@ describe("overlayState reducer", () => {
   });
 
   it("leaves a draft behind for the chat it belongs to when a fresh chat is minted", () => {
-    // The door with no draft of its own to restore: Ctrl+N and the pencil both arrive on an empty
+    // The gesture with no draft of its own to restore: Ctrl+N and the pencil both arrive on an empty
     // field, because a new chat has nothing parked under it. What must not happen is the sentence
     // being carried into the new chat, and what must also not happen is it being thrown away.
     const typed = reduce(createInitialState("boot"), { kind: "draft", text: "half a question" });
@@ -729,15 +729,15 @@ describe("overlayState reducer", () => {
     // the user's and was not what they pressed, so it is still there afterwards.
     const chipped = reduce(typed, submit("Summarize my unread email"));
     expect(draftOf(chipped.drafts, "boot")).toBe("half a question");
-    // And a send the reducer refuses spends nothing: a blank field, or a turn already streaming.
+    // And a send the reducer rejects spends nothing: a blank field, or a turn already streaming.
     expect(draftOf(reduce(typed, submit("   ")).drafts, "boot")).toBe("half a question");
     expect(draftOf(reduce(chipped, submit("half a question")).drafts, "boot")).toBe("half a question");
   });
 
   it("counts typing as touching the overlay, so a cold-start restore cannot swap under a sentence", () => {
-    // `touched` has always claimed to cover typing and never could: nothing dispatched on a
-    // keystroke. Now something does, and the claim is true. Adoption replaces the boot chat whole,
-    // so without this it could take away the conversation a half-typed line was written in.
+    // `touched` has always claimed to cover typing and could not before this: nothing dispatched
+    // on a keystroke. Adoption replaces the boot chat whole, so without it a cold-start restore
+    // could take away the conversation a half-typed line was written in.
     const typed = reduce(createInitialState("boot"), { kind: "draft", text: "half a question" });
     expect(typed.touched).toBe(true);
     const adopted = reduce(typed, { kind: "adoptSession", sessionId: "chat-7", messages: [] });
@@ -753,7 +753,7 @@ describe("overlayState reducer", () => {
     const adopted = reduce(initialState, { kind: "adoptSession", sessionId: "chat-7", messages });
     expect(adopted.mode).toBe("hidden");
     // And says nothing while it does it: there is no gesture behind a restore to answer, and it
-    // cannot land over something already said, every door that speaks setting `touched` first.
+    // cannot land over something already said, every gesture that speaks setting `touched` first.
     expect(adopted.notice).toBeNull();
     // Nor does it move the caret, for the same reason and one more: the panel it would be moving
     // focus inside is shut, and shut it is `inert` (`withdrawn.ts`).
@@ -1024,7 +1024,7 @@ describe("the screen-capture indicator", () => {
   it("stays at the ask when the capture did not reach the model", () => {
     // The four modes that produce this: the host kill switch off (the shipping default), the
     // overlay's self-exclusion failing closed, a body that never answered, and a gated capture
-    // the user declined. None of them may dim the ring, because a capture that failed AFTER the
+    // the user declined. None of them may dim the ring, because a capture that failed after the
     // shutter fired is indistinguishable from one that never happened, and the body has already
     // shown its own receipt in that case.
     expect(settle(capture(streaming()), false).capture).toBe("asked");
@@ -1068,7 +1068,7 @@ describe("the screen-capture indicator", () => {
 
   it("takes a read outcome even for an ask it never saw", () => {
     // A dropped activity must not cost the stronger, truer statement: the outcome is evidence
-    // the screen WAS read, and ignoring it would under-report, which is the dangerous direction.
+    // the screen was read, and ignoring it would under-report, which is the dangerous direction.
     expect(settle(streaming(), true).capture).toBe("read");
   });
 

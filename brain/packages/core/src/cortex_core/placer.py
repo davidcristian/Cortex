@@ -1,15 +1,15 @@
 """VramBudgetPlacer: the pure VRAM-budget accountant for subagent placement (no I/O -- ADR-0012).
 
-Owns policy, not a GPU: a live ledger of subagent VRAM placed right now, fit-tested against the
-soft cap (``CORTEX_VRAM_SOFT_CAP_GB``) minus the resident cortex's reservation. Each spawn lands
-whole-model on GPU (``-ngl 99``) when it fits the headroom, else CPU-only (``-ngl 0``) -- never a
-partial straddle. ``place``/``release`` are synchronous and lock-free: with no ``await`` inside, a
-coroutine's read-modify-write of the ledger runs to completion without interleaving (single-threaded
-asyncio atomicity), so the concurrent batch spawns (``asyncio.gather``, ADR-0010) race the headroom
-correctly with no lock. Doing no I/O, it is a pure reference impl of the ``SubagentPlacer`` port,
-lives in the core, and is fully covered without a GPU (ADR-0012). The ledger is live-resource state,
-never durable state (the one hard rule): rebuilt from zero on construction and freed by a swap,
-exactly as it should be, since evicted VRAM is gone.
+It owns policy rather than a GPU: a live ledger of subagent VRAM placed right now, fit-tested
+against the soft cap (``CORTEX_VRAM_SOFT_CAP_GB``) minus the resident cortex's reservation. Each
+spawn lands whole-model on GPU (``-ngl 99``) when it fits the headroom, else CPU-only (``-ngl 0``),
+never a partial straddle. ``place``/``release`` are synchronous and lock-free: with no ``await``
+inside, a coroutine's read-modify-write of the ledger runs to completion without interleaving
+(single-threaded asyncio atomicity), so the concurrent batch spawns (``asyncio.gather``, ADR-0010)
+race the headroom correctly with no lock. Doing no I/O, it is a pure reference implementation of the
+``SubagentPlacer`` port, lives in the core, and is fully covered without a GPU (ADR-0012). The
+ledger is live-resource state, never durable state (the one hard rule): it is rebuilt from zero on
+construction and freed by a swap, because evicted VRAM is gone.
 """
 
 from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
@@ -30,7 +30,7 @@ class VramBudgetPlacer:
     and puts a ~19 GB deep model on the same card, so a fit-test against the cortex's reservation
     during that window describes a machine that does not exist: it credits room the deep model has
     taken and reserves room for a model that has left. The window is written by the residency
-    scope, the only thing that knows when the card changed hands.
+    scope, which is the only place that observes when the resident model changed.
     """
 
     def __init__(self, *, soft_cap_gb: float, cortex_reservation_gb: float) -> None:
@@ -41,9 +41,9 @@ class VramBudgetPlacer:
         # figure survives the window and can be charged again on the way out.
         self._resident_gb = cortex_reservation_gb
         self._placed_gb = 0.0
-        # Whether the tier a GPU placement lands on is believed to be running. Not arithmetic and
+        # Whether the tier a GPU placement lands on is recorded as running. Not arithmetic and
         # deliberately not expressed as arithmetic (a resident charged large enough to crowd the
-        # cap out would say "no room" where the truth is "no server"), so it is its own bit,
+        # cap out would report "no room" where the truth is "no server"), so it is its own bit,
         # written by ``residency_tiers.py`` and read before the headroom is computed at all.
         self._gpu_closed = False
 
@@ -54,7 +54,7 @@ class VramBudgetPlacer:
         exactly fills the remaining headroom still lands on GPU. Whole-model only -- never a
         partial GPU+CPU straddle for a 2-4B (verified worst-of-both-worlds, ADR-0012). A closed
         GPU short-circuits all of that: there is nowhere for a GPU placement to run, so the
-        headroom is not even consulted and the spawn goes straight to the CPU it would otherwise
+        headroom is not consulted and the spawn goes straight to the CPU it would otherwise
         reach only after a failed attempt and a re-run.
         """
         headroom = self._soft_cap_gb - self._resident_gb - self._placed_gb
@@ -80,10 +80,10 @@ class VramBudgetPlacer:
 
         ``resident_gb`` is the deployment's own measured figure for that tier
         (``CORTEX_SWAP_BRAIN_VRAM_MIB``), the same number the swap's fit check compares against
-        what the card reports free immediately before the load. So it is not a fresh reading and
-        does not pretend to be: it is a declared cost that a real reading has to clear at swap-in
-        for the handoff to happen at all, which is what makes it worth charging here, where
-        reading the card would put a network call inside a synchronous fit-test.
+        what the card reports free immediately before the load. It is a declared cost rather than
+        a fresh reading, and a real reading has to clear it at swap-in for the handoff to happen at
+        all, which is what makes it worth charging here, where reading the card would put a network
+        call inside a synchronous fit-test.
 
         The ledger is untouched: spawns already placed keep their reservation across the edge.
         """
@@ -101,10 +101,10 @@ class VramBudgetPlacer:
         """Stop placing on the GPU: the tier a GPU placement lands on is not running.
 
         Separate from the charge pair on purpose (ADR-0030 tier-outage addendum). A handoff makes
-        the card smaller and the arithmetic is the honest way to say so; a tier that would not
-        restart makes the card *unreachable* for spawns, which no number about free memory
-        expresses. Keeping them apart is also what lets a handoff run its own charge and reversal
-        while a tier is down without either edge quietly reopening the GPU.
+        the card smaller, which the arithmetic expresses; a tier that would not restart makes the
+        card unreachable for spawns, which no number about free memory expresses. Keeping them
+        apart is also what lets a handoff run its own charge and reversal while a tier is down
+        without either edge reopening the GPU.
         """
         self._gpu_closed = True
 

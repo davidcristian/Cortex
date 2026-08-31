@@ -10,9 +10,9 @@ bubbly and never sharp. The pre-token shimmer was three bobbing dots, every mess
 indicator sitting in a product whose bespoke thinking signal is the mark. The lifecycle was three
 states glued by hard swaps (dots vanish and words begin; the caret vanishes when the turn ends) in
 an overlay where the sun morphs into the moon. And the per-word rise plus blur was the stock
-reveal of the last two years of AI apps, carrying none of the family motifs. The design doc itself
-prescribed that effect, so this ADR revises [overlay-ux.md](../design/overlay-ux.md) §1, §2 and §4
-with it.
+reveal of the last two years of AI apps, carrying none of the overlay's own motifs. The design doc
+itself prescribed that effect, so this ADR revises [overlay-ux.md](../design/overlay-ux.md) §1, §2
+and §4 with it.
 
 The replacement was picked over three rounds of a live artifact pitch, each round streaming real
 demos on the overlay's own tokens. Round one named a family of four voices on the line "the mark
@@ -67,7 +67,7 @@ landed, so the box lurched by words and whole lines ahead of anything visible.
    collapsing the empty bubble), then width and height eased every frame toward where the front
    actually is, then settled with the last letter. The box's edge doubles as the reveal
    (`overflow: hidden` clips only letters that have not condensed), and a wrap becomes a curve
-   the box rounds. This is the panel's replayed-height doctrine (ADR-0033: `auto` to `auto`
+   the box rounds. This is the panel's replayed-height rule (ADR-0033: `auto` to `auto`
    cannot transition) applied one level down.
 
 5. **A partial trailing word is held out of the reveal.** While the turn streams, the front's
@@ -81,8 +81,8 @@ landed, so the box lurched by words and whole lines ahead of anything visible.
    Letters sit in per-word `white-space: pre` inline blocks so a word never breaks mid-glide,
    which would defeat `overflow-wrap: anywhere` for a 64-character hash and grow the horizontal
    bar the scrollbar rules forbid. So a run of non-whitespace longer than 24 letters is split
-   into 24-letter boxes: the bubble can break between them, mid-token, which is the same lesser
-   evil the raw bubble already chose. Whitespace between boxes is plain text nodes, so newlines
+   into 24-letter boxes: the bubble can break between them, mid-token, which is the same tradeoff
+   the raw bubble already made. Whitespace between boxes is plain text nodes, so newlines
    and spaces render exactly as `pre-wrap` always rendered them.
 
 7. **The reducer is untouched; the bubble owns its presentation state.** `turnState` still only
@@ -123,20 +123,20 @@ landed, so the box lurched by words and whole lines ahead of anything visible.
   gave in ADR-0031, so nothing comes close to missing the budget.
 - The browser validation also caught one defect before it shipped, recorded here so the class
   rule is not relearned: the whisper bubble is `box-sizing: border-box` (the clock's arithmetic
-  is over the box it can see), which silently re-scoped `.bubble`'s `max-width: 82%` to the
-  border box, a box two paddings narrower than the text was laid for, and the overflow clip ate
-  exactly that much of every full line. `.whisper` therefore carries `max-width: none`: the
+  is over the box it measures), which silently re-scoped `.bubble`'s `max-width: 82%` to the
+  border box, a box two paddings narrower than the text was laid for, and the overflow clip cut
+  exactly that much off every full line. `.whisper` therefore carries `max-width: none`: the
   clock's measured cap IS the 82%, resolved the way the content-box rule resolved it.
 - Kerning pairs inside a word are lost to the per-letter boxes while a streamed message is on
   screen. Invisible at 13.5px in the system stack (checked by eye in both themes); a serif-ish
-  fallback stack would want a look before anyone changes the font, recorded as a refinement.
+  fallback stack would need checking before anyone changes the font, recorded as a refinement.
 - The wrap width is measured once per streamed bubble, so a window resized mid-stream keeps the
   old wrap until the next message; the v1 body window is fixed-size, so only the browser dev
   flow can see it. Recorded as a refinement, and landed in the 2026-08-18 addendum below, which
   also records the larger version of the cost this bullet undercounted.
 - The drain can grow the bubble a few pixels after the turn's last render; the history's
   min-height floor hides it from the panel's measured moves today, and the tail pin rides
-  `onGrow`. The panel learning about between-render growth is recorded as a refinement.
+  `onGrow`. Making the panel account for between-render growth is recorded as a refinement.
 
 ## Addendum (2026-07-21): three fixes from the first live look
 
@@ -161,7 +161,7 @@ relearned.
    placements defer, the panel's auto height follows the box frame by frame, and the bottom
    edge rides along when a landing line meets the ceiling. Re-traced after: zero reversals,
    zero backward snaps. This also lands the "drain growth the panel's measured moves never
-   see" refinement filed above: deferral is exactly the panel hearing between-render growth,
+   see" refinement filed above: deferral is how the panel accounts for between-render growth,
    and the end event is its re-measure.
 
 3. **The settle waits for the mist.** The drain sprints the front while the mist trails on its
@@ -174,19 +174,19 @@ relearned.
 
 Decision 2 of the addendum above gave the bubble the panel's roll contract, and the value it
 published was `String(Math.round(tH))` while the box beside it was written with
-`${s.h.toFixed(1)}px`. Two roundings of one number, on a contract whose whole purpose is that both
-sides agree. Filed as a refinement rather than fixed on sight, because a bubble is never handed back
-to its own layout the way a section is and the step that made the section's case might not exist
-here at all.
+`${s.h.toFixed(1)}px`. That is two roundings of one number, on a contract whose whole purpose is
+that both sides agree. Filed as a refinement rather than fixed on sight, because a bubble is never
+handed back to its own layout the way a section is and the step that made the section's case might
+not exist here at all.
 
-Traced first, at 900x1000 in headless Chromium over the demo. It does not exist: across 172 frames
-inside one reply's roll there is no frame where the panel's height moves and the bubble's does not,
-and the panel never animates its own height during a reply, so the prediction is computed once per
-wrap and thrown away. What the trace found instead is that the published number is not only a
-prediction. On a summon landing inside the roll it is the edge the panel pins itself to, and the
-rounding put the panel on 316.59375px where the height the roll leaves it at centres on
-316.34375px, an edge it then kept for the session. The mismatch was exactly half a pixel on all five
-of the reply's wraps, `offsetTop` being whole and the line box 22.475px.
+Traced first, at 900x1000 in headless Chromium over the demo. That step does not exist here: across
+172 frames inside one reply's roll there is no frame where the panel's height moves and the bubble's
+does not, and the panel never animates its own height during a reply, so the prediction is computed
+once per wrap and thrown away. What the trace found instead is that the published number is not only
+a prediction. On a summon landing inside the roll it is the edge the panel pins itself to, and the
+rounding put the panel on 316.59375px where the height the roll leaves it at centres on 316.34375px,
+an edge it then kept for the session. The mismatch was exactly half a pixel on all five of the
+reply's wraps, `offsetTop` being whole and the line box 22.475px.
 
 The clock now publishes `tH.toFixed(1)`, the rounding the box itself is written with, so the panel
 predicts from the number the bubble will stand on. The full trace, the falsification of the
@@ -229,14 +229,14 @@ measurement and the box arithmetic moved into so that a frame and a resize pose 
 - **A bubble whose loop has stopped re-poses at once**, from the last letter's fresh offsets and
   the same `boxFor` the last frame used, rather than restarting the loop: the window's own resize
   is the motion, an eased catch-up would only trail the drag, and a restarted loop would replay
-  the phase transitions and the roll contract for a reply that ended minutes ago. It tells the
+  the phase transitions and the roll contract for a reply that ended minutes ago. It notifies the
   history's tail pin through `onGrow`, because a re-wrap moves the tail and the pin is what
   restores a reader who was at it. The mist is not re-posed with it: it has already evaporated to
   opacity zero (`mistgone` runs `forwards`), so its transform is unobservable after the settle.
 
 Traced in headless Chromium, because jsdom has no layout and cannot show a re-wrap. One demo reply
 at 900x1000, where the log is 526px wide and the letters lay at a 431px wrap over two lines. Note
-first what the trace had to be taught: `.panel` is `min(560px, 92vw)`, so the panel is 560px at
+first what the trace had to account for: `.panel` is `min(560px, 92vw)`, so the panel is 560px at
 every viewport wider than about 609px, and a sweep across 900, 1400 and 640 changed nothing and
 proved nothing, the watch correctly reporting no change three times. Below the breakpoint it moves.
 Resized to 480 mid-stream the letters re-lay at a 334px wrap and the reply goes on to settle over
@@ -246,10 +246,10 @@ to 420 lands at 318x180.5, and at every reading its painted edge sits inside the
 the same trace holds the 431px wrap through all of it and the bubble stands 53px past the log's
 right edge at 480 and 109px past it at 420, clipped by the history's `overflow-x: clip`.
 
-One harness lesson from proving the guards, worth more than the guard it saved. A listener that
-throws is reported to the window rather than to whoever dispatched the event, so a test that
-dispatches a resize and then asserts on the DOM cannot see the throw: deleting the "this bubble has
-no last letter" guard left all sixteen tests green. The test for a turn that stopped before its
-first word now listens for `error` on the window across the dispatch, and that mutation goes red
-with the other five (the re-lay, the re-pose, the listener's removal, and the watch's change
-comparison in both directions).
+One harness lesson came out of proving the guards, and it is worth more than the guard it saved. A
+listener that throws is reported to the window rather than to whoever dispatched the event, so a
+test that dispatches a resize and then asserts on the DOM cannot see the throw: deleting the "this
+bubble has no last letter" guard left all sixteen tests green. The test for a turn that stopped
+before its first word now listens for `error` on the window across the dispatch, and that mutation
+goes red with the other five (the re-lay, the re-pose, the listener's removal, and the watch's
+change comparison in both directions).

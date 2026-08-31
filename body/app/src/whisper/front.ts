@@ -1,9 +1,9 @@
 // The pure half of the whispered streaming (ADR-0037): the condensation front and the token
 // shapes the bubble lays out. The front is one fractional position moving at one velocity that
-// eases toward what its backlog warrants and is never reset, the panel's own motion rule (paced
-// not timed, resumed not restarted) applied per letter; arrivals only move the goal. Everything
-// here is arithmetic over numbers and strings, so the clock (`useWhisperClock.ts`) holds no
-// branching worth testing through the DOM.
+// eases toward what its backlog warrants and is never reset, which is the panel's own motion rule
+// applied per letter: paced rather than timed, resumed rather than restarted; arrivals only move
+// the goal. Everything here is arithmetic over numbers and strings, so the clock
+// (`useWhisperClock.ts`) holds no branching worth testing through the DOM.
 
 /** How many letters the condensation band spans: a letter clears over this much front travel. */
 export const BAND_LETTERS = 9;
@@ -11,10 +11,10 @@ export const BAND_LETTERS = 9;
 /** The time the front aims to trail arrivals by; velocity is backlog over this. */
 export const CATCHUP_SECONDS = 0.35;
 
-/** The front never crawls slower than this while it has anywhere to go (letters per second). */
+/** The front never moves slower than this while it has anywhere to go (letters per second). */
 export const MIN_PACE = 20;
 
-/** ...and never sprints faster than this, so a burst reads as flow rather than a teleport. */
+/** The front never moves faster than this, so a burst reads as flow rather than a jump. */
 export const MAX_PACE = 150;
 
 /** How fast the velocity eases toward its target (per second of gain). */
@@ -121,7 +121,7 @@ export function letterCountOf(tokens: readonly Token[]): number {
 
 /**
  * The letters the front may reveal while the turn still streams: everything up to the last
- * COMPLETED word. A trailing word token has no whitespace after it yet, so it can still grow
+ * completed word. A trailing word token has no whitespace after it yet, so it can still grow
  * and re-wrap to the next line; holding its letters at zero means only invisible letters ever
  * move (ADR-0037 decision 5). The drain releases the hold through `goalOf`, which is how the
  * reply's final word (which no whitespace ever completes) condenses when the turn ends.

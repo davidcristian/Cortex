@@ -85,7 +85,7 @@ async def test_the_spec_is_ungated_and_makes_the_model_name_a_target() -> None:
 
 
 def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> None:
-    """The one half of the enum coupling a gate can hold, held.
+    """The half of the enum coupling a gate can hold is held here.
 
     The schema's strings are derived from ``CaptureTarget`` rather than restated beside it, so a
     third target cannot reach the wire while the model is still offered two. The other half,
@@ -192,7 +192,7 @@ async def test_a_window_that_filled_the_screen_is_described_as_the_screen() -> N
 
 
 async def test_a_capture_with_no_target_is_refused_without_taking_a_picture() -> None:
-    """Refused rather than defaulted, and the reason is not tidiness.
+    """A capture naming no target is refused rather than defaulted, and not merely for tidiness.
 
     The default it would take is the whole screen, which is the more exposing of the two
     pictures, and widening silently on a question the model never said was about the whole screen
@@ -304,7 +304,7 @@ def test_the_default_bounds_ask_the_body_for_its_own_defaults() -> None:
     # Zero is not "no bound", it is "your default" on the wire (proto3 cannot tell an unset
     # uint32 from an explicit zero), and the brain then holds the reply to the domain ceiling
     # alone. Pinned against literals: a default quietly moved to 640 or to a byte budget would
-    # otherwise change what every deployment asks for with nothing red.
+    # otherwise change what every deployment asks for with no test failing.
     assert (CaptureBounds().max_edge, CaptureBounds().max_bytes) == (0, 0)
 
 

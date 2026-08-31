@@ -1,22 +1,16 @@
 """PgVectorMemoryStore: the MemoryStore port over Postgres + pgvector (ADR-0008).
 
 One row per memory in ``memories(id, text, embedding vector, scope, tainted, created_at)``.
-``search`` ranks by cosine distance (``<=>``) and returns cosine *similarity* as the score, so it
-is observably interchangeable with ``InMemoryMemoryStore`` behind the port; a non-``None``
-``scopes`` filters candidates to those namespaces first (``WHERE scope = ANY``, ADR-0008 scoping
-addendum). ``tainted``, the untrusted-provenance marker (ADR-0019), is stored and read back so a
-tainted memory is fenced on recall. This adapter only translates between the core's values and
-SQL, never business logic; every backend failure crosses the port as ``MemoryStoreError`` with the
-cause chained, and every reply this adapter could not decode as its ``MemoryDataError`` subclass,
-which is the one line drawn here rather than in the core (ADR-0008 data-defect addendum). The
-adapter can draw it because the two conditions arrive as disjoint exception types: asyncpg's own
-``_WRAPPED`` family is a machine that could not answer, and a ``KeyError`` or ``ValueError`` out of
-``_to_scored`` is this code reading what the machine did answer. Neither catch has to guess.
+``search`` ranks by cosine distance (``<=>``) and returns cosine similarity as the score, so it
+is observably interchangeable with ``InMemoryMemoryStore`` behind the port. The embedding is
+passed as a pgvector text literal and cast (``$n::vector``), and read back via
+``embedding::text``, so no driver-side vector-type registration is needed.
 
-The embedding is passed as a pgvector text literal and cast (``$n::vector``), and read back
-via ``embedding::text``, so no driver-side vector-type registration is needed. Real pools are
-built by ``connect``; the query surface is the injected ``Database`` port, which an asyncpg
-pool satisfies (and a canned-row fake, the asyncpg analog of MockTransport, satisfies in CI).
+A backend failure crosses the port as ``MemoryStoreError`` with the cause chained, and a reply
+this adapter could not decode as its ``MemoryDataError`` subclass, a line drawn here rather than
+in the core (ADR-0008 data-defect addendum). The split is exact because the two conditions arrive
+as disjoint exception types: asyncpg's ``_WRAPPED`` family is a machine that could not answer, and
+a ``KeyError`` or ``ValueError`` out of ``_to_scored`` is a reply this code could not read.
 """
 
 from collections.abc import Sequence
@@ -44,12 +38,12 @@ _SELECT = (
 _SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
 _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
 # How wide the candidate set was, which the ranked SELECT above cannot say (ADR-0038
-# candidate-count addendum). Deliberately a second statement rather than a ``count(*) OVER ()``
-# on the ranked one: the window function must buffer every candidate row, embeddings included,
-# before the LIMIT can apply, which measured 2.85x the plain search at 100k rows, while this
-# costs a fraction of it because ``memories_scope_idx`` serves it as an index-only scan that
-# never touches the vectors. Exact rather than capped for the same reason: there is nothing
-# left to save. The two statements are not one transaction, which the audit value documents.
+# candidate-count addendum). A second statement rather than a ``count(*) OVER ()`` on the ranked
+# one: the window function must buffer every candidate row, embeddings included, before the LIMIT
+# can apply, which measured 2.85x the plain search at 100k rows, while this costs a fraction of
+# that because ``memories_scope_idx`` serves it as an index-only scan that never touches the
+# vectors. Exact rather than capped for the same reason: there is nothing left to save. The two
+# statements are not one transaction, which the audit value documents.
 _COUNT_ALL = "SELECT count(*) AS total FROM memories"
 _COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
 # The forget primitive (ADR-0008 delete-scope addendum): drop one whole namespace. The
@@ -174,9 +168,9 @@ class PgVectorMemoryStore:
         """Return how many memories ``scopes`` holds, the width ``search`` ranked over.
 
         ``scopes`` filters exactly as it does for ``search`` (``WHERE scope = ANY``), so the two
-        describe one candidate set; ``None`` counts every memory. This is the server's own
-        ``count(*)`` and never ``len`` of anything this adapter fetched, which is the distinction
-        the verb exists for (ADR-0038 candidate-count addendum).
+        describe one candidate set; ``None`` counts every memory. The number is the server's own
+        ``count(*)``, never ``len`` of anything this adapter fetched (ADR-0038 candidate-count
+        addendum).
         """
         try:
             if scopes is None:

@@ -7,8 +7,7 @@ The six state-store ports (session, memory, task, schedule, handoff, preference)
 ``ResidencyReporter``, ``PaceSink``) in ``ports_models.py``, the three a tool call passes through
 (``ToolRegistry``, ``Confirmer``, ``ToolAuditSink``) in ``ports_tools.py``, ``SubagentPlacer`` in
 ``ports_placement.py``, and ``BodyGateway`` in ``ports_body.py``; all five sets are re-exported
-here, so
-``from cortex_core.ports import SessionStore`` keeps resolving.
+here, so ``from cortex_core.ports import SessionStore`` keeps resolving.
 """
 
 from collections.abc import AsyncGenerator, AsyncIterator, Sequence
@@ -45,12 +44,9 @@ from cortex_core.ports_tools import (
 from cortex_core.ranking import RecallAudit
 from cortex_core.tools import ToolSpec
 
-# The six state-store ports live in ``ports_stores.py``, the four model-lifecycle ports in
-# ``ports_models.py``, the three a tool call passes through in ``ports_tools.py``,
-# ``SubagentPlacer`` in ``ports_placement.py`` and ``BodyGateway`` in
-# ``ports_body.py`` (line-cap splits); the explicit export list re-exports them alongside the
-# ports defined here, so every existing ``from cortex_core.ports import ...`` and the
-# ``cortex_core`` barrel keep resolving unchanged.
+# The list is written out rather than left implicit because it re-exports the ports the line cap
+# moved into sibling modules alongside the ones defined here, which is what keeps every existing
+# ``from cortex_core.ports import ...`` and the ``cortex_core`` barrel resolving unchanged.
 __all__ = [
     "BodyGateway",
     "Clock",
@@ -84,43 +80,47 @@ class InferenceBackend(Protocol):
     ``stream`` yields the reply to ``messages`` as ``InferenceEvent``s: ``TextChunk`` deltas
     of assistant text, a reasoning model's ``ReasoningChunk`` deltas before them (ADR-0020), and
     each whole ``ToolCall`` the model makes from ``tools`` (native function-calling, ADR-0009),
-    which never precedes the words beside it. With ``tools`` empty the stream is text
-    only, exactly as before. ``model`` is a logical id (ADR-0004), never a file path, and **an
-    implementation answers only for the ids it serves**: asked for one it does not, it fails with
-    ``InferenceError`` rather than answering out of whatever model is behind it, since the id is
-    the caller's whole statement of which weights it wants and a reply under the wrong one is
-    unreadable as such. Which ids those are is the implementation's own business, a
-    ``ModelManager``'s residency here and a router's table elsewhere, and so is where the refusal
-    comes from.
-    ``schema`` (ADR-0028), when set, constrains decoding so every emitted token conforms to
-    that JSON Schema; ``None`` (the default, every caller but a constrained tool-less subagent)
-    leaves output unconstrained. **Images ride the messages**, not this signature (ADR-0029): a
-    ``Message`` may carry ``images``, and an adapter that supports them serialises the pair
+    which never precedes the text beside it. With ``tools`` empty the stream is text only, exactly
+    as before.
+
+    ``model`` is a logical id (ADR-0004), never a file path, and an implementation answers only
+    for the ids it serves: asked for one it does not, it raises ``InferenceError`` rather than
+    answering out of whatever model is behind it, since the id is the caller's whole statement of
+    which weights it asks for, and a reply under the wrong one cannot be read as such. Which ids
+    those are is the implementation's own business, a ``ModelManager``'s residency here and a
+    router's table elsewhere, and so is where that error comes from.
+
+    ``schema`` (ADR-0028), when set, constrains decoding so every emitted token conforms to that
+    JSON Schema; ``None`` (the default, every caller but a constrained tool-less subagent) leaves
+    output unconstrained. Images travel on the messages rather than in this signature (ADR-0029):
+    a ``Message`` may carry ``images``, and an adapter that supports them serialises the pair
     together. A per-request keyword could not express "the image from round one" in round three
     without the caller re-threading it, which is why the port did not have to change at all.
-    ``bounds`` (ADR-0038 cheap-fold addendum) is how far this one request lets the model go, per
-    REQUEST because one resident cortex both answers the user, where deliberation earns its wait,
-    and folds a recap, where it is discarded unread.
-    **A ``bounds`` asking for no thinking is passed on and never enforced** (ADR-0005
-    switch-is-advisory addendum): an implementation asks its deployment and reports what came back,
-    so a trace that arrived despite the switch still crosses as ``ReasoningChunk`` rather than
-    being filtered into the silence the caller asked for. That stream is the caller's only evidence
-    that the switch did not hold, and a deployment where it does not is one whose cap paired with
-    the switch deletes the reply, so an implementation that swallowed the trace would leave that
-    failure with nothing at all to read. Failures surface as ``InferenceError``, at a
-    moment the port leaves open: an implementation may fail before it hands back an iterator or on
-    the first event of one, and both shapes are live in this tree.
-    **A backend whose engine says why a completion ended closes it with one ``DecodeStop``**
-    (ADR-0005 finish-reason addendum) and **a backend whose engine reports how fast it decoded
-    follows that with one ``DecodeCadence``** (ADR-0030 spill-watch addendum), in that order
-    and both after the text and thinking they describe, since neither is knowable until the tokens
-    are counted; any tool calls trail them, an engine that streams them in pieces having nothing
-    whole to hand over until the completion is done.
-    Reporting either is optional and the two are independent, an engine that offers no timings
-    still being able to say what stopped it. Silence is a legitimate implementation of both and
-    says only that the engine offered nothing, so no consumer may read a missing cadence as a
-    healthy rate or a missing stop as a model that finished. A completion with nothing to say is
-    legal in the same spirit, owing no event of any kind.
+
+    ``bounds`` (ADR-0038 cheap-fold addendum) is how far this one request lets the model go, and
+    it is per request because one resident cortex both answers the user, where deliberation earns
+    its wait, and folds a recap, where it is discarded unread. A ``bounds`` asking for no thinking
+    is passed on and never enforced (ADR-0005 switch-is-advisory addendum): an implementation asks
+    its deployment and reports what came back, so a trace that arrived despite the switch still
+    crosses as ``ReasoningChunk`` rather than being suppressed to match what the caller asked for.
+    That stream is the caller's only evidence that the switch did not hold, and a deployment where
+    it does not hold is one whose cap paired with the switch deletes the reply, so an
+    implementation that dropped the trace would leave that failure with nothing to read.
+
+    Failures surface as ``InferenceError``, at a moment the port leaves open: an implementation
+    may fail before it hands back an iterator or on the first event of one, and both shapes are
+    live in this tree.
+
+    A backend whose engine reports why a completion ended closes it with one ``DecodeStop``
+    (ADR-0005 finish-reason addendum), and a backend whose engine reports how fast it decoded
+    follows that with one ``DecodeCadence`` (ADR-0030 spill-watch addendum), in that order and
+    both after the text and thinking they describe, since neither is knowable until the tokens are
+    counted; any tool calls trail them, an engine that streams them in pieces having nothing whole
+    to hand over until the completion is done. Reporting either is optional and the two are
+    independent, an engine that offers no timings still being able to report what stopped it.
+    Emitting neither is a legitimate implementation and says only that the engine offered nothing,
+    so no consumer may read a missing cadence as a healthy rate or a missing stop as a model that
+    finished. A completion that emits no events at all is legal for the same reason.
     """
 
     def stream(
@@ -142,7 +142,7 @@ class ModelManager(Protocol):
     to the next waiter. v1 holds one resident model and performs no swap, so acquiring any
     other id raises ``ModelUnavailableError``. Failures surface as ``ModelManagerError``.
     Subagent VRAM placement is a separate concern behind ``SubagentPlacer`` (ADR-0012), so
-    this port (and Slice 11's swap that reuses ``acquire``) stays unchanged.
+    this port (and the model swap that reuses ``acquire``) stays unchanged.
     """
 
     def acquire(self, model: str) -> AbstractAsyncContextManager[ModelLease]: ...
@@ -191,7 +191,7 @@ class TurnRunner(Protocol):
     then exactly one ``TurnCompleted``, and closing the returned generator tears the turn down
     (the user message stays persisted, a partial reply is dropped).
 
-    **A runner is told which turn it is serving** (ADR-0038 named-turn addendum). ``turn_id``
+    A runner is told which turn it is serving (ADR-0038 named-turn addendum). ``turn_id``
     identifies this turn everywhere it is written down: it groups the user message with the
     reply in the store, names the handoff a turn that escalates records, and is what
     ``TurnCompleted`` carries back to the client. A runner that minted it instead would be the
@@ -213,14 +213,14 @@ class RecallAuditSink(Protocol):
     recall is audited whichever policy ran and whether or not it returned anything. The audit
     carries the ranking, meaning each kept hit's key and the basis naming what that key is, which
     is the first code in the tree to read a policy's own rank key. It carries the candidates the
-    rank **dropped** too, by id and the store's cosine, bounded and counting what the bound left
-    out, and with no key beside them, a rank having no opinion to record about what it passed over
-    (ADR-0038 dropped-candidate addendum).
+    rank dropped too, by id and the store's cosine, bounded and counting what the bound left out,
+    and with no key beside them, a rank recording no key for what it passed over (ADR-0038
+    dropped-candidate addendum).
 
-    The value carries conversation content (the query, the recalled text), so a sink decides what
-    it keeps of them; the shipped ``LoggingRecallSink`` keeps neither, exactly as the tool audit's
-    own adapter logs a result's size rather than its bytes. The fake keeps them in memory for
-    assertions.
+    The value carries conversation content (the query, the recalled text), so what a sink keeps of
+    them is left to the adapter; the shipped ``LoggingRecallSink`` keeps neither, exactly as the
+    tool audit's own adapter logs a result's size rather than its bytes. The fake keeps them in
+    memory for assertions.
     """
 
     async def record(self, audit: RecallAudit) -> None: ...
@@ -234,26 +234,26 @@ class SubagentScheduler(Protocol):
     ``memory_gb`` ≤ memory target) and releases both on exit; over budget, callers wait (depth-1
     delegation guarantees no spawn waits on another spawn, so this cannot deadlock). A charge larger
     than the whole budget can never be admitted, so it raises ``SubagentAdmissionError`` rather than
-    waiting forever; any implementation owes that refusal, since ``SubagentRunner`` degrades exactly
-    this error to an ``ok=False`` result instead of letting an exception kill the turn (ADR-0012
-    admission-wall addendum). **An implementation that queues owes a bound on that queue** and the
-    same typed refusal when it elapses (the bounded-admission-wait addendum): a wait nothing ends
-    is a turn that never finishes, and the caller cannot supply the bound, since ``admit``'s
-    signature has nowhere to carry one and the wait is policy the budget owns rather than a
-    per-spawn ask. How long is the implementation's own configuration; a twin that admits
-    everything at once, having no queue, satisfies this vacuously. The budget binds nothing it did
-    not admit (no ``.wslconfig``/parent cgroup, the user's constraint), which is the sense in which
-    it is *soft*; it is distinct from
-    the ``ModelManager``'s GPU lease and the ``SubagentPlacer``'s VRAM ledger. The three compose at
-    the runner (ADR-0010 decision 6, ADR-0012).
+    waiting forever, and every implementation must raise it, since ``SubagentRunner`` degrades
+    exactly this error to an ``ok=False`` result instead of letting an exception kill the turn
+    (ADR-0012 admission-wall addendum). An implementation that queues must bound that queue and
+    raise the same typed error when the bound elapses (the bounded-admission-wait addendum): a wait
+    nothing ends is a turn that never finishes, and the caller cannot supply the bound, since
+    ``admit``'s signature has nowhere to carry one and the wait is policy the budget owns rather
+    than a per-spawn ask. How long is the implementation's own configuration; a twin that admits
+    everything at once, having no queue, satisfies this with nothing to do. The budget binds
+    nothing it did not admit (no ``.wslconfig``/parent cgroup, the user's constraint), which is what
+    makes it soft; it is distinct from the ``ModelManager``'s GPU lease and the
+    ``SubagentPlacer``'s VRAM ledger. The three compose at the runner (ADR-0010 decision 6,
+    ADR-0012).
 
     ``drain(timeout_s=...)`` quiesces the pool for a model handoff (ADR-0030 decision 4, the
     additive method ADR-0012 deferred): it stops admission at once and waits, bounded by
     ``timeout_s`` seconds, for in-flight admissions to release. From the call until ``undrain``,
-    every ``admit`` refuses with the same typed ``SubagentAdmissionError`` instead of queuing
+    every ``admit`` raises the same typed ``SubagentAdmissionError`` instead of queuing
     (a brain-phase spawn queued against its own drain would deadlock the turn against its own
-    swap), and a caller already waiting on a full budget is woken so it refuses rather than
-    sleeps through the swap. True means the pool drained clean; False means the bound elapsed
+    swap), and a caller already waiting on a full budget is woken so it raises rather than
+    sleeping through the swap. True means the pool drained clean; False means the bound elapsed
     with work still in flight, and nothing was killed (v1 never kills a subagent mid-stream),
     so the swap conductor must abort the handoff before evicting anything. ``undrain()``
     reverses the window, resuming normal admission; the conductor owes it in a ``finally``

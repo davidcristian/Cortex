@@ -60,9 +60,9 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    without declaring it ([ADR-0029](ADR-0029-vision-screen-capture.md)
    cross-language-constant addendum); and `bindcheck.py` reads the compose bind mounts against
    `.gitignore` and against what git tracks ([ADR-0026](ADR-0026-prose-style-gates.md) bind
-   addendum). Each is precisely what no single-toolchain job can do. Otherwise a Rust-only,
-   overlay-only or docs-only change would skip them. Locally they stay the fail-early first
-   steps of `just check`.
+   addendum). Each of those scans reads more than one tree, which no single-toolchain job does,
+   so gating them on one toolchain's paths would let a Rust-only, overlay-only or docs-only
+   change skip them. Locally they stay the fail-early first steps of `just check`.
 2. **Cancellation is PR-only**: `concurrency` with `cancel-in-progress` applies only to
    `pull_request` events. Superseded PR pushes cancel (the churny case), but every
    master commit keeps its CI verdict, because a bisectable history matters for a
@@ -121,9 +121,9 @@ consequences of that split, kept normative here with the rule list above:
 ## Addendum (2026-07-16): the Tauri shell subtree is carved back to rust
 
 The rule above sent *every* `body/app/` change to the overlay (node) job, including the
-host-native Tauri shell at `body/app/src-tauri/`, which is Rust, not node. That was correct
-while nothing gated the shell's Rust, but `check-body` now fmt-checks the shell (ADR-0011),
-and a fmt gate is only real if the change that would dirty it triggers the job that runs it.
+host-native Tauri shell at `body/app/src-tauri/`, which is Rust rather than node. That was
+correct while nothing gated the shell's Rust, but `check-body` now fmt-checks the shell
+(ADR-0011), and that check only runs when a shell edit triggers the job containing it.
 So a fourth `body/app/` ordering was added: `body/app/src-tauri/` → **rust**, placed BEFORE
 the `body/app/` → overlay rule (first match wins). A shell `.rs` edit now gates the rust
 job (which runs `just check-body`, hence the shell fmt check), while the React overlay under
@@ -150,25 +150,25 @@ prefers.
 
 The addendum above left the shell carve-out routing a shell edit to the rust job and said the
 classifier "would already route a shell change to the rust job that runs shell clippy the day CI
-can afford it". That day is here, and the routing it predicted is not the one that landed: shell
-clippy is a **separate job**, not another step inside `check-body`, and the difference is the
-whole reason it became affordable.
+can afford it". Shell clippy now runs in CI, but as a **separate job** rather than as another
+step inside `check-body`, and that split is what made it affordable.
 
-The cost that had kept it out was never the check; it was who pays. Folded into `check-body`, a
-webkit `apt-get install` lands on every `body/` change, every `proto/` change, every shared gate
-file, to lint a subtree that most of them do not touch. Split out, it lands on a
-`body/app/src-tauri/` edit and on nothing else. So the classifier grew a **fourth** output,
+The expensive part was never the check itself but the set of changes that pay for its system
+libraries. Folded into `check-body`, a webkit `apt-get install` would land on every `body/`
+change, every `proto/` change, and every shared gate file, to lint a subtree that most of them do
+not touch. Split out, it lands on a `body/app/src-tauri/` edit and on nothing else. So the
+classifier grew a **fourth** output,
 `shell=`, exactly as it grew `overlay=` before it, and the shell carve-out rule now returns a
 verdict setting both `rust` and `shell`: `check-body` still fmt-checks the shell on every rust
 run, and the new job clippies it. Every rule that sets `rust` for a non-shell path leaves `shell`
 false, `NEITHER` leaves it false, and both `ALL` and the fail-closed `DEFAULT` set it true, so an
 unrecognized path still over-tests in the direction this ADR always prefers.
 
-Two properties this ADR states are unchanged and were re-checked rather than assumed. Unknown
-paths still reach every job (`test_classify_fails_closed_to_all_for_unmatched_paths` now asserts
-the fourth field too), and the no-usable-diff-range branch in the workflow writes `shell=true`
-beside the other three. What is new is a job that can be reached by a path no other job is:
-nothing else in CI is gated on `shell=`, so a rule that forgot to set it would leave the job
-permanently unrun and permanently green. Two tests hold that shut from both sides, one asserting
-a `src-tauri` edit sets `shell=true` and one asserting a `body/crates/` plus `body/app/src/`
-change leaves it false, and routing the carve-out back to plain rust fails the suite.
+Two properties this ADR states are unchanged, and both were re-checked rather than assumed.
+Unknown paths still reach every job (`test_classify_fails_closed_to_all_for_unmatched_paths` now
+asserts the fourth field too), and the no-usable-diff-range branch in the workflow writes
+`shell=true` beside the other three. The new risk is that `shell=` gates one job and nothing
+else, so a rule that omitted it would leave that job permanently unrun and permanently green.
+Two tests cover both directions, one asserting a `src-tauri` edit sets `shell=true` and one
+asserting a `body/crates/` plus `body/app/src/` change leaves it false; routing the carve-out
+back to plain rust makes the suite fail.

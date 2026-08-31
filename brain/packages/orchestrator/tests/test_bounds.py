@@ -1,12 +1,12 @@
 """The boot check over two settings classes: a delegated dispatch inside the run that contains it.
 
-The defect under test is not a bug in either bound. Both work; nothing relates them. A deployment
-that raises ``CORTEX_TOOLS_CALL_TIMEOUT_S`` past ``CORTEX_SUBAGENTS_RUN_TIMEOUT_S`` gets a wedged
-sidecar reported as a subagent that would not stop talking, because the run's own deadline is what
-fires, and it loses the re-run a transport failure earns, a truncation being never re-placed. That
-was measured on the shipped ``PlacedAttempt`` before this check existed: with the pair ordered, a
-hanging sidecar costs one call and the subtask still answers; inverted, the run ends ``TRUNCATED``
-with no text at all.
+The defect under test is not a bug in either bound. Both work, and nothing relates them. A
+deployment that raises ``CORTEX_TOOLS_CALL_TIMEOUT_S`` past ``CORTEX_SUBAGENTS_RUN_TIMEOUT_S``
+gets a wedged sidecar reported as a subagent that would not stop talking, because the run's own
+deadline is what fires, and it loses the re-run a transport failure earns, a truncation never
+being re-placed. That was measured on the shipped ``PlacedAttempt`` before this check existed:
+with the pair ordered, a hanging sidecar costs one call and the subtask still answers; inverted,
+the run ends ``TRUNCATED`` with no text at all.
 
 **What has to fit is the dispatch and not the bound.** One delegated dispatch spends the bound
 once per registry walk, so ordering the two numbers as typed leaves the same failure reachable
@@ -15,40 +15,41 @@ allowed 900. ``delegated_call_bounds`` counts the walks, the check compares the 
 last two cases here tie that arithmetic to the composition it describes rather than arguing from
 it.
 
-Distrust-green proofs, each mutation applied to production code alone and the whole
+Proof these cases can fail, each mutation applied to production code alone and the whole
 ``brain/packages`` suite re-run (2836 cases, 80 integration cases deselected), so the counts are
 measured rather than aimed at:
 
-- comparing the two fields the other way round (``run_timeout_s < _dispatch_cost(tools)``) reddens
-  5, which is what separates the ordering from the numbers it is over. The equal pair is
+- comparing the two fields the other way round (``run_timeout_s < _dispatch_cost(tools)``) makes 5
+  tests fail, which is what separates the ordering from the numbers it is over. The equal pair is
   deliberately not among them: reversed, that comparison still refuses equality, so the case below
   that pins strictness cannot tell a swapped comparison from the shipped one, and the two
   mutations need different cases for that reason;
-- accepting equality (``<=`` rather than ``<``) reddens 1,
+- accepting equality (``<=`` rather than ``<``) makes 1 test fail,
   ``test_a_dispatch_allowed_the_whole_of_the_run_is_refused_too``, the one case that pins the
   strictness rather than the direction;
 - comparing the bare call bound rather than the whole dispatch, which is the check as it was first
-  written, reddens 5. That is the row this file exists for now: the version it restores shipped
-  green, and what it could not see is
+  written, makes 5 tests fail. That is the row this file exists for now: the version it restores
+  shipped with a passing suite, and what it could not see is
   ``test_a_call_bound_the_bare_pair_admits_is_still_refused``;
-- dropping the aggregate's routing walk from the multiple reddens 3 and dropping the endpoint count
-  reddens 3, each of them the two-sidecar cases plus the composition case that measures what the
-  real stack spends; dropping the call itself reddens 8, every case that reads a multiple or a
-  product;
-- logging the misordering and returning instead of raising reddens 4, the three refusal cases here
-  and the ``run_from_env`` case that drives the root;
-- dropping the ``mcp`` half of the guard reddens 1,
+- dropping the aggregate's routing walk from the multiple makes 3 tests fail and dropping the
+  endpoint count makes 3 tests fail, each of them the two-sidecar cases plus the composition case
+  that measures what the real stack spends; dropping the call itself makes 8 tests fail, every
+  case that reads a multiple or a product;
+- logging the misordering and returning instead of raising makes 4 tests fail, the three refusal
+  cases here and the ``run_from_env`` case that drives the root;
+- dropping the ``mcp`` half of the guard makes 1 test fail,
   ``test_a_deployment_with_no_tool_sidecars_has_no_pairing_to_check``, and dropping the
-  ``llamacpp`` half reddens 2, this file's own tolerance case and a wiring case that runs a
-  tool-enabled root without delegation, so each tolerance is pinned as deliberately as the refusal;
-- naming the run bound where the message names the call bound (rendering one field twice) reddens
-  2, the two cases that read the rendered values, which is the trap a test interpolating the
-  config's own values into its expected string would not have caught: an object that names one
+  ``llamacpp`` half makes 2 tests fail, this file's own tolerance case and a wiring case that runs
+  a tool-enabled root without delegation, so each tolerance is pinned as deliberately as the
+  refusal;
+- naming the run bound where the message names the call bound (rendering one field twice) makes 2
+  tests fail, the two cases that read the rendered values, which is the trap a test interpolating
+  the config's own values into its expected string would not have caught: an object that names one
   number and spends another satisfies every assertion written that way;
-- dropping the call from the composition root reddens exactly 1, the ``run_from_env`` case, which
-  is the only reason that case exists beside the ones that drive the check directly. It is bounded
-  by ``asyncio.wait_for`` because a root that never refuses goes on to ``serve``: without the bound
-  the mutation hangs the suite instead of reddening, which proves nothing.
+- dropping the call from the composition root makes exactly 1 test fail, the ``run_from_env``
+  case, which is the only reason that case exists beside the ones that drive the check directly.
+  It is bounded by ``asyncio.wait_for`` because a root that never refuses goes on to ``serve``:
+  without the bound the mutation hangs the suite instead of failing it, which shows nothing.
 """
 
 import asyncio
@@ -91,7 +92,7 @@ _GPU = "http://subagent-gpu:8083"
 
 # The bound the composition case below wires, short enough that spending it several times costs
 # the suite nothing, and the multiple of it a wedged sidecar answers after. Answering late rather
-# than never is what makes deleting the bound a red instead of a hung suite, the shape
+# than never is what makes deleting the bound a failing test rather than a hung suite, the shape
 # `packages/core/tests/test_tool_deadline.py` uses and argues for.
 _WEDGED_BOUND_S = 0.02
 _WEDGED_ANSWER_S = _WEDGED_BOUND_S * 3
@@ -142,7 +143,8 @@ def _only(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
 def test_a_call_bounded_above_the_run_it_sits_inside_refuses_to_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The misconfiguration is static and its failure is not: refuse it where it was typed.
+    """The misconfiguration is static while its failure is not, so the check rejects it at boot,
+    where an operator typed it.
 
     The numbers are deliberately far apart and unequal, so a comparison reading one field twice,
     or a message rendering one field twice, cannot satisfy this by coincidence.
@@ -162,7 +164,8 @@ def test_a_call_bounded_above_the_run_it_sits_inside_refuses_to_boot(
 
 
 def test_a_dispatch_allowed_the_whole_of_the_run_is_refused_too() -> None:
-    """Equality is a race between two bounds, and the losing side reports a wedge as a runaway.
+    """An equal pair is a race between two bounds, and when the run's deadline fires first a
+    wedged sidecar is reported as a subagent that would not stop.
 
     300 s is the equal pair here rather than 900: what has to fit inside the run is the whole
     dispatch, and at one sidecar a dispatch is three of these bounds.
@@ -172,7 +175,7 @@ def test_a_dispatch_allowed_the_whole_of_the_run_is_refused_too() -> None:
 
 
 def test_a_call_bound_the_bare_pair_admits_is_still_refused() -> None:
-    """The pair that passes a comparison of the two numbers and wedges a run anyway.
+    """A pair that passes a comparison of the two numbers alone still wedges a run, and is refused.
 
     700 s sits under 900 s, so a check that compared the bounds themselves shipped this. One
     delegated dispatch spends the bound twice before the call and once in it, so a wedged sidecar
@@ -184,11 +187,12 @@ def test_a_call_bound_the_bare_pair_admits_is_still_refused() -> None:
 
 
 def test_the_shipped_pair_is_wired_and_says_so(caplog: pytest.LogCaptureFixture) -> None:
-    """The two defaults, compared as the running pair: a check refusing this refuses every stack.
+    """The two shipped defaults are compared as the running pair, since a check that refused them
+    would refuse every stack.
 
-    The numbers ride the record rather than the message, so they are read off the line the shipped
-    formatter renders; ``caplog.text`` carries the message alone, and asserting them against that
-    would pass only while they were printed twice.
+    The numbers are attached to the record rather than written into the message, so they are read
+    off the line the shipped formatter renders. ``caplog.text`` carries the message alone, and
+    asserting them against that would pass only while they were printed twice.
     """
     subagents = _subagents()
     with caplog.at_level(logging.INFO):
@@ -201,7 +205,7 @@ def test_the_shipped_pair_is_wired_and_says_so(caplog: pytest.LogCaptureFixture)
 
 
 def test_a_second_sidecar_costs_the_same_bound_more(caplog: pytest.LogCaptureFixture) -> None:
-    """The headroom is a property of the deployment, not of the pair of numbers in it.
+    """The headroom is a property of the whole deployment rather than of the two numbers alone.
 
     The same 60 s under the same 2400 s buys less with two sidecars configured, because the walks
     that spend it are wider and there is an extra one, so the multiple is on the record beside the
@@ -224,7 +228,8 @@ def test_a_second_sidecar_costs_the_same_bound_more(caplog: pytest.LogCaptureFix
 def test_the_multiple_counts_every_walk_a_delegated_dispatch_makes(
     config: ToolsConfig, bounds: int
 ) -> None:
-    """The arithmetic, as literals a reader typed rather than the expression under test.
+    """The expected counts are written as literals rather than derived from the expression under
+    test.
 
     One sidecar: the run's advertisement, the gated strip on the dispatch, and the call. Two: each
     of those walks lists both endpoints, and a third walk appears, the aggregate's own routing
@@ -238,7 +243,8 @@ def test_a_deployment_with_no_tool_sidecars_has_no_pairing_to_check(
 ) -> None:
     """Without ``mcp`` no ``BoundedToolRegistry`` is built, so the knob bounds nothing at all.
 
-    Carrying an inverted pair on purpose: the tolerance has to be the backend and not the numbers.
+    The pair is inverted on purpose, so what makes the check accept this deployment is the backend
+    setting and not the numbers.
     """
     subagents = _subagents(run_timeout_s=900.0)
     with caplog.at_level(logging.INFO):
@@ -262,12 +268,12 @@ def test_a_deployment_that_never_delegates_has_no_pairing_to_check(
 async def test_run_from_env_refuses_a_call_bounded_above_the_run_that_contains_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The check being right is worth nothing if the composition root never calls it.
+    """The composition root calls the check, which is what puts a correct check on the boot path.
 
-    Driven through ``run_from_env`` for that reason, and bounded because the failure it pins is a
-    root that never asks: without the refusal the root goes on to ``serve``, which returns for
-    nothing this test can arrange. The call bound alone is raised, so the run deadline keeps the
-    default that clears its own stall ceiling and this stack is refused for one relation only.
+    It is driven through ``run_from_env`` for that reason, and bounded because the failure it pins
+    is a root that never asks: without the refusal the root goes on to ``serve``, which returns
+    for nothing this test can arrange. Only the call bound is raised, so the run deadline keeps
+    the default that clears its own stall ceiling and this stack is refused for one relation only.
     """
     monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
     monkeypatch.setenv("CORTEX_TOOLS_ENDPOINT", _ENDPOINT)
@@ -294,10 +300,10 @@ async def test_run_from_env_refuses_a_call_bounded_above_the_run_that_contains_i
 class _WedgedSession:
     """An MCP session that opens and then answers each verb three bounds late: a wedged sidecar.
 
-    It answers rather than never returning so that a bound deleted from the stack is a red instead
-    of a hung suite: every listing then succeeds, the tool is advertised, and the dispatch below
-    hands back a result where a refusal was required. The argument is written out where the shape
-    started, in ``packages/core/tests/test_tool_deadline.py``.
+    It answers rather than never returning so that a bound deleted from the stack fails a test
+    instead of hanging the suite: every listing then succeeds, the tool is advertised, and the
+    dispatch below hands back a result where a refusal was required. The argument is written out
+    where the shape started, in ``packages/core/tests/test_tool_deadline.py``.
     """
 
     def __init__(self, spends: list[str], url: str) -> None:

@@ -53,8 +53,8 @@ describe("AppearanceTab", () => {
       const tile = screen.getByRole("radio", { name: theme.label });
       const mini = tile.querySelector(".mini") as HTMLElement;
       expect(mini.style.background).not.toBe("");
-      // The colours come from the registry, never re-typed here: a theme that changed its ground
-      // would change this preview, and a preview that stopped matching would fail.
+      // The colours come from the registry rather than being re-typed here, so a theme that
+      // changed its ground changes this preview, and a preview that stopped matching fails.
       expect(mini.style.background).toBe(asStyled(theme.tokens.bg));
       expect((mini.querySelector(".mini-title") as HTMLElement).style.background).toBe(
         asStyled(theme.tokens.text),
@@ -66,7 +66,8 @@ describe("AppearanceTab", () => {
     renderTab();
     const auto = screen.getByRole("radio", { name: "Auto" });
     const [dark, light] = auto.querySelectorAll(".mini");
-    // Asked of the resolver, not named: Auto follows the system, and the system is one of two.
+    // Taken from the resolver rather than named here: Auto follows the system, which resolves to
+    // one of the two default themes.
     expect((dark as HTMLElement).style.background).toBe(
       asStyled(resolveTheme(null, true).tokens.bg),
     );
@@ -96,8 +97,8 @@ describe("AppearanceTab", () => {
     const { container } = renderTab({ onPickMark });
     const marks = container.querySelectorAll(".tile svg.mark");
     expect(marks).toHaveLength(MARKS.length);
-    // Four real marks, not four copies of one: the outlines are what differ between the styles,
-    // so the drawn geometry has to differ too (a shared component with the same data would not).
+    // Four separately drawn marks: the outlines differ between the styles, so the drawn geometry
+    // has to differ too, which one shared component fed the same data would not do.
     const outlines = new Set(
       [...marks].map((mark) => mark.querySelector(".mark-rim")?.getAttribute("d")),
     );

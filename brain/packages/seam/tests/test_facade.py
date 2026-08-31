@@ -48,9 +48,9 @@ def test_an_unset_capture_target_is_the_whole_display() -> None:
 
 
 def test_a_reply_that_names_no_target_reads_as_the_whole_display() -> None:
-    # The same zero on the other direction, and the reason the reply field is safe to add: a
-    # body predating it can only have taken a whole-display picture, so the default is a
-    # reading rather than a guess.
+    # The same zero in the other direction, and the reason the reply field is safe to add: a body
+    # predating it can only have taken a whole-display picture, so reading the default as
+    # CAPTURE_TARGET_DISPLAY reports what really happened.
     reply = cortex_seam.CaptureScreenReply(image=cortex_seam.ImageBlob(width=4, height=4))
     decoded = cortex_seam.CaptureScreenReply.FromString(reply.SerializeToString())
     assert decoded.resolved_target == cortex_seam.CaptureTarget.CAPTURE_TARGET_DISPLAY

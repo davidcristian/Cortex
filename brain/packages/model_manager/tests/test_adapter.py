@@ -9,30 +9,31 @@ Only ``ModelHostError`` may cross the port: ``residency_moves`` catches exactly 
 else (an ``httpx`` error, a ``ValueError``, a ``KeyError``) would escape as an untyped crash and
 fail the turn instead of failing the swap.
 
-Distrust-green proofs, measured across ``packages/model_manager`` one mutation at a time:
+These checks were proved able to fail. Each mutation below was measured across
+``packages/model_manager``, one at a time, and every count is over that suite:
 
-- letting ``httpx.HTTPError`` propagate instead of wrapping it reddens exactly 1,
+- letting ``httpx.HTTPError`` propagate instead of wrapping it fails exactly 1,
   ``test_a_sidecar_that_is_not_there_is_a_typed_model_host_error``;
-- accepting any status code (dropping the non-200 branch) reddens 3, the whole parameterization of
+- accepting any status code (dropping the non-200 branch) fails 3, the whole parameterization of
   ``test_a_refusal_carries_its_code_and_the_sidecars_reason``;
-- defaulting an unknown state word to ``LOADING`` instead of raising reddens 3, the whole
+- defaulting an unknown state word to ``LOADING`` instead of raising fails 3, the whole
   parameterization of ``test_a_state_word_this_version_does_not_know_is_a_failure_not_a_guess``;
-- reporting READY whatever the sidecar said reddens 11, of which 4 are here and 7 are the shared
+- reporting READY whatever the sidecar said fails 11, of which 4 are here and 7 are the shared
   contract suite's supervisor cases;
 - dropping the tier and the exit code from the FAILED log line's ``extra``, which is the only
-  place they ride now that the entry's formatter renders a record's own fields, reddens exactly 1,
+  place they ride now that the entry's formatter renders a record's own fields, fails exactly 1,
   ``test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail``;
 - reading a partial set of control bounds as bounds (guarding only the first of the three terms)
-  reddens 2, the negative-bound and bool-bound rows of
+  fails 2, the negative-bound and bool-bound rows of
   ``test_a_health_body_without_all_three_bounds_is_no_bounds``. The other rows stay green under
   that mutation because their missing term is the guarded one, which is why the parameterization
   varies **which** term is unreadable rather than only how;
-- taking whatever the body puts in ``boot_id`` (``None if boot is None else str(boot)``) reddens
-  2, the empty-string and non-string rows of ``test_a_health_body_that_names_no_boot_is_no_answer``.
+- taking whatever the body puts in ``boot_id`` (``None if boot is None else str(boot)``) fails 2,
+  the empty-string and non-string rows of ``test_a_health_body_that_names_no_boot_is_no_answer``.
   Both matter for the same reason: the brain compares this value for equality, so an empty string
   would compare equal to the next daemon's empty string and a number rendered as a string would
   make two daemons that both count from one indistinguishable;
-- reading **every** refusal as a tier the host does not carry reddens 3, the 503 and 500 rows of
+- reading **every** refusal as a tier the host does not carry fails 3, the 503 and 500 rows of
   ``test_only_a_404_about_a_tier_says_the_host_does_not_serve_it`` and the wrong-endpoint case.
   That is the direction worth guarding hardest (ADR-0030 unrostered-tier addendum): a wedged
   supervisor read as a missing tier would let boot recovery report green over a real outage, which
@@ -166,7 +167,7 @@ async def test_a_refusal_carries_its_code_and_the_sidecars_reason(code: HTTPStat
 async def test_only_a_404_about_a_tier_says_the_host_does_not_serve_it(
     code: HTTPStatus, expected: type[ModelHostError]
 ) -> None:
-    """The one refusal the port distinguishes, and the two it deliberately does not.
+    """Only a 404 naming a tier is read as a tier the host does not serve.
 
     The shared contract suite pins that an unrostered id is refused narrowly by a real daemon;
     what this adds is the other half, which no daemon can produce: a supervisor failure and an
@@ -239,7 +240,7 @@ def _health(body: dict[str, object]) -> httpx.MockTransport:
 
 
 async def test_the_card_is_read_off_the_health_route_and_nowhere_else() -> None:
-    """The fourth verb's wire: one GET, on the route that takes no per-model lock."""
+    """The fourth verb sends one GET, on the route that takes no per-model lock."""
     seen: list[tuple[str, str]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -273,7 +274,7 @@ async def test_a_health_body_without_two_figures_is_no_reading(body: dict[str, o
 
 
 async def test_the_control_bounds_are_read_off_the_same_health_route() -> None:
-    """The fifth verb's wire, asked once at wiring time and never inside a swap step."""
+    """The fifth verb sends one GET, asked at wiring time and never inside a swap step."""
     seen: list[tuple[str, str]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -329,7 +330,7 @@ async def test_a_health_body_without_all_three_bounds_is_no_bounds(body: dict[st
 
 
 async def test_the_answering_daemon_is_named_off_the_same_health_route() -> None:
-    """The sixth verb's wire: one GET, and the value comes back exactly as the daemon spelled it."""
+    """The sixth verb sends one GET, and the value comes back as the daemon spelled it."""
     seen: list[tuple[str, str]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -384,8 +385,8 @@ async def test_a_sidecar_that_cannot_answer_about_its_bounds_is_a_typed_error() 
 
 
 async def test_a_sidecar_that_cannot_answer_about_the_card_is_a_typed_error() -> None:
-    """Not a silent ``None``: a control call that broke is the swap's failure to decide, not a
-    reading that came back empty."""
+    """A control call that failed raises rather than returning ``None``, which would read as a
+    card with nothing on it."""
 
     def handle(request: httpx.Request) -> httpx.Response:
         del request

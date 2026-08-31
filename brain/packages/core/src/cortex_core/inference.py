@@ -4,12 +4,11 @@ A completion streams ``TextChunk`` (assistant reply text, emitted live) and, fro
 model, ``ReasoningChunk`` (its private deliberation, emitted before the reply, ADR-0020), then a
 ``DecodeStop`` saying why it ended (ADR-0005 finish-reason addendum), a ``DecodeCadence`` when the
 server told the adapter how fast it decoded (ADR-0030 spill-watch addendum), and last any
-``ToolCall`` the model made, which is whole by the time it crosses and never precedes the words
-beside it. Pure data with no ``ports``
-import, so ``ports`` can name ``InferenceEvent`` in the ``InferenceBackend`` contract without a
-cycle, mirroring how the ``tools`` and ``memory`` values are depended on. ``GenerationBounds``
-rides the same module for the same reason: it is request-side vocabulary the port names, like
-``JsonSchema``.
+``ToolCall`` the model made, which is complete by the time it crosses and never precedes the text
+beside it. Pure data with no ``ports`` import, so ``ports`` can name ``InferenceEvent`` in the
+``InferenceBackend`` contract without a cycle, mirroring how the ``tools`` and ``memory`` values
+are depended on. ``GenerationBounds`` sits in the same module for the same reason: it is
+request-side vocabulary the port names, like ``JsonSchema``.
 """
 
 from collections.abc import Mapping
@@ -49,18 +48,18 @@ class DecodeCadence:
     Not a delta of anything, which is why it is not a ``*Chunk``: it arrives once, whole, at the
     end of the completion it describes, because a rate is only knowable once the tokens are
     counted. A backend whose engine reports no such figure emits none, and every consumer is
-    written for that: the value is evidence when present and silence otherwise, never a default.
+    written for that: the value is evidence when present and absent otherwise, never a default.
 
-    It exists because of the one failure this repo can produce and cannot see any other way. An
-    overcommitted card does not refuse a load, it pages the excess to host memory and serves
-    anyway, so both tiers report ``ready`` and ``nvidia-smi`` reads like a genuine fit; measured
-    on the 24 GB card, a pair that fits and a pair 4676 MiB short read the same used and free
-    memory and differ only here, the deep model decoding at 14.80 to 17.29 tok/s where it holds
-    25.07 to 33.28 with the card to itself (docs/runbooks/model-swap.md).
+    It exists because of a failure that has no other visible signal. An overcommitted card does
+    not fail a load, it pages the excess to host memory and serves anyway, so both tiers report
+    ``ready`` and ``nvidia-smi`` reads like a genuine fit; measured on the 24 GB card, a pair that
+    fits and a pair 4676 MiB short read the same used and free memory and differ only here, the
+    deep model decoding at 14.80 to 17.29 tok/s where it holds 25.07 to 33.28 with the card to
+    itself (docs/runbooks/model-swap.md).
 
     ``tokens`` is how many were decoded, and it is what makes the rate readable: a two-token
-    completion's rate is dominated by whatever the server was doing when it started, so a
-    consumer judges nothing on a sample too short to mean anything (``CadenceWatch``).
+    completion's rate is dominated by whatever the server was doing when it started, so
+    ``CadenceWatch`` ignores a sample too short to be meaningful.
     """
 
     tokens_per_second: float
@@ -76,13 +75,12 @@ class DecodeCadence:
 
 
 class StopReason(Enum):
-    """Why one completion ended, in this core's words rather than an engine's (ADR-0005
-    finish-reason addendum).
+    """Why one completion ended, in this core's own vocabulary rather than an engine's.
 
-    A closed set, because the wire value is llama.cpp's own vocabulary and the core must not
-    depend on a backend's spelling; an adapter translates into these four and no others. A word
-    no member covers arrives as ``UNKNOWN`` rather than as silence, so a reason nobody has taught
-    this core yet can never be read as a model that finished.
+    A closed set (ADR-0005 finish-reason addendum), because the wire value is llama.cpp's own
+    vocabulary and the core must not depend on a backend's wire values; an adapter translates into
+    these four and no others. A wire value no member covers arrives as ``UNKNOWN`` rather than as
+    nothing, so a reason this core does not yet map is never read as a model that finished.
 
     ``FINISHED`` is the model ending its own turn. ``CAPPED`` is a token limit ending it instead,
     which is the distinction this whole value exists for: a capped reply stops where the count ran
@@ -105,16 +103,16 @@ class DecodeStop:
 
     Not a delta of anything, for ``DecodeCadence``'s reason: it arrives once, whole, at the end of
     the completion it describes, because why a completion ended is only knowable once it has. A
-    backend whose engine says nothing about it emits none, and every consumer is written for that:
-    the value is evidence when present and silence otherwise, and silence is never read as
-    ``FINISHED``.
+    backend whose engine reports nothing about it emits none, and every consumer is written for
+    that: the value is evidence when present and absent otherwise, and an absent stop reason is
+    never read as ``FINISHED``.
 
     It is its own event rather than a field on the closing cadence, though llama.cpp puts both on
     one chunk, because the two are separate facts with separate availability. A build that reports
-    no ``timings`` still reports why it stopped, so a reason riding the cadence would be lost
+    no ``timings`` still reports why it stopped, so a reason carried on the cadence would be lost
     exactly where it was reported; and ``CadenceWatch``, which every loop hands its cadences to,
-    answers a question about rates, so a non-rate fact reaching a consumer through it would arrive
-    at a collaborator shaped for another question.
+    answers a question about rates, so a non-rate fact routed through it would reach a consumer
+    built for another question.
     """
 
     reason: StopReason
@@ -131,47 +129,43 @@ class GenerationBounds:
     keywords. ``max_tokens`` caps what the server will decode for this request; ``thinking``
     ``False`` asks the deployment's chat template to skip the model's deliberation; and
     ``trace_tokens`` says how many tokens a deliberation that happens anyway may spend. A reasoning
-    model spends its budget on thinking *first*, so a cap without a bounded trace does not shorten
+    model spends its budget on thinking first, so a cap without a bounded trace does not shorten
     the reply, it deletes it: measured against the shipped cortex on a summarization prompt,
     ``max_tokens`` 160 and 256 with thinking on both came back ``finish_reason: "length"`` carrying
-    624 and 988 characters of ``reasoning_content`` and an **empty** ``content``.
+    624 and 988 characters of ``reasoning_content`` and an empty ``content``.
 
-    **``thinking`` is a request and not a guarantee** (ADR-0005 switch-is-advisory addendum). It
-    renders as ``chat_template_kwargs: {"enable_thinking": false}``, which reaches a template this
-    value knows nothing about, and whether the model then skips its trace was measured to depend on
-    the shape of the request carrying it: on the shipped cortex pick the switch holds plain and
-    constrained alike, and on the shipped subagent pick it holds on a plain request and does
-    nothing on one carrying a ``response_format``, where the model deliberates through it and
-    spends the whole cap doing so (4 draws in 5 on one engine build, 17 of 20 on a later one). The
-    cause is a template this value cannot see: a
-    ``response_format`` makes llama.cpp build a grammar that leaves the model's thought open, and
-    what decides a pick is whether its own template has already closed it, measured over every entry
-    of the lineup and splitting one family down its middle. So a cap sized from the wanted
-    answer is made safe by neither this value nor the pick, but by a **bounded trace**, of which
-    this switch is the cheapest source and not a dependable one.
+    ``thinking`` is a request and not a guarantee (ADR-0005 switch-is-advisory addendum). It
+    renders as ``chat_template_kwargs: {"enable_thinking": false}``, which reaches a chat template
+    outside this value's control, and whether the model then skips its trace was measured to
+    depend on the shape of the request carrying it: on the shipped cortex pick the switch holds
+    plain and constrained alike, and on the shipped subagent pick it holds on a plain request and
+    has no effect on one carrying a ``response_format``, where the model deliberates through it and
+    spends the whole cap doing so (4 draws in 5 on one engine build, 17 of 20 on a later one). That
+    addendum reads the cause off the engine: a ``response_format`` makes llama.cpp build a grammar
+    that leaves the model's thought unclosed, and what decides a pick is whether its own template
+    has already closed it. So a cap sized from the wanted answer is made safe by a bounded trace
+    rather than by this switch, which is the cheapest source of one and not a dependable one.
 
-    **``trace_tokens`` is the dependable one, where the engine reads it** (ADR-0005 request-lever
+    ``trace_tokens`` is the dependable lever, where the engine reads it (ADR-0005 request-lever
     addendum). It is a count of tokens rather than a switch: ``0`` ends the deliberation at once,
     a positive count lets it run that far and then closes it, and ``None`` says nothing at all and
     leaves the tier's own ``--reasoning-budget`` (ADR-0005 trace-budget addendum) to decide. The
     engine implements it as a sampler rather than as a prompt or a grammar, watching for the
     thought's start sequence and forcing its end tag, so unlike the switch it reaches every request
-    shape by construction: measured on the exact cell the switch loses, the subagent pick's
-    constrained request, a zero held on 58 draws of 58 where the switch held on 4 of 30. There is no
-    port-level word for "unrestricted" because ``None`` already is one: a bound that names no count
-    is a request that carries no count, and a negative one raises rather than smuggling an engine's
-    sentinel through a port.
+    shape: measured on the exact cell the switch loses, the subagent pick's constrained request, a
+    zero held on 58 draws of 58 where the switch held on 4 of 30. There is no port-level value for
+    "unrestricted" because ``None`` already is one, and a negative count raises rather than passing
+    an engine's sentinel through a port.
 
-    **The two are independent and neither implies the other**, which is a rule and not an
-    accident. ``thinking=False`` is what a caller says when it will not read the trace;
-    ``trace_tokens=0`` is what it says when the trace must not be *spent*. Deriving the second
-    from the first would silently blank the thinking status the overlay renders on a user's own
-    turn (ADR-0020), so nothing in this repo does: every producer that wants a bounded trace names
-    the count itself.
+    The two are independent and neither implies the other. ``thinking=False`` is what a caller says
+    when it will not read the trace; ``trace_tokens=0`` is what it says when the trace must not be
+    spent. Deriving the second from the first would blank the thinking status the overlay renders
+    on a user's own turn (ADR-0020) with nothing said about it, so nothing in this repo does: every
+    producer that needs a bounded trace names the count itself.
 
-    Whether the engine reads the count is the deployment's, not this value's: an engine that does
-    not know the key ignores it in silence, so the request carries it only where the adapter was
-    told or found that this deployment's engine reads one
+    Whether the engine reads the count is the deployment's answer rather than this value's: an
+    engine that does not recognize the key ignores it without reporting anything, so the request
+    carries it only where the adapter was told or found that this deployment's engine reads one
     (``CORTEX_INFERENCE_TRACE_LEVER``). Where it is not carried, a bound naming a count is the
     same request an unbounded trace always got, which is why ``drain_text`` still logs a
     deliberation that arrived against the switch.
@@ -182,10 +176,9 @@ class GenerationBounds:
     the count reaches the shape the switch loses, and ``drain_text`` logs it when a request that
     asked for no thinking is answered with a trace anyway.
 
-    The defaults are the deployment's own: no cap (llama-server's ``n_predict: -1``), whatever
-    the server's chat template does about thinking, and whatever budget the tier was started
-    with. So a caller that passes nothing gets the request this repo has always sent, byte for
-    byte.
+    The defaults are the deployment's own: no cap (llama-server's ``n_predict: -1``), whatever the
+    server's chat template does about thinking, and whatever budget the tier was started with, so a
+    caller that passes nothing gets exactly the request this repo has always sent.
     """
 
     max_tokens: int | None = None

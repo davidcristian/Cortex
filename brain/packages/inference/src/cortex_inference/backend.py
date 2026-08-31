@@ -15,7 +15,7 @@ transport, status, or decode failure, and any ``ModelManager`` failure, crosses 
 
 Its two halves live beside it, split off when the cadence arm took this file to the 300-line cap:
 ``request.py`` maps core values onto the wire, ``decode.py`` maps the wire back. What stays here
-is what neither of them can own, the lease and the order events leave in.
+is the lease and the order events leave in.
 """
 
 from collections.abc import AsyncIterator, Iterator, Sequence
@@ -49,10 +49,10 @@ _SSE_DONE = "[DONE]"
 def _transport_failure(err: httpx.HTTPError, model: str) -> InferenceError:
     """The port's error for a failed exchange, with a stall named apart from a dead server.
 
-    Both cross as ``InferenceError`` (a caller must never see an httpx type), but the two send
-    an operator to opposite places: nothing answered at all, against a server that took the
-    request and then went quiet past the client's stall ceiling, which is a wedged or contended
-    tier rather than an unreachable one (ADR-0005 stall-ceiling addendum).
+    Both cross as ``InferenceError``, since a caller must never see an httpx type, but the two
+    messages send an operator to different places: nothing answered at all, against a server that
+    took the request and then sent nothing for longer than the client's stall ceiling, which is a
+    wedged or contended tier rather than an unreachable one (ADR-0005 stall-ceiling addendum).
     """
     if isinstance(err, httpx.ReadTimeout):
         return InferenceError(f"llama-server sent nothing for model {model!r} within its ceiling")
@@ -98,12 +98,12 @@ class LlamaCppBackend:
     ) -> None:
         self._manager = model_manager
         self._client = http_client
-        # Whether a request built here may carry ``GenerationBounds.trace_tokens`` as
-        # llama.cpp's ``reasoning_budget_tokens`` (ADR-0005 request-lever addendum). Decided by
-        # the composition root, once, from a declaration or from ``lever.py``'s probe of this
-        # deployment's own engine, and held rather than re-asked because it is a property of a
-        # binary. Off by default, which is the request this adapter has always sent: a bound
-        # naming a count against an engine that ignores the key would be a knob that lies.
+        # Whether a request built here may carry ``GenerationBounds.trace_tokens`` as llama.cpp's
+        # ``reasoning_budget_tokens`` (ADR-0005 request-lever addendum). The composition root
+        # decides it once, from a declaration or from ``lever.py``'s probe of this deployment's
+        # engine, and it is held rather than re-asked because it is a property of a binary. Off by
+        # default, because an engine that does not read the key drops the count without reporting
+        # anything, leaving a knob that changes nothing.
         self._trace_lever = trace_lever
 
     async def stream(
@@ -129,9 +129,9 @@ class LlamaCppBackend:
         The ``DecodeStop`` and the ``DecodeCadence`` are emitted where the server reports them, on
         the final chunk, so both arrive after the text they describe and before the tool calls that
         are only assembled once the stream ends (ADR-0005 finish-reason addendum, ADR-0030
-        spill-watch addendum). A stream that fails partway carries neither, which is the same
-        silence a build reporting no timings or no finish reason gives, and it means "nothing was
-        said" rather than "the tier was healthy" or "the model finished".
+        spill-watch addendum). A stream that fails partway carries neither, exactly as a build that
+        reports no timings or no finish reason does, and a consumer must read the absence as no
+        report rather than as a healthy tier or a finished model.
         """
         payload = build_payload(
             model, messages, tools, schema, bounds, trace_lever=self._trace_lever

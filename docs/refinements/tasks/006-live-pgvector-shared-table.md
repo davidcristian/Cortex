@@ -10,8 +10,8 @@ different mechanism, a dedicated database or a schema plus a `search_path`, with
 line in the same helper. The exposure is real and was measured, not assumed:
 `memory_contract.check_empty_search` asserts `search(k=5) == []` over the whole table and
 `check_ranks_by_similarity` asserts an exact top-2, so with Postgres up and the table empty the
-suite passes, and inserting a single real (non `contract-`) memory row reddens
-`check_empty_search` at `memory_contract.py:36` with no code changed. It waits because the table
+suite passes, and inserting a single real (non `contract-`) memory row makes
+`check_empty_search` fail at `memory_contract.py:36` with no code changed. It waits because the table
 is empty on this machine today, so the suite is currently honest, and because the two checks
 that need the whole table could alternatively be re-derived to assert within a `contract-` scope
 (`search(..., scopes=[...])` already exists), which is a smaller change that trades some of the
@@ -26,8 +26,8 @@ ahead of its trigger rather than by it.** What moved it was two pieces of work q
 rather than a failure: the judge reranker's cost fell twentyfold, so a memory-enabled deployment
 that actually remembers things stopped being hypothetical, and the widened recall corpus that
 decides that default would have put the first real rows in the table. The entry's own measurement
-was reproduced before anything was changed, exactly as written: one real memory row turned
-`check_empty_search` red at `memory_contract.py:36`. **What it became:** the live run opens the
+was reproduced before anything was changed, exactly as written: one real memory row made
+`check_empty_search` fail at `memory_contract.py:36`. **What it became:** the live run opens the
 `cortex_contract` database (`brain/packages/memory/tests/live_postgres.py`, the Postgres twin of
 `live_redis.py`, rewriting the DSN's path where that one rewrites the database index and calling
 `TRUNCATE TABLE memories` where that one calls `FLUSHDB`), emptied before the suite and after
@@ -38,10 +38,11 @@ the contract proves in order to survive a shared table, and the whole point of a
 and the real adapter both pass is that they pass the same checks. The schema-plus-`search_path`
 option was rejected on its failure mode, since the adapter's SQL is unqualified and a
 `search_path` that fails to apply lands the suite, its `TRUNCATE` included, on the brain's own
-table in silence. A machine whose data dir predates the bootstrap file gets a run that refuses to
-start, naming the two statements that create the database, rather than one that quietly connects
-elsewhere. Proven with a real row sitting in the brain's table: the suite passes, that table is
-byte-identical across the run, and all four refusals were fired before being trusted.
+table without reporting an error. A machine whose data dir predates the bootstrap file gets a run
+that fails at startup, naming the two statements that create the database, rather than one that
+connects elsewhere without saying so. Proven with a real row sitting in the brain's table: the
+suite passes, that table is byte-identical across the run, and all four failure paths were fired
+before being trusted.
 
 ## Trail
 

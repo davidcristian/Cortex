@@ -1,11 +1,11 @@
-"""Behaviour of the compose defaults gate: one variable, one value, however it is spelled.
+"""Tests for the compose defaults gate: one variable, one value, however it is spelled.
 
-Two of these matter more than the rest and are written in both directions on purpose. The tree
-carries one deliberate re-spelling, `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}` in an environment
-block against `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g` in two container limits, because docker
-reads `8.0g` as a size and refuses it. A textual comparison would call that pair a fault on the
-day this gate landed, so it is pinned green here; and a real drift in the same variable is pinned
-red beside it, because a gate that passes the pair by passing everything is no gate.
+Two of these matter more than the rest and are written in both directions. The tree carries one
+deliberate re-spelling, `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}` in an environment block against
+`${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g` in two container limits, because docker reads `8.0g` as a
+size and rejects it. A textual comparison would report that pair as a fault, so it is pinned as
+passing here, and a real drift in the same variable is pinned as failing beside it, so the pair is
+not passing because everything passes.
 """
 
 from pathlib import Path
@@ -41,7 +41,7 @@ def test_a_whole_number_spelled_two_ways_is_one_value(tmp_path: Path) -> None:
 
 
 def test_a_real_drift_in_that_same_variable_is_reported(tmp_path: Path) -> None:
-    """The converse, so the pair above is not passing because everything passes."""
+    """The converse of the test above, so that pair is not passing because every pair passes."""
     _compose(tmp_path, _environment("${MEM_BUDGET_GB:-8.0}", "${MEM_BUDGET_GB:-9}g"))
     faults = defaultcheck.check(tmp_path).faults
     assert [fault.subject for fault in faults] == ["MEM_BUDGET_GB"]
@@ -107,7 +107,8 @@ def test_one_file_demanding_what_another_supplies_is_a_drift(tmp_path: Path) -> 
 
 
 def test_two_required_spends_may_word_their_message_differently(tmp_path: Path) -> None:
-    """A `:?` argument is prose for an operator, and two wordings of it have not drifted."""
+    """A `:?` argument is a message for whoever runs compose, so two wordings of it are not a
+    drift."""
     _compose(tmp_path, _environment("${IMAP_USER:?set the username}", "${IMAP_USER:?see runbook}"))
     assert defaultcheck.check(tmp_path).faults == []
 
@@ -184,7 +185,7 @@ def test_the_repo_itself_carries_one_default_per_variable() -> None:
 
 
 def test_the_repo_really_spells_variables_more_than_once() -> None:
-    """A guard on the guard: with no group to compare, the test above is vacuously green."""
+    """This guards the test above, which passes vacuously if no variable is spelled twice."""
     walk = defaultcheck.group(REPO_ROOT)
     assert walk.faults == []
     repeated = {name: spends for name, spends in walk.groups.items() if len(spends) > 1}
@@ -192,10 +193,10 @@ def test_the_repo_really_spells_variables_more_than_once() -> None:
 
 
 def test_the_repo_really_spells_one_value_two_ways() -> None:
-    """And a guard on the re-spelling: the pair this rule was written around is really there.
+    """This guards the re-spelling: the pair the rule was written around is really in the tree.
 
-    Pinned as the whole set rather than a membership, so a SECOND re-spelling landing in the tree
-    fails here and gets argued, instead of riding in on a comparison written for the first.
+    The whole set is pinned rather than a membership, so a second re-spelling landing in the tree
+    fails here and has to be argued, instead of riding in on a comparison written for the first.
     """
     respelled = {
         name
@@ -214,14 +215,14 @@ def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def _counted(root: Path) -> None:
-    """Three files, five variables, two of them compared: three different numbers."""
+    """Write three files holding five variables, two of them compared, so the counts all differ."""
     _compose(root, _environment("${DIR:-./a}", "${DIR:-./a}", "${PORT:-8080}"))
     _compose(root, _environment("${PORT:-8080}", "${HOST:-x}"), name="docker/compose.gpu.yml")
     _compose(root, _environment("${TOKEN}", "${SEED:-1}"), name="docker/docker-compose.email.yml")
 
 
 def test_check_counts_the_files_variables_and_comparisons(tmp_path: Path) -> None:
-    """The verdict is over the compared ones, so the count it leads on is that one."""
+    """The verdict is over the compared variables, so that is the count the summary leads with."""
     _counted(tmp_path)
     scanned = defaultcheck.check(tmp_path)
     assert (scanned.files, scanned.variables, scanned.compared) == (3, 5, 2)
@@ -268,7 +269,8 @@ def test_main_reports_a_scan_that_could_not_run(
 
 
 def test_a_group_all_on_one_line_points_at_the_note_behind_it(tmp_path: Path) -> None:
-    """The measured shape: a stale note after a value is a second spend on the same line."""
+    """This is the shape measured in the tree: a stale note after a value is a second spend on the
+    same line."""
     spend = '      DIR: "${MODELS_DIR:-./models}"  # ${MODELS_DIR:-./cache}\n'
     _compose(tmp_path, f"services:\n  brain:\n    environment:\n{spend}")
     (fault,) = defaultcheck.check(tmp_path).faults
@@ -278,7 +280,8 @@ def test_a_group_all_on_one_line_points_at_the_note_behind_it(tmp_path: Path) ->
 
 
 def test_a_group_spread_over_two_lines_is_offered_no_such_remedy(tmp_path: Path) -> None:
-    """The hint must be a reading of what was read: two lines cannot be one note and a value."""
+    """The hint is offered only for what was read, and two lines cannot be one value and a note
+    about it."""
     _compose(tmp_path, _environment("${MODELS_DIR:-./models}", "${MODELS_DIR:-./cache}"))
     (fault,) = defaultcheck.check(tmp_path).faults
     assert "does not carry one default" in fault.detail
@@ -286,7 +289,8 @@ def test_a_group_spread_over_two_lines_is_offered_no_such_remedy(tmp_path: Path)
 
 
 def test_one_line_with_no_comment_in_sight_gets_the_hint_as_a_maybe(tmp_path: Path) -> None:
-    """No `#` was looked for, so the sentence offers the note as a maybe and not as a finding."""
+    """No `#` is looked for, so the sentence offers the note as a possibility rather than as a
+    finding."""
     _compose(tmp_path, _environment("${V:-a}/in:${V:-b}"))
     (fault,) = defaultcheck.check(tmp_path).faults
     assert "more than one of those spends is on docker-compose.yml:4" in fault.detail

@@ -3,19 +3,19 @@
 Key layout: ``cortex:handoff:{id}`` holds one ``HandoffRecord`` JSON document (codec in
 ``handoff_codec.py``), and ``cortex:handoff:active`` is the single-active-handoff pointer (one
 GPU, at most one swap in flight): a non-terminal write claims it, a terminal write or a delete
-of the record it names releases it, and ``active()`` follows it. Non-terminal records carry
-**no TTL**, so a crash-stranded handoff is still there for boot recovery to find and mark
-``FAILED``; terminal records expire after an hour (kept briefly for diagnosis, ADR-0030
-decision 4). Each multi-key write runs as one transactional pipeline so a crash cannot orphan
-the pointer from its record; the read-then-write verbs are not fenced against a concurrent
-writer, because the conductor is the store's one writer by construction (``active()`` is how
-it checks that), unlike the multi-claimant schedule store. This adapter only translates: every
-backend failure crosses the port as ``HandoffStoreError`` with the cause chained, and a
-corrupt record fails LOUDLY naming its key. The taint fields round-trip whole (bit, sources
-order, URL set): taint that did not survive a re-read would fail open after the swap. So does the
-reason a settled record was failed for, which is the one field written after the snapshot and the
-one thing a reader of a terminal record has (ADR-0030 failed-reason addendum): it rides the state's
-own read-modify-write, so it cannot land without its state or outlive one.
+of the record it names releases it, and ``active()`` follows it. Non-terminal records carry no
+TTL, so a crash-stranded handoff is still there for boot recovery to find and mark ``FAILED``;
+terminal records expire after an hour (kept briefly for diagnosis, ADR-0030 decision 4). Each
+multi-key write runs as one transactional pipeline so a crash cannot orphan the pointer from its
+record; the read-then-write verbs are not fenced against a concurrent writer, because the
+conductor is the store's one writer by construction (``active()`` is how it checks that), unlike
+the multi-claimant schedule store. This adapter only translates: every backend failure crosses the
+port as ``HandoffStoreError`` with the cause chained, and a corrupt record raises naming its key.
+The taint fields round-trip whole (bit, sources order, URL set), because taint that did not
+survive a re-read would fail open after the swap. So does the reason a settled record was failed
+for, which is the one field written after the snapshot and all a reader of a terminal record has
+(ADR-0030 failed-reason addendum): it is written by the state's own read-modify-write, so it
+cannot land without its state or outlive one.
 """
 
 from dataclasses import replace
@@ -57,7 +57,7 @@ class RedisHandoffStore:
             raise HandoffStoreError(msg) from err
 
     async def put(self, record: HandoffRecord) -> None:
-        """Persist one record and keep the active pointer true to its state.
+        """Persist one record and leave the active pointer matching its state.
 
         A non-terminal record is written without TTL and claims the pointer in the same
         transaction. A terminal one is written under the diagnosis TTL and releases the
@@ -98,7 +98,7 @@ class RedisHandoffStore:
 
         A read-modify-write through ``put``, so a terminal transition inherits its TTL and
         pointer release atomically with the state change, and the reason it was settled for
-        rides the same document rather than a key of its own.
+        goes into the same document rather than a key of its own.
         """
         record = await self.get(handoff_id)
         if record is None:
@@ -122,10 +122,10 @@ class RedisHandoffStore:
     async def active(self) -> HandoffRecord | None:
         """Return the one in-flight (non-terminal) record, or None when no handoff is live.
 
-        Read-only self-healing: a pointer left dangling or naming a terminal record (a crash
-        inside the tiny window a non-transactional writer could leave, which no verb here
-        opens) reads as "no active handoff" rather than resurrecting a finished one; nothing
-        is mutated on a read path.
+        Self-healing without writing anything: a pointer left dangling or naming a terminal
+        record (a crash inside the small window a non-transactional writer could leave, which no
+        verb here opens) reads as "no active handoff" rather than resurrecting a finished one.
+        Nothing is mutated on a read path.
         """
         try:
             pointer = await self._client.get(ACTIVE_KEY)

@@ -21,37 +21,37 @@ from cortex_core.inference import GenerationBounds
 from cortex_core.ports import InferenceBackend
 from cortex_core.sessions import TITLE_MAX
 
-# How far a title's request may go (ADR-0038 bounded-side-calls addendum). **Thinking off**
-# because this pass's deliberation is discarded by construction: ``drain_text`` keeps
-# ``TextChunk`` and drops ``ReasoningChunk`` before the caller sees a character of it, and the
-# reasoning-only reply this feature already ships a fallback for (13,882 characters of thinking
-# and no title, ADR-0021 titles addendum) is that discard at its worst. Measured on the shipped
-# cortex over one title prompt three times each way, thinking on decoded 277, 235 and 303 tokens
-# in 9.7 s, 7.9 s and 10.4 s; off, it decoded 4 tokens in 0.2 s to 0.3 s, for the same titles run
-# for run. **The cap** because nothing else bounds the request: ``clean_title`` cuts the stored
-# text after the model has spoken.
+# How far a title's request may go (ADR-0038 bounded-side-calls addendum). Thinking is off because
+# this pass's deliberation is discarded by construction: ``drain_text`` keeps ``TextChunk`` and
+# drops ``ReasoningChunk`` before the caller sees a character of it, and the reasoning-only reply
+# this feature already ships a fallback for (13,882 characters of thinking and no title, ADR-0021
+# titles addendum) is that discard at its worst. Measured on the shipped cortex over one title
+# prompt three times each way: thinking on decoded 277, 235 and 303 tokens in 9.7 s, 7.9 s and
+# 10.4 s; off, it decoded 4 tokens in 0.2 s to 0.3 s, for the same titles run for run. The cap is
+# here because nothing else bounds the request: ``clean_title`` cuts the stored text only after the
+# model has replied.
 #
-# 32 is ``TITLE_MAX`` said in the request's own unit with room to spare: 48 characters is 12
+# 32 is ``TITLE_MAX`` expressed in the request's own unit with room to spare: 48 characters is 12
 # tokens at the ~4 chars/token this repo's character budgets assume, and eight times the four
-# tokens a title actually costs. Sizing it any tighter would buy nothing, since what a fold
-# saves in tokens a title has already saved by being four of them.
+# tokens a title actually costs. A tighter cap would save nothing measurable, a title already
+# costing four tokens.
 #
-# **Hitting the cap cannot change the stored title**, which is what makes the pairing safe here
-# in a way the recap's is not: a reply that reaches 32 tokens has already written past the 48
-# characters ``clean_title`` keeps, so the cut lands beyond the text that is stored. What a cap
-# with thinking left ON does is delete the answer entirely, and here that is not the recap's
-# coin flip but a certainty: the identical prompt capped at 16, 32 and 64 with thinking on came
-# back ``finish_reason: "length"`` with an EMPTY reply three times in three, because a title is
-# four tokens and the deliberation before it is hundreds. An empty reply is the fallback this
-# feature was built with (the engine persists nothing and the first-message derivation stands),
-# so even that failure is the safe one; it is simply not a title.
+# Hitting the cap cannot change the stored title, which is what makes the pairing safe here in a
+# way the recap's is not: a reply that reaches 32 tokens has already written past the 48 characters
+# ``clean_title`` keeps, so the cut lands beyond the text that is stored. A cap with thinking left
+# on deletes the answer entirely, and here that is certain rather than merely likely: the identical
+# prompt capped at 16, 32 and 64 with thinking on came back ``finish_reason: "length"`` with an
+# empty reply three times in three, because a title is four tokens and the deliberation before it
+# is hundreds. An empty reply is the fallback this feature was built with (the engine persists
+# nothing and the first-message derivation stands), so even that failure is the safe one; it is
+# simply not a title.
 #
-# **And the trace budget beside the switch**, which is the half that holds (ADR-0005
+# The trace budget sits beside the switch because it is the half that holds (ADR-0005
 # request-lever addendum). The switch is a request to a template and was measured to do nothing on
 # some picks under some request shapes; a budget of zero is a sampler that ends the thought
 # wherever it starts. It is spelled here rather than derived from ``thinking`` anywhere, because
-# what makes it right here is the discard above and nothing about the switch: the trace this pass
-# would spend is one nobody will read.
+# what makes it right here is the discard above and nothing about the switch: nothing reads the
+# trace this pass would spend.
 TITLE_MAX_TOKENS = 32
 TITLE_BOUNDS = GenerationBounds(max_tokens=TITLE_MAX_TOKENS, thinking=False, trace_tokens=0)
 

@@ -86,7 +86,7 @@ bound, so they are *not* representative of full-power throughput.
    chat model and on **QAT** (quantization-aware training, so its Q4 holds quality better
    than a post-hoc quant). Qwen's F32 projector is heavy but its 9B body is lighter;
    gemma's projector is tiny but its 12B body is heavier, so they converge at ~11 GB (16K).
-2. **Context is a footgun.** llama-server defaults to the model's max context (262144) ×
+2. **The default context size is a hazard.** llama-server defaults to the model's max context (262144) ×
    4 slots, pre-allocating ~8 GB of KV (17.3 GB total for Qwen-9B). The compose now sets
    `--ctx-size` (env `CORTEX_CTX_SIZE`, default 16384) and a single slot (the Model
    Manager serializes turns anyway).
@@ -324,8 +324,8 @@ model's own cost is the third column. llama.cpp build `b10236-1464c62d8`, no pow
    candidates (~15-18 GB) all fit alone in 24 GB") and it is the one prediction the run
    confirms outright. The spread is 14607 to 19128 MiB with the card to itself, and the
    largest candidate still leaves about 3.4 GB. **The hybrid `-ngl` / CPU-KV fallback that
-   decision 3 recorded for this tier is therefore not needed and is not configured.** It stays
-   on the shelf as the lever for a smaller card, which is what it was written for.
+   decision 3 recorded for this tier is therefore not needed and is not configured.** It remains
+   available as the lever for a smaller card, which is what it was written for.
 2. **What decided it is whether the model stops thinking.** Both families are reasoning models,
    and the last column is the number of escalation-grade questions (multi-step arithmetic under a
    deadline, a memory-fit puzzle, a two-sentence precision constraint, and a bug hunt in an async
@@ -342,7 +342,7 @@ model's own cost is the third column. llama.cpp build `b10236-1464c62d8`, no pow
    result. **Both mixture-of-experts candidates consume the entire context and answer nothing.**
    Under the same uncapped condition gemma-4-31B answered in 4448 and 3847 tokens and
    Qwen3.6-27B in 3104 and 3340, both finishing on end-of-generation rather than on the wall.
-   A candidate that cannot terminate is not a slow candidate; it is a turn that produces nothing,
+   A candidate that cannot terminate produces no turn output at all, whatever its token rate,
    which is why the fastest two artifacts here are the two rejected ones.
 4. **Between the two dense candidates the margin is real but narrow.** Both answered everything
    asked of them uncapped, and every completed answer was correct on the checkable questions.
@@ -350,7 +350,7 @@ model's own cost is the third column. llama.cpp build `b10236-1464c62d8`, no pow
    control to mean anything, drew "the hard limit" from the pick on both of its runs and from
    every other candidate that answered it, except Qwen3.6-27B, which said "the soft cap" once and
    "the hard limit" once. This repo's own position is the soft cap, since that is the number
-   decision 3 says the Model Manager will enforce, so the tier does not reach the house answer
+   decision 3 says the Model Manager will enforce, so the tier does not reach this repo's answer
    unprompted. Worth knowing before a brain phase is asked to reason about the budget it is
    running inside.
    gemma-4-31B wins on being **QAT**, which is the same reason decision 1 gave for the cortex,
@@ -498,7 +498,7 @@ by changing `CORTEX_EMBED_MODEL_FILE`, which is exactly how this repo ships the 
 dimension mismatch, which is the good case, and the bad case is a redeployment that rebuilds the
 column at the new width and leaves an index built for the old one, which pgvector will not do
 silently but which a hand-run migration can. **An index that must be rebuilt whenever the embedder
-changes is not a schema property, it is a deployment step**, and this repo has no migration runner
+changes is a deployment step rather than a schema property**, and this repo has no migration runner
 to own it.
 
 That would still be worth paying if the index were free of recall cost, and it is not. What the
@@ -533,7 +533,7 @@ work was never named.
 deep model alone reads 20671 to 20723 MiB and takes a 2878 MiB peer beside it at 23555 to 23642
 MiB with about 908 MiB free, its decode unharmed at 28.92 to 29.82 tok/s against 25.07 to 33.28
 alone. A companion artifact of that size is affordable there. It is unaffordable exactly where the
-lineup already says so, the cortex beside the deep model, which wants 29139 MiB against 24463 and
+lineup already says so, the cortex beside the deep model, which needs 29139 MiB against 24463 and
 pays for the overcommit in decode rather than in an error.
 
 **The latency clause has arguably already fired.** The pick reaches an answer on hard questions in
@@ -543,7 +543,7 @@ tier, which is the condition the sentence set, so "revisit only if latency deman
 names anything that has not happened.
 
 **What blocks it is that nothing in this tree can name such an artifact or hand it to a server.**
-The repo holds no draft or speculative flag of any spelling and no MTP filename.
+The repo holds no draft or speculative decoding flag under any name and no MTP filename.
 `llama_server_argv` builds a fixed flag tuple plus a per-tier `extra` whose only producers are the
 thinking-off pair and the vision tail, there is no env hook for a free-form argument, and the
 roster is fixed at boot on purpose, since a request-supplied argv would be remote code execution
@@ -555,9 +555,9 @@ build of llama.cpp loads at all.
 
 ## Addendum (2026-08-28): every chat entry answers the thinking switch, and the answer is its template's
 
-This lineup had been asked about VRAM, load time, decode rate, injection robustness and answer
-quality, and never as a lineup about the one field a caller sends when it wants a short answer
-rather than a long one. `GenerationBounds(thinking=False)` renders as
+Earlier addenda measured this lineup on VRAM, load time, decode rate, injection robustness and
+answer quality. None of them measured it on the thinking switch, the field a caller sends to ask
+for a short answer rather than a long one. `GenerationBounds(thinking=False)` renders as
 `chat_template_kwargs: {"enable_thinking": false}`, and whether a pick then skips its deliberation
 had been measured on two entries, both gemma-4
 ([ADR-0005](ADR-0005-llamacpp-engine.md)'s switch-is-advisory addendum). Every remaining chat entry
@@ -577,8 +577,8 @@ lineup section. Three readings belong here, where picks are chosen.
    therefore proved nothing either way, and re-asked on a prompt that does invite one, it is true.
 3. **The deciding property is the entry's own chat template, and it is readable before a pick is
    made.** Ask a candidate's server for its rendered prompt with the kwarg and without it: an entry
-   whose template answers "do not think" by rendering a thought already opened and closed holds
-   under a schema, and one that answers by dropping the block and adding nothing does not. That held
+   whose template renders a thought block already opened and closed holds under a schema, and one
+   whose template drops the block and adds nothing in its place does not. That held
    on every entry measured. It is the cheapest selection input in this ADR, one HTTP call against a
    loaded server, and it is the one to take on a candidate that will serve a side call carrying a
    schema.
@@ -595,7 +595,7 @@ lineup section. Three readings belong here, where picks are chosen.
    overrides `CORTEX_MODEL_FILE_SUBAGENT` to the E2B is the one this reading is for, and the
    subagent runbook says so where the override is documented.
 
-5. **The subagent row is now measured whole, and it does not agree with itself**
+5. **The subagent row is now measured whole, and its five entries spread widely**
    ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)'s row addendum, 2026-08-28). All five
    entries have been through the constrained reply path at 288 runs each, 1440 in all. The residue
    column above survives the other two: Qwen3.5-0.8B and Qwen3.5-4B write into the reasoning channel
@@ -612,23 +612,23 @@ lineup section. Three readings belong here, where picks are chosen.
    names the two entries to override to last.
 
 **What this does not change.** No pick moves. The subagent tier's two reasoning-off flags stay
-exactly as they are: `--reasoning-budget 0` is what covers the gemma-4-E entries on the shape their
-template cannot, it costs nothing on an entry whose template already holds, and a tier carrying both
-does not have to know which entry it was handed.
+exactly as they are: `--reasoning-budget 0` covers the gemma-4-E entries on the shape their template
+does not, it costs nothing on an entry whose template already holds, and a tier carrying both flags
+suppresses reasoning for either entry without depending on which one it was given.
 
 ## Addendum (2026-08-30): the embedder's override variable is renamed into the artifact family
 
 The embedder pick above and decision 4 are unchanged. What changed is the name of the variable
 that overrides it: `CORTEX_EMBED_MODEL_FILE` is now **`CORTEX_MODEL_FILE_EMBED`**, so the CPU
-embedder's GGUF is spelled the way every other model artifact this tree names is, and the gate
-that holds that convention (`scripts/flagcheck.py`) holds this one too instead of excusing it for
-serving no chat. The reasoning, the alternative that was refused, and the size of the rename's own
-risk are in
+embedder's GGUF is named the way every other model artifact in this tree is, and the gate that
+holds that convention (`scripts/flagcheck.py`) covers this variable too rather than exempting it
+for serving no chat. The reasoning, the alternative that was refused, and the size of the rename's
+own risk are in
 [ADR-0029](ADR-0029-vision-screen-capture.md)'s addendum on a non-chat artifact naming itself in
 the family; the operator-facing half is in
 [docs/runbooks/memory-pgvector.md](../runbooks/memory-pgvector.md).
 
-The old spelling is read by nothing now, so a host whose `.env` still sets it runs the shipped
+The old name is read by nothing now, so a host whose `.env` still sets it runs the shipped
 nomic pick rather than the override, which matters only to a deployment that had named the
 `nomic-embed-text-v2-moe` alternative this ADR ships. The sentences above and every measurement
 below them keep their own wording, this addendum being their correction, which is how a superseded

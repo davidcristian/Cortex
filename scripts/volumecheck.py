@@ -1,67 +1,58 @@
 """Repo gate: fail when an image a compose file names declares a volume the service leaves open.
 
 A `VOLUME` in an image is a promise docker keeps whether or not a compose file mounts anything
-there. Start a container with nothing at that path and docker makes an **anonymous** volume for
-it, filled from the image, and the `docker compose down` that did not say `--volumes` leaves it on
-the host under a generated name nobody chose and nothing later reads, one per start. It is the
-same class of defect `bindcheck.py` guards, arriving from the other side of the mount: that one
-watches a bind source materialize a directory inside the tree, this one watches an image's own
-declaration materialize a volume beside it.
+there. Start a container with nothing at that path and docker makes an **anonymous** volume for it,
+filled from the image, and the `docker compose down` that did not say `--volumes` leaves it on the
+host under a generated name nobody chose and nothing later reads, one per start. `bindcheck.py`
+guards the same class of defect from the other side of the mount, where a bind source materializes
+a directory inside the tree.
 
-**The rule.** Every path an image declares must be covered, by the service that runs it, in the
-same file, with a mount or a tmpfs at exactly that path. Exactly that path, because docker's
-declaration is at a path and a mount over the parent leaves it standing. Which kind of cover is
-none of the gate's business: a named volume is a deliberate durable store, a bind is the host's
-own disk, and a tmpfs is how a container that writes nothing worth keeping gives the declaration
-nothing to anonymise, which is what `docker-compose.imap-probe.yml` does for both of dovecot's.
+The rule: every path an image declares must be covered, by the service that runs it, in the same
+file, with a mount or a tmpfs at exactly that path. Exactly that path, because docker's declaration
+is at a path and a mount over the parent leaves it standing. Which kind of cover is not asked: a
+named volume is a deliberate durable store, a bind is the host's own disk, and a tmpfs gives the
+declaration nothing to anonymise, which is what `docker-compose.imap-probe.yml` does for both of
+dovecot's. The rule runs per file rather than per layered stack, because `just up` runs the base
+file alone, so a service whose declared volume were covered only by an override really would leak
+(`composeservices.py` says at greater length why the reader does not merge). A service naming
+neither an image nor a build is a fragment of one defined elsewhere, and it is asked nothing.
 
-**Per file, not per layered stack.** `just up` runs the base file alone, so a service whose
-declared volume were covered only by an override really would leak, and the reader deliberately
-does not merge (`composeservices.py` says so at greater length). A service naming neither an image
-nor a build is a fragment of one defined elsewhere; it asks nothing here.
+Three rows are images built from Dockerfiles in this tree, and for those the record can go stale
+from inside the tree rather than from a registry. Three further rules cover them, each running one
+way only: every path such a Dockerfile declares must appear in the row for the image built from it
+(`dockerfilevolumes.py`, running on the mapping the walk already reads from each service's
+`build:`); so must every path carried by the row for the image that file stands `FROM`, which
+`dockerfilebases.py` resolves through the file's stages; and so must every path that base's
+recorded `ONBUILD` would declare in a build from it. Together they are a floor under what a built
+image declares rather than the whole of it, because what the record has to survive is a base
+gaining a mechanism nobody here enumerated, and that enumeration was already falsified once. A
+recorded path no side declares is therefore the one place a further source can appear. The ADR-0011
+addenda on why the three built rows stay recorded and on what a base declares for its children
+argue the arrangement.
 
-**The second rule, for the images this repo builds.** Three rows are images built from Dockerfiles
-in this tree, and for those the record can move under the gate from inside the tree rather than
-from a registry. So every path such a Dockerfile declares must appear in the row for the image
-built from it, which is `dockerfilevolumes.py`'s question and runs on the mapping the walk already
-reads from each service's `build:`. Its other halves are what the built image takes from its base:
-the record carries a row for the image each of those files stands `FROM`, `dockerfilebases.py`
-resolves that base through the file's stages, and every path the base's row carries must appear in
-the built row too, as must every path the base's recorded `ONBUILD` would declare in a build from
-it. All are one-directional, and that is a requirement rather than a concession. Together they are
-a **floor** under what a built image declares, never the whole of it: what the record has to
-survive is a base gaining a mechanism nobody here enumerated, and the enumeration was already
-falsified once (the ADR-0011 addenda on why the three built rows stay recorded and on what a base
-declares for its children). So a recorded path no side declares is not merely nobody's fault: it
-is the only place a further source can appear. What the floor buys is what the built rows cannot
-buy themselves, a row asked without a pull still being held to a base that is pulled on every
-re-derivation.
+The answers come from docker, recorded in `imagevolumes.py`, because `just check` runs on a clean
+dev box and in CI where there is neither daemon nor image. `--rederive` is the other half, hand-run
+behind `just image-volumes` and living in `imagedrift.py`: it pulls every image the compose files
+name, asks a real docker what each declares, and reports each row that has drifted. The pull
+matters because most of these references are moving tags and an inspect answers out of the local
+cache, so reading the cache would confirm a month-old image under a name the registry has since
+republished. The images this repo builds are asked without a pull, having no registry to refresh
+from. That half answers whether the record still matches docker; this half reports the leaks.
 
-**Where the answer comes from.** Docker's, recorded in `imagevolumes.py`, because `just check` runs
-on a clean dev box and in CI where there is neither daemon nor image. `--rederive` is the other
-half, hand-run behind `just image-volumes` and living in `imagedrift.py`: it pulls every image the
-compose files name, asks a real docker what each declares, and reports each row that has drifted.
-The pull is not a convenience: most of these references are moving tags, an inspect answers out of
-the local cache, and reading the cache would confirm a month-old image under a name the registry
-has republished. The images this repo builds are asked without one, having no registry to refresh
-from. It answers that one question and not this one, so a leak the gate finds the gate reports.
+Four more things fail rather than passing quietly, because a recorded fact only helps while the
+record and the tree still describe each other: an image no row knows, a base no row knows, a row
+nothing here names (neither a compose service nor a Dockerfile the walk followed), and an image
+written through a substitution, which cannot be keyed on at all since the record is keyed on what a
+container really runs. Under those sits the walk's own floor, no compose file at all raising in
+`composefiles.py`, shared with `bindcheck.py` and `defaultcheck.py` so the three cannot disagree
+about which files exist, and a compose file the reader cannot parse being a fault rather than a
+skip. A tree where nothing defines a service needs no floor of its own: every recorded row is then
+unnamed, and the gate reports a row at a time.
 
-**Fail closed** in three more directions than the rule itself, because a recorded fact only helps
-while the record and the tree still describe each other. An image no row knows is an unasked
-question, not a pass, and so is a base no row knows. A row nothing here names, neither a compose
-service nor a Dockerfile the walk followed, is a claim nothing can check. An image spelled
-through a substitution cannot be keyed on at all, since the record is keyed on what a container
-really runs. Add to those the walk's own floor, no compose file at all being `composefiles.py`'s
-refusal, shared with `bindcheck.py` and `defaultcheck.py` so the three cannot drift apart about
-which files exist, and a compose file the reader will not guess at being a fault rather than a
-skip. A tree where nothing defines a service needs no floor of its own: every recorded row is
-then unnamed, and the gate reddens a row at a time.
-
-**The success line states what the walk read**: the declared paths it checked, the files, the
-service definitions, the distinct images those definitions named, and the distinct Dockerfiles it
-followed those builds to. Five numbers, none derivable from another, since one image is named by
-several services, one Dockerfile builds two of the rows, and most images declare no path at all.
-They are a reading and nothing asserts them.
+The success line states what the walk read: the declared paths it checked, the files, the service
+definitions, the distinct images those definitions named, and the distinct Dockerfiles it followed
+those builds to. Five numbers, none derivable from another, since one image is named by several
+services, one Dockerfile builds two of the rows, and most images declare no path at all.
 """
 
 import argparse

@@ -103,7 +103,7 @@ describe("lobePath", () => {
       expect(middle.x).toBeCloseTo(50, 1);
       expect(middle.y).toBeCloseTo(50, 1);
     }
-    // …and the outline really did move between those instants.
+    // The outline really did move between those instants.
     expect(lobePath(shape, 0)).not.toBe(lobePath(shape, 1.3));
   });
 

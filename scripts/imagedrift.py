@@ -3,26 +3,26 @@
 `imagevolumes.py` is the answer docker gave, written into the tree so `just check` can ask it with
 no daemon. This module is the other half: the one call that asks a real docker, the shape its
 answer has to have, and the comparison `just image-volumes` runs behind `volumecheck.py
---rederive`. The record is what the gate spends; this is what keeps the record honest, and the two
-are separate files because they are two jobs, one of which never runs where the other one does.
+--rederive`. The gate reads the record; this re-derives it, and the two are separate files because
+they are two jobs, one of which never runs where the other one does.
 
-**How a row was measured.** Once per image this repo names, on the date beside its row, with the
-same format string `docker_volumes` below spends, which is `INSPECT_FORMAT`:
+How a row was measured: once per image this repo names, on the date beside its row, with the same
+format string `docker_volumes` below spends, which is `INSPECT_FORMAT`:
 
     docker image inspect --format "$INSPECT_FORMAT" <image>
 
-**A re-derivation pulls first, and that is the whole reason it can see anything.** `docker image
+A re-derivation pulls first, which is what lets it see anything at all. `docker image
 inspect` answers out of the local cache and never reaches a registry, so on a machine holding a
 month-old copy of a moving tag it confirms a month-old image under a name the registry has since
 republished. Half these references are moving tags by design, `ghcr.io/ggml-org/llama.cpp:server`
 most of all, and the failure this record has to survive is exactly a publisher adding a `VOLUME`
 to a tag nobody re-pinned. An inspect of the cache cannot see that, so `rederive` refreshes every
 registry reference before asking about it, and a pull that fails is reported rather than answered
-from whatever was lying around. The three images this repo builds are the exception, having no
-registry to be refreshed from: their answer is the local build, which is the thing a container
-here really runs.
+out of whatever the cache already held. The three images this repo builds are the exception,
+having no registry to be refreshed from: their answer is the local build, which is what a
+container here really runs.
 
-**Reading the answer back is not the adapter's job.** `docker_volumes` runs the process and hands
+Reading the answer back is not the adapter's job. `docker_volumes` runs the process and hands
 its output to `parse`, which decides what a well-formed answer is, so the shape every row is
 compared against lives in code a coverage gate reaches. An answer `parse` refuses is reported as a
 row that could not be checked, never resolved to an empty one: an image whose reading failed and
@@ -106,8 +106,7 @@ def docker_volumes(  # pragma: no cover -- needs a real docker
     The thin adapter, and the only part of this module a coverage gate cannot reach. Everything
     that decides anything is in `parse` and `rederive`, which take any output and any inspector and
     are tested against fakes. The pull is what makes the answer a fact about the registry rather
-    than about this machine's cache; the docstring above says why that is the difference between a
-    re-derivation and a confirmation of whatever was already here.
+    than about this machine's cache, which the module docstring argues.
     """
     try:
         if pull:
@@ -167,9 +166,9 @@ def rederive(
     Both directions are asked, over the union of what the compose files name and what the record
     holds, because a row that has gone stale and an image nobody recorded are the same drift
     arriving from opposite sides. An image docker cannot answer about is reported rather than
-    skipped: a rederivation that quietly left a row unverified would confirm the record it was run
-    to doubt, and asking a stale cache is the same confirmation wearing a green face, which is why
-    every reference outside ``built`` is refreshed before it is asked about.
+    skipped: a re-derivation that left a row unverified would confirm the record it was run to
+    doubt. Asking a stale cache confirms it just as wrongly, which is why every reference outside
+    ``built`` is refreshed before it is asked about.
     """
     report: list[str] = []
     local = set(built)
@@ -198,9 +197,9 @@ def report_drift(
 ) -> int:
     """Ask a real docker about the record, print every row that has drifted, and exit on it.
 
-    The re-derivation's outer half, and it lives here rather than beside the rule it keeps honest:
-    every name it touches is this module's or the record's, and the gate above it answers a
-    different question entirely.
+    The re-derivation's outer half, and it lives here rather than beside the rule it re-derives
+    for: every name it touches is this module's or the record's, and the gate above it answers a
+    different question.
     """
     references, local = list(names), list(built)
     report = rederive(references, records, inspect, local)

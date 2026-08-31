@@ -4,10 +4,10 @@ Both are the thinnest wrappers that can hold a real call, so the gated tests her
 a stand-in ``Process`` and an ``httpx.MockTransport``; the real spawn and the real socket are
 exercised by the ``integration``-marked live suite (AGENTS.md gate 3).
 
-Distrust-green proof, measured across ``packages/model_manager``: returning a literal from
-``AsyncioChild.pid`` instead of the wrapped process's own reddens exactly 1 case either way, and
-which one depends on the literal, so no literal passes both: ``4242`` reddens
-``test_the_spawner_execs_the_argv_it_is_given`` and ``4243`` reddens
+These checks were proved able to fail, over the ``packages/model_manager`` suite: returning a
+literal from ``AsyncioChild.pid`` instead of the wrapped process's own fails exactly 1 case either
+way, and which one depends on the literal, so no literal passes both. ``4242`` fails
+``test_the_spawner_execs_the_argv_it_is_given`` and ``4243`` fails
 ``test_the_wrapper_passes_the_process_through_verbatim``.
 """
 
@@ -73,14 +73,15 @@ async def test_the_wrapper_passes_the_process_through_verbatim() -> None:
 
 @pytest.mark.parametrize("signal_name", ["terminate", "kill"])
 async def test_signalling_a_child_that_already_exited_is_not_a_failure(signal_name: str) -> None:
-    """Ending a process that ended itself is the outcome the caller wanted, not an error."""
+    """Signalling a process that already exited raises nothing: the caller wanted it ended."""
     process = _StandInProcess(pid=4242, lookup_error=True)
     getattr(_wrapped(process), signal_name)()
     assert process.calls == [signal_name]
 
 
 async def test_the_spawner_execs_the_argv_it_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The one real OS write, asserted as the argv that reached ``create_subprocess_exec``."""
+    """The spawner's one OS write is asserted as the argv that reached
+    ``create_subprocess_exec``."""
     seen: list[tuple[str, ...]] = []
     spawned: list[_StandInProcess] = []
 
@@ -120,7 +121,8 @@ async def test_a_two_hundred_is_serving_and_a_five_oh_three_is_not() -> None:
 
 
 async def test_a_socket_that_refuses_is_not_serving_rather_than_an_error() -> None:
-    """The first fraction of a second of every start, and the whole of a dead one."""
+    """A refused socket reads as not serving, which is every start's first moments and all of a
+    dead one."""
 
     def refused(request: httpx.Request) -> httpx.Response:
         msg = "connection refused"

@@ -4,11 +4,11 @@ Its own module rather than two lines inside ``__main__``: the entry guard is the
 package coverage cannot reach, so anything with a decision in it belongs beside it rather than in
 it. What is left in ``__main__`` is a single call.
 
-The level is deliberately **not** a knob. INFO is required rather than cosmetic here: the tool
+The level is not a knob. INFO is required rather than cosmetic here, because the tool
 audit trail (``cortex.tools.audit``, ADR-0009/ADR-0013) and the recall trail both log at INFO, so
-a deployment that turned the level down would silently empty a durable record it is obliged to
-keep. The rendering is a knob, because who reads these lines is a property of the deployment and
-not of this repo.
+a deployment that turned the level down would empty a durable record it is obliged to keep, with
+nothing reporting it. The rendering is a knob, because who reads these lines is a property of the
+deployment rather than of this repo.
 """
 
 import logging
@@ -28,7 +28,7 @@ class LoggingConfig(BaseSettings):
     # env CORTEX_LOG_FORMAT picks the rendering. The shipped `plain` appends each record's own
     # fields to the line an operator already reads; `packed` writes the whole record as one JSON
     # object for a deployment that collects rather than reads. A name this build does not carry
-    # fails here, loudly, rather than falling back to a rendering nobody asked for.
+    # raises here rather than falling back to a rendering nobody asked for.
     format: str = DEFAULT_LOG_FORMAT
 
 

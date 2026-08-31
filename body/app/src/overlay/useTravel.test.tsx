@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useTravel } from "./useTravel";
 
-/** Where each row sits, by the label it carries. jsdom has no layout, so the test IS the layout. */
+/** Where each row sits, by the label it carries. jsdom has no layout, so the test is the layout. */
 const places = new Map<string, number>();
 
 /** The travels played, in order: which row, the offset it started from, and on what terms. */
@@ -102,7 +102,7 @@ describe("useTravel", () => {
       ["a", "translateY(-50px)", "translateY(0px)"],
       ["b", "translateY(-50px)", "translateY(0px)"],
     ]);
-    // The vocabulary is the roll's: same 300ms, same curve, so a row leaving and the rows moving
+    // The timing is the roll's: same 300ms, same curve, so a row leaving and the rows moving
     // around it read as one movement rather than two.
     expect(travels[0]?.options).toEqual({
       duration: 300,
@@ -130,7 +130,8 @@ describe("useTravel", () => {
     const { travels } = stubBrowser();
     at({ a: 0, b: 50 });
     const view = render(<List rows={["a"]} />);
-    // b arrives where it arrives: a row that was not on screen has nowhere to travel from.
+    // b is placed where the commit puts it: a row that was not on screen has nowhere to travel
+    // from.
     view.rerender(<List rows={["a", "b"]} />);
     expect(travels).toEqual([]);
   });
@@ -176,7 +177,7 @@ describe("useTravel", () => {
     at({ a: 0, b: 0 });
     tick();
     // The roll ends and the row it held is dropped, which is the next commit. Measured against
-    // where the record last saw b, nothing moved; measured against where the last COMMIT left it,
+    // where the record last saw b, nothing moved; measured against where the last commit left it,
     // b would be answered with a 50px travel back down a distance it had already covered.
     view.rerender(<List rows={["a", "b"]} />);
     expect(travels).toEqual([]);

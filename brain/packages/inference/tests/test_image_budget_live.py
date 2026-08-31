@@ -1,4 +1,4 @@
-"""What one picture costs the cortex, what the knob that changes it does, and what it can read.
+"""Measure what a picture costs the cortex, what the budget knob changes, and what a crop reads.
 
 Four live claims, none of which CI can make, all of them about the resident cortex plus its
 projector on a real card (ADR-0029's legibility measurement):
@@ -12,7 +12,7 @@ projector on a real card (ADR-0029's legibility measurement):
    flag.
 3. Raising llama.cpp's ``--image-max-tokens`` **without** the matching ``--ubatch-size`` aborts
    the server on the first oversized picture. That is why the knob emits the pair, and this arm
-   is the proof the coupling is load-bearing rather than defensive.
+   is the proof the coupling is required rather than precautionary.
 4. A capture pointed at **one window** reads text a whole shrunk desktop loses, or it does not.
    The budget above buys pixels per picture; a crop buys pixels per thing the user asked about,
    and the two are the numerator and the denominator of the same ratio. That arm renders its
@@ -78,7 +78,7 @@ _ADDRESS_FORMAT = "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}"
 
 
 def _base_url() -> str:
-    """The probe's base URL, resolved when it is needed rather than at import."""
+    """Return the probe's base URL, resolved when it is needed rather than at import."""
     if _PROBE_HOST != _CONTAINER_ADDRESS:
         return f"http://{_PROBE_HOST}:{_PORT}"
     address = subprocess.run(  # noqa: S603
@@ -114,7 +114,7 @@ def _screen() -> bytes:
 
 
 def _argv_tail(budget: int, monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """The cortex tier's own argv, minus the binary, exactly as the sidecar would spawn it."""
+    """Return the cortex tier's argv, minus the binary, as the sidecar would spawn it."""
     monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/models")
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX", _CORTEX)
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", _MMPROJ)
@@ -124,7 +124,7 @@ def _argv_tail(budget: int, monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def _run_argv(args: list[str]) -> list[str]:
-    """The whole ``docker run`` command line for one probe server."""
+    """Build the whole ``docker run`` command line for one probe server."""
     return [
         "docker", "run", "-d", "--name", _CONTAINER, "--gpus", "all",
         "-p", f"127.0.0.1:{_PORT}:{_PORT}", "-v", f"{_MODELS_DIR}:/models:ro",
@@ -159,11 +159,12 @@ def _await_health() -> None:
 
 
 def _alive(*, settle_s: float = 15.0) -> bool:
-    """Whether the server is still up, given a moment to fall over.
+    """Report whether the server is still up, given a moment to fall over.
 
-    Polled rather than asked once: an abort unwinds through ``ggml_abort``'s backtrace before
-    the process leaves, so a single ``docker inspect`` straight after the failed request answers
-    "running" for a container that is already dying. That read cost this arm a false pass.
+    The state is polled rather than read once: an abort unwinds through ``ggml_abort``'s
+    backtrace before the process leaves, so a single ``docker inspect`` straight after the failed
+    request answers "running" for a container that is already dying. That read cost this arm a
+    false pass.
     """
     deadline = time.monotonic() + settle_s
     while True:
@@ -181,7 +182,7 @@ def _alive(*, settle_s: float = 15.0) -> bool:
 
 
 def _cost(png: bytes) -> int:
-    """The prompt tokens one picture adds, measured against the same ask with no picture."""
+    """Return the prompt tokens one picture adds, against the same ask with no picture."""
     ask = "Reply with the single word OK."
     bare = _prompt_tokens([{"role": "user", "content": ask}])
     parts: list[dict[str, object]] = [
@@ -240,11 +241,11 @@ async def test_a_window_crop_reads_what_a_shrunk_desktop_cannot(
 ) -> None:
     """Whether pointing a capture at one window reaches the text a whole 4K screen loses.
 
-    The residue the window target was built for: 15 px type on an unscaled monitor stayed at
-    4 of 16 at every image budget measured, because the binding quantity is source pixels per
-    image token and the budget only moves the divisor. A window inside the capture edge takes
-    the identity arm of the body's ``downscale`` and crosses at full resolution, which is the
-    only thing left that moves the numerator.
+    This is the residue the window target was built for. 15 px type on an unscaled monitor
+    stayed at 4 of 16 at every image budget measured, because the binding quantity is source
+    pixels per image token and the budget only moves the divisor. A window inside the capture
+    edge takes the identity arm of the body's ``downscale`` and crosses at full resolution, which
+    is the only thing left that moves the numerator.
 
     Both arms run here, against one corpus, in one session, on one server: the recorded
     whole-display numbers were measured on a corpus that no longer exists, so the control is
@@ -299,11 +300,12 @@ def _transcribe(
 def test_a_raised_budget_without_the_micro_batch_aborts_the_server(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Why the knob emits two flags: split them and the process dies, rather than erroring.
+    """Splitting the flag pair kills the server on the first oversized picture.
 
-    A picture is decoded as one non-causal chunk and llama.cpp asserts the micro-batch is at
-    least that large. The failure is a ``GGML_ASSERT`` abort inside ``llama_decode``, so the
-    reply never arrives, the server exits, and vision is gone for the rest of the session. If
+    This is why the knob emits both flags rather than one. A picture is decoded as one
+    non-causal chunk and llama.cpp asserts the micro-batch is at least that large. The failure is
+    a ``GGML_ASSERT`` abort inside ``llama_decode``, so the reply never arrives, the server exits,
+    and vision is gone for the rest of the session. If
     this arm ever passes cleanly, llama.cpp has started clamping and the coupling in
     ``ModelHostConfig`` can be revisited.
     """

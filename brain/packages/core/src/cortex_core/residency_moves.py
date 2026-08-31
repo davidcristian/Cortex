@@ -1,23 +1,24 @@
 """The host-facing half of a residency swap: what the host is asked, in which order (ADR-0030 d4).
 
 Split out of ``residency.py`` for the line cap, along the seam that module's docstring already
-draws: ``SwappingModelManager`` owns *when* the GPU may change hands and who may lease what,
-while this owns *what the host is asked* once it may. Both halves are pure policy over the
-injected ``ModelHost``; neither knows how a model process is actually started, and the readiness
-gate arrives as a callable so the manager keeps owning its own bounds.
+draws: ``SwappingModelManager`` owns when the resident model may change and who may lease what,
+while this owns what the host is asked once it may. Both halves are pure policy over the injected
+``ModelHost``; neither has any part in how a model process is started, and the readiness gate
+arrives as a callable so the manager keeps owning its own bounds.
 
-Two moves, with deliberately opposite failure directions, and above them the one question a
-caller asks before committing to either. Swapping in is all or nothing: any host failure, or a
-model that will not gate, becomes a ``SwapFailedError`` and the caller's ``finally`` restores.
-Restoring answers the model it failed on instead, because its caller retries it and only gives up
-loudly after that, and because the swap back is the recovery path: it must not raise its way out
-of the very thing it is recovering. The question (``is_unhosted``) answers a bool for a reason of
-its own: a swap that cannot possibly work should be refused before it starts rather than discovered
-halfway through itself, with the cortex already unloaded and minutes owed to putting it back.
+There are two moves, with deliberately opposite failure directions, and above them the one
+question a caller asks before committing to either. Swapping in is all or nothing: any host
+failure, or a model that will not gate, becomes a ``SwapFailedError`` and the caller's ``finally``
+restores. Restoring returns the model it failed on instead, because its caller retries it and only
+reports a failure after that, and because the swap back is the recovery path: it must not raise
+its way out of the very thing it is recovering. The question (``is_unhosted``) answers a bool for
+a reason of its own: a swap that cannot possibly work should be stopped before it starts rather
+than discovered halfway through, with the cortex already unloaded and minutes owed to putting it
+back.
 
 The last step of the second move, ``restart_evicted``, is public because boot recovery ends the
 same way (``swap_recovery.py``): putting the standing residency's peers back is one move written
-once, so the two paths cannot drift into disagreeing about what a refused start means.
+once, so the two paths cannot drift into disagreeing about what a failed start means.
 """
 
 import logging
@@ -38,15 +39,15 @@ _logger = logging.getLogger(__name__)
 async def is_unhosted(host: ModelHost, model: str) -> bool:
     """Whether this host says it carries no such logical model at all.
 
-    The question a handoff asks before it spends anything, and it is asked rather than remembered
-    because of who owns the answer: a roster is env one supervisor process read at its own boot,
-    so the verdict is about the daemon answering right now and about no other. Re-deriving it
+    The question a handoff asks before it spends anything, and it is asked rather than cached
+    because of where the answer comes from: a roster is env one supervisor process read at its own
+    boot, so the answer is about the daemon answering right now and about no other. Re-deriving it
     costs one ``status`` on a tier that is stopped, which is less than the machinery any cache of
     it would need to stay safe across the restart that changes it.
 
-    ``True`` only for the host's own narrow refusal. Every other failure means the question went
-    unanswered, and an unanswered question must not read as a refusal: over-refusing here would
-    turn one unreachable moment into "this deployment cannot escalate", while a swap that goes
+    ``True`` only for the host's own narrow rejection. Every other failure means the question went
+    unanswered, and an unanswered question must not read as a rejection: rejecting too readily here
+    would turn one unreachable moment into "this deployment cannot escalate", while a swap that goes
     ahead against a host that is really down fails at its very next move and reports the failure
     that really happened.
     """
@@ -66,10 +67,10 @@ async def is_unhosted(host: ModelHost, model: str) -> bool:
 async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate) -> None:
     """Evict everything, start ``model``, and hold until it is actually serving.
 
-    The order is load bearing and it is the ADR's: the cortex goes first, then every other
-    hosted tier (while the deep model is resident it is alone on the GPU), then the new
-    resident starts and is gated. ``start`` only *begins* loading, so readiness is observed
-    through ``status`` and never inferred from a returned start.
+    The order matters and it is the ADR's: the cortex goes first, then every other hosted tier
+    (while the deep model is resident it is alone on the GPU), then the new resident starts and is
+    gated. ``start`` only begins loading, so readiness is observed through ``status`` and never
+    inferred from a returned start.
 
     A ``coresident`` plan skips the second step and only the second step: the cortex still goes,
     because no measured pairing of it and a deep candidate fits 24 GB, while the standing peers
@@ -81,7 +82,7 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
 
     A model the host does not carry fails the same way and says something different, because the
     two failures ask for different repairs: a host that broke is retried by the next handoff, while
-    a tier no roster has will refuse every handoff this deployment ever attempts, and the note the
+    a tier no roster has will fail every handoff this deployment ever attempts, and the note the
     user is owed should not describe that as the machine having failed.
     """
     try:
@@ -115,20 +116,20 @@ async def _refuse_a_load_the_card_cannot_hold(
     is required to do: with no figure there is nothing to compare against and this returns at
     once, so a stack that never declared one behaves exactly as it did.
 
-    **What this can detect, stated narrowly on purpose.** It compares one number the deployment
-    measured against one number the card reports, at the instant before the allocation. That is
-    the only instant at which free memory is evidence: measured 2026-08-07 on a 24 GB card, a
-    genuine fit and a 4676 MiB overcommit both read about 23.6 GB used and about 0.5 GB free
-    **afterwards**, because the driver pages the excess to system memory and reports success, so a
-    check that looked at the card once both tiers were up would license exactly the configuration
-    it exists to refuse. It therefore detects a card that has too little room left, and nothing
+    What this can detect is deliberately narrow. It compares one number the deployment measured
+    against one number the card reports, at the instant before the allocation. That is the only
+    instant at which free memory is evidence: measured 2026-08-07 on a 24 GB card, a genuine fit
+    and a 4676 MiB overcommit both read about 23.6 GB used and about 0.5 GB free afterwards,
+    because the driver pages the excess to system memory and reports success, so a check that
+    looked at the card once both tiers were up would approve exactly the configuration it exists
+    to reject. It therefore detects a card that has too little room left, and nothing
     else: not a declared figure that is wrong (a deployment that under-declares gets no
     protection, which is why the runbook says to measure decode and not memory), not memory some
     other process on the card takes during the minutes the load runs, and not a spill once it has
     happened. Its answer is "there was not room", never "it fitted".
 
     ``None`` from the host means it cannot see a card at all, which fails closed: a deployment
-    that asked for a fit check and cannot have one is refused rather than run unchecked.
+    that asked for a fit check and cannot have one fails rather than running unchecked.
     """
     if plan.brain_vram_mib <= 0:
         return
@@ -177,22 +178,23 @@ async def restore_standing(
     ``None`` only when the cortex is genuinely serving again, which is what the caller retries
     on and what the next turn needs; anything else is the id of the model this attempt failed
     on. The sense is therefore inverted from the bool it used to be, and deliberately so: the
-    answer now reads as *what refused* rather than as *did it work*, and there is no value it
-    can take that means success other than nothing at all. ``tiers`` is the record of which
-    peers came back with it, which is a different verdict from this one and is why it is
+    answer now names the model that failed rather than reporting whether it worked, and there is
+    no value it can take that means success other than nothing at all. ``tiers`` is the record of
+    which peers came back with it, which is a different answer from this one and is why it is
     written rather than returned.
 
     Carrying the id out is what the caller cannot otherwise have. This move fails about two
     different models and says which in its own line, so a bool left every sentence one level up
-    naming the cortex whichever of the two the host actually refused. The retry, the give-up and
-    the error an operator carries to the runbook now name the same tier this module's line does.
+    naming the cortex whichever of the two actually failed. The retry, the point where it stops
+    retrying, and the error an operator carries to the runbook now name the same tier this
+    module's line does.
 
     The stop is of the model that was swapped in, and a host that does not carry that id has
     nothing to stop, so that one failure is skipped rather than retried. It is the difference
-    between a slice of bad luck and a deployment that could never work: a swap into an unrostered
-    tier fails at its start, and a restore that then treated the *same* 404 as a machine failure
-    would abandon the cortex it had already evicted, twice, and end at the loudest failure in the
-    design over a card that is in fact empty and idle.
+    between a moment of bad luck and a deployment that could never work: a swap into an unrostered
+    tier fails at its start, and a restore that then treated the same 404 as a machine failure
+    would abandon the cortex it had already evicted, twice, and end at the most severe failure in
+    the design over a card that is in fact empty and idle.
 
     Two ``try`` blocks rather than one, because the two failures are about two different models
     and a field is only worth attaching when it is not a guess. The eviction is about the model
@@ -241,7 +243,7 @@ async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
 async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
     """Put back every tier a swap or a crash left evicted, so the standing residency is whole.
 
-    A swap evicts the cortex AND any other hosted tier, because the deep model is alone on the
+    A swap evicts the cortex and any other hosted tier, because the deep model is alone on the
     GPU (ADR-0030 decision 8); an exit that restored the cortex alone would leave the subagent
     tier stopped for good while the conductor reopens admission to it, and the next delegated
     run would be placed on a server nothing ever restarted. Boot recovery's convergence ends here
@@ -254,10 +256,10 @@ async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingT
     Deliberately unconditional too, ``coresident`` included, where the swap in is not: a start
     against a tier the swap never stopped is a no-op the supervisor answers from its own child
     table, and if that tier died of its own accord while the deep model held the card, this is
-    the one place that notices and brings it back.
+    the one place that observes it and brings it back.
 
     Best effort is not the same as unrecorded, which is the half that used to be missing: each
-    outcome is written to ``tiers``, so a peer that refused to come back closes GPU placement and
+    outcome is written to ``tiers``, so a peer that did not come back closes GPU placement and
     is retried, instead of admission reopening onto it and every spawn paying a dead attempt
     (``residency_tiers.py``). What an accepted ``start`` proves is only that the host took the
     request, exactly the evidence ``undrain`` has always reopened on: the peers are not gated
@@ -268,9 +270,9 @@ async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingT
         try:
             await host.start(evicted)
         except ModelNotHostedError:
-            # A different fault from a host that would not: the id is not in this daemon's roster,
-            # which is env it read once at its own boot, so the retry pass stops asking about it
-            # rather than spending a control call an interval on a fixed answer.
+            # A different fault from a host that failed to start it: the id is not in this
+            # daemon's roster, which is env it read once at its own boot, so the retry pass stops
+            # asking about it rather than spending a control call an interval on a fixed answer.
             _logger.exception(
                 "a tier named for eviction is not in the model host's roster at all",
                 extra={"model": evicted},

@@ -8,8 +8,8 @@ repo map keeps describing the workspace that existed before it, which is the dri
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Opened 2026-08-26 by the close of
-[R-449](449-the-repo-map-names-every-gate-module-unheld.md), which taught the roster reader to take
-a bare word inside a bounded passage and spent that shape on one entry of the repo map.
+[R-449](449-the-repo-map-names-every-gate-module-unheld.md), which made the roster reader take a
+bare word inside a bounded passage and spent that on one entry of the repo map.
 
 The repo map in [AGENTS.md](../../../AGENTS.md) describes four trees in one fenced block and names
 the members of three of them. The `scripts/` entry is now a roster over the modules on disk. The
@@ -25,7 +25,7 @@ words to check what the shape costs the other trees before spending it on them. 
 the mechanism, it is the question of what a member is. A package under `brain/packages/` is a
 directory, but the map's entry for it also names things that are not packages, calling out where
 the subagent runner lives and which package hosts a service, so the pattern that finds a name has
-to be able to refuse those. A crate under `body/crates/` is named in the map as `core`, `rpc`,
+to exclude those. A crate under `body/crates/` is named in the map as `core`, `rpc`,
 `os_windows` and so on, which is the directory name and not the Cargo package name, and the two
 differ (`os_windows` on disk is the `os-windows` package), so the reader has to pick a side and
 say why.
@@ -34,7 +34,7 @@ say why.
 about what its map entry claims to be a complete list of. Read
 [R-451](451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md) first, since the `brain/`
 entry's habit of naming a package while describing something else is exactly the shape the
-borrowed-name allowance was written for and exactly the shape it cannot police.
+borrowed-name allowance was written for and exactly the shape it cannot distinguish.
 
 ## Trail
 

@@ -20,7 +20,7 @@ that was not true.
 
 The deep tier is where this is likeliest rather than rarest, which is the reverse of the cortex's
 case. It ships an 8192 context and the measured pick spends 3847 to 4448 tokens reaching an answer
-(the ADR-0004 brain-pick table), and it carries the cortex turn's own bounds besides, so the wall
+(the ADR-0004 brain-pick table), and it carries the cortex turn's own bounds besides, so the limit
 is one long question away.
 
 The fix has the cortex's shape and one extra decision. The phase already holds a `StopLedger` and

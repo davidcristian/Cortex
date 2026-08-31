@@ -41,10 +41,10 @@ DEFAULT_RECALL_K = 5
 # What a turn says when it was answered without the memory it should have had (ADR-0008
 # unavailable-memory addendum). The ``StatusUpdate.state`` joins "thinking", "delegating",
 # "swapping" and "folding", and it names the same thing they do, what the machine is doing:
-# this turn is going without its notes. Not "forgetting", which would claim a memory was lost
-# when none was, and not "recalling", which would say the healthy word on the one occasion the
-# recall did not happen. Both strings are app-authored, so like every other progress line they
-# need no guardrail pass and nothing that was read can steer them.
+# this turn is going without its notes. It is not "forgetting", which would claim a memory was
+# lost when none was, and not "recalling", which would use the healthy word on the one occasion
+# the recall did not happen. Both strings are app-authored, so like every other progress line
+# they need no guardrail pass and nothing that was read can steer them.
 FORGOING_STATE = "forgoing"
 FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earlier notes"
 
@@ -53,13 +53,13 @@ FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earli
 class TurnCapabilities:
     """Optional collaborators that augment a turn: memory, tools, windowing, the guardrail.
 
-    All default off. A bare ``TurnCapabilities()`` is the Slice 3 behavior (no recall, no
+    All default off. A bare ``TurnCapabilities()`` is the original behavior (no recall, no
     tools, full history, unguarded output). Bundled so the turn engine stays within its
     dependency ceiling (ruff max-args); future per-turn capabilities join here, not as new
     constructor arguments. ``window`` (ADR-0014) bounds what one turn sends to the model, and
-    persistence is untouched. ``guardrail`` (ADR-0015) scrubs untrusted-sourced URLs from
-    both rendered surfaces, the reply and the thinking status (ADR-0020 addendum), before
-    the user sees them. This is the deterministic laundering defense.
+    persistence is untouched. ``guardrail`` (ADR-0015) is the deterministic laundering defense:
+    it scrubs untrusted-sourced URLs from both rendered surfaces, the reply and the thinking
+    status (ADR-0020 addendum), before the user sees them.
     ``record_tainted_memory`` (ADR-0019) is the tainted-turn recording policy: ``False`` (the
     default) drops a tainted turn's memory (ADR-0013); ``True`` records it with the untrusted-
     provenance marker so recall can fence it. It governs only writing. A tainted memory already
@@ -75,7 +75,7 @@ class TurnCapabilities:
     start and stamps it onto each dispatch so the ``escalate_to_brain`` built-in can write the
     brief. Unlike the stream-lived ``progress``, a slot serves exactly ONE turn (the escalating
     wrapper constructs a fresh inner engine, and slot, per turn); ``None`` (the default) is
-    every escalation-less deployment, where the tool refuses honestly if somehow called.
+    every escalation-less deployment, where the tool returns a refusal if it is somehow called.
     ``bounds`` (ADR-0005 capped-reply addendum) is how far each of the turn's completions may
     decode and whether the model may deliberate first, the deployment's own pair. ``None`` (the
     default) sends neither key, which is the request this repo has always sent, so the bound a
@@ -99,7 +99,7 @@ class TurnCapabilities:
 def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger) -> str:
     """Render recalled memories as the body of a system context message.
 
-    Memories recorded from an untainted turn are listed as trusted context (Slice 5). A memory
+    Memories recorded from an untainted turn are listed as trusted context. A memory
     recorded from a tainted turn (ADR-0019) carries untrusted-derived content, so it is fenced with
     the turn ``nonce`` and taints the turn (``ingest_untrusted``). It re-enters as data the model
     must not obey, exactly like a live untrusted tool result (ADR-0013), and names its origin the
@@ -138,13 +138,13 @@ async def assemble_inference_messages(
     sees (persistence is untouched); a summarizing window may also prepend its own recap of
     what it dropped, which is why ``select`` is awaited and told the session (ADR-0038
     decision 9) and handed this stream's progress sink, so the seconds a fold costs are
-    narrated rather than silent (ADR-0038 cheap-fold addendum). This whole assembly is awaited
-    to completion before ``handle_turn`` iterates the reply's generator, so a window that calls
-    the model releases the GPU lease before the reply asks for it, and a progress event emitted
-    during it rides the stream's own queue rather than the still-suspended turn generator, which
-    is why it reaches the overlay while assembly is running. Memory recall runs next: a tainted
-    recalled memory is
-    fenced and taints ``context.taint`` (ADR-0019). Exactly one standing rule then opens every
+    narrated rather than passing with no sign (ADR-0038 cheap-fold addendum). This whole assembly
+    is awaited to completion before ``handle_turn`` iterates the reply's generator, so a window
+    that calls the model releases the GPU lease before the reply asks for it, and a progress event
+    emitted during it rides the stream's own queue rather than the still-suspended turn generator,
+    which is why it reaches the overlay while assembly is running. Memory recall runs next: a
+    tainted recalled memory is fenced and taints ``context.taint`` (ADR-0019). Exactly one
+    standing rule then opens every
     turn: the untrusted-content ``SECURITY_PREAMBLE`` when tools are enabled (a tool-enabled turn
     can ingest untrusted content) OR a tainted memory was recalled, and the shorter
     ``PLAIN_SECURITY_PREAMBLE`` otherwise. The fence markers this assembly draws are therefore
@@ -184,29 +184,31 @@ async def _recalled_context(
     Nothing recalled means no message, which is also how a recall policy's refusal reads here (the
     ``DEMUR`` basis, ADR-0038 abstention addendum): a turn whose memory has nothing to offer sends
     what a memory-less turn sends. The alternative, a message saying that nothing was found, would
-    put a claim about the store into the model's context and invite it to answer for one, which is
-    not a thing the assembly knows.
+    put a claim about the store into the model's context and invite it to answer for one, which
+    the assembly cannot establish.
 
-    **A recall that could not run reads the same way to the model and not to anyone else**
-    (ADR-0008 unavailable-memory addendum). A stopped embedding server or an unreachable Postgres
+    A recall that could not run reads to the model exactly like a recall that found nothing, and
+    to nobody else (ADR-0008 unavailable-memory addendum). A stopped embedding server or an
+    unreachable Postgres
     crosses the ports as ``EmbedderError`` or ``MemoryStoreError``, and it costs this turn its
     notes rather than costing the user their answer, exactly as an unreachable tool sidecar is
     served around and a recap that cannot be folded falls back to the plain window. The catch is
     here, in the layer that already owns "no memory this turn", rather than in an adapter, which
-    cannot know whether its caller has anything else to say: the same store answers the session
+    has no way to tell whether its caller has anything else to say: the same store answers the
+    session
     delete cascade, where a swallowed failure would be a privacy defect, so the adapter must go
     on failing loudly and only the turn may decide to live without it. Anything the ports did not
     declare propagates untouched, since a malformed value or a bug in a policy is this code being
     wrong and a turn that hid it would keep answering thinly for ever.
 
-    **``MemoryDataError`` is on the propagating side of that sentence even though the port does
-    declare it** (ADR-0008 data-defect addendum), which is why it is named first and re-raised
-    rather than left to fall into the catch its base class would answer. The test is whether the
-    condition heals on its own: a stopped server comes back and these turns were a bridge, while a
-    row that cannot be decoded is decoded no better on the next turn or the next week, so
-    degrading around it buys a permanent thinness that nobody chose and calls it an outage. Loud
-    is not the log line the alternative offers, because the failure that only a log records is the
-    silence the degradation was written to end.
+    ``MemoryDataError`` propagates even though the port declares it (ADR-0008 data-defect
+    addendum), which is why it is named first and re-raised rather than left to fall into the
+    catch its base class would answer. The test is whether the condition heals on its own: a
+    stopped server comes back and these turns were a bridge, while a row that cannot be decoded is
+    decoded no better on the next turn or the next week, so degrading around it buys a permanent
+    thinness nobody chose and reports it as an outage. It raises rather than logging, because a
+    failure that only a log records is exactly the unreported outage the degradation was written
+    to end.
     """
     if caps.memory is None:
         return None
@@ -226,18 +228,19 @@ async def _recalled_context(
 async def _report_forgone_memory(
     caps: TurnCapabilities, context: ToolLoopContext, err: Exception
 ) -> None:
-    """Say, twice over, that this turn is being answered without the memory it should have had.
+    """Report twice that this turn is being answered without the memory it should have had.
 
-    Once to the operator's log, unconditionally, because an outage that only a deployment with
-    the recall trail switched on can see is the silence this closes rather than the cure for it;
-    the trail itself (ADR-0038) stays untouched and gains its accuracy from the omission, since no
+    Once to the operator's log, unconditionally, because an outage visible only to a deployment
+    with the recall trail switched on is the gap this line closes; the trail itself (ADR-0038)
+    stays untouched and gains its accuracy from the omission, since no
     line is written for a recall that never happened and ``pool == available`` goes on meaning
     what it means, a pool drawn from the whole readable store.
 
     Once to the user, on the side channel a fold already narrates itself on, because the user is
     the only one who can confuse a turn that forgot with a turn that had nothing to remember and
     the only one harmed by confusing them. That is what separates this from the recap the
-    summarizing window loses silently: a recap compresses history the user can still scroll to,
+    summarizing window drops without telling anyone: a recap compresses history the user can
+    still scroll to,
     while a recalled memory is knowledge from other conversations that they cannot see and cannot
     supply, so its absence changes the answer in a way only the assistant could know. A turn with
     no stream (the schedule ticker, a direct call) has nowhere to say it and says it to the log.

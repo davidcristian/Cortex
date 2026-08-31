@@ -8,8 +8,7 @@ them, and returns pinned chats regardless of recency (ADR-0021 pinning addendum)
 summarizing recap (ADR-0038 decision 9) sits under a key of its own beside them and is removed
 with the rest on delete. The keys and both record codecs live in ``store_codec.py``, which owns
 the storage format; this module owns the round trips and the error wrapping. Redis is the hot
-state that survives
-orchestrator restarts and model swaps (the one hard rule); this adapter only
+state that survives orchestrator restarts and model swaps (the one hard rule); this adapter only
 translates. It holds no business logic, and every backend failure crosses the port as
 ``SessionStoreError`` with the cause chained.
 """
@@ -67,8 +66,8 @@ def _summarize_ends(
     the order the reads were queued (head, tail, length, title). An empty head is a dangling
     index entry (the message list is gone), the one case a listing skips instead of failing.
     A stored title (``None`` when unset) overrides the first-message derivation (ADR-0021).
-    ``pinned`` (membership of the pinned set, read once for the whole listing) rides onto the
-    summary and drives the pinned-first ordering (ADR-0021 pinning addendum).
+    ``pinned`` (membership of the pinned set, read once for the whole listing) is carried onto
+    the summary and drives the pinned-first ordering (ADR-0021 pinning addendum).
     """
     base = at * _ENDS_READS
     head = cast("list[bytes]", reads[base])
@@ -110,11 +109,10 @@ class RedisSessionStore:
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message and refresh the session's recency-index score (ADR-0021).
 
-        Refuses an image-bearing message outright (ADR-0029): pixels are turn-local, and the
-        record schema has no field for them, so accepting one would silently drop the picture
-        rather than store it. Raising is the loud half of that invariant; ``Message`` itself
-        already refuses images on any role but ``TOOL``, so this is what catches a caller that
-        reached the store with a TOOL message.
+        Raises on an image-bearing message (ADR-0029): pixels are turn-local, and the record
+        schema has no field for them, so accepting one would drop the picture without a word
+        rather than store it. ``Message`` itself already rejects images on any role but ``TOOL``,
+        so this is what catches a caller that reached the store with a TOOL message.
         """
         refuse_images(message)
         try:
@@ -215,21 +213,21 @@ class RedisSessionStore:
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
         """Return the newest ``limit`` chats unioned with every pinned chat, pinned-first.
 
-        Round trip one reads BOTH indexes in one transaction: the recency ZSET newest-first
+        Round trip one reads both indexes in one transaction: the recency ZSET newest-first
         (capped at ``limit``) and the pinned SET. Their union is the listed set, so a pinned chat
-        OLDER than the recency window still lists (the point of pinning); a chat both pinned and
-        inside the window appears once (the union deduplicates ids before any fetch). Round trip two
-        fetches only what a summary is derived from: each listed session's FIRST and LAST record,
-        its length, and its title, batched into one transaction. So the whole list still costs two
-        round trips and decodes two records per chat. `merge_pinned` then orders the union
-        pinned-first, recency-descending within each group (ADR-0021 pinning addendum).
+        older than the recency window still lists (the point of pinning); a chat both pinned and
+        inside the window appears once (the union deduplicates ids before any fetch). Round trip
+        two fetches only what a summary is derived from: each listed session's first and last
+        record, its length, and its title, batched into one transaction. The whole list therefore
+        costs two round trips and decodes two records per chat. `merge_pinned` then orders the
+        union pinned-first, recency-descending within each group (ADR-0021 pinning addendum).
 
         The listed count is the window size plus the pinned chats outside it, so a heavily-pinned
         catalog lists more than ``limit``; the pinned set is small by construction (a user pins a
         handful), so the extra fetch is cheap. A session id whose list is empty (a dangling index
-        entry, e.g. a pin on a since-deleted id) is skipped rather than crashing the whole list.
+        entry, such as a pin on a since-deleted id) is skipped rather than crashing the whole list.
         Because the middle is never read, one corrupt record between the ends no longer takes the
-        chat list down with it; `history` still fails loudly on it (bounded-reads addendum).
+        chat list down with it; `history` still raises on it (bounded-reads addendum).
         """
         try:
             async with self._client.pipeline(transaction=True) as pipe:
@@ -257,7 +255,7 @@ class RedisSessionStore:
             msg = "listing sessions failed"
             raise SessionStoreError(msg) from err
         # Decoding sits outside the wrapping above: a corrupt record is a SessionStoreError
-        # already, named by _decode, and must not be relabelled as a listing failure.
+        # already, named by decode_message, and must not be relabelled as a listing failure.
         summaries = (
             _summarize_ends(session_id, reads, at, pinned=session_id in pinned_ids)
             for at, session_id in enumerate(ids)

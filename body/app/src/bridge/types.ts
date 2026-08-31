@@ -7,14 +7,14 @@ export type TurnEvent =
   | { readonly kind: "delta"; readonly text: string }
   | { readonly kind: "toolActivity"; readonly toolName: string; readonly summary: string }
   /**
-   * How a dispatch the `toolActivity` above announced ENDED (ADR-0029 outcome addendum). The
-   * brain emits exactly one per activity on the turn's own stream, on every path out of the
-   * dispatch, so a surface lit by an activity has something honest to settle it with.
+   * How a dispatch the `toolActivity` above announced ended (ADR-0029 outcome addendum). The brain
+   * emits exactly one per activity on the turn's own stream, on every path out of the dispatch, so
+   * a surface an activity switched on has an event that switches it off.
    *
-   * It exists for the screen-capture indicator, which is a consent surface. **It may only ever
-   * strengthen what that surface claims, never retract it:** `ok: false` means the brain cannot
-   * say the tool reached anything, never that nothing happened, because a capture that failed
-   * after the shutter fired looks identical from this side.
+   * It exists for the screen-capture indicator, which is a consent surface. **A reader may use it
+   * to strengthen what that surface claims and never to retract it:** `ok: false` means the brain
+   * cannot say the tool reached anything, and does not mean nothing happened, because a capture
+   * that failed after the screen was read looks identical from this side.
    */
   | { readonly kind: "toolOutcome"; readonly toolName: string; readonly ok: boolean }
   | { readonly kind: "status"; readonly state: string; readonly detail: string }
@@ -26,11 +26,11 @@ export type TurnEvent =
       readonly reason: string;
     }
   /**
-   * A `confirmRequest` the brain stopped waiting on (ADR-0022), so the card can close
-   * before it becomes a lie. Only arrives for endings this side cannot see: the brain's
-   * confirm timeout, and its input stream ending. The user's own answer is never echoed,
-   * and a dying turn is closed by its terminal event instead. `outcome` ("timeout" |
-   * "unavailable") explains and never authorizes: none of them ran the gated call.
+   * A `confirmRequest` the brain stopped waiting on (ADR-0022), so the card can close rather than
+   * offer an answer nothing is listening for. It only arrives for endings this side cannot see:
+   * the brain's confirm timeout, and its input stream ending. The user's own answer is never
+   * echoed, and a failing turn is closed by its terminal event instead. `outcome` ("timeout" |
+   * "unavailable") says which ending it was; neither ran the gated call.
    */
   | { readonly kind: "confirmResolved"; readonly confirmId: string; readonly outcome: string }
   | { readonly kind: "complete"; readonly turnId: string }
@@ -139,8 +139,8 @@ export interface BrainBridge {
    * Delete one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the user's own
    * destructive removal from the switcher, fired only after an overlay-local "are you sure" confirm.
    * The brain hard-deletes the transcript and cascades to the chat's private memories. A user-only
-   * write (no model, tool, or tainted turn reaches it) and NOT retried, so a lost answer surfaces
-   * rather than silently re-issuing a destroy. The overlay drops the row and re-lists on success.
+   * write (no model, tool, or tainted turn reaches it) and not retried, so a lost answer surfaces
+   * rather than re-issuing a destroy. The overlay drops the row and re-lists on success.
    */
   deleteSession(sessionId: string): Promise<void>;
   /**
@@ -148,7 +148,7 @@ export interface BrainBridge {
    * own pin toggle from the switcher. `pinned` is the target state. The brain unions a pinned chat
    * into the listing regardless of recency, so pinning keeps an important chat reachable after it
    * ages out of the recency window. A user-only write (no model, tool, or tainted turn reaches it)
-   * and NOT retried, so a lost answer surfaces rather than re-asserting a stale pin. The overlay
+   * and not retried, so a lost answer surfaces rather than re-asserting a stale pin. The overlay
    * re-lists after it resolves to reflect the new grouping.
    */
   setSessionPinned(sessionId: string, pinned: boolean): Promise<void>;
@@ -172,7 +172,7 @@ export interface BrainBridge {
    */
   getPreferences(): Promise<readonly Preference[]>;
   /**
-   * Write one setting (`BrainService.SetPreference`, ADR-0032). An empty `value` CLEARS the key,
+   * Write one setting (`BrainService.SetPreference`, ADR-0032). An empty `value` clears the key,
    * so the reader's own default applies again. A user-only write and not retried; a failure is
    * non-fatal, because the choice is already applied in this session and only its durability is
    * lost.

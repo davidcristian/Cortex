@@ -1,11 +1,9 @@
 //! The typed turn protocol: what the brain streams during a turn, and what answers it.
 //!
-//! Split from `transport.rs` by responsibility (the 300-line cap), the same shape `retry.rs`
-//! took. `transport.rs` owns the [`crate::transport::BrainTransport`] port itself and the
-//! transport-level types its calls resolve to; this module owns the *turn* vocabulary those
-//! calls carry: [`TurnEvent`], the typed core mirror of the proto `ServerEvent`, and
-//! [`ConfirmDecision`], the one client event a caller sends back mid turn. Both are re-exported
-//! from `transport`, so `body_core::transport::TurnEvent` and the crate root still resolve.
+//! [`TurnEvent`] is the typed core mirror of the proto `ServerEvent`, and [`ConfirmDecision`]
+//! is the one client event a caller sends back mid turn. Both are re-exported from
+//! `transport`, so `body_core::transport::TurnEvent` and the crate root still resolve; they
+//! were split out of `transport.rs` for the 300-line cap.
 //!
 //! Pure data: no tonic, no network, no I/O. The wire translation lives in `body/crates/rpc`.
 
@@ -25,9 +23,9 @@ pub struct ConfirmDecision {
 ///
 /// Streamed by [`crate::transport::BrainTransport::converse`] as the `Ok` side of each item;
 /// transport failures are the `Err` side ([`crate::transport::TransportError`]). A
-/// brain-reported mid-turn error is [`TurnEvent::Failed`] (the connection is healthy, *this
-/// turn* failed), kept distinct from an `Err`, which means the brain could not
-/// be reached or streamed data the adapter could not interpret.
+/// brain-reported mid-turn error is [`TurnEvent::Failed`], meaning the connection is healthy
+/// and this turn failed, which an `Err` cannot say: an `Err` means the brain could not be
+/// reached or streamed data the adapter could not interpret.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TurnEvent {
     /// A chunk of streamed assistant text (proto `TextDelta`).
@@ -39,25 +37,18 @@ pub enum TurnEvent {
         /// Human-readable summary of the activity.
         summary: String,
     },
-    /// How an announced dispatch ENDED, arriving after it resolves (proto `ToolOutcome`,
-    /// ADR-0029 outcome addendum). The settling half of [`TurnEvent::ToolActivity`]: the
-    /// brain emits exactly one per activity the turn itself dispatched, on every
-    /// path out of that dispatch, so a surface lit by such an activity has something honest to
-    /// settle it with. Non-terminal.
+    /// How an announced dispatch ended, arriving after it resolves (proto `ToolOutcome`,
+    /// ADR-0029 outcome addendum); non-terminal. The brain emits one per activity the turn
+    /// itself dispatched, on every path out of that dispatch.
     ///
-    /// **The pairing is not a property of this stream**, and nothing on this side may count it
-    /// as one (ADR-0029 delegated-pairing addendum). A delegating turn also surfaces its
-    /// subagents' tool steps as [`TurnEvent::ToolActivity`], through a best-effort side channel
-    /// that carries no outcome and drops an event on a full buffer, and they are
-    /// indistinguishable here from the turn's own. So an activity that is never settled is
-    /// ordinary, and a consumer must be written to leave such a surface where the activity put
-    /// it rather than to wait for an ending that may never come.
-    ///
-    /// It exists for the overlay's screen-capture indicator, which is one of the consent
-    /// surfaces that let capture ship without an approval card. **It may only ever strengthen
-    /// what a surface claims, never retract it:** a capture that failed after the shutter
-    /// fired is indistinguishable here from one that never happened, so `ok: false` means
-    /// "the brain cannot say the screen was read", never "your screen was not read".
+    /// Two constraints bind consumers, argued in ADR-0029 (the outcome and delegated-pairing
+    /// addenda) and restated in `docs/modules/body-core.md`. An activity that never receives
+    /// an outcome is ordinary rather than an error, because a delegating turn also surfaces
+    /// its subagents' tool steps as [`TurnEvent::ToolActivity`] over a side channel that
+    /// carries no outcome, and those are indistinguishable here from the turn's own. And an
+    /// outcome may only strengthen what a surface already claims: a capture that failed after
+    /// the shutter fired looks the same here as one that never happened, so `ok: false` means
+    /// the brain cannot say the screen was read, not that it was never read.
     ToolOutcome {
         /// The tool that ran, the same registry-authored name the activity carried.
         tool_name: String,
@@ -71,8 +62,8 @@ pub enum TurnEvent {
         /// Human-readable detail.
         detail: String,
     },
-    /// A gated (outbound/irreversible) tool call awaits the user's approval
-    /// (proto `ConfirmRequest`, ADR-0022); **non-terminal**, because the turn is
+    /// A gated (outbound or irreversible) tool call awaits the user's approval
+    /// (proto `ConfirmRequest`, ADR-0022); non-terminal, because the turn is
     /// suspended brain-side until a matching [`ConfirmDecision`] arrives on
     /// the `decisions` stream, the brain's timeout denies, or the turn dies.
     ConfirmRequest {
@@ -80,24 +71,24 @@ pub enum TurnEvent {
         confirm_id: String,
         /// What would run, e.g. `send_email`.
         tool_name: String,
-        /// The exact draft being approved, one JSON object that is the executed
-        /// contract (what you approve is what runs).
+        /// The exact draft being approved, one JSON object; what is approved is
+        /// what runs.
         arguments_json: String,
         /// Why confirmation is required; shown to the user verbatim.
         reason: String,
     },
     /// A [`TurnEvent::ConfirmRequest`] the brain stopped waiting on (proto
-    /// `ConfirmResolved`, ADR-0022 resolution addendum); **non-terminal**. It
+    /// `ConfirmResolved`, ADR-0022 resolution addendum); non-terminal. It
     /// arrives only for endings the caller cannot already know, namely the
     /// brain's confirm timeout and its input stream half-closing, so a surface
-    /// showing the question can close it instead of leaving it answerable after
-    /// the brain has answered it. The user's own answer is never echoed back,
-    /// and a turn that dies is closed by its terminal event instead.
+    /// showing the question can close it rather than leave it answerable after
+    /// the brain has stopped listening. The user's own answer is never echoed
+    /// back, and a turn that dies is closed by its terminal event instead.
     ConfirmResolved {
         /// Which [`TurnEvent::ConfirmRequest`] ended.
         confirm_id: String,
-        /// Why the wait ended: `"timeout"` or `"unavailable"`. It explains, and
-        /// never authorizes: every outcome here means the gated call did not run.
+        /// Why the wait ended: `"timeout"` or `"unavailable"`. Both mean the
+        /// gated call did not run, so neither authorizes anything.
         outcome: String,
     },
     /// The turn finished successfully (proto `TurnComplete`); terminal.
@@ -106,7 +97,7 @@ pub enum TurnEvent {
         turn_id: String,
     },
     /// The brain reported an error for this turn (proto `SeamError`); terminal.
-    /// The connection is healthy. Contrast [`crate::transport::TransportError`].
+    /// The connection is healthy, unlike [`crate::transport::TransportError`].
     Failed {
         /// Application error code reported by the brain.
         code: String,

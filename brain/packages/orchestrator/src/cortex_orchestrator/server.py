@@ -72,12 +72,12 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class SeamPorts:
-    """The optional ports the seam serves *beyond* a turn, bundled as one dependency.
+    """The optional ports the seam serves beyond a turn, bundled as one dependency.
 
     Each is `None` when its capability is off, which is the shipped default for all four:
     `schedules` (ADR-0025) backs the reminder pull RPCs, `memory_cascade` is what
-    `DeleteSession` forgets a chat's private memories through, `residency` (ADR-0030) is
-    what makes `Health` honest while a model handoff holds the GPU, and `preferences` is the
+    `DeleteSession` forgets a chat's private memories through, `residency` (ADR-0030) is what
+    makes `Health` report not-ready while a model handoff holds the GPU, and `preferences` is the
     user's durable settings record behind the two preference RPCs. Bundled rather than passed
     one by one because the dependency ceiling is a design rule (ruff.toml): optional
     collaborators travel together, exactly as `TurnCapabilities` does for a turn.
@@ -131,21 +131,21 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
     ) -> HealthReply:
         """Report readiness so the overlay can display connection state.
 
-        Honest about a model handoff (ADR-0030 decision 6): while the GPU is being handed to the
-        deep model, working under it, or being handed back, the brain is up and **not serving
-        turns**, so this answers `ready=false` with the residency's own app-authored detail and
-        the overlay's indicator reads amber with that line. A handoff's drain is deliberately
-        still ready: the cortex is resident and answering throughout it.
+        It reports a model handoff (ADR-0030 decision 6): while the GPU is being handed to the
+        deep model, working under it, or being handed back, the brain is up and not serving turns,
+        so this answers `ready=false` with the residency's own app-authored detail and the
+        overlay's indicator reads amber with that line. A handoff's drain is deliberately still
+        ready: the cortex is resident and answering throughout it.
 
         The read is synchronous and lock-free by the port's contract, because a probe must not
         queue behind the swap it is reporting on. With no residency wired (escalation off, the
         default) nothing can make the brain not-ready and the answer is the unconditional ready
         it has always been.
 
-        A **serving** report may carry a detail too, and when it does that detail wins over this
-        server's version string: the standing residency is the cortex plus the peer tiers a
+        A serving report may carry a detail too, and when it does that detail takes precedence over
+        this server's version string: the standing residency is the cortex plus the peer tiers a
         handoff evicts, so it can be whole enough to serve turns and still be missing one of them
-        (ADR-0030 tier-outage addendum). Saying so under a green dot is the honest reading, since
+        (ADR-0030 tier-outage addendum). Saying so under a green dot is the accurate reading, since
         delegated work is running somewhere slower and nothing else on the seam would mention it.
         That detail is composed rather than stored, and it may carry more than one sentence: a
         missing peer and a handoff that ran far under this deployment's measured rate (ADR-0030
@@ -168,10 +168,10 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
     ) -> AsyncGenerator[ServerEvent, None]:
         """Stream the conversation loop; contract and cancel semantics: `converse.py`.
 
-        `UserTurn.images` are still ignored. The vision slice (ADR-0029) gave the cortex eyes
-        through a model-initiated capture instead, and deliberately left the **user-attached**
-        image path out: it is a different seam, a different limit, and the first path where
-        Cortex would decode a foreign image. Recorded as a deferral
+        `UserTurn.images` are still ignored. Vision (ADR-0029) arrived as a model-initiated
+        capture instead, and deliberately left the user-attached image path out: it is a
+        different seam, a different limit, and the first path where Cortex would decode a
+        foreign image. Recorded as a deferral
         (`docs/refinements/index.md#vision`), not as a promise about the next slice. Failures
         surface as a terminal SeamError event, never as an RPC error.
         """

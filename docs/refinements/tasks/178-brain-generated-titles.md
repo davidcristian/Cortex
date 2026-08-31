@@ -58,7 +58,7 @@ that survives (an extra inference call per new session, now a cheap one).
   the lever it had been waiting on since 2026-07-16. A title now sends `max_tokens=32,
   thinking=False`, and on the shipped cortex 235 to 303 decoded tokens at 7.9 s to 10.4 s
   became 4 tokens at 0.2 s to 0.3 s for the same titles run for run. The index adds that the
-  capped-with-thinking trap that was a coin flip on the history fold is a certainty on this
+  capped-with-thinking trap that went either way on the history fold is a certainty on this
   call, empty three times in three at each of 16, 32 and 64 tokens, because the answer is a
   few tokens and the deliberation before it is hundreds.
 - 2026-08-06: The index adds that this pass and the model-based recall rank were both re-derived

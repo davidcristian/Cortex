@@ -15,10 +15,10 @@
 //! this crate holds only the coverable translation plus the seam-token validator
 //! ([`crate::auth`]).
 //!
-//! Both OS ports are **synchronous** (they are COM on Windows, and COM has no async form), so
+//! Both OS ports are synchronous, because they are COM on Windows and COM has no async form, so
 //! every handler hands its one call to [`off_worker`] rather than making it inline: an async
-//! worker thread must never be parked on the OS. See that function for why the backends are
-//! held behind an `Arc`.
+//! worker thread must never be parked on the OS. See that function for why the backends are held
+//! behind an `Arc`.
 
 use std::sync::Arc;
 
@@ -95,7 +95,7 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
     }
 
     /// Reads the display, or the window the request pointed at, for the cortex (ADR-0029). The
-    /// pixels never touch this file: the whole crop, downscale, encode, and byte-ceiling policy
+    /// pixels never reach this file: the whole crop, downscale, encode, and byte-ceiling policy
     /// is pure core, and the receipt that tells the user it happened is body-authored.
     async fn capture_screen(
         &self,
@@ -127,9 +127,9 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
         ))
     }
 
-    /// Shows a fired reminder on the host (ADR-0025 decision 6). `shown=false` is a state
-    /// report the brain reads exactly like a failure (the reminder stays deliverable for the
-    /// overlay's pull path), so it stays in the reply rather than becoming a status.
+    /// Shows a fired reminder on the host (ADR-0025 decision 6). `shown=false` reports a state
+    /// that the brain handles like a failure, since the reminder stays deliverable for the
+    /// overlay's pull path, so it stays in the reply rather than becoming a status.
     async fn notify(
         &self,
         request: Request<NotifyRequest>,
@@ -151,21 +151,21 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
 /// Runs one synchronous OS call on tokio's blocking pool and awaits its answer, mapping a
 /// backend failure with `to_status` (ADR-0023's deferred `spawn_blocking`).
 ///
-/// Both OS ports are sync because the OS is: Core Audio and the toast manager are COM, which
-/// has no async form, and a COM call can park its thread for as long as the audio stack or the
-/// notification service takes. Called inline, that parks an **async worker**, and the runtime
-/// serving `BodyService` is the same one the overlay's own seam calls run on, so one slow
-/// endpoint would stall work that has nothing to do with it. Handing the call to the blocking
-/// pool costs a thread hop and buys back the guarantee that nothing else waits on the OS.
+/// Both OS ports are sync because the OS is: Core Audio and the toast manager are COM, which has
+/// no async form, and a COM call can park its thread for as long as the audio stack or the
+/// notification service takes. Called inline, that parks an async worker, and the runtime serving
+/// `BodyService` is the same one the overlay's own seam calls run on, so one slow endpoint would
+/// stall unrelated work. Handing the call to the blocking pool costs a thread hop and keeps
+/// anything else from waiting on the OS.
 ///
 /// The closure must own what it touches (`'static`), which is why the backends live behind an
 /// `Arc` the handler clones. Nothing COM-shaped crosses a thread: the real backends are a unit
-/// struct and an app-id string, and each resolves its own interface *inside* the closure, so
-/// the COM pointers are created and dropped on the one thread that uses them.
+/// struct and an app-id string, and each resolves its own interface inside the closure, so the
+/// COM pointers are created and dropped on the one thread that uses them.
 ///
-/// A panicking backend arrives here as a join failure rather than a value. It answers
-/// `Internal` like any other backend fault, because the alternative (letting the panic escape
-/// the handler) tears down the connection the brain is holding.
+/// A panicking backend arrives here as a join failure rather than a value. It answers `Internal`
+/// like any other backend fault, because letting the panic escape the handler would tear down
+/// the connection the brain is holding.
 pub(crate) async fn off_worker<T, E>(
     call: impl FnOnce() -> Result<T, E> + Send + 'static,
     to_status: impl FnOnce(&E) -> Status,
@@ -197,9 +197,9 @@ fn audio_error_to_status(error: &AudioError) -> Status {
 /// Maps a [`NotifyError`] to the outbound gRPC [`Status`], on the same split as the volume
 /// mapping: no notification service is `FailedPrecondition` (host state), a backend failure is
 /// `Internal`. Either way the brain treats the push as failed and leaves the reminder
-/// deliverable, so the mapping costs it nothing to read but keeps its logs honest. The variant
-/// keeps the name `Unavailable` because that is `body_core` vocabulary about the host, not about
-/// gRPC, and this seam reserves the gRPC code of that name for a call that never arrived.
+/// deliverable, so the mapping costs it nothing to read and keeps its logs accurate. The variant
+/// keeps the name `Unavailable` because that is `body_core` vocabulary about the host rather than
+/// about gRPC, and this seam reserves the gRPC code of that name for a call that never arrived.
 fn notify_error_to_status(error: &NotifyError) -> Status {
     match error {
         NotifyError::Unavailable(detail) => {
@@ -212,9 +212,9 @@ fn notify_error_to_status(error: &NotifyError) -> Status {
 }
 
 /// Builds the `BodyService` server over `audio`, `notifier`, and `screen`, fronted by the
-/// seam-token validator (ADR-0016/0023): an empty `token` makes the validator a pass-through,
-/// so a tokenless deployment is byte-for-byte the tokenless server. `receipts` switches the
-/// body-authored capture notice. The ungated Tauri shell serves the result.
+/// seam-token validator (ADR-0016/0023): an empty `token` makes the validator a pass-through, so
+/// a tokenless deployment gets the same server it had before tokens existed. `receipts` switches
+/// the body-authored capture notice. The ungated Tauri shell serves the result.
 pub fn body_service<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>(
     audio: A,
     notifier: N,

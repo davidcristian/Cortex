@@ -84,14 +84,15 @@ def test_a_tool_message_may_carry_images() -> None:
 
 @pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT, Role.SYSTEM])
 def test_no_role_but_tool_may_carry_images(role: Role) -> None:
-    """Pixels are turn-local, and they ride the tool result they arrived on.
+    """Only a TOOL message may carry images, because pixels are turn-local and arrive on the
+    tool result that produced them.
 
     The invariant lives on the value so it holds even for a code path that never touches a store,
     and it is checked before any store is asked to refuse it. SYSTEM is refused for a second
     reason: it is never persisted, so turn-locality alone would allow it, but the inference
     adapter builds a content-parts array for a tool message only and emits the plain string for
-    every other role. An image on a SYSTEM message would be dropped on the way to the model
-    without a word, so the domain refuses to express it rather than the adapter discarding it.
+    every other role. An image on a SYSTEM message would be dropped silently on the way to the
+    model, so the domain refuses to express it rather than leaving the adapter to discard it.
     """
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     with pytest.raises(ValueError, match="may not carry images: pixels are turn-local"):

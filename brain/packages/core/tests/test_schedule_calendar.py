@@ -152,7 +152,7 @@ def test_the_local_date_drives_the_search_not_the_utc_date() -> None:
 
 
 def test_a_zone_behind_utc_reads_its_own_weekday_not_the_utc_one() -> None:
-    """The direction that actually bites: west of UTC, the UTC date is already *tomorrow*.
+    """The direction that actually matters: west of UTC, the UTC date is already *tomorrow*.
 
     At 2026-07-21T02:00Z it is still Monday 19:00 in Los Angeles, so a Monday 21:00 rule fires
     in two hours. Reading the UTC date instead would see Tuesday, find no Monday left this
@@ -218,7 +218,8 @@ def test_a_repeated_wall_hour_fires_once_not_twice() -> None:
 
 
 def test_an_occurrence_past_the_representable_maximum_ends_the_recurrence() -> None:
-    """``None`` matches ``next_due``: terminal beats a re-arm that could never persist."""
+    """``None`` matches ``next_due``: ending the recurrence is better than a re-arm that could
+    never persist."""
     rule = CalendarRule(hour=23, minute=30)
     # Today's 23:30 has already passed, so the search steps to a date past date.max.
     assert next_calendar_due(rule, _utc(9999, 12, 31, 23, 59), UTC_DISPLAY) is None
@@ -282,7 +283,7 @@ def test_days_that_clamp_together_fire_once_not_twice() -> None:
 
 
 def test_a_month_day_rule_reads_its_own_local_date_west_of_utc() -> None:
-    """The mirror of the weekday case, and the direction that bites: it is still July there.
+    """The mirror of the weekday case, and the direction that matters: it is still July there.
 
     At 2026-08-01T02:00Z it is 2026-07-31T19:00 in Los Angeles, so a 31st-of-the-month rule at
     21:00 fires in two hours. Reading the UTC date instead would see August, find its 31st, and
@@ -306,7 +307,7 @@ def test_a_month_day_rule_holds_its_wall_time_across_a_transition() -> None:
 
 
 def test_a_month_day_occurrence_inside_a_spring_forward_gap_fires_just_past_the_gap() -> None:
-    """The gap policy is inherited, not re-invented: identical to the weekday rule's."""
+    """The gap policy is inherited rather than re-invented: it matches the weekday rule's."""
     rule = CalendarRule(hour=3, minute=30, on=MonthDays(days=frozenset({29})))
     due = next_calendar_due(rule, _utc(2026, 3, 20, 12, 0), _BUCHAREST)
     assert due is not None
@@ -327,7 +328,8 @@ def test_a_month_day_rejects_a_month_off_the_calendar() -> None:
 
 @pytest.mark.parametrize(("month", "day"), [(1, 0), (1, 32), (2, 30), (4, 31)])
 def test_a_month_day_rejects_a_day_that_month_never_has(month: int, day: int) -> None:
-    """Bounded by the month's LEAP-year length, so 30 February is a mistake, not a clamp ask.
+    """Bounded by the month's leap-year length, so 30 February is a mistake rather than a
+    request to clamp.
 
     April really has no 31st either, unlike the monthly selector's ``[31]``, which means "the
     last day of every month" precisely because it spans months. A yearly date names one month,
@@ -345,7 +347,8 @@ def test_a_month_day_accepts_the_leap_day_and_resolves_it_per_year() -> None:
 
 
 def test_dates_sort_chronologically_within_the_year() -> None:
-    """Month-first ordering is load bearing: the walk and the listing both read sorted order."""
+    """Month-first ordering is what the walk and the listing both rely on, each reading the
+    dates in sorted order."""
     assert sorted({MonthDay(month=12, day=25), MonthDay(month=1, day=1)}) == [
         MonthDay(month=1, day=1),
         MonthDay(month=12, day=25),
@@ -431,7 +434,7 @@ def test_dates_that_clamp_together_fire_once_not_twice() -> None:
 
 
 def test_a_year_date_rule_reads_its_own_local_date_west_of_utc() -> None:
-    """The direction that bites, for the annual window: it is still 25 December there.
+    """The direction that matters, for the annual window: it is still 25 December there.
 
     At 2026-12-26T02:00Z it is 2026-12-25T18:00 in Los Angeles, so a 25 December 21:00 rule
     fires in three hours. Reading the UTC date instead would see the 26th and push the
@@ -453,7 +456,7 @@ def test_a_year_date_rule_holds_its_wall_time_across_a_transition() -> None:
 
 
 def test_a_year_date_occurrence_inside_a_spring_forward_gap_fires_just_past_the_gap() -> None:
-    """The gap policy is inherited, not re-invented: identical to its two siblings'."""
+    """The gap policy is inherited rather than re-invented: it matches its two siblings'."""
     rule = CalendarRule(hour=3, minute=30, on=YearDays(days=frozenset({MonthDay(3, 29)})))
     due = next_calendar_due(rule, _utc(2026, 3, 20, 12, 0), _BUCHAREST)
     assert due is not None

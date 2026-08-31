@@ -30,10 +30,10 @@ OS action safe only by being a `gated=True` audited tool that inherits the confi
 tainted-turn denial, and that denial lives on the brain's tool dispatch (`dispatch.py`: a gated call
 on a tainted turn returns `DENIED_MSG` and never reaches the confirmer), not on `BodyService`, whose
 only guard is the seam token. Building the Windows `SendInput` adapter and wiring the server handler
-ahead of that tool would let the body move the real mouse for anyone holding the seam token, shipping
-the machine-control primitive ahead of the front door that would gate it. That is the same
-fail-closed reasoning the GetVolume and real-file-attachment declines turned on, applied to the most
-dangerous surface in the OS-action catalogue.
+ahead of that tool would let the body move the real mouse for anyone holding the seam token,
+shipping the machine-control primitive ahead of the tool dispatch that would gate it. That is the
+same fail-closed reasoning the GetVolume and real-file-attachment declines turned on, applied to the
+most dangerous surface in the OS-action catalogue.
 
 **Building pointer requires building the whole base, so it is a slice, not a refinement.** Pointer
 cannot land one level over a base that does not exist: the InputInjector trait (text, keyboard, and
@@ -55,11 +55,11 @@ The Rust pin it names, `capture_screen_and_inject_input_are_unimplemented`, is n
 **Declined and moved to dead-until-a-consumer.** It reopens the day a real feature drives input
 injection, and is built then as one slice: the whole InputInjector trait (text plus keyboard plus
 pointer) behind one gated audited tool that inherits the confirmer and taint block, one Windows
-`SendInput` adapter under a new `unsafe` authorization, and one proto pointer extension designed with
-that consumer so the coordinate space (which monitor, pixels or normalized), button identity,
+`SendInput` adapter under a new `unsafe` authorization, and one proto pointer extension designed
+with that consumer so the coordinate space (which monitor, pixels or normalized), button identity,
 press/release/click, and scroll axis and delta are fixed against a real use rather than guessed into
-a permanent seam wart. No code changed; the seam, the OS traits, the `BodyGateway` port, and the tool
-dispatch are untouched.
+a permanent flaw in the seam. No code changed; the seam, the OS traits, the `BodyGateway` port, and
+the tool dispatch are untouched.
 
 ## Trail
 

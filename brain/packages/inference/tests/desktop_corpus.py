@@ -14,11 +14,11 @@ type sizes are the ones a real desktop uses: 15 px is what an unscaled monitor g
 and the rest are what a 4K laptop at 150% scaling draws. The 15 px row is the residue the window
 crop is under test against.
 
-Rebuilt rather than reused: the 2026-08-06 legibility corpus was a scratch harness and only its
-numbers were recorded, so this one reproduces its **shape** (five desktops, 47 strings, the same
-size ladder, dark and light themes, full contrast and spreadsheet grey) and not its bytes. That
-is why the arm runs its own whole-display control in the same session rather than comparing
-against the recorded table.
+This corpus was rebuilt rather than reused. The 2026-08-06 legibility corpus was a scratch
+harness and only its numbers were recorded, so this one reproduces its **shape** (five desktops,
+47 strings, the same size ladder, dark and light themes, full contrast and spreadsheet grey) and
+not its bytes. That is why the arm runs its own whole-display control in the same session rather
+than comparing against the recorded table.
 """
 
 from collections.abc import Callable
@@ -118,7 +118,7 @@ def _wallpaper(*, dark: bool) -> Screen:
 
 
 def _frame(screen: Screen, rect: Rect, title: str, *, dark: bool) -> None:
-    """A window: border, title bar with its title, and the client area behind its content."""
+    """Draw a window: border, title bar with its title, and the client area behind its content."""
     screen.fill(rect, (58, 62, 78) if dark else _RULE)
     bar = Rect(rect.x + 3, rect.y + 3, rect.width - 6, 54)
     screen.fill(bar, _DARK_BAR if dark else _ACCENT)

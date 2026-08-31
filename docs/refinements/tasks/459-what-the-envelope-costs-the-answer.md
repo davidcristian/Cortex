@@ -21,8 +21,8 @@ summary. Read plainly, this model writes into `reply` what it used to write into
 
 **Why it was left.** Three draws from a 4B model price nothing, and the entry it comes from was a
 defect with a live before and after, not a quality study. Acting here would mean changing the
-grammar every delegated reply is decoded into on the strength of three readings, which is the shape
-of mistake this backlog exists to refuse.
+grammar every delegated reply is decoded into on the strength of three readings, which is the kind
+of mistake this backlog exists to prevent.
 
 **What would close it.** The harness already runs both shapes over the same bodies, so the
 measurement is a reading rather than a build: run the paired arms at the shipped cap with the tier

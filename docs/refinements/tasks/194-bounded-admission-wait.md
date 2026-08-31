@@ -37,7 +37,7 @@ wall clock `Clock.now()` reads, the `Clock`/`Sleeper` pair exists for poll loops
 otherwise force real-time tests (this is a bounded wait on an event, whose timeout path an
 already-expired bound drives in microseconds), and one class should not bound its two waits two
 different ways. A `Clock` here would have been a decoration.
-**The number is derived, not felt**, which matters because a bound that refuses a legitimately
+**The number is derived rather than guessed**, which matters because a bound that refuses a legitimately
 queued spawn is worse than the unbounded wait it replaces: `MAX_SPAWN_BATCH` is 8, the shipped
 budget admits two at a time, and one entry holds a backend, and so a model lease, per placement
 target (4.8 s through two backend objects against 10.0 s through one), so the admitted pair

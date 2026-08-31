@@ -1,6 +1,6 @@
 """Integration: the per-round cap against a real model and a real tool sidecar (ADR-0009).
 
-The fakes prove the arithmetic; this proves a real model actually produces the shape. It drives
+The fakes cover the arithmetic. This file checks that a real model produces the shape. It drives
 the shipped ``stream_tool_loop`` with the real ``LlamaCppBackend`` and the real
 ``ReconnectingMcpToolRegistry``, asks for more files than one round may read, and asserts that
 the round was truncated, that the truncation is answerable (one ``Role.TOOL`` result per
@@ -8,9 +8,9 @@ recorded ``tool_call_id``), and that the model **recovered** from the refusal by
 rest in later rounds rather than stalling or repeating itself.
 
 Sampling is stochastic, so the prompt is attempted up to ``_ATTEMPTS`` times: the same request
-that fans out to forty calls one run can batch under the cap the next, and a test that skipped
-on the quiet run would assert nothing. Every attempt asserts the bound; only the overflow the
-recovery half needs is retried for.
+that fans out to forty calls on one run can stay under the cap on the next, and a test that
+skipped the quiet run would assert nothing. Every attempt asserts the bound; the retries are
+only for the overflow the recovery half needs.
 
 Integration-marked, so CI and the coverage gate never see it. Bring up a llama-server with a
 tool-capable template and a filesystem MCP sidecar over a directory holding well more than
@@ -64,7 +64,7 @@ pytestmark = pytest.mark.skipif(
 
 
 async def _readable_files(registry: ReconnectingMcpToolRegistry) -> list[str]:
-    """The sidecar's own listing of the mounted directory, as absolute paths it will read."""
+    """Return the sidecar's own listing of the mounted directory, as absolute paths it can read."""
     listing = await registry.invoke(
         ToolCall(id="live-ls", name="list_directory", arguments={"path": _ROOT})
     )
@@ -99,11 +99,11 @@ async def _one_turn(
 
 
 def _assert_the_round_is_bounded_and_answerable(working: list[Message]) -> None:
-    """The bound and the well-formedness it must preserve, asserted on every attempt."""
+    """Assert the round's bound and the well-formedness it preserves, on every attempt."""
     rounds = [message for message in working if message.tool_calls]
     assert rounds, "the model called no tools at all, so nothing below is meaningful"
-    # No round records more than the cap plus the one slot that carries the refusal, so what a
-    # round can add to the context is a number rather than whatever the model felt like emitting.
+    # No round records more than the cap plus the one slot that carries the refusal, so the number
+    # of calls a round adds to the context is bounded rather than set by the model's reply.
     assert max(len(message.tool_calls) for message in rounds) <= MAX_CALLS_PER_ROUND + 1
     # An OpenAI-compatible backend needs one tool message per recorded call id. Re-inference
     # worked above, but assert the shape rather than trusting that it did.
@@ -127,8 +127,8 @@ async def test_a_real_model_asking_for_too_many_files_is_truncated_and_recovers(
             if any(record.detail == ROUND_OVERSIZED_MSG for record in records):
                 break
 
-    # Observability plus recovery, which is why truncation is not silent: the model was told, and
-    # went on to read files it had not got rather than stalling or re-asking for the same ones.
+    # Truncation is reported rather than silent: the refusal reached the model, which went on to
+    # read the files it had not received rather than stalling or asking for the same ones again.
     notices = [record for record in records if record.detail == ROUND_OVERSIZED_MSG]
     assert notices, f"no round wider than the cap in {_ATTEMPTS} attempts over {len(paths)} files"
     after_the_notice = records[records.index(notices[0]) + 1 :]

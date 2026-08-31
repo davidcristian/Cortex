@@ -1,31 +1,26 @@
 """Which scans the single gate runs, read from the two files that run them.
 
-Every other set a roster is held to is a listing of something: the files in a directory, the
-attributes in a suite. A cross-tree scan is not a file. `contrast.py` sits in this tree and gates
-nothing, `composefiles.py` is read by three gates and run by none, and `check-shell` is a recipe
-CI schedules that the single gate deliberately does not run. What makes a module one of the
-cross-tree scans is that **`just check` runs it before the per-tree checks and CI's `cross-tree`
-job runs it too**, which is a fact about a justfile and a workflow rather than about any
-directory.
+Membership is not a directory listing. `contrast.py` sits in `scripts/` and gates nothing,
+`composefiles.py` is read by three gates and run by none, and `check-shell` is a recipe CI
+schedules that `just check` does not run. A module is one of the cross-tree scans when `just check`
+runs it before the per-tree checks and CI's `cross-tree` job runs it too, which is a fact about a
+justfile and a workflow rather than about a directory.
 
-So this module reads both, in two syntaxes, and answers only when they agree:
+Both files are read, in their two syntaxes, and an answer is returned only when they agree:
 
 - the **gate** side is the unbroken run of `just check-*` lines the `check` recipe opens with,
-  which is the scans it runs first and on their own, before the four trees go off in parallel
-  with their output redirected;
-- the **CI** side is every `- run: just check-*` step of the `cross-tree` job, that job existing
-  precisely because these scans are exempt from the path filter and must run on every change;
-- a recipe becomes a **module** through its own body, since the two names are not the same word:
+  before the four trees go off in parallel with their output redirected;
+- the **CI** side is every `- run: just check-*` step of the `cross-tree` job, which exists because
+  these scans are exempt from the path filter and run on every change;
+- a recipe becomes a **module** through its own body, the two names not being the same word:
   `check-backlog` runs `backlogcheck.py`.
 
-**Disagreement is a fault and not a merge.** A scan added to one file and not the other is the
-drift this reader exists to be honest about, and answering with either side alone would let a
-document agree with the half that had moved. The two are compared as sets, since the order a scan
-runs in is each file's own business and these scans are independent of each other.
+Disagreement raises rather than merging the two lists, because answering with either side alone
+would let a document agree with the half that had moved. The two are compared as sets, since the
+order a scan runs in is each file's own business.
 
-**Everything it was not taught is refused**, the way every reader in this tree refuses: a missing
-recipe, a `- run:` step in that job which is not one of these recipes, a recipe whose body runs no
-module or more than one, and either side coming back empty.
+Anything else raises too: a missing recipe, a `- run:` step in that job which is not one of these
+recipes, a recipe whose body runs no module or more than one, and either side coming back empty.
 """
 
 import re
@@ -52,12 +47,12 @@ class ScanReadError(Exception):
 
 
 def _indent(line: str) -> int:
-    """How deep ``line`` is written, which is what says whether it is inside the block above."""
+    """How far ``line`` is indented, which is what decides whether it is inside the block above."""
     return len(line) - len(line.lstrip())
 
 
 def _block(text: str, header: re.Pattern[str], what: str) -> list[str]:
-    """Return the lines written under the first line matching ``header``, refusing to find none.
+    """Return the lines written under the first line matching ``header``, raising if there are none.
 
     A block ends at the first line carrying text no deeper than its own header, and a blank line
     inside one belongs to it. The depth is read off the header rather than assumed, because a
@@ -80,7 +75,7 @@ def _block(text: str, header: re.Pattern[str], what: str) -> list[str]:
 
 
 def recipe_body(text: str, recipe: str) -> list[str]:
-    """Return the body of one justfile recipe, refusing a name the justfile does not carry."""
+    """Return the body of one justfile recipe, raising on a name the justfile does not carry."""
     header = re.compile(HEADER.format(name=re.escape(recipe)))
     return _block(text, header, f"the {recipe!r} recipe")
 
@@ -103,7 +98,7 @@ def gate_scans(text: str) -> list[str]:
 
 
 def job_scans(text: str) -> list[str]:
-    """Return the recipes CI's cross-tree job runs, refusing a step it was not taught."""
+    """Return the recipes CI's cross-tree job runs, raising on a step that runs anything else."""
     header = re.compile(rf"^  {re.escape(JOB)}:$")
     found: list[str] = []
     for line in _block(text, header, f"the {JOB!r} job"):
@@ -145,7 +140,7 @@ def _read(root: Path, name: Path) -> str:
 
 
 def scan_modules(root: Path) -> frozenset[str]:
-    """Every module the gate and CI both run as a cross-tree scan, refusing a disagreement."""
+    """Every module the gate and CI both run as a cross-tree scan, raising when the two disagree."""
     justfile = _read(root, JUSTFILE)
     gate, job = gate_scans(justfile), job_scans(_read(root, WORKFLOW))
     if set(gate) != set(job):

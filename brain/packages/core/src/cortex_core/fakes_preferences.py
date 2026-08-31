@@ -1,9 +1,8 @@
 """In-memory ``PreferenceStore`` fake: the contract twin of the Redis adapter (``cortex_session``).
 
 Its own module rather than a line in ``fakes.py``, following the ``fakes_session`` split. Like the
-other in-memory fakes it does NOT survive a process restart, which is the whole point of the real
-adapter: a preference that dies with the process is the behaviour the durable record exists to
-replace. This twin only has to be observably interchangeable with it behind the port.
+other in-memory fakes it does not survive a process restart, which is what the real adapter exists
+to fix; this twin only has to be observably interchangeable with it behind the port.
 """
 
 from collections.abc import Mapping
@@ -32,7 +31,7 @@ class InMemoryPreferenceStore:
         return dict(self._values)
 
     async def set(self, key: str, value: str) -> None:
-        """Write one pair; an empty value clears the key, as the port dictates."""
+        """Write one pair; an empty value clears the key, as the port specifies."""
         self._check()
         if value == "":
             self._values.pop(key, None)

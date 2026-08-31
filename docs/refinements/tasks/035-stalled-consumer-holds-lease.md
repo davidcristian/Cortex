@@ -14,8 +14,8 @@ stream's **fold waited 16.51 s** behind it. This predates the summary and is not
 what the default-on fold changes is who pays, since a fold is now among the things that queue.
 Neither obvious direction is free: the bound exists to cap a stalled stream's memory (the entry
 that landed it is above), and letting generation run ahead of the consumer to release the lease
-sooner is the exact thing it refuses to do. A real fix is likelier to be a bound on how long a
-suspended generation may hold the lease, which means the adapter learning to abandon a stream the
+sooner is the exact thing that bound prevents. A real fix is likelier to be a bound on how long a
+suspended generation may hold the lease, which means the adapter abandoning a stream the
 seam is no longer draining, and that is a port-shaped change rather than a knob.
 
 ## Trail

@@ -17,12 +17,12 @@ under `body/app/src-tauri/gen/`, `body/coverage.json`, three `measurements/*.jso
 right to skip.
 
 Two consequences, and only the first is new. A banned dash inside generated or ignored output
-fails the gate, and the remedy for it is not to rewrite a sentence but to delete a file the repo
-does not ship. And the printed count is a fact about one machine's working tree rather than about
+fails the gate, and the remedy is to delete a file the repo does not ship rather than to rewrite a
+sentence. And the printed count is a fact about one machine's working tree rather than about
 the commit, so the same commit reads a different number in CI, which makes it useless as anything
 but a sanity check of the run in front of you. The count is a reading and nothing asserts it, so
 neither consequence is a broken gate; the second is a caveat on how far the new number can be
-trusted, and the first is a latent red nobody has hit yet.
+trusted, and the first is a latent failure nobody has hit yet.
 
 **Why it was left.** The close was about giving four gates a collection to name, and it named this
 one honestly. Changing which files the dash ban reads is a change to the rule, argued at ADR-0026
@@ -48,16 +48,16 @@ schemas and the local measurement blocks without touching a file a person wrote.
   read against 1278 tracked paths, where this file recorded 1252 and 1268, and the shape held to
   the file, the same ten untracked files read and the same twenty six binary assets tracked and
   skipped. **The collection stays the working tree**, minus what git ignores. `git ls-files` lost
-  on the case that made the walk a walk: an agent writes an ADR, and under `ls-files` the gate goes
-  green on the document being written in front of it and reddens only once somebody stages it, the
+  on the case that made the walk a walk: an agent writes an ADR, and under `ls-files` the gate passes
+  over the document being written in front of it and fails only once somebody stages it, the
   index being the same argument one step later. **Git is asked once** for the paths it ignores,
   costing milliseconds, and a wholly ignored directory is pruned rather than descended, which also
   stops the walk reading GGUFs out of an ignored bind target to decide they are binary. **A git
   that cannot answer is exit 2**, the posture the compose bind gate already takes toward the same
   dependency, so `--root` must now name a git working tree. The walk now reads 1252 files over
   234483 lines, 10 files and 8056 lines less, and on a clean tree that is exactly the tracked text,
-  1278 paths minus 26 binaries. **The floor still means what it meant** and now has a second road
-  to it, a root git ignores entirely, pinned by its own test. Five planted mutations over the
+  1278 paths minus 26 binaries. **The floor still means what it meant** and now has a second way
+  to reach it, a root git ignores entirely, pinned by its own test. Five planted mutations over the
   scripts suite, tabled in the dash-ban-collection addendum. Two residues filed: the environment
   strip that makes a git call inside a hook honest is written out in three modules
   ([R-419](419-the-git-call-inside-a-hook-is-written-three-times.md)), and `SKIPPED_DIRS` restates

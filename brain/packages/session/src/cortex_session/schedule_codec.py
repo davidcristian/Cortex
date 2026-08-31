@@ -1,11 +1,11 @@
 """The RedisScheduleStore's record codec + key layout (ADR-0025).
 
-Schedules are DURABLE, long-horizon records in the opposite retention class from the TTL'd,
-marker-less task records, so they take the session store's durable-record policy: every
-record carries ``{"v": 1, "kind": "schedule"}``, unknown EXTRA keys are ignored (forward-
-compatible additions), an unknown kind/version or a malformed record fails LOUDLY naming its
-key, with no silent skip. The claim fencing token and claim time are persisted INSIDE the
-record (adapter mechanics, not domain state): the domain ``ScheduledItem`` never carries them.
+Schedules are durable, long-horizon records in the opposite retention class from the TTL'd,
+marker-less task records, so they take the session store's durable-record policy: every record
+carries ``{"v": 1, "kind": "schedule"}``, unknown extra keys are ignored (forward-compatible
+additions), and an unknown kind or version, or a malformed record, raises naming its key rather
+than being skipped. The claim fencing token and claim time are persisted inside the record as
+adapter mechanics rather than domain state: the domain ``ScheduledItem`` never carries them.
 """
 
 import json
@@ -36,10 +36,10 @@ RECORD_VERSION = 1
 def _encode_days(on: DaySelector) -> dict[str, Any]:
     """The selector as its one JSON key; the day list is sorted so records compare stably.
 
-    The variant rides as *which key is present*, not a discriminator: a weekly rule writes
-    ``days`` exactly as every record written before day-of-month selectors existed, a monthly
-    one writes ``month_days`` (ADR-0025 monthly addendum), and a yearly one writes
-    ``year_dates`` as ``[month, day]`` pairs (ADR-0025 yearly addendum). Adding a variant
+    Which key is present is what identifies the variant, rather than a discriminator field: a
+    weekly rule writes ``days`` exactly as every record written before day-of-month selectors
+    existed, a monthly one writes ``month_days`` (ADR-0025 monthly addendum), and a yearly one
+    writes ``year_dates`` as ``[month, day]`` pairs (ADR-0025 yearly addendum). Adding a variant
     therefore leaves every earlier record byte-identical, so none needs a version bump.
     """
     if isinstance(on, YearDays):
@@ -80,11 +80,10 @@ def _decode_zone(name: object, item_id: str, resolve_zone: ZoneResolver) -> Disp
     """The rule's stored zone, or ``None`` when absent (a rule written before the per-rule
     addendum, or one that took the deployment zone).
 
-    A present name that no longer resolves is a **corrupt record**, failing loudly like any other
-    field and naming the key, because substituting the deployment zone would fire the rule at a
-    wall time nobody asked for (the silent-wrong outcome the codec refuses). Only reachable if the
-    tz database changed under a durable record: creation validated the name, so it is never a
-    fresh model input reaching here.
+    A present name that no longer resolves is a corrupt record, raising like any other field and
+    naming the key, because substituting the deployment zone would fire the rule at a wall time
+    nobody asked for and report nothing. Only reachable if the tz database changed under a durable
+    record: creation validated the name, so it is never a fresh model input reaching here.
     """
     if name is None:
         return None
@@ -115,10 +114,10 @@ def _decode_rule(
 class DeadLetter:
     """One quarantined record from the dead-letter hash: the item id and its raw bytes as text.
 
-    Adapter-level, deliberately not domain state: only the Redis claim path quarantines (a
-    record the codec refuses), so the ``ScheduleStore`` port never carries this type. ``raw``
-    decodes with replacement characters, because corrupt bytes must stay inspectable, never
-    a second crash (ADR-0025 dead-letter addendum).
+    Adapter-level rather than domain state: only the Redis claim path quarantines a record the
+    codec rejects, so the ``ScheduleStore`` port never carries this type. ``raw`` decodes with
+    replacement characters, because corrupt bytes must stay inspectable rather than cause a
+    second crash (ADR-0025 dead-letter addendum).
     """
 
     item_id: str
@@ -136,7 +135,7 @@ def record_key(item_id: str) -> str:
 
 
 def encode(item: ScheduledItem, *, claim: str | None, claimed_at: datetime | None) -> str:
-    """One JSON document per schedule; ``claim``/``claimed_at`` ride only while FIRING."""
+    """One JSON document per schedule; ``claim``/``claimed_at`` are set only while FIRING."""
     return json.dumps(
         {
             "v": RECORD_VERSION,
@@ -166,9 +165,9 @@ def encode(item: ScheduledItem, *, claim: str | None, claimed_at: datetime | Non
 def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, datetime | None]:
     """Decode the record at ``item_id``'s key; every failure names that key precisely.
 
-    Returns ``(item, claim, claimed_at)``. Only known keys are read (unknown extras pass
-    through untouched); an unknown kind/version raises BEFORE field decoding so a future
-    record shape fails with the precise message, not an arbitrary missing-field error.
+    Returns ``(item, claim, claimed_at)``. Only known keys are read (unknown extras pass through
+    untouched); an unknown kind or version raises before any field is decoded, so a future record
+    shape fails with the precise message rather than with an arbitrary missing-field error.
     """
     try:
         fields = cast("dict[str, Any]", json.loads(raw))
@@ -183,8 +182,8 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
         every_s = fields["every_s"]
         # .get, not []: a record written before the occurrence-snooze addendum has no "anchor"
         # key (nor "rule", before calendar recurrence), and the durable-record policy makes a
-        # missing additive field decode as absent. A rule that IS present is read strictly, so
-        # a malformed one fails loudly here like any other corrupt field.
+        # missing additive field decode as absent. A rule that is present is read strictly, so a
+        # malformed one raises here like any other corrupt field.
         anchor = fields.get("anchor")
         deliverable_since = fields["deliverable_since"]
         claim = cast("str | None", fields["claim"])

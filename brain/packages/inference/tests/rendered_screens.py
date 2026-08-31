@@ -4,19 +4,19 @@ The text injection harness delivers its payload as the *text* of a ``Role.TOOL``
 the shipped fence brackets. This module supplies the other channel: the same instruction as
 **pixels**, which no fence can bracket, arriving the way a ``capture_screen`` result arrives.
 
-Standard library only, deterministic, and re-runnable forever: a PNG encoder over ``zlib``, a
-crisp blitter over [pixel_font.py](pixel_font.py), and three screens that differ in the one
-thing an attacker actually controls once the payload is pixels, which is what the picture
-*claims to be*:
+Everything here is standard library only and deterministic, so any later agent can redraw the
+same bytes: a PNG encoder over ``zlib``, a crisp blitter over [pixel_font.py](pixel_font.py),
+and three screens that differ in the one thing an attacker controls once the payload is pixels,
+which is what the picture *claims to be*:
 
 - ``plain`` renders it as unstyled screen text under a few lines of ordinary notes, which is the
   pixel twin of the text corpus's own benign-document-plus-injection shape. It is the control
   for the other two: it claims no authority and carries no application around it.
 - ``chrome`` renders it as a modal system dialog, title bar and warning triangle and buttons,
-  the payload framed as an administrator notice. It asks whether *authority styling* buys an
-  attacker anything the plain text did not.
+  the payload framed as an administrator notice. It measures whether *authority styling* gains
+  an attacker anything the plain text did not.
 - ``app`` renders it inside an ordinary mail client, the payload sitting in the tail of one
-  message among sidebar, message list and legitimate body text. It asks whether *surrounding
+  message among sidebar, message list and legitimate body text. It measures whether *surrounding
   legitimacy* does, and it is the realistic indirect case: nobody paints a bare instruction on
   a victim's desktop, they send them an email.
 
@@ -29,8 +29,8 @@ the corpus would quietly make the next run incomparable with it. And a payload d
 glyph size fills more of a small frame than of a large one, so this is the legible end of what a
 screen can arrive at, which is the end a *defence* measurement should err on: the Chromium
 control in ADR-0029's image-arm addendum redrew one of these screens at real UI scale at this
-same size, and the cortex read it **worse** than it reads these glyphs, so the corpus is
-attacker-favourable already and the framing is not being flattered by an unreadable picture.
+same size, and the cortex read it **worse** than it reads these glyphs, so the corpus already
+favours the attacker and the framing owes nothing to an unreadable picture.
 
 **Whether the size changes the result is measured now** and it is the ADR-0029 frame-pair
 addendum: the arm runs at this frame and at twice it, and the cells that separate the two rows are
@@ -180,7 +180,7 @@ def _chunk(tag: bytes, data: bytes) -> bytes:
 
 
 def drawn(text: str) -> str:
-    """The characters a rendering actually paints for ``text``.
+    """Return the characters a rendering paints for ``text``.
 
     Every screen lays its payload out with ``wrap``, which splits on whitespace, so a newline in
     a payload is a word break on screen rather than a line break: a rendered instruction is
@@ -237,7 +237,7 @@ def plain_screen(injection: str, frame: Frame) -> bytes:
 
 
 def _dialog_frame(canvas: Canvas) -> None:
-    """The desktop behind the dialog, and the dialog's own box, title bar and buttons."""
+    """Draw the desktop behind the dialog, plus the dialog's box, title bar and buttons."""
     canvas.rect(0, HEIGHT - 56, WIDTH, 56, _SIDEBAR)
     canvas.text(24, HEIGHT - 40, "Start", scale=3, colour=_PANEL)
     canvas.text(WIDTH - 150, HEIGHT - 40, "14:32", scale=3, colour=_PANEL)
@@ -254,7 +254,7 @@ def _dialog_frame(canvas: Canvas) -> None:
 
 
 def _warning_triangle(canvas: Canvas, x: int, y: int) -> None:
-    """A filled triangle, apex up, with an exclamation mark, drawn as stacked rows."""
+    """Draw a filled triangle, apex up, with an exclamation mark, as stacked rows."""
     for step in range(18):
         canvas.rect(x + 34 - 2 * step, y + 4 * step, 4 * step + 4, 4, _ALERT)
     canvas.rect(x + 32, y + 26, 8, 26, _WHITE)
@@ -290,7 +290,7 @@ _MAIL_BODY: tuple[str, ...] = (
 
 
 def _mail_chrome(canvas: Canvas) -> None:
-    """Toolbar, sidebar folders, and the message list of the mail client."""
+    """Draw the toolbar, the sidebar folders and the message list of the mail client."""
     canvas.rect(0, 0, WIDTH, 60, _PANEL)
     canvas.rect(0, 58, WIDTH, 2, _RULE)
     canvas.bold(28, 20, "Mailbox", scale=3, colour=_INK)

@@ -131,8 +131,8 @@ ground. One swap at three speeds reads as the window coming apart and going back
     so a reply arriving, the switcher opening, a reminder landing, or the pencil emptying the panel
     resizes it from that edge and the composer never moves under the hand that just typed; it stops
     at `12vh` of clear space and simply stops getting taller there, the history giving the room up
-    instead. That is the ONE bound and it is on the height, not on the edge: nothing walks the
-    bottom edge down to buy a taller panel, so the composer holds still at the ceiling exactly as it
+    instead. That is the ONE bound and it is on the height, not on the edge: nothing moves the
+    bottom edge down to gain a taller panel, so the composer holds still at the ceiling exactly as it
     does below it (measured 2026-08-06 at 640x720 and 900x900, 0px on every frame of an ack, a
     switcher round trip and a shrink clean off the ceiling). The edge it is pinned to is remembered
     UNCLAMPED, which is what makes a grow-then-shrink round trip land back on the identical edge and
@@ -174,9 +174,9 @@ ground. One swap at three speeds reads as the window coming apart and going back
     roll, which holds the top edge still instead of correcting itself in a second beat afterwards.
     A move of the panel's own that is still in the air when the roll starts is carried through it
     rather than cancelled, so the panel never hands a half finished height back to layout and jumps
-    in a single frame. **The roll says out loud that it has begun** (landed 2026-07-20), because
+    in a single frame. **The roll signals that it has begun** (landed 2026-07-20), because
     not every section is one the panel re-renders with: the trace's open state belongs to its own
-    message, so without that word the panel heard only the end of the roll, snapped back to the
+    message, so without that signal the panel saw only the end of the roll, snapped back to the
     height it remembered from before it, and made a second movement out of one. A chat change is
     a content swap, not a section toggle: the reminder stack is keyed to its session, so a new
     chat carries the stack in with the emptied panel's one movement instead of rolling it open
@@ -279,7 +279,7 @@ Top-to-bottom, the summoned panel is:
    the answer landing does not resize the panel it lands in. Measured off the chip itself since
    2026-08-03, by the same probe: the chip is the row and the disclosure floors on what it says. **That disclosure rolls** (landed
    2026-07-20): it is a button over a rolling section rather than a `<details>`, which reveals its
-   content in one frame and cannot be talked into animating it, and the `›` turns over the same
+   content in one frame and cannot be made to animate it, and the `›` turns over the same
    300ms so the marker and the trace are one movement. Opening it leaves the history's scroll
    position alone: the row stays under the pointer that clicked it and the trace unfolds beneath,
    which is worth more than keeping the reply in view when the panel is already at its ceiling.
@@ -302,7 +302,7 @@ Top-to-bottom, the summoned panel is:
    travelling, having no direction to go in. That is the one hover in the overlay that changes hue,
    and it is meaning rather than decoration: the button has swapped what it MEANS, from how a turn
    begins to how one is called off, and grey said only "a button". The red is the same one the
-   trash on a chat row wears, the two controls in the overlay that undo something in flight. A `stop`
+   trash on a chat row uses, the two controls in the overlay that undo something in flight. A `stop`
    reducer action drops the bridge stream and ends the reply in place, keeping the partial text
    (distinct from dismiss, which minimizes to the orb). Landed 2026-07-07. **Past one line the pill
    is two rows** (landed 2026-07-20, [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 17): as a
@@ -316,7 +316,7 @@ Top-to-bottom, the summoned panel is:
    at a time, each with exactly one layout flip and no intermediate frame. Which layout to use is
    decided at **one** width, the inline one, whatever layout is on screen, because a stacked field
    is wider and a draft that just wrapped would fit again the moment the button left its side:
-   asked at the width in use the two layouts answer each other forever. The band where that matters
+   measured at the width in use, the two layouts would flip back and forth without settling. The band where that matters
    is five or six characters wide and where it starts depends on the glyphs (60 through 65 on one
    traced line, 62 through 66 on another), and inside it the pill is one row roomier than its text
    needs, which is the better of the two ways to be wrong there. **A pill with nowhere left to grow
@@ -416,7 +416,7 @@ while a turn is processing must not lose it*) lives here. States:
     changes it. Three rows of **swatches** whose legends name the dimension each varies along,
     one anatomy (the face has a light, an iris, and a dream), each choice made by looking at the
     thing rather than reading its name: **Light** is the theme as tiles that are miniatures of
-    the panel wearing it, drawn from that theme's own tokens, with **Auto** as a tile split
+    the panel in that theme, drawn from the theme's own tokens, with **Auto** as a tile split
     diagonally between the two themes Auto resolves to (still the only place Auto can be chosen,
     since the header's toggle names the opposite theme outright and can only land on one of the
     two); **Iris** is the mark as tiles drawing the real bubble at 40px, with the chosen style's
@@ -490,8 +490,8 @@ a no-op). Everything else is a deny by **fail-closed** construction: dismissing,
 turn, switching chats, or simply walking away all drop or abandon the question, and the brain
 denies on its own timeout. **A question the brain has closed leaves the screen too**: when it
 stops waiting (its timeout, or its input stream ending) it says so, and the card goes without
-waiting for the turn to end, because a card that can no longer be answered is a lie and a click
-on it would look like it did something. The explanation is the reply itself, which resumes
+waiting for the turn to end, because a card that can no longer be answered misstates the state of
+the turn, and a click on it would appear to do something. The explanation is the reply itself, which resumes
 saying the action was not performed; the card does not linger to repeat it. Nothing ever runs without an explicit Approve. Two rules carry over
 from the machine above: a confirm arriving **while minimized** surfaces the preview exactly like
 a completed turn, but the preview **does not auto-fade** while the question is open ("errors wait

@@ -1,15 +1,15 @@
 """The model-based recall rank: ask the resident model which candidates answer the query (ADR-0038).
 
 The heuristic policies rank by geometry (cosine, a recency decay, a redundancy penalty). None of
-them reads what a memory *says*, so a candidate worded unlike the query but answering it loses to
+them reads what a memory says, so a candidate worded unlike the query but answering it loses to
 one that merely echoes its vocabulary. This policy hands the over-fetched pool to the model as a
 numbered list and takes back an ordering, under a JSON-schema-constrained request so the reply
 cannot arrive as prose (the ADR-0028 mechanism).
 
 It is also the only policy that can answer that nothing in the pool helps, which it returns as an
 empty ranking on the ``DEMUR`` basis rather than as a fallback (ADR-0038 abstention addendum): a
-geometric policy always has a nearest neighbour to offer, so a question memory cannot answer is a
-question only a reader can decline.
+geometric policy always has a nearest neighbour to offer, so only a policy that reads the
+candidates can report that none of them answers the query.
 
 It lives in the core because it depends on nothing but ports, exactly like ``SubagentRunner``. It is
 the reason ``RecallPolicy.select`` is ``async`` at all, and it obeys the selection-time lease
@@ -18,15 +18,15 @@ the turn's own reply acquires the GPU lease as the second acquire of a sequence 
 The same call carries ``rank_bounds(k)``, so the request asks for the order alone rather than for
 the deliberation ``drain_text`` drops before this module sees it.
 
-**A rank that does not happen says so** (ADR-0038 unjudged-rank addendum). Four things end a
+A rank that does not happen is reported (ADR-0038 unjudged-rank addendum). Four things end a
 ``select`` without a verdict, and two of them are faults that each log their own warning: a backend
-that could not be asked, and a reply no order could be read out of. The other two are silent
+that could not be asked, and a reply no order could be read out of. The other two write no line,
 because neither is a fault. An empty pool is a no-op with nothing to judge. An empty ``order`` is
 the model judging and declining, which the recall trail reports as the ``DEMUR`` basis beside every
 other per-recall fact. So a line from here always means the one thing, that the rank a deployment
 configured did not run, and no line means the pool was judged or there was nothing to judge.
 
-**Both warnings name the recall they happened to** (ADR-0038 named-recall addendum). ``session_id``
+Both warnings name the recall they happened to (ADR-0038 named-recall addendum). ``session_id``
 is the id the port now carries, spelled the way ``LoggingRecallSink`` spells it, because the trail
 line for the very same recall is what an operator pairs a fallback with; without it a burst of
 fallbacks on a brain serving several conversations could not be attributed to any of them. It is
@@ -79,19 +79,19 @@ CANDIDATE_CHARS = 400
 # nothing persists these messages, and a borrowed turn id would read as this turn in a log.
 _RANK_TURN_ID = "recall-rank"
 
-# How far a rank's request may go (ADR-0038 bounded-side-calls addendum). **Thinking off** for the
+# How far a rank's request may go (ADR-0038 bounded-side-calls addendum). Thinking is off for the
 # same reason as every other in-turn side call: ``drain_text`` drops the deliberation unread.
 # Measured on the shipped cortex over six questions against ten notes, thinking on decoded 448 to
 # 613 tokens for 18.4 s per recall; off, it decoded 12 to 22 tokens for 0.9 s, and returned the
 # identical order for every question, so this bound costs the ranking nothing.
 #
-# **The cap is computed from ``k`` rather than fixed**, because unlike prose this reply's length
-# is known in advance: ``ORDER_ENVELOPE`` admits ``{"order": [n, ...]}`` and nothing else, so the
-# only thing that varies is how many numbers the caller allowed. The envelope's own punctuation
-# measured 14 to 16 tokens for a single pick (JSON decodes at roughly a token per character), and
-# each further candidate adds a comma, a space and its digits. A fixed constant sized for today's
-# ``k`` of 5 would quietly start truncating the day a deployment recalls more, which is the failure
-# a formula cannot have.
+# The cap is computed from ``k`` rather than fixed, because unlike prose this reply's length is
+# known in advance: ``ORDER_ENVELOPE`` admits ``{"order": [n, ...]}`` and nothing else, so the only
+# thing that varies is how many numbers the caller allowed. The envelope's own punctuation measured
+# 14 to 16 tokens for a single pick (JSON decodes at roughly a token per character), and each
+# further candidate adds a comma, a space and its digits. A fixed constant sized for today's ``k``
+# of 5 would start truncating the day a deployment recalls more, with nothing reporting it, which
+# is the failure a formula cannot have.
 RANK_ENVELOPE_TOKENS = 24
 RANK_TOKENS_PER_CANDIDATE = 8
 
@@ -99,15 +99,15 @@ RANK_TOKENS_PER_CANDIDATE = 8
 def rank_bounds(k: int) -> GenerationBounds:
     """The bounds one rank request carries: no thinking, no trace, and room for ``k`` picks.
 
-    **This is the shipped bound that carries a schema too**, and so the one the thinking switch
-    was measured failing on: a ``response_format`` makes llama.cpp build a grammar that re-offers
-    the model's thought whatever the template was told (ADR-0005 switch-is-advisory addendum). The
+    This is the shipped bound that carries a schema too, and so the one the thinking switch was
+    measured failing on: a ``response_format`` makes llama.cpp build a grammar that re-offers the
+    model's thought whatever the template was told (ADR-0005 switch-is-advisory addendum). The
     trace budget is the lever that reaches that shape, being a sampler rather than a prompt or a
     grammar, so this bound carries a zero as well as the switch (ADR-0005 request-lever addendum).
-    Both, not one: the switch is what a template reads, and every deployment whose engine does not
-    read the count still has it.
+    Both are carried rather than one: the switch is what a template reads, and every deployment
+    whose engine does not read the count still has it.
 
-    **Running into the cap degrades to the fallback policy, never to a mangled order.** A cut
+    Running into the cap degrades to the fallback policy and never to a mangled order. A cut
     reply is not JSON (measured: a rank capped below its answer came back ``{"order":``), so
     ``parse_order`` returns ``None`` and ``select`` falls back exactly as it does for an unreachable
     model, with the fallback's own basis on the ranking so the audit trail says the model did not
@@ -136,12 +136,13 @@ def build_rank_messages(
 def parse_order(raw: str, *, pool_size: int, k: int) -> tuple[int, ...] | None:
     """The candidate numbers the model returned: in range, de-duplicated, truncated to ``k``.
 
-    **Three outcomes, not two** (ADR-0038 abstention addendum). ``None`` is a reply that cannot be
-    used at all: not JSON, not the envelope, an ``order`` that is not a list, or a list that named
-    notes of which none exists. The empty tuple is a different answer entirely, an ``order`` that
-    arrived empty, which is the model saying that no candidate helps. Collapsing the two was the
-    defect this signature exists to remove: the only thing a judge can do that geometry cannot is
-    decline, and read as a failure it became the fallback's three irrelevant notes.
+    There are three outcomes rather than two (ADR-0038 abstention addendum). ``None`` is a reply
+    that cannot be used at all: not JSON, not the envelope, an ``order`` that is not a list, or a
+    list that named notes of which none exists. The empty tuple is a different answer entirely, an
+    ``order`` that arrived empty, which is the model reporting that no candidate helps. Collapsing
+    the two was the defect this signature exists to remove: declining is the one thing a judge can
+    do that geometry cannot, and reading it as a failure turned it into the fallback's three
+    irrelevant notes.
 
     A list that named notes and had none of them survive is a failure rather than a refusal, since
     the model tried to pick and produced nothing pickable. Individual bad elements are still
@@ -172,19 +173,18 @@ class JudgeRecallPolicy:
     ``candidate_k`` over-fetches ``k * pool_factor``, like the heuristic policies, so the model gets
     a pool worth judging. ``select`` sends that pool and turns the returned order into keys spread
     evenly over ``(0, 1]``, best first, on the ``VERDICT`` basis: the model gives a placing rather
-    than a score, and a normalized placing is the honest reading of one.
+    than a score, and a normalized placing is what that placing reads as.
 
-    ``fallback`` (default the raw top-k cosine) runs whenever the model cannot be used or believed:
-    an empty pool, an ``InferenceError``, a reply outside the envelope, or an order that parses to
-    nothing usable. The ranking then carries the fallback's own basis, so the audit
-    trail says what actually ranked rather than what was configured, which is the difference
-    between an observable rank and a hopeful one. The faults among them are **logged** where they
-    happen, one line for a backend that could not be asked and one for a reply no order could be
-    read out of (the last two causes are that one parse outcome), because the trail is opt-in and a
-    deployment whose judge has never once answered would otherwise read exactly like one where it
-    answers every turn.
+    ``fallback`` (default the raw top-k cosine) runs whenever the model cannot be used or its reply
+    cannot be read: an empty pool, an ``InferenceError``, a reply outside the envelope, or an order
+    that parses to nothing usable. The ranking then carries the fallback's own basis, so the audit
+    trail says what actually ranked rather than what was configured. The faults among them are
+    logged where they happen, one line for a backend that could not be asked and one for a reply no
+    order could be read out of (the last two causes are that one parse outcome), because the trail
+    is opt-in and a deployment whose judge has never once answered would otherwise read exactly
+    like one where it answers every turn.
 
-    **A model that picks nothing is believed, not overruled** (ADR-0038 abstention addendum). An
+    An empty order is taken as an answer rather than overruled (ADR-0038 abstention addendum). An
     ``order`` that arrives empty is the model reading the pool and answering that no candidate
     helps, which is the one judgement no geometric policy can make, so it returns an empty
     ``Ranking`` on the ``DEMUR`` basis and the fallback is never consulted. The turn then carries no
@@ -225,9 +225,10 @@ class JudgeRecallPolicy:
         """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
             # The one fallback that is not a fault: no candidates, so no judgement was possible
-            # and none was attempted. Silent for the reason the summarizing window is silent when
-            # its inner window dropped nothing: a line here would fire on every turn a deployment
-            # recalls nothing on, and it would dilute the two below, which mean something broke.
+            # and none was attempted. It writes no line, for the reason the summarizing window
+            # writes none when its inner window dropped nothing: a line here would fire on every
+            # turn a deployment recalls nothing on, and would dilute the two below, which mean
+            # something broke.
             return await self._fallback.select(
                 hits, query=query, now=now, k=k, session_id=session_id
             )
@@ -256,18 +257,18 @@ class JudgeRecallPolicy:
         if order is None:
             # The two readings beside the message are the whole diagnosis, and they exist because
             # the reply is gone by the time anyone reads this. ``capped`` separates the two causes
-            # with opposite fixes: True is ``rank_bounds`` running out mid-envelope, which wants a
-            # wider bound or a smaller ``k``, and False is a model that ended by itself and wrote
-            # something else. ``chars`` splits that second case again, ``0`` being a model that
-            # emitted no assistant text at all and any other length being text that
-            # arrived and was not the envelope, which is constrained decoding not holding. The
-            # first of those is no longer a guess: this request pairs a cap with ``thinking=False``
-            # AND a schema, which is the shape the switch was measured doing nothing on (ADR-0005
+            # with opposite fixes: True is ``rank_bounds`` running out mid-envelope, which calls
+            # for a wider bound or a smaller ``k``, and False is a model that ended by itself and
+            # wrote something else. ``chars`` splits that second case again, ``0`` being a model
+            # that emitted no assistant text at all and any other length being text that arrived
+            # and was not the envelope, which is constrained decoding not holding. The first of
+            # those is no longer a guess: this request pairs a cap with ``thinking=False`` and a
+            # schema, which is the shape the switch was measured doing nothing on (ADR-0005
             # switch-is-advisory addendum), and where that happens ``drain_text`` writes its own
             # line naming the tier and the characters it dropped, so the two lines land together
-            # and this one need not carry the diagnosis alone. Both
-            # ride the record alone: the entry point's formatter renders whatever a record
-            # carries, so spelling them into the message too would print each of them twice.
+            # and this one need not carry the diagnosis alone. Both readings ride the record and
+            # not the message: the entry point's formatter renders whatever a record carries, so
+            # naming them in the message too would print each of them twice.
             _logger.warning(
                 "the model returned no usable recall order; falling back to the unjudged ranking",
                 extra={

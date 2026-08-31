@@ -45,8 +45,8 @@ accuracy the swap has already bought, since the fit check compares that same dec
 against the real card at the one instant a reading is evidence. The two therefore compose in one
 direction: the charge is written **before** `swap_in` runs, so it is in force while the check
 reads the card and while the weights load, which closes the gap the check cannot see on its own,
-a spawn admitted into the very room the reading just measured. The reversal waits for the far
-edge and fires only once the cortex is genuinely serving again, so a restore that gave up loudly
+a spawn admitted into the very headroom the reading just measured. The reversal waits for the far
+edge and fires only once the cortex is genuinely serving again, so a restore that failed and reported it
 keeps charging the deep model and keeps spawning on the CPU rather than admitting GPU work onto a
 card nobody can describe. **Off unless the deployment declared a figure:** with
 `brain_vram_mib` at its shipped zero the window is never entered, because charging nothing would

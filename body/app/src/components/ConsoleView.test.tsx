@@ -27,9 +27,9 @@ function renderConsole(
   );
 }
 
-/** The console wired to its own selection, which is what the panel does with it. The keyboard
- *  cannot be read off a fixed `tab` prop: selection follows focus here, so the answer to "where did
- *  the arrow leave the keyboard" is only true once the tab it asked for is the tab that is up. */
+/** The console wired to its own selection, which is what the panel does with it. A fixed `tab`
+ *  prop cannot test the keyboard, because selection follows focus here, so where an arrow leaves
+ *  focus is only correct once the tab it selected is the tab on screen. */
 function renderLive(start: ConsoleTab, onSelectTab?: (tab: ConsoleTab) => void) {
   function Live() {
     const [tab, setTab] = useState<ConsoleTab>(start);
@@ -54,7 +54,7 @@ function renderLive(start: ConsoleTab, onSelectTab?: (tab: ConsoleTab) => void) 
   return render(<Live />);
 }
 
-/** The strip, as the tab key sees it: which faces are in the page's tab order at all. */
+/** The strip as the Tab key reaches it: which tab buttons are in the page's tab order. */
 function stops() {
   return screen
     .getAllByRole("tab")
@@ -62,9 +62,9 @@ function stops() {
     .map((tab) => tab.textContent);
 }
 
-/** jsdom has no layout, so the two tabs are given heights: the taller keeps the one the browser
- *  measures for the shortcut list, and the other stands `spread()` px under it. Keyed off the
- *  pane's own label, so what is stubbed is the two panes and not every box in the tree. */
+/** jsdom has no layout, so the two tabs are given heights: the taller keeps the height the browser
+ *  measures for the shortcut list, and the other is `spread()` px shorter. Keyed off the pane's own
+ *  label, so only the two panes are stubbed and not every box in the tree. */
 function stubTabHeights(spread: () => number) {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
     this: HTMLElement,
@@ -110,9 +110,9 @@ describe("ConsoleView", () => {
   it("takes focus onto the tab it is showing, since the strip it was clicked on is leaving", () => {
     renderConsole("shortcuts");
     // A tab change swaps the whole pane, so the button clicked is on its way out and about to be
-    // display:none, which drops focus to the body. The arriving pane picks it up on the tab that
-    // is now selected, which is also what allows the pane being left to be aria-hidden: a browser
-    // refuses to hide the focused element's ancestor from assistive tech.
+    // display:none, which drops focus to the body. The arriving pane takes focus on the tab that is
+    // now selected, which is also what allows the pane being left to be aria-hidden: a browser will
+    // not hide the focused element's ancestor from assistive tech.
     expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Chords" }));
   });
 
@@ -121,7 +121,7 @@ describe("ConsoleView", () => {
     renderConsole("appearance", { onSelectTab });
     fireEvent.click(screen.getByRole("tab", { name: "Chords" }));
     expect(onSelectTab).toHaveBeenCalledWith("shortcuts");
-    // Idempotent by construction: showing the tab that is up is what the reducer does with this.
+    // Selecting the tab already showing is a no-op, which is what the reducer does with it.
     fireEvent.click(screen.getByRole("tab", { name: "Face" }));
     expect(onSelectTab).toHaveBeenLastCalledWith("appearance");
   });
@@ -131,19 +131,19 @@ describe("ConsoleView", () => {
     stubTabHeights(() => spread);
     const stack = () => document.querySelector(".tabstack") as HTMLElement;
 
-    // At the tolerance exactly the stack still holds both, so the panel keeps the taller tab's
-    // height whichever tab is up and switching tabs resizes nothing.
+    // At exactly the tolerance the stack still shares one height, so the panel keeps the taller
+    // tab's height whichever tab is showing and switching tabs resizes nothing.
     const held = renderConsole("appearance");
     expect(stack().classList.contains("apart")).toBe(false);
     held.unmount();
 
-    // One pixel further apart and the difference is a real one, so the pane not on screen leaves
-    // the flow and the panel is free to morph between the two heights.
+    // One pixel further apart and the panes no longer share a height, so the pane not on screen
+    // leaves the flow and the panel morphs between the two heights.
     spread = TAB_SPREAD_PX + 1;
     renderConsole("appearance");
     expect(stack().classList.contains("apart")).toBe(true);
-    // The measuring pose is never left behind: it exists for one synchronous read, and outliving
-    // it would hand the panel a height nothing in the stack agrees with.
+    // The measuring attribute is always removed: it exists for one synchronous read, and leaving
+    // it set would give the panel a height no pane in the stack has.
     expect(stack().hasAttribute("data-measuring")).toBe(false);
   });
 
@@ -155,8 +155,8 @@ describe("ConsoleView", () => {
     ] as const) {
       const target = screen.getByRole("tab", { name: label }).getAttribute("aria-controls");
       const box = container.querySelector(`#${CSS.escape(target as string)}`);
-      // The pointer has to reach the pane the face actually opens, not merely reach something: a
-      // strip that names both panes and controls one of them twice is the failure to catch here.
+      // Each tab must point at the pane it actually opens. The failure this catches is a strip
+      // that names both panes but points two tabs at the same one.
       expect(box?.className).toContain("tabpane");
       expect(box?.getAttribute("aria-label")).toBe(label);
       expect(box?.textContent).toContain(pane === "Appearance" ? "Light" : "Switcher");
@@ -164,9 +164,9 @@ describe("ConsoleView", () => {
   });
 
   it("is one stop in the tab order however many faces it has, and the stop is the one showing", () => {
-    // The roving `tabindex`. Before it, both faces were stops and Tab walked the strip one face at
-    // a time, which is the pattern's own counter-example: a tab list is one stop, and the arrows
-    // are what move inside it.
+    // The roving `tabindex`. Before it, both tabs were stops and Tab walked the strip one tab at a
+    // time, which the tabs pattern gives as what not to do: a tab list is one stop, and the arrows
+    // move inside it.
     const { unmount } = renderConsole("appearance");
     expect(stops()).toEqual(["Face"]);
     unmount();
@@ -180,20 +180,20 @@ describe("ConsoleView", () => {
     const face = screen.getByRole("tab", { name: "Face" });
     const chords = screen.getByRole("tab", { name: "Chords" });
 
-    // Selection follows focus: one press both moves the keyboard and changes the view, which is
-    // what the pointer's one click already did.
+    // Selection follows focus, so one press both moves focus and changes the pane, which is what
+    // one click of the pointer already did.
     fireEvent.keyDown(face, { key: "ArrowRight" });
     expect(onSelectTab).toHaveBeenLastCalledWith("shortcuts");
     expect(chords).toHaveAttribute("aria-selected", "true");
     expect(document.activeElement).toBe(chords);
     expect(stops()).toEqual(["Chords"]);
 
-    // Off the end and round: on a strip of two this makes Right a toggle, which is the point.
+    // Off the end and round to the front, which on a strip of two makes Right a toggle.
     fireEvent.keyDown(chords, { key: "ArrowRight" });
     expect(document.activeElement).toBe(face);
     expect(face).toHaveAttribute("aria-selected", "true");
 
-    // And the other way, wrapping off the front.
+    // The same in the other direction, wrapping off the front.
     fireEvent.keyDown(face, { key: "ArrowLeft" });
     expect(document.activeElement).toBe(chords);
     fireEvent.keyDown(chords, { key: "ArrowLeft" });
@@ -210,8 +210,8 @@ describe("ConsoleView", () => {
     fireEvent.keyDown(chords, { key: "Home" });
     expect(document.activeElement).toBe(face);
     expect(face).toHaveAttribute("aria-selected", "true");
-    // Pressed at the end it is already on, it asks for the tab that is up, which the reducer
-    // treats as the no-op it is, and the keyboard does not move.
+    // Pressed on the tab already selected it asks for that same tab, which the reducer treats as
+    // a no-op, and focus does not move.
     fireEvent.keyDown(face, { key: "Home" });
     expect(document.activeElement).toBe(face);
   });
@@ -220,14 +220,15 @@ describe("ConsoleView", () => {
     const onSelectTab = vi.fn();
     renderLive("appearance", onSelectTab);
     const face = screen.getByRole("tab", { name: "Face" });
-    // Ctrl and the vertical arrows cycle chats overlay-wide, so the strip must not eat them, and
-    // an unanswered key must reach the window's own listener with its default intact.
+    // Ctrl and the vertical arrows cycle chats overlay-wide, so the strip must not consume them,
+    // and a key the strip does not handle must reach the window's listener with its default
+    // intact.
     for (const key of ["ArrowDown", "ArrowUp", "Escape", "k"]) {
       expect(fireEvent.keyDown(face, { key })).toBe(true);
     }
     expect(onSelectTab).not.toHaveBeenCalled();
-    // The four it does answer are claimed, because Home and End scroll the panel's clipped box
-    // and the arrows scroll it sideways: movement nobody asked for, under a settled panel.
+    // The four keys the strip does handle call `preventDefault`, because Home and End scroll the
+    // panel's clipped box and the arrows scroll it sideways, which moves a settled panel.
     for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
       expect(fireEvent.keyDown(screen.getByRole("tab", { selected: true }), { key })).toBe(false);
     }
@@ -242,8 +243,8 @@ describe("ConsoleView", () => {
     expect(pane("Face").hasAttribute("inert")).toBe(false);
     expect(pane("Chords").hasAttribute("inert")).toBe(true);
 
-    // The stylesheet takes the leaving pane out too, but only after the fade, and for those 200ms
-    // it was announced as hidden and still tabbable. This lands with the selection instead.
+    // The stylesheet also removes the leaving pane, but only after the fade, and for those 200ms
+    // it was announced as hidden and still tabbable. This attribute lands with the selection.
     fireEvent.keyDown(screen.getByRole("tab", { name: "Face" }), { key: "ArrowRight" });
     expect(pane("Face").hasAttribute("inert")).toBe(true);
     expect(pane("Chords").hasAttribute("inert")).toBe(false);
@@ -252,8 +253,8 @@ describe("ConsoleView", () => {
   it("comes back to the chat from the header, and is not a sheet with a backdrop", () => {
     const onClose = vi.fn();
     const { container } = renderConsole("shortcuts", { onClose });
-    // Nothing here is a backdrop, so a click meant for a control cannot dismiss the view out from
-    // under the user mid-comparison; the chevron is the one control that leaves.
+    // Nothing here acts as a backdrop, so a click aimed at a control cannot dismiss the view while
+    // the user is comparing tiles. The chevron is the one control that leaves.
     fireEvent.click(container.querySelector(".tabstack") as Element);
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Back to chat"));

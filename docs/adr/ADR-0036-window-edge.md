@@ -39,12 +39,12 @@ re-rasterized every frame or it goes soft.
    frame and reused by the clip, the hairline and the glow strokes.
 
 5. **The liquid rides the window's own edge, on a bleed.** The edge layers extend a fixed bleed
-   past the panel's border box (`liquid.ts` owns the number and the wrapper wears it as an
+   past the panel's border box (`liquid.ts` owns the number and the wrapper applies it as an
    inline inset, so the two cannot drift), the neutral outline sits exactly on the panel's edge,
    and every style's worst-case reach is pinned under the bleed by the registry tests, so the
    waves swing around the regular border, outward into the bleed and inward over the glass,
    without ever leaving the wrapper. The panel's geometry, growth and travel machinery
-   (ADR-0033, ADR-0034, ADR-0035) still never learns the edge exists; what moves is the clip: a
+   (ADR-0033, ADR-0034, ADR-0035) is untouched by the edge; what moves is the clip: a
    liquid panel goes `overflow: visible` and hands the content clip to the views box (same box,
    same radius), which keeps the growth reveal. The shadow moves too: cast from the border box
    it traced the original rectangle behind the liquid (worst on the light ground, where the
@@ -68,11 +68,11 @@ re-rasterized every frame or it goes soft.
    opaque (design/overlay-ux.md §4), so nothing is visibly lost today; the trade is refiled with
    the transparent-window pass in `docs/refinements/index.md#body-overlay`.
 
-8. **The glow is the send button's trick, and Trance is the one written exception.** A smolder is
-   two strokes riding the outline, cross-faded by CSS opacity (gradients cannot interpolate):
-   Reverie's is neutral at rest and takes the accent while a turn runs, which keeps §1 of the
-   design doc intact; Trance keeps a low accent ember lit at rest, the single sanctioned breach
-   of "color is activity", chosen by the user with its cost written into the design doc.
+8. **The glow reuses the send button's technique, and Trance is the one written exception.** A
+   smolder is two strokes riding the outline, cross-faded by CSS opacity (gradients cannot
+   interpolate): Reverie's is neutral at rest and takes the accent while a turn runs, which keeps §1
+   of the design doc intact; Trance keeps a low accent ember lit at rest, the single sanctioned
+   breach of "color is activity", chosen by the user with its cost written into the design doc.
 
 9. **Working depth eases, stillness is exact.** The edge deepens toward a working pose while
    `isTurnActive` and eases back after, via a pure exponential approach advanced on the mark's
@@ -87,18 +87,18 @@ re-rasterized every frame or it goes soft.
   the Window swatch row, `usePreferences` the `overlay.window` key, `themes.ts` the
   `panelSolid` token, `overlay.css` the edge layer rules.
 - The appearance tab grows a third row, which puts it past the console's shared-height spread;
-  the tab stack's existing judgement (`TAB_SPREAD_PX`) handles that by design, no new motion.
+  the tab stack's existing allowance (`TAB_SPREAD_PX`) covers that by design, no new motion.
 - Per-frame cost is one more path-string layer of the kind ADR-0031 already measured well inside
   the frame budget; the panel's content does not re-render with it.
 - The mini tiles draw each style's color signature (Reverie's smolder, Trance's ember) even at
-  rest, because four liquids that differ mostly by glow must be tellable apart in a swatch row;
+  rest, because four liquids that differ mostly by glow must be distinguishable in a swatch row;
   the note under the row says when the color actually appears.
 
 ## Addendum (2026-07-21): the Dream tiles are portraits
 
 The first tile art drew the real liquid at about a third of its size, and the maintainer called the
-row ugly, with reason: honesty at that scale shrinks the bleed into dead margin and the waves
-into a nervous line, and a wall of empty wireframes sat under two rows of real pictures. Three
+row ugly, with reason: drawing it at true scale shrinks the bleed into dead margin and the waves
+into a jittery line, and a wall of empty wireframes sat under two rows of real pictures. Three
 directions were pitched live (a portrait, a near-full-size corner crop, an aura around a still
 core) and the maintainer chose the portrait: each tile is the same miniature window the theme tiles
 draw, its outline gone liquid, the amplitude chosen for the swatch rather than inherited from

@@ -278,7 +278,7 @@ the defect. It raised a bare `ValueError` out of `SubagentRunner.run`, through
 `SpawnSubagentsTool.invoke` and its `asyncio.gather` (taking every sibling subagent's answer with
 it), through `CompositeToolRegistry` and `ToolDispatcher`, which catches only `ToolError`, to
 `_turn_task`'s deliberately broad handler in `converse.py`, which fails the turn with
-`ERROR_CODE_INTERNAL`; and since `_start_next_turn` refuses to start anything once a stream has
+`ERROR_CODE_INTERNAL`; and since `_start_next_turn` starts nothing once a stream has
 failed, the whole `Converse` stream ends there. `SubagentsConfig` never checked an ask against the
 budget either, so a deployment could reach that state from env alone. Of the four possible answers
 at the boundary, the code implemented the worst.
@@ -441,8 +441,8 @@ containers carry `cpus`/`mem_limit`/`memswap_limit` (verified applied by the run
 of this ADR's soft admission budgets, which is what makes those budgets more than an honour system.
 The loss to know about: the cortex, the deep model and the GPU subagent are now **processes in one
 cgroup**, so no per-model CPU or RAM cap exists. ADR-0030 wins as the later and more specific
-decision, and its own security argument is what buys it, since a per-model cap wants a container per
-model, which wants a controller that can start containers, which is the docker-socket shape that
+decision, and its own security argument is what buys it, since a per-model cap requires a container
+per model, which requires a controller that can start containers, which is the docker-socket shape that
 ADR rejected. The values ship as user-tunable placeholders: the 8 GB dev GPU cannot hold a real
 tier pair, so what was validated is the mechanism and not the arithmetic. Note that llama.cpp mmaps
 the GGUF, so mapped model pages count against the memory cap and a cap below the artifact size makes
@@ -521,7 +521,7 @@ move. So the deliberate placeholder pairing this ADR ships (an ask above the pla
 confirmed to route nothing at the tier, which is what makes the three-setting opt-in of the host-half
 addendum the whole story rather than most of it.
 
-**How it is run, and how it was reddened.** The suite is
+**How it is run, and how it was proved able to fail.** The suite is
 `brain/packages/orchestrator/tests/test_subagent_gpu_live.py`, `integration`-marked and therefore
 outside CI and the coverage gate, run as two commands against one stack (the arms select themselves
 from the budget in the environment); the procedure is
@@ -531,7 +531,7 @@ the arm a run takes is the deployment's arithmetic rather than the test's, and i
 each spawn was handed because nothing else can: the ledger is private and no log line names a
 verdict. Proved able to fail before being trusted, by pointing `CORTEX_SUBAGENTS_GPU_ENDPOINT` at a
 closed port under the GPU-arm budget: the placement still happens, the backend does not answer, and
-the re-place addendum's single CPU re-run fires, so the run reddens on a third placement with the
+the re-place addendum's single CPU re-run fires, so the run fails on a third placement with the
 runner's "a GPU-placed subagent did not answer" warning in the captured log. That is also the first
 time the re-place has fired from a real GPU placement rather than from a failing fake.
 
@@ -763,23 +763,23 @@ against headroom 5.4), both spawns went to the CPU server and the tier served no
 **152.11 ms** (18 prompt tokens at 152.54 tok/s, 3 generated at 87.95 tok/s) against **13134.73 ms**
 for the sibling that overflowed, and the tier's served-task count moves by exactly one. The suite
 was proved able to fail first, the same way the arm's own sitting proved it: with the GPU endpoint
-pointed at a closed port under this budget the run reddens on three placements rather than two,
+pointed at a closed port under this budget the run fails on three placements rather than two,
 because a GPU-placed attempt whose backend did not answer re-runs once on the CPU.
 
 **The gated pins were proved able to fail too**, each mutation applied to the shipped default alone
 and reverted, and the two pins fail on different mutations, which is what says they are not one
-test twice. At 5.5 the placement pin reddens on the first spawn overflowing and the margin pin
-stays green, since 5.5 covers the tier amply and simply does not fit. At 3.4 it is the other way
-round: the margin pin reddens at 71.6 MiB against the 130 it has to clear, and the placement pin
-passes, one spawn still fitting. At the old code default of 2.0 both redden, the margin at
+test twice. At 5.5 the placement pin fails on the first spawn overflowing and the margin pin
+passes, since 5.5 covers the tier amply and does not fit. At 3.4 it is the other way
+round: the margin pin fails at 71.6 MiB against the 130 it has to clear, and the placement pin
+passes, one spawn still fitting. At the old code default of 2.0 both fail, the margin at
 -1362 MiB and the placement on the **second** spawn, which a 2.0 ask leaves room for. They read the
 deployment's own numbers rather than literals, so a later move of the cap or the reservation is
 answered here rather than silently absorbed, which is what the pin they replace was for.
 
 **What the ask still does not model**, stated here because correcting it does not fix it: the
 ledger charges one tier's whole footprint per spawn, while the tier is a standing process that a
-second spawn allocates nothing on. So the refusal of that second spawn is a decode-speed choice
-dressed as a memory one. That is the older modelling gap recorded in
+second spawn allocates nothing on. So the refusal of that second spawn is a decode-speed decision
+expressed as a memory one. That is the older modelling gap recorded in
 [refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager), unchanged by
 this and now the honest reading of what the second placement means. The roster's alternate entry
 (`docker-compose.subagents-roster.yml`, `vram_gb` 2.5) is deliberately left alone: no GPU executor
@@ -839,8 +839,8 @@ So the signature was opened and read before anything was designed:
 A wait bound is expressible without touching any of it, and for a reason worth writing down rather
 than a coincidence: the bound is **policy the budget owns**, not a per-spawn ask, so it belongs
 where the budget's other two numbers already live, on the implementation's constructor. Every
-caller of `admit` is the runner, and it wants the refusal, not the knob. What the port *did* gain
-is a sentence of contract: an implementation that queues owes a bound on that queue and the same
+caller of `admit` is the runner, and what it needs is the refusal rather than the knob. What the
+port *did* gain is a sentence of contract: an implementation that queues owes a bound on that queue and the same
 typed refusal when it elapses. `AdmitAllScheduler` satisfies that vacuously, having no queue, which
 is why the drain contract suite needed no new case; the twin is unchanged.
 
@@ -896,7 +896,7 @@ serializes (the sixteenth spawn is admitted 4200 s in) and will clear it while t
 that both routinely queues more than one batch and collapses its admitted pair onto a single
 target, which means a GPU subagent tier that is down or a VRAM ask that never fits the headroom;
 where that pair straddles the two targets the shipped default already covers two batches and the
-knob wants leaving alone. The refusal names the bound either way, so its reader lands on the right
+knob should be left alone. The refusal names the bound either way, so its reader lands on the right
 knob. The GPU tier only shortens these waits (a GPU-placed spawn measured **221.05 ms**
 against **12536.83 ms** for the sibling that overflowed), so sizing on the CPU path is the
 conservative direction.
@@ -906,13 +906,13 @@ conservative direction.
 The entry asked for both "no timeout and no queue-depth bound". They are not the same refusal: a
 **depth** bound refuses early, when the queue is already provably longer than the budget can drain;
 the **wait** bound refuses late, after the caller has paid. Only the wait bound shipped, and the
-reason is that the scheduler has charges and no durations. It knows a waiter asks for 2.0 cpus; it
-has no idea whether that waiter is thirty seconds or five minutes of work, so any depth number is a
-guess where the wait number above is arithmetic over measurements. Five waiters asking 0.5 cpus
-each drain in a fraction of the time five asking 2.0 do, and depth cannot tell them apart.
+reason is that the scheduler has charges and no durations. A waiter's charge of 2.0 cpus says
+nothing about whether that waiter is thirty seconds or five minutes of work, so any depth number is
+a guess where the wait number above is arithmetic over measurements. Five waiters asking 0.5 cpus
+each drain in a fraction of the time five asking 2.0 do, and a depth bound does not distinguish them.
 
 **What is left unanswered**, therefore: a spawn joining a queue that is already hopeless still pays
-the whole hour before it is told, so the model hears "refused" an hour late instead of at once, and
+the whole hour before it is told, so the model is told "refused" an hour late instead of at once, and
 `MAX_SPAWN_BATCH` plus depth-1 are still the only things bounding how long that queue can get.
 Filed as its own deferral in
 [refinements/index.md#resource-governance](../refinements/index.md#resource-governance), with the trigger that
@@ -943,7 +943,7 @@ bought a decoration: the deadline would have been read from it and enforced some
 Six mutations, each applied to production code alone with the whole `packages` suite re-run, so the
 counts are measured rather than aimed at:
 
-| Mutation | Reddened | Which |
+| Mutation | Tests failed | Which |
 | --- | --- | --- |
 | the `asyncio.timeout` wrapper dropped (the unbounded wait restored) | 4 | the three bound cases plus the wiring one |
 | the refusal interpolates a literal instead of the configured bound | 2 | `..._is_refused_and_names_it`, `..._hands_the_pool_its_configured_admission_bound` |
@@ -965,9 +965,9 @@ term says so. This one is not arithmetic at all, and the distinction is the whol
 second pair of verbs rather than a cleverer number.
 
 **The failure.** Restarting each `CORTEX_SWAP_EVICT_MODELS` tier after a brain handoff is
-deliberately best effort (ADR-0030 decision 4), so a peer that will not come back is logged and
-swallowed, and admission then reopens onto a `llama-server` that is not running. Every GPU-placed
-spawn afterwards dials a dead endpoint, fails at its backend, and is re-run on the CPU by the
+deliberately best effort (ADR-0030 decision 4), so a peer that does not come back is logged and the
+failure is not propagated, and admission then reopens onto a `llama-server` that is not running.
+Every GPU-placed spawn afterwards dials a dead endpoint, fails at its backend, and is re-run on the CPU by the
 re-place this ADR's own addendum landed: correct, honest, and paying two loads to learn what the
 swap back already knew. The full argument, the down-versus-evicted rule, and what clears the
 record live at the ADR-0030 tier-outage addendum; what belongs here is the port.
@@ -980,9 +980,9 @@ is the same honest degenerate form the charge pair already allows.
 
 **Why not express it as a charge.** Two reasons, and the second is the one that would have bitten.
 A resident charged large enough to crowd the soft cap out would make the placer report "no room"
-where the truth is "no server", which is a lie a future reader would have to reverse-engineer. And
-the handoff pair heals itself: `charge_standing` fires whenever the cortex is serving again, so a
-tier outage encoded as a charge would be silently reopened by the next successful swap back. The
+where the truth is "no server", which is a false report a future reader would have to
+reverse-engineer. And the handoff pair resets itself: `charge_standing` fires whenever the cortex
+is serving again, so a tier outage encoded as a charge would be silently reopened by the next successful swap back. The
 two pairs are independent by contract, and `test_a_handoff_charge_does_not_reopen_a_closed_gpu`
 pins exactly that.
 
@@ -996,7 +996,7 @@ refusing the GPU costs decode rate, under refusing costs a dead load per spawn.
 in the repo, and `test_placer.py` is where the port's checks live, so the new verbs are pinned
 there beside the old ones and exercised end to end in the core's `test_residency_tiers.py`, where
 a real residency scope is what writes them. Distrust green: consulting the headroom before the
-closed flag in `place` reddens 7 tests across two packages, two of them in `test_placer.py`.
+closed flag in `place` fails 7 tests across two packages, two of them in `test_placer.py`.
 
 ## Addendum (2026-08-19): the subagent memory budget is one number, and the gates now hold it
 
@@ -1013,12 +1013,12 @@ independent reasons. Both are now resolved, and the reasoning matters more than 
 
 ### The site: a named constant, not a reducer that reads calls
 
-`values.py` reduces a declaration's right-hand side and **refuses what it cannot read** rather than
-guessing, which is the property that keeps the gate from agreeing with itself. `Field(default=8.0,
-gt=0)` is a call, so it was refused. The two ways forward were to teach the reducer that call, or
-to give the number a name the reducer already reads.
+`values.py` reduces a declaration's right-hand side and **fails on a form it cannot read** rather
+than guessing, because a guessed reduction would report two values as equal that were never
+compared. `Field(default=8.0, gt=0)` is a call, so it was rejected. The two ways forward were to
+teach the reducer that call, or to give the number a name the reducer already reads.
 
-The name wins, and not narrowly. A reducer that reads `Field(...)` is a reducer that knows pydantic:
+The name wins, and not narrowly. A reducer that reads `Field(...)` is a reducer specific to pydantic:
 it would have to pick the `default` keyword out of a call that also accepts a positional default and
 a `default_factory`, in a module that is deliberately language-agnostic and understands four value
 forms and no call at all. Every such rule is a place where the gate infers a value nobody wrote
@@ -1040,13 +1040,13 @@ find both.
 it. `Spelling.WRITTEN` is the default and every existing mention keeps it. `Spelling.WHOLE` renders
 the same value without a fractional part, and it is **derived from the declared value rather than
 typed into the registry**: nobody writes `8` beside `8.0` and asks the gate to trust that they
-match. A fraction that is not zero is refused rather than truncated, so a budget retuned to `8.5`
-fails the scan naming the far side that cannot spell it, instead of quietly capping a container half
+match. A non-zero fraction fails the scan rather than being truncated, so a budget retuned to `8.5`
+is reported against the far side that cannot express it, instead of quietly capping a container half
 a gigabyte under what the scheduler admits.
 
-The one thing a re-spelling cannot do is notice a site that drops its point, `8` and `8.0` being one
+The one drift a re-spelling cannot catch is a site that drops its point, `8` and `8.0` being one
 whole number and therefore one whole spelling. That is exactly the drift the decimal work made the
-reducer textual to catch, so `values.spelling_fault` refuses any entry whose mentions all re-spell:
+reducer textual to catch, so `values.spelling_fault` fails any entry whose mentions all re-spell:
 a second site or a mention rendering the value as written has to stand beside them. The registered
 entry carries two of each, and the drift is caught by the written pair.
 
@@ -1058,8 +1058,8 @@ what disables the container's swap, so one moving without the other re-enables i
 the two comments that restate the number, one claiming the twinning and one counting admissions
 against it. Each template covers the whole of what it pins, including the quotes around a compose
 scalar: a needle stopping at the substitution's own `}` is satisfied by the size limits and leaves
-the passthrough free to drift, which is the prefix hole the port publish taught the registry to
-close.
+the passthrough free to drift, which is the prefix gap the port-publish entry exposed and the
+registry now closes.
 
 This record is not a far side and no decision record ever is: it says what was decided on a date and
 must go on saying it after the number moves. The wider survey stays unasked here too. Around fifty
@@ -1157,7 +1157,7 @@ The Intel NPU has sat in this record as a third `PlacementTarget` behind two unk
 them called the likely blocker: whether the NPU is reachable from the dockerized WSL2 brain at all,
 since WSL2 paravirtualizes the dGPU but not the NPU. It was probed on this machine. It is not
 reachable, the guess about why was right, and the probe is written down here because three
-different findings wear the same sentence and only one of them was measured.
+different findings would be stated in the same sentence and only one of them was measured.
 
 **Kept apart on purpose.** "This machine has no NPU" is a fact about the hardware. "The device is
 not paravirtualized into WSL2" is a fact about the guest. "The NPU is not reachable from a
@@ -1181,7 +1181,7 @@ This kernel could not drive an NPU if one were handed to it.
 
 ### What the paravirtualization actually projects
 
-`/dev/dxg` is not a GPU, it is an adapter channel, so the question is what enumerates on it. Driven
+`/dev/dxg` is an adapter channel rather than a GPU, so the question is what enumerates on it. Driven
 through `/usr/lib/wsl/lib/libdxcore.so`, the adapter list holds exactly two entries under each of
 the four capability attributes, `D3D11_GRAPHICS`, `D3D12_GRAPHICS`, `D3D12_CORE_COMPUTE` and
 `D3D12_GENERIC_ML`:
@@ -1265,8 +1265,8 @@ WSL projecting the device and the vendor shipping a Linux user mode driver for i
 A close-out review of the probe above found two of its own measurements never put side by side. The
 guest's PCI bus carries three Microsoft vPCI devices of display class `0x030200`, `1414:008e` twice
 and `1414:008a`, all bound to `dxgkrnl`. The adapter channel reached through them enumerates two
-adapters under every capability attribute. Three devices, two adapters, and no sentence joining
-them.
+adapters under every capability attribute. The probe therefore recorded three devices and two
+adapters without a sentence relating the two counts.
 
 It costs the conclusion nothing, since a device that enumerates as no adapter at all cannot be one
 that answers to the compute accelerator type. It costs a reader something: the discrepancy shows up

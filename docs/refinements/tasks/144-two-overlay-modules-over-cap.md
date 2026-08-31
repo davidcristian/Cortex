@@ -23,7 +23,8 @@ it was written, and its closing claim stopped being true on 2026-07-21, when
 `overlay/panelPlacement.ts` went to 304 (`9e2ec6c3`) and then 371 (`051e733d`) and stayed over
 the cap for thirteen days, until the ResizeObserver work took it to 295 on 2026-08-03 as a side
 effect rather than because anything complained. That is exactly the failure mode the sentence
-before it described: a cap met by attention is met until attention moves on. The cap is machine
+before it described: nothing measured the cap, so it stopped being met as soon as nobody was
+watching. The cap is machine
 enforced over `.ts`/`.tsx` from 2026-08-03 ([ADR-0011](../../adr/ADR-0011-body-v1.md) line-cap
 addendum), so this line is the historical record of that interval rather than a standing
 description.

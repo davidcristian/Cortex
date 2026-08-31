@@ -1,19 +1,19 @@
 //! What one outgoing seam call carries: the metadata it is sent with, and the deadline the body
 //! told the brain about it.
 //!
-//! Split from `client.rs` (which owns the connection and the port implementation over it) along
+//! Split from `client.rs`, which owns the connection and the port implementation over it, along
 //! the line the courtesy `grpc-timeout` header drew through this adapter (ADR-0024
-//! courtesy-header addendum). The seam token is per **connection** and a deadline is per
-//! **call**, but both ride the same tonic [`Interceptor`], which is the one place every outgoing
-//! request passes through; so an interceptor is now built per call, and everything that decides
-//! what a single call looks like on the wire lives here.
+//! courtesy-header addendum). The seam token is per connection and a deadline is per call, but
+//! both travel through the same tonic [`Interceptor`], which is the one place every outgoing
+//! request passes through, so an interceptor is built per call and everything that decides what
+//! a single call looks like on the wire lives here.
 //!
 //! [`SeamCall`] is that call: a generated client whose interceptor already holds this call's
-//! announcement, plus the announcement itself so the *reply* can be read in its light. Both
-//! halves are needed. The request half is what the brain reads to stop working on a call nobody
-//! is waiting for; the reply half is what turns a brain-sent `DEADLINE_EXCEEDED` into the
-//! [`TransportError::Timeout`] the body's own clock produces, a deadline announced and a deadline
-//! enforced being one event seen from two ends.
+//! announcement, plus the announcement itself so the reply can be read against it. Both halves
+//! are used. The request half is what the brain reads to stop working on a call nobody is
+//! waiting for, and the reply half is what turns a brain-sent `DEADLINE_EXCEEDED` into the
+//! [`TransportError::Timeout`] the body's own clock produces, since the announced deadline and
+//! the enforced deadline bound the same call.
 //!
 //! Nothing here decides how long a call may take. That is the core's
 //! `RetryPlan::announced_deadline_for`, and this module only refuses what the wire cannot carry
@@ -47,9 +47,9 @@ pub(crate) type SeamChannel = InterceptedService<Channel, SeamTokenInterceptor>;
 /// built per call rather than per client: `Request::set_timeout` is the only way to put
 /// `grpc-timeout` on the wire, and this is the one place every outgoing request passes through.
 ///
-/// Deliberately NOT `Debug`: it holds the secret, and tonic's
-/// `InterceptedService` debug-prints interceptors by type name only. The
-/// token cannot reach a log through a `{:?}` of the client either.
+/// It deliberately does not derive `Debug`, because it holds the secret. tonic's
+/// `InterceptedService` debug-prints interceptors by type name only, so the token cannot reach a
+/// log through a `{:?}` of the client either.
 #[derive(Clone)]
 pub(crate) struct SeamTokenInterceptor {
     token: Option<MetadataValue<Ascii>>,
@@ -66,7 +66,8 @@ impl Interceptor for SeamTokenInterceptor {
         if let Some(announced) = self.announced {
             // Writes `grpc-timeout` and nothing else. The channel's own `GrpcTimeout` layer sits
             // below this one and parses the header back off the request, so this also arms a
-            // local clock: see `announcing` for why that clock must never be the first to fire.
+            // local clock: see `MAX_ANNOUNCED_DEADLINE_MS` for why that clock must never be the
+            // first to expire.
             request.set_timeout(announced);
         }
         Ok(request)
@@ -77,25 +78,25 @@ impl Interceptor for SeamTokenInterceptor {
 /// About 27.8 hours, which is the top of `grpc-timeout`'s millisecond rung.
 ///
 /// The header's value is at most 8 digits plus a unit, so tonic walks a ladder of units looking
-/// for the most precise one that fits and **truncates** onto it (`duration_to_grpc_timeout`,
-/// tonic 0.14): nanoseconds below 0.1 s, microseconds below 100 s, milliseconds up to this
-/// bound, whole seconds above it, and a panic past the coarsest rung some 11,415 years out.
+/// for the most precise one that fits and truncates onto it (`duration_to_grpc_timeout`, tonic
+/// 0.14): nanoseconds below 0.1 s, microseconds below 100 s, milliseconds up to this bound, whole
+/// seconds above it, and a panic past the coarsest rung some 11,415 years out.
 ///
-/// **The filter sits at the millisecond rung and not at the panic**, because a panic is not the
-/// only way a courtesy can cost the call it is a courtesy to. Announcing arms tonic's own clock
-/// from what the header **decodes** to, so the truncation is grace margin spent: under this
-/// bound it costs less than a millisecond and `ANNOUNCED_DEADLINE_GRACE_MS` swallows it, and over
-/// it the step is a whole second, four times that margin. With `announced = enforced + 250 ms`
-/// the decoded value then falls *below* the enforced bound for 749 of every 1000 millisecond
-/// values a deadline can take, by as much as 749 ms, and tonic's timer wins the race the margin
-/// exists to make it lose. Its expiry classifies `Connection` (`crate::status`), which is
-/// retryable, so one abandoned call would become three.
+/// The filter sits at the millisecond rung rather than at the panic, because the truncation
+/// itself can cost the call. Announcing arms tonic's own clock from what the header decodes to,
+/// so the truncation spends grace margin: under this bound it costs less than a millisecond and
+/// `ANNOUNCED_DEADLINE_GRACE_MS` covers it, and over it the step is a whole second, four times
+/// that margin. With `announced = enforced + 250 ms` the decoded value then falls below the
+/// enforced bound for 749 of every 1000 millisecond values a deadline can take, by as much as
+/// 749 ms, so tonic's timer expires first, which the margin exists to prevent. Its expiry is
+/// classified `Connection` (`crate::status`), which is retryable, so one abandoned call would
+/// become three.
 ///
 /// An announcement past this is dropped rather than clamped or rounded. Clamping would announce a
-/// deadline *shorter* than the one the core enforces, which is that same race run on purpose;
-/// rounding up onto the ladder ourselves would re-implement a private encoder free to move under
-/// a version bump. Dropping costs the brain a hint and costs the call nothing, the core's own
-/// bound being what actually ends it (ADR-0024 unit-ladder addendum).
+/// deadline shorter than the one the core enforces, which is that same ordering inverted on
+/// purpose, and rounding up onto the ladder here would re-implement a private encoder that is
+/// free to change in a version bump. Dropping costs the brain a hint and costs the call nothing,
+/// since the core's own bound is what ends it (ADR-0024 unit-ladder addendum).
 ///
 /// A count of milliseconds rather than a [`Duration`] for the reason `ANNOUNCED_DEADLINE_GRACE_MS`
 /// is one: `scripts/crosscheck.py` ties this to the contract that quotes it by reading this

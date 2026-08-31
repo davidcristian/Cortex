@@ -1,14 +1,14 @@
 """Brain-handoff configuration (ADR-0030): env-driven, root-read only.
 
 Its own module per the ``config_tools.py`` / ``config_schedule.py`` split precedent. It holds
-the one switch that turns the whole capability on (``CORTEX_ESCALATION``, **off by default**,
-so CI and the GPU-less dev loop behave exactly as they did before this landed) plus the
-topology and bounds of the swap it enables.
+the one switch that turns the whole capability on (``CORTEX_ESCALATION``, off by default, so CI
+and the GPU-less dev loop behave exactly as they did before this landed) plus the topology and
+bounds of the swap it enables.
 
 The switch is fail-closed in both directions: with escalation off nothing is built, the
 ``escalate_to_brain`` built-in is never advertised, and no boot recovery runs; with it on, the
 deployment must say which model host serves the swap and where the deep model answers, or boot
-fails loudly rather than advertising a handoff that could only ever refuse.
+fails rather than advertising a handoff that could only ever fail.
 """
 
 from typing import Literal
@@ -27,7 +27,7 @@ from cortex_core import (
 # CORTEX_MODEL_BRAIN exactly as the cortex tier's id is.
 DEFAULT_BRAIN_MODEL = "brain"
 
-# The control plane's own deadline, and the one timeout in the brain that must NOT be short. A
+# The control plane's own deadline, and the one timeout in the brain that must not be short. A
 # supervisor's ``stop`` answers only once the child is reaped, so it can legitimately take that
 # sidecar's SIGTERM grace plus its SIGKILL reap bound, and, because a ``status`` queued on the same
 # per-model lock probes inside it, that sidecar's probe timeout as well: 5 s + 10 s + 30 s = 45 s
@@ -35,10 +35,10 @@ DEFAULT_BRAIN_MODEL = "brain"
 # slow-but-correct eviction would be read as a dead sidecar and abort a handoff that was working.
 # The sidecar's knobs are its own env, which is why the rule used to be documented in
 # docs/runbooks/model-swap.md and enforced nowhere; the daemon now reports all three on its
-# ``GET /health``, so the brain refuses to serve a pairing that does not hold and re-reads it
+# ``GET /health``, so the brain fails at boot on a pairing that does not hold and re-reads it
 # whenever the daemon under it turns out to have restarted. It bounds the whole call, unlike the
 # generation clients' per-read stall ceiling (builders.py), which bounds the gap between a stream's
-# chunks: a control call streams nothing, so it has no such gap to spend patience on.
+# chunks: a control call streams nothing, so it has no such gap to bound.
 DEFAULT_MODELHOST_TIMEOUT_S = 60.0
 
 ModelHostBackendName = Literal["none", "scripted", "supervisor"]
@@ -52,10 +52,10 @@ class SwapConfig(BaseSettings):
 
     ``CORTEX_MODELHOST_BACKEND`` picks who owns the model processes. ``none`` (the default)
     means nobody does, which is why enabling escalation without setting it is a boot failure.
-    ``scripted`` runs the in-core ``ScriptedModelHost``: it tracks residency honestly but starts
-    no process, so the whole path (record, drain, scope, deep phase, swap back, recovery) runs
-    end to end against whatever inference backend is configured. It is the dev and CI backend,
-    named for what it is. ``supervisor`` is the real one: the ``HttpModelHost`` adapter driving
+    ``scripted`` runs the in-core ``ScriptedModelHost``: it tracks residency but starts no
+    process, so the whole path (record, drain, scope, deep phase, swap back, recovery) runs
+    end to end against whatever inference backend is configured. It is the dev and CI backend.
+    ``supervisor`` is the real one: the ``HttpModelHost`` adapter driving
     the ``model-host`` sidecar's control API at ``CORTEX_MODELHOST_ENDPOINT``, which really does
     start and stop ``llama-server`` processes, and which is therefore required with it.
     ``CORTEX_MODELHOST_TIMEOUT_S`` bounds one control call.
@@ -75,7 +75,7 @@ class SwapConfig(BaseSettings):
     nothing has nothing to sweep, so the loop costs it one wakeup per interval and no control call
     at all.
 
-    ``CORTEX_SWAP_CORESIDENT`` (**off by default**) is the deployment's assertion that its
+    ``CORTEX_SWAP_CORESIDENT`` (off by default) is the deployment's assertion that its
     standing peers fit beside the deep model, which is a measurement no process can make for
     itself: the deep model's own VRAM and every peer's are facts about one card, and the brain
     sees neither. With it on a handoff stops the cortex and nothing else, and the subagent pool
@@ -86,18 +86,18 @@ class SwapConfig(BaseSettings):
     ``CORTEX_SWAP_BRAIN_VRAM_MIB`` is what that assertion is checked against: the free device
     memory the deep model needs, measured by the deployment on its own card. The model host is
     the one process here that can see a GPU, so it reports what is free and the swap compares the
-    two immediately before the load, refusing the handoff when the room is not there. **It is
-    required when co-residency is on and the host is the real supervisor**, since a co-resident
-    plan is exactly a claim about room and this is the only way that claim is ever tested; with
-    the scripted host it stays optional, that backend starting no process on any card. Zero means
-    no check, which is what a deployment that evicts everything ships with.
+    two immediately before the load, failing the handoff when the room is not there. It is
+    required when co-residency is on and the host is the real supervisor, since a co-resident plan
+    is exactly a claim about room and this is the only way that claim is ever tested; with the
+    scripted host it stays optional, that backend starting no process on any card. Zero means no
+    check, which is what a deployment that evicts everything ships with.
 
     ``CORTEX_SWAP_BRAIN_DECODE_TPS`` is the after-the-fact half of the same claim, and the only
     one there is: the tokens per second the deep tier reaches when the card genuinely holds it,
     measured by the deployment on its own card. The fit check above is passed by a cost declared
     too low and by memory the desktop takes while the load runs, and both of those spill without
     failing anything, so the deep phase compares a real completion's rate against this and says so
-    when it did not clear. Zero (the default) reports the rate and judges nothing. It is not
+    when it did not clear. Zero (the default) reports the rate and compares nothing. It is not
     required by co-residency the way the VRAM figure is, because it guards nothing: no decision
     waits on it, and a deployment that has not measured a rate is better served by the observed
     number in its log than by a boot failure.
@@ -146,7 +146,7 @@ class SwapConfig(BaseSettings):
         return self._coresidency_needs_a_measured_fit()
 
     def _coresidency_needs_a_measured_fit(self) -> "SwapConfig":
-        """Refuse a co-resident deployment that never said what the deep model costs.
+        """Raise for a co-resident deployment that never stated what the deep model costs.
 
         Boot is the right place for this half and the wrong place for the reading itself. What a
         card has free is a fact that changes by the gigabyte while the machine runs, so it is
@@ -172,7 +172,7 @@ class SwapConfig(BaseSettings):
 
         ``cortex_model`` comes from the runtime config (``CORTEX_MODEL_CORTEX``), so the tier
         ids stay declared in one place each and cannot drift between the lease and the swap. The
-        control deadline rides it for the same reason: both readers of the pairing rule (the
+        control deadline travels on it for the same reason: both readers of the pairing rule (the
         composition root at boot, and a swap that finds the daemon replaced) then read one value.
         """
         return ResidencyPlan(

@@ -41,11 +41,11 @@ from cortex_seam import ToolActivity as WireToolActivity
 from cortex_seam import ToolOutcome as WireToolOutcome
 
 # How the servicer builds one stream's engine (ADR-0022, ADR-0010): a closure over the shared
-# adapters that wires THIS stream's confirmer and progress sink into the dispatcher and the turn.
-# Engines are stateless functions over the store, so per-stream construction costs nothing. The
-# return type is the `TurnRunner` port rather than the concrete engine, because a deployment with
-# escalation enabled serves turns through the wrapper that can carry a model handoff inside one
-# turn (ADR-0030); the stream drives `handle_turn` and needs to know nothing else.
+# adapters that wires this stream's own confirmer and progress sink into the dispatcher and the
+# turn. Engines are stateless functions over the store, so per-stream construction costs nothing.
+# The return type is the `TurnRunner` port rather than the concrete engine, because a deployment
+# with escalation enabled serves turns through the wrapper that can carry a model handoff inside
+# one turn (ADR-0030); the stream drives `handle_turn` and needs nothing else.
 EngineFactory = Callable[[Confirmer, ProgressSink], TurnRunner]
 
 # SeamError.code values are part of the seam contract (the overlay switches on these).
@@ -91,20 +91,20 @@ class ConverseStream:
 
     The pump and the consumer are decoupled by an output queue so a `Cancel` can be
     acted on while a turn is still generating; `None` on the queue ends the stream.
-    The queue is bounded by a credit semaphore (`max_buffered_events`, the Slice-3
-    backpressure deferral, landed 2026-07-03): the turn's data path acquires one
-    credit per event and the consumer returns it on dequeue, so a consumer that stops
-    reading stalls generation at the bound instead of buffering an unbounded reply.
-    Control events (the terminal `SeamError` and the `None` sentinel) bypass the
-    credits (`put_nowait` on the still-unbounded queue): failure reporting and stream
-    teardown must never block behind a full buffer, whatever the consumer does.
+    The queue is bounded by a credit semaphore (`max_buffered_events`, the backpressure
+    deferral landed 2026-07-03): the turn's data path acquires one credit per event and
+    the consumer returns it on dequeue, so a consumer that stops reading stalls
+    generation at the bound instead of buffering an unbounded reply. Control events
+    (the terminal `SeamError` and the `None` sentinel) bypass the credits (`put_nowait`
+    on the still-unbounded queue): failure reporting and stream teardown must never
+    block behind a full buffer, whatever the consumer does.
 
     Turn scheduling: at most one turn task runs; `UserTurn`s arriving mid-turn wait
     in `_pending` and the finishing turn's own cleanup starts the next one, so the
     pump never blocks on a running turn and stays free to act on a `Cancel`.
 
     Cancellation discipline: child tasks are awaited via `asyncio.wait`, which
-    propagates the WAITER'S cancellation and never the child's outcome. A bare
+    propagates the waiter's cancellation and never the child's outcome. A bare
     `await task` under `suppress(CancelledError)` must not come back: when stream
     teardown raced a client `Cancel`, it swallowed the pump's own cancellation, the
     pump resumed reading the client iterator, and `aclose()` hung the RPC handler.
@@ -123,7 +123,7 @@ class ConverseStream:
             raise ValueError(msg)
         self._out: asyncio.Queue[ServerEvent | None] = asyncio.Queue()
         self._credits = asyncio.Semaphore(max_buffered_events)
-        # This stream's confirmer rides the control path via put_nowait (see the class
+        # This stream's confirmer goes out on the control path via put_nowait (see the class
         # docstring on credits); the factory wires it into the stream's own engine.
         self._confirmer = SeamConfirmer(self._out.put_nowait, timeout_s=confirm_timeout_s)
         # This stream's progress sink (ADR-0010): a spawned subagent surfaces its steps onto the
@@ -183,9 +183,9 @@ class ConverseStream:
                         extra={"session_id": event.session_id, "kind": kind},
                     )
             # Input ended (half-close): no answer can ever arrive, so anything awaiting
-            # confirmation is denied NOW. A draining turn must not hang out the timeout.
-            # This is the ONLY place we close (decline): on teardown/failure the in-flight
-            # turn is *cancelled* by events()'s finally instead, so a client disconnect
+            # confirmation is denied at once. A draining turn must not hang out the timeout.
+            # This is the only place that closes the confirmer: on teardown or failure the
+            # in-flight turn is cancelled by events()'s finally instead, so a client disconnect
             # cancels a pending confirm rather than auditing a spurious "user declined".
             self._confirmer.close()
             await self._drain_turns()
@@ -231,7 +231,7 @@ class ConverseStream:
         enqueue keeps the id a fact about a turn that ran: a queued turn a `Cancel` drops
         never began and has nothing to be named for. The user's own text is never attached
         to any of these lines, and must not be: the formatter prints fields nobody
-        enumerated, and its denylist cannot recognize a conversation.
+        enumerated, and its denylist cannot pick out conversation text.
         """
         turn_id = self._new_turn_id()
         fields = {"session_id": session_id, "turn_id": turn_id}
@@ -250,7 +250,7 @@ class ConverseStream:
             # Synchronous, so it runs even under cancellation and completes before
             # the task reads as done: whoever awaits the task sees exact bookkeeping,
             # and the next queued turn starts (after a Cancel the queue is already
-            # empty; after a failure _start_next_turn refuses).
+            # empty; after a failure _start_next_turn returns without starting one).
             self._turn = None
             self._start_next_turn()
 

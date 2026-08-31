@@ -4,16 +4,16 @@
 call is the assertion, because the one thing worth pinning is that the bind address and port come
 from config rather than from a literal.
 
-Distrust-green proofs, each applied to production code alone with the whole
-``packages/model_manager`` suite re-run, so the counts are measured:
+These checks were proved able to fail. Each mutation below was applied to production code alone
+with the whole ``packages/model_manager`` suite re-run, and every count is over that suite:
 
 - collapsing ``build_supervisor`` to ``httpx.AsyncClient()`` plus a ``ModelSupervisor`` on its
-  defaults (all three timing knobs ignored) reddens exactly 1 case,
+  defaults (all three timing knobs ignored) fails exactly 1 case,
   ``test_the_wiring_hands_over_every_timing_knob_it_reads``; replacing any single one of the three
-  with its default literal reddens the same one case, and nothing else in the package sees these
+  with its default literal fails the same one case, and nothing else in the package sees these
   knobs at all;
 - having ``ModelSupervisor`` store the defaults instead of the bounds it was constructed with
-  reddens 2: that case and ``test_api.py``'s health case, which reads them back off the wire.
+  fails 2: that case and ``test_api.py``'s health case, which reads them back off the wire.
 """
 
 from http import HTTPStatus
@@ -50,10 +50,10 @@ async def test_the_wired_app_serves_the_roster_its_env_declared(
 async def test_the_wiring_hands_over_every_timing_knob_it_reads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Distinctive values, read back off the two objects the root actually handed them to.
+    """Every timing knob reaches the two objects the root hands it to, read back off them.
 
-    Nothing else in this process observes these three, so without this the root could ignore all
-    of them: the daemon would evict on the defaults while the runbook's pairing rule was being
+    Nothing else in this process observes these three, so without this check the root could ignore
+    all of them: the daemon would evict on the defaults while the runbook's pairing rule was being
     reasoned about the numbers the deployment set. The probe client's deadline is asserted the way
     the brain-side twin asserts its control client's, and again on the supervisor, which spends
     none of it and is what publishes the whole worst case the brain checks against.
@@ -74,8 +74,9 @@ async def test_the_wiring_hands_over_every_timing_knob_it_reads(
 def test_main_serves_the_configured_interface_and_port_and_configures_the_root_logger(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The root logger is the sidecar's whole diagnosis surface, and nothing else configures it.
+    """``main`` serves the configured address and configures the root logger itself.
 
+    The root logger is where the sidecar's diagnosis is read, and nothing else configures it.
     ``uvicorn.run`` configures uvicorn's own loggers and leaves root alone, so measured in the
     image: without this call every lifecycle line the package logs at INFO is dropped and the one
     WARNING that escapes goes through logging's last-resort handler, which renders neither the
@@ -108,7 +109,7 @@ def test_main_serves_the_configured_interface_and_port_and_configures_the_root_l
 def test_the_sidecar_renders_its_fields_the_way_a_reader_gets_them_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A deployment that names no rendering gets the one a person reads, not a bare message."""
+    """A deployment that names no rendering gets the one a person reads, fields included."""
     configured: list[tuple[str, str]] = []
     served: list[str] = []
 

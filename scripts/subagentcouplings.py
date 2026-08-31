@@ -19,11 +19,11 @@ The reasoning-off entry below is narrower than it was, and deliberately. It used
 tier's flag pair as four compose list items and require them in each of the two servers it could
 name, which is a claim about two files where the claim worth making is about every server the
 stack starts. `flagcheck.py` derives that set and holds the pair over all of it, so what stays
-here is the value under one half of the pair, tied to the sidecar that declares it: a set is a
-rule's to enforce, and a number spelled in two trees is this registry's.
+here is the value under one half of the pair, tied to the sidecar that declares it: the set belongs
+to that rule, and a number written in two trees belongs to this registry.
 
-Nothing in the scan asks which file an entry sits in, so a coupling moves house without the gate
-noticing; what a file buys is a reader who can hold one subject at a time.
+Nothing in the scan asks which file an entry sits in, so a coupling can move between parts with
+every gate still green; a file of its own gives a reader one subject at a time.
 """
 
 from couplings import Constant, Mention, Site, Spelling
@@ -147,9 +147,9 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         # it, so this entry's own two Python places overlap with a rule; what it keeps that no
         # rule reaches is the runbook below, and the count is worth pinning from both directions.
         sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
-        # The two compose needles this entry used to carry are gone, and that is the whole point.
-        # They rendered the pair as four list items and required it in each of the two servers
-        # this file could name, which held those two files and said nothing about a third.
+        # The two compose needles this entry used to carry are gone, deliberately. They rendered
+        # the pair as four list items and required it in each of the two servers this file could
+        # name, which held those two files and said nothing about a third.
         # `flagcheck.py` derives that set from the stack's own wiring and argv and holds every
         # server in it to the pair, so the co-occurrence now lives in a rule that can express it
         # over a set, and what stays here is the value under one half of it.

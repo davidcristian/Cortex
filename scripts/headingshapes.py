@@ -1,10 +1,10 @@
-"""How a markdown heading is read, and the shapes whose anchor this repo's rule will not guess.
+"""How a markdown heading is read, and the shapes whose anchor this repo's rule cannot derive.
 
 Split out of `backloganchors.py` when the refusal below took it past the line cap, along the
 seam that was already there: that file answers which anchors a document offers and which
 pointers land, and this one answers the prior question of what a heading even is here.
 
-The slug rule next door reads a heading's **source** text. A renderer slugs the **rendered**
+`backloganchors.py` slugs a heading's **source** text. A renderer slugs the **rendered**
 text, and the two agree exactly when every markdown construct in the source is built from
 characters that rule already drops and carries no text away with it. Plain prose, punctuation,
 code spans and `*` emphasis all qualify: a backtick and an asterisk are dropped on both sides
@@ -31,12 +31,11 @@ than a renderer does:
 - **a setext underline**, which is invisible to the ATX reader below, so a document written
   that way offers no anchors at all and every pointer into it reads as broken.
 
-They are **refused by name rather than emulated.** Rendering a heading's inline markdown before
-slugging it costs about what refusing costs, but it is a transform written against shapes the
-tree does not contain, and a wrong transform yields a wrong anchor, which is a silent accept the
-gate could never see. A refusal is loud in both directions: a shape reported here is a heading
-somebody must rewrite, and a shape missed here leaves the old approximation exactly where it
-was. That asymmetry is the whole argument.
+Each is refused by name rather than emulated. Rendering a heading's inline markdown before
+slugging it costs about what refusing costs, but it is a transform written against shapes the tree
+does not contain, and a wrong transform yields a wrong anchor, which nothing here could see. A
+refusal is visible in both directions: a shape reported here is a heading somebody must rewrite,
+and a shape missed here leaves the old approximation exactly where it was.
 """
 
 import re
@@ -84,7 +83,7 @@ PLAINLY = "; write it as plain text under leading hashes, so the source is what 
 
 
 class Unsluggable(NamedTuple):
-    """One heading whose anchor this rule will not guess at: where it is, and why not."""
+    """One heading whose anchor this rule cannot derive: where it is, and why not."""
 
     line: int
     heading: str
@@ -105,7 +104,7 @@ def headings(text: str) -> list[tuple[int, str]]:
 
 
 def _inline_reason(heading: str) -> str | None:
-    """Why this rule refuses one ATX heading's source text, or None when it can slug it.
+    """Why one ATX heading's source text is refused, or None when this rule can slug it.
 
     The closing hashes are read first and off the raw text, since stripping code spans could
     uncover or bury a trailing run; the rest are read off the heading without its code spans.
@@ -144,7 +143,7 @@ def _underlined(text: str) -> list[Unsluggable]:
 
 
 def unsluggable(text: str) -> list[Unsluggable]:
-    """Return every heading in ``text`` whose anchor this rule refuses to guess at, in order."""
+    """Return every heading in ``text`` whose anchor this rule cannot derive, in order."""
     refused = [
         Unsluggable(line=number, heading=heading, reason=reason)
         for number, heading in headings(text)

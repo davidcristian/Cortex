@@ -1,25 +1,25 @@
 """The ``capture_screen`` built-in: the cortex reads the user's screen (ADR-0029).
 
 The cortex calls it like any tool. It runs through the audited ``ToolDispatcher`` and calls the
-``BodyGateway`` port, which reaches the host body over ``BodyService``. Being an **internal**
-built-in rather than an MCP tool makes it cortex-only by construction: a subagent never gets
-one, which matters more here than for volume, since no subagent model on the mount carries a
-vision projector and an image-bearing MCP result would arrive as an empty non-error string.
+``BodyGateway`` port, which reaches the host body over ``BodyService``. Being an internal built-in
+rather than an MCP tool makes it cortex-only by construction: a subagent never gets one, which
+matters more here than for volume, since no subagent model on the mount carries a vision projector
+and an image-bearing MCP result would arrive as an empty non-error string.
 
-**A capture is always UNTRUSTED and always taints the turn.** A screen is a rendering of
-arbitrary third-party content up to and including an attacker's browser tab, and the ``Trust``
-docstring has named screen captures as untrusted since before any of this was built. The volume
-built-ins stamp TRUSTED because host state is a float the OS authored; this is not that.
-Tainting is not cosmetic: it closes every gated tool for the rest of the turn, refuses
-autonomous task creation, and pins subagent spawns to the injection-robust model.
+A capture is always UNTRUSTED and always taints the turn. A screen is a rendering of arbitrary
+third-party content up to and including an attacker's browser tab, and the ``Trust`` docstring has
+named screen captures as untrusted since before any of this was built. The volume built-ins stamp
+TRUSTED because host state is a float the OS authored, which a screen capture is not. Taint is
+what closes every gated tool for the rest of the turn, refuses autonomous task creation, and pins
+subagent spawns to the injection-robust model.
 
 The boundary has to be that mechanical, because framing does not hold over pixels the way it
 holds over text. Measured against a rendered-payload corpus (ADR-0029's 2026-08-04 image-arm
-addendum), an instruction painted into the pixels is **not obeyed but described** for every
+addendum), an instruction painted into the pixels is described rather than obeyed for every
 hijack-shaped attack, with and without the hardened preamble: overrides, task-completion spoofs,
 system-prompt mimicry, roleplay, refusal suppression, payload splitting and both exfiltrations
-all failed, and the outbound tool was never called from a picture. **Content manipulation is the
-exception**, and it is the one the preamble was hardened for: told by a screen that every summary
+all failed, and the outbound tool was never called from a picture. Content manipulation is the
+exception, and it is the one the preamble was hardened for: told by a screen that every summary
 must end with a given line, the cortex has ended its summary with that line, framed. No amount of
 framing bounds a picture; a nonce can bracket text and cannot bracket pixels. So the tool marks
 the turn through exactly the machinery every other untrusted result uses, with no special case,
@@ -29,13 +29,13 @@ Failure is deliberately asymmetric: every failure returns ``Trust.TRUSTED, is_er
 no images. Nothing untrusted arrived, so tainting on a dead body would gratuitously close the
 user's gated tools for the rest of a turn in which nothing was read.
 
-**Ungated by default**, with ``CORTEX_TOOLS_GATED=send_email,capture_screen`` as the documented
+Ungated by default, with ``CORTEX_TOOLS_GATED=send_email,capture_screen`` as the documented
 zero-code user opt-in (the ``set_volume`` precedent). The gate reason reads "this action is
 outbound or irreversible", and a screen read is neither; and a gated call on a tainted turn is
 hard-denied with the confirmer never consulted, so gating would make "read this email, then look
 at my screen" structurally impossible and let a first capture self-deny a second.
 
-**One input to that decision has moved and the decision has not.** The third leg used to be that
+One input to that decision has moved and the decision has not. The third leg used to be that
 a confirm card could not describe what would be captured, the call taking no arguments. It takes
 one now, so a card could say "the window you are looking at" or "your whole screen", which is a
 promise worth something to a user. That is recorded rather than acted on: the other three legs
@@ -71,7 +71,7 @@ _TARGET_BY_NAME: dict[str, CaptureTarget] = {target.value: target for target in 
 # one place, 15 px text going from 5 of 12 to 9 or 10 of 12, it is level at every size above that,
 # and over a whole desktop it reads worse than the shrunk screen because it cannot see anything
 # outside the window. So the text steers the pick toward small text in one thing rather than
-# toward the window in general, and it says out loud what a window costs. The detail claim is
+# toward the window in general, and it states what a window costs. The detail claim is
 # conditional because the mechanism is being unresampled rather than being cropped: a window wider
 # than the capture edge is resampled exactly as the screen is and reads no better than it. Neither
 # the model nor this tool can tell whether that happened, which is a deferral recorded in
@@ -105,14 +105,14 @@ def _parse_target(arguments: Mapping[str, Any]) -> CaptureTarget | str:
     """Read the model's ``target``; return the domain value or an error message string.
 
     Never raises and never guesses. A missing target is refused rather than defaulted, on two
-    grounds that point the same way. The default it would take is the **whole screen**, which is
+    grounds that point the same way. The default it would take is the whole screen, which is
     the more exposing of the two pictures, and choosing the wider one for a question the model has
     not said is about the screen as a whole is the wrong direction. (This used to claim the whole
     screen was the less legible picture too. The window-crop measurement narrows that to the
-    smallest text on the screen: over a whole desktop the shrunk screen reads *more* of it, since
-    a crop cannot see past its window. The exposure leg is untouched and carries the decision.)
-    And every spelling this tool accepts is
-    another two captures a loop can take, since repeat detection keys on the arguments as
+    smallest text on the screen: over a whole desktop the shrunk screen reads more of it, since a
+    crop cannot see past its window. The exposure leg is untouched and carries the decision.)
+    And every spelling this tool accepts is another two captures a loop can take, since repeat
+    detection keys on the arguments as
     written: refusing an omitted or unrecognized target costs a dispatch and takes no picture,
     which is what keeps the bound at two per target rather than two per way of asking. For the
     same reason the match is exact: accepting ``Display`` beside ``display`` would add a whole
@@ -152,20 +152,20 @@ def describe(capture: ScreenCapture) -> str:
     (ADR-0029's legibility addendum). What moves that line is the image token budget, which is a
     deployment setting rather than a caption.
 
-    **Two sentences, because the two pictures are two different things.** A window was *cropped*
-    out of the display, not shrunk down from it, and one that fits the capture edge was not
+    Two sentences, because the two pictures are two different things. A window was cropped out of
+    the display rather than shrunk down from it, and one that fits the capture edge was not
     resampled at all, so the display sentence's "downscaled from WxH" clause would tell the model
     about a whole desktop it was never shown. The window sentence therefore names the display as
     what the picture was cut out of and says outright that the rest of the screen is missing,
     which is the one thing the model can act on: it can ask again for the display.
 
-    It claims **nothing** about whether the window itself was then shrunk, because the reply does
+    It claims nothing about whether the window itself was then shrunk, because the reply does
     not say and this is not the place to guess. The crop's own size is region geometry, which
     this seam declines to carry in either direction, and the whole design point of the window
     target is that a window inside the capture edge crosses pixel for pixel. The window-crop
     measurement priced that silence rather than removing it: one of its five windows was wider
     than the capture edge, was resampled to exactly what the whole screen is resampled to, and
-    read no better than it. Telling the two apart wants one bit on the reply, and it is recorded
+    read no better than it. Telling the two apart needs one bit on the reply, and it is recorded
     in docs/refinements/index.md#vision rather than built, on the ground that the sentence it would
     write is the sentence this ADR already measured the model not to act on.
 
@@ -201,10 +201,10 @@ class CaptureScreenTool:
     def spec(self) -> ToolSpec:
         """The one-argument, ungated spec advertised to the cortex.
 
-        **What this costs, said out loud.** Captures used to be bounded per loop for free: the
-        call took no arguments, so every one was byte-identical and ``RepeatSalience`` admitted
-        two of them. Identity is name plus arguments, so a target makes each distinct spelling
-        its own identity and the ceiling is now **two captures per target, four per loop**. It is
+        What this costs. Captures used to be bounded per loop for free: the call took no
+        arguments, so every one was byte-identical and ``RepeatSalience`` admitted two of them.
+        Identity is name plus arguments, so a target makes each distinct spelling its own
+        identity and the ceiling is now two captures per target, four per loop. It is
         four rather than six because a missing target is refused rather than defaulted, so the
         empty-arguments spelling costs a dispatch and takes no picture, and it is four rather
         than unbounded because the vocabulary is closed and matched exactly. Doubling the worst
@@ -235,7 +235,7 @@ class CaptureScreenTool:
         value holding the pixels; there is no window in which the image is in context and the
         turn is not yet marked.
 
-        A target the tool does not recognize is a **tool error** and never an exception: the
+        A target the tool does not recognize is a tool error and never an exception: the
         model chose it, the model can correct it, and a raise here would kill the turn instead
         of the call. Nothing is captured on that path, so nothing taints.
 

@@ -5,7 +5,7 @@
 
 ## Context
 
-ADR-0013 drew the poisoning defense bluntly: a turn that reads untrusted content records
+ADR-0013 stated the poisoning defense bluntly: a turn that reads untrusted content records
 **nothing** to memory (`engine.handle_turn`: `if memory and not taint.tainted: record(...)`).
 Every stored memory then comes from an untainted turn, so recall is safe to treat as trusted. It is
 correct, but it throws away legitimate context. "Summarize the Q3 report email" → the assistant's
@@ -104,7 +104,7 @@ across turns (a recalled memory).
 ## Addendum (2026-07-16): summarizing a tainted exchange before recording declined
 
 The deferred **summarizing a tainted exchange before recording** closed as **declined**, read
-against the shipped write path. The threat it gestured at (storing attacker-controlled text
+against the shipped write path. The threat it names (storing attacker-controlled text
 verbatim in durable memory so a later turn recalls it as trusted, the stored-injection and
 cross-turn laundering risk) is one the code already forecloses without a model pass, and a
 summarization pass would reopen it rather than close it.
@@ -135,7 +135,7 @@ GPU-lease sequencing for no gain. Recall is the one consumer of a stored tainted
 handles it safely; nothing reads a summarized gist differently from a fenced exchange. It reopens
 only inside a general memory-compaction feature (ADR-0008/0014 territory), and even there a tainted
 exchange's summary stays `tainted=True` and its input is fenced to the summarizer, which is not the
-safety win the entry imagined. Docs-only close; no code changed.
+safety improvement the entry claimed. Docs-only close; no code changed.
 
 ## Addendum (2026-07-18): the `record` licence does not extend to pixels
 
@@ -145,9 +145,8 @@ untrusted provenance so recall fences it as data.
 
 The vision slice ([ADR-0029](ADR-0029-vision-screen-capture.md)) makes that premise false for one
 class of turn. A capture turn's assistant reply **is** a transcription of the screen, so recording
-it persists the untrusted payload in the one form that survives: prose. Measured against the real
-cortex, the model transcribes what it sees faithfully, including text painted into pixels it was
-told to treat as data.
+it persists the untrusted payload as prose. Measured against the real cortex, the model transcribes
+the screen faithfully, including text rendered into pixels it was told to treat as data.
 
 `record_exchange` therefore drops an **opaque** turn outright, whatever this setting says. The
 condition is the turn-local `opaque` bit (untrusted content arrived that could not be fenced,
@@ -166,7 +165,7 @@ correction is to this ADR's own framing: the heading over the deferred list says
 unchanged `MemoryStore` / `MemoryScope` / `MemoryRecaller` / `TaintLedger` seams", and for this
 item that is not true.
 
-**The filter half is the one everybody wrote down.** A `MemoryRecord` carries `id`, `text`,
+**The filter half is the half already recorded.** A `MemoryRecord` carries `id`, `text`,
 `embedding`, `at`, `scope` and `tainted`, the Postgres table carries those same columns behind a
 single `memories_scope_idx`, and structured provenance lives entirely in the pure core on a ledger
 whose own docstring says it is reconstructed each turn and never persisted. It reaches a store in
@@ -174,17 +173,17 @@ exactly one place, the mid-turn `HandoffRecord`, whose terminal form expires in 
 is no column to filter on and no index that would serve one, which is what the
 [ADR-0008](ADR-0008-memory-v1.md) delete-verb addendum already said from the memory side.
 
-**The half nobody wrote down is that there is no verb either.** `delete_scope` is the only removal
+**The unrecorded half is that there is no verb either.** `delete_scope` is the only removal
 on the port, it is string equality on one namespace with no wildcard by deliberate design, and its
 single caller is the session-delete cascade. Eviction by anything other than a scope is a new
 predicate delete, which is a port change and not a policy written behind an unchanged one. That is
 the same shape the standing warning in the backlog was written about, and it is recorded here so
 the heading above stops implying otherwise.
 
-**The bucket follows from that, and the code says so itself.** `provenance.py` opens by naming its
+**The bucket follows from that, and the code states it.** `provenance.py` opens by naming its
 two designed-for and unbuilt consumers, the confirmation card and per-provenance eviction, and
-`SourceKind.attested` exists so that eviction by a claimed sender cannot sweep a URI that spells
-the same string. The design is finished; nothing has ever asked it to run. The entry moves from
+`SourceKind.attested` exists so that eviction by a claimed sender cannot also remove a URI holding
+the same string. The design is finished and has never had a caller. The entry moves from
 fix-when-it-bites to dead-until-a-consumer and gains the trigger it never had: a source found
-hostile after the fact, whose derived memories must be forgotten by where they came from rather
-than by the scope they landed in.
+hostile after the fact, whose derived memories must be deleted by the source they came from rather
+than by the scope they were stored under.

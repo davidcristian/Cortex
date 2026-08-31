@@ -3,17 +3,16 @@
 The mapping + input-guard half of `ListSessions` / `GetSessionMessages` / `RenameSession`, kept
 beside `server.py` so the servicer stays a thin binding (the `reminders.py` precedent).
 
-`RenameSession` is a gated WRITE on the catalog, and its gate is not the mid-turn Confirmer.
-The Confirmer (ADR-0022) exists to stop a possibly-jailbroken *model* from running an
-irreversible tool call inside a turn; it is bound one-per-`Converse`-stream and round-trips a
-card over that stream. A rename is the opposite trigger: the user clicks a control in the
-overlay, out of band from any turn. It is no tool in any registry and never runs through the
-turn engine, so no model, tool, or tainted turn can reach it. That structural user-only path IS
-the gate for a user-initiated management action. It persists a derived DISPLAY title via
-`SessionStore.set_title` (the catalog write the brain-generated-titles work already
-contract-tested), never conversation content, so it stays within the one hard rule. A
-`SessionStoreError` propagates for the servicer to abort `UNAVAILABLE` (the session-read
-precedent).
+`RenameSession` is a gated write on the catalog, and its gate is not the mid-turn Confirmer.
+The Confirmer (ADR-0022) exists to stop a possibly-jailbroken model from running an irreversible
+tool call inside a turn; it is bound one-per-`Converse`-stream and round-trips a card over that
+stream. A rename has the opposite trigger: the user clicks a control in the overlay, out of band
+from any turn. It is no tool in any registry and never runs through the turn engine, so no model,
+tool, or tainted turn can reach it, and that structural user-only path is the gate for a
+user-initiated management action. It persists a derived display title via `SessionStore.set_title`
+(the catalog write the brain-generated-titles work already contract-tested), never conversation
+content, so it stays within the one hard rule. A `SessionStoreError` propagates for the servicer
+to abort `UNAVAILABLE` (the session-read precedent).
 """
 
 from datetime import datetime
@@ -88,7 +87,7 @@ async def delete_session(
 ) -> DeleteSessionReply:
     """Delete one chat and cascade to its private memories (ADR-0021 delete addendum).
 
-    The session is hard-deleted FIRST (the visible chat is the user's primary intent), then the
+    The session is hard-deleted first (the visible chat is the user's primary intent), then the
     scope-aware memory cascade runs when a memory backend is wired (`cascade is None` when memory
     is off, so nothing to forget). Ordering session-first means a memory failure leaves the chat
     gone (intent satisfied) with a self-healing retry cleaning the memories, rather than a visible

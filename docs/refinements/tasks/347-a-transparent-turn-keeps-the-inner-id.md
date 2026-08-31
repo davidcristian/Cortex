@@ -18,7 +18,7 @@ The two agree today, and provably: the wrapper passes the id down on the call an
 behind `make_inner` echoes it back. So this is an invariant resting on an agreement between two
 files rather than on the one statement that could enforce it, in the arm that runs on every turn
 that is not escalated, which is most of them. The change that fixed the escalating arm added a test
-for that arm only, so nothing in the suite would notice the transparent arm disagreeing.
+for that arm only, so nothing in the suite fails when the transparent arm disagrees.
 
 **Why it is not simply fixed now.** Re-emitting under the wrapper's id on the transparent path would
 mean building a new `TurnCompleted` and choosing what to do with the text on it, which is the inner

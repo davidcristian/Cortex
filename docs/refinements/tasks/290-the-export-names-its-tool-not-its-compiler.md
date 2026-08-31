@@ -6,28 +6,28 @@
 
 Opened 2026-08-17 by the entry that made the coverage verdict read its own toolchain
 ([R-275](275-nothing-reads-the-printed-toolchain.md)). `coverage_gate.py` attributes the numbers it
-judges, and the two halves of that attribution are not equally strong. The tool half is checked:
-the export records its writer in `cargo_llvm_cov.version`, the recipe passes what
-`cargo +nightly llvm-cov --version` printed, and a disagreement fails the gate, because it means
-the report being judged is not the one this run wrote. The compiler half is only relayed. Nothing
-in a cargo-llvm-cov export names the rustc that instrumented the build, so `--rustc` is a string
-the recipe hands over and the gate prints beside its verdict, believed on the recipe's word. That
-is the weaker half of the pair and it is the half that has actually drifted: the build-script
-incident was rustc moving from 1.98.0-nightly to 1.99.0-nightly and beginning to instrument
-`build.rs`, with cargo-llvm-cov held at 0.8.7 throughout.
+judges, and the two halves of that attribution are not equally strong. The tool half is checked: the
+export records its writer in `cargo_llvm_cov.version`, the recipe passes what `cargo +nightly
+llvm-cov --version` printed, and a disagreement fails the gate, because it means the report being
+judged is not the one this run wrote. The compiler half is only relayed. Nothing in a cargo-llvm-cov
+export names the rustc that instrumented the build, so `--rustc` is a string the recipe hands over
+and the gate prints beside its verdict, taken on the recipe's word. That is the weaker half of the
+pair and it is the half that has actually drifted: the build-script incident was rustc moving from
+1.98.0-nightly to 1.99.0-nightly and beginning to instrument `build.rs`, with cargo-llvm-cov held at
+0.8.7 throughout.
 
 All of that was re-derived on 2026-08-18 and holds exactly, this machine's real export carrying
 `cargo_llvm_cov` and the export format and nothing about a compiler.
 
 **Declined, because neither half of its own trigger leads anywhere worth a mechanism.**
 
-**The honest shape this entry proposed cannot work in this repo.** It asks for the relayed string
-to be refused unless it parses as a nightly whose date is no older than the one the last green run
+**The shape this entry proposed cannot work in this repo.** It asks for the relayed string to be
+refused unless it parses as a nightly whose date is no older than the one the last green run
 recorded, and that needs somewhere to record it. The two sides of this project deliberately resolve
 different nightlies, the host at 1.98.0-nightly and CI at whatever the channel is on the day. A
 committed stamp would therefore fail the host on every run after CI recorded a newer date, and a
 per-machine ignored stamp is absent on a fresh CI checkout, which is the run that matters. The
-proposal is two-sided broken, which the file did not know when it was written.
+proposal fails on both sides, which was not known when the file was written.
 
 **The other half of the trigger would buy a gate that cannot fail.** If cargo-llvm-cov ever
 recorded the compiler, the check would compare a relayed string against a recorded one for a build

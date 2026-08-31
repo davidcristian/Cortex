@@ -21,10 +21,10 @@ the chip is 24px and the disclosure was 20px, both single-line boxes of the same
 the whole of the difference was 8px of chip padding plus 2px of border against 6px of summary
 padding. Both rules now floor on `--trace-row`, and the summary centres its label in the taller
 box so the text does not step up 5px at the same moment. A/B in one browser session, with the old
-heights restored by an override, put the numbers past argument: 4.73px of descent over 11 frames
+heights restored by an override, settled it: 4.73px of descent over 11 frames
 became 0.19px over two, which is the sub-pixel snap where a predicted height and the natural one
 disagree, and the panel ends the turn at its maximum rather than 4.4px under it. The one thing
-the deferral did not say is that the pairing is a *contract*, not a coincidence, so it now has a
+the deferral did not say is that the pairing is a *contract* rather than a coincidence, so it now has a
 structural test (`Message.test.tsx`, "settles the live thinking chip into the disclosure in
 place, one row for one row"): matching heights only mean anything while the two are one row in
 two states, and a second settled row or an empty slot would put the shrink straight back.

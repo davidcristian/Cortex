@@ -1,34 +1,26 @@
 """What the tree really holds, for every roster a document writes down.
 
-The other half of the comparison next door. Each set here is read from the thing itself rather
-than from any second list describing it, which is the whole point: a roster is held to the tree,
-never to another sentence about the tree.
+Each set here is read from the thing itself rather than from a second list describing it, so a
+roster is held to the tree and never to another sentence about the tree.
 
-- **the live seam checks** are the `#[ignore]`d tests in the body's live suite. That suite is the
-  one suite no gate runs, so a reader who never opens the file learns what is in it from a
-  document, and the document is what decides whether they run it at all.
-- **the gate modules** are the files in `scripts/`. The contract for this tree opens by naming
-  every one of them and saying what each holds, which is what lets a future agent work here
-  without reading the tree, and it is exactly that promise that goes stale the day a module lands.
-  The repo map in the contract every agent here reads names the same set a second time, in a
-  fenced block of plain text, so the two answers come from one reading of the directory.
-- **the modules with a CLI** and **the ones without** are that same directory split by the one
-  thing that decides which half of the contract's sentence a module belongs in: a module has a
-  command line exactly when it carries a `if __name__ == "__main__":` guard at the top level.
-  Sorting a module into the wrong half tells a reader it is something it is not, and until the
-  split the sentence was held whole, so either half could be wrong and the paragraph still pass.
-- **the cross-tree scans** are the one set here that is not a listing of anything. A scan is not a
-  file: what makes a module one is that the single gate runs it before the trees and CI's
-  `cross-tree` job runs it too, which `scanrecipes.py` reads out of the two files that run them
-  and refuses to answer while they disagree.
+- **the live seam checks** are the `#[ignore]`d tests in the body's live suite. No gate runs that
+  suite, so a reader who never opens the file learns what is in it from a document.
+- **the gate modules** are the files in `scripts/`. The contract for this tree names every one of
+  them and says what each holds, and the repo map in AGENTS.md names the same set a second time in
+  a fenced block of plain text, so both answers come from one reading of the directory.
+- **the modules with a CLI** and **the ones without** are that same directory split by what decides
+  which half of the contract's sentence a module belongs in: a module has a command line exactly
+  when it carries an `if __name__ == "__main__":` guard at the top level.
+- **the cross-tree scans** are the one set here that is not a directory listing. What makes a module
+  one is that the single gate runs it before the trees and CI's `cross-tree` job runs it too, which
+  `scanrecipes.py` reads out of the two files that run them.
 - **the registry's parts** are the tuples `crosscheck.CONSTANTS` is joined from, named by the
   convention `registry.py` declares: a `<subject>couplings.py` holds a `<SUBJECT>_COUPLINGS`. The
-  convention is asserted by the constant suite rather than assumed here, and `couplings.py` itself
-  is the vocabulary every part is written in rather than a part, so it is not one of them.
+  constant suite asserts that convention rather than this module assuming it, and `couplings.py` is
+  the vocabulary every part is written in rather than a part, so it is not one of them.
 
-**An empty set is a failure and not an empty pass.** A suite whose ignores were all deleted, a
-directory that moved, a glob that stopped matching: each would leave a comparison that reports
-success forever, so each leaves by the same door an unreadable file does.
+An empty set raises. A suite whose ignores were all deleted, a directory that moved, or a glob that
+stopped matching would otherwise leave a comparison that reports success forever.
 """
 
 import re
@@ -49,10 +41,10 @@ PARTS = "*couplings.py"
 COUPLINGS = "couplings"
 TUPLE = "_COUPLINGS"
 
-# What marks a check ignored, and what names the function under it. The attribute is read from the
-# start of a line, indentation aside, so a doc comment quoting one is not mistaken for one and a
-# suite that groups its checks in a `mod` block still has them; the name is taken from the first
-# function below it, since attributes stack in any order.
+# What marks a check ignored, and what names the function under it. The attribute is matched from
+# the start of a line, indentation aside, so a doc comment quoting one does not match and a suite
+# that groups its checks in a `mod` block still has them; the name is taken from the first function
+# below it, since attributes stack in any order.
 IGNORED = re.compile(r"^\s*#\[ignore\b")
 FUNCTION = re.compile(r"^\s*(?:pub +)?(?:async +)?fn +([A-Za-z_][A-Za-z0-9_]*)")
 
@@ -66,7 +58,7 @@ class MemberError(Exception):
 
 
 def _floored(found: Iterable[str], what: str) -> frozenset[str]:
-    """Return ``found`` as a set, refusing the empty one a comparison could never fail over."""
+    """Return ``found`` as a set, raising on the empty one, which no comparison could fail over."""
     members = frozenset(found)
     if not members:
         msg = f"{what} came back empty, and a comparison over nothing cannot fail"
@@ -103,7 +95,7 @@ def ignored_tests(text: str) -> list[str]:
 
 
 def _named_after(lines: list[str], number: int) -> str:
-    """Return the name of the first function below line ``number``, or refuse to guess one."""
+    """Return the name of the first function below line ``number``, raising when there is none."""
     for line in lines[number + 1 :]:
         found = FUNCTION.match(line)
         if found is not None:

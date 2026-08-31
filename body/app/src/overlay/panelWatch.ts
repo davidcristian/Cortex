@@ -7,7 +7,7 @@
 // state inside the list, not above it), and so is any content that settles after the render that
 // brought it.
 //
-// A draft growing a line USED to be the first and largest of those cases, and is no longer one at
+// A draft growing a line used to be the first and largest of those cases, and is no longer one at
 // all: the composer's text is state above the composer now (`drafts.ts`), so a keystroke renders
 // `Panel` and its own layout effect places the panel, before paint and in the same commit that grew
 // the pill. The ease is unchanged by the move, having always been the same `place`, and was
@@ -17,28 +17,28 @@
 // What the observer does with those keystrokes now is nothing, by the third rule below: the
 // notification it gets one frame later finds the height that placement already chose.
 //
-// A `ResizeObserver` on the panel closes that gap, and the whole design of it is what it must NOT
+// A `ResizeObserver` on the panel closes that gap, and the whole design of it is what it must not
 // react to, because every placement resizes the element being watched.
 //
-// **A roll owns the height.** While a section inside is animating its own height, the panel's `auto`
+// A roll owns the height. While a section inside is animating its own height, the panel's `auto`
 // height follows it frame by frame, which is one notification per frame for the length of the roll
 // (measured at 900x900 over the demo's reminder pull: 19 notifications across a 300ms roll). Placing
 // on those would put the panel's own arithmetic against a height that is mid-animation by
 // construction, and the ride-along has already taken the bottom edge to where the roll will leave
 // it.
 //
-// **A move of the panel's own is asked a different question.** The panel's ease is a height
+// A move of the panel's own is asked a different question. The panel's ease is a height
 // animation on this same element, so it is also one notification per frame (18 across one 380ms
 // move in the same trace), and the animation overrides the used height, so content growing inside
 // the panel changes nothing the box can show. Answering the box would feed the observer its own
 // output: each notification would cancel the running ease to measure the natural box and start
 // another, sixty times a second. Refusing the box instead made the resize wait for the move, which
 // it did until 2026-08-06, at a measured cost of up to a whole move's length of latency. So the
-// watch asks what the panel WOULD be (`panelMemory.naturalHeightOf`), which the ease does not move
+// watch asks what the panel would be (`panelMemory.naturalHeightOf`), which the ease does not move
 // and content does, and a growth that lands mid-move redirects that move from where the eye has it
 // instead of queueing behind it.
 //
-// **A reading with nothing behind it is answered with nothing.** The question each time is whether
+// A reading with nothing behind it is answered with nothing. The question each time is whether
 // the panel wants a height other than the one it was last placed for (`Memory.placedFor`), and the
 // answer is no for every notification a placement raised by resizing the element it was placing.
 // That is what settles the callback rather than letting it chase the box it just moved: a render
@@ -52,8 +52,8 @@
 // What is left is exactly the case the observer is for: the panel's content changed the height it
 // wants, whether or not something is already moving it there.
 //
-// **And the watch is lifted for the frame the panel writes in.** Placing is itself a resize of the
-// element being watched: the ease starts at the height the panel HAD, so the box the notification
+// And the watch is lifted for the frame the panel writes in. Placing is itself a resize of the
+// element being watched: the ease starts at the height the panel had, so the box the notification
 // reported is not the box the frame paints. An observer whose callback resizes its own target is
 // the one case the specification's depth rule cannot deliver, since the re-gathered observation is
 // no deeper than the broadcast that caused it, so the notification is dropped and the page is told
@@ -63,9 +63,9 @@
 // reading that arrives when the watch is taken up again is the height the placement just chose,
 // which is the height it last looked at, so nothing is behind it.
 //
-// The ease itself is NOT a frame late for this. Traced at 640x720 over a Shift+Enter that restacks
+// The ease itself is not a frame late for this. Traced at 640x720 over a Shift+Enter that restacks
 // the pill: `requestAnimationFrame` runs before the resize observer steps, so a trace taken there
-// reads 404 for the frame the character landed, while a probe reading the same frame AFTER the
+// reads 404 for the frame the character landed, while a probe reading the same frame after the
 // placement reads 352 with one animation attached. The frame paints the height the panel had and
 // eases from it; nothing jumps and comes back.
 

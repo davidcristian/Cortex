@@ -1,39 +1,36 @@
 """Repo gate: fail when a compose bind mount would materialize an unignored path in the tree.
 
-A `docker compose up` creates a host directory for a bind-mount source that is not there
-yet, root-owned and thereafter written from inside the container. Every bind source in this
-repo names a relative path, so that directory lands in the working tree, and what a container
-writes into it is a multi-gigabyte GGUF or a database dump rather than kilobytes. The only
-thing between one of those and a `git add -A` is a `.gitignore` line somebody remembered to
-write: three such defaults exist today and all three are matched, by three separate acts of
-remembering and not by anything that checks. This is that check.
+A `docker compose up` creates a host directory for a bind-mount source that is not there yet,
+root-owned and thereafter written from inside the container. Every bind source in this repo names a
+relative path, so that directory lands in the working tree, and what a container writes into it is
+a multi-gigabyte GGUF or a database dump rather than kilobytes. The only thing between one of those
+and a `git add -A` is a `.gitignore` line somebody remembered to write: three such defaults exist
+today and all three are matched by three separate acts of remembering.
 
-**The rule.** Every bind-mount source a compose file declares must resolve either outside
-this repo, or to a path the repo already tracks, or to a path git ignores. Outside is the
-user's own disk and none of the gate's business. Tracked means the repo ships that path as an
-input, so compose finds it rather than creating it. Anything else is an output a container
-writes, and it has to be ignored before it can be written. Note which way that rule runs: it
-is not "every default must be gitignored", which would be false of `./docker/postgres/init.sql`
-and of every future bind onto a file the repo carries.
+The rule: every bind-mount source a compose file declares must resolve either outside this repo, or
+to a path the repo already tracks, or to a path git ignores. Outside is the user's own disk and none
+of the gate's business. Tracked means the repo ships that path as an input, so compose finds it
+rather than creating it. Anything else is an output a container writes, and it has to be ignored
+before it can be written. The rule is not "every default must be gitignored", which would be false
+of `./docker/postgres/init.sql` and of every future bind onto a file the repo carries. The ADR-0026
+bind addendum argues it.
 
-**Both landings.** Where a relative source lands depends on the project directory, which
-compose takes from `--project-directory` when it is given and from the first `-f` file's own
-directory otherwise. The `just` recipes pass the repo root; a bare
-`docker compose -f docker/docker-compose.memory.yml` uses `docker/`. Both are checked, which
-is why the repo's ignore entries for these paths are deliberately unanchored.
+Where a relative source lands depends on the project directory, which compose takes from
+`--project-directory` when it is given and from the first `-f` file's own directory otherwise. The
+`just` recipes pass the repo root; a bare `docker compose -f docker/docker-compose.memory.yml` uses
+`docker/`. Both landings are checked, which is why the repo's ignore entries for these paths are
+unanchored.
 
-**Fail closed** is the whole point, the same way `crosscheck.py` fails closed. Finding no
-compose file at all (`composefiles.py` refuses that, for this gate and for `defaultcheck.py`
-alike, so the two cannot drift apart about which files exist), a mount entry that cannot be
-classified (`composemounts.py` refuses those), a source whose expansion cannot be reduced, and a
-`git` that cannot be run are each a failure rather than a quiet pass, because a scan whose glob
-matched nothing would report success forever.
+Finding no compose file at all (`composefiles.py` raises on that, for this gate and for
+`defaultcheck.py` alike, so the two cannot disagree about which files exist), a mount entry that
+cannot be classified (`composemounts.py` raises on those), a source whose expansion cannot be
+reduced, and a `git` that cannot be run each fail rather than passing quietly, because a scan whose
+glob matched nothing would report success forever.
 
-**The success line states what the walk read**: compose files, the binds they declare, and the
-landings git was actually asked about, which is the count after the env-only sources drop out
-rather than before. It is a reading and nothing asserts it. The floor is already here and is
-`composefiles.py`'s, no compose file at all being a failure; the deeper counts get no floor of
-their own, a real compose file declaring no bind at all being an ordinary thing for one to do.
+The success line states what the walk read: compose files, the binds they declare, and the landings
+git was actually asked about, which is the count after the env-only sources drop out rather than
+before. The floor under it is `composefiles.py`'s, no compose file at all being a failure; the
+deeper counts get no floor of their own, since a real compose file may declare no bind at all.
 """
 
 import argparse
@@ -109,8 +106,8 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     """Run one git command against ``root`` with git's own hook variables stripped.
 
     The strip is `gitenv.py`'s, which holds the reason for every gate that asks git anything.
-    The exit codes stay here: this gate reads two of them differently, and that is the argument
-    for sharing the environment and not the call.
+    The exit codes stay here, because this gate reads two of them differently, which is why the
+    environment is shared and the call is not.
     """
     try:
         return subprocess.run(  # noqa: S603 -- fixed argv, no shell
@@ -149,9 +146,9 @@ def _spots(root: Path, compose: Path, mount: Mount) -> tuple[int, list[str]]:
     """How many landings git was asked about for one mount, and which of them it disowned.
 
     Both questions are asked per landing, never once for the mount. A source can land on an input
-    the repo ships under one project directory and on nothing at all under the other, and it is
-    the second landing that a compose run creates; letting the tracked one speak for both is the
-    same silence this gate exists to remove.
+    the repo ships under one project directory and on nothing at all under the other, and it is the
+    second landing that a compose run creates, so letting the tracked landing answer for both would
+    leave that case unreported.
     """
     path = default_path(mount.source)
     if path is None:

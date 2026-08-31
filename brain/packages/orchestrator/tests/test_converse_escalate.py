@@ -3,11 +3,12 @@
 These tests wire a REAL dispatcher holding the real ``EscalateToBrainTool`` into the stream's
 engine via the EngineFactory, with the composition root's actual dispatch policy
 (``ToolsConfig().dispatch_policy``), and drive the full in-process path over the seam:
-tool call → ConfirmRequest out (carrying the app-authored swap reason, not the generic
-outbound/irreversible text) → ConfirmResponse in → the slot filled (or not) → the S11.c seam
-the conductor will drive, ``snapshot()`` → ``HandoffStore.put`` → one READY record. The model's
-brief rides the card only as the argument draft (``arguments_json``), the existing ADR-0022
-"the draft shown is the draft executed" surface; the reason line stays app-authored.
+tool call → ConfirmRequest out (carrying the app-authored swap reason rather than the generic
+outbound/irreversible text) → ConfirmResponse in → the slot filled or left empty → the handoff
+boundary the conductor will drive, ``snapshot()`` → ``HandoffStore.put`` → one READY record. The
+model's brief reaches the card only as the argument draft (``arguments_json``), the existing
+ADR-0022 surface where the draft shown is the draft executed, and the reason line stays
+app-authored.
 """
 
 import asyncio
@@ -87,7 +88,7 @@ class _ScriptedToolBackend:
 
 
 def _escalating_factory(slot: EscalationSlot) -> EngineFactory:
-    """An engine whose model asks to escalate once, then wraps up with 'handing off'."""
+    """Build an engine whose scripted model asks to escalate once, then replies 'handing off'."""
 
     def make(confirmer: Confirmer, _progress: ProgressSink) -> TurnEngine:
         dispatcher = ToolDispatcher(
@@ -127,7 +128,8 @@ def _answer(confirm_id: str, *, approved: bool) -> ClientEvent:
 
 
 async def _next_of(stream: AsyncIterator[ServerEvent], kind: str) -> ServerEvent:
-    """The next event of `kind`; bounded so a missing emit fails the test, not the suite."""
+    """Return the next event of `kind`, bounded so a missing emit fails this test rather than
+    hanging the suite."""
     try:
         async with asyncio.timeout(5.0):
             async for event in stream:
@@ -146,8 +148,8 @@ async def _drain(stream: AsyncIterator[ServerEvent]) -> list[ServerEvent]:
 
 async def test_an_approved_escalation_fills_the_slot_and_snapshots_ready() -> None:
     # The full in-process path over the real converse(): the card names the tool, shows the
-    # model's brief as the argument draft, and carries the app-authored swap reason; approval
-    # runs the tool; the slot holds the brief; and the S11.c seam produces the READY record.
+    # model's brief as the argument draft, and carries the app-authored swap reason. Approval
+    # runs the tool, the slot holds the brief, and the snapshot produces the READY record.
     slot = EscalationSlot()
     client = _LiveClient()
     stream = converse(_escalating_factory(slot), client)
@@ -161,7 +163,7 @@ async def test_an_approved_escalation_fills_the_slot_and_snapshots_ready() -> No
     remaining = await _drain(stream)
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
     assert slot.brief == "go deep"
-    # What the conductor (the next handoff slice) does at this exact boundary:
+    # What the conductor does at this boundary:
     store = InMemoryHandoffStore()
     record = slot.snapshot(turn_id="t-esc", session_id="s", requested_at=SystemClock().now())
     await store.put(record)

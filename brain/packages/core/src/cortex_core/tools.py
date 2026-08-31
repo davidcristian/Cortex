@@ -35,7 +35,7 @@ class Trust(Enum):
     ``TRUSTED`` content is system-generated (a built-in's status string). The distinction is
     binary because the boundary only ever acts on that one question. The default everywhere is
     ``UNTRUSTED`` (fail-closed): content that reaches the model without an explicit trust stamp
-    is framed as hostile, never silently trusted.
+    is framed as hostile rather than trusted.
     """
 
     TRUSTED = "trusted"
@@ -78,11 +78,11 @@ class TurnStamp:
     stream's side channel for the ephemeral progress a suspended turn cannot yield (``None``
     when the dispatch has no overlay stream, e.g. the ticker, ADR-0010). One frozen value
     rather than parallel keywords, which is what let ``sources`` land without touching a single
-    call site. A field joins only with a consumer, or a designed one: ``sources`` is captured
-    live (the ledger dies with the turn) for consumers that are decisions of their own, a
-    confirmation card that names its source and per-provenance eviction.
+    call site. A field is added only once a consumer exists for it, or a designed one does:
+    ``sources`` is captured live, the ledger not outliving the turn, for two consumers that are
+    decisions of their own, a confirmation card that names its source and per-provenance eviction.
 
-    Originally the turn's *provenance* alone. ``budget`` widened that to what the turn hands
+    Originally the turn's provenance alone. ``budget`` widened that to what the turn hands
     down to work this call spawns (which ``tainted`` already was in practice), ``progress``
     to where that spawned work surfaces its steps, and ``escalation`` (ADR-0030) to the turn's
     handoff slot, which the ``escalate_to_brain`` built-in writes its brief into (``None`` for
@@ -138,15 +138,15 @@ class ToolResult:
     (MCP, the in-memory twin) leaves the default; only a built-in returning system-generated
     bytes stamps ``TRUSTED``.
 
-    ``source`` is a source the *result* declared for its own ``content`` (ADR-0027 addendum): a
+    ``source`` is a source the result declared for its own ``content`` (ADR-0027 addendum): a
     sidecar-declared sender or locator that the MCP adapter parsed from the result's ``_meta`` side
     channel, ``None`` when it declared none (every result today but the email reader's). It is a
-    **claimed** ``Provenance`` (``SourceKind.attested`` is ``False``): the declaration is
+    claimed ``Provenance`` (``SourceKind.attested`` is ``False``): the declaration is
     attacker-influenceable, so the ledger notes it beside the attested tool source and it can only
-    ever annotate, never relax taint. It rides beside ``content``, not inside it, so a declaration
-    never disturbs the string the model reads.
+    ever annotate, never relax taint. It rides beside ``content`` rather than inside it, so a
+    declaration never disturbs the string the model reads.
 
-    ``images`` (ADR-0029) carries pixels a tool produced, and rides **beside** ``content``
+    ``images`` (ADR-0029) carries pixels a tool produced, and rides beside ``content``
     rather than inside it for the same reason ``source`` does, only more so: ``content`` is what
     the audit sink logs verbatim on failure, what URL extraction scans, and what the untrusted
     fence wraps. Keeping all three text-only means a failed capture can never put megabytes of
@@ -174,20 +174,19 @@ class ToolInvocation:
     originating chat, the conversation turn, the subagent task the call was made inside, and the
     scheduled item whose fire made it. Each is ``""`` when the dispatch had none, so an
     unattributed caller records absence rather than a borrowed id.
-    They are the stamp's *identities* and not the stamp itself, because the stamp also carries
+    They are the stamp's identities rather than the stamp itself, because the stamp also carries
     live handles (the turn's pool, its progress channel, its handoff slot) and this record is a
-    value that outlives the process that wrote it: a durable line holding a live pool is a line
-    no sink could ever write down.
+    value that outlives the process that wrote it: no sink could write a live pool down.
 
     ``call_id`` is the dispatched ``ToolCall``'s own id, the string that correlates it with its
     ``ToolResult`` and with the ``Role.TOOL`` message that result becomes (ADR-0009 named-call
-    addendum). It is the one identity here that does **not** come off the stamp, and so the one
-    the model may have written: a cortex call's id is whatever the backend emitted. That is
+    addendum). It is the one identity here that does not come off the stamp, and so the one the
+    model may have written: a cortex call's id is whatever the backend emitted. That is
     deliberate, and it is the same standing ``name`` and ``arguments`` already have on this
     record, which is what makes it a record of what was asked for rather than of what the brain
     made of the request. Nothing reads it back, and what keeps it safe to print is the formatter:
     a value carrying whitespace or a quote is quoted and JSON-escaped, so no id can add a field
-    to a line, and an over-long one is cut at ``VALUE_CHARS`` with the count that went.
+    to a line, and an over-long one is cut at ``VALUE_CHARS`` with the dropped count recorded.
     """
 
     name: str
@@ -212,7 +211,7 @@ class ToolInvocation:
 class ConfirmationRequest:
     """A request for out-of-band user confirmation of a gated tool call (ADR-0013/0022).
 
-    Built by the dispatcher when a ``gated`` tool is called on an **untainted** turn (a tainted
+    Built by the dispatcher when a ``gated`` tool is called on an untainted turn (a tainted
     turn's gated call is denied outright, never confirmed per ADR-0022): ``tool_name``/``arguments``
     name the action and ``reason`` says why confirmation is required, so the overlay can show the
     user what they are approving. The ``Confirmer`` port answers it; the model never does, since

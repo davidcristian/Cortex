@@ -49,7 +49,7 @@ def _engine_and_store() -> tuple[EngineFactory, InMemorySessionStore]:
 
 @pytest.fixture
 async def token_server() -> AsyncIterator[str]:
-    """A BrainService requiring the seam token, on an ephemeral loopback port."""
+    """Serve a BrainService requiring the seam token, on an ephemeral loopback port."""
     config = SeamServerConfig(host="127.0.0.1", port=0, token=_TOKEN)
     server, port = create_server(config, *_engine_and_store())
     await server.start()

@@ -160,8 +160,9 @@ because CI never proves the adapter's SQL).
 
    `MemoryRecaller.__init__` takes `scope=GLOBAL_MEMORY_SCOPE`; `record(text, *, session_id)` and
    `recall(query, *, k, session_id)` thread the turn's session through the policy. `TurnEngine`
-   already owns `session_id` in `handle_turn` and now passes it to both calls. The store filters,
-   the policy decides, the engine stays dumb: three responsibilities, three seams.
+   already owns `session_id` in `handle_turn` and now passes it to both calls. That splits the work
+   three ways: the store filters, the policy selects which scopes to filter on, and the engine
+   only passes the session through.
 
 4. **Config selects the policy at the composition root only.** `CORTEX_MEMORY_SCOPE`
    (`MemoryConfig.scope`) is `global` (default) or `session`; `build_memory` maps it to the policy
@@ -315,8 +316,9 @@ structural note: this landing split the three opt-in reranking policies and thei
 ## Addendum (2026-07-16): the blended-relevance field declined, no consumer reads a recall score
 
 The three addenda above each carried **surfacing the blended relevance as a distinct field** as the
-one reranker deferral behind the unchanged seam. That is a statement about its *cost*, and it had
-come to stand in for readiness. Read against the tree, the entry is **declined**: no behavior
+one reranker deferral behind the unchanged seam. "Behind the unchanged seam" states its *cost*, and
+it had been read as a statement that the work was ready to take. Read against the tree, the entry is
+**declined**: no behavior
 change, and the deferral moves to the backlog's dead-until-a-consumer list
 ([docs/refinements/index.md#memory](../refinements/index.md#memory)). Two findings decide it.
 
@@ -450,7 +452,8 @@ deferred, additively, behind an otherwise unchanged port.
    and the `MemoryRecaller` a turn is handed as `caps.memory` exposes only `record` and `recall`, so
    even the engine cannot delete. `delete_scope` lives on the port for out-of-band trusted callers
    (session management, an eviction policy), never on the turn path. A structural test pins the
-   recaller's turn-facing surface, so adding a delete there later reddens and forces a taint review.
+   recaller's turn-facing surface, so adding a delete there later fails that test and forces a
+   taint review.
    This is the same fail-closed stance as the tainted-turn confirm decline (ADR-0022), stronger here
    because there is no tool at all rather than a denied one.
 
@@ -472,7 +475,7 @@ and 2, `search` of the deleted scope returned nothing while the other scope was 
 no-match scope returned 0. Distrust-green: a no-op fake delete fails the core deletion test on the
 search-after assertion (the count alone still passes, proving the test asserts real mutation), a
 by-id adapter SQL fails the adapter's SQL assertion, and a `WHERE scope = $1 AND false` neutered
-adapter fails the live contract's `removed == 2`, each turned red before being reverted.
+adapter fails the live contract's `removed == 2`, each break run to a failure before being reverted.
 
 ## Addendum (2026-07-19): the model reranker's hardware blocker was false
 
@@ -532,7 +535,7 @@ cortex rather than assumed: mean reciprocal rank 0.917 to 1.000, the correct not
 against 6 of 6, on a small corpus built so the two rankings could disagree. Numbers, method and the
 honest caveats are in ADR-0038. What stays deferred in this area is recorded in
 [docs/refinements/index.md#memory](../refinements/index.md#memory) and its
-[index](../refinements/index.md): a cross-encoder rank, which wants a scoring-model port rather than
+[index](../refinements/index.md): a cross-encoder rank, which needs a scoring-model port rather than
 a chat completion, and auditing the candidates that were dropped, which the two MMR bases cannot
 give a well-defined key for.
 
@@ -555,8 +558,8 @@ is paid on every recalling turn and nothing caches it.
 
 Nothing about the `RecallPolicy` seam changed for this. It is one value in `MemoryConfig`, the
 policies are all still selected at the composition root, and `CORTEX_MEMORY_RECALL=raw` restores
-the byte-for-byte v1 behavior this ADR shipped. What did change is which way the opt is: the
-founding cosine is the opt-out now.
+the byte-for-byte v1 behavior this ADR shipped. What did change is the direction of the opt: the
+founding cosine is now the opt-out rather than the default.
 
 ## Addendum (2026-08-11): a failing embedder or store takes the turn with it
 
@@ -653,8 +656,8 @@ to `ok=False`, a failed title is absorbed, and the summarizing window already ca
 the conversation itself correctly fails the turn, that being the turn's own material. Memory was
 the one left, and it is closed here. Two residues are recorded rather than taken, both in
 [docs/refinements/index.md#memory](../refinements/index.md#memory): `MemoryStoreError` covers an unreachable
-backend and a malformed row alike, so a data defect now degrades wearing an outage's clothes, and
-the `MemoryStore` shared check list has no backend-failure check where the `Embedder` list has one,
+backend and a malformed row alike, so a data defect now degrades on the path built for an outage,
+and the `MemoryStore` shared check list has no backend-failure check where the `Embedder` list has one,
 which is why `InMemoryMemoryStore.fail_with` arrived here as a twin of `HashEmbedder`'s rather than
 as a shared check both implementations answer.
 
@@ -703,8 +706,8 @@ held and only one of them here.
 **Neither implementation leaked**, so this records a guarantee held rather than a defect fixed,
 which for a promise two suites were already making separately is the outcome worth having. Proven
 able to fail before being trusted, once per arm: `InMemoryMemoryStore._guard` rewritten to raise
-`RuntimeError` reddened the fake arm alone, one failed and ten passed, and
-`PgVectorMemoryStore.search` narrowed to catch only `asyncpg.PostgresError` reddened the live arm
+`RuntimeError` failed the fake arm alone, one failed and ten passed, and
+`PgVectorMemoryStore.search` narrowed to catch only `asyncpg.PostgresError` failed the live arm
 alone against real Postgres, after the ten checks before it had passed. Both breaks were restored
 and both suites re-run green.
 
@@ -715,15 +718,15 @@ of the line to the adapters, on the argument that they wrap a backend that could
 and wrap nothing else. That argument was true of `_WRAPPED` and false of the second `except` in
 `PgVectorMemoryStore.search`, `count_candidates` and `delete_scope`, which turn a `KeyError`,
 `IndexError`, `TypeError` or `ValueError` out of decoding a reply into the same error a stopped
-Postgres raises. A corrupt row therefore reached a turn wearing an outage's clothes: the assistant
-answered without its notes, quietly, exactly as it does when the server is down, and nothing told
-anyone which of the two had happened.
+Postgres raises. A corrupt row therefore reached a turn as an outage: the assistant answered
+without its notes, quietly, exactly as it does when the server is down, and nothing told anyone
+which of the two had happened.
 
 **The line, and the test that draws it.** Infrastructure degrades and our own data or our own code
 does not, and the criterion that separates them is whether the condition heals without anybody
 touching the deployment. A stopped server comes back, a saturated pool frees a connection, a
-socket reconnects, and every turn degraded in the meantime was a bridge to the turn that recalls
-normally again. A row that will not decode decodes no better next turn or next week, so degrading
+socket reconnects, and every turn degraded in the meantime is followed eventually by a turn that
+recalls normally. A row that will not decode decodes no better next turn or next week, so degrading
 around it buys a permanent thinness nobody chose and files a defect in our own stored data under
 "outage". The same test puts a schema the adapter and the database disagree about, which is what a
 missing column really is, on the loud side where it belongs.
@@ -736,9 +739,9 @@ said `except MemoryStoreError` goes on catching it, so only the two call sites t
 distinction ever mention the narrower type, and no catch anywhere had to widen.
 
 **What the core does differently.** The read raises. Degrading on both while logging the second
-loudly was the alternative, and it was refused on the close's own evidence: the failure that only
-a log line records is the silence the degradation was written to end, and a log that reaches
-somebody eventually is no answer to a turn that will answer thinly for ever. The user-facing half
+loudly was the alternative, and it was refused on the close's own evidence: a failure recorded only
+in a log line is the silence the degradation was written to end, and a log somebody reads eventually
+does not help a turn that answers thinly on every run until the data is fixed. The user-facing half
 stays exactly as it landed, which is part of the argument rather than a casualty of it, since
 `StatusUpdate(state="forgoing")` says this turn is answered without earlier notes and that
 sentence is false about a turn that is not going to answer at all. So a data defect emits no
@@ -773,9 +776,9 @@ scripting. It is held where the rows are, in `test_pgvector.py`.
 **Evidence.** Before the change, a stopped backend and a malformed row both left `search` as
 `MemoryStoreError` and the core degraded on both; after it, the first is unchanged and the second
 is `MemoryDataError` and fails the turn. Both were proven able to fail: the strengthened contract
-check reddens on a store scripted to call an outage a data defect, and the core's re-raise reddens
-its own test when removed, the degrading catch swallowing the subclass and no `forgoing` status
-being the only difference the user would see. Both breaks were restored.
+check fails on a store scripted to call an outage a data defect, and removing the core's re-raise
+fails its own test, the degrading catch swallowing the subclass and no `forgoing` status being the
+only difference the user would see. Both breaks were restored.
 
 ## Addendum (2026-08-20): the delete cascade's data defect gets its own seam code
 
@@ -802,8 +805,8 @@ in one place, and the honest scope is worth writing down beside it, because a cl
 the entry's framing would have claimed a retry loop was removed when none existed.
 
 **Proven able to fail, twice.** Both were measured over the whole `packages` suite, 2757 tests, and
-restored. Dropping the new catch reddens exactly one,
+restored. Dropping the new catch makes exactly one test fail,
 `test_delete_session_undecodable_memory_reply_aborts_internal`, which comes back `UNAVAILABLE`
-instead. Ordering the new catch *after* the one it narrows reddens the same one and no other, since
+instead. Ordering the new catch *after* the one it narrows fails the same one and no other, since
 Python takes the first matching arm and the base class matches, so the ordering the whole fix rests
 on is pinned rather than assumed.

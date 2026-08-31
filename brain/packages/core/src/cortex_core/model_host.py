@@ -41,8 +41,8 @@ class ModelHostState(Enum):
 
     ``STOPPED`` (no process), ``LOADING`` (started, weights not served yet), ``READY`` (serving,
     which is what the compose healthcheck means today), ``FAILED`` (the process died or could not
-    load). ``start`` only *begins* loading, so readiness is observed here and nowhere else, which
-    is why the swap has an explicit health gate rather than trusting a returned ``start``.
+    load). ``start`` only begins loading, so readiness is observed here and nowhere else, which is
+    why the swap has an explicit health gate rather than relying on a returned ``start``.
     """
 
     STOPPED = "stopped"
@@ -59,12 +59,12 @@ class DeviceMemory:
     ADR-0004's tier costs, the ADR-0030 co-residency table), so a value never has to be converted
     at the seam where it is compared.
 
-    **A reading is only evidence before an allocation, never after one.** Measured 2026-08-07: a
-    pair of tiers that genuinely fit a 24 GB card and a pair overcommitted by 4676 MiB both read
-    about 23.6 GB used with about 0.5 GB free, because the WSL2 driver pages the overcommit to
-    system memory instead of refusing it, and the only witness is decode throughput. So this value
-    answers exactly one question, "is there room for what is about to be loaded", asked while the
-    room still exists.
+    A reading is evidence only before an allocation, never after one. Measured 2026-08-07: a pair
+    of tiers that genuinely fit a 24 GB card and a pair overcommitted by 4676 MiB both read about
+    23.6 GB used with about 0.5 GB free, because the WSL2 driver pages the overcommit to system
+    memory instead of failing it, and the only observable difference is decode throughput. So this
+    value answers exactly one question, "is there room for what is about to be loaded", asked while
+    the room still exists.
     """
 
     free_mib: int
@@ -77,7 +77,7 @@ class ControlBounds:
 
     A ``stop`` answers only once its child is reaped, so it can spend the SIGTERM grace and then
     the post-SIGKILL reap bound. The third term is the one an earlier reading of this rule missed:
-    ``status`` takes the **same per-model lock** and probes the child inside it, and a compose
+    ``status`` takes the same per-model lock and probes the child inside it, and a compose
     healthcheck asks for a status every 30 s on exactly the tier a handoff evicts first, so a stop
     queued behind a status spends that probe's deadline too before it starts.
 
@@ -85,8 +85,8 @@ class ControlBounds:
     only in prose (the runbook, the compose override, the brain's own default). This value is its
     checkable form: the host reports the three numbers it was really given, and the brain compares
     them against the deadline it was really given, in one place that can be unit tested without a
-    process anywhere. ``None`` rather than an instance of this is the honest answer from a host
-    that supervises no process at all, which is what the scriptable twin is.
+    process anywhere. ``None``, rather than an instance of this, is what a host that supervises no
+    process at all reports; the scriptable twin is such a host.
     """
 
     probe_timeout_s: float
@@ -122,23 +122,23 @@ class ResidencyPlan:
     deployment has measured that its standing peers fit beside the deep model (the ADR's
     co-residency addendum). With it on a swap stops the cortex and nothing else, and the
     subagent pool is never quiesced, so delegated work keeps flowing through the handoff and
-    the deep model's own phase may spawn. It is safe to reopen admission precisely because
-    nothing admission could be handed to was ever stopped.
+    the deep model's own phase may spawn. Reopening admission is safe because nothing that
+    admission could be handed to was stopped.
 
     ``brain_vram_mib`` is what turns that assertion into something checkable: the free device
     memory the deep model needs before it may be started, measured by the deployment on its own
     card. Zero (the default) means no fit check at all, which is the shipped behaviour; anything
-    positive makes ``swap_in`` read the host's card immediately before the load and refuse the
+    positive makes ``swap_in`` read the host's card immediately before the load and fail the
     handoff when the room is not there. It is required alongside ``coresident`` on a deployment
-    whose host can see a card, because a co-resident plan is precisely a claim about room.
+    whose host can see a card, because a co-resident plan is a claim about room.
 
-    ``brain_decode_tps`` is the other half of the same honesty, and the half no reading of memory
-    can supply: the rate the deep tier decodes at when the card really does hold it, measured by
-    the deployment on that card. The fit check can be passed by a figure declared too low and by
-    a gigabyte the desktop took mid-load, and in both cases the load succeeds and spills, so this
-    is what the deep phase compares against afterwards. Zero (the default) reports the observed
-    rate and judges nothing, which is deliberately weaker than the VRAM figure's requirement:
-    that one guards a decision taken before anything is loaded, this one only names what an
+    ``brain_decode_tps`` is the other half of that check, and the half no reading of memory can
+    supply: the rate the deep tier decodes at when the card really does hold it, measured by the
+    deployment on that card. The fit check can be passed by a figure declared too low and by a
+    gigabyte the desktop took mid-load, and in both cases the load succeeds and spills, so this is
+    what the deep phase compares against afterwards. Zero (the default) reports the observed rate
+    without comparing it, which is deliberately weaker than the VRAM figure's requirement: that one
+    guards a decision taken before anything is loaded, while this one only names what an
     already-finished handoff should have looked like.
 
     ``drain_timeout_s`` bounds the wait for the subagent pool to quiesce, which happens before
@@ -148,12 +148,12 @@ class ResidencyPlan:
     manager, the conductor, and boot recovery cannot disagree about the topology.
 
     ``control_deadline_s`` is the last bound and the only one that belongs to the caller rather
-    than to the machine: how long this brain waits for one control call before it gives up
-    (``CORTEX_MODELHOST_TIMEOUT_S``). It rides here because two separate readers compare it
-    against the worst stop the host reports, the composition root once at boot and the swap again
-    whenever the daemon under it turns out to have been replaced, and a value carried twice is a
-    value that can differ. Zero (the default) means the deployment declared none, so there is
-    nothing to compare and both readers stand down.
+    than to the machine: how long this brain waits for one control call before it times out
+    (``CORTEX_MODELHOST_TIMEOUT_S``). It sits here because two separate readers compare it against
+    the worst stop the host reports, the composition root once at boot and the swap again whenever
+    the daemon under it turns out to have been replaced, and a value carried twice is a value that
+    can differ. Zero (the default) means the deployment declared none, so neither reader compares
+    anything.
     """
 
     cortex_model: str

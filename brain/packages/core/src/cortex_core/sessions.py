@@ -46,9 +46,9 @@ class SessionSummary:
     pinned: bool = False
 
 
-# How long a stored recap may be. It is prepended to every windowed turn once the window
-# starts dropping, so a runaway model reply would eat the context the window exists to
-# protect; ~1 turn's worth of the 48K default budget is generous for a paragraph.
+# How long a stored recap may be. It is prepended to every windowed turn once the window starts
+# dropping, so a runaway model reply would consume the context the window exists to protect;
+# ~1 turn's worth of the 48K default budget is generous for a paragraph.
 RECAP_MAX = 2_000
 
 

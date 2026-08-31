@@ -229,8 +229,8 @@ def test_extract_urls_refangs_a_defanged_mailto() -> None:
 
 
 def test_a_defanged_url_and_its_plain_twin_share_one_identity() -> None:
-    # The whole point: a fully-defanged link normalizes to exactly its plain form, so collection
-    # from untrusted content and reproduction in the reply always compare equal.
+    # A fully-defanged link normalizes to exactly its plain form, so collection from untrusted
+    # content and reproduction in the reply always compare equal.
     assert extract_urls("hxxps://evil[.]example/report") == extract_urls(
         "https://evil.example/report"
     )
@@ -518,8 +518,9 @@ def test_data_scheme_split_across_chunks_is_carried_not_lost() -> None:
 
 
 def test_extract_urls_refangs_a_defang_dot_with_encoded_inner_and_literal_brackets() -> None:
-    # The gap: literal brackets + an encoded inner dot. The raw `]`/`)`/`}` used to end the match
-    # before decode ran, orphaning the token; the chunk now eats the closer so decode+refang fold.
+    # The case this closes: literal brackets around an encoded inner dot. The raw `]`/`)`/`}`
+    # used to end the match before decode ran, orphaning the token; the chunk now consumes the
+    # closer, so decode and refang fold it.
     plain = {"http://evil.example"}
     assert extract_urls("http://evil[&#46;]example") == plain  # numeric entity dot
     assert extract_urls("http://evil(&#46;)example") == plain
@@ -584,14 +585,15 @@ def test_a_long_unclosed_bracket_run_terminates_and_matches_linearly() -> None:
 # characters (ADR-0015 seventh addendum). The separator anchors the match and so is matched before
 # any decode, but only its *shape* need be constrained: a bracket chunk carrying an escape marker
 # (`&`/`%`) is admitted and `normalize_url`'s decode fixpoint resolves whichever encoding it was,
-# so
-# no table of encodings enters the anchor. Punycode decoding (stdlib `idna`) feeds the confusable
-# table a registered IDN homoglyph, and Cf-category characters, which survive NFKC, are stripped. -
+# so no table of encodings enters the anchor. Punycode decoding (stdlib `idna`) feeds the
+# confusable table a registered IDN homoglyph, and Cf-category characters, which survive NFKC, are
+# stripped. ---------------------------------------------------------------------------------
 
 
 def test_extract_urls_refangs_an_encoded_scheme_separator() -> None:
-    # The gap: the colon entity-/percent-encoded inside defang brackets. The whole match used to
-    # fail to anchor, so `extract_urls` returned *nothing*: both redact and strict mode missed it.
+    # The case this closes: the colon entity- or percent-encoded inside defang brackets. The
+    # match used to fail to anchor, so `extract_urls` returned *nothing* and both redact and
+    # strict mode missed it.
     plain = {"http://evil.example"}
     assert extract_urls("http[&#58;//]evil.example") == plain  # numeric entity colon
     assert extract_urls("http[%3a//]evil.example") == plain  # percent-escaped colon
@@ -633,8 +635,8 @@ def test_encoded_separator_split_across_chunks_is_carried_not_lost() -> None:
 
 
 def test_an_unescaped_bracket_at_the_separator_is_not_a_url() -> None:
-    # The escape marker is load bearing: without it this chunk would match ordinary prose, which
-    # strict mode would then redact out of the repo's own docs.
+    # The escape marker is what keeps this narrow: without it the chunk would match ordinary
+    # prose, which strict mode would then redact out of the repo's own docs.
     assert extract_urls("http(s)-only endpoints") == frozenset()
     assert extract_urls("use http(s) or ftp(s) here") == frozenset()
 
@@ -725,10 +727,12 @@ def test_a_bare_bracketed_colon_in_prose_is_not_a_url() -> None:
 
 
 def test_an_opaque_turn_is_scanned_strictly_under_the_default_policy() -> None:
-    """The default policy redacts URLs collected from untrusted result *text*. A URL painted
-    into pixels is never in that text, so the collected set is empty and the default is
-    structurally a no-op for exactly the laundering case vision introduces. Measured: the model
-    transcribes the attacker URL out of the image verbatim, framed or not."""
+    """An opaque turn is scanned strictly even under the default policy.
+
+    The default policy redacts URLs collected from untrusted result *text*. A URL painted into
+    pixels is never in that text, so the collected set is empty and the default would otherwise
+    do nothing for exactly the laundering case vision introduces. Measured: the model transcribes
+    the attacker URL out of the image verbatim, framed or not."""
     taint = _Taint(tainted=True, opaque=True)
     guard = UrlRedactingGuardrail().open(taint, allow=frozenset())
     fed = guard.feed(f"the screen says {EVIL} ") + guard.flush()
@@ -738,7 +742,7 @@ def test_an_opaque_turn_is_scanned_strictly_under_the_default_policy() -> None:
 
 def test_a_tainted_but_transparent_turn_keeps_the_default_policy() -> None:
     """The control arm: without the opaque bit the same turn redacts only what it collected, so
-    the escalation above is the bit and not some blanket tightening."""
+    the escalation above comes from the bit rather than from a blanket tightening."""
     taint = _Taint(tainted=True, opaque=False)
     guard = UrlRedactingGuardrail().open(taint, allow=frozenset())
     fed = guard.feed(f"the page says {EVIL} ") + guard.flush()
@@ -1043,7 +1047,8 @@ def test_the_tenth_addendum_composes_with_its_predecessors() -> None:
 
 
 def test_extract_urls_anchors_a_slashless_authority() -> None:
-    # The bypass: one solidus or none, in every scheme the parser reads a special authority for.
+    # The bypass this closes: one solidus or none, in every scheme the parser reads a special
+    # authority for.
     assert extract_urls("https:evil.example/pay") == _PLAIN_LINK
     assert extract_urls("https:/evil.example/pay") == _PLAIN_LINK
     assert extract_urls(r"https:\evil.example/pay") == _PLAIN_LINK
@@ -1137,7 +1142,7 @@ def test_a_port_userinfo_and_the_literal_hosts_are_all_host_shaped() -> None:
 
 
 def test_a_single_label_authority_is_the_false_positive_budget_and_stays_out() -> None:
-    # The whole cost of admitting an absent separator, paid where prose lives. A scheme word, a
+    # The cost of admitting an absent separator, and it is paid where prose lives. A scheme word, a
     # colon and one English word is a live URL to a parser (`https:scheme` is `https://scheme/`),
     # and it is also how a sentence names a scheme, so the anchor declines every single-label host.
     # Nothing public resolves there anyway: a bare label is registrable under no public suffix.
@@ -1314,7 +1319,7 @@ def test_a_gap_is_spelled_with_every_space_nfkc_folds() -> None:
 
 def test_the_gap_space_table_is_exactly_what_nfkc_folds_to_a_space() -> None:
     # The table is the claim, so the claim is checked against the database rather than trusted: a
-    # later Unicode version adding a space character reddens here instead of quietly opening a gap.
+    # later Unicode version adding a space character fails here instead of quietly opening a gap.
     folded = {
         chr(point)
         for point in range(sys.maxunicode + 1)
@@ -1331,9 +1336,10 @@ def test_whitespace_that_breaks_a_line_is_not_a_gap() -> None:
         assert extract_urls(f"http://evil{breaker}dot{breaker}example") == {"http://evil"}
 
 
-# --- The lookalike policy: a host that is not plain ASCII (ADR-0015 fourteenth addendum). The
-# ground is a statement about the shape of what is emitted, so it holds whatever the fold carries
-# and whatever this turn collected. Fixtures are \u escapes so the codepoint under test is explicit.
+# --- The lookalike policy: a host that is not plain ASCII (ADR-0015 fourteenth addendum). Its
+# ground, meaning the condition it redacts on, is a statement about the shape of what is emitted,
+# so it holds whatever the fold carries and whatever this turn collected. Fixtures are \u escapes
+# so the codepoint under test is explicit.
 
 
 # U+0406 Cyrillic Byelorussian-Ukrainian I renders as the `l` it replaces and is one of the 700
@@ -1360,7 +1366,8 @@ def _lookalike(taint: _Taint, allow: frozenset[str] = frozenset()) -> OutputFilt
 def test_a_homoglyph_outside_the_curated_table_leaks_under_the_default_and_not_the_lookalike() -> (
     None
 ):
-    # The whole entry, in one test. A legitimate link is collected from untrusted content and the
+    # The behaviour the policy exists for, in one test. A legitimate link is collected from
+    # untrusted content and the
     # reply spells a lookalike of it: the default policy compares identities, the fold does not
     # carry this codepoint, so the two do not compare equal and the link is delivered. The
     # lookalike ground never asks what was collected, so the codepoint the attacker chose is
@@ -1528,9 +1535,9 @@ def test_host_of_reads_a_mailto_domain_and_no_other_opaque_scheme() -> None:
     assert host_of("not a url at all") == ""
 
 
-# --- A tab a URL parser removes from its input (ADR-0015 fifteenth addendum). Not a respelling of
-# a separator but a character that is *nothing* to the parser, at every position it stands in, so
-# the odd spelling and the plain one are one link. The line break it declines is the twelfth
+# --- A tab a URL parser removes from its input (ADR-0015 fifteenth addendum). A tab is not a
+# respelling of a separator: the parser deletes it at every position it stands in, so the odd
+# spelling and the plain one are one link. The line break it declines is the twelfth
 # addendum's own sentence, now with 42 extended spans over the repo's prose behind it.
 _TAB_LINK = "https://evil.exa\tmple/pay"
 
@@ -1600,7 +1607,7 @@ def test_a_tab_beside_a_link_is_the_accepted_cost() -> None:
     # The whole false-positive surface, and it is real rather than theoretical: a tab immediately
     # after a link is inside the match now, so a strict turn redacts the word behind it too. Zero
     # occurrences over 1,054 files and 1,348,844 words of the repo's own prose, which is why it is
-    # affordable; a tab with prose on both sides of it is untouched, having no scheme to anchor.
+    # affordable.
     assert extract_urls("http://ok.example/x\tand the next word") == {"http://ok.example/xand"}
     guard = _strict(_Taint(tainted=True))
     assert guard.feed("see http://ok.example/x\tand the rest.") == f"see {REDACTED_LINK} the rest."

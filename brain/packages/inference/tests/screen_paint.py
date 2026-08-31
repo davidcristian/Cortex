@@ -10,8 +10,8 @@ height, and nothing between that and 14 px. A legibility measurement is about th
 between: 15 px type has an 11 px cap and roughly 1.5 px strokes, which an integer-scaled
 bitmap cannot express at all. So every string is rasterised at six times its final size and
 box-filtered down, which is what a hinting-free FreeType render does to the same shapes, and
-the result is grey-edged text whose stroke weight tracks the type size. Standard library
-only and deterministic, for the reasons [pixel_font.py](pixel_font.py) gives.
+the result is grey-edged text whose stroke weight tracks the type size. This module uses the
+standard library only and is deterministic, for the reasons [pixel_font.py](pixel_font.py) gives.
 
 **The pipeline half is a transcription, not a port.** ``scaled_dimensions``, the identity arm
 and ``box_filter`` are read off ``body/crates/core/src/os/screen_image.rs`` and rewritten
@@ -63,7 +63,7 @@ class Rect:
 
 
 def cap_height(size: int) -> int:
-    """The cap height a given physical type size draws, which is what legibility tracks.
+    """Return the cap height a given physical type size draws, which is what legibility tracks.
 
     Rounded half up rather than by ``round``, whose half-to-even would draw 15 px type with a
     10 px cap where a real face draws 11.
@@ -72,7 +72,7 @@ def cap_height(size: int) -> int:
 
 
 def advance(size: int) -> int:
-    """The horizontal step from one character to the next at a given type size."""
+    """Return the horizontal step from one character to the next at a given type size."""
     return max(1, round(cap_height(size) * _ADVANCE_COLS / _CAP_ROWS))
 
 
@@ -121,7 +121,7 @@ class Screen:
 
 
 def _mask(value: str) -> bytearray:
-    """One byte per supersampled pixel, 255 where the glyphs are inked and 0 where they are not."""
+    """Build one byte per supersampled pixel, 255 where a glyph is inked and 0 where it is not."""
     width = len(value) * _ADVANCE_COLS * _SUPERSAMPLE
     mask = bytearray(width * _CELL_ROWS * _SUPERSAMPLE)
     ink = b"\xff" * _SUPERSAMPLE
@@ -153,7 +153,8 @@ def _shrink(mask: bytearray, source_width: int, width: int, height: int) -> byte
 
 
 def scaled_dimensions(width: int, height: int, bound: int) -> tuple[int, int]:
-    """``screen_image.rs``'s own: the size whose longest edge is at most ``bound``, floored."""
+    """Return the size whose longest edge is at most ``bound``, floored, as ``screen_image.rs``
+    computes it."""
     longest = max(width, height)
     if longest <= bound:
         return (width, height)
@@ -161,7 +162,7 @@ def scaled_dimensions(width: int, height: int, bound: int) -> tuple[int, int]:
 
 
 def downscale(screen: Screen, region: Rect, bound: int) -> tuple[int, int, bytes]:
-    """``downscale``: read ``region`` out of the frame and shrink it to ``bound``.
+    """Read ``region`` out of the frame and shrink it to ``bound``.
 
     The identity arm is the one the window target exists for: a region already inside the
     bound is copied pixel for pixel with no averaging at all.
@@ -173,7 +174,7 @@ def downscale(screen: Screen, region: Rect, bound: int) -> tuple[int, int, bytes
 
 
 def _copy_region(screen: Screen, region: Rect) -> bytes:
-    """The unscaled arm: ``region``'s own rows, in order, at full resolution."""
+    """Return the unscaled arm: ``region``'s own rows, in order, at full resolution."""
     out = bytearray()
     for row in range(region.height):
         start = ((region.y + row) * screen.width + region.x) * 3
@@ -218,5 +219,5 @@ def encode_png(width: int, height: int, rgb: bytes) -> bytes:
 
 
 def _chunk(tag: bytes, data: bytes) -> bytes:
-    """One length-prefixed, CRC-suffixed PNG chunk."""
+    """Build one length-prefixed, CRC-suffixed PNG chunk."""
     return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))

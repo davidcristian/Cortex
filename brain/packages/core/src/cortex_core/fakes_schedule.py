@@ -1,7 +1,7 @@
 """InMemoryScheduleStore: the ScheduleStore port held in dicts (the Redis adapter's twin).
 
 Split from ``fakes.py`` (at its line-cap budget) the way ``config_subagents.py`` split from
-``config.py``. Like every in-memory fake it does NOT survive a restart. The Redis adapter is
+``config.py``. Like every in-memory fake it does not survive a restart. The Redis adapter is
 what proves a schedule outlives a swap (the one hard rule); this twin exists so the pure core,
 the tools, and the ticker are contract-tested without a backend. It implements the full fenced
 protocol of ADR-0025 decision 1: claims carry a per-claim token, ``finish``/``release`` under a
@@ -121,7 +121,7 @@ class InMemoryScheduleStore:
         return tuple(claims)
 
     def _holds(self, claim: ScheduleClaim) -> bool:
-        """Whether ``claim`` is the item's *current* claim (present, FIRING, token match)."""
+        """Whether ``claim`` is the item's current claim (present, FIRING, token match)."""
         item = self._items.get(claim.item.id)
         live = self._claims.get(claim.item.id)
         if item is None or live is None or item.status is not ScheduleStatus.FIRING:

@@ -1,7 +1,7 @@
-"""Does the history fold still let go of the GPU when several Converse streams overlap?
+"""Measure whether the history fold still releases the GPU when several Converse streams overlap.
 
 The summarizing window's safety case has always been a **sequencing argument** rather than a
-measurement, and it is worth stating exactly before testing it. The GPU lease is one
+measurement, and it is stated exactly here before being tested. The GPU lease is one
 non-reentrant ``asyncio.Lock`` per ``ModelManager``, and the composition root builds one backend
 over one manager for the whole process, so every stream contends for the same lock. The lease is
 taken inside the adapter's stream generator, on its FIRST ``__anext__``, and held until that
@@ -37,10 +37,10 @@ actually claims:
 A seventh, a swap landing mid-fold, is deliberately NOT here: this stack runs with escalation off,
 so there is no swap, and with it on the swapping manager takes the very same lock and waits for the
 lease to fall free rather than preempting a mid-stream round. That is a reading of ``residency.py``
-and it is labelled as one in the ADR rather than dressed up as a run.
+and it is labelled as one in the ADR rather than presented as a measurement.
 
-**The measurement is built to be falsifiable, and a clean green here would otherwise mean
-nothing.** Concurrent streams that never actually overlap would pass every assertion above while
+**The measurement is built so that it can fail; a passing run would otherwise mean nothing.**
+Concurrent streams that never actually overlap would pass every assertion above while
 measuring no contention at all, so ``_contentions`` finds the moments one stream asked for the
 lease while a DIFFERENT stream held it, and the run fails when it finds none. Two further tests
 break the system on purpose and show the same helpers catching it: one makes a fold hold the
@@ -329,10 +329,10 @@ async def _drive(
 def _contentions(log: Sequence[_Lease]) -> list[tuple[_Lease, _Hold]]:
     """Every moment one stream asked for the lease while a DIFFERENT stream held it.
 
-    This is the overlap proof, and it is deliberately the strictest reading of overlap there
-    is: not "the turns ran in the same minute" but "this acquisition was issued strictly
-    inside that acquisition's hold". An empty list means the streams never really contended
-    and the run measured nothing, which is a failure and not a clean result.
+    This is the strictest reading of overlap there is: an acquisition counts only when it was
+    issued strictly inside another acquisition's hold, rather than merely in the same minute.
+    An empty list means the streams never really contended and the run measured nothing, which
+    the caller treats as a failure.
     """
     holds = _holds(log)
     return [
@@ -432,7 +432,8 @@ async def _harness() -> AsyncGenerator[_Harness, None]:
 
 
 def _blockers(record: _Lease, holds: Sequence[_Hold]) -> list[str]:
-    """Whose holds this acquisition sat behind: the load cost, attributed rather than totalled.
+    """Return the holds this acquisition sat behind, which attributes the load cost per holder
+    rather than totalling it.
 
     A reply naming another stream's FOLD here is the interleaving the argument never denied and
     nothing had ever measured, so it is printed by name instead of disappearing into a mean.
@@ -449,7 +450,7 @@ def _blockers(record: _Lease, holds: Sequence[_Hold]) -> list[str]:
 
 
 def _report(runs: Sequence[_Run], log: Sequence[_Lease], origin: float) -> str:
-    """The evidence, as one block: every lease interval and every stream's own timings."""
+    """Render the evidence as one block: every lease interval and every stream's own timings."""
     holds = _holds(log)
     lines = ["lease timeline (seconds from the first acquisition request):"]
     for record in sorted(log, key=lambda r: r.requested):
@@ -479,11 +480,11 @@ def _context_is_uncrossed(runs: Sequence[_Run]) -> None:
 
 @pytest.mark.integration
 async def test_a_fold_keeps_letting_go_of_the_gpu_when_streams_overlap() -> None:
-    """The measurement: concurrent Converse streams, each folding, over one real cortex.
+    """Run concurrent Converse streams, each folding, over one real cortex, and measure them.
 
     A solo turn runs first over the same corpus so the concurrent numbers have something to be
     read against; its lease log is then set aside and the concurrent run is measured on its own
-    timeline. What is asserted is what must hold whatever the model says: the folds really
+    timeline. What is asserted is what has to hold whatever the model says: the folds really
     happened, the streams really contended, no lease was ever nested or shared, every fold's
     chip landed on its own stream, and no answer carries another session's booking reference.
     """
@@ -537,7 +538,7 @@ async def test_a_fold_keeps_letting_go_of_the_gpu_when_streams_overlap() -> None
 
 @pytest.mark.integration
 async def test_two_streams_on_one_session_do_not_hand_each_other_the_wrong_context() -> None:
-    """The other concurrency: two turns of the SAME session in flight at once.
+    """Two turns of the SAME session are in flight at once, which is the other concurrency shape.
 
     One Converse stream runs its turns one at a time, so this shape needs two streams naming
     one session, and it is the case the fold's cache could plausibly get wrong: both turns
@@ -603,15 +604,15 @@ async def _wait_for_reply_lease(backend: _RecordingBackend, label: str) -> None:
 
 @pytest.mark.integration
 async def test_a_consumer_that_stops_reading_holds_the_gpu_a_later_fold_needs() -> None:
-    """What a stalled reader costs every other stream, which is a number and not an argument.
+    """Measure what a stalled reader costs every other stream.
 
     The reply's lease is held for the generator's whole lifetime, and the seam's credit bound
     suspends generation inside it when a consumer stops reading, so a stalled reader keeps the
-    GPU. That is the shipped backpressure behaving as designed, and it predates the fold; what
+    GPU. That is the shipped backpressure behaving as designed, and it predates the fold. What
     is new under load is who pays, because the next stream's FOLD is now among the things that
-    queue behind it. This measures that rather than reasoning about it: one stream stalls
-    mid-reply at a one-credit bound, a second starts once the first is really generating, and
-    the second's fold is timed against the stall.
+    queue behind it. The measurement runs one stream that stalls mid-reply at a one-credit
+    bound, starts a second once the first is really generating, and times the second's fold
+    against the stall.
     """
     async with _harness() as harness:
         sessions = ["fold-load-stall-0", "fold-load-stall-1"]
@@ -701,12 +702,12 @@ class _LeakyWindow:
 
 @pytest.mark.integration
 async def test_the_timeline_catches_a_fold_that_holds_the_lease_across_the_reply() -> None:
-    """Distrust green: break the sequencing and show the same helper reddening.
+    """Prove the check can fail: break the sequencing and show the same helper failing.
 
-    A concurrency test that passes on a broken system is worthless, so the check that returned
+    A concurrency test that passes on a broken system proves nothing, so the check that returned
     an empty list above is run against a window that really does hold the lease into the reply.
-    It must both hang the turn and NAME the leak, because a test that only notices a timeout
-    cannot tell a deadlock from a slow model.
+    It must both hang the turn and name the leak, because a test that only sees a timeout cannot
+    tell a deadlock from a slow model.
     """
     async with _harness() as harness:
         session = "fold-load-leak"

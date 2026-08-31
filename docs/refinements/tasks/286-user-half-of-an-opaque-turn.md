@@ -19,7 +19,7 @@ pixel-derived prose at all.
 
 What makes it a decision rather than a two-line change is what a bare half means on recall. Most
 capture turns open with a question, and `User: what does this say?` stored alone is noise a later
-recall would rank against real memories, so this wants either a salience judgement at record time
+recall would rank against real memories, so this needs either a salience judgement at record time
 ([R-093](093-write-salience-policy.md), whose own cost correction is the recaller's non-optional
 return) or a rule narrow enough to state without one. It also needs the origin's licence rewritten
 rather than assumed: the opaque drop is an explicit decision in the vision record and in the

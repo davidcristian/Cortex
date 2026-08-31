@@ -2,7 +2,7 @@
 
 Split from ``schedule.py`` at the 300-line cap, along the line that module's own docstring
 already draws: it holds the durable value types and the recurrence math the ticker reads,
-while a *transition* is what a user-facing verb does to a stored item. Each function here is
+while a transition is what a user-facing verb does to a stored item. Each function here is
 total, pure, and shared: the in-memory fake and the Redis adapter both route their ``edit`` and
 ``snooze`` through these, so the two stores mutate an item identically and the fenced-versus-
 plain difference between them is only the concurrency wrapper (the ports-before-adapters
@@ -21,7 +21,7 @@ from cortex_core.schedule_calendar import CalendarRule
 class RuleChange:
     """A calendar rule an edit sets, together with the first occurrence it implies.
 
-    The two travel as one value because the second is *derived from* the first: a calendar
+    The two travel as one value because the second is derived from the first: a calendar
     item's ``due_at`` is an occurrence of its own rule by construction, so a rule change that
     left ``due_at`` behind would name a fire the rule does not. Deriving it needs a clock and a
     zone, which the pure ``apply_edit`` and both stores deliberately lack, so the derivation
@@ -45,13 +45,13 @@ class ScheduleEdit:
     ``text=None`` leaves the text unchanged; ``every`` is applied only when ``set_every`` is
     True (``every=None`` then clears recurrence, making the item a one-shot), so the three
     cases unchanged / set / clear are all expressible without a sentinel interval. ``rule`` is
-    the fourth case, switching the item onto a wall-clock grid; it is **mutually exclusive with
-    ``set_every``**, which keeps the item's one-shape invariant true at the boundary rather than
-    re-checked downstream. ``tainted``
-    is the editing turn's taint, OR'd onto the item and never clearing it, because a retext can
-    carry untrusted content forward. At least one change is present by construction (the verb
-    refuses a no-op edit); ``due_at`` is editable *only* as a rule's derived occurrence, so an
-    interval re-recur still leaves the next fire anchored where it was.
+    the fourth case, switching the item onto a wall-clock grid; it is mutually exclusive with
+    ``set_every``, which keeps the item's one-shape invariant true at the boundary rather than
+    re-checked downstream. ``tainted`` is the editing turn's taint, OR'd onto the item and never
+    clearing it, because a retext can carry untrusted content forward. At least one change is
+    present by construction (the verb refuses a no-op edit); ``due_at`` is editable only as a
+    rule's derived occurrence, so an interval re-recur still leaves the next fire anchored where
+    it was.
     """
 
     text: str | None = None
@@ -76,19 +76,18 @@ def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
     the Redis adapter change an item identically (the ports-before-adapters guarantee), and
     taint is monotone: OR'd, never cleared (ADR-0025 edit addendum).
 
-    Setting an interval **clears any calendar rule**, because the item holds at most one
-    recurrence shape: an edit that set ``every`` on a calendar item would otherwise have to
-    fail, and silently keeping the rule while reporting the new interval would be worse. The
-    ``0`` sentinel therefore stops repeating whichever shape the item had. On that branch
-    ``due_at`` stays put, so re-recur changes the cadence of future re-arms and never the fire
-    already armed.
+    Setting an interval clears any calendar rule, because the item holds at most one recurrence
+    shape: an edit that set ``every`` on a calendar item would otherwise have to fail, and keeping
+    the rule while reporting the new interval would be worse. The ``0`` sentinel therefore stops
+    repeating whichever shape the item had. On that branch ``due_at`` stays put, so re-recur
+    changes the cadence of future re-arms and never the fire already armed.
 
-    Setting a **rule** is the one branch that moves the timing, and it re-arms the item exactly
-    as ``apply_snooze`` re-arms a fired reminder: PENDING at the rule's next occurrence with
+    Setting a rule is the one branch that moves the timing, and it re-arms the item exactly as
+    ``apply_snooze`` re-arms a fired reminder: PENDING at the rule's next occurrence with
     ``deliverable_since`` cleared, so a fired-but-undelivered reminder fires fresh instead of
-    re-delivering stale, and (decisively) a DONE item never lands on the due index, where the
-    claim path would fire it a second time. ``anchor`` is dropped with it: it pins an *interval*
-    grid, and a rule is its own grid (ADR-0025 rule-edit addendum).
+    re-delivering stale, and a DONE item never lands on the due index, where the claim path would
+    fire it a second time. ``anchor`` is dropped with it: it pins an interval grid, and a rule is
+    its own grid (ADR-0025 rule-edit addendum).
     """
     text = edit.text if edit.text is not None else item.text
     if edit.rule is not None:
@@ -122,9 +121,9 @@ def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
     the fire after the snooze re-arms on ``origin + k*every`` rather than ``until + every``. A
     one-shot has no grid, so its anchor stays ``None`` (ADR-0025 occurrence-snooze addendum).
 
-    A **calendar** item needs no anchor and gets none: its rule is the grid, so
-    ``next_occurrence`` reads the rule rather than ``due_at`` and the series returns to its
-    wall-clock cadence after the snoozed fire for free (ADR-0025 calendar addendum).
+    A calendar item needs no anchor and gets none: its rule is the grid, so ``next_occurrence``
+    reads the rule rather than ``due_at``, and the series returns to its wall-clock cadence after
+    the snoozed fire without any further bookkeeping (ADR-0025 calendar addendum).
     """
     anchor = item.anchor
     if item.every is not None and anchor is None:

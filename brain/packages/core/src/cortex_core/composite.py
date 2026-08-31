@@ -4,8 +4,8 @@ Built-in tools are pure-core handlers (e.g. ``spawn_subagents``) the cortex call
 any MCP tool. This registry advertises the union behind the unchanged ``ToolRegistry`` port and
 routes each ``invoke`` by name. Built-ins take precedence: a remote tool sharing a built-in's
 name is shadowed (neither advertised nor invoked) and duplicate built-in names are a
-construction error. It is the internal-tool seam ADR-0001 Q2 predicted; the body's OS actions
-(Slices 9-10) register here too, alongside delegation.
+construction error. ADR-0001 Q2 calls this the internal-tool seam; the body's OS actions
+register here too, alongside delegation.
 """
 
 from collections.abc import Sequence

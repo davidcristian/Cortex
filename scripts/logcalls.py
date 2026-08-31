@@ -1,59 +1,52 @@
 """What a brain log call really attaches, read out of the module that writes it.
 
-`samplecheck.py`'s code side, and the half a documented sample has never been compared against.
-This module answers what one call puts on its line, and holds the reading of the brain's source
-that `loggernames.py` answers the other half over: which module owns the logger a line is written
-through. `logsamples.py` is the doc side, and the gate holds the two answers together.
+`samplecheck.py`'s code side: this module answers what one call puts on its line, and
+`loggernames.py` answers, over the same reading of the brain's source, which module owns the logger
+that line is written through. `logsamples.py` is the doc side, and the gate holds the two answers
+together. The ADR-0009 sample-membership, one-name and one-message addenda argue the rules below.
 
-**Parsed, not matched.** Every other scan in `scripts/` reads Python as text, which is the right
-reflex when the question is a declaration on one line. An ``extra=`` dict is not one line: the
-failed-settle call spreads its three keys over five, and a brace counter written to follow that is
-a Python parser with the corners missing. ``ast`` parses the same text and executes none of it, so
-this reads the brain the way the rest of this tree does, without importing it. The seam the ADR
-declined to open is an import of the brain from `scripts/`, and that stays shut.
+The source is parsed rather than matched. Every other scan in `scripts/` reads Python as text,
+which suits a declaration on one line, but an `extra=` dict is not one line: the failed-settle call
+spreads its three keys over five, and a brace counter written to follow that is a Python parser
+with the corners missing. `ast` parses the same text and executes none of it, so the brain is read
+without being imported, which is the seam the ADR declined to open.
 
-**A message is written out at the call, or handed to it by name.** Both spellings print the same
-line, the formatter rendering the string and never the expression that carried it, so a document
-quoting one cannot tell which the module wrote. A reader that knew only a literal therefore said
-that a sink handing its call a constant logs no such message, which is a fault about the document
-where the code is the thing that moved, and it fell on exactly the sinks a runbook has most reason
-to quote. So a bare identifier is resolved against the module's own top level and nothing wider, by
-``moduleconstants.py``, which is the reading `loggernames.py` next door already makes of a logger
-claimed the same way. A name from anywhere else stays unmatched rather than chased, an importer of
-the brain being what this tree may not become, and a message built at the call out of pieces is not
-a message a page could quote at all.
+A message is written out at the call or handed to it by name. Both print the same line, the
+formatter rendering the string and never the expression that carried it, so a document quoting one
+cannot tell which the module wrote. A reader that matched only a literal therefore reported that a
+sink handing its call a constant logs no such message, which blames the document for a move the
+code made, and it fell on exactly the sinks a runbook has most reason to quote. A bare identifier
+is now resolved against the module's own top level and nothing wider, by `moduleconstants.py`,
+which is the reading `loggernames.py` makes of a logger claimed the same way. A name from anywhere
+else stays unmatched rather than being followed, since following one would make this reader an
+importer of the brain, and a message built at the call out of pieces is not a message a page could
+quote at all.
 
-**A module may not spell one message twice.** This is the one-name rule beside it one word over,
-and the same sentence: a declaration is what the constant registry ties the documents restating a
-message to, and a literal of the same string in the call holds two words where there was one, so
-the day the literal moves alone those documents go on restating a word the brain no longer writes,
-every gate green. So a literal message is refused when this module's own top level binds it. The
-domain is a call and not a name, which is what keeps the rule off a module that binds some string
-for another purpose: the string has to be the message of a log call here before anything is asked
-about it, and then the module has two spellings of one word whatever the binding was written for.
+A module may not write one message twice, which is the one-name rule one word over. The constant
+registry ties the documents restating a message to the binding, so a literal of the same string in
+the call holds two words where there was one, and moving the literal alone would leave those
+documents restating a word the brain no longer writes with every gate green. A literal message is
+therefore refused when the module's own top level binds it. The rule runs over a call rather than
+over a name, which keeps it off a module that binds some string for another purpose: the string has
+to be the message of a log call here before anything is asked about it.
 
-**The level comes from the method, and ``exception`` is an error.** A sample prints the level the
-formatter wrote, so the call's own method is what it has to agree with. ``exception`` is the one
-name that is not its own level: it logs at ``ERROR`` and adds a traceback, which is why a runbook
-quoting one of those lines prints ``ERROR`` and would otherwise look wrong.
+The level comes from the method, and `exception` is the one name that is not its own level: it logs
+at `ERROR` and adds a traceback, which is why a runbook quoting one of those lines prints `ERROR`.
+A level chosen while the program runs, `logger.log(level, message, ...)` as the model host's request
+failure writes it, is reported by name rather than as a message nothing logs, because the message
+is in the module and a fault denying it would send a reader looking for text they can see.
 
-**Fields come back in the order the line will print them**, which is name order rather than the
-order the call site wrote. That is not this module rearranging the answer: ``render_fields`` sorts,
-deliberately, so two lines of one kind stay comparable column by column, and the printed order is
-therefore a function of the key set alone. Returning the printed order is what lets one comparison
-hold a sample's membership and its order at once, and it is why a sample that permutes its fields
-is caught here as well as by the neighbouring-field anchor in the constant registry.
+Fields come back in the order the line will print them, which is name order rather than the order
+the call site wrote. `render_fields` sorts, deliberately, so that two lines of one kind stay
+comparable column by column, and the printed order is therefore a function of the key set alone.
+Returning the printed order is what lets one comparison hold a sample's membership and its order at
+once, and it is why a sample that permutes its fields is caught here as well as by the
+neighbouring-field anchor in the constant registry.
 
-**A line whose level is chosen while the program runs is refused by name.** ``logger.log(level,
-message, ...)`` takes its level from a variable, which the model host's request failure really
-does, so there is no method name to read one from and no level a sample could be held to. That is
-reported as what it is rather than as a message nothing logs, because the message is in the module
-and a fault denying it would send a reader looking for text they can see.
-
-**A call this reader cannot account for is a fault**, never a skip: a message no call logs, a
-message logged in two places, an ``extra=`` that is not a literal mapping, and a key that is not a
-plain string are each reported. A reader that shrugged at one of them would hand the gate an empty
-answer and call the document right.
+A call this reader cannot account for raises rather than being skipped: a message no call logs, a
+message logged in two places, an `extra=` that is not a literal mapping, and a key that is not a
+plain string are each reported, since skipping one would hand the gate an empty answer and report
+the document as correct.
 """
 
 import ast
@@ -75,9 +68,7 @@ EXTRA = "extra"
 
 # The one logging method whose level is an argument rather than its own name, and where its
 # message sits when it is. The model host switches between a warning and an error that way, and a
-# line written through it has no level a sample could be held to, so it is refused BY NAME rather
-# than reported as a message nothing logs: the message really is in the module, and a fault saying
-# otherwise would send a reader looking for text they can see.
+# line written through it has no level a sample could be held to.
 DYNAMIC_LEVEL = "log"
 DYNAMIC_MESSAGE = 1
 
@@ -110,7 +101,7 @@ class LogCall(NamedTuple):
 
 
 def read(path: Path, shown: str) -> str:
-    """Read one brain source file, refusing one that is absent or is not text."""
+    """Read one brain source file, raising when it is absent or is not text."""
     try:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
@@ -224,9 +215,9 @@ def _dynamic_call(node: ast.AST, message: str) -> ast.Call | None:
 def _absent(tree: ast.Module, message: str, shown: str) -> str:
     """Why no call was found: because none writes the message, or because one writes it loosely.
 
-    The second answer costs one more walk and saves the reader the whole investigation. A line
-    written through ``log`` really is in the module, and a fault saying it is not would send
-    somebody looking for a message they can see with their own eyes.
+    The second answer costs one more walk and saves the reader the investigation. A line written
+    through ``log`` really is in the module, and a fault saying it is not would send somebody
+    looking for a message they can see.
     """
     for node in ast.walk(tree):
         call = _dynamic_call(node, message)

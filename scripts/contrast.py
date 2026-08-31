@@ -6,13 +6,13 @@ arm is a container configuration and changing it means recreating the container.
 arms in different processes, so no one of them can hold the whole comparison, and each writes a
 JSON sample instead. This is what reads those samples back and says what they show.
 
-**Why the arithmetic lives here rather than in the driver.** The measurement that moved the recall
-default published a 0.515 s difference with a 95% interval and named no test, and the missing half
-was never the turns: it was the resampling that turned turns into an interval, which lived in a
-scratchpad and carried no seed. Here it is a pure function of the samples, unit-tested at 100%,
-and reproducible from a seed printed with every report.
+The arithmetic lives here rather than in the driver. The measurement that moved the recall default
+published a 0.515 s difference with a 95% interval and named no test, and the missing half was the
+resampling that turned turns into an interval, which lived in a scratchpad and carried no seed.
+Here it is a pure function of the samples, unit-tested at 100%, and reproducible from a seed
+printed with every report.
 
-**The statistic, and why this one.**
+The statistic, and why this one:
 
 * **Blocked (paired) by question.** A turn's time is dominated by how long its answer is, which is
   a property of the question and not of the arm. Pooling turns across questions buries an arm's
@@ -27,11 +27,11 @@ and reproducible from a seed printed with every report.
 * **Seeded.** The interval is then a function of the samples and the seed, both of which the report
   prints, so a reader can rerun the arithmetic without rerunning the GPU.
 
-**The first sample is the baseline and every later one is contrasted against it.** That is what
-makes an A/B/A run readable in one command: the second block is the arm under test and the third
-is the same configuration as the first, so its contrast is a null whose interval ought to span
-zero. A null that does not span zero says the run drifted and the arm contrast is not readable,
-which is the only thing that makes the arm contrast readable when it does.
+The first sample is the baseline and every later one is contrasted against it, which is what makes
+an A/B/A run readable in one command: the second block is the arm under test and the third is the
+same configuration as the first, so its contrast is a null whose interval ought to span zero. A
+null that does not span zero says the run drifted and the arm contrast cannot be read; a null that
+does span zero is what makes the arm contrast readable.
 """
 
 import argparse
@@ -198,8 +198,8 @@ def _per_question(blocks: list[Block]) -> list[str]:
     The interval above is a mean over questions and says nothing about how evenly the arm's cost
     is spread across them. The first run of this harness found it very unevenly spread: one of six
     questions carried three times the mean difference, because the arm under test was the only one
-    able to answer that it did not know, and a refusal is a longer thing to say than a wrong
-    answer. A reader who sees only the interval cannot tell that from a uniform half second.
+    able to answer that it did not know, and a refusal takes longer to say than a wrong answer. A
+    reader who sees only the interval cannot tell that from a uniform half second.
     """
     baseline = blocks[0]
     lines = [f"per question, {METRICS[0]} against {baseline.arm} ({baseline.path.name}):"]

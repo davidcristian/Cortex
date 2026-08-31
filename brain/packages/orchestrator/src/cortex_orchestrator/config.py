@@ -17,9 +17,9 @@ from cortex_session import DEFAULT_REDIS_URL
 InferenceBackendName = Literal["echo", "llamacpp"]
 VisionMode = Literal["auto", "on", "off"]
 # Whether a request may carry its own trace budget on this deployment's engine (ADR-0005
-# request-lever addendum). Same three words as the vision mode above and for the same reason: an
-# answer this repo can measure, plus the two a deployment gives when it would rather say than be
-# asked.
+# request-lever addendum). The same three words as the vision mode above and for the same reason:
+# one answer this repo can measure, plus the two a deployment sets when it would rather state the
+# answer than have it probed.
 TraceLeverMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
@@ -31,29 +31,29 @@ MemoryTaintPolicyName = Literal["skip", "record"]
 # Pydantic field's annotation and a comparison inside a function), so the type is what ties them.
 OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 
-# Which answer the capture tool's advertisement takes when nothing overrides it. Named for the
+# Which answer the capture tool's advertisement takes when nothing overrides it. Declared for the
 # reason the port below is: the body override ships it again as a substitution default, so the
 # scan can hold the two together only if one of them is a declaration it can read.
 DEFAULT_VISION_MODE: VisionMode = "auto"
 
-# The port BrainService listens on by default. Named rather than spelled inline because it is
-# not only ours: the compose stack publishes it and dials it in its own healthcheck, the image
-# exposes it, the host body's default endpoints carry it, four module contracts and two runbooks
-# quote it to a reader, the host sitting's prerequisites name it, and three live suites fall back
-# to it when no endpoint is exported. `scripts/crosscheck.py` holds all twenty three of those
-# places to this one number, which is the only thing that does. The unit test beside this file
-# pins it too and is deliberately not among them: it runs on every commit, so a retune that left
-# it behind fails in the suite that owns it rather than drifting.
+# The port BrainService listens on by default. Declared rather than written inline because it is
+# not only this module's: the compose stack publishes it and dials it in its own healthcheck, the
+# image exposes it, the host body's default endpoints carry it, four module contracts and two
+# runbooks quote it to a reader, the host sitting's prerequisites name it, and three live suites
+# fall back to it when no endpoint is exported. `scripts/crosscheck.py` holds all twenty three of
+# those places to this one number, and nothing else does. The unit test beside this file pins it
+# too and is deliberately not among them: it runs on every commit, so a retune that left it behind
+# fails in the suite that owns it rather than drifting.
 DEFAULT_SEAM_PORT = 50051
 
-# The interface BrainService binds when nothing overrides it, hoisted beside the port for the same
-# reason and for exactly one place fewer than a reader expects. `127.0.0.1` is spelled in two dozen
-# needles of the two port entries in `scripts/crosscheck.py`, and one of them is this value: the
-# rest are the body's own bind, the two `CORTEX_*_ADDR` client defaults, the compose publish's
-# host-side interface and a handful of loopback dials, all of which go on saying `127.0.0.1` after
-# this one moves. Three places state THIS default and the scan holds all three. The shipped stack
-# does not run on it: `docker/docker-compose.yml` sets `CORTEX_SEAM_HOST=0.0.0.0` so the published
-# port can reach the server, and exposure stays loopback-only through the publish.
+# The interface BrainService binds when nothing overrides it, declared beside the port for the same
+# reason, though fewer places state it. `127.0.0.1` appears in two dozen needles of the two port
+# entries in `scripts/crosscheck.py`, and only one of them is this value: the rest are the body's
+# own bind, the two `CORTEX_*_ADDR` client defaults, the compose publish's host-side interface and
+# a handful of loopback dials, all of which go on saying `127.0.0.1` after this one moves. Three
+# places state this default and the scan holds all three. The shipped stack does not run on it:
+# `docker/docker-compose.yml` sets `CORTEX_SEAM_HOST=0.0.0.0` so the published port can reach the
+# server, and exposure stays loopback-only through the publish.
 DEFAULT_SEAM_HOST = "127.0.0.1"
 
 
@@ -97,7 +97,7 @@ class BrainRuntimeConfig(BaseSettings):
 
     # env CORTEX_REDIS_URL is where the session state lives (the one hard rule).
     redis_url: str = DEFAULT_REDIS_URL
-    # env CORTEX_MODEL_CORTEX is a LOGICAL model id (ADR-0004), never a file path.
+    # env CORTEX_MODEL_CORTEX is a logical model id (ADR-0004), never a file path.
     # The dictated env name breaks the prefix pattern, hence the explicit alias.
     cortex_model: str = Field(default=DEFAULT_CORTEX_MODEL, validation_alias="CORTEX_MODEL_CORTEX")
     # env CORTEX_VRAM_SOFT_CAP_GB is the deliberate GPU budget (ADR-0004, 14 GB); the
@@ -162,21 +162,21 @@ class InferenceConfig(BaseSettings):
     URL of the resident model's ``llama-server``, set by ``docker-compose.gpu.yml``).
 
     ``vision`` (``CORTEX_VISION``) decides whether the screen-capture tool is advertised
-    (ADR-0029). ``auto``, the default, probes ``GET {endpoint}/props`` on every advertisement
-    and every call and believes the running server rather than a brain-side declaration, so a
-    model host restarted without its projector stops being offered eyes without a brain restart;
-    ``on`` and ``off`` fix the answer for CI, for a deterministic test, and for a user who wants
-    capture off without editing compose.
+    (ADR-0029). ``auto``, the default, probes ``GET {endpoint}/props`` on every advertisement and
+    every call and takes the running server's answer rather than a brain-side declaration, so a
+    model host restarted without its projector stops having the capture tool advertised for it,
+    with no brain restart; ``on`` and ``off`` fix the answer for CI, for a deterministic test, and
+    for a user who wants capture off without editing compose.
 
     ``trace_lever`` (``CORTEX_INFERENCE_TRACE_LEVER``) decides whether a request may carry
     ``GenerationBounds.trace_tokens`` as llama.cpp's ``reasoning_budget_tokens`` (ADR-0005
-    request-lever addendum). ``auto``, the default, asks the endpoint once at wiring, an engine
-    that parses the key rejecting an out-of-range value by name where one that does not know it
-    answers the completion; ``on`` and ``off`` fix the answer for a deployment that would rather
-    say than be asked, and ``off`` is also how a stack behind a proxy that cannot be probed keeps
-    the request this repo sent before the key existed. Unlike ``vision`` the answer is taken once,
-    because it is a property of the **binary** behind the endpoint rather than of the argv a model
-    host last started a child with.
+    request-lever addendum). ``auto``, the default, asks the endpoint once at wiring: an engine
+    that parses the key rejects an out-of-range value by name, where one that does not implement
+    the key answers the completion; ``on`` and ``off`` fix the answer for a deployment that would
+    rather state it than have it probed, and ``off`` is also how a stack behind a proxy that cannot
+    be probed keeps the request this repo sent before the key existed. Unlike ``vision`` the answer
+    is taken once, because it is a property of the binary behind the endpoint rather than of the
+    argv a model host last started a child with.
 
     ``stall_timeout_s`` (``CORTEX_INFERENCE_STALL_TIMEOUT_S``) is how long a resident-tier
     generation may send nothing before the adapter gives up on it (ADR-0005 stall-ceiling
@@ -205,10 +205,10 @@ class InferenceConfig(BaseSettings):
 class MemoryConfig(BaseSettings):
     """Whether turns recall/record durable memory (ADR-0008).
 
-    ``none`` (the default) disables memory. The DB-less path CI and the no-GPU dev loop
-    run, and the turn behaves exactly as in Slice 3. ``pgvector`` enables it and requires
-    ``dsn`` (the Postgres URL) and ``embedder_endpoint`` (the base URL of the CPU embedding
-    ``llama-server``).
+    ``none`` (the default) disables memory. It is the DB-less path CI and the no-GPU dev loop
+    run, and the turn behaves exactly as it did before memory existed. ``pgvector`` enables it and
+    requires ``dsn`` (the Postgres URL) and ``embedder_endpoint`` (the base URL of the CPU
+    embedding ``llama-server``).
 
     ``scope`` (env ``CORTEX_MEMORY_SCOPE``, ADR-0008 scoping addendum) picks the recall
     namespace policy: ``global`` (the default) keeps the founding one-global-space behavior, so
@@ -229,15 +229,16 @@ class MemoryConfig(BaseSettings):
     the reranker's near-duplicate cutoff), tuned by ``recall_mmr_lambda`` (0.5, the relevance share,
     ``1`` pure relevance and ``0`` pure diversity) and the shared ``recall_pool_factor``;
     ``recency_mmr`` runs that MMR selection over the recency blend rather than raw similarity,
-    combining both axes and reusing the recency and lambda knobs; ``judge`` (**the default since
-    the turn-cost addendum**) asks the resident model to order the over-fetched pool by what each
-    note actually says (ADR-0038), reusing ``recall_pool_factor`` and falling back to raw top-k
-    cosine whenever the model cannot be reached or believed. ``judge`` is also the only policy that
-    may return **nothing**, when the model reads the pool and answers that no candidate helps, and
-    the turn then carries no recalled memories at all (ADR-0038 abstention addendum). The knobs are
-    inert under ``raw``; each policy validates the ranges of the ones it uses when it is built.
+    combining both axes and reusing the recency and lambda knobs; ``judge`` (the default since the
+    turn-cost addendum) asks the resident model to order the over-fetched pool by what each note
+    actually says (ADR-0038), reusing ``recall_pool_factor`` and falling back to raw top-k cosine
+    whenever the model cannot be used or its reply cannot be read. ``judge`` is also the only
+    policy that may return nothing, when the model reads the pool and answers that no candidate
+    helps, and the turn then carries no recalled memories at all (ADR-0038 abstention addendum).
+    The knobs are inert under ``raw``; each policy validates the ranges of the ones it uses when it
+    is built.
 
-    **The default is a rank, so a recalling turn spends a bounded cortex call before it answers.**
+    The default is a rank, so a recalling turn spends a bounded cortex call before it answers.
     Measured end to end on the 24 GB card over 48 turns an arm, the rank alone costs 0.877 s at the
     pool a turn asks for, and the turn's own time to first token rises 0.515 s (95% CI 0.116 to
     0.915, against a raw-versus-raw noise floor whose interval spans zero), the difference being
@@ -248,7 +249,8 @@ class MemoryConfig(BaseSettings):
 
     ``recall_audit`` (env ``CORTEX_MEMORY_RECALL_AUDIT``, ADR-0038) turns on the recall trail: one
     structured log line per recall carrying the pool size, the rank basis, and each kept hit's id,
-    score and rank key, never any text. ``False`` (the default) is the founding silent recall path.
+    score and rank key, never any text. ``False`` (the default) is the founding recall path, which
+    writes no trail.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")

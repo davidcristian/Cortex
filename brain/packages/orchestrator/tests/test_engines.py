@@ -13,17 +13,17 @@ the session store, the model behind the ``InferenceBackend`` port, and the model
 starts and stops. The dispatchers, the built-in sets, the window, the guardrail, the escalating
 wrapper and the conductor are all built by production code from the object under test.
 
-Distrust-green proofs, each mutation applied to ``engines.py`` alone with the 445 tests of
+Proof these cases can fail, each mutation applied to ``engines.py`` alone with the 445 tests of
 ``packages/orchestrator`` re-run over it (2026-08-22):
 - caching the bundle, so ``for_stream`` builds it once and hands every later stream that one,
-  reddens exactly 1, ``test_each_stream_confirms_through_its_own_overlay``;
-- handing the deep phase ``self.builtins`` instead of ``deep.builtins`` reddens exactly 2,
-  ``test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it`` here and
+  makes exactly 1 test fail, ``test_each_stream_confirms_through_its_own_overlay``;
+- handing the deep phase ``self.builtins`` instead of ``deep.builtins`` makes exactly 2 tests
+  fail, ``test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it`` here and
   ``test_the_deep_tier_is_never_offered_the_screen`` in ``test_vision_wiring``;
-- dropping ``bounds=self.bounds`` from the bundle reddens exactly 1,
+- dropping ``bounds=self.bounds`` from the bundle makes exactly 1 test fail,
   ``test_the_deployments_reply_bounds_reach_both_phases_of_a_turn``;
-- returning the plain engine unconditionally reddens 4, the three escalating cases here and
-  that same ``test_vision_wiring`` one, which is the whole escalating arm and no more.
+- returning the plain engine unconditionally makes 4 tests fail, the three escalating cases here
+  and that same ``test_vision_wiring`` one, which is the whole escalating arm and no more.
 """
 
 from collections.abc import AsyncIterator, Mapping, Sequence
@@ -150,7 +150,7 @@ async def _run(engine: TurnRunner, text: str, *, turn_id: str) -> list[TurnEvent
 
 
 def _swap_runtime() -> SwapRuntime:
-    """The process-wide handoff half the root would have built, over the in-core scripted host."""
+    """Build the process-wide handoff half the root would have built, over the scripted host."""
     runtime = build_swap_runtime(
         SwapConfig(escalation=True, modelhost_backend="scripted", brain_endpoint="http://brain"),
         BrainRuntimeConfig(),
@@ -164,7 +164,8 @@ def _swap_runtime() -> SwapRuntime:
 
 
 def _escalating(backend: _Model, swap: SwapRuntime) -> StreamEngines:
-    """The root's escalating composition: the cortex's set with eyes, the deep tier's without.
+    """The root's escalating composition: the cortex's set with the screen tool, the deep tier's
+    without it.
 
     The two sets are built by the shipped builder from one body, so the only difference between
     them is the one the root makes, which is what the deep-tier case reads back.
@@ -206,7 +207,7 @@ async def test_each_stream_confirms_through_its_own_overlay() -> None:
 
 
 async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
-    """Escalation off is the shipped default, and nothing below the edge changes shape for it."""
+    """Escalation is off by default, and with it off the factory returns a plain `TurnEngine`."""
     backend = _Model({"cortex": [[TextChunk("hi")]]})
     plain = _engines(backend)
     confirmer = RecordingConfirmer(answer=True)
@@ -222,12 +223,13 @@ async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
 
 
 async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() -> None:
-    """One turn across both tiers: the cortex keeps its eyes and the tier that swaps in has none.
+    """One turn across both tiers: the cortex keeps the screen tool and the tier that swaps in
+    is not offered it.
 
-    Read at the far end, off what each model was actually offered, because building the right
-    two sets and then handing the deep phase the cortex's is the mistake with no other symptom:
-    it would advertise `capture_screen` to a model with no projector, spending the whole privacy
-    cost of a screen read on a picture nothing can read.
+    This is read at the far end, off what each model was actually offered, because building the
+    right two sets and then handing the deep phase the cortex's is the mistake with no other
+    symptom: it would advertise `capture_screen` to a model with no projector, spending the whole
+    privacy cost of a screen read on a picture nothing can read.
     """
     backend = _Model(
         {
@@ -251,7 +253,8 @@ async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() ->
 
 
 async def test_the_deployments_reply_bounds_reach_both_phases_of_a_turn() -> None:
-    """The bound rides the bundle, so the phase that continues a turn decodes under it too.
+    """The bound travels with the capability bundle, so the phase that continues a turn decodes
+    under it too.
 
     Nothing else in the tree compares the number the composition root read out of the reply
     config with the one a completion is asked under, and the deep phase is the half that would

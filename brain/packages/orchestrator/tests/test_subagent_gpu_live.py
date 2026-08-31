@@ -5,11 +5,12 @@ placer, so the placer's GPU arm never fires there. This one fires it: two live `
 tiers, the CPU overflow server (`-ngl 0`, docker-compose.subagents.yml) and the model-host
 sidecar's GPU-placed subagent tier (`-ngl 99` on :8083, opt-in behind
 CORTEX_MODEL_FILE_SUBAGENT_GPU), with the budget read from the deployment's own three env values
-through the very settings classes the brain reads them with. What it proves is the route: a GPU
-verdict reaches an `-ngl 99` process, and the ledger that granted it refuses the next spawn the
-headroom no longer holds.
+through the very settings classes the brain reads them with. What it covers is the route: a GPU
+placement reaches an `-ngl 99` process, and the next spawn, which the remaining headroom cannot
+hold, goes to the CPU tier instead.
 
-Both arms are asserted, because a GPU arm that could not also NOT fire proves nothing. Each test
+Both arms are asserted, because a GPU arm that could never stay silent would say nothing about the
+placement that fired. Each test
 skips unless the budget in the environment selects its arm, so the two run as two commands
 against one stack (docs/runbooks/subagents-cpu.md, section 2c, "The GPU-placed tier"):
 
@@ -86,11 +87,12 @@ _INSTRUCTIONS = [
 
 
 class _PlacedOn:
-    """Spy over one target's real backend: notes the placement, then forwards to it verbatim.
+    """Spy over one target's real backend: it records the placement, then forwards the call
+    unchanged.
 
-    The placement verdict is otherwise invisible from outside the runner (the placer's ledger is
-    private and nothing logs the target), and inferring it from which server was slower would be
-    a guess. This records it exactly, while the request itself still goes to the real
+    The placement is otherwise invisible from outside the runner, since the placer's ledger is
+    private and nothing logs the target, and inferring it from which server was slower would be
+    guesswork. This records it exactly, while the request itself still goes to the real
     `llama-server` at that target's endpoint.
     """
 
@@ -115,7 +117,8 @@ class _PlacedOn:
 
 
 def _headroom(runtime: BrainRuntimeConfig) -> float:
-    """The subagent GPU allowance the placer fit-tests against: the soft cap minus the cortex."""
+    """Return the subagent GPU allowance the placer fits an ask against: the soft cap minus the
+    cortex reservation."""
     return runtime.vram_soft_cap_gb - runtime.cortex_reservation_gb
 
 
@@ -125,7 +128,7 @@ def _roster(
     client: httpx.AsyncClient,
     seen: list[PlacementTarget],
 ) -> SubagentRoster:
-    """The deployment's own single-entry roster, its two live backends behind placement spies.
+    """Build the deployment's own single-entry roster, with its two live backends behind spies.
 
     Everything numeric comes from the settings classes the composition root reads (ADR-0012's
     three env values: CORTEX_VRAM_SOFT_CAP_GB, CORTEX_VRAM_CORTEX_GB, CORTEX_SUBAGENTS_VRAM_GB),
@@ -172,19 +175,20 @@ async def _spawn_two(seen: list[PlacementTarget]) -> ToolResult:
 
 
 def _bodies(result: ToolResult) -> list[str]:
-    """Each subagent's answer text out of the aggregated tool result."""
+    """Return each subagent's answer text out of the aggregated tool result."""
     return [section.split("] ", 1)[1].strip() for section in result.content.split("\n\n")]
 
 
 @pytest.mark.integration
 @_needs_both_tiers
 async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
-    """One ask fits the headroom, the next does not: GPU then CPU, decided by the ledger.
+    """One ask fits the headroom and the next does not, so the ledger places one spawn on the GPU
+    and the other on the CPU.
 
-    Two concurrent spawns of one entry against a headroom that holds exactly one of them. Which
-    of the two wins the race is not asserted (both are admitted, and `place` is synchronous, so
-    whichever reaches it first takes the GPU); what is asserted is that exactly one did, which is
-    the ledger doing its job, and that the winner's request reached the GPU tier's process.
+    Two concurrent spawns of one entry run against a headroom that holds exactly one of them.
+    Which of the two arrives first is not asserted, since both are admitted and `place` is
+    synchronous, so whichever reaches it first takes the GPU. What is asserted is that exactly one
+    did, and that its request reached the GPU tier's process.
     """
     config = SubagentsConfig()
     headroom = _headroom(BrainRuntimeConfig())
@@ -203,12 +207,12 @@ async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
 @pytest.mark.integration
 @_needs_both_tiers
 async def test_a_spawn_over_the_headroom_never_reaches_the_gpu_tier() -> None:
-    """The other arm: no fit, so nothing is placed on the GPU and both spawns overflow to CPU.
+    """An ask larger than the headroom is placed nowhere on the GPU, so both spawns overflow to
+    the CPU tier.
 
-    A GPU arm that cannot be made to stay silent proves nothing about the one that fired. This is
-    the arm a smaller card takes, and since the shipped budget now selects the GPU one it is the
-    arm that has to be arranged for, by lowering the soft cap under the ask plus the cortex's
-    reservation.
+    A GPU arm that could never stay silent would say nothing about the one that fired. This is the
+    arm a smaller card takes, and since the shipped budget now selects the GPU one, this arm has
+    to be arranged for by lowering the soft cap below the ask plus the cortex's reservation.
     """
     config = SubagentsConfig()
     headroom = _headroom(BrainRuntimeConfig())

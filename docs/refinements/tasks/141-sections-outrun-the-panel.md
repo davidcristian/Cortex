@@ -21,7 +21,7 @@ user's own transient chrome, both are dismissible, and the state needs a full li
 stack AND a draft at the ceiling to reach. Measured 2026-07-20.
 - **LANDED 2026-08-03 as the neighbour-aware cap this entry asked for, and the entry understated
   itself in three ways** ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). The two
-  `vh` numbers are what this said they are, and everything the entry drew from them was too kind.
+  `vh` numbers are what this said they are, and everything the entry drew from them was too generous.
   **It is not a corner:** on the demo's own seed of two chats and three reminders, at the body's
   640x720 window, pressing the switcher button once put the hint strip 29.75px past the panel's
   clipped edge and moved the composer 30.75px down to get there. The 547 above is

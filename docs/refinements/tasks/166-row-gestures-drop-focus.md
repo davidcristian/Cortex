@@ -10,8 +10,8 @@ conversation. The same rows reshape and leave for other reasons, and each one lo
 caret in the input, committing the rename swaps it back, pressing Delete swaps the row for its
 confirm, confirming the delete of a chat that is NOT the open one takes the row away, and acking a
 reminder holds focus on the ack for its roll (0 and 150ms) and reads `BODY` at 350. None of them
-is a swap, so `arrival` never hears about them, and each wants an answer of its own shape rather
-than the composer: a rename editor wants its own input, and a row leaving wants the row that took
+is a swap, so `arrival` never hears about them, and each needs an answer of its own shape rather
+than the composer: a rename editor needs its own input, and a row leaving needs the row that took
 its place or the list around it. It is one decision about what a list does with focus when it
 changes shape under the hand, plus small wiring per gesture (`SessionList.tsx`, `Reminders.tsx`).
 Nothing blocks it.
@@ -30,7 +30,7 @@ Nothing blocks it.
   confirming against another chat, against the last row, against the only row and against the open
   one; a reminder acked, the last reminder acked, and a pin toggled. Nine of them read `<body>` at
   0ms and the mechanism is an UNMOUNT rather than the `inert` the entry above found for its own
-  doors: the row's shape change takes the pressed control out of the tree (`pencilInDom` 3 → 2 with
+  paths: the row's shape change takes the pressed control out of the tree (`pencilInDom` 3 → 2 with
   no slot `inert`), and a confirmed delete unmounts the confirm in the same commit that withdraws
   the row, so `inert` is redundant there rather than the cause. The ack is the one that behaves as
   filed, holding the caret at 0, 150 and 320ms and reading `<body>` at 350. **The pin toggle needs

@@ -75,12 +75,13 @@ async def test_corrupt_task_record_wraps_into_task_store_error() -> None:
 
 
 async def test_a_task_record_missing_an_identity_is_corrupt_rather_than_unattributed() -> None:
-    """A dropped attribution must not read back as an honest absence (ADR-0009 fired-work).
+    """A record missing an identity key reads as corrupt rather than as work with no attribution
+    (ADR-0009 fired-work).
 
-    The record below is exactly what a build from before the fired item existed would have left,
-    every other field intact. It is read as corruption, because each identity is a required key:
-    a codec that supplied ``""`` for a key it could not find would let the trail state something
-    about the work, that no item is behind it, on the strength of a field nobody ever wrote.
+    The record below is what a build from before the fired item existed would have left, every
+    other field intact. Each identity is a required key, because a codec that supplied ``""`` for
+    a key it could not find would put a claim in the trail, that no schedule item is behind the
+    work, on the strength of a field nobody ever wrote.
     """
     client = FakeAsyncRedis(server=FakeServer())
     older = {

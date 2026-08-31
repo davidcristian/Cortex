@@ -1,16 +1,16 @@
-"""Behaviour of the compose mount reader: what it reads, what it skips, what it refuses.
+"""Tests for the compose mount reader: what it reads, what it skips, and what it raises on.
 
-The refusals matter as much as the reads. This reader is a line walk rather than a YAML
-parse, so every shape it has not been taught is a raise: a reader that quietly walked past a
-new override's one bind mount would leave `bindcheck.py` reporting success over it forever.
+The raises matter as much as the reads. This reader is a line walk rather than a YAML parse, so
+every shape it has not been taught raises. A reader that walked past a new override's bind mount
+without a word would leave `bindcheck.py` passing over that mount forever.
 """
 
 import pytest
 
 from composemounts import ComposeReadError, Mount, read_mounts, strip_quotes
 
-# One service with both mount syntaxes, a named volume, a `ports:` list that must not be
-# mistaken for one, and the top-level `volumes:` mapping that declares the named volume.
+# One service with both mount syntaxes, a named volume, a `ports:` list that must not be read as
+# one, and the top-level `volumes:` mapping that declares the named volume.
 STACK = """\
 services:
   brain:
@@ -71,7 +71,10 @@ def test_a_second_service_reopens_a_block_after_the_first_closes() -> None:
 
 
 def test_a_flush_sequence_is_read_rather_than_walked_past() -> None:
-    """Compose accepts items at their key's own indent, and a whole such block used to vanish."""
+    """Compose accepts sequence items at their key's own indent.
+
+    A block written that way was once skipped entirely by this reader.
+    """
     text = "services:\n  a:\n    volumes:\n    - type: bind\n      source: ./x\n"
     assert read_mounts(text) == [Mount(line=4, source="./x")]
 
@@ -97,8 +100,8 @@ def test_nothing_outside_a_volumes_block_is_read() -> None:
         ("services:\n  a:\n    volumes:\n      - loose\n", "is not source:target"),
         ("services:\n  a:\n    volumes:\n      - type: bind\n        loose\n", "not a mount key"),
         ("services:\n  a:\n    volumes:\n      - v:/d\n        stray: true\n", "not a mount key"),
-        # Flow style: the long syntax written inline, whose first field would otherwise pass for
-        # a named volume and take a live bind mount with it.
+        # Flow style: the long syntax written inline. Its first field would otherwise read as a
+        # named volume, hiding a real bind mount.
         ("services:\n  a:\n    volumes:\n      - {type: bind, source: ./x}\n", "flow-style"),
         ("services:\n  a:\n    volumes:\n      - [./x, /y]\n", "flow-style"),
     ],

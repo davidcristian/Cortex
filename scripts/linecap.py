@@ -1,8 +1,8 @@
 """Repo gate: fail when a non-test source file exceeds the line cap (AGENTS.md gate 1).
 
-The cap counts ALL lines -- code, comments, and blanks alike -- because it targets
-cognitive load, not statement count. Test code and clearly marked generated-code
-directories (`_generated`, ADR-0001 decision 7) are exempt.
+The cap counts every line, code, comments and blanks alike, because it is about how much
+a reader has to hold at once rather than about statement count. Test code and clearly
+marked generated-code directories (`_generated`, ADR-0001 decision 7) are exempt.
 
 The scan covers all three of the repo's gated toolchains: Python, Rust, and the overlay's
 TypeScript (ADR-0011 line-cap addendum). It deliberately does not cover the stylesheet,
@@ -10,12 +10,11 @@ the markup, or `proto/body.proto`, which are not modules the cap's split-by-resp
 remedy applies to; see that addendum for the argument and the repo-gates tasks in
 docs/refinements/ for what stays unmeasured.
 
-**The success line states what the walk read**, files and lines after the exclusions rather
+The success line states what the walk read, files and lines after the exclusions rather
 than before, because "no file exceeds the cap" is equally true of a tree the scan never
-entered. The two numbers are a reading and nothing asserts them. What IS asserted is the
-floor under them: reading no source file at all exits 2, the way `composefiles.py` already
-refuses an empty compose walk, since a scan that read nothing is the one failure a gate this
-shape cannot report any other way.
+entered. The floor under those two numbers is the assertion: reading no source file at all
+exits 2, the way `composefiles.py` already raises on an empty compose walk, since a scan that
+read nothing is the one failure a gate this shape cannot report any other way.
 """
 
 import argparse

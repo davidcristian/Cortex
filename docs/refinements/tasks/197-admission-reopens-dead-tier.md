@@ -24,7 +24,7 @@ now really does evict it and can really see it refuse to come back. It stays unr
 **shipped defaults** (both of those are empty), and its cost fell in the same sub-slice: a spawn
 placed on a tier that did not restart now re-runs once on the CPU rather than only reporting, so
 what is left is a wasted GPU attempt per spawn instead of a lost one. Still recorded rather than
-built, for the same reason. The fix wants a residency
+built, for the same reason. The fix needs a residency
 state that knows a tier is down, so the placer skips it while something retries the start,
 rather than a scheduler change, which is why it is recorded
 here and not built: keeping the pool drained instead would be worse, since it would trade every
@@ -47,7 +47,7 @@ synchronous, lock-free and argument-poor by design, so nothing can *ask* it whet
 up, and the only shape that fits is being *told*, which is a verb. `SubagentPlacer` gained
 `close_gpu()`/`open_gpu()`, deliberately not expressed as a charge, since a resident charged
 large enough to crowd the cap out would say "no room" where the truth is "no server" **and**
-would be silently reversed by the next successful `charge_standing`.
+would be reversed by the next successful `charge_standing`.
 **"Widening `ResidencyReport`" was the other correction**, and the reason is a lifetime rather
 than a shape: that value is republished at every residency transition, so down-ness written into
 it would be dropped by the next swap in, which publishes `RESIDENCY_LOADING` and knows nothing
@@ -64,7 +64,7 @@ the version string held, with no proto, Rust or TypeScript change.
 what this removes. What it does not remove is a tier that dies **without** anybody having asked
 it to restart, which was measured against a real sidecar the same day: a tier with a bad
 artifact answers `200 loading` to a `start` and `failed` seconds later, so the restart loop marks
-it standing and nothing notices. That is the first of the three entries below.
+it standing and nothing reports it. That is the first of the three entries below.
 
 ## Trail
 

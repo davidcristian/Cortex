@@ -1,13 +1,13 @@
 """Seam authentication: the shared-secret token interceptor (assumption 5, ADR-0016).
 
-The seam's security posture is loopback-only listeners **plus** a shared-secret token via
+The seam's security posture is loopback-only listeners together with a shared-secret token via
 env, and this module is the token half. When `CORTEX_SEAM_TOKEN` is set, the server rejects
 every call whose metadata does not carry the matching `x-cortex-seam-token` value with
-`UNAUTHENTICATED`, before any servicer code runs. An interceptor rather than per-RPC checks
-so the rule is structural: a method added to the service later is covered by construction,
-not by remembering. Comparison is constant-time (`secrets.compare_digest`). An empty token
-disables the interceptor entirely at the composition root (`create_server`), and loopback-only
-remains the outer boundary either way.
+`UNAUTHENTICATED`, before any servicer code runs. An interceptor rather than per-RPC checks, so
+the rule is structural: a method added to the service later is covered by construction rather than
+by somebody remembering to add a check. Comparison is constant-time (`secrets.compare_digest`). An
+empty token disables the interceptor entirely at the composition root (`create_server`), and
+loopback-only remains the outer boundary either way.
 """
 
 import secrets
@@ -21,7 +21,7 @@ from grpc import aio
 # Its home is the seam facade (ADR-0023); this interceptor reads it to authorize inbound calls.
 from cortex_seam import SEAM_TOKEN_HEADER
 
-# What a rejected caller sees; deliberately silent on whether the token was absent or wrong.
+# What a rejected caller sees; it deliberately does not say whether the token was absent or wrong.
 _DENIED_DETAIL = "invalid or missing seam token"
 
 _TRequest = TypeVar("_TRequest")
@@ -29,7 +29,8 @@ _TResponse = TypeVar("_TResponse")
 
 # One aborting-handler constructor per RPC shape, keyed by (request_streaming,
 # response_streaming). The rejection must match the intercepted method's shape or gRPC
-# cannot deliver the status. Data, not branches: all four exist, the service uses two today.
+# cannot deliver the status. A table rather than branches: all four exist, and the service uses
+# two of them today.
 _HANDLER_FACTORIES = {
     (False, False): grpc.unary_unary_rpc_method_handler,
     (False, True): grpc.unary_stream_rpc_method_handler,

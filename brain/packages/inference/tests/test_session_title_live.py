@@ -1,4 +1,4 @@
-"""What a generated session title costs the turn it rides on, before and after it was bounded.
+"""Measure what a generated session title costs its turn, before and after it was bounded.
 
 Integration-marked: excluded from CI and the coverage gate by the workspace addopts
 (`-m "not integration"`). Needs the gpu stack for the resident cortex:
@@ -11,11 +11,11 @@ away (the history recap was the first, `test_history_recap_live.py`). It runs at
 session's first turn, between the reply and `TurnCompleted`, so what it costs is time the user
 waits with the answer already on screen and nothing else happening.
 
-Two arms. The first prices the shipped prompt with `bounds=None`, which is the request this pass
-sent before it was bounded, against `TITLE_BOUNDS`, which is what it sends now, over the identical
-prompt. The second runs the shipped cap with thinking left ON, the trap the cap and the switch
-ship together to avoid; here it is not the recap's coin flip, because a title is a few tokens and
-the deliberation before it is hundreds.
+Two arms run. The first prices the shipped prompt with `bounds=None`, which is the request this
+pass sent before it was bounded, against `TITLE_BOUNDS`, which is what it sends now, over the
+identical prompt. The second runs the shipped cap with thinking left ON, which is the failure the
+cap and the switch ship together to avoid; here the outcome is not the recap's coin flip, because
+a title is a few tokens and the deliberation before it is hundreds.
 
 `-s` is required: the print IS the measurement.
 """
@@ -61,7 +61,7 @@ def _title_prompt() -> list[Message]:
 
 @pytest.mark.integration
 async def test_the_title_costs_less_once_it_stops_paying_for_thinking_nobody_reads() -> None:
-    """The before and after over the identical prompt, through the shipped adapter.
+    """The bounded title pass is cheaper than the unbounded one over the identical prompt.
 
     ``bounds=None`` is exactly the request the title pass sent before it was bounded: no cap, and
     whatever the server's chat template does about thinking, which for the cortex is think first.
@@ -70,7 +70,7 @@ async def test_the_title_costs_less_once_it_stops_paying_for_thinking_nobody_rea
     What is asserted is what a turn depends on: every bounded run still produced a title the
     engine would persist (a non-empty ``clean_title`` is the same gate the engine applies), and
     the bounded arm is cheaper in total. The per-run seconds are printed rather than asserted,
-    because pinning a model's speed pins the model.
+    because a model's speed varies from run to run.
     """
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
@@ -96,8 +96,9 @@ async def test_the_title_costs_less_once_it_stops_paying_for_thinking_nobody_rea
 
 @pytest.mark.integration
 async def test_a_cap_against_a_thinking_model_deletes_the_title_it_was_sized_for() -> None:
-    """Why the cap does not ship on its own, with the number that says so.
+    """A cap with thinking left on is spent before the title is written.
 
+    This is why the cap does not ship on its own, and the run prints the number that says so.
     A reasoning model spends its budget deliberating BEFORE it answers, so a cap sized from a
     four-token title is reached with nothing said. Unlike the recap's cap this is not a coin
     flip: the deliberation is two orders of magnitude longer than the answer. The outcome is

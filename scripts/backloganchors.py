@@ -1,48 +1,41 @@
 """Which anchors a document offers, and every pointer in the repo aimed at one.
 
-A markdown link has two halves and they rot for different reasons. The path rots when a
-file moves, and `backlogcheck.py` has held it to resolving since the layout landed. The
-**fragment** rots when a heading stops being rendered, which is what renaming an area, or
-closing and moving the last task out of one, does: the roll call simply stops emitting that
-`### <area>` line while every `index.md#<area>` pointer keeps resolving, and the reader
-lands at the top of a long index with no idea which part was meant. A heading renamed in a
-decision record strands its pointers exactly the same way, and a sweeping edit renames them
-in bulk.
+A markdown link has two halves and they rot for different reasons. The path rots when a file
+moves, which `backlogcheck.py` has held to resolving since the layout landed. The **fragment** rots
+when a heading stops being rendered: renaming an area, or closing and moving the last task out of
+one, stops the roll call emitting that `### <area>` line while every `index.md#<area>` pointer goes
+on resolving, and the reader lands at the top of a long index with no idea which part was meant. A
+heading renamed in a decision record strands its pointers the same way. ADR-0039 argues the rule,
+and four decisions shape it:
 
-Four decisions make the second half checkable for about the cost of the first:
+- The anchors of a backlog index come from the index the gate is about to require on disk, which is
+  the hand-written halves spliced around the freshly rendered block rather than the committed file.
+  A stale index is its own reported problem, and checking fragments against the headings of a
+  document nobody intends to keep would answer the wrong question. Every other document answers
+  with the headings it carries on disk.
+- Both halves of an index offer anchors. The generated roll call renders one heading per area or
+  sitting, and the prose around it carries headings people cite too, so the set is every heading in
+  the spliced document rather than only the ones a renderer emits.
+- Every markdown file under the root is a source. Most pointers at a backlog index live in decision
+  records and runbooks, which are the readers a rename strands, so scanning only the backlog's own
+  files would leave the majority of them unguarded.
+- A target is judged when it is a document this same scan reads, and reported when it is markdown
+  and is not. One list decides both halves, so a tree that is vendored, built or otherwise not this
+  repo's prose is invisible here in both directions, and the gate never asserts what a file it does
+  not maintain renders. A target whose name is not markdown carries no headings at all:
+  `body.proto#L42` is a line anchor, a scheme this gate does not read, so it is outside the
+  question rather than an unanswered one.
 
-- **The anchors of a backlog index come from the index the gate is about to require on
-  disk**, which is the hand-written halves spliced around the freshly rendered block, never
-  the committed file. A stale index is its own reported problem, and validating fragments
-  against the headings of a document nobody intends to keep would answer the wrong question.
-  Every other document answers with the headings it carries on disk, there being nothing
-  else it is about to become.
-- **Both halves of an index offer anchors.** The generated roll call renders one heading
-  per area or sitting, and the prose around it carries headings people cite too, so the set
-  is every heading in that spliced document rather than only the ones a renderer emits.
-- **Every markdown file under the root is a source.** Most pointers at a backlog index live
-  in decision records and runbooks, which are exactly the readers a rename strands, so
-  restricting the scan to the backlog's own files would leave the majority of them
-  unguarded.
-- **A target is judged when it is a document this same scan reads**, and reported when it
-  is markdown and is not. One list decides both halves, so a tree that is vendored, built or
-  otherwise not this repo's prose is invisible here in both directions, and the gate never
-  asserts what a file it does not maintain renders. A target whose name is not markdown
-  carries no headings at all: `body.proto#L42` is a line anchor, a scheme this gate knows
-  nothing about, so it is outside the question rather than an unanswered one.
+A heading this rule cannot slug faithfully raises, and a document carrying one has its anchors left
+unknown, exactly as an index too broken to render does. Reporting that such a document "does not
+offer" a heading would be a claim the rule cannot support, and inventing the anchor a renderer
+would give it would accept a broken pointer with nothing to see it. Which shapes those are, and why
+refusing them beats emulating a renderer, is `headingshapes.py`.
 
-- **A heading this rule cannot slug faithfully is refused rather than guessed at**, and a
-  document carrying one has its anchors left **unknown**, exactly as an index too broken to
-  render does. Telling a reader that such a document "does not offer" a heading would be an
-  accusation the rule cannot support, and inventing the anchor a renderer would give it would
-  be a silent accept nothing here could see. Which shapes those are, and why refusing them
-  beats emulating a renderer, is `headingshapes.py`.
-
-The slug rule is the one GitHub renders with: lowercase, drop every character that is not a
-word character, a space or a hyphen, then spaces to hyphens, with a repeated heading
-numbered from its second occurrence on. A `#` inside a fenced block is not a heading. It is
-applied to a heading's **source**, which is the one claim this gate makes about rendering, and
-the shape reader beside it is what keeps that claim true.
+The slug rule is the one GitHub renders with: lowercase, drop every character that is not a word
+character, a space or a hyphen, then spaces to hyphens, with a repeated heading numbered from its
+second occurrence on. A `#` inside a fenced block is not a heading. It is applied to a heading's
+source, which is the one claim this gate makes about rendering.
 """
 
 import re
@@ -59,9 +52,9 @@ DROPPED = re.compile(r"[^\w \-]")
 ELSEWHERE = ("http://", "https://", "mailto:")
 MARKDOWN = ".md"
 
-# What a pointer at markdown outside the scan's own reach is told. Failing closed here is
-# the whole reason the widening is safe: the alternative, skipping whatever the scan cannot
-# answer for, is how the one stale anchor already in this tree survived every gate.
+# What a pointer at markdown outside the scan's own reach is told. Failing closed is what makes
+# reading every markdown file safe: skipping whatever the scan cannot answer for is how the one
+# stale anchor already in this tree survived every gate.
 UNREAD = (
     "aims at a document this scan does not read, so nothing here can say which headings it "
     "offers: it is missing, outside the tree, or inside a vendored or built one"
@@ -71,8 +64,8 @@ UNREAD = (
 class Index(NamedTuple):
     """One backlog index: the name a problem calls it by, and the anchors it will render.
 
-    ``anchors`` is None when this run could not work out what the index renders, in which
-    case nothing aimed at it is judged and the run is already failing on the reason.
+    ``anchors`` is None when this run could not work out what the index renders, in which case
+    nothing aimed at it is judged and the run is already failing on that reason.
     """
 
     name: str
@@ -82,7 +75,7 @@ class Index(NamedTuple):
 class Document(NamedTuple):
     """One markdown file the scan read: what a problem calls it, and the anchors it offers.
 
-    ``anchors`` is None when the file carries a heading this rule refuses to slug, in which
+    ``anchors`` is None when the file carries a heading this rule cannot slug, in which
     case nothing aimed at it is judged and the run is already failing on that heading.
     """
 
@@ -138,8 +131,8 @@ def markdown_files(root: Path) -> list[Path]:
     """Return every markdown file under ``root``, in walk order, vendored trees skipped.
 
     The skips are the shared list rather than the line cap's, which adds `tests` and
-    `_generated`: prose in a test or a generated tree is still prose, and a pointer written
-    there rots exactly like one written in a decision record.
+    `_generated`: prose in a test or a generated tree is still prose, and a pointer written there
+    rots exactly like one written in a decision record.
     """
     found: list[Path] = []
     for directory, dirnames, filenames in root.walk():

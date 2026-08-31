@@ -9,7 +9,7 @@ reason for it rather than here.
 
 **This list is deliberately not `.gitignore`, and the overlap with it is measured rather than
 believed.** Eight of the ten names below are ones git ignores wherever they appear, so for those
-eight this list restates a rule git already knows. The other two are why it cannot become git's
+eight this list restates a rule git already applies. The other two are why it cannot become git's
 answer:
 
 - `.git` is not part of the work tree, so git never reports it as ignored. A walk that trusted
@@ -18,17 +18,17 @@ answer:
   at the root or under `brain/` is ignored by nothing, so skipping it is this list's doing and
   nobody else's.
 
-**Why the other three walks do not simply ask git.** The dash ban does ask, and its collection is
-git's answer (the ADR-0026 dash-ban-collection addendum). Teaching the rest would mean the line
-cap, the anchor scan and the compose walk all refusing a root git cannot answer about, which is
-`just check` refusing to run outside a git working tree: an export, an unpacked archive, a
-vendored copy of this repo. That is a real narrowing of three gates to remove a redundancy in
-eight names, and the eight are cheap. Pruning by name also happens before any question is asked,
-which is what keeps a walk out of an ignored bind target rather than merely quiet about it.
+The other three walks deliberately do not ask git. The dash ban does ask, and its collection is
+git's answer (the ADR-0026 dash-ban-collection addendum). Teaching the rest would make the line
+cap, the anchor scan and the compose walk all fail on a root git cannot answer about, which would
+stop `just check` running outside a git working tree: an export, an unpacked archive, a vendored
+copy of this repo. That narrows three gates to remove a redundancy in eight names, and the eight
+are cheap. Pruning by name also happens before any question is asked, which is what keeps a walk
+out of an ignored bind target rather than merely quiet about it.
 
-So the redundancy stays on purpose, and what nothing did before is compare the two: the suite
-beside this module measures every name against git's own answer for this repo, so a name that
-stops being a restatement, or starts being one, is a red rather than a surprise.
+So the redundancy stays on purpose, and the suite beside this module compares the two: it measures
+every name against git's own answer for this repo, so a name that stops being a restatement, or
+starts being one, is reported.
 """
 
 # Vendored trees, build output, tool caches, and the object database. Ten names, of which eight

@@ -64,7 +64,7 @@ visit to the whisper's clock.
   known floor and not a new deferral. `useWhisperClock.test.ts` holds the contract as one case
   that lays a wrapped line on a 22.475px line box and asserts the published target against the
   height the box settles at. Falsified three ways: rounding to a whole pixel, publishing the
-  unrounded target, and publishing it to two decimals each redden that case and nothing else.
+  unrounded target, and publishing it to two decimals each make that case fail and nothing else.
 
 ## Trail
 

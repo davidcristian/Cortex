@@ -1,14 +1,14 @@
 """The whole handoff over the real ``Converse`` stream: one turn, two models, one completion.
 
-The core suites prove the sequence and its convergence; this one proves the user-visible shape
+The core suites cover the sequence and its convergence. This file covers the user-visible shape
 ADR-0030 decision 6 fixes, driven end to end in process through the real ``converse()`` with the
 real dispatcher, the real confirm gate, the real escalating wrapper, and the real conductor over
 the scripted model host. Nothing is stubbed but the two model streams and the process host.
 
-What it pins: the confirm card rides the existing gate; the cortex's wrap-up streams as normal
-deltas; the swap's status events ride the same stream; the deep model's answer continues it;
-`TurnComplete` fires exactly once at the true end; and a handoff killed mid-swap still ends the
-stream honestly and leaves the next turn working.
+What it pins: the confirm card goes through the existing gate; the cortex's wrap-up streams as
+normal deltas; the swap's status events travel on the same stream; the deep model's answer
+continues it; `TurnComplete` fires exactly once at the true end; and a handoff that fails
+mid-swap still ends the stream with an explanation and leaves the next turn working.
 """
 
 import asyncio
@@ -107,7 +107,7 @@ def _escalating_factory(
     host: ScriptedModelHost,
     backend: _ScriptedModel,
 ) -> EngineFactory:
-    """The composition root's escalating wiring, in miniature: wrapper + conductor + phase."""
+    """Build the composition root's escalating wiring in miniature: wrapper, conductor, phase."""
     manager = SwappingModelManager(host, _ENDPOINTS, _PLAN, SystemClock(), RecordingSleeper())
     handoffs = InMemoryHandoffStore()
 
@@ -164,7 +164,8 @@ def _answer(confirm_id: str, *, approved: bool) -> ClientEvent:
 
 
 async def _next_of(stream: AsyncIterator[ServerEvent], kind: str) -> ServerEvent:
-    """The next event of `kind`; bounded so a missing emit fails the test, not the suite."""
+    """Return the next event of `kind`, bounded so a missing emit fails this test rather than
+    hanging the suite."""
     try:
         async with asyncio.timeout(5.0):
             async for event in stream:
@@ -192,7 +193,8 @@ def _reply(events: Sequence[ServerEvent]) -> str:
 
 
 async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> None:
-    """The user-visible shape: approve, cortex wraps up, swap, deep answer, one completion."""
+    """The user sees one turn: the approval, the cortex wrapping up, the swap, the deep model's
+    answer, and a single completion."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     client = _LiveClient()
@@ -225,7 +227,8 @@ async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> 
 
 
 async def test_a_second_turn_sent_during_the_swap_runs_after_it() -> None:
-    """The stream's own queue is what keeps a mid-handoff turn from failing or interleaving."""
+    """A turn sent mid-handoff waits in the stream's own queue and runs after the swap, rather
+    than failing or interleaving with it."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     backend = _ScriptedModel(
@@ -255,7 +258,7 @@ async def test_a_second_turn_sent_during_the_swap_runs_after_it() -> None:
 
 
 async def test_a_handoff_killed_mid_swap_ends_the_stream_honestly_and_the_next_turn_works() -> None:
-    """The chaos case at the seam: the deep model will not load, and the user is told so."""
+    """The deep model fails to load, the reply says so, and the stream stays usable."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM at load"})
     backend = _ScriptedModel(
@@ -279,7 +282,7 @@ async def test_a_handoff_killed_mid_swap_ends_the_stream_honestly_and_the_next_t
     client.end()
     events = await _drain(stream)
 
-    # Honest, not silent: the turn completes with text saying the deep model was not loaded.
+    # The turn completes with text saying the deep model was not loaded, rather than silently.
     assert "the deep model could not be loaded" in _reply(events).lower()
     assert _kinds(events)[-1] == "turn_complete"
     assert "error" not in _kinds(events)
@@ -289,7 +292,7 @@ async def test_a_handoff_killed_mid_swap_ends_the_stream_honestly_and_the_next_t
 
 
 async def test_a_denied_escalation_leaves_the_turn_exactly_as_it_was() -> None:
-    """The gate is the consent surface: a refused card means no record and no swap at all."""
+    """A refused confirm card leaves no handoff record and runs no swap at all."""
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     client = _LiveClient()

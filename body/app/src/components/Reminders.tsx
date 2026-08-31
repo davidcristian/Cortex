@@ -11,33 +11,35 @@ import { relativeTime } from "./relativeTime";
 interface RemindersProps {
   readonly reminders: readonly DueReminder[];
   readonly currentId: string;
-  /** Where the caret goes when the last reminder is acked, which is the one case this stack cannot
-   *  answer from inside itself: the section goes with its last row, so there is no list left to
-   *  keep the caret in. The composer's field is what the reader is left with, delivery being done
-   *  and a chat being what is underneath it (`overlay/rowCaret.ts`). */
+  /** Where the caret goes when the last reminder is acked, the one case this stack cannot handle
+   *  from inside itself: the section is removed with its last row, so there is no list left to keep
+   *  the caret in. The composer's field is what the reader is left with, delivery being over and a
+   *  chat being what is underneath (`overlay/rowCaret.ts`). */
   readonly anchor: RefObject<HTMLElement | null>;
   readonly onDismiss: (reminderId: string) => void;
   readonly onOpen: (sessionId: string) => void;
 }
 
-/** Whether the row can offer its origin chat. There is nothing to go to when a session-less
- *  caller sent it (""), and no point offering the chat already on screen, where opening would
- *  only abandon whatever turn is running in it. Absent rather than disabled: nothing to explain. */
+/** Whether the row can offer its origin chat. There is nowhere to go when a session-less caller
+ *  sent it (""), and no reason to offer the chat already on screen, where opening would abandon
+ *  whatever turn is running in it. The control is omitted rather than disabled, since a disabled
+ *  control would need an explanation. */
 function canOpen(reminder: DueReminder, currentId: string): boolean {
   return reminder.sessionId !== "" && reminder.sessionId !== currentId;
 }
 
 /**
  * The due-reminder stack (ADR-0025): what fired while the overlay was away, sitting above the
- * history because it is delivery, not conversation. Dismissing acks it; opening loads the chat
- * the reminder was asked for, which is the context "stand-up in 10 minutes" leaves out.
+ * history and outside the scrolling log so that reading the conversation cannot move it out of
+ * view. Dismissing acks it; opening loads the chat the reminder was asked for, which supplies the
+ * context a line like "stand-up in 10 minutes" leaves out.
  *
- * Every field is a plain text node and **nothing here is ever linkified**. Reminder text is the
- * one string the overlay displays that no output guardrail has inspected: it comes off a store
- * row, not a streamed reply, so ADR-0015's redaction never saw it. `tainted` badges the rows
- * whose text came from untrusted content; `recurring` says the series survives the dismissal.
- * The open control is a sibling of that text, never the text itself, so the clickable thing is
- * always app chrome with a fixed label rather than a string a stranger wrote.
+ * Every field is a plain text node and **nothing here is ever linkified**. Reminder text is the one
+ * string the overlay displays that no output guardrail has inspected: it comes off a store row
+ * rather than a streamed reply, so ADR-0015's redaction never saw it. `tainted` badges the rows
+ * whose text came from untrusted content, and `recurring` says the series survives the dismissal.
+ * The open control is a sibling of that text and never the text itself, so the clickable element is
+ * always app chrome with a fixed label rather than a string someone else wrote.
  */
 export function Reminders({
   reminders,
@@ -47,17 +49,17 @@ export function Reminders({
   onOpen,
 }: RemindersProps) {
   const now = Date.now();
-  // The ack leaves in the frame the check is pressed and the row it removes stays on screen for
-  // the length of its own roll (`usePresence`), so the list upstream is honest immediately and the
-  // exit is the only thing that lags. The first version of this held the ACK back instead, behind
-  // a timer the roll's length long, which made a user's gesture wait on an animation: an unmount
-  // inside those 300ms cancelled the timer and nothing was ever acked.
+  // The ack is sent in the frame the check is pressed and the row it removes stays on screen for
+  // the length of its own roll (`usePresence`), so the list upstream is correct immediately and
+  // only the exit lags. The first version held the ack back instead, behind a timer as long as the
+  // roll, which made a user's gesture wait on an animation: an unmount inside those 300ms cancelled
+  // the timer and nothing was ever acked.
   const stack = usePresence(reminders, (reminder) => reminder.reminderId);
   const list = useRef<HTMLUListElement>(null);
-  // The caret rides the ack down the stack (`overlay/rowCaret.ts`). Acking is the one gesture here
-  // that takes its own control away, and the reader almost always has another to make: the next
-  // row's ack takes the caret, so clearing what fired while the overlay was away is one key
-  // pressed repeatedly rather than a walk back into the stack between reminders.
+  // The caret follows the ack down the stack (`overlay/rowCaret.ts`). Acking is the one gesture
+  // here that removes its own control, and the reader usually has another ack to make, so the next
+  // row's ack takes the caret and clearing what fired while the overlay was away is one key pressed
+  // repeatedly rather than a walk back into the stack between reminders.
   const caret = useRowCaret(list, anchor);
   const ack = (reminderId: string): void => {
     onDismiss(reminderId);
@@ -70,10 +72,10 @@ export function Reminders({
         // divs is not a list to a screen reader, and the hairline between two rows is drawn with
         // an adjacent-sibling rule that a wrapper in between would silently switch off.
         //
-        // A leaving row is WITHDRAWN for its exit, which is the switcher's rule arriving here: an
-        // acked reminder is not a live control. Measured at HEAD, its ack held focus for the whole
-        // 300ms roll and its two controls stayed in the tab order behind the caret that had already
-        // moved on, so Shift+Tab walked back into a reminder that was answered and gone.
+        // A leaving row is withdrawn for its exit, the same rule the switcher uses, because an
+        // acked reminder is no longer a live control. Measured before this, its ack held focus for
+        // the whole 300ms roll and its two controls stayed in the tab order behind the caret that
+        // had already moved on, so Shift+Tab walked back into a reminder that was already answered.
         <li key={key} className="reminder-slot" {...withdrawn(leaving)}>
           <Collapse open={!leaving} onClosed={() => stack.released(key)}>
             <div className="reminder">
@@ -82,14 +84,14 @@ export function Reminders({
               </span>
               <span className="reminder-body">
                 <span className="reminder-text">{reminder.text}</span>
-                {/* Only when it holds something. With the timestamp moved to the side column, a
-                    reminder that is one-shot, untainted and already in the chat on screen has no
-                    meta line at all, and an empty one would still spend its top margin. */}
+                {/* Rendered only when it has content. With the timestamp moved to the side column,
+                    a reminder that is one-shot, untainted and already in the chat on screen has
+                    nothing for this line, and an empty one would still take its top margin. */}
                 {reminder.recurring || reminder.tainted || canOpen(reminder, currentId) ? (
                   <span className="reminder-meta">
-                    {/* The one control leads the badges that follow it: it is the thing you can DO
-                        and they only describe the row, so it sits at one x down the whole stack
-                        rather than being pushed along by however many badges a reminder carries. */}
+                    {/* The control comes before the badges, because it is the only actionable item
+                        on the line and the badges only describe the row. This keeps it at the same
+                        x down the whole stack rather than shifted by how many badges a row has. */}
                     {canOpen(reminder, currentId) ? (
                       <button
                         type="button"
@@ -108,11 +110,11 @@ export function Reminders({
                   </span>
                 ) : null}
               </span>
-              {/* The row's right column, the switcher's arrangement turned upright: what you can do
-                  to the reminder on top, aligned to the title it belongs to, and when it fired
-                  beneath it. The timestamp left the meta line because it is not one of the badges
-                  describing the reminder; it is the row's other fact, and against the right edge it
-                  stops the badges being read as a list that starts with a time. */}
+              {/* The row's right column, which is the switcher's arrangement rotated: the ack on
+                  top, aligned with the text it belongs to, and the fired time beneath it. The
+                  timestamp left the meta line because it is not one of the badges describing the
+                  reminder, and against the right edge it stops the badges reading as a list that
+                  starts with a time. */}
               <span className="reminder-side">
                 <button
                   type="button"

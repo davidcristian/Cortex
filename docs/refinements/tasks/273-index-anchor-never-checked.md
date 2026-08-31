@@ -13,16 +13,16 @@ the form `refinements/index.md#memory`, and an anchor is only as true as the hea
 renders for that area.
 
 Today every one of them is true, and for a reason that is not a guarantee: the roll call emits one
-`### <area>` heading per area, and no area is empty. Rename an area, or close and move the last
-task out of one, and the heading stops being rendered while the link keeps resolving, so the
-reader lands at the top of a long index with no idea which part was meant. That is the same class
-of silent rot the link check exists for, caught one level short.
+`### <area>` heading per area, and no area is empty. Rename an area, or close and move the last task
+out of one, and the heading stops being rendered while the link keeps resolving, so the reader lands
+at the top of a long index with no idea which part was meant. That is the same class of silent
+breakage the link check exists for, caught one level short.
 
-**What would close it.** The renderer already knows every heading it emits, so holding each
-fragment that points into a backlog index against that set costs a set membership test and no new
-parsing. What that would still not cover is a fragment pointing into any other document in the
-repo, which is a wider scan over a wider input and a different piece of work; this task is only
-the backlog's own anchors, which are the ones this layout created.
+**What would close it.** The renderer already holds every heading it emits, so holding each fragment
+that points into a backlog index against that set costs a set membership test and no new parsing.
+What that would still not cover is a fragment pointing into any other document in the repo, which is
+a wider scan over a wider input and a different piece of work; this task is only the backlog's own
+anchors, which are the ones this layout created.
 
 **Closed 2026-08-16** ([ADR-0039 anchor addendum](../../adr/ADR-0039-backlog-per-task.md)). The
 mechanism above was re-derived from the tree first and held exactly: `local_links` split each
@@ -35,13 +35,13 @@ number 251, and the split matters more than the total: only 77 of them are writt
 backlog, and the other 174 live in decision records, runbooks and module docs.
 
 That split decided the scope. Holding only the backlog's own files would have left the majority of
-these pointers unguarded while the gate reported green, so the scan reads every markdown file under
-the root and judges a fragment only when it aims at one of the two indexes. The anchor set is read
-off the **spliced** index, the hand-written halves wrapped around the freshly rendered block, which
-is the document `just backlog` is about to require on disk, so no second list of headings has to be
-kept in step with the renderer and the hand-written half's own headings are covered for free.
-`backloganchors.py` holds all of it, together with the link parsing that moved out of
-`backlog.py` under the line cap.
+these pointers unguarded while the gate passed, so the scan reads every markdown file under the root
+and judges a fragment only when it aims at one of the two indexes. The anchor set is read off the
+**spliced** index, the hand-written halves wrapped around the freshly rendered block, which is the
+document `just backlog` is about to require on disk, so no second list of headings has to be kept in
+step with the renderer and the hand-written half's own headings are covered for free.
+`backloganchors.py` holds all of it, together with the link parsing that moved out of `backlog.py`
+under the line cap.
 
 **Proved able to fail before being trusted**, on a copy of the real tree, in the five ways this
 gate is meant to catch: an area renamed, an area emptied by moving its last tasks out, a rename

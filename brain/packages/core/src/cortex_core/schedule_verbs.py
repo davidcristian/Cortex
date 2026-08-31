@@ -6,7 +6,7 @@ result helpers both modules share. Cortex-only like their siblings (built-ins ne
 subagents). ``cancel``/``snooze`` carry no taint gate: postponing or deleting an existing
 human-visible item is reversible-by-recreation and never echoes stored text, so a tainted
 turn keeps both. ``edit`` is the exception, because a retext injects new content: the editing
-turn's taint ORs onto the item (the listing then badges it), and an autonomous *task* cannot
+turn's taint ORs onto the item (the listing then badges it), and an autonomous task cannot
 be edited on a tainted turn at all (the creation-side refusal, since a task instruction
 authored by injected content is a standing directive). Bad arguments and a down store both
 become ``is_error`` results, never exceptions.
@@ -61,7 +61,7 @@ def effective_zone(rule: CalendarRule | None, default_zone: DisplayZone) -> Disp
 
 
 class CancelScheduledTool:
-    """Built-in ``cancel_scheduled``: delete a schedule outright. It sticks mid-fire too."""
+    """Built-in ``cancel_scheduled``: delete a schedule outright, mid-fire included."""
 
     def __init__(self, store: ScheduleStore) -> None:
         self._store = store
@@ -96,7 +96,7 @@ class CancelScheduledTool:
 class SnoozeScheduledTool:
     """Built-in ``snooze_scheduled``: postpone a schedule's next fire from now (snooze addendum).
 
-    Works on one-shots and recurring items alike: a recurring snooze moves only the *next*
+    Works on one-shots and recurring items alike: a recurring snooze moves only the next
     occurrence, and the store pins the recurrence grid via ``anchor`` so the series keeps its
     original cadence afterward (ADR-0025 occurrence-snooze addendum), rather than re-anchoring
     the whole series. Only a FIRING item is refused (the in-flight fire settles first).
@@ -178,7 +178,7 @@ class EditScheduledTool:
     Retext (``text``) and re-recur (``every_seconds``: a new interval, or ``0`` to stop
     repeating; or ``at_time``/``on_days``: a wall-clock rule) without cancel-and-recreate. An
     interval change leaves the next due time untouched, so it alters the cadence of future
-    re-arms only; setting a **rule** re-derives the next occurrence from the rule itself, since
+    re-arms only; setting a rule re-derives the next occurrence from the rule itself, since
     a rule is its own grid and a pinned due time would name a fire the rule does not
     (ADR-0025 rule-edit addendum). A FIRING item is refused (the in-flight fire settles
     first); a tainted turn may edit a reminder (the item then becomes tainted) but not a task
@@ -252,8 +252,8 @@ class EditScheduledTool:
             return error_result(call.id, correction)
         content = f"edited {item_id}"
         if edit.rule is not None:
-            # Only the rule branch moves the timing, so only it owes the new due time, rendered in
-            # the rule's own zone when it named one (ADR-0025 per-rule addendum).
+            # Only the rule branch moves the timing, so only it reports a new due time, rendered
+            # in the rule's own zone when it named one (ADR-0025 per-rule addendum).
             zone = effective_zone(edit.rule.rule, self._zone)
             content = f"{content}: now due {zone.render(edit.rule.due_at)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)

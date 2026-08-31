@@ -17,8 +17,8 @@ whose prompt leaves the thought open does not. Nothing checks that. A run agains
 the rule would print the rendering that contradicts its own cells, and a reader comparing four
 numbers to a wall of prompt text is the least likely person in this repo to notice.
 
-**Why it was left.** The prediction is not load bearing any more, which is the whole of the decline
-above: `trace_tokens=0` closes the thought at the sampler on any tier whose engine reads the key, so
+**Why it was left.** The prediction no longer carries any shipped behaviour, which is the whole of
+the decline above: `trace_tokens=0` closes the thought at the sampler on any tier whose engine reads the key, so
 the shipped side calls no longer depend on what a template renders. What is left is a record that
 could check itself and does not, and the cost of it going stale is a wrong sentence in a document
 rather than a wrong request on a wire.
@@ -29,7 +29,7 @@ not have: a way to tell a closed thought from an open one, which on the two fami
 `</think>` and `<channel|>`. Inside an integration probe that is fine, because a file pointed at a
 server by hand may know a pick's vocabulary where the port may not, and the probe already prints
 both markers today. The honest shape is probably a reported comparison rather than a hard failure,
-so a tier that breaks the rule is named and measured rather than turning the whole run red. Two
+so a tier that breaks the rule is named and measured rather than failing the whole run. Two
 smaller things belong in the same pass: the rendering must be compared on the **tail** and not for
 plain inequality, since the failing pick's two prompts differ at the front and are byte identical at
 the end, and the ADR's mechanism section quotes only tails, which is where that trap was found.
@@ -45,7 +45,7 @@ the end, and the ADR's mechanism section quotes only tails, which is where that 
   assertion went into a covered module rather than into the integration-marked probe, on the
   precedent the envelope harness's control arm set the same morning: a rule asserted in a file no
   gate runs is ungated and unmutatable, and a tier that breaks this rule is news to publish rather
-  than a reason to red the run that found it. The reading is on the **tail** after the ask, the two
+  than a reason to fail the run that found it. The reading is on the **tail** after the ask, the two
   sides of the rule are held at their real strengths, and a cell drawn under five times or a
   control arm that never deliberated publishes nothing. Re-deriving found the entry's own premise
   half wrong in a way that made the case stronger: the probe printed the renderings' **lengths**

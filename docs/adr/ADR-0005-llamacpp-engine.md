@@ -159,7 +159,7 @@ stream silent for ten minutes is wedged rather than working.
 
 ### What this does not do, and where that is recorded
 
-A stall ceiling cannot see a model that keeps talking. A subagent in a repetition loop streams
+A stall ceiling cannot detect a model that keeps talking. A subagent in a repetition loop streams
 chunks forever, trips nothing here, and holds its admission exactly as the wedged one used to, and
 nothing in the shipped wiring bounds a delegated generation's length. That is a **total generation
 cap**, filed as its own deferral in
@@ -183,7 +183,7 @@ with the SSE headers and then sends nothing, and the backend built by
 stand in, timeouts being enforced by the network stream underneath the transport, so a mocked
 version would have proved the plumbing and never the bound. The test is wrapped in
 `asyncio.timeout`, because a regression that hangs the suite proves nothing: restoring `read=None`
-reddens it in ten seconds. Five mutations were run and each reddened a named test: `read=None`
+fails it in ten seconds. Five mutations were run and each made a named test fail: `read=None`
 restored (2 tests), each builder's config value replaced by a literal (1 each), the stall arm
 dropped from the adapter's translator (2), and the positivity bound dropped from both knobs (2).
 
@@ -259,7 +259,7 @@ persisted no result, holding its admission and its VRAM placement the whole time
    batch's other subagents with it. The fragment the model had produced is kept on the result, so
    the store has it, and the aggregate the cortex reads carries the refusal instead, because that
    fragment is mid-sentence by construction and reporting it as an answer would have traded a hang
-   for a lie.
+   for a wrong answer.
 5. **Only an expired deadline is a truncation.** `TimeoutError` is an `OSError` in Python and is
    the class `asyncio.timeout` raises, so one arriving from below (a socket that timed out, a tool
    that raised one) would otherwise be reported as a bound that had not fired, and on an unbounded
@@ -382,21 +382,21 @@ The runaway is real in three places and faked in none of them.
   `build_subagents`, the runner, the adapter and the socket, what comes back is the aggregate the
   cortex would read, carrying `FAILED:` and the bound.
 - Every check sits under an outer `asyncio.timeout`, so a regression that restores the unbounded
-  run **reddens** rather than hanging the suite.
+  run **fails** rather than hanging the suite.
 
 Seven mutations, each applied to production code alone with the whole `packages` suite re-run, so
-the counts are measured rather than aimed at: dropping the `asyncio.timeout` wrapper reddens **9**,
+the counts are measured rather than aimed at: dropping the `asyncio.timeout` wrapper fails **9**,
 every deadline case plus the real-socket one, each at its outer bound; treating every
-`TimeoutError` as the deadline reddens **1**, the case that would otherwise have crashed formatting
+`TimeoutError` as the deadline fails **1**, the case that would otherwise have crashed formatting
 a bound an unbounded attempt does not have; reporting a stopped run as `INFERENCE` rather than
-`TRUNCATED` reddens **1**, the re-place case; letting the envelope check win over the deadline
-reddens **2**, the mid-envelope case and the real-socket one, whose shipped wiring is that same
-constrained niche; dropping `bounds` from the loop's `backend.stream` call reddens **1**; relaxing
-the config's ordering rule from strict to non-strict reddens **1**; and dropping
-`bounds=config.attempt_bounds` at the builder reddens **1**, the real-socket case, which is the
+`TRUNCATED` fails **1**, the re-place case; letting the envelope check win over the deadline
+fails **2**, the mid-envelope case and the real-socket one, whose shipped wiring is that same
+constrained niche; dropping `bounds` from the loop's `backend.stream` call fails **1**; relaxing
+the config's ordering rule from strict to non-strict fails **1**; and dropping
+`bounds=config.attempt_bounds` at the builder fails **1**, the real-socket case, which is the
 whole chain proving it is a chain.
 
-One mutation reddened **nothing**, and it is reported rather than quietly kept: removing the
+One mutation failed **nothing**, and it is reported rather than quietly dropped: removing the
 `aclosing` around the loop generator. The cancellation a deadline delivers lands wherever the task
 is suspended, and every suspension point this shape has but one is *inside* the loop generator,
 which therefore unwinds and runs every `finally` on the way out, releasing the model lease with
@@ -547,7 +547,7 @@ short against a 1024-token cap, so it is filed rather than guessed at.
 
 **The cortex turn does not read it.** The user watches the reply arrive and a stop that reached
 that stream would be a fact about the machine on a surface for what was said, which is the same
-argument the decode cadence is absorbed under. A turn that wants to say "this was cut" wants a
+argument the decode cadence is absorbed under. A turn that says "this was cut" needs a
 rendered surface for it, which is an overlay change and not this one.
 
 **Nothing crosses the body seam.** `proto/body.proto` is untouched: the stop is read entirely
@@ -565,7 +565,7 @@ attempt.
 Twelve mutations, each applied to production code alone with the whole `packages` suite re-run, so
 the counts are measured rather than aimed at.
 
-| mutation | reddens |
+| mutation | tests that fail |
 | --- | --- |
 | `_stop` never reads `finish_reason` | **14**, the contract's three answering checks on the adapter leg and every adapter case; no scripted case |
 | `length` maps to `FINISHED` | **4**, the contract's cap check on the adapter leg and the three adapter cases that read the word |
@@ -582,13 +582,13 @@ the counts are measured rather than aimed at.
 
 Three of those readings say something the counts alone do not.
 
-**Reordering the adapter's yields does not redden the contract's ordering check**, and the cadence
+**Reordering the adapter's yields does not fail the contract's ordering check**, and the cadence
 contract records the same finding about itself for the same reason: the transcript's final chunk
 carries `finish_reason` on a content-less delta, so text and stop stay in order across chunks
 however the adapter orders them within one. What catches the reorder is the adapter's own case for
 a chunk carrying both, which is why that case lives beside the adapter rather than in the contract.
 
-**A missing reason reported as `FINISHED` reddens 29, and only one of them is a stop check.** Every
+**A missing reason reported as `FINISHED` fails 29 tests, and only one of them is a stop check.** Every
 chunk of every stream carries no `finish_reason` until the last, so that mutation puts a stop event
 after every delta in the suite and breaks every case that asserts on a whole event list. The reach
 is the evidence: silence is not a corner of this port, it is most of what a stream is.
@@ -703,7 +703,7 @@ Three readings decide everything below.
 
 Six mutations, each applied to production code alone with the whole `packages` suite re-run.
 
-| mutation | reddens |
+| mutation | tests that fail |
 | --- | --- |
 | `cap_note` yields nothing when capped | **2**, the cortex note and the deep one |
 | `cap_note` yields the note on every turn | **70** |
@@ -714,12 +714,12 @@ Six mutations, each applied to production code alone with the whole `packages` s
 
 Two readings say something the counts alone do not.
 
-**The note-on-every-turn mutation reddens 70**, which is the measure of how ordinary the silent
+**The note-on-every-turn mutation fails 70 tests**, which is the measure of how ordinary the silent
 path is. Nearly every turn in the suite ends with no stop reported at all, so a ledger that
 answered "capped" for silence would rewrite the ending of the whole corpus, the shape the
 finish-reason addendum's own 29 had one level down.
 
-**The bounds mutation reddens only its own unit test.** Nothing asserts on what the composition
+**The bounds mutation fails only its own unit test.** Nothing asserts on what the composition
 root hands the engine, because `run_from_env` is exercised as a whole rather than for the value it
 passes, so a wiring that read the config and dropped it would be caught by the config's test not
 at all and by the engine's not at all. That gap is the honest cost of a knob whose producer and
@@ -805,10 +805,10 @@ that tier spending 498 characters of trace and 2.2 s to its first word for a 484
    `CORTEX_REASONING_BUDGET_BRAIN` reach `ModelHostConfig` and render as llama.cpp's own
    `--reasoning-budget N` on that tier's argv. Nothing crosses `InferenceBackend`, because there
    is nothing for it to carry: the engine will not read a budget off a request, and inventing a
-   field the adapter drops would be a knob that lies.
-2. **`GenerationBounds` does not grow.** The port already says whether a request wants
-   deliberation; the tier now says how long a wanted one may be. Two orthogonal facts at the two
-   layers that can express them, and the core stays a pure function over what it was given.
+   field the adapter drops would be a knob with no effect on the server.
+2. **`GenerationBounds` does not grow.** The port already says whether a request asks for
+   deliberation; the tier now says how long a requested one may be. Two orthogonal facts at the
+   two layers that can express them, and the core stays a pure function over what it was given.
 3. **No client-side budget is built.** The entry priced both candidates and both are worse than
    either end of the dial: stopping the stream and re-asking with thinking off spends the trace's
    time and then buys the thinking-off answer, and cutting the completion outright is the empty
@@ -862,7 +862,7 @@ that tier spending 498 characters of trace and 2.2 s to its first word for a 484
 
 Two mutations, each applied to production code alone with the `model_manager` suite re-run.
 
-| mutation | reddens |
+| mutation | tests that fail |
 | --- | --- |
 | `_reasoning` always returns no flag | **4**, every tier that asked for a budget |
 | `_reasoning` treats `0` as unset (`budget <= 0`) | **1**, exactly the test written for that line |
@@ -956,7 +956,7 @@ and after it `AttemptFailure.TRUNCATED` with the refusal that names the cap.
 
 Four mutations, each applied to production code alone with the whole `packages` suite re-run.
 
-| mutation | reddens |
+| mutation | tests that fail |
 | --- | --- |
 | the `MalformedToolCallError` arm deleted, so a cut call falls through to the wide one | **2** |
 | that arm answers `TRUNCATED` without consulting the ledger | **1**, the no-cap case |
@@ -1045,7 +1045,7 @@ there is no second write to leave out of step with the first.
 Five mutations, each applied to production code alone with the core and orchestrator suites
 re-run, 2,007 tests.
 
-| mutation | reddens |
+| mutation | tests that fail |
 | --- | --- |
 | the arm deleted, so a cut call raises to the seam again | **7** |
 | the arm catches the wide `InferenceError` instead | **5**, every case that pins a dead backend still failing its turn |
@@ -1399,14 +1399,14 @@ with the budget beside the kwarg, on the same prompt at the same cap:
    so on the first `docker compose up`, where this defect said nothing for as long as nobody
    measured a delegated reply.
 2. **Zero rather than a count, and not the deployment's own.** `CORTEX_REASONING_BUDGET` bounds the
-   length of a thought the cortex is having on purpose. A narrow subtask wants no thought, so the
+   length of a thought the cortex is having on purpose. A narrow subtask needs no thought, so the
    subagent tier is not routed through `_reasoning` and a deployment that lengthens the cortex's
    trace cannot lengthen a subagent's with it.
 3. **This stays per tier and does not become a port field.** The measurement above is why: the
    per-request key was built, run, and had no effect on the shape that needed it, and the
    trace-budget addendum separately measured that llama.cpp will not read `reasoning_budget` off a
-   request in either direction. A port field the engine ignores is a knob that lies, which is the
-   same argument that kept the trace budget out of `GenerationBounds`.
+   request in either direction. A port field the engine ignores is a knob with no effect, which is
+   the same argument that kept the trace budget out of `GenerationBounds`.
 4. **`PlacedAttempt` keeps sending no thinking key**, and the argument on `_generation` stands
    unamended. It said saying it again per request would change the request for a deployment whose
    template spells the flag differently; what this measurement adds is that it would also not have
@@ -1653,10 +1653,10 @@ subagent, E4B   …What does each of them pay?<turn|>\n<|turn>model\n
 The cortex's template answers "do not think" by **opening and closing an empty thought** before the
 model writes a token. The E4B's answers by dropping the `<|think|>` marker and adding nothing. On a
 plain request that is the same answer, because no grammar is in play and the missing marker is
-enough for both picks, 5 draws of 5. On a constrained request the grammar re-offers the door, and
-only the cortex's prompt has already shut it: its optional `thought` is spent, and the fenced
-payload is all that is left. The E4B is simply still standing in front of an open door it was asked
-not to walk through, and it walks through 4 times in 5.
+enough for both picks, 5 draws of 5. On a constrained request the grammar makes a thought block
+reachable again, and only the cortex's prompt has already spent it: its optional `thought` is
+closed, and the fenced payload is all that is left. The E4B's prompt still leaves a thought block
+open, and the model writes one on 4 draws of 5.
 
 **So it is an engine behaviour, and the model is doing nothing surprising.** Naming that changes no
 code here, for the reason the entry was left: the dependable lever is the tier's
@@ -1732,7 +1732,7 @@ the 31B and the 26B-A4B holding where the E2B and the E4B do not, which is the s
 its whole range on both sides of the split. Not the handler either, which is the first guess the
 mechanism section invites: `peg-gemma4` serves both sides of that split, and the other handler in
 this lineup builds the same shape of root, `<think>` and `</think>` where the gemma one writes its
-channel markers, so neither handler shuts the door a schema opens. What separates the rows is the
+channel markers, so neither handler closes the thought block a schema reopens. What separates the rows is the
 column before the verdicts, read off each server's own `POST /apply-template` before a token is
 decoded: an entry whose template answers the kwarg by rendering a thought **already closed** holds
 under a schema, and one that answers by dropping the block and adding nothing does not. That was the
@@ -1856,7 +1856,7 @@ The first two are over the 91 checks of the inference package suite
 (`brain/packages/inference/tests/`), the last four over the 1628 of the core suite
 (`brain/packages/core/tests/`).
 
-| mutation | reddens |
+| mutation | tests that fail |
 | --- | --- |
 | the adapter filters the trace the switch asked against | **1** |
 | the adapter drops every reasoning delta | **3** |
@@ -1866,10 +1866,10 @@ The first two are over the 91 checks of the inference package suite
 | a stream that died mid trace is reported as an ignored switch | **1** |
 
 The first two rows are the pair worth reading together. The targeted filter, which is the repair a
-well meaning adapter would reach for and the one decision 2 forbids, reddens **exactly one check**,
+well meaning adapter would reach for and the one decision 2 forbids, fails **exactly one check**,
 `check_a_deliberation_the_request_asked_against_still_crosses` on the adapter's leg and nothing
 else: no existing check passes any bounds at all, so before this the whole tree was green on an
-adapter that quietly deleted the only evidence a caller has. Dropping reasoning outright reddens
+adapter that quietly deleted the only evidence a caller has. Dropping reasoning outright fails
 three, the two contract checks and the adapter's own reasoning case, which is what says the new
 check is aimed at something the old ones do not cover rather than restating them.
 
@@ -1969,7 +1969,7 @@ Five things follow, and the first is the finding.
 2. **When it does answer, it answers as well as raw.** Over the ten constrained replies that are
    summaries, number recall runs 0.82 to 1.00 with a median of 1.00, against raw's 1.00 throughout,
    at a median 1234 characters against raw's 1556. So the envelope costs an answer's **arrival** and
-   not its quality, which is a different defect from the one the entry expected and wants a
+   not its quality, which is a different defect from the one the entry expected and needs a
    different repair.
 3. **A description on the property changes nothing, and could not have.** This is the arm the entry
    asked for, on the reasoning that an empty schema tells the model nothing about what the field is
@@ -2290,8 +2290,8 @@ That is a third regime the entry does not have, and it is the one that settles t
 
 ### So there is no ordering to check, and a check that claimed one would be lying
 
-Which of the two binds is a function of two things a boot check cannot see. **What else the host is
-doing**, worth a factor of seven on the overall rate and nineteen on the sustained one, measured on
+Which of the two bounds binds first depends on two things a boot check cannot read. **What else the
+host is doing**, worth a factor of seven on the overall rate and nineteen on the sustained one, measured on
 one machine with nothing about the deployment changed. And **whether this deployment gives its
 subagents tools**, which multiplies one of the two bounds by the rounds cap and not the other.
 A validator comparing two numbers has neither fact.
@@ -2303,8 +2303,8 @@ that number would be worth. Both directions are wrong at one end of the measured
   about 772 s, which would cut the 1736.6 s a legitimate narrow subtask was measured taking on a
   saturated box. At the saturated end it is about 5730 s, and `ATTEMPTS_PER_ADMISSION` of those is a
   hold of 11460 s against a 7200 s admission wait, so the deployment is refused at boot by the
-  second of the three checks above. A derivation whose slow end is refused by a check that already
-  exists is not a derivation.
+  second of the three checks above, so a check this repo already runs would reject the deployment
+  at boot.
 - **Cap derived from the deadline.** That is the ceilings table read the other way: 425 tokens
   saturated, which is below the 429-token longest answer this tier was measured writing on the
   shipped shape and far below the 912-token answer it writes under the instruction that recovers
@@ -2351,7 +2351,7 @@ which are one key on one payload read twice, a zero and a count.
 It **supersedes two decisions of the trace-budget addendum above**, and both for the same reason:
 their shared premise was that the engine will not read a budget off a request, and that premise has
 moved. Decision 1 ("the budget is tier configuration, not a port field... inventing a field the
-adapter drops would be a knob that lies") and decision 2 ("`GenerationBounds` does not grow") are
+adapter drops would be a knob with no effect on the server") and decision 2 ("`GenerationBounds` does not grow") are
 replaced by the decisions below. The rest of that addendum stands unchanged, including its reading
 that the spelling it tried, `reasoning_budget`, is ignored on a request body: re-measured here on
 the newest build at 5 draws of 5, it still is.
@@ -2433,8 +2433,8 @@ Five readings decide everything below.
 
 ### The capability read, which is what makes the floor honest
 
-A build that does not know the key ignores it in silence. That is the failure this repo dislikes
-most, and the tier flag of the same name does better by failing a server at boot. So the request
+A build that does not support the key ignores it and reports nothing. That is the failure this
+repo dislikes most, and the tier flag of the same name does better by failing a server at boot. So the request
 half needs a floor, and the entry was right that a constant is not one. The measurement above says
 why more sharply than taste does: the tags float, and the build under this repo had already moved.
 
@@ -2452,7 +2452,7 @@ The engine answers it directly, in the one place a server must be honest about a
 | `b9870-2d973636e` | **200**, a completion, the field ignored | unchanged, 3 of 3 deliberated |
 
 The verdict and the behaviour agree on both, which is what makes this a capability read rather than
-a guess dressed as one. Two smaller findings shape the request it sends. Only a **well typed**
+a guess. Two smaller findings shape the request it sends. Only a **well typed**
 out-of-range integer trips the check: `"abc"`, `{}`, `true` and `[1]` all answer 200, the engine's
 own reader swallowing a type error and taking its default, so a probe built on a malformed value
 would have called every build ignorant. And validation runs **before** decoding, so the probe costs
@@ -2593,13 +2593,13 @@ reverted. Six are over the **100 checks of the inference package suite**
 (`brain/packages/core/tests/`), and three over the **458 of the orchestrator suite**
 (`brain/packages/orchestrator/tests/`).
 
-| mutation | suite | reddens |
+| mutation | suite | tests that fail |
 | --- | --- | --- |
 | the payload derives the budget from the thinking switch | inference | **2** |
 | the payload reads a budget of zero as nothing asked | inference | **1** |
 | the payload carries the budget whatever the engine reads | inference | **1** |
 | the adapter filters a trace the request budgeted away | inference | **1** |
-| the probe reads any refusal as a build that knows the key | inference | **1** |
+| the probe reads any refusal as a knowing build | inference | **1** |
 | the probe asks with a value a knowing build accepts | inference | **1** |
 | a negative trace budget is accepted at the port | core | **1** |
 | the session title drops its count and keeps the switch | core | **1** |
@@ -2611,12 +2611,12 @@ reverted. Six are over the **100 checks of the inference package suite**
 
 Three of them are worth reading rather than counting.
 
-**The adapter filter is the repair decision 6 forbids, and it reddens exactly one check**, the new
+**The adapter filter is the repair decision 6 forbids, and it fails exactly one check**, the new
 `check_a_trace_the_request_budgeted_away_still_crosses` on the adapter's leg and nothing else. That
 is the same reading the switch's own filter gave when the switch-is-advisory addendum ran it, and
 it is what says the eleventh check covers something the ten before it do not: written as a targeted
 drop of a trace whose budget was zero, it slips past every other check in the tree. Dropping every
-reasoning delta instead reddens four, which is the contrast that makes the targeted number mean
+reasoning delta instead fails four, which is the contrast that makes the targeted number mean
 something.
 
 **Rows one and thirteen are the same defect written at two layers**, and both are the one this
@@ -2625,7 +2625,7 @@ and once in the deployment's own producer. Neither is a strange thing for somebo
 is why both are pinned rather than argued about in a comment.
 
 **Row three is the floor itself.** With the lever ignored, the key rides every request on every
-deployment, which is precisely the knob that lies, and one check says so.
+deployment, which is precisely the knob with no effect, and one check says so.
 
 **And the runbook's own sample was tested against its gate**, which is not one of the thirteen
 because its unit is a scan and not a suite. The probe's verdict is documented as a fenced line, so
@@ -2715,8 +2715,8 @@ Three readings, and the third is the one that decides.
    read the key" for the failing tier as loudly as for the holding one. The entry's first state,
    a template that ignores the key entirely, is not what the failing tier is in and was not
    observed anywhere in the lineup.
-2. **The E4B's two prompts have byte identical tails**, both ending `<|turn>model\n` with the door
-   open, and the difference is a whole system turn dropped at the **front**. The mechanism section
+2. **The E4B's two prompts have byte identical tails**, both ending `<|turn>model\n` with the
+   thought block left open, and the difference is a whole system turn dropped at the **front**. The mechanism section
    above says exactly this and says it correctly, "dropping the `<|think|>` marker and adding
    nothing", and the two lines it quotes are tails, so the drop it describes is not visible in
    them. That is a presentational gap in this ADR rather than a wrong sentence, and it is repaired
@@ -2848,8 +2848,8 @@ Four readings, and the third is the one nobody had.
    phenomenon rather than a milder one: a garbled marker, then the answer written in prose into the
    channel, then the cap. One in 20 against 13 in 76 does not separate at these sizes and this
    addendum does not claim it does. What one occurrence does settle is the only question that was
-   open, whether adding the key **closes** the door on a tier whose flag already set the same
-   sampler. It does not.
+   open, whether adding the key **closes the thought block** on a tier whose flag already set the
+   same sampler. It does not.
 3. **The key does work on this prompt where nothing else is set**, which is what stops reading 2 as
    a doubt about the key itself. On the unflagged twin of the same server, the same firm request
    deliberated on 8 draws of 8, on all four bodies, and on 0 of 8 with the key added. So the
@@ -2867,8 +2867,8 @@ Four readings, and the third is the one nobody had.
 ### What the traces say about the mechanism, which reverses the entry's hypothesis
 
 The entry supposed that a firm instruction makes prose inadmissible inside `reply`, so the prose
-goes through the door the gemma-4 handler holds open under a grammar, and "a budget of zero would be
-one more thing the grammar outranks". The traces do not read that way, and the control is what says
+goes into the thought block the gemma-4 handler leaves open under a grammar, and "a budget of zero
+would be one more thing the grammar outranks". The traces do not read that way, and the control is what says
 so. A budget being outranked would leave the model deliberating the way an unbudgeted one does, and
 that is exactly what the unflagged rows show and the flagged rows do not.
 
@@ -2897,7 +2897,7 @@ handler, and one build was measured. It is
    set. That is now measured rather than assumed, and measured in the direction that matters: the
    key on top of the flag left the phenomenon reachable. Routing `trace_tokens=0` into
    `PlacedAttempt` would therefore add a key to every delegated request in the repo and buy nothing
-   that was asked for, which is the knob that lies with extra steps.
+   that was asked for, which is the same ineffective knob with extra steps.
 3. **No repair ships, and the reason is that no repair here is this port's to make.** The three
    shapes a fix could take are all refused for reasons already written down. Stripping a garbled
    marker out of a reply needs the core to know a per pick template token, which the leak reading
@@ -3049,14 +3049,15 @@ open tail predicts and one deliberating draw is enough for it.
    hold, in the family `contrast.py`, `trailwidth.py` and `envelopefloor.py` already speak: a
    compound of the subject and the thing measured on it. The alternates were `tailverdict.py`,
    which names the comparison but hides where it is read, and `thoughtdoor.py`, which borrows this
-   ADR's own metaphor of a door the grammar re-opens and would send a reader of the gate tree
-   nowhere. `switchsamples.py` is the format half, named as `logsamples.py` is.
+   metaphor this ADR's earlier prose used for a thought block the grammar reopens, and would send a
+   reader of the gate tree nowhere. `switchsamples.py` is the format half, named as `logsamples.py` is.
 
 ### What this does not do, and where that is recorded
 
-- **A closed thought spelled a third way reads as an open one.** The reader knows two families and
-  treats an unmarked tail as open, which is the failing pick's real answer, so a third family's
-  closing marker would be read as an open door and refused as a broken prediction.
+- **A closing marker in a third format reads as an unclosed thought.** The reader recognizes the
+  two marker formats the shipped picks use and treats an unmarked tail as an open thought, which is
+  the failing pick's real answer, so a third format's closing marker would be read as an unclosed
+  thought and refused as a broken prediction.
   [R-509](../refinements/tasks/509-a-third-familys-closed-thought-reads-as-an-open-one.md).
 - **Nine of the lineup's eleven rows are still hand readings.** Two were published through the
   reader here; the rest stand on the sweep the lineup section took, on the build it names.
@@ -3288,15 +3289,14 @@ is exactly as stated.
 
 Where the entry is wrong is its own account of the cost. It says the state "cannot be read off the
 tail alone and needs something more, most likely the unswitched tail as the comparison", and that
-this wants "a real third-family template to be measured against before it is written". The second
+this needs "a real third-family template to be measured against before it is written". The second
 sentence does not follow from the first, because **the comparison it names is already in the
 reader's hands and already measured**. `_tails` reads both renderings' tails on every run, and the
 suite already asserts the fact the rule turns on:
 `tail(GEMMA_OPEN, ASK) == tail(GEMMA_SWITCHED, ASK)`. The failing pick's answer to the key is a
 whole `<|think|>` system turn removed from the **front**, so its switched tail is byte identical to
-its unswitched one. What separates the two unmarked tiers is therefore not a third family's
-spelling, which nobody has, but the failing pick's own tail equality, which two runs on two builds
-have. The rule can be drawn from the picks the lineup already holds; only the row it would fire on
+its unswitched one. What separates the two unmarked tiers is therefore the failing pick's own tail
+equality, which two runs on two builds have, rather than a third marker format, which nobody has. The rule can be drawn from the picks the lineup already holds; only the row it would fire on
 is missing, and a rule does not need its own violation in hand to be written correctly.
 
 ### Decision
@@ -3304,17 +3304,17 @@ is missing, and a rule does not need its own violation in hand to be written cor
 1. **An unmarked tail that the key changed is refused, not read.** `marked` answers whether a tail
    carries either member of either pair. When the switched tail carries none **and** differs from
    the tail the same template renders with the key left alone, `_tails` publishes nothing and exits
-   1: the template answered in a spelling this reader has no word for, and calling that an open
-   door is the guess the entry named. When the unmarked tail is the one the key left alone, it is
-   still read as open, which is the failing pick's real answer and the line the refusal is drawn
-   against.
+   1: the template answered with a marker format this reader does not recognize, and reading that as
+   an open thought would be the guess the entry named. When the unmarked tail is the one the key left
+   alone, it is still read as open, which is the failing pick's real answer and the line the refusal
+   is drawn against.
 2. **The comparison is on the two tails and never on the two renderings**, for the same reason the
    reading is on the tail at all: on the failing pick the renderings differ by a system turn at the
    front, so comparing them would refuse the one pick this module exists to read correctly. That is
    two of the mutations below, and they fail on the same three tests.
 3. **What an operator sees** is both tails printed with their readings, the line saying whether the
    template read the key, and then one `refused:` line saying the switched tail carries no marker
-   of either family and is not the one rendered with the key left alone. The cells are not printed,
+   of either recognized pair and is not the one rendered with the key left alone. The cells are not printed,
    as they are not for a rendering carrying no ask: the refusal is about whether this reader may
    speak at all, so it comes before the report of what was drawn. The recovery is the same ten
    seconds it was, with the difference that the tail printed is now named as unreadable rather than
@@ -3347,10 +3347,10 @@ tests/test_switchtail.py tests/test_switchsamples.py`):
 
 | mutation | result |
 | --- | --- |
-| the refusal removed, a third spelling read as an open door again | 2 failed, 49 passed |
+| the refusal removed, an unrecognized marker format read as an open thought again | 2 failed, 49 passed |
 | the tail comparison dropped, every unmarked tail refused | 3 failed, 48 passed |
 | the comparison made on the two renderings rather than the two tails | 3 failed, 48 passed |
-| an opener no longer a word this reader knows, only the closers | 1 failed, 50 passed |
+| an opener no longer a word this reader carries, only the closers | 1 failed, 50 passed |
 | none, restored | 51 passed |
 
 The two rows sharing 3 failed are not a revert loop: both break the failing pick, so both fail the

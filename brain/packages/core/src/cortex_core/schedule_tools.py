@@ -2,13 +2,13 @@
 
 Cortex-only by construction (built-ins never reach subagents, per ADR-0010/0013), so a subagent
 cannot re-schedule: self-perpetuation is bounded exactly like depth-1 bounds delegation.
-Ungated by default, as creating a schedule is reversible (``cancel_scheduled`` sticks, the store's
-fenced protocol). Two creation bounds apply: the active-items cap, and the **tainted-task
-refusal** (a turn that has read untrusted content cannot create a ``kind: "task"`` item at all;
-an autonomous agent instruction authored by injected content is a standing directive, not a
-reminder a human vets). The ``schedule_task`` spec is rebuilt per ``describe_tools`` walk and
-carries the current UTC time from the injected ``Clock``. The model cannot otherwise compute an
-absolute ``at``. Creation results are TRUSTED and never echo the stored text; the listing
+Ungated by default, as creating a schedule is reversible (``cancel_scheduled`` is final, under the
+store's fenced protocol). Two creation bounds apply: the active-items cap, and the tainted-task
+refusal: a turn that has read untrusted content cannot create a ``kind: "task"`` item at all,
+because an autonomous agent instruction authored by injected content would be a standing directive
+rather than a reminder a human vets. The ``schedule_task`` spec is rebuilt per ``describe_tools``
+walk and carries the current UTC time from the injected ``Clock``. The model cannot otherwise
+compute an absolute ``at``. Creation results are TRUSTED and never echo the stored text; the listing
 does echo text, so it is TRUSTED only when every listed item is clean (the spawn aggregate rule, so
 hostile text is fenced and re-taints the turn instead of laundering through a trusted result).
 Bad arguments and a down store both become ``is_error`` results, never exceptions. The
@@ -66,7 +66,7 @@ class ScheduleTaskTool:
 
     @property
     def spec(self) -> ToolSpec:
-        """Rebuilt per walk: carries the current local time and is honest about task wiring."""
+        """Rebuilt per walk: carries the current local time and matches the task wiring."""
         what = "a reminder to deliver to the user"
         kinds = [ScheduleKind.REMINDER.value]
         properties: dict[str, Any] = {
@@ -180,8 +180,8 @@ def _recurrence(item: ScheduledItem) -> str:
     """How the item repeats, as a leading-comma phrase; empty for a one-shot.
 
     Shared by the creation confirmation and the listing line so the two never describe the
-    same schedule differently. A calendar rule speaks wall-clock ("every mon, fri at 07:30")
-    rather than seconds, which is the whole point of carrying it as a rule.
+    same schedule differently. A calendar rule is written as a wall-clock phrase ("every mon,
+    fri at 07:30") rather than as seconds, which is the whole point of carrying it as a rule.
     """
     if item.rule is not None:
         return f", {item.rule.describe()}"
@@ -227,8 +227,8 @@ class ListScheduledTool:
     async def invoke(self, call: ToolCall) -> ToolResult:
         """List active items; the listing is UNTRUSTED iff any item carries taint.
 
-        A tainted item's text is attacker-influenced: fencing the whole listing (and
-        re-tainting the turn) beats laundering it through a trusted result (ADR-0025).
+        A tainted item's text is attacker-influenced, so the whole listing is fenced and the
+        turn re-tainted rather than laundered through a trusted result (ADR-0025).
         """
         try:
             items = await self._store.list_active()

@@ -2,9 +2,9 @@ import type { LinkState, LinkStatus, TransportError } from "../bridge/types";
 
 // The connection indicator's pure half (ADR-0011 addendum): what the overlay currently knows
 // about the seam, how each observation changes it, and how that reads on screen. Kept out of
-// React and out of the dot component so the honesty rules below are testable on their own.
+// React and out of the dot component so the rules below are testable on their own.
 //
-// The two facts are deliberately separate. `state` is the last thing the brain *proved*
+// The two facts are deliberately separate. `state` is the last state the brain proved
 // (`LinkState` from the seam, plus the overlay's own `unknown` for "not asked yet"), and
 // `probing` is whether an answer is on its way, which is the overlay's own fact and never the
 // seam's. Composing them is what gives a reconnect its own reading without inventing a state
@@ -58,8 +58,8 @@ export function linkServing(link: LinkView): LinkView {
  * A turn failed at the transport, which proves the same things a probe failure does and is
  * classified the same way (`body_core::link`): unreachable is `down`, a call that ran out of
  * time is `down` too (nothing answered), and an answered-but-wrong call (a non-OK status, an
- * unreadable reply) is `degraded`. Keeping the timeout out of `degraded` is the point: that
- * state means the brain replied, and a deadline expiring is precisely the absence of a reply.
+ * unreadable reply) is `degraded`. The timeout is kept out of `degraded` because that state means
+ * the brain replied, and a deadline expiring is the absence of a reply.
  */
 export function linkFailed(link: LinkView, error: TransportError): LinkView {
   const answered = error.kind !== "connection" && error.kind !== "timeout";
@@ -92,8 +92,8 @@ function withDetail(label: string, detail: string): string {
 /** Renders a link view as the dot's tone and its human label (the tooltip + the a11y name). */
 export function describeLink(link: LinkView): LinkReading {
   const tone = TONES[link.state];
-  // A probe while already ready is a routine refresh: it must not make a healthy link look
-  // busy. Any other probe is the interesting one, and it keeps the last known colour.
+  // A probe while already ready is a routine refresh and must not make a healthy link look busy.
+  // Any other probe keeps the last known colour while it runs.
   const busy = link.probing && link.state !== "ready";
   if (busy) {
     return { tone, busy, label: "Checking the connection to the brain" };

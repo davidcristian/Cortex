@@ -1,39 +1,24 @@
-// WHAT A FIELD DOES WITH A KEY THE WINDOW IS ALSO LISTENING FOR.
+// What a field does with a key the window is also listening for.
 //
 // The overlay binds five global keys on `window` (`components/Overlay.tsx`): Escape, `?`, and the
 // three chords `Ctrl/Cmd+N`, `Ctrl/Cmd+K` and `Ctrl/Cmd+↑` / `Ctrl/Cmd+↓`. A field the caret is
-// sitting in sees every one of them first, and the question of which it may keep was answered twice
-// before this and never as a rule: `?` is a character rather than a shortcut wherever somebody is
-// writing (`typing` in that file), and Escape closes the innermost thing, which an open editor is.
-// The chords were left to reach the overlay, on the argument that a chord is a deliberate act.
+// sitting in sees every one of them first. `?` is a character rather than a shortcut wherever
+// somebody is writing (`typing` in that file), Escape closes the innermost thing, which an open
+// editor is, and the chords were left to reach the overlay on the argument that a chord is a
+// deliberate act.
 //
-// MEASURED IN CHROMIUM AT 900X900 BEFORE THIS RULE, standing in "Everything about model swaps" with
-// the switcher open and "a brand new name" typed into a row's rename editor. `Ctrl+N` minted a new
-// chat and closed the switcher; `Ctrl+↑` loaded "Summarize my unread email" and `Ctrl+↓` loaded
-// "Reminders and recurrence", both closing it; `Ctrl+K` closed it on its own. All four discarded the
-// name (the row read its old title when the list was reopened) and there is no undo anywhere for it,
-// the in-progress label living in the list's own state and dying with the editor. `Ctrl+K` also left
-// `document.activeElement` on `<body>`.
-//
-// And the field is not a bystander to two of them. Traced on a bare single-line `<input>` holding
-// the same sixteen characters with the caret at offset 6 and nothing listening: `Ctrl+↑` moved it to
-// 0 and `Ctrl+↓` moved it to 16, which are the field's own start-of-text and end-of-text bindings;
-// `Ctrl+N` and `Ctrl+K` moved neither the value nor the selection. So the cycle keys are not spare
-// inside a field, and taking them there was a collision rather than a priority.
-//
-// THE RULE: a chord passes through a field whose text the overlay KEEPS, and is held by a field
-// whose text it would THROW AWAY. The composer keeps every keystroke under the chat it was typed
-// into (`overlay/drafts.ts`), so every global key still works from where a summon lands; the rename
-// editor keeps nothing, so it holds the chord until the reader has said what the name is. Enter and
-// Escape both settle that in one press and both leave the caret on the pencil, so the chord is one
-// further press away rather than refused. Auto-committing instead was considered and rejected: a
-// half-typed name would become a store write nobody asked for, and an emptied editor commits the
-// clear-the-custom-title signal, so `Ctrl+N` after a Backspace would silently wipe a title.
+// The rule that replaced that: a chord passes through a field whose text the overlay keeps, and is
+// held by a field whose text it would throw away. The composer keeps every keystroke under the chat
+// it was typed into (`overlay/drafts.ts`), so every global key still works from where a summon
+// lands; the rename editor keeps nothing, so it holds the chord until the reader has said what the
+// name is. Enter and Escape both settle that in one press and both leave the caret on the pencil,
+// so the chord is one further press away rather than refused. The ADR-0035 addendum of 2026-08-07
+// carries the traces behind all of that, including the two cycle keys turning out to be the field's
+// own start-of-text and end-of-text bindings, and the two alternatives it rejected.
 //
 // A press held here is only `stopPropagation`, never `preventDefault`, so the field's own uses of a
-// chord are untouched: select-all, copy, paste, undo, and the two caret jumps traced above all keep
-// working, and `Ctrl+↑` inside the editor now does what the field says it does instead of swapping
-// the conversation out from under it.
+// chord are untouched: select-all, copy, paste, undo, and the caret jumps `Ctrl+↑` and `Ctrl+↓` make
+// inside a field all keep working.
 
 /** One press worth of the modifier state, which is all either answer below reads. Structural rather
  *  than `KeyboardEvent`, so a React synthetic event and a native one are both callable and a test

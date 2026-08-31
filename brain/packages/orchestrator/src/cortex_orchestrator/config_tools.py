@@ -29,20 +29,20 @@ from cortex_core import (
 ToolsBackendName = Literal["none", "mcp"]
 ToolsSalienceName = Literal["repeat", "off"]
 
-# Which salience rule a loop runs under when nothing overrides it. Named rather than spelled
-# inside the field below, because the base compose file ships the same answer as a substitution
-# default and `scripts/crosscheck.py` can only hold that to a declaration it can read. It stays
-# distinct from the ``"repeat"`` the policy builder compares against: that comparison asks which
-# rule was picked, not which one ships, and folding the two would make retuning the default
-# silently retarget the branch.
+# Which salience rule a loop runs under when nothing overrides it. Declared here rather than
+# written inline in the field below, because the base compose file ships the same answer as a
+# substitution default and `scripts/crosscheck.py` can only hold that to a declaration it can read.
+# It stays distinct from the ``"repeat"`` the policy builder compares against: that comparison asks
+# which rule was picked rather than which one ships, and folding the two would make retuning the
+# default retarget the branch with nothing reporting it.
 DEFAULT_SALIENCE: ToolsSalienceName = "repeat"
 
 # What one `spawn_subagents` dispatch spends of a loop's dispatch budget (ADR-0009 cost
 # addendum). A quarter of `MAX_TOOL_DISPATCHES`, so a turn may delegate four times: the tool
-# takes a *batch* of instructions, so four dispatches is ample fan-out, while the flat price
+# takes a batch of instructions, so four dispatches is ample fan-out, while the flat price
 # would have allowed thirty two batches of concurrent model runs from one turn. Priced here
 # rather than in the core because what a spawn costs is a property of this deployment's
-# hardware, not of the tool.
+# hardware rather than of the tool.
 DEFAULT_SPAWN_COST = MAX_TOOL_DISPATCHES // 4
 
 
@@ -57,8 +57,8 @@ class ToolsConfig(BaseSettings):
     optionally restricts what ``<name>`` advertises (the read-only filesystem allowlist).
     Setting both forms is ambiguous and rejected, as is an allowlist naming no endpoint.
     ``CORTEX_TOOLS_ON_UNAVAILABLE`` picks the dead-sidecar policy: ``fail`` (the default)
-    fails tool listing loudly; ``skip`` serves the healthy sidecars and logs the dead one
-    on every walk (ADR-0009 degraded-mode addendum), degraded but never silent.
+    fails tool listing; ``skip`` serves the healthy sidecars and logs the dead one on every
+    walk (ADR-0009 degraded-mode addendum), so a degraded stack still says so on each walk.
     ``CORTEX_TOOLS_GATED`` (a JSON name list, ADR-0022) names the tools the brain declares
     outbound/irreversible/disruptive: the composition root stamps remote ones ``gated``, so the
     dispatcher's confirm gate covers them and subagents never see them. The default covers
@@ -79,8 +79,8 @@ class ToolsConfig(BaseSettings):
     model runs and which no confirmation gate bounds; ``send_email`` is deliberately unpriced,
     because every send already needs the user's approval and a human saying yes thirty two
     times is the tighter bound. A price outside ``1..MAX_TOOL_DISPATCHES`` fails at boot.
-    ``CORTEX_TOOLS_SALIENCE`` picks which calls a tool loop bothers dispatching (ADR-0009
-    salience addendum): ``repeat`` (the default) refuses a call the loop has already made, and
+    ``CORTEX_TOOLS_SALIENCE`` picks which calls a tool loop dispatches (ADR-0009 salience
+    addendum): ``repeat`` (the default) filters out a call the loop has already made, and
     ``off`` restores the unfiltered loop. ``CORTEX_TOOLS_SALIENCE_LIMIT`` retunes how many times
     one identical call may be dispatched across a ``repeat`` loop, for the deployment where the
     shipped two proves wrong; it defaults to ``MAX_IDENTICAL_DISPATCHES``, the once-per-round
@@ -122,26 +122,26 @@ class ToolsConfig(BaseSettings):
         if unmatched := set(self.allow) - set(self.named_endpoints):
             msg = f"CORTEX_TOOLS_ALLOW names no configured endpoint: {sorted(unmatched)}"
             raise ValueError(msg)
-        # A price outside 1..budget is a misconfiguration that hides rather than announces
-        # itself: zero or less makes the tool free, so the budget stops bounding the one tool
-        # a user cared enough to configure; above the budget makes it permanently
-        # unaffordable, so it never runs and the first call closes the turn's budget. Both
-        # would surface as puzzling runtime behavior, so they fail at boot instead.
+        # A price outside 1..budget is a misconfiguration with no visible symptom: zero or less
+        # makes the tool free, so the budget stops bounding the one tool a user cared enough to
+        # configure; above the budget makes it permanently unaffordable, so it never runs and the
+        # first call closes the turn's budget. Both would surface as puzzling runtime behavior, so
+        # they fail at boot instead.
         if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
             msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
             raise ValueError(msg)
-        # A blank gate reason would render an empty confirm card line, a consent surface that
-        # no longer says what is being approved. Misconfiguration fails at boot, not on screen.
+        # A blank gate reason would render an empty confirm card line, leaving a consent surface
+        # that no longer says what is being approved, so it fails at boot rather than on screen.
         if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
             msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
             raise ValueError(msg)
-        # A limit below one refuses every call including the first, which the loop reports as
-        # refusals the model cannot act on rather than as a failure: a silent hole, exactly the
-        # shape `RepeatSalience` already rejects at construction. Restating it here moves the
-        # rejection to boot, where the operator who typed the number is still watching, instead
-        # of to the first property read. There is deliberately no ceiling: a limit at or above
-        # `MAX_TOOL_STEPS` simply never binds, which is a knob doing nothing rather than a hole,
-        # and it still says something `off` does not, since the once-per-round clause stays.
+        # A limit below one rejects every call including the first, which the loop reports to the
+        # model as refusals it cannot act on rather than as a failure: a hole nothing announces,
+        # and exactly the shape `RepeatSalience` already rejects at construction. Restating it here
+        # moves the rejection to boot, where the operator who typed the number is still watching,
+        # instead of to the first property read. There is deliberately no ceiling: a limit at or
+        # above `MAX_TOOL_STEPS` never binds, which is a knob doing nothing rather than a hole, and
+        # it still says something `off` does not, since the once-per-round clause stays.
         if self.salience_limit < 1:
             msg = f"CORTEX_TOOLS_SALIENCE_LIMIT must be positive: {self.salience_limit}"
             raise ValueError(msg)
@@ -151,11 +151,11 @@ class ToolsConfig(BaseSettings):
     def cost_policy(self) -> ToolCostPolicy:
         """The effective prices as the core's policy value (ADR-0009 cost addendum).
 
-        The built-in prices are merged **under** the user's, rather than being the field's
-        default, because a nested-dict env key replaces the whole mapping: pricing one
-        filesystem tool via `CORTEX_TOOLS_COSTS__READ_FILE` would otherwise silently drop
-        `spawn_subagents` back to one, un-pricing the fan-out tool as a side effect of an
-        unrelated knob. Restating a built-in price still overrides it, which is deliberate.
+        The built-in prices are merged under the user's, rather than being the field's default,
+        because a nested-dict env key replaces the whole mapping: pricing one filesystem tool via
+        `CORTEX_TOOLS_COSTS__READ_FILE` would otherwise drop `spawn_subagents` back to one with
+        nothing reporting it, un-pricing the fan-out tool as a side effect of an unrelated knob.
+        Restating a built-in price still overrides it, which is deliberate.
         """
         return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
 
@@ -163,11 +163,11 @@ class ToolsConfig(BaseSettings):
     def gate_reason_map(self) -> dict[str, str]:
         """The effective per-tool confirm-card reasons (ADR-0030 decision 1).
 
-        The built-in ``escalate_to_brain`` reason is merged **under** the user's for the same
-        reason ``cost_policy`` merges: a nested-dict env key replaces the whole mapping, so
-        setting a reason for one tool must not silently drop the escalate card back to the
-        generic "outbound or irreversible" text, which is false for a model swap. Restating
-        the built-in still overrides it, which is deliberate.
+        The built-in ``escalate_to_brain`` reason is merged under the user's for the same reason
+        ``cost_policy`` merges: a nested-dict env key replaces the whole mapping, so setting a
+        reason for one tool must not drop the escalate card back to the generic "outbound or
+        irreversible" text, which is false for a model swap, with nothing reporting the change.
+        Restating the built-in still overrides it, which is deliberate.
         """
         return {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON} | self.gate_reasons
 

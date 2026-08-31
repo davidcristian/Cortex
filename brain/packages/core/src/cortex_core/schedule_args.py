@@ -3,7 +3,7 @@
 Split from ``schedule_tools.py`` by responsibility (the 300-line cap): this module turns the
 model's raw JSON arguments into a typed ``ParsedSchedule`` or a correction message string, following
 the volume.py pattern (a str return becomes a trusted ``is_error`` result, so the model can
-fix its call). Storage stays UTC end-to-end; only the *reading* of a wall time is zone-aware
+fix its call). Storage stays UTC end-to-end; only the reading of a wall time is zone-aware
 (ADR-0025 display addendum): the spec renders the current time in the configured
 ``DisplayZone``, so a bare wall time the model writes back means that zone's local time rather
 than a rejection. The 60 s recurrence floor is policy here, distinct from the value type's
@@ -11,7 +11,7 @@ positivity invariant.
 
 Timing is validated as a whole by ``_parse_when`` rather than field by field, because the
 three forms interact: ``at``/``in_seconds`` name an instant and may carry ``every_seconds``,
-while ``at_time`` names a *wall clock* rule that carries a day selector and derives its own
+while ``at_time`` names a wall-clock rule that carries a day selector and derives its own
 first fire (ADR-0025 calendar addendum). That is what keeps the ``ScheduledItem`` invariant, an
 interval or a calendar rule and never both, true at the boundary. The rule's own vocabulary
 (``at_time`` and the day selectors) is parsed by ``schedule_day_args.py``, shared with the edit
@@ -68,8 +68,8 @@ class _When:
     """The validated timing of one request: the first fire, and at most one recurrence shape.
 
     The three timing forms (``at``, ``in_seconds``, ``at_time``) and the two recurrence shapes
-    are validated together because their legality is joint, not per-field: ``on_days`` means
-    nothing without ``at_time``, and ``every_seconds`` contradicts it. One function deciding
+    are validated together because their legality is joint rather than per-field: ``on_days``
+    means nothing without ``at_time``, and ``every_seconds`` contradicts it. One function deciding
     all of it keeps the item invariant (an interval or a rule, never both) true by construction
     rather than re-checked downstream.
     """
@@ -147,8 +147,8 @@ def _parse_calendar(
     """The ``at_time`` branch: a wall-clock rule, plus the first occurrence it implies.
 
     The first fire is derived from the rule rather than asked for separately, so "every
-    weekday at 09:00" is one argument the model already knows how to write instead of a due
-    time it would have to compute and keep consistent with the recurrence. ``in_zone`` names the
+    weekday at 09:00" is one argument the model can write directly instead of a due time it
+    would have to compute and keep consistent with the recurrence. ``in_zone`` names the
     zone that wall time is in; absent, the rule takes the deployment ``zone`` (ADR-0025 per-rule
     addendum), and either way the first fire is derived in the rule's effective zone.
     """

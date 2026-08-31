@@ -27,7 +27,7 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `async append(session_id, message)` RPUSHes one JSON document onto the session's
     list. **Raises `SessionStoreError` on an image-bearing message** (ADR-0029): pixels are
     turn-local, the record schema has no field for them, and accepting one would silently drop
-    the picture rather than store it. `InMemorySessionStore` refuses it identically, and the
+    the picture rather than store it. `InMemorySessionStore` raises the same error, and the
     shared contract suite runs the check against both, so a fake that accepted what the real
     store rejects cannot let the invariant pass CI and fail in production.
   - `async history(session_id)` is LRANGE 0..-1, decoded in append order; an unknown
@@ -53,16 +53,18 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `async set_title(session_id, title)` `SET`s a plain string at `cortex:session:{id}:title`
     (a display title, ADR-0021 titles addendum), which `list_sessions` prefers over the
     first-message derivation; a later call overwrites it, and `""` clears the override at read.
-    Its own key, so it carries no `v`/`kind` markers; not conversation content, but stored beside
-    it so it survives a swap. This is the catalog write behind **both** the brain-generated title
+    Its own key, so it carries no `v`/`kind` markers. A title is display metadata rather than
+    conversation content, and it is stored beside the messages so it survives a swap.
+    This is the catalog write behind **both** the brain-generated title
     and the overlay's user-driven `RenameSession` (ADR-0021 management addendum); the store does
     not distinguish them, so no new port method was needed to add rename.
   - `async delete(session_id)` HARD-deletes a whole chat: the message list (`:messages`), the
     optional title (`:title`), the optional recap (`:recap`, ADR-0038 decision 9), the
     `cortex:sessions` recency-index member, and the
     `cortex:sessions:pinned` member (ADR-0021 pinning addendum), all in one transactional pipeline
-    so a listing never sees a half-deleted chat (ADR-0021 delete addendum). The destructive "forget
-    this chat" write. Hard, not a tombstone: reads are snapshots and an unknown session already
+    so a listing never sees a half-deleted chat (ADR-0021 delete addendum). This is the destructive
+    "forget this chat" write, and it is a hard delete rather than a tombstone: reads are
+    snapshots and an unknown session already
     reads as an empty history, so a deleted chat degrades cleanly with no in-flight id to protect
     (the memory `delete_scope` reasoning). It leaves no orphaned key, dangling index entry, or
     dangling pin, and is idempotent (`DEL`/`ZREM`/`SREM` on absent keys/members are no-ops), so a
@@ -77,9 +79,9 @@ Translators only: serialization, key layout, and error wrapping; no business log
     rather than answering `None`, which would look exactly like a session never summarized. A
     later `set_recap` overwrites. The pair sits on this port rather than one of its own because a
     recap's lifetime IS the session's, so `delete` removes it in the same transaction: it is a
-    model's account of the same conversation and exactly as private as the transcript. Derived
-    and disposable, but stored beside the messages so it survives a model swap, which is the
-    whole reason the summarizer caches rather than recomputes.
+    model's account of the same conversation and exactly as private as the transcript. A recap is
+    derived and disposable, and it is stored beside the messages so it survives a model swap,
+    which is why the summarizer caches one rather than recomputing it.
   - `async set_pinned(session_id, *, pinned)` toggles the chat's membership in the pinned set
     (ADR-0021 pinning addendum): `SADD cortex:sessions:pinned` when pinning, `SREM` when unpinning,
     both idempotent by value. `list_sessions` unions the pinned set into every listing, so a pinned
@@ -120,8 +122,8 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `async snooze(item_id, *, until)` postpones the next fire via the pure `apply_snooze`
     (PENDING re-scored in the due index; a fired-but-undelivered reminder re-arms off the
     deliverable index). A recurring item is allowed: only its next occurrence moves, `anchor`
-    pinned to the pre-snooze `due_at` so the series keeps its cadence. FIRING refuses, and a
-    raced transition answers `False` like the rest (ADR-0025 occurrence-snooze addendum).
+    pinned to the pre-snooze `due_at` so the series keeps its cadence. An item in FIRING answers
+    `False`, and so does a raced transition (ADR-0025 occurrence-snooze addendum).
   - `async edit(item_id, edit)` retexts / re-recurs a non-FIRING item: a bare watched `SET` of
     the re-encoded record (`due_at` untouched, so the due/firing/deliverable indexes need no
     write, plus a due-index `ZADD` and a deliverable `ZREM` when a rule change moves the
@@ -237,17 +239,18 @@ Every record+index update runs as one MULTI/EXEC pipeline, so a crash cannot orp
 from its indexes.
 
 **Record evolution policy.**
-- *New optional keys are safe*: the reader touches only the keys it knows, so extra
-  keys added by a newer writer are ignored (forward-compatible additions).
+- *New optional keys are safe*: the reader touches only the keys it is written to read,
+  so extra keys added by a newer writer are ignored (forward-compatible additions).
 - *New kinds or versions are breaking for old readers*: a reader that meets an
-  unknown `kind` or unsupported `v` refuses the whole history, so **deploy readers
+  unknown `kind` or unsupported `v` fails on the whole history, so **deploy readers
   before writers** when introducing either.
 - Records missing `v`/`kind` (written before the markers existed) decode as
   `kind "message"`, `v 1`.
 - Accepted tradeoff: one unreadable record **blocks the session loudly** (the error
   names the record's list index, kind, and version) instead of being skipped. This
-  is a single-user system. A loud, diagnosable stop beats a silently dropped record
-  that would invisibly corrupt the context of a future handoff.
+  is a single-user system, so a stop naming the bad record costs less than a silently
+  dropped one, which would corrupt the context of a future handoff with nothing to show
+  for it.
 
 **Error contract.** Every Redis/connection failure and every corrupt or unreadable stored
 record is raised as the core's `SessionStoreError` (session), `TaskStoreError` (task),
@@ -281,12 +284,12 @@ means the most: the recap crossing a model swap is exactly that read. The `list_
 created, which narrows the read to one row but cannot rescue a check whose fixtures were crowded
 out of the window in the first place; that is the live runs' isolated database, below.
 Every one of those checks reaches CI through `contract.ALL_CHECKS`, which
-`tests/test_store_contract.py` parametrizes over the two-implementation fixture, and that is
-load-bearing rather than stylistic: until 2026-08-10 the tuple was read only by the
+`tests/test_store_contract.py` parametrizes over the two-implementation fixture, and that
+parametrization is what puts them there: until 2026-08-10 the tuple was read only by the
 integration-marked live-Redis run while this file restated all fourteen checks as hand-written
 wrappers, so a check appended to the shared file reached CI only if somebody also remembered to
 write it here (the ADR-0001 addendum on decision 2's contract-test half has the sweep, and the
-proof that the parametrized driver reddens where the restated one answered green).
+proof that the parametrized driver fails on a mutation the restated one passed).
 `tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over
 `InMemoryTaskStore` and `RedisTaskStore`, plus disconnected/corrupt-record failure tests.
@@ -296,7 +299,7 @@ under a fresh token, terminal cleanup, fire-time taint OR, delivery lifecycle), 
 `InMemoryScheduleStore` and `RedisScheduleStore`, with adapter-only mechanics (error wrapping
 per operation, codec policy, quarantine, dangling-id tolerance, surplus release) tested against
 the Redis adapter alone. `tests/handoff_contract.py` does it for the `HandoffStore` over
-`InMemoryHandoffStore` and `RedisHandoffStore` (ADR-0030); its load-bearing check is the
+`InMemoryHandoffStore` and `RedisHandoffStore` (ADR-0030); the check that matters most there is the
 tainted-ledger round trip (a ledger built through the real `TaintLedger` API with attested and
 claimed sources comes back bit-, order-, and set-exact via `HandoffRecord.taint_ledger()`) with
 the `opaque` bit's own both-poles round trip beside it (ADR-0029/0030: a clean record reads back
@@ -314,15 +317,16 @@ integration-marked tests in `tests/test_store_live.py`, `tests/test_handoff_live
 (excluded from CI/coverage by the workspace addopts; run manually:
 `cd brain && uv run pytest -m integration --no-cov packages/session`. Here the `--no-cov`
 matters, the 100% gate in addopts would otherwise fail the run). All three take their store
-from `tests/live_redis.py`, which is the one place that knows how a live run is isolated: it
+from `tests/live_redis.py`, which is the one place that defines how a live run is isolated: it
 rewrites `CORTEX_REDIS_URL` onto **its own logical database** (`LIVE_DB`, database 15, which
 production never selects) and its `reset` empties that database before the suite and again
 after every check, including a check that FAILS. So each check starts from the same empty
 store the fakeredis fixture gives it, which is what lets these three suites be the identical
 suites the fixture runs rather than hedged versions of them, and no real session, schedule, or
-handoff is read, written, or deleted. Two guards keep the flush honest: the URL rewrite refuses
-a `CORTEX_REDIS_URL` that already selects `LIVE_DB`, and `reset` re-reads the database its
-client actually opened before flushing anything. Nothing about this reaches the adapters, which
+handoff is read, written, or deleted. Two guards keep the flush off a production database: the
+URL rewrite fails on a `CORTEX_REDIS_URL` that already selects `LIVE_DB`, and `reset` re-reads
+the database its client actually opened before flushing anything. Nothing about this reaches the
+adapters, which
 keep their key layouts and gained no prefix, namespace, or database argument (ADR-0002 addendum
 on the live-run database). This replaces the earlier prefix sweeps, which had to restate each
 adapter's key layout inside the test, and the schedule and handoff suites' skips, which reported

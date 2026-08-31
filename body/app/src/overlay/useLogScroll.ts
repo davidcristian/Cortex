@@ -51,7 +51,7 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
   const ref = useRef<HTMLDivElement>(null!);
   const pinned = useRef(true);
   const parked = useRef(0);
-  // Read from a DOM event, so it has to be the CURRENT answer rather than the one a closure was
+  // Read from a DOM event, so it has to be the current answer rather than the one a closure was
   // built with. Assigned during the render, so it is already right by the time anything this render
   // scheduled can fire.
   const onScreen = useRef(showing);
@@ -95,7 +95,7 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
   // the same one the pin is drawn at, and the ride tests it against the box itself on the roll's
   // first frame, that being the one moment in a roll where the log is still the size it was.
   //
-  // Subscribed on the COLUMN rather than on the box, because half the rolls that shrink this log
+  // Subscribed on the column rather than on the box, because half the rolls that shrink this log
   // happen outside it. The switcher list and the reminder stack are siblings of the box, not
   // children of it, so their bubbling start event goes up past the log to the panel and the box
   // never hears a thing; at the ceiling their growth comes out of the log's window exactly as a
@@ -103,14 +103,14 @@ export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement 
   // 293px to 73px with `scrollTop` untouched, so the end of the reply went 3px below the fold to
   // 223px. One listener on the element they share hears both, and a roll inside the log still
   // reaches it by bubbling through the box on its way. Which of the two a section is, the ride asks
-  // the box itself (`logRide.ts`): only a section INSIDE it is something the reader can be carried
+  // the box itself (`logRide.ts`): only a section inside it is something the reader can be carried
   // away from.
   const ride = useRef<(() => void) | null>(null);
   useEffect(() => {
     const box = ref.current;
     const column = columnRef.current;
     const onRoll = (event: Event) => {
-      // The roll's own element, which is what the event's target IS: both dispatchers mark the
+      // The roll's own element, which is what the event's target is: both dispatchers mark the
       // element they then announce from, and the contract says so (`morph.ts`). Reading the target
       // rather than searching for the mark is what keeps two rolls in one frame apart, a switcher
       // row leaving under an empty line arriving being the pair that does it.

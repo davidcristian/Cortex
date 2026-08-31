@@ -42,12 +42,13 @@ _HANG_BOUND_S = 1.5
 
 
 def _running(task: asyncio.Task[object]) -> str:
-    """The name of what a live task is running, for telling the fake server's own apart."""
+    """Return the name of the coroutine a task is running, which tells the fake server's own
+    tasks apart from the client's."""
     return getattr(task.get_coro(), "__name__", "")
 
 
 async def _swallow(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    """A server that accepts the connection, reads the request, and answers nothing, ever."""
+    """A server that accepts the connection, reads the request, and never answers."""
     try:
         while await reader.read(4096):
             pass
@@ -57,14 +58,15 @@ async def _swallow(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -
 
 @pytest.mark.integration
 async def test_the_bound_cuts_a_real_session_that_will_never_answer() -> None:
-    """A sidecar that hangs is bounded, and the cut unwinds the real client cleanly.
+    """The bound cuts a hung sidecar off, and the cancellation unwinds the real client cleanly.
 
-    The one claim about `BoundedToolRegistry` that no fake can make. Beneath it sit an anyio task
-    group, a cancel scope and an ``except*``, and an overrun cancels straight through all three:
-    what has to come out is a `ToolError` (which every layer above knows how to handle) rather
-    than an `ExceptionGroup`, a bare `CancelledError`, or a call that never returns. A hung
-    server is the case the port had no answer for, since a *refused* dial raises on its own and a
-    wedged one raises nothing at all, the MCP session's own wait for a response being unbounded.
+    This is the claim about `BoundedToolRegistry` no fake can make. Under the bound sit an anyio
+    task group, a cancel scope and an ``except*``, and an overrun cancels through all three. What
+    comes out has to be a `ToolError`, which every layer above handles, rather than an
+    `ExceptionGroup`, a bare `CancelledError`, or a call that never returns. A hung server is the
+    case the port had no answer for: a refused connection raises on its own, while a server that
+    accepts and never replies raises nothing at all, the MCP session's wait for a response being
+    unbounded.
     """
     server = await asyncio.start_server(_swallow, "127.0.0.1", 0)
     async with server:
@@ -80,7 +82,8 @@ async def test_the_bound_cuts_a_real_session_that_will_never_answer() -> None:
             await bounded.invoke(ToolCall(id="hang-1", name="read", arguments={"path": "/x"}))
         elapsed = time.monotonic() - started
         assert _HANG_BOUND_S <= elapsed < _HANG_BOUND_S * 4
-        # Nothing of the client survives the cut: a bound that raised while leaving the session's
-        # own tasks running would leak one socket per dispatch and read exactly the same here.
+        # No client task survives the cancellation. A bound that raised while leaving the
+        # session's own tasks running would leak one socket per dispatch and still pass the
+        # timing assertion above.
         leaked = {task for task in asyncio.all_tasks() if _running(task) != "_swallow"}
         assert leaked <= before

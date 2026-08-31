@@ -49,7 +49,7 @@ server, so a same-entry batch whose ask fits the VRAM headroom once overlaps two
 serializing (measured on `qwen`: two subtasks launched in the same millisecond, the third when
 the first released; the default entry, whose ask never fits, was strictly serial at 258.4 s,
 208.7 s and 330.2 s). It is folded in here rather than opened as its own entry because it is the
-same sentence, the same seam and the same fix, and because it makes the prize for spreading
+same sentence, the same seam and the same fix, and because it makes the benefit of spreading
 smaller rather than opening new work. **The trigger sharpens accordingly.** Piling is now
 measured, so the old wording would read as fired, but nothing is being paid for it while
 unprompted delegation does not happen at all. What would make it bite is a deployment where the
@@ -66,7 +66,7 @@ overlap, so `scheduler.py`, its test, the derivation in
 [resource-governance.md](../index.md#resource-governance) now carry both placements and call the bound an
 upper bound rather than an equality. That correction is arithmetic behind a shipped constant,
 pinned by a test, and it needs no guess about wording. This entry's sentence is prose a model
-reads, it understates the prize for spreading rather than overstating it, and one deployment's
+reads, it understates the benefit of spreading rather than overstating it, and one deployment's
 behaviour still does not say which wording would be taken, so it stays as written while its
 module doc and its spec comment now say the understatement is deliberate. One word of the
 parenthetical above went stale with it: the default entry's ask was re-measured to 3.5 GiB the
@@ -74,7 +74,7 @@ same day, so it fits the headroom once and overlaps exactly as `qwen` did rather
 strictly serial.
 **What stays as written, listed rather than left to be rediscovered.** The sweep that finished
 the arithmetic correction hours later read every restatement of the serial premise in the tree
-and left five standing on purpose. Four of them are this sentence and its escorts: the advertised
+and left five standing on purpose. Four of them are this sentence and the sites beside it: the advertised
 text in `spawn_spec.py`, the pinned note beside it, the assertions in
 `packages/core/tests/test_spawn.py` that pin both strings, and the live probe's docstring in
 `packages/orchestrator/tests/test_spawn_nudge_live.py`, all of which now describe the wording as

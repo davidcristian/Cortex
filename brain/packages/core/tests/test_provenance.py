@@ -6,8 +6,8 @@ from cortex_core import MAX_SOURCE_CHARS, Provenance, SourceKind, as_source, cla
 
 
 def test_an_attested_kind_is_a_value_the_brain_authored() -> None:
-    # The distinction a consumer needs before it renders a source: ours reads as a label, the
-    # content's reads as a quotation however inert it has been made.
+    # A consumer needs this distinction before it renders a source: a brain-authored one reads as
+    # a label, and one taken from content reads as a quotation, however inert it has been made.
     assert SourceKind.TOOL.attested is True
     assert SourceKind.MEMORY.attested is True
     assert SourceKind.SENDER.attested is False

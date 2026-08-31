@@ -10,9 +10,9 @@ The seam is which half each side owns. This module is the vocabulary two collabo
 so neither owns it. What stays next to the attempt is the running. The refusal templates every
 failure reports as its ``detail`` moved here with it, when carrying a finish reason across the
 inference port took the attempt past the line cap (ADR-0005 finish-reason addendum): they are the
-``detail`` field's own contents, ``reran_on_cpu`` already folds two of them into a third, and half
-a vocabulary living beside the writer and half beside the reader is the split neither collaborator
-wanted.
+``detail`` field's own contents, ``reran_on_cpu`` already folds two of them into a third, and
+keeping half the vocabulary beside the writer and half beside the reader would leave neither side
+owning it.
 
 ``AttemptFailure`` is the whole reason an outcome is not a bare ``ok`` flag. A backend that did not
 answer is worth trying elsewhere; a model that answered outside its grammar, or one still talking
@@ -48,7 +48,7 @@ MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
 # fragment on the outcome is what the model had said when the clock ran out, mid-sentence by
 # construction, so the guidance is to treat the subtask as unanswered and narrow it, never to read
 # the fragment as a short result. The bound is named in the message for the same reason the
-# admission wait names its own: the reader lands on the knob without going hunting.
+# admission wait names its own: it points the reader straight at the knob.
 GENERATION_DEADLINE_MSG = (
     "the subtask was still generating after {timeout_s:g}s, the whole a delegated run is given, "
     "and was stopped where it stood; a run that reaches this bound is talking rather than "
@@ -61,7 +61,7 @@ GENERATION_DEADLINE_MSG = (
 INNER_TIMEOUT_MSG = "the subtask timed out below the delegated run's own deadline"
 
 # What the cortex reads when a completion of the attempt stopped at a token limit rather than at an
-# end of its own (ADR-0005 finish-reason addendum), which the backend now says out loud. Phrased
+# end of its own (ADR-0005 finish-reason addendum), which the backend now reports. Phrased
 # like the deadline's refusal and for the same reason: the fragment on the outcome stops where the
 # count ran out, mid-sentence by construction, so a reader must not take it for a short answer.
 # What it does NOT claim is which limit, because the wire cannot tell a request's own cap from the
@@ -127,7 +127,7 @@ def reran_on_cpu(first: AttemptOutcome, retried: AttemptOutcome) -> AttemptOutco
 
     The re-run's text and failure win, because it is the attempt that actually ran to an answer
     (or to a second failure); the first attempt's partial text is dropped along with the context
-    that produced it. The taint is the **union**: a first attempt that read untrusted content
+    that produced it. The taint is the union of both: a first attempt that read untrusted content
     before its backend died did consume that content, and under-reporting taint is the one
     direction that costs safety rather than precision (ADR-0013).
     """

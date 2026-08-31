@@ -1,4 +1,4 @@
-"""Integration: on which request shapes does this deployment honour the port's thinking switch?
+"""Integration: measure which request shapes this deployment honours the thinking switch on.
 
 `GenerationBounds(thinking=False)` renders as `chat_template_kwargs: {"enable_thinking": false}`
 (ADR-0005), and whether the model then skips its deliberation is not the caller's to know. It is
@@ -8,8 +8,9 @@ and mostly does nothing on one carrying a `response_format`.
 
 That matters because four shipped `GenerationBounds` pair a cap sized on the wanted answer with
 that switch, and one of them (the recall rank's) carries a schema too. On a shape where the switch
-does nothing, such a pair does not shorten the reply, it deletes it: the model spends the whole cap
-thinking and the answer never starts. So this is the probe a deployment runs to learn which of its
+does nothing, such a pair deletes the reply rather than shortening it: the model spends the whole
+cap thinking and the answer never starts. So this is the probe a deployment runs to learn which of
+its
 own shapes are safe, and it is the reading the ADR-0005 switch-is-advisory addendum is made of.
 Point it at any llama-server:
 
@@ -36,7 +37,8 @@ identical, and a later reading of the same kind concluded the switch was dead on
 it is not. So the arms that send no switch must deliberate, per shape, and that is an assertion
 here rather than a line to read past.
 
-**And one draw is not a reading.** `CORTEX_THINKING_REPEATS` sets how many times each cell is
+**One draw is not enough to report a cell.** `CORTEX_THINKING_REPEATS` sets how many times each
+cell is
 drawn. It defaults to 1 so the command above still answers in a coffee break, and a number quoted
 anywhere as a tier's behaviour is drawn 5 times or more, because the first reading of the subagent
 row below was a single draw of a cell that turns out to split 4 to 1.
@@ -58,21 +60,21 @@ is the capped empty reply a delegated run was reaching the cortex with.
 the per-entry table is the ADR-0005 addendum's lineup section. Two of its readings matter to anyone
 pointing this file at a server. Nothing in the lineup ignores the switch on a **plain** request, so
 a verdict of "does nothing" there is news about a deployment rather than a known pick. And under the
-envelope the split is the **template's**, not the family's or the handler's: the two gemma-4-E
-entries are the only ones that deliberate through the switch, the dense gemma-4 entries and every
-Qwen entry hold, and on all of them the verdict is what the rendered-prompt line below already says,
-a template answering the switch with a thought already closed holding under a schema and one that
-drops the block and adds nothing not.
+envelope the split belongs to the **template** rather than to the family or the handler: the two
+gemma-4-E entries are the only ones that deliberate through the switch, the dense gemma-4 entries
+and every Qwen entry hold, and on all of them the verdict is the one the rendered-prompt line below
+predicts. A template that answers the switch by rendering a thought already closed holds under a
+schema; a template that answers it by dropping the block and adding nothing does not.
 
-**Why, which is what the rendered-prompt lines this probe prints ahead of the cells are for.**
-A `response_format` does not
-change the chat format and does not reach the template at all; what it changes is that llama.cpp
+**Why the split falls there, which is what the rendered-prompt lines this probe prints ahead of
+the cells show.** A `response_format` does not change the chat format and does not reach the
+template at all; what it changes is that llama.cpp
 builds a grammar, and the gemma-4 handler's root for one is a start, then an optional thought, then
 the fenced JSON payload: it leaves the model's reasoning channel open as the only continuation that
 admits prose. The other handler this lineup resolves to, `peg-native`, builds the same shape with
-`<think>` and `</think>` where the gemma one writes its channel markers, so no handler here shuts
-that door. It
-builds that alternative without reading `enable_thinking`, so on a constrained request the switch's
+`<think>` and `</think>` where the gemma one writes its channel markers, so neither handler here
+closes that continuation. It builds that alternative without reading `enable_thinking`, so on a
+constrained request the switch's
 only lever is whatever the template itself renders, and the two picks differ there: the cortex's
 answers "do not think" by opening and closing an empty thought in the prompt, and the E4B's by
 dropping a marker and adding nothing. The full account is in the ADR-0005 switch-is-advisory
@@ -205,7 +207,7 @@ async def _run(
 
 
 async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, switch: bool) -> str:
-    """The prompt this deployment's own chat template makes of that request, asked not inferred.
+    """Return the prompt this deployment's chat template makes of that request, read from it.
 
     ``POST /apply-template`` runs the template over the body the adapter would have sent and hands
     back the text the model will really see, which is the one half of the engine's side that is
@@ -224,7 +226,7 @@ async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, swi
 
 
 async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
-    """What the template does with each of the four request shapes, before any token is decoded.
+    """Read what the template makes of the four request shapes, before any token is decoded.
 
     Two readings come out of it. The schema must not reach the template at all, meaning the two
     shapes carrying the same switch render the same prompt; that is asserted, because a tier where
@@ -235,7 +237,7 @@ async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
 
     Both renderings are returned rather than only reported, because the rule that reads the
     constrained verdict off them is held by `scripts/switchtail.py` over the sample this run
-    writes, and a rendering nothing kept is a rule nothing can check.
+    writes, and a rendering this run did not keep could not be checked at all.
     """
     for switch in (False, True):
         prompts = {
@@ -263,7 +265,7 @@ def _write(prompts: dict[bool, str], draws: dict[tuple[str, bool], list[_Cell]])
     The counting stops here. Whether the rendering predicted the constrained verdict is
     `scripts/switchtail.py`'s to say, for the reason the envelope harness leaves its rates to
     `scripts/envelopefloor.py`: this file is integration-marked and no gate runs a line of it, so
-    a rule asserted here would be a rule nothing red-greens. Which cell carried a schema and which
+    a rule asserted here would be a rule no gate ever runs. Which cell carried a schema and which
     sent the switch travel as the sample's own flags, so the reader needs no shape's name.
     """
     _OUT.mkdir(parents=True, exist_ok=True)
@@ -290,14 +292,14 @@ def _write(prompts: dict[bool, str], draws: dict[tuple[str, bool], list[_Cell]])
 
 
 async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -> None:
-    """Four cells, each drawn ``CORTEX_THINKING_REPEATS`` times: two request shapes, each sent
-    with the switch and without it.
+    """Draw four cells: two request shapes, each sent with the switch and without it.
 
-    What comes out is a verdict per shape, plus the control that makes it a measurement rather than
-    an anecdote: a request that sent no switch must have deliberated, or this prompt invites no
-    thought on this tier and nothing here is about the switch. Every draw of that arm has to, since
-    a cell is a set of samples of a sampling model and one of them saying the convenient thing is
-    how the reading before this one went wrong.
+    Each cell is drawn ``CORTEX_THINKING_REPEATS`` times. What comes out is a verdict per shape,
+    plus the control that makes it a measurement rather than an anecdote: a request that sent no
+    switch must have deliberated, or this prompt invites no thought on this tier and nothing here
+    is about the switch. Every draw of that arm has to deliberate, because a cell is a set of
+    samples from a sampling model, and accepting one convenient draw is how the reading before
+    this one went wrong.
 
     The verdicts are printed and not asserted, because both answers are real deployments and this
     file cannot know which one it is pointed at. What it asserts besides the control is that every

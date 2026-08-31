@@ -1,4 +1,4 @@
-//! Starts the body-side `BodyService` gRPC server (Slice 9, ADR-0023): the dockerized brain
+//! Starts the body-side `BodyService` gRPC server (ADR-0023): the dockerized brain
 //! dials it to run OS actions (volume, and the reminder toast of ADR-0025). Host-native glue.
 //! The coverable translation lives in `body_rpc` (`body_service` + the seam-token validator);
 //! this only binds a loopback port, picks the platform `AudioControl` / `Notify` backends, and

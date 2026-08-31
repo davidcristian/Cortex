@@ -5,19 +5,19 @@ import type { LinkView } from "./linkState";
 import type { Action, Mode } from "./overlayState";
 import { useSummonEffect } from "./useSummonEffect";
 
-// The connection indicator's effect half (ADR-0011 addendum). Three things keep the dot honest,
+// The connection indicator's effect half (ADR-0011 addendum). Three things keep the dot current,
 // and none of them is a timer that runs forever:
 //
-// 1. **The turn keeps it fresh for free.** Every streamed event and every transport failure is
+// 1. The turn keeps it fresh for free. Every streamed event and every transport failure is
 //    already a fact about the seam, folded into the link by the reducer. While anything is
 //    happening, the indicator costs nothing and cannot be stale.
-// 2. **A probe on each summon.** The dot is only visible when the overlay is, so the moment it
+// 2. A probe on each summon. The dot is only visible when the overlay is, so the moment it
 //    becomes visible is the moment its truth matters. One probe per summon, latched exactly
 //    like the reminder pull.
-// 3. **A recovery re-check while it is on screen and not ready.** Only then. A red dot that can
-//    never go green until the user dismisses and re-summons is a worse lie than no dot, and
-//    watching for recovery is the one thing neither of the above can do (nothing is streaming,
-//    and the overlay is already open). It stops the instant the brain answers ready.
+// 3. A recovery re-check while it is on screen and not ready. Only then. A red dot that cannot go
+//    green until the user dismisses and re-summons goes on reporting a failure that has already
+//    cleared, and watching for recovery is the one thing neither of the above can do (nothing is
+//    streaming, and the overlay is already open). It stops the instant the brain answers ready.
 //
 // A liveness poll (probe every N seconds, always) was rejected: it spends a request per interval
 // forever, most of them while the overlay is hidden and nobody can see the result, and it is

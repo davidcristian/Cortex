@@ -138,8 +138,8 @@ def test_ingest_untrusted_taints_and_collects_urls_from_non_tool_content() -> No
 
 
 def test_observe_notes_where_untrusted_content_came_from() -> None:
-    # The structured provenance behind the bit (ADR-0027 addendum): the turn knows not just that
-    # it read untrusted content but which source it read.
+    # The structured provenance behind the bit (ADR-0027 addendum): the ledger records which
+    # source the untrusted content came from, alongside the taint bit itself.
     ledger = TaintLedger()
     source = Provenance(SourceKind.TOOL, "read_email")
     ledger.observe(ToolResult(call_id="c5", content="hostile note"), source=source)
@@ -170,7 +170,7 @@ def test_observe_notes_a_results_own_declared_source_beside_the_attested_tool() 
 
 def test_a_declared_source_is_claimed_and_cannot_downgrade_taint() -> None:
     # A declared source can only ever annotate. An untrusted result carrying one is still tainted,
-    # and every declared source stays claimed (attested False), never trusted to relax the boundary.
+    # and every declared source stays claimed (attested False), so it never relaxes the boundary.
     ledger = TaintLedger()
     declared = Provenance(SourceKind.SENDER, "attacker@evil.example")
     ledger.observe(ToolResult(call_id="c", content="hi", trust=Trust.UNTRUSTED, source=declared))
@@ -205,7 +205,7 @@ def test_an_unattributable_read_notes_nothing() -> None:
 
 def test_sources_are_deduped_and_ordered_by_first_read() -> None:
     # Two reads of the same mailbox are one source, and the order is the order the turn read
-    # them, which is what a consumer showing "where this came from" wants to render.
+    # them, which is the order a consumer showing "where this came from" renders.
     ledger = TaintLedger()
     first = Provenance(SourceKind.TOOL, "read_email")
     second = Provenance(SourceKind.MEMORY, "mem-1")
@@ -240,13 +240,14 @@ def test_boundary_constants_carry_the_rule() -> None:
 
 
 def test_the_two_refusals_the_model_relays_are_pinned_word_for_word() -> None:
-    """The one place these strings are asserted against literals rather than against themselves.
+    """Both relayed messages are compared against their literal text here.
 
     Every other test compares a dispatch result to ``DENIED_MSG`` or ``USER_DECLINED_MSG``,
-    which proves which constant was published and nothing about what it says. These are the
-    sentences a user reads when an action is refused, and the difference between them is the
-    difference between "injected content closed this" and "you said no", so the text is the
-    feature: it is pinned here, and the constant comparisons elsewhere then carry it.
+    which shows which constant was published and nothing about what it says. These are the
+    sentences a user reads when an action is not performed, and the difference between them is
+    the difference between "injected content closed this" and "you said no", so the wording is
+    part of the behavior. Pinning it here is what gives the constant comparisons elsewhere
+    something to stand on.
     """
     assert DENIED_MSG == (
         "BLOCKED: this action is irreversible or outbound and this turn has read untrusted "

@@ -4,31 +4,32 @@ Driven over ``httpx.ASGITransport`` against the real app, so a test asserts the 
 (and the adapter) actually reads. The lifespan is driven directly, because ASGITransport speaks
 only the http scope and would silently skip the boot start and the shutdown stop.
 
-Distrust-green proofs, measured across ``packages/model_manager`` one mutation at a time:
+These checks were proved able to fail. Each mutation below was measured across
+``packages/model_manager``, one at a time, and every count is over that suite:
 
-- mapping ``UnknownModelError`` to 503 (dropping the 404 branch) reddens 3 cases, the whole
+- mapping ``UnknownModelError`` to 503 (dropping the 404 branch) fails 3 cases, the whole
   parameterization of ``test_an_unknown_id_is_a_404_on_every_route`` and nothing else;
-- dropping ``stop_all`` from the lifespan's ``finally`` reddens exactly 1,
+- dropping ``stop_all`` from the lifespan's ``finally`` fails exactly 1,
   ``test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_way_down``;
-- swallowing a failed boot start without logging it reddens exactly 1,
+- swallowing a failed boot start without logging it fails exactly 1,
   ``test_a_boot_start_that_fails_is_logged_and_the_api_still_serves``;
-- answering ``/health`` with the shipped default bounds instead of the supervisor's own reddens
+- answering ``/health`` with the shipped default bounds instead of the supervisor's own fails
   exactly 1, ``test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_with``;
-- dropping ``probe_timeout_s`` from the health body reddens 2, that same case and the shared
+- dropping ``probe_timeout_s`` from the health body fails 2, that same case and the shared
   contract's supervisor leg, and no scripted case: it is the term the brain cannot infer from the
   other two, and the term a two-term reading of the pairing rule already once left out;
-- dropping ``boot_id`` from that body reddens 2 in the same shape, that case and the contract's
+- dropping ``boot_id`` from that body fails 2 in the same shape, that case and the contract's
   supervisor leg, and again no scripted case: the twin echoes the id it was handed, while what
   the supervisor leg pins is that a real daemon publishes the one it actually minted.
 
 Three more for the refusal's own line, once the supervisor stopped printing what it raises, each
 applied to production code alone with the whole brain workspace re-run:
 
-- logging every refusal at ``WARNING`` again reddens exactly 1, the 503 case, which is the whole
+- logging every refusal at ``WARNING`` again fails exactly 1, the 503 case, which is the whole
   of what the level following the status code is for;
-- logging every refusal at ``ERROR`` reddens 3, the 404 parameterization, so the rule is pinned
+- logging every refusal at ``ERROR`` fails 3, the 404 parameterization, so the rule is pinned
   from both sides rather than only from the loud one;
-- dropping the refusal's ``error`` field reddens exactly 1, the 503 case: that field is where the
+- dropping the refusal's ``error`` field fails exactly 1, the 503 case: that field is where the
   sentence went when the raise stopped printing it, so nothing else would notice it gone.
 """
 
@@ -153,7 +154,7 @@ async def test_start_then_status_then_stop_answer_the_state_each_left_behind() -
 async def test_an_unknown_id_is_a_404_on_every_route(
     path: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An id outside the roster is refused as absent, never as a sick host.
+    """An id outside the roster is refused as absent, never as a failing host.
 
     The two must be distinguishable: "you configured no such tier" and "the sidecar is broken"
     send an operator to different halves of the runbook. The log level is the same distinction
@@ -177,14 +178,13 @@ async def test_an_unknown_id_is_a_404_on_every_route(
 async def test_a_supervisor_failure_is_a_503_logged_once_and_loudly(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A child that survives SIGKILL is the one failure a stop can report, and it reports it.
+    """A child that survives SIGKILL is the one failure a stop can report, and it reports it once.
 
-    Once, which is the half that changed: the supervisor raises the sentence and does not also
-    log it, so the two records here are two events, the escalation to SIGKILL and the refusal
-    that came of it, rather than the refusal printed twice with its numbers in the prose and in
-    the fields beside them.
+    The supervisor raises the sentence and does not also log it, so the two records here are two
+    events, the escalation to SIGKILL and the refusal that came of it, rather than the refusal
+    printed twice with its numbers in the prose and in the fields beside them.
 
-    And the refusal is at ERROR, which is what the level following the status code buys. Nothing
+    The refusal is at ERROR, which is what a level following the status code gives. Nothing
     else records this: a swap's eviction meets the same 503 through the brain's own port, which
     turns it into a user-facing note without logging its text, so a line at the level a missing
     model id gets would be the only trace of a card nobody can load anything onto.
@@ -202,8 +202,8 @@ async def test_a_supervisor_failure_is_a_503_logged_once_and_loudly(
         (logging.WARNING, "a model process ignored SIGTERM; killing it"),
         (logging.ERROR, "a model-host request failed"),
     ]
-    # The whole sentence rides the field, which is what makes the second printing of it
-    # unnecessary rather than merely noisy: nothing about the failure is lost by dropping it.
+    # The whole sentence rides the field, so printing it a second time adds nothing: dropping
+    # that second line loses no part of the failure.
     assert "survived SIGKILL" in str(record_fields(caplog.records[1])["error"])
 
 

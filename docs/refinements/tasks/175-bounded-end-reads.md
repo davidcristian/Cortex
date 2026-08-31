@@ -18,8 +18,8 @@ mutation-proven. The `SessionStore` port is unchanged; the core states why the b
 (`summarize_ends(session_id, first, last)`, which `summarize_session` now delegates to). The
 proposed cache is rejected outright rather than deferred again: it adds a third `append` write
 that is not atomic with the `RPUSH`/`ZADD` pair, so a crash between them leaves a permanently
-wrong preview that self-heals only on the next message to that chat, a silent-wrong failure mode
-traded for a read that already costs 1 ms. One deliberate behavior change: a corrupt record
+wrong preview that self-heals only on the next message to that chat, which is a wrong answer nothing
+reports, traded for a read that already costs 1 ms. One deliberate behavior change: a corrupt record
 *between* the ends no longer fails a listing (that chat still lists correctly), while `history`
 keeps its fail-loud guarantee and a corrupt record at either end still fails the listing.
 

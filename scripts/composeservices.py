@@ -1,37 +1,33 @@
 """Read what each service in a compose file runs, and which container paths it already covers.
 
-Split out of `volumecheck.py`, which owns the rule, exactly as `composemounts.py` is split out of
-`bindcheck.py` and `composedefaults.py` out of `defaultcheck.py`: this module owns only the
-reading, and `composetargets.py` is split out of it again for the one question a mount entry
-answers. `composemounts.py` cannot answer here, and the difference is worth stating, because two
-readers over one file format look like a duplication until you see what each is asked. That one
-reads a mount's **source**, the host path a bind would materialize, and drops every entry that
-names no host path at all. This one reads a mount's **target**, the container path something is
-mounted at, and a named volume, a tmpfs and a bind cover a declared path equally well, so none of
-them may be dropped. It also reads three keys that one has no reason to look at, `image:`,
-`build:` and `tmpfs:`, and it groups everything by the service it belongs to.
+`volumecheck.py` owns the rule and this module owns the reading, the same split `bindcheck.py`
+makes with `composemounts.py` and `defaultcheck.py` with `composedefaults.py`; `composetargets.py`
+is split out of this one again for the single question a mount entry answers. `composemounts.py`
+cannot answer here, because it reads a mount's **source**, the host path a bind would materialize,
+and drops every entry that names no host path. This one reads a mount's **target**, the container
+path something is mounted at, where a named volume, a tmpfs and a bind cover a declared path
+equally well, so none of them may be dropped. It also reads three keys that one has no reason to
+look at, `image:`, `build:` and `tmpfs:`, and it groups everything by the service it belongs to.
 
-**What a service runs includes where it is built from.** `build:` is read in both spellings, the
-short `build: ./brain` and the block carrying `context:` and `dockerfile:`, because the row a
-built image is recorded under is only checkable against the file that builds it, and that mapping
-lives here and nowhere else. It used to be a bare flag: the walk set it on meeting the key and
-never looked inside, so the block form's two keys arrived as service keys it did not recognize and
-were stepped over in silence. A build key it was not taught is now refused like every other shape.
+What a service runs includes where it is built from. `build:` is read in both forms, the short
+`build: ./brain` and the block carrying `context:` and `dockerfile:`, because the row a built image
+is recorded under can only be compared against the file that builds it, and that mapping lives here
+and nowhere else. A build key this reader was not taught raises, since the block form's two keys
+were once stepped over in silence as service keys it did not recognize.
 
 It is a line reader rather than a YAML parse, for the reason its two siblings are: these gates are
-stdlib-only (`pyproject.toml` in this directory). It stays honest about that the same way, by
-refusing every shape it was not taught rather than walking past it. An inline list, a mount with
-no target, a short entry carrying an expansion, a relative target, an alias naming nothing and a
-build block naming no context are each raised, because a reader that quietly skipped the one mount
-a new override adds is a gate that cannot fail.
+stdlib-only (`pyproject.toml` in this directory). It stays honest about that by raising on every
+shape it was not taught rather than walking past it. An inline list, a mount with no target, a
+short entry carrying an expansion, a relative target, an alias naming nothing and a build block
+naming no context each raise, because a reader that quietly skipped the one mount a new override
+adds would be a gate that cannot fail.
 
-**A service naming neither an image nor a build is a fragment, not a definition.** Every override
-here re-opens `brain:` to add environment and a dependency, and the container it will run is the
-base file's. Such a service is reported with no image and no build, and the rule above it asks it
-nothing, the question belonging where the image is named. That is also why the rule is per file
-rather than per layered stack: `just up` runs the base file alone, so a base service whose
-declared volume were covered only by an override really would leak, and a reader that merged the
-files first could not say so.
+A service naming neither an image nor a build is a fragment rather than a definition. Every
+override here re-opens `brain:` to add environment and a dependency, and the container it will run
+is the base file's, so such a service is reported with no image and no build and the rule above it
+asks it nothing. That is also why the rule is per file rather than per layered stack: `just up`
+runs the base file alone, so a base service whose declared volume were covered only by an override
+really would leak, and a reader that merged the files first could not say so.
 """
 
 import re
@@ -42,7 +38,7 @@ from composetargets import FLOW_OPENERS, KEY, ComposeServiceError, Targets
 
 # The two service keys that cover a container path. `volumes:` mounts something at a target, of
 # whatever type; `tmpfs:` names the path directly. Both leave docker's own volume declaration
-# nothing to anonymise, which is the only question this reader is feeding.
+# nothing to anonymise, which is the question this reader feeds.
 COVERING_KEYS = frozenset({"volumes", "tmpfs"})
 
 # The service keys that say what a service runs, rather than what it mounts.
@@ -124,9 +120,9 @@ class _Draft:
 class _Reader:
     """The walk's state: which service we are inside, which of its keys, and which mount entry.
 
-    ``draft`` is never None. A nameless draft is the placeholder between services, discarded
-    rather than reported, which keeps every path the walk records with a service to belong to and
-    spares the reader a branch that no compose file could ever reach.
+    ``draft`` is never None: a nameless draft is the placeholder between services, discarded
+    rather than reported, so every path the walk records has a service to belong to and no branch
+    is needed for a case no compose file reaches.
     """
 
     def __init__(self) -> None:

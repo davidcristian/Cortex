@@ -3,11 +3,11 @@
 The turn engine streams two user-visible surfaces: the reply the user reads and the live
 "thinking" status the overlay renders (ADR-0020). Both are model output, so both pass
 through the output guardrail (ADR-0015) when one is wired: ``open_output_channels`` opens
-the reply's ``OutputFilter`` and a ``ThinkingChannel`` under the SAME policy and user-URL
+the reply's ``OutputFilter`` and a ``ThinkingChannel`` under the same policy and user-URL
 allowlist, one filter instance each, so the two carry buffers stay independent (a URL is
 never joined across the reply/thinking boundary). The thinking surface shipped unguarded
-first; scrubbing it closed the display channel a laundered URL in the reasoning trace
-would otherwise get once the overlay's chips rendered the detail (ADR-0020 addendum).
+first; scrubbing it closed a display channel a laundered URL in the reasoning trace would
+otherwise reach once the overlay's chips rendered the detail (ADR-0020 addendum).
 Pure like the guardrail itself; all state dies with the turn.
 """
 
@@ -30,7 +30,7 @@ class ThinkingChannel:
     channel and passes through its own ``OutputFilter`` (``None`` = unguarded), independent
     of the reply's so the two streams' carry buffers never mix. ``feed`` maps one reasoning
     delta to the status to show now (``None`` = wholly carried, empty deltas included).
-    One turn's trace is ONE stream: the carry deliberately survives tool steps and reply
+    One turn's trace is one stream: the carry deliberately survives tool steps and reply
     deltas between thinking bursts, so a URL split around a tool call is joined before it
     is matched (per-burst flushing would scrub the fragments separately and neither would
     match a collected identity, letting the full URL cross the seam in consecutive

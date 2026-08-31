@@ -1,4 +1,4 @@
-"""Fakes for the daemon's two seams: processes that never existed, and a probe a test decides.
+"""Fakes for the daemon's two seams: processes that never existed, and a probe a test drives.
 
 The supervisor's whole lifecycle is exercised over these, so the gated suite spawns nothing and
 opens no socket. Everything a real child can do to a swap is expressible: exit on SIGTERM, exit
@@ -39,7 +39,7 @@ class FakeChild:
 
     @property
     def port(self) -> int:
-        """The port this child was started for, read off its own argv as an operator would."""
+        """Return the port this child was started for, read off its own argv."""
         return int(self.argv[self.argv.index("--port") + 1])
 
     def terminate(self) -> None:
@@ -53,7 +53,7 @@ class FakeChild:
             self.exit(-9)
 
     def exit(self, code: int) -> None:
-        """Die: what a crash, a bind failure, or an operator's own kill does to a real child."""
+        """End the process, as a crash, a bind failure, or an operator's kill would."""
         self._code = code
         self._exited.set()
 
@@ -88,7 +88,7 @@ class FakeChildProcesses:
         return child
 
     def last_for(self, port: int) -> FakeChild:
-        """The most recent child started for a port, so a test can kill exactly one tier."""
+        """Return the most recent child started for a port, so a test can kill one tier."""
         for child in reversed(self.spawned):
             if child.port == port:
                 return child
@@ -97,9 +97,9 @@ class FakeChildProcesses:
 
 
 class FakeProbe:
-    """Whether each child's ``/health`` answers, per URL, as a test decides.
+    """Answers whether each child's ``/health`` responds, per URL, as a test decides.
 
-    The default is **not serving**, which is the honest state of a freshly spawned llama-server:
+    The default is **not serving**, which is the real state of a freshly spawned llama-server:
     measured, the socket refuses for a moment and then answers 503 for the whole load.
     """
 

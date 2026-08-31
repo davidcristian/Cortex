@@ -23,9 +23,9 @@ a single user-visible false positive, which is why this waits on being bitten ra
 scheduled.
 
 The change itself is one word in `config.py` plus the addendum that argues it, so nothing here is
-blocked on design. What the entry holds is the evidence, and the standing trade this ADR was
-founded on says which way to lean once the evidence exists: a missing link degrades a reply, a
-delivered phishing link ends a user.
+blocked on design. What the entry holds is the evidence, and the standing trade this ADR was founded
+on says which way to lean once the evidence exists: a missing link degrades a reply, and a delivered
+phishing link harms the user.
 
 ## Trail
 

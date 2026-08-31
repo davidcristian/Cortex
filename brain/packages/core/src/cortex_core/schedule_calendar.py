@@ -1,10 +1,10 @@
 """Calendar recurrence: a wall-clock rule and the zone-aware occurrence math (ADR-0025).
 
-The second recurrence *shape*, beside ``ScheduledItem.every``. An interval is the wrong tool
+The second recurrence shape, beside ``ScheduledItem.every``. An interval is the wrong tool
 for "every weekday at 09:00": ``every`` is a ``timedelta`` while a calendar day is 23, 24, or
 25 hours long depending on daylight saving, so a fixed interval drifts off the wall clock
-exactly when a user notices. A ``CalendarRule`` names the wall time instead and lets the
-zone decide what instant that is on any given date, which is drift-free by construction.
+exactly when a user notices. A ``CalendarRule`` names the wall time instead, and the zone
+determines what instant that is on any given date, so no drift accumulates.
 
 Which dates the wall time lands on is a ``DaySelector`` (weekly, monthly, or yearly), which
 lives in ``schedule_selectors.py`` since the yearly variant split it out at the 300-line cap.
@@ -13,10 +13,10 @@ reads the union through one call (``walk``) and never enumerates its variants.
 
 Pure like its ``schedule.py`` sibling: the zone arrives as the ``DisplayZone`` value the
 composition root already builds, so this module reads an abstract ``tzinfo`` and never imports
-``zoneinfo`` (the ADR-0025 display addendum's split). Reusing ``DisplayZone.resolve`` for every
-candidate is the load-bearing part of that reuse: the two daylight-saving irregularities then
-settle here exactly as they already settle for a naive ``at``, so one policy covers both, and
-an occurrence in a spring-forward gap fires just past the gap rather than being skipped.
+``zoneinfo`` (the ADR-0025 display addendum's split). Every candidate is resolved through
+``DisplayZone.resolve``, so the two daylight-saving irregularities settle here exactly as they
+already settle for a naive ``at``: one policy covers both, and an occurrence in a spring-forward
+gap fires just past the gap rather than being skipped.
 """
 
 from dataclasses import dataclass
@@ -34,7 +34,7 @@ class CalendarRule:
     it set, the rule fires at ``hour``:``minute`` in ``zone`` regardless of the deployment's
     ``CORTEX_SCHEDULE_TZ``, so a user in one place can pin a reminder to another (ADR-0025
     per-rule addendum). Left ``None`` the rule takes the deployment zone the occurrence math is
-    handed, which is the default a single-user assistant that travels wants: changing
+    handed, which is the default that suits a single-user assistant that travels: changing
     ``CORTEX_SCHEDULE_TZ`` moves a zone-less rule with it (your 09:00 follows you), while a rule
     that named its own zone stays put. The rule holds the resolved ``DisplayZone``; only its
     name is durable, so the codec stores the name and reconstructs the zone on decode.
@@ -80,9 +80,9 @@ def next_calendar_due(rule: CalendarRule, after: datetime, zone: DisplayZone) ->
 
     Every candidate is resolved through ``DisplayZone.resolve``, so the rule follows daylight
     saving rather than drifting against it and both irregular cases inherit the documented
-    policy: an occurrence inside a **spring-forward gap** lands just past the gap (fires late,
-    never skipped), and one in a **fall-back repeat** takes the earlier offset, so a repeated
-    wall hour fires once rather than twice. Returns ``None`` when the next occurrence is past
+    policy: an occurrence inside a spring-forward gap lands just past the gap (fires late, never
+    skipped), and one in a fall-back repeat takes the earlier offset, so a repeated wall hour
+    fires once rather than twice. Returns ``None`` when the next occurrence is past
     ``datetime.max``, matching ``next_due``: the recurrence ends rather than re-arming a fire
     that could never persist.
     """

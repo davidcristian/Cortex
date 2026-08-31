@@ -1,9 +1,9 @@
-"""Behaviour of the reader answering what a Python module's own top level binds.
+"""Tests for the reader that answers what a Python module's top level binds.
 
-Everything here is about syntax and nothing is about model tiers, which is the seam this module
-was split on. The two answers that look alike and are not, a value this reader cannot reduce and a
-sequence one of whose items it cannot reduce, get a check each: a caller that treated them alike
-would report a tier's whole tail as empty rather than as unreadable.
+Everything here is about syntax rather than about model tiers, which is the seam this module was
+split on. Two answers that look alike get a check each: a value this reader cannot reduce, and a
+sequence one of whose items it cannot reduce. A caller that treated them as the same answer would
+report a tier's whole argv tail as empty rather than as unreadable.
 """
 
 import ast
@@ -15,7 +15,7 @@ from moduleconstants import ModuleReadError, bound, constants, items, parse, tex
 
 
 def _expression(source: str) -> ast.expr:
-    """The one expression ``source`` is, which is what both resolvers take."""
+    """Return the single expression in ``source``, which is what both resolvers take."""
     statement = ast.parse(source).body[0]
     assert isinstance(statement, ast.Expr)
     return statement.value
@@ -47,7 +47,8 @@ def test_a_module_that_is_not_text_is_named(tmp_path: Path) -> None:
 
 
 def test_a_module_that_is_not_python_is_named(tmp_path: Path) -> None:
-    """A half-edited module is the shape this really arrives in, and it must not read as empty."""
+    """A module that does not parse raises rather than reading as empty. A half-edited file is the
+    shape this case arrives in."""
     path = tmp_path / "m.py"
     path.write_text("def broken(\n", encoding="utf-8")
     with pytest.raises(ModuleReadError, match="cannot read"):
@@ -62,7 +63,8 @@ def test_a_string_literal_is_itself() -> None:
 
 
 def test_a_literal_that_is_not_a_string_is_no_argv_item() -> None:
-    """A count is a value a command line renders rather than one it carries."""
+    """A number reduces to nothing, because a command line renders a count rather than carrying it
+    as a string."""
     assert text(_expression("8083"), {}) is None
 
 
@@ -94,12 +96,15 @@ def test_a_name_bound_to_a_tuple_resolves_to_that_tuple() -> None:
 
 
 def test_a_tuple_holding_something_unreadable_is_read_and_that_item_is_not() -> None:
-    """The distinction the caller needs: this is a sequence, and one item of it is unknown."""
+    """A sequence is still read when one of its items cannot be reduced, and that item comes back
+    as None."""
     assert items(_expression("('--a', str(x))"), {}, {}) == ("--a", None)
 
 
 def test_something_that_is_no_sequence_at_all_differs_from_one_holding_an_unreadable_item() -> None:
-    """A call is not an empty tail, and a reader conflating them would report one as the other."""
+    """An expression that is no sequence at all comes back as None, which is a different answer
+    from the sequence above holding an unreadable item. A reader that returned the same value for
+    both would report a call as an empty argv tail."""
     assert items(_expression("self.reasoning()"), {}, {}) is None
     assert items(_expression("NOTHING_BOUND_THIS"), {}, {}) is None
 
@@ -124,13 +129,14 @@ def test_an_annotation_with_no_value_binds_nothing() -> None:
 
 
 def test_an_assignment_to_something_other_than_a_bare_name_binds_no_name_here() -> None:
-    """A subscript and an attribute are assignments this reader has no name to answer under."""
+    """A subscript or an attribute target binds no name this reader can answer under."""
     assert bound(_statement("d['k'] = 'x'")) is None
     assert bound(_statement("o.a: str = 'x'")) is None
 
 
 def test_an_assignment_spreading_one_value_over_two_names_is_not_read() -> None:
-    """`A = B = 'x'` is legal and rare, and guessing which name the reader means is worse."""
+    """`A = B = 'x'` binds nothing here. The form is legal and rare, and this reader answers under
+    a single name, so reading it would mean picking one of the two."""
     assert bound(_statement("A = B = 'x'")) is None
 
 
@@ -148,28 +154,31 @@ def test_every_top_level_string_comes_back_under_its_own_name() -> None:
 
 
 def test_a_name_written_below_the_one_it_spends_resolves_to_it() -> None:
-    """Source order is what makes this resolvable and is also why no cycle is possible."""
+    """Names resolve in source order, which is what makes this readable and why no cycle can
+    form."""
     strings, tuples = constants(ast.parse("COUNT = '0'\nPAIR = ('--budget', COUNT)\n"))
     assert strings == {"COUNT": "0"}
     assert tuples == {"PAIR": ("--budget", "0")}
 
 
 def test_a_name_spending_one_written_below_it_stays_unreadable() -> None:
-    """Python would not resolve it either, so a reader that did would be answering for a module
-    the interpreter refuses to import."""
+    """A name used above the line that binds it stays unreadable, since Python would not resolve it
+    either, and answering would describe a module the interpreter fails to import."""
     _, tuples = constants(ast.parse("PAIR = ('--budget', COUNT)\nCOUNT = '0'\n"))
     assert tuples == {"PAIR": ("--budget", None)}
 
 
 def test_a_binding_that_is_neither_a_string_nor_a_run_of_them_is_simply_absent() -> None:
-    """A module is full of these and none of them is a fault; the caller asking for a name that
-    is not there is the one who knows whether its absence matters."""
+    """A binding that is neither a string nor a sequence of strings is left out rather than
+    raising. A module is full of them, and the caller asking for a name is the one that knows
+    whether its absence matters."""
     strings, tuples = constants(ast.parse("N = 512\nF = frozenset({'a'})\nA = '--a'\n"))
     assert strings == {"A": "--a"}
     assert tuples == {}
 
 
 def test_a_name_bound_inside_a_class_or_a_function_is_not_a_module_constant() -> None:
-    """Only the top level is read: a field default is not a name the module spends anywhere."""
+    """Only the module's top level is read, since a name bound inside a class body or a function is
+    not one another module can spend."""
     source = "class C:\n    A = '--a'\n\n\ndef f():\n    B = '--b'\n    return B\n"
     assert constants(ast.parse(source)) == ({}, {})

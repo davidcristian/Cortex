@@ -1,9 +1,9 @@
-"""Behaviour of the compose bind-mount gate, over real git repositories.
+"""Tests for the compose bind-mount gate, run against real git repositories.
 
-The rule under test has three verdicts and every one of them is exercised against a real
-`git`, because the two questions the gate asks (is this path tracked, is it ignored) are
-git's to answer and an emulation of them is the kind of quiet wrongness that leaves a gate
-green. The fixtures below therefore `git init` and stage, rather than pretending.
+The rule under test has three verdicts, and each one is exercised against a real `git`, because
+the two questions the gate asks (is this path tracked, is it ignored) are git's to answer, and an
+emulation of them could be wrong on a case no test covers. The fixtures below therefore run
+`git init` and stage files.
 """
 
 import subprocess
@@ -29,8 +29,9 @@ services:
 def _git(repo: Path, *args: str) -> None:
     """Drive git against the fixture's own tree, with the environment the gate itself uses.
 
-    `gitenv.git_env()` rather than a strip of its own: an inherited `GIT_DIR` outranks `-C`, so
-    a fixture that forgot the strip would stage into the real repository this test lives in.
+    Uses `gitenv.git_env()` rather than building the environment here, because an inherited
+    `GIT_DIR` outranks `-C`: a fixture that forgot to strip it would stage into the real
+    repository this test lives in.
     """
     subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(repo), *args],  # noqa: S607 -- git on PATH
@@ -80,17 +81,18 @@ def test_an_ignored_default_is_accounted_for(repo: Path) -> None:
 
 
 def test_a_tracked_input_needs_no_ignore_rule(repo: Path) -> None:
-    """Not "every default must be gitignored": compose finds an input rather than making one."""
+    """A bind onto a file the repo tracks passes, since compose reads that input rather than
+    creating it."""
     _compose(repo, "./docker/seed.sql", name="docker-compose.yml")
     assert bindcheck.check(repo).faults == []
 
 
 def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
-    """The exemption is per landing, not per mount, which is how a shipped input hid a phantom.
+    """The exemption applies per landing rather than per mount.
 
     The same source under the `docker/` project directory resolves to `docker/docker/seed.sql`,
     where the repo ships nothing, so that landing is a directory a compose run creates. Reading
-    the tracked landing as an answer for both left it unreported.
+    the tracked landing as the answer for both landings once left that one unreported.
     """
     _compose(repo, "./docker/seed.sql")
     faults = bindcheck.check(repo).faults
@@ -99,7 +101,11 @@ def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
 
 
 def test_an_unignored_default_is_reported_at_both_landings(repo: Path) -> None:
-    """The whole point: a third default nobody remembered to ignore."""
+    """A default that is neither tracked nor ignored is reported at each landing it resolves to.
+
+    This is the case the gate exists to catch: a compose run creates the directory, and git then
+    takes it into the index.
+    """
     _compose(repo, "${MODELS_DIR:-./models}")
     faults = bindcheck.check(repo).faults
     assert [fault.line for fault in faults] == [4, 4]
@@ -250,7 +256,7 @@ def test_an_exported_git_dir_does_not_decide_which_repository_answers(
 
     Git exports GIT_DIR to every hook it runs, and `just check` runs this gate from one.
     Pointed at anything that is not a repository, an inherited GIT_DIR makes both calls fatal,
-    so the gate reddens on a tree whose binds are all accounted for. Every gate that asks git
+    so the gate fails on a tree whose binds are all accounted for. Every gate that asks git
     anything has this test.
     """
     monkeypatch.setenv("GIT_DIR", str(repo / "no-such-git-dir"))

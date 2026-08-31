@@ -5,39 +5,39 @@ Starlette app over ``httpx.ASGITransport``, so a check exercises the adapter's e
 routing and refusals, and the supervisor's state machine in one pass. Only the two things a gated
 test may not do are faked, the OS spawn and the health socket.
 
-Distrust-green proofs. Each mutation was applied to production code alone and the whole
-``packages/model_manager`` suite re-run, so the counts below are what actually reddened, not what
-the mutation was aimed at:
+These checks were proved able to fail. Each mutation was applied to production code alone and
+the whole ``packages/model_manager`` suite re-run, so every count below is over that suite and is
+what actually failed rather than what the mutation was aimed at:
 
 - probing ``/health`` **before** reading the child's exit code in ``ModelSupervisor.status``
-  reddens 3 cases: ``[supervisor-check_a_process_that_died_unasked_reports_failed]``,
+  fails 3 cases: ``[supervisor-check_a_process_that_died_unasked_reports_failed]``,
   ``[supervisor-check_a_failed_model_is_restarted_without_being_stopped_first]``, and
   ``test_supervisor.py::test_status_reads_the_exit_code_without_asking_the_probe_at_all``. No
-  scripted case reddens, which is the point: that ordering is the real adapter's whole defence
+  scripted case fails, which is the point: that ordering is the real adapter's whole defence
   against a dead start whose port is still answered by the model it was meant to replace;
-- reporting an absent child as LOADING instead of STOPPED reddens 10 cases, 4 of them here, all on
+- reporting an absent child as LOADING instead of STOPPED fails 10 cases, 4 of them here, all on
   the supervisor side (``check_a_model_nobody_started_reports_stopped``,
   ``check_stop_ends_the_model_and_is_idempotent``,
   ``check_stopping_a_model_that_already_died_settles_it`` and
   ``check_a_swap_leaves_only_the_model_it_swapped_in``), the rest in the supervisor and api suites
   over the same production code;
-- keeping (rather than replacing) a child that exited when ``start`` is re-issued reddens exactly
+- keeping (rather than replacing) a child that exited when ``start`` is re-issued fails exactly
   1 case, ``[supervisor-check_a_failed_model_is_restarted_without_being_stopped_first]``, which is
   why that check exists separately from the stop-then-start one;
-- returning ``ModelHostState.READY`` from the adapter instead of the reported word reddens 11
+- returning ``ModelHostState.READY`` from the adapter instead of the reported word fails 11
   cases: 7 here on the supervisor side and 4 in ``test_adapter.py``;
-- dropping ``probe_timeout_s`` from the daemon's health body reddens 2, the supervisor leg of
+- dropping ``probe_timeout_s`` from the daemon's health body fails 2, the supervisor leg of
   ``check_a_host_reports_the_control_bounds_it_was_wired_with`` and ``test_api.py``'s health case.
-  No scripted case reddens, which is again the point: the twin echoes the bounds it was handed, and
+  No scripted case fails, which is again the point: the twin echoes the bounds it was handed, and
   what the supervisor leg pins is that a real daemon publishes the three it was really given;
-- dropping ``boot_id`` from that body reddens 2 in exactly the same shape, the supervisor leg of
+- dropping ``boot_id`` from that body fails 2 in exactly the same shape, the supervisor leg of
   ``check_a_host_names_which_boot_of_it_is_answering`` and that same health case;
-- collapsing a tier's 404 back into the broad ``ModelHostError`` reddens 2, the supervisor leg of
+- collapsing a tier's 404 back into the broad ``ModelHostError`` fails 2, the supervisor leg of
   ``check_an_id_this_host_does_not_carry_is_refused_by_every_verb`` and one row of
-  ``test_adapter.py``'s status table. No scripted case reddens, for the usual reason: the twin is
+  ``test_adapter.py``'s status table. No scripted case fails, for the usual reason: the twin is
   **told** which ids it does not host, while the real leg has to derive the same answer from a
   roster it built and a status code it read;
-- letting the twin serve every id it is handed reddens 5, both scripted legs of the two unhosted
+- letting the twin serve every id it is handed fails 5, both scripted legs of the two unhosted
   checks and the three core cases that arrange the condition over it, which is the mirror image
   and the reason a fake that could not refuse would leave the distinction untestable in the core.
 """
@@ -78,7 +78,7 @@ _UNROSTERED = "tier-with-no-artifact"
 
 
 def contract_roster() -> dict[str, ModelSpec]:
-    """A roster naming exactly the contract's two ids, on the ADR's cortex and deep-tier ports."""
+    """Build a roster naming the contract's two ids, on the ADR's cortex and deep-tier ports."""
     return build_roster(
         tier_spec(
             _BIN,
@@ -115,7 +115,7 @@ class _FakeCard:
 
 
 def _scripted_subject() -> HostUnderTest:
-    """The core's scriptable twin: the world's conditions are its status overrides."""
+    """Build the core's scriptable twin, whose status overrides supply the world's conditions."""
     host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT, unhosted=[_UNROSTERED])
 
     def serving(model: str, *, serving: bool) -> None:
@@ -140,7 +140,7 @@ def _scripted_subject() -> HostUnderTest:
 
 
 def _supervisor_subject() -> HostUnderTest:
-    """The real adapter over the real daemon: fake children, fake probe, everything else real."""
+    """Build the real adapter over the real daemon: fake children, fake probe, the rest real."""
     roster = contract_roster()
     processes = FakeChildProcesses()
     probe = FakeProbe()
@@ -178,7 +178,7 @@ def _supervisor_subject() -> HostUnderTest:
 
 @pytest.fixture(params=["scripted", "supervisor"])
 async def subject(request: pytest.FixtureRequest) -> AsyncIterator[HostUnderTest]:
-    """A fresh implementation of each kind; every shared check runs against both."""
+    """Build a fresh implementation of each kind, so every shared check runs against both."""
     made = _scripted_subject() if request.param == "scripted" else _supervisor_subject()
     try:
         yield made

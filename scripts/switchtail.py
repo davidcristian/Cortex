@@ -1,59 +1,18 @@
-"""Whether a tier's rendered prompt still predicts what its constrained cell did.
+"""Check that a tier's rendered prompt still predicts what its constrained cell did.
 
-`brain/packages/inference/tests/test_thinking_switch_live.py` sends one prompt four ways, two
-request shapes each with the port's thinking switch and without it, and asks the server
-`POST /apply-template` what prompt each of those requests really renders to. Two documents then
-carry one rule read off those renderings (ADR-0005, in its mechanism section for two picks and in
-its lineup section for eleven): a tier whose template answers "do not think" by rendering a thought
-**already closed** holds the switch under a `response_format`, and one whose answer leaves the
-thought open does not. It is right on every row ever measured, and until this landed nothing read
-it back. A run against a tier that broke the rule left a rendering contradicting its own cells, and
-a reader comparing four numbers to a wall of prompt text is the least likely person here to notice.
+`brain/packages/inference/tests/test_thinking_switch_live.py` sends one prompt four ways against a
+live llama-server and records what `POST /apply-template` renders for each. This reads those
+samples and holds the rule two documents state, that a template closing the thought honours the
+switch under a `response_format` and one leaving it open does not, against the cells the same run
+drew.
 
-This is the reader that notices, and it lives here for the reason `contrast.py`, `trailwidth.py`
-and `envelopefloor.py` do: the claim behind a published measurement belongs in a gated file and not
-in an integration-marked driver no gate ever runs. Asserting the rule inside the probe was the
-other option and was rejected twice over: the rule itself would have been ungated and unmutated,
-and the probe is pointed at whatever server an operator has, so a tier that breaks the rule is news
-to be published rather than a reason to red the run that found it.
+    just switch-tail measurements/switch-*.json
 
-**The reading is on the tail, and that is the trap this exists to hold.** The renderings differ on
-picks from both sides of the split, so "are these two prompts equal" sorts nothing: the failing
-pick's two prompts are 194 and 162 characters and drop a whole `<|think|>` system turn at the
-**front** while ending byte identically with the door open. What decides is what the template
-appended after the ask itself, so the tail here is taken from the last of the ask the driver
-recorded sending rather than from a character count or a per pick turn marker.
+Exit 0 published the comparison, 1 refused to, 2 could not read a sample.
 
-**The vocabulary is per pick, which is exactly what the port may not know.** A closed thought is
-`</think>` on the native family and `<channel|>` on gemma-4, and neither is on any endpoint; a
-probe pointed at a server by hand may hold that vocabulary where `InferenceBackend` may not, which
-is why this reading is here and no capability probe ships. Every verdict therefore prints the tail
-it was read off, so a red says whether the rule broke or these two families are short one.
-
-**An unmarked tail is two things, and the unswitched tail is what separates them.** The failing
-pick answers the switch by dropping the block and adding nothing, so its switched tail carries no
-marker and is the canonical open door; a third family closing its thought in a spelling not listed
-here would carry no marker either, and calling that an open door is a guess wearing a verdict's
-clothes. What tells them apart is already in hand: on the failing pick the switched tail is **byte
-identical** to the one the same template renders with the key left alone, because what the key
-moved was a system turn at the front. So an unmarked tail that the key changed is a third spelling
-and is refused rather than read, and the whole renderings cannot stand in for the two tails here
-for exactly the reason the reading is on the tail at all.
-
-**The two sides of the rule are not equally strong, and a cell drawn once is not read at all.** A
-tail that closes the thought predicts the switch holds on **every** draw, so one deliberating draw
-refutes it, and that is the direction with something at stake: the one shipped bound pairing a cap,
-the switch and a schema runs against the cortex tier, which is on the closing side and has no
-sampler floor. A tail that leaves it open predicts the switch fails on **at least one** draw, which
-five draws that never deliberated are evidence against rather than proof. Under five draws nothing
-is published at all, the probe's own rule and its own reason, the cell this turns on splitting 4 to
-1 on a shipped pick; nor is a shape whose control arm, the same request with no switch, failed to
-deliberate on every draw, a control that never fired leaving nothing to have stopped.
-
-Reads the probe's own sample files, `just switch-tail measurements/switch-*.json`. Exit 0 published
-the comparison, 1 refused to (a rendering it cannot place, a tail in a spelling it cannot read, a
-cell too thin to read, a control that did not fire, or a prediction the measurement broke), 2 could
-not read a sample.
+ADR-0005 argues the three choices behind this: why the reading is on the prompt tail rather than
+the whole rendering, why an unmarked tail needs the unswitched one to tell two tiers apart, and
+why the check lives here rather than in the integration-marked probe that no gate runs.
 """
 
 import argparse
@@ -63,45 +22,38 @@ from typing import cast
 
 from switchsamples import Cell, Probe, ProbeError, load
 
-# The thought markers of the two template families ADR-0004's lineup resolves to, each as the pair
-# that opens a thought and the one that closes it. gemma-4 writes channel markers where the native
-# handler writes think tags, and the bar sits on the other side of the closing one, which is why
-# neither member of a pair is a substring of the other.
+# The two template families in ADR-0004's lineup, each as its (opens, closes) marker pair. The bar
+# sits on the other side of the closing marker, so neither member of a pair is a substring of the
+# other.
 MARKERS: tuple[tuple[str, str], ...] = (
     ("<|channel>thought", "<channel|>"),
     ("<think>", "</think>"),
 )
-# How many draws a cell must carry before its verdict is read as a tier's behaviour. The probe's
-# own rule, and its own reason: the constrained cell of the failing pick holds on 1 draw in 5.
+# Minimum draws before a cell's verdict is read as a tier's behaviour: the failing pick's
+# constrained cell holds on 1 draw in 5.
 DRAWS = 5
 
 
 def tail(prompt: str, ask: str) -> str | None:
-    """What the template appended after the ask itself, or ``None`` when the ask is not in there.
+    """What the template appended after the ask, or ``None`` when the prompt lacks the ask.
 
-    The generation prompt, found without knowing one per pick turn marker: whatever follows the
-    last of the words the driver recorded sending is what the template added on the model's behalf.
+    Found without a per-pick turn marker: whatever follows the last occurrence of the recorded ask
+    is what the template added on the model's behalf.
     """
     _, found, rest = prompt.rpartition(ask)
     return rest if found else None
 
 
 def marked(rendered: str) -> bool:
-    """Whether ``rendered`` carries a thought marker of either family this reader knows.
-
-    An unmarked tail is two different tiers and only one of them may be read: the failing pick,
-    which answers the switch by dropping the block and adding nothing, and a template answering in
-    a third family's spelling, whose thought this module has no word for either way.
-    """
+    """Whether ``rendered`` carries a thought marker of either family in ``MARKERS``."""
     return any(marker in rendered for pair in MARKERS for marker in pair)
 
 
 def closes(rendered: str) -> bool:
-    """Whether the last thought marker in ``rendered`` is a closing one.
+    """Whether the last thought marker in ``rendered`` closes the thought rather than opening it.
 
-    Absence answers "open", which is the failing pick's own answer to the switch: drop the block
-    and add nothing. That reading is only owed to a tail the key left alone, so `_tails` asks
-    `marked` and the unswitched tail first, and this answers about the tails that are left.
+    No marker at all answers "open". Only a tail the switch left unchanged is owed that reading, so
+    `_tails` checks `marked` and the unswitched tail before calling this.
     """
     opened = max(rendered.rfind(opener) for opener, _ in MARKERS)
     shut = max(rendered.rfind(closer) for _, closer in MARKERS)
@@ -111,9 +63,8 @@ def closes(rendered: str) -> bool:
 def _tails(probe: Probe, lines: list[str]) -> bool | None:
     """Report both renderings, and answer whether the switched one closes the thought.
 
-    ``None`` is a rendering this reader cannot place: one that does not carry the ask the same
-    sample says was sent and whose tail therefore cannot be found, or one whose tail answers the
-    key in a spelling neither family here writes.
+    ``None`` when the rendering cannot be placed: it lacks the ask the sample recorded, or its tail
+    carries no marker either family writes and the switch changed it.
     """
     lines.append("  the rendering, taken after the ask itself:")
     found: dict[bool, str] = {}
@@ -133,16 +84,16 @@ def _tails(probe: Probe, lines: list[str]) -> bool | None:
     lines.append(f"    the template {reads} the key ({len(plain)} chars against {len(switched)})")
     if not marked(found[True]) and found[True] != found[False]:
         lines.append(
-            "  refused: the switched tail carries no marker of either family here and is not the"
-            " tail this template renders with the key left alone, so it answered in a third"
-            " spelling and whether that thought is closed is a word this reader does not have"
+            "  refused: the switched tail carries no marker of either format here and is not the"
+            " tail this template renders with the key left alone, so it answered in an"
+            " unrecognized format and this reader cannot say whether that thought is closed"
         )
         return None
     return closes(found[True])
 
 
 def _judged(probe: Probe, lines: list[str]) -> Cell | None:
-    """The constrained cell the prediction is held against, if this sample may be read at all."""
+    """The constrained cell the prediction is held against, or ``None`` if it may not be read."""
     control, cell = probe.cell(switch=False), probe.cell(switch=True)
     if control is None or cell is None:
         lines.append(
@@ -168,7 +119,7 @@ def _judged(probe: Probe, lines: list[str]) -> Cell | None:
 
 
 def read(probe: Probe) -> tuple[list[str], int]:
-    """One tier's report and its exit code: the rendering, the cells, then the rule over both."""
+    """One tier's report and exit code: the rendering, the cells, then the rule over both."""
     lines = [f"{probe.path}: {probe.model} at {probe.endpoint}"]
     shut = _tails(probe, lines)
     if shut is None:

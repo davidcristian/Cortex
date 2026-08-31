@@ -1,7 +1,7 @@
 """The three ports one tool call passes through: what exists, who allows it, what it left.
 
 Split from ``ports.py`` at the line cap, along the seam a dispatch already draws. ``ports.py``
-keeps the ports a *turn* is built out of (inference, the clock, the runner itself); these three
+keeps the ports a turn is built out of (inference, the clock, the runner itself); these three
 are what ``ToolDispatcher`` holds, and it holds all three: it asks the registry what may be
 called and calls it, asks the confirmer about a gated one, and records every outcome to the
 audit sink whichever way it went. Nothing else in the tree needs one without the others.
@@ -34,16 +34,16 @@ class ToolRegistry(Protocol):
     as ``ToolError`` (``ToolNotFoundError`` for an unknown name); the dispatcher, not the
     registry, turns that into an error result the model can read.
 
-    **A listing is read at the call, never remembered.** ``AggregateToolRegistry`` and
+    A listing is read at the call and never cached. ``AggregateToolRegistry`` and
     ``UngatedToolRegistry`` resolve ownership and gating by walking ``describe_tools`` on every
     invoke, so an implementation answering from a set it cached at construction would route to a
     tool its server has since dropped, and would advertise a gated one as ungated.
 
-    **What an unknown name looks like depends on who is asked, and only the safety half is
-    common.** The core's own registries know their whole set and raise ``ToolNotFoundError``. A
+    What an unknown name looks like differs between implementations, and only the safety half is
+    common. The core's own registries hold their whole set and raise ``ToolNotFoundError``. A
     remote one can only report what its server says, and an MCP server answers an unknown tool
-    with an error *result*, so ``McpToolRegistry`` returns ``is_error`` there rather than raising.
-    What every implementation owes is that a name it does not serve never comes back as a
+    with an error result, so ``McpToolRegistry`` returns ``is_error`` there rather than raising.
+    Every implementation must ensure that a name it does not serve never comes back as a
     successful result; a caller that needs the distinction resolves ownership by a live walk
     first, which is exactly what the aggregate does before it routes.
     """
@@ -65,12 +65,12 @@ class ToolAuditSink(Protocol):
 
 
 class Confirmer(Protocol):
-    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013,
-    gate table revised by ADR-0022).
+    """Answers a request to confirm a gated tool call, out of band (ADR-0013, ADR-0022).
 
     ``confirm`` returns ``True`` to allow an irreversible/outbound action, ``False`` to block it.
-    The dispatcher consults it for a gated call on an **untainted** turn (a tainted turn's gated
-    call is denied outright, the confirmer never asked). The decision is the user's, reached out
+    ADR-0022 revised the gate table. The dispatcher consults it for a gated call on an untainted
+    turn (a tainted turn's gated call is denied outright, and the confirmer is never asked). The
+    decision is the user's, reached out
     of band (the overlay), never the model's. A jailbroken model cannot forge it. The real
     adapter is the orchestrator's ``SeamConfirmer``, round-tripping the overlay's approval card
     over the ``Converse`` stream; a missing confirmer denies (fail-closed).

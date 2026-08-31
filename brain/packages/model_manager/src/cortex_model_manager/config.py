@@ -8,10 +8,10 @@ user's existing ``.env`` keeps working: ``CORTEX_MODEL_FILE_CORTEX``, ``CORTEX_N
 ``CORTEX_CTX_SIZE_BRAIN`` for the deep model, and the existing subagent knobs for the GPU-placed
 subagent tier.
 
-**A tier with no artifact file is not in the roster at all.** The deep model's pick is still open
+A tier with no artifact file is left out of the roster. The deep model's pick is still open
 (ADR-0004) and the GPU-placed subagent is opt-in, so a deployment that has not named a file for
-one gets a daemon that answers 404 for it rather than a tier that spawns a doomed process. The
-roster it did build is on ``GET /health``, which is where an operator looks first.
+one gets a daemon that answers 404 for it rather than a tier that spawns a process with no model
+to load. The roster that was built is on ``GET /health``, which is where an operator looks first.
 """
 
 from pydantic import Field
@@ -50,18 +50,19 @@ DEFAULT_SUBAGENT_PARALLEL = 2
 DEFAULT_IMAGE_MAX_TOKENS = 1024
 DEFAULT_NVIDIA_SMI = "nvidia-smi"
 
-# Both subagent-tier families are reasoning models and unbounded thinking is minutes per call
-# (ADR-0010), so the hosted subagent tier carries the same server-side reasoning-off pair the CPU
-# subagent service does. **Two flags, not one** (ADR-0005 thinking-lever addendum): the template
-# kwarg alone was measured to leave the trace running on a request carrying a `response_format`,
-# which is every reply a tool-less subagent decodes into the fixed envelope, and the budget is the
-# one that reaches that shape. Neither is redundant, the kwarg being what the template itself reads.
+# Both model families the subagent tier can run are reasoning models and unbounded thinking is
+# minutes per call (ADR-0010), so the hosted subagent tier carries the same server-side
+# reasoning-off pair the CPU subagent service does. It takes both flags (ADR-0005 thinking-lever
+# addendum): the template kwarg alone was measured to leave the trace running on a request
+# carrying a `response_format`, which is every reply a tool-less subagent decodes into the fixed
+# envelope, and the budget is the flag that reaches that shape. The kwarg is still needed, being
+# what the template itself reads.
 #
-# The count the budget is fixed at is named rather than written inside the tuple so
+# The budget's value is declared here rather than written inside the tuple so
 # `scripts/crosscheck.py` can read it: the two compose subagent servers spell this same pair, and a
-# number the scan cannot find a declaration for is a number it cannot compare. Hoisting it is the
-# price of a registered coupling, paid the way this module's tier defaults already pay it (ADR-0029
-# cross-language-constant addendum).
+# number the scan cannot find a declaration for is a number it cannot compare, the same reason
+# this module's tier defaults are declared rather than inlined (ADR-0029 cross-language-constant
+# addendum).
 _NO_REASONING_BUDGET = "0"
 
 _REASONING_OFF = (
@@ -71,10 +72,10 @@ _REASONING_OFF = (
     _NO_REASONING_BUDGET,
 )
 
-# llama.cpp's own word for a trace nobody bounds, and this repo's "unset" for the same reason it
-# is the engine's default: a deployment that names no budget emits no flag, so its tier comes up
-# with the argv it always did. Zero is a real setting here (thinking ends immediately) rather than
-# an absent one, which is why the sentinel cannot be the falsy value the image budget uses.
+# llama.cpp's own value for an unbounded reasoning trace, used here as "unset" because it is also
+# the engine's default: a deployment that names no budget emits no flag, so its tier comes up with
+# the argv it always did. Zero is a real setting here (the trace ends immediately) rather than an
+# absent one, which is why the sentinel cannot be the falsy value the image budget uses.
 _UNRESTRICTED_REASONING = -1
 
 # llama.cpp's own micro-batch default. A picture is decoded as one non-causal chunk, and the
@@ -123,9 +124,9 @@ class ModelHostConfig(BaseSettings):
     cortex_file: str = Field(
         default=DEFAULT_CORTEX_FILE, validation_alias="CORTEX_MODEL_FILE_CORTEX"
     )
-    # The multimodal projector that gives the cortex eyes (ADR-0029). Empty (the default)
-    # starts the tier text-only, which is what a deployment without vision wants and what CI
-    # runs; naming a file adds llama.cpp's --mmproj pair, and the brain then discovers the
+    # The multimodal projector that lets the cortex tier read images (ADR-0029). Empty (the
+    # default) starts the tier text-only, which is how a deployment without vision and CI both
+    # run it; naming a file adds llama.cpp's --mmproj pair, and the brain then discovers the
     # capability from the running server's /props rather than from a second flag here.
     # Renamed from CORTEX_MMPROJ_FILE_CORTEX on 2026-08-30 (ADR-0029 projector-naming addendum):
     # a projector is a model file, so it is spelled in the one family every model artifact this
@@ -149,14 +150,14 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_CORTEX_CTX_SIZE, gt=0, validation_alias="CORTEX_CTX_SIZE"
     )
     cortex_port: int = Field(default=8080, gt=0, le=65535)
-    # How many tokens this tier may spend deliberating before the engine closes the thought and
-    # makes it answer. The middle of a dial the brain only had the ends of: a request says whether
-    # to think at all (``CORTEX_REPLY_THINKING``, and the bounds the fold, the title and the recall
-    # rank send), and this says how long a think that happens may be. Measured on the cortex pick,
-    # one open question per arm: unrestricted spends 2323 to 2996 characters of trace and 10.1 to
-    # 12.6 s before the first word, 512 spends 2003 and 8.4 s, 128 spends 483 to 536 and 1.7 to
-    # 2.6 s, and 0 spends none and 0.2 s, with the reply itself the same size in every arm.
-    # ``-1`` is the default and emits no flag (docs/runbooks/llamacpp-gpu.md).
+    # How many tokens this tier may spend on its reasoning trace before the engine ends the trace
+    # and starts the reply. The brain could already say whether to reason at all
+    # (``CORTEX_REPLY_THINKING``, and the bounds the fold, the title and the recall rank send);
+    # this says how long a trace that does happen may be. Measured on the cortex pick, one open
+    # question per arm: unrestricted spends 2323 to 2996 characters of trace and 10.1 to 12.6 s
+    # before the first word, 512 spends 2003 and 8.4 s, 128 spends 483 to 536 and 1.7 to 2.6 s, and
+    # 0 spends none and 0.2 s, with the reply itself the same size in every arm. ``-1`` is the
+    # default and emits no flag (docs/runbooks/llamacpp-gpu.md).
     cortex_reasoning_budget: int = Field(
         default=_UNRESTRICTED_REASONING,
         ge=_UNRESTRICTED_REASONING,
@@ -170,10 +171,10 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_BRAIN_CTX_SIZE, gt=0, validation_alias="CORTEX_CTX_SIZE_BRAIN"
     )
     brain_port: int = Field(default=8081, gt=0, le=65535)
-    # The deep tier's own budget, separate because the two tiers are read on opposite arguments:
+    # The deep tier's own budget, separate because the two tiers are tuned on opposite arguments:
     # the cortex answers while somebody watches, and the deep model was picked for reaching an
     # answer inside its trace at all (ADR-0004), so a deployment that shortens one has no reason
-    # to have shortened the other. Same vocabulary, same ``-1`` default.
+    # to have shortened the other. It takes the same flag and the same ``-1`` default.
     brain_reasoning_budget: int = Field(
         default=_UNRESTRICTED_REASONING,
         ge=_UNRESTRICTED_REASONING,
@@ -243,12 +244,12 @@ class ModelHostConfig(BaseSettings):
         return ("--mmproj", path, *self._image_budget())
 
     def _reasoning(self, budget: int) -> tuple[str, ...]:
-        """A tier's thinking budget, in llama.cpp's own flag, or nothing at all when unrestricted.
+        """A tier's reasoning budget, in llama.cpp's own flag, or nothing at all when unrestricted.
 
         The subagent tier is deliberately not routed through here: it carries a fixed zero in
-        ``_REASONING_OFF`` instead, because what it wants is no thought rather than a short one,
-        and a deployment raising the cortex's budget must not raise a subagent's with it. What
-        this bounds is the length of a think that happens, not whether one does.
+        ``_REASONING_OFF`` instead, because that tier runs with reasoning off rather than
+        shortened, and a deployment raising the cortex's budget must not raise a subagent's with
+        it. This bounds the length of a trace that happens; whether one happens is set per request.
         """
         if budget == _UNRESTRICTED_REASONING:
             return ()
@@ -257,8 +258,8 @@ class ModelHostConfig(BaseSettings):
     def _image_budget(self) -> tuple[str, ...]:
         """The per-image token budget, with the micro-batch a raised budget forces beside it.
 
-        Zero emits nothing at all, so turning the default off restores an argv the engine's own
-        defaults decide, rather than one that names them back at it.
+        Zero emits nothing at all, so turning the default off leaves the engine on its own
+        defaults rather than passing those same values back to it as flags.
         """
         budget = self.cortex_image_max_tokens
         if not budget:

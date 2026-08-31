@@ -76,7 +76,7 @@ describe("usePreferences", () => {
 
   it("never lets a late record overwrite a choice the user already made", async () => {
     // The record arrives a round trip after mount. Picking inside that window and then watching
-    // the pick revert would be the worst kind of bug here: silent, and it undoes a deliberate act.
+    // the pick revert would be a silent bug that undoes a deliberate act.
     const bridge = new FakeBridge();
     bridge.preferences = [
       { key: THEME_KEY, value: "daylight" },

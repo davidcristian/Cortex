@@ -6,9 +6,9 @@ twice: once by the core's suite over `HashEmbedder` and once by the adapter's ow
 and the four checks below are that description, driven over both implementations by
 `test_embedder_contract.py`.
 
-The port needs one condition of the world no method can create, so each fixture supplies it as a
-knob: **the backend cannot answer**. A vector is the only thing `embed` returns, which leaves the
-failure channel invisible to every other check, and it is the channel the port names.
+One condition no method on the port can create is that the backend cannot answer, so each fixture
+supplies it as a knob. `embed` returns nothing but a vector, so no other check here can reach the
+failure channel, and that channel is part of what the port promises.
 """
 
 from collections.abc import Awaitable, Callable, Sequence
@@ -26,10 +26,10 @@ _OTHER = "a fact worth remembering"
 class EmbedderUnderTest:
     """One implementation plus the one way a test may take its backend away.
 
-    `break_backend` makes every later `embed` impossible. A fake has no backend to break, so it
-    satisfies the knob by being scripted to raise what the port owes for a backend that cannot
-    answer, which is the honest widening the vision probe's contract already uses: the check
-    states what an implementation must *do* when it cannot embed, not what went wrong.
+    `break_backend` makes every later `embed` fail. A fake has no backend to break, so it
+    satisfies the knob by being scripted to raise what the port requires for a backend that
+    cannot answer. The vision probe's contract widens the knob the same way, because the check
+    states what an implementation must do when it cannot embed rather than what went wrong.
     """
 
     embedder: Embedder
@@ -55,8 +55,8 @@ async def every_text_embeds_at_one_width(under_test: EmbedderUnderTest) -> None:
     """The width belongs to the deployment's model, never to the text that was embedded.
 
     A query is embedded on one call and compared against vectors embedded on earlier ones, and
-    the comparison zips them strictly. A width that moved with the text would therefore not rank
-    badly, it would raise from inside the store on the first recall that met a shorter memory.
+    the comparison zips them strictly. A width that moved with the text would raise from inside
+    the store on the first recall that met a shorter memory, rather than only ranking badly.
     """
     widths = {
         len(await under_test.embedder.embed(_TEXT)),
@@ -81,7 +81,7 @@ async def the_same_text_embeds_the_same_way(under_test: EmbedderUnderTest) -> No
 async def a_backend_that_cannot_answer_raises_embedder_error(
     under_test: EmbedderUnderTest,
 ) -> None:
-    """The port has one failure channel and every implementation owes it.
+    """A backend that cannot answer raises `EmbedderError`, from every implementation.
 
     Nothing in the core catches an `EmbedderError` today, so what this pins is the *type* a
     caller would have to catch: an adapter letting its transport's own exception through would

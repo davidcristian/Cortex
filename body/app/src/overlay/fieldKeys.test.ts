@@ -15,7 +15,7 @@ describe("chord", () => {
     expect(chord(press({ ctrlKey: true }))).toBe(true);
     expect(chord(press({ metaKey: true }))).toBe(true);
     expect(chord(press())).toBe(false);
-    // Shift is how a `?` is typed, so a chord it is not.
+    // Shift is how a `?` is typed, so it is not a chord.
     expect(chord(press({ key: "?" }))).toBe(false);
   });
 });

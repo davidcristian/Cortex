@@ -1,4 +1,4 @@
-"""Does the judge still win on a corpus that was not built for it? Scored per category.
+"""Score the judge against the cosine per category, on a corpus not built for either.
 
 Integration-marked: excluded from CI and the coverage gate by the workspace addopts
 (`-m "not integration"`). Needs the gpu stack for the cortex and the memory override's CPU
@@ -16,10 +16,10 @@ should win or tie, where a reader can overthink a question the geometry already 
 where the correct answer is no hit at all. **The aggregate is reported last and matters least**:
 a mean over six categories is exactly the shape that hides one policy being worse on one of them.
 
-Three arms. The cosine that ships, the bounded judge on its real `select` path, and a **reversed
-cosine as a control on the scorer itself**: a ranking known to be bad, whose score must collapse.
-A scoring harness nobody has watched fail is not evidence, and the reversed arm is what makes the
-other two numbers mean something.
+Three arms run: the cosine that ships, the bounded judge on its real `select` path, and a
+**reversed cosine as a control on the scorer itself**, which is a ranking known to be bad and
+whose score must collapse. That reversed arm is what shows the scorer can report a bad ranking as
+bad, and without it the other two numbers say nothing.
 
 The pool is the production shape rather than the whole corpus: `MemoryRecaller` over-fetches
 `k * pool_factor` by cosine and the policy ranks that, so a gold note the cosine leaves out of the
@@ -58,7 +58,7 @@ _POOL_FACTOR = 4  # config.recall_pool_factor's default, so the pool is the ship
 
 
 class _Tally:
-    """One arm's score sheet for one category, kept per category because the mean hides."""
+    """One arm's score sheet for one category, kept apart because an aggregate hides a loss."""
 
     def __init__(self) -> None:
         self.answerable = 0
@@ -197,9 +197,9 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
 
         _report(arms, diagnosed)
         # The measurement is the point. These pin that the run measured anything at all: the
-        # control must score far below the cosine (a scorer that cannot fail is not a scorer),
-        # and the judge must have ranked at least some questions itself rather than reporting
-        # its fallback's work as its own.
+        # control must score far below the cosine, which is what shows the scorer can report a
+        # bad ranking as bad, and the judge must have ranked at least some questions itself
+        # rather than reporting its fallback's work as its own.
         assert _mean(arms["reversed (control)"]) < _mean(arms["cosine (ships)"]) / 2
         assert sum(t.fell_back for t in arms["judge (bounded)"].values()) < len(QUESTIONS)
 
@@ -211,7 +211,7 @@ def _mean(tallies: dict[Category, _Tally]) -> float:
 
 
 def _report(arms: dict[str, dict[Category, _Tally]], diagnosed: list[str]) -> None:
-    """Print the per-category sheet, then the aggregate that the per-category sheet outranks."""
+    """Print the per-category sheet, then the aggregate that matters less than it."""
     lines = [
         f"\n\nat k={_K}, pool {_K * _POOL_FACTOR}, {len(QUESTIONS)} questions"
         f" over {len(MEMORIES)} notes"

@@ -68,10 +68,11 @@ async def test_echo_backend_counts_only_user_messages() -> None:
 
 
 async def test_echo_backend_closes_its_reply_by_saying_it_finished() -> None:
-    """Every backend owes the port an answer about why a completion ended, this one included.
+    """The echo backend closes its reply with ``DecodeStop(FINISHED)``, as the port requires of
+    every backend.
 
-    Its answer is truthful rather than fabricated, which is the line between this and the decode
-    cadence it deliberately never reports: the echo ends because its script does, and it honours no
+    That answer is accurate rather than invented, which is what separates it from the decode
+    cadence the echo never reports: the echo ends because its script ends, and it honours no
     bounds, so it can never end any other way (ADR-0005 finish-reason addendum).
     """
     stream = EchoInferenceBackend().stream("cortex", (_message(Role.USER, "hello"),))

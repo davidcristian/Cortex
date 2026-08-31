@@ -1,11 +1,11 @@
 """How much of the outside world one turn may touch: the budget, and what tools cost.
 
-``tool_loop.py`` owns how *long* a loop runs (``MAX_TOOL_STEPS`` rounds); this module owns how
-much it may *spend* doing so. The two are deliberately separate bounds (ADR-0009 budget
-addendum), and the spend side is a currency of its own: a total, a price per tool, and the
-pool they are spent from.
+``tool_loop.py`` owns how long a loop runs (``MAX_TOOL_STEPS`` rounds); this module owns how much
+it may spend doing so. The two are deliberately separate bounds (ADR-0009 budget addendum), and
+the spend side is a currency of its own: a total, a price per tool, and the pool they are spent
+from.
 
-The budget the ADR-0009 budget addendum landed counted *calls*: thirty two filesystem reads and
+The budget the ADR-0009 budget addendum landed counted calls: thirty two filesystem reads and
 thirty two ``spawn_subagents`` batches spent it identically, though only one of those is thirty
 two fan-outs of model runs. The cost addendum makes the unit a price, so one total can charge a
 tool by what running it actually costs, and an unpriced tool still costs one.
@@ -44,9 +44,9 @@ class ToolCostPolicy:
     """Per-tool dispatch prices by advertised tool name, defaulting to ``DEFAULT_TOOL_COST``.
 
     Prices must be positive: a zero or negative cost would make a tool free to call, so the
-    budget would bound nothing on exactly the tool a user cared enough about to configure.
-    That is a silent hole rather than a visible failure, so it is rejected at construction and
-    the composition root's config validation turns it into a boot failure.
+    budget would bound nothing on exactly the tool a user cared enough about to configure, and
+    nothing would report that. It is rejected at construction instead, and the composition root's
+    config validation turns it into a boot failure.
     """
 
     costs: Mapping[str, int] = _NO_COSTS
@@ -72,22 +72,22 @@ UNIFORM_COST = ToolCostPolicy()
 class DispatchBudget:
     """One turn's dispatch allowance, shared by every tool loop that turn runs (ADR-0009).
 
-    The budget started as an ``int`` on ``ToolLoopContext``, which made it per loop *invocation*:
+    The budget started as an ``int`` on ``ToolLoopContext``, which made it per loop invocation:
     a subagent's fresh context started a fresh count, so a turn that delegated spent the total
     once for itself and again for every subagent. This is that counter made an object, so the
-    cortex loop and each spawned subagent can hold the *same* pool and the turn has one answer to
+    cortex loop and each spawned subagent hold the same pool and the turn has one answer to
     "how much of the outside world did this reach?".
 
-    Mutable and shared on purpose, which the rest of the core is not; it is a resource handle,
-    not a value, so it is compared by identity and the ``TurnStamp`` that carries it excludes it
-    from equality. Sharing is safe without a lock because ``charge`` never awaits: a batch of
-    subagents runs concurrently under ``asyncio.gather``, but on one event loop no two charges
-    can interleave.
+    Mutable and shared on purpose, which the rest of the core is not; it is a resource handle
+    rather than a value, so it is compared by identity and the ``TurnStamp`` that carries it
+    excludes it from equality. Sharing is safe without a lock because ``charge`` never awaits: a
+    batch of subagents runs concurrently under ``asyncio.gather``, but on one event loop no two
+    charges can interleave.
 
-    The pool itself is never persisted, but its *position* is: a handoff record carries what is
-    left and whether the pool closed (ADR-0030 decision 2), and ``resume`` rebuilds a pool from
-    that. The allowance bounds one turn's reach across the swap too, so a swap can never refill
-    it (the one hard rule is about not losing state, which includes state that is a limit).
+    The pool itself is never persisted; its position is. A handoff record carries what is left and
+    whether the pool closed (ADR-0030 decision 2), and ``resume`` rebuilds a pool from that. The
+    allowance bounds one turn's reach across the swap too, so a swap can never refill it (the one
+    hard rule is about not losing state, which includes state that is a limit).
     """
 
     def __init__(self, limit: int = MAX_TOOL_DISPATCHES, *, closed: bool = False) -> None:
@@ -99,7 +99,7 @@ class DispatchBudget:
     def resume(cls, *, remaining: int, closed: bool) -> "DispatchBudget":
         """Rebuild a pool at a persisted position: the brain phase after a swap (ADR-0030).
 
-        The new pool's ``limit`` is what was *left*, spending nothing yet, which is the same
+        The new pool's ``limit`` is what was left, spending nothing yet, which is the same
         bound the turn had when it escalated; a pool that had already closed stays closed, so a
         swap cannot hand a runaway turn a fresh allowance. What was already spent is not carried
         as a number because nothing reads it: the refusal the model gets depends only on whether
@@ -125,14 +125,14 @@ class DispatchBudget:
     def charge(self, cost: int) -> bool:
         """Spend ``cost`` if it fits, reporting whether the call it prices may run.
 
-        A call that does not fit **closes** the pool for good rather than being stepped over so
-        cheaper calls trickle through behind it (ADR-0009 cost addendum, now at the turn's
+        A call that does not fit closes the pool for good, rather than being skipped so that
+        cheaper calls behind it still get through (ADR-0009 cost addendum, now at the turn's
         scale). Two reasons, both of which get stronger once subagents share the pool: the
         refusal the model reads tells it to stop calling tools entirely, which a pool that kept
-        admitting small calls would make a lie; and the turn's spend would otherwise depend on
+        admitting small calls would contradict; and the turn's spend would otherwise depend on
         the order the model emitted its calls in, and on which of a concurrent batch of
-        subagents happened to charge first. A refused call is charged nothing: closure, not the
-        arithmetic, is what makes the refusal stick.
+        subagents happened to charge first. A refused call is charged nothing, so what makes the
+        refusal stick is the closure rather than the arithmetic.
         """
         if self._closed or self._spent + cost > self._limit:
             self._closed = True

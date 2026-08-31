@@ -17,15 +17,14 @@ reader cannot tell `RECAP_MAX_TOKENS` running out from a model that wrote a list
 fixes: one raises the cap, the other rewrites the instruction. Both are silent and both self-heal
 next turn, so nothing accumulates for a reader to compare either.
 
-The cost is a signature change, and it is why this was declined rather than folded in.
-`drain_text` returns a `str` and its three callers want exactly that (the session title, the
-recap fold, and the rerank judge); carrying a stop out of it means
-a small result value or an out parameter, and then the session title and the rerank judge either
-grow a field they ignore or the helper grows a second shape. The cheapest honest version is a
-`StopLedger` threaded into `drain_text` the way the delegated attempt threads one into
-`stream_tool_loop`, so the caller that wants the reason passes one and the two that do not are
-unchanged, and `SummarizingHistoryWindow` names the cut in its existing warning rather than
-returning anything new.
+The cost is a signature change, and it is why this was declined rather than folded in. `drain_text`
+returns a `str` and its three callers want exactly that (the session title, the recap fold, and the
+rerank judge); carrying a stop out of it means a small result value or an out parameter, and then
+the session title and the rerank judge either grow a field they ignore or the helper grows a second
+shape. The cheapest accurate version is a `StopLedger` threaded into `drain_text` the way the
+delegated attempt threads one into `stream_tool_loop`, so the caller that wants the reason passes
+one and the two that do not are unchanged, and `SummarizingHistoryWindow` names the cut in its
+existing warning rather than returning anything new.
 
 ## Trail
 
@@ -36,7 +35,7 @@ returning anything new.
   `stream_tool_loop` already uses, so the two callers that want a bare string are byte-identical
   and the return type never changed. The warning gained `capped`, which is the only reading that
   separates a fold the token budget cut from one the model ended in the wrong shape, those being
-  the two cases that produce identical text and want opposite fixes. The free half the entry
+  the two cases that produce identical text and need opposite fixes. The free half the entry
   missed: `chars`, the account's length, splits the other two rejection causes with no signature
   at all, `0` being a model that said nothing and a number past `RECAP_MAX` one that ran further
   than the store will hold. It is measured through a new `collapse_recap` that `clean_recap` now

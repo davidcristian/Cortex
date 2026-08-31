@@ -14,7 +14,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   control eases for its own hover: left alone the swap was a ragged 20 frames, most text taking the
   new value at once, the pin, pencil, trash and tab labels crossing at 0.16s to 0.35s behind it, and
   the chat title and the reminder lines (the two things that INHERIT the ground's colour instead of
-  setting their own) following a 0.4s ease on the ground. Two things are load-bearing: the attribute
+  setting their own) following a 0.4s ease on the ground. Two details decide whether it works: the attribute
   goes on BEFORE the tokens, since a transition is started from the after-change style, and it comes
   off on a timer rather than a flush, since taking it off in the same task leaves nothing to ease.
   The duration lives in `THEME_SWAP_MS` and is written to the root as `--theme-swap` for the
@@ -193,7 +193,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   a privacy indicator and under-reporting is the dangerous one, and the two are not symmetric
   brain-side either: a capture that failed *after* the shutter fired, where the pixels really did
   leave the display and the body really did show its own receipt, is indistinguishable from one
-  that never happened. So `"asked"` remains what a capture the host refused
+  that never happened. So `"asked"` remains what a capture the host rejected
   (`CORTEX_HOST_CAPTURE` unset is the shipping default), one whose self-exclusion failed closed,
   one the body never answered, and a gated one the user declined all leave on screen. Visually
   the ring only ever gains: `"asked"` is the open ring unchanged, and `"read"` grows a 2.5px
@@ -206,7 +206,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   plus the overlay's own `unknown` before anything is asked) and `probing` is the overlay's own
   fact, kept separate so a probe never overwrites what was last true. `describeLink` renders the
   pair as `{ tone, busy, label }`, keeping the last known colour while a probe is out (a
-  reconnect neither flashes green nor forgets it was red) and refusing to look busy for the
+  reconnect neither flashes green nor forgets it was red) and not reporting busy for the
   routine probe on an already-ready link. Three sources keep it current, and **none is a
   liveness timer**: the reducer folds every `TurnEvent` as proof of serving and every
   `transportError` through the same classification `body_core::link` uses (`connection` and
@@ -215,8 +215,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   and it re-probes every `LINK_RECHECK_MS` (5 s) **only while the overlay is visible and the
   link is not ready**, stopping the moment it answers ready. The re-check is an interval keyed
   on "visible and unhealthy" rather than a timer re-armed per answer, because a probe answering
-  inside one React batch never renders the in-flight flip and would silently end the recovery
-  after one retry; an in-flight ref keeps a slow probe from overlapping a tick. A **rejected**
+  inside one React batch never renders the in-flight flip and would end the recovery after one
+  retry with nothing to report that it had stopped; an in-flight ref keeps a slow probe from overlapping a tick. A **rejected**
   probe (the IPC itself, not the brain) leaves the last known state and only clears `probing`.
 - **Where both indicators sit** (`components/ChatView.tsx` + the `.head` block of
   `src/overlay.css`, 2026-07-20). The chat header is title, then the link dot and the capture
@@ -236,7 +236,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   at a narrow panel the title ellipsises and the buttons keep their 30px (checked at a 368px and
   a 294px panel). What is left once the title has shrunk away is a fixed chain: 14px of inset, four
   30px buttons, six 10px gaps, the 7px dot, the 7px ring while a capture is lit, and the header's
-  32px of padding, so with the ring showing the row wants a 240px panel. Under that (a viewport
+  32px of padding, so with the ring showing the row needs a 240px panel. Under that (a viewport
   below 261px, since the panel is `min(560px, 92vw)`) the cluster starts spending the right
   padding: measured at a 239px panel, the last button sits 14.2px from the edge instead of 17px.
   The body's overlay window is 640px wide and gives a 560px panel, so no window it opens reaches
@@ -313,18 +313,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   polite region, `role="status"` at the overlay's ROOT rather
   than in the panel, because a dismissed panel is `inert` and the cycle keys are global, so a press
   can open the panel and swap the chat in one commit and a region inside it would enter the
-  accessibility tree with the words it wants read. `overlay/notice.ts` holds **everything the region
+  accessibility tree with the words it would have read. `overlay/notice.ts` holds **everything the region
   may carry**: `speak` counts the announcements and joins what it was given, and `arrived`,
   `chatDeleted`, `reminderDismissed` and `switcherOpened` build the sentences, so the question of
   what may go in the region has one file for an answer. `OverlayState.notice` is `{ text, count }` and `Announcer`
   renders the text as given rather than composing a prefix.
   **A swap** is announced by the gesture rather than by the transition, so `openSession` and
-  `newChat` carry an `announce` flag set at the door: one arm serves a switcher row and a cycle key
-  both. Speaking are the cycle keys, `Ctrl+N`, a reminder card's open control, and the fresh chat
+  `newChat` carry an `announce` flag set by the gesture that dispatched them: one arm serves a
+  switcher row and a cycle key both. Speaking are the cycle keys, `Ctrl+N`, a reminder card's open control, and the fresh chat
   that replaces a deleted one, none of whose gestures name a chat; silent are a switcher row and the
   header's pencil, each already labelled with the arriving title, and cold-start adoption, which
   answers no gesture and cannot land over something said (it runs only while `touched` is false). A
-  silent door CLEARS the notice, a removal not being announced under the default `aria-relevant`.
+  silent gesture CLEARS the notice, a removal not being announced under the default
+  `aria-relevant`.
   **A list that shrank** is announced by either of the overlay's two lists, with no flag, because a
   row leaving is destroyed rather than merely unspoken: it is out of the tree by the time the caret
   lands, and the reader's gesture is a request rather than an outcome (a failed delete leaves the
@@ -337,12 +338,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   string, and `RECENT_CHATS` the same way for the header control, the list's own label and the
   sentence below.
   **A list the reader OPENED** says what it holds (`Recent chats open. 3 chats.`, and the empty
-  line's own words when it holds none), carried by `chromeState.ts`'s toggle arm with the door
+  line's own words when it holds none), carried by `chromeState.ts`'s toggle arm with the gesture
   deciding as a swap's does: `Ctrl+K` speaks, the header's chats button does not, since it carries
   `aria-expanded` under the caret that pressed it. It is the CONTENTS and not the toggle, so the
   closing direction has no mirror: a close is answered by the caret landing on that same button
   (`overlay/sectionCaret.ts`), and what an opening reader wants is the one fact walking cannot give
-  them, the empty line not being a tab stop at all. The arm has no silent door left: it stood the
+  them, the empty line not being a tab stop at all. The arm has no silent gesture left: it stood the
   sentence down while the chat was not the view on screen, and since 2026-08-07 it cannot open a
   list there at all, the key landing on the chat first (the console bullet below carries the rule).
   The notice carries a count that keys the region's child, since a live
@@ -351,13 +352,14 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 - **A chat arriving on the panel takes the caret with it** (`OverlayState.arrival` +
   `components/Composer.tsx`, ADR-0035 addendum, 2026-08-06). Every gesture that replaces the
   conversation puts focus in the composer, which is where a summon already puts it, so the reader is
-  left in the conversation that arrived. Before it, three doors sat inside sections the swap takes
-  away (a switcher row, a reminder card's open control, a delete confirm) and the pressed control
+  left in the conversation that arrived. Before it, three of those controls sat inside sections the
+  swap takes away (a switcher row, a reminder card's open control, a delete confirm) and the pressed control
   simply stopped existing, focus falling to `<body>`; so did any global key pressed while focus was
   inside the switcher. `arrival` is a count each swap arm raises, and the composer's `arrival` prop
   is that count while the chat is the view on screen and null otherwise, the field taking focus on
   every change to it. **Unlike the notice above, no flag travels with the action**: that rule is
-  about the gesture and this one about the transition, so each arm answers for all of its own doors.
+  about the gesture and this one about the transition, so each arm answers for every gesture that
+  reaches it.
   It is a count rather than the session id because re-selecting the open chat is still an arrival and
   still takes its row away; cold-start adoption is excluded by being its own arm, and would be moving
   focus inside an `inert` panel besides. What it does NOT reach is a row gesture that swaps nothing,
@@ -377,8 +379,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   and a swap has to be synchronous, which also leaves it one hydrate from a store if that ever
   changes. **An empty field is stored as nothing**, which is the whole of the eviction policy: only
   chats with a sentence waiting in them hold an entry. **Sending a text empties the field that held
-  it**, asked of the text rather than of the door, so the composer's own send spends the draft and an
-  example prompt on the empty state does not. A send the reducer refuses spends nothing. **Typing
+  it**, asked of the text rather than of the control that sent it, so the composer's own send spends the draft and an
+  example prompt on the empty state does not. A send the reducer rejects spends nothing. **Typing
   sets `touched`**, which that flag has always documented and could not do until a keystroke reached
   the reducer, so a cold-start adoption can no longer replace the conversation a half-typed line was
   written in. The caret lands at the END of a restored draft, the field's own answer to having its
@@ -423,7 +425,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   **And the hold is silent by decision** (ADR-0035 addendum, 2026-08-07), which is why nothing here
   writes to the live region: the branch is reached by every chord, not by the four the overlay binds,
   and measured, seven of nine presses through it do something in the field anyway (`Ctrl+Z` undoes
-  the whole edit), so a sentence raised here would be false at most of its doors. Nothing a hold
+  the whole edit), so a sentence raised here would be false for most of the presses that reach it.
+  Nothing a hold
   touches is destroyed either, the input's name, value and selection reading identically across the
   press, which is the test the region's contract sets.
 - **A section the reader closes hands the caret to its anchor** (`overlay/sectionCaret.ts` +
@@ -437,7 +440,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   emptied case, so a list that runs out of rows and a list that closes land in one place: the chats
   button for the switcher, the composer's field for a section whose work is over. **It stands down
   when `arrival` changed in the same commit**, which is most of the ways the switcher closes (seven
-  of its thirteen doors are chat swaps), stated in code rather than left to the composer's passive
+  of its thirteen closing gestures are chat swaps), stated in code rather than left to the composer's passive
   effect winning a race a screen reader could hear. `useSectionCaret(section, anchor, open, arrival)`
   fires on the true-to-false edge at the commit, the rows being mounted for their roll; `handOff` is
   the same move told at a gesture instead, for the empty state's example chips, whose section is
@@ -455,7 +458,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   already landed is a bigger overshoot than the step it removes. It renders BELOW the rows so the
   first `data-morphing` in the tree during those 300ms is the leaving row's, which is the target the
   panel's ride-along should read. `useTravel` is the reorder half: a hook over a ref and a selector
-  (so the next list to want it wires it in one line) that reads each row's `offsetTop`, lets the
+  (so the next list to need it wires it in one line) that reads each row's `offsetTop`, lets the
   commit place it, and hands the difference back as a `translateY` decaying to nothing over
   `MORPH_ROLL_MS` and `EASING`. Rows are remembered by element rather than by key, since React moves
   the node a keyed row owns; travels are `composite: "add"` so an interrupted one composes instead of
@@ -563,7 +566,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   state is a reading as React attaches it plus a `ResizeObserver` after it, because a reading taken
   in the commit frame alone catches it at 183px before the system font stack resolves and 185px
   after; a chip is one reading, being unable to appear before the user has typed and able to appear
-  twice at once (a tool and a status), which one watch could not hold honestly. Neither can feed itself (`.log.bare`'s own `min-height: 0` outranks the floor while
+  twice at once (a tool and a status), which one watch could not represent. Neither can feed itself (`.log.bare`'s own `min-height: 0` outranks the floor while
   the empty state is up, and the disclosure is never on screen beside the chip), and an element with
   no layout publishes nothing, so the values declared on `:root` stand as fallbacks.
   The rules: a
@@ -648,8 +651,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   emptying or swapping it behind a standing console (those two keys are the whole reachable
   surface, the pencil and
   the switcher rows being under the console); a summon clears it too, and a
-  dismiss deliberately does not, the panel fading out wearing what it had on. **The `?` key is the
-  third door onto `toggleConsole` and the only one that can be pressed off the chat**, so since
+  dismiss deliberately does not, the panel fading out with the tab it had open. **The `?` key is the
+  third control that reaches `toggleConsole`, and the only one that can be pressed off the chat**, so since
   2026-08-07 that arm lands on the chat as the swap arms do and asks the SCREEN whether the tab is
   already up (`mode === "panel" && consoleTab === tab`) instead of asking the flag; `Ctrl+K` does
   the same for the switcher, and off the chat both OPEN rather than toggle, a reader who cannot
@@ -669,7 +672,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   from `display: none`, which would drop focus to the body), and the chat takes it back into the
   composer, whose `arrival` prop is the arrival count while "the panel is open AND no console tab is
   up" and null otherwise, so a return from the console is the same landing a swap is. That is not
-  decoration: a browser refuses to hide the focused element's ancestor from assistive tech, so
+  decoration: a browser does not hide the focused element's ancestor from assistive tech, so
   without the handoff the `aria-hidden` on the pane being left is ignored and the tab just left
   stays in the tree as a second, equal console.
   **The strip is a full tab list from the keyboard** (ADR-0035 addendum, 2026-08-03). It is ONE stop
@@ -700,9 +703,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   it, and 58px of saving comes back as 29px of lost panel (measured 185 to 127 of content against
   101 to 72 of history). A log with any message in it keeps every one of the old rules: it is
   bottom-aligned, so a reply arrives against the composer, and it scrolls.
-  One more thing is load-bearing and looks like styling: the example chips are held to one row
+  One more thing decides the layout and looks like styling: the example chips are held to one row
   (`flex-wrap: nowrap`, shrinking to an ellipsis) because they are the only part of the invitation
-  whose height depends on the panel's width, and everything sized against that height wants it to be
+  whose height depends on the panel's width, and everything sized against that height needs it to be
   one number. `Panel.test.tsx` pins what the stylesheet cannot defend: the structure (the empty
   state and the bubbles both inside `.log`) and which of the two the class says it is.
 - **A log with messages in it stands on the empty state it replaced** (`components/ChatView.tsx` +
@@ -724,7 +727,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   approved is what runs (a malformed one falls back to the raw string). `formatDraftValue`
   renders one value: a string is untouched, so newlines stay newlines; an object or array becomes
   indented `key: value` lines, which is what lets an attachment's content read as a file instead
-  of as escaped JSON. It knows JSON shapes and never a tool's schema. The draft block caps at
+  of as escaped JSON. It reads JSON shapes and never a tool's schema. The draft block caps at
   `42vh` and scrolls, so a long draft cannot push Approve and Deny out of view.
 - **The whispered reply** (`components/WhisperBubble.tsx` + `whisper/`, ADR-0037): an assistant
   bubble streams by condensation. `whisper/front.ts` is the pure half (the front position with
@@ -790,7 +793,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   (`connection` | `rpc` | `protocol` | `timeout`, the TS `TransportErrorKind`), which the
   reducer classifies into the link exactly as `body_core::link` classifies a probe's failure. The
   eagerly dialed client is handed to a `RetryingTransport` before the turn runs on it (ADR-0024
-  idle-gap addendum): that decorator refuses to retry a turn exactly as the plan says, so the one
+  idle-gap addendum): that decorator does not retry a turn, exactly as the plan says, so the one
   thing wrapping buys is the bound on the stream's **silence**, which turns a brain that accepts
   the turn and then stops sending into a reported `timeout` instead of a reply that streams for as
   long as the process lives. One `RetryPlan` is read for the dial's deadline and the stream's gaps
@@ -924,7 +927,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   fourth such place spreads the same call or it is a defect: `aria-hidden` alone leaves the subtree
   in the tab order, and CSS that takes it out (`visibility: hidden`, `display: none`) arrives after
   the fade rather than with the state change, which is the window every one of these was reachable
-  in. The `inert=""` string form is deliberate and load-bearing: React 18 writes a string attribute
+  in. The `inert=""` string form is deliberate and necessary: React 18 writes a string attribute
   straight through and drops a boolean one with a warning, so the empty string is how this tree
   spells a present boolean attribute until it moves to React 19
   ([ADR-0035](../adr/ADR-0035-console-and-motion.md), 2026-08-03 addendum, has the probe).
@@ -1012,7 +1015,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   element into view is when it does. Coming back from the console the field is below the panel's
   clipped edge for the length of the ease, so `panel.scrollTop` went 0 to 139 in the frame focus
   landed and unwound over the ease, lurching every row in the window. `focus({ preventScroll: true })`
-  is the fix, and anything else in here that takes focus while the panel is mid-move wants the same.
+  is the fix, and anything else in here that takes focus while the panel is mid-move needs the same.
 - **The composer tells the chat when the pill resizes, because the log pays for it.** They are flex
   siblings and the log is the one that yields, so a draft that restacks or wraps takes that height
   straight out of the visible window (52px, and 122px at the field's ceiling, measured at 640x720).
@@ -1051,7 +1054,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   compensated by 76px in one frame before walking the compensation back over the roll
   ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 15 has the traces; the one service it
   had been performing, easing the log down as a trace above the window closes, is the ride's now).
-  A future scroll container that holds rolling content wants the same line, or its own reason not
+  A future scroll container that holds rolling content needs the same line, or its own reason not
   to.
 - The shell stays thin. Every branchy decision (accelerator mapping, seam translation) lives in
   the gated `body_core` / `body_rpc`; the app holds wiring only, which is what keeps the coverage

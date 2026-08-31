@@ -1,14 +1,14 @@
 """Every roster this repo has written down, as one tuple.
 
-A **roster** is a list of names a document keeps for a set that really exists in the tree. It is
-prose with a purpose: each entry says what its member proves or is for, and that sentence is the
-reason the list is written by hand and must go on being written by hand. What is held here is the
-narrower claim underneath the prose, that the names are the set: every member named, and every
-name a member. The sentences are free.
+A **roster** is a list of names a document keeps for a set that really exists in the tree. Each
+entry carries a sentence saying what its member proves or is for, which is why the list is written
+by hand. What is held here is the narrower claim underneath those sentences: every member is named,
+and every name is a member. The ADR-0003 live-roster addendum and the ADR-0029 roster addenda argue
+the rule.
 
-`rostercheck.py` is all of the logic and this is all of the data, the split `crosscheck.py` and
-its registry already use. A roster arrives as one entry below plus, when its set is a new kind, a
-reader in `rostermembers.py`; the scan never learns which document or which shape it is reading.
+`rostercheck.py` holds the logic and this module holds the data, the same split `crosscheck.py`
+makes with its registry. A roster arrives as one entry below plus, when its set is a new kind, a
+reader in `rostermembers.py`; the scan is never told which document or which shape it is reading.
 
 What an entry declares:
 
@@ -16,26 +16,18 @@ What an entry declares:
 - **document**, the page it is written on;
 - **opens** and **closes**, the two phrases bounding the passage it occupies. Neither may be a
   member's name, or the roster would be its own far side;
-- **written**, how a name is spelled in that passage, bulleted, in a code span matching a pattern,
+- **written**, the form a name takes in that passage: bulleted, in a code span matching a pattern,
   or bare;
-- **subject**, what a member IS, as a fault should name it;
+- **subject**, what a member is, as a fault should name it;
 - **why**, the reason the two sides must agree, printed with any fault, exactly as a registered
   constant prints why its places must;
 - **members**, the reader answering for the real set;
 - **refers_to**, optional, a set whose names this passage may carry without them being its
-  members. One paragraph holding two rosters names the members of each, and it also refers to the
-  siblings: the sentence about the modules with no CLI says whose reader each one is, and the name
-  it says it with belongs to the other half. A name claimed by the sibling is a reference here
-  rather than an entry, and every other name is still held both ways, so a module that gains a
-  command line and stays in the second sentence is a red in the first for being a member nobody
-  named.
-
-Every roster here was written by hand and held by nothing, and the first of them was found
-describing a suite that had moved on twice: it opened by saying two checks and then described
-four, while the file carried seven, through several passes that each added a check and left the
-sentence alone. The other two were current on the day this landed and had been kept that way by
-hand, and they were already in different orders, which is harmless in itself and is also the
-evidence that nobody was comparing them to anything.
+  members. One paragraph holds two rosters: the sentence about the modules with no CLI says whose
+  reader each one is, and the name it says it with belongs to the other half. A name claimed by
+  the sibling is a reference here rather than an entry, and every other name is still held both
+  ways, so a module that gains a command line and stays in the second sentence is reported by the
+  first as a member nobody named.
 """
 
 import re
@@ -46,7 +38,7 @@ from typing import NamedTuple
 import rostermembers
 from rosternames import Bare, Bulleted, Spelled, Written
 
-# How a member is spelled where a roster runs as a sentence rather than as a list. A module is a
+# How a member is written where a roster runs as a sentence rather than as a list. A module is a
 # bare file name, so a code span carrying a path or a flag beside one is not a member; a part is
 # the tuple name the registry joins, which no other code span in that passage is shaped like.
 MODULE = re.compile(r"[a-z_]+\.py")
@@ -56,11 +48,10 @@ PART = re.compile(r"[A-Z][A-Z_]*_COUPLINGS")
 # rosters, closing the one over the modules a shell can run and opening the one over the rest.
 NO_CLI = "**The rest have no CLI of their own**"
 
-# Why the same three sentences are written down three times below. The list of cross-tree scans is
-# spelled in more places than any other set here, and the copies are not one kind of thing: four of
-# them carry a tally or a run of descriptions and are left alone, since a document's numbers are its
-# own business and a roster written in descriptions has no names to hold. These three spell the
-# names, and one of them was found short two scans while this was being registered.
+# The reason shared by the three entries below that hold the list of cross-tree scans. That list is
+# written in more places than any other set here, and the other four copies carry a tally or a run
+# of descriptions rather than names, so they are left alone: a document's numbers are its own
+# business, and a roster written in descriptions has no names to compare.
 SCANS = (
     "a reader learns from this list which gates run on every change, and a scan missing from it "
     "is a gate they do not know exists"

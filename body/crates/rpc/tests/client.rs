@@ -1,12 +1,11 @@
-//! Contract tests for `BrainSeamClient`: a scripted in-process fake serves
-//! the generated `BrainService` on loopback (port 0 with no network beyond
-//! 127.0.0.1, CI-safe) and the adapter's mappings are asserted end to end:
-//! healthy round-trip, brain-reported gRPC status → `TransportError::Rpc`,
-//! and every way the brain can be unreachable (bad address, refused dial,
-//! brain death after a successful connect) → `TransportError::Connection`.
-//! Two of them spend real time on purpose, because a clock is what they are
-//! about: the per-attempt deadline ending a brain that never answers, and what
-//! tonic's *own* expired request timeout classifies as (ADR-0024).
+//! Contract tests for `BrainSeamClient`: a scripted in-process fake serves the generated
+//! `BrainService` on loopback (port 0, with no network beyond 127.0.0.1, so CI can run it) and
+//! the adapter's mappings are asserted end to end. A healthy round-trip, a brain-reported gRPC
+//! status mapping to `TransportError::Rpc`, and every way the brain can be unreachable (a bad
+//! address, a refused dial, the brain dying after a successful connect) mapping to
+//! `TransportError::Connection`. Two checks spend real time on purpose, because a clock is what
+//! they are about: the per-attempt deadline ending a brain that never answers, and how tonic's
+//! own expired request timeout is classified (ADR-0024).
 
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -44,9 +43,9 @@ enum Script {
     Ready,
     /// `Health` fails with a gRPC `Internal` status.
     Failing,
-    /// `Health` never answers: the connection is accepted and the call hangs forever. The one
-    /// failure no status can report, and the reason the seam has a deadline (ADR-0024 deadline
-    /// addendum).
+    /// `Health` never answers: the connection is accepted and the call hangs forever. This is
+    /// the failure no status can report, and the reason the seam has a deadline (ADR-0024
+    /// deadline addendum).
     Hanging,
     /// `Health` fails `DEADLINE_EXCEEDED`: the brain gave up on the call itself, which is what
     /// the announced `grpc-timeout` invites it to do (ADR-0024 courtesy-header addendum).
@@ -79,9 +78,9 @@ struct FakeBrain {
     /// the wire, the empty clearing value included (the reply is a bare ack).
     preference_writes: Arc<Mutex<Vec<(String, String)>>>,
     /// Records the `grpc-timeout` metadata of every call the fake serves, `None` for a call that
-    /// carried none. The courtesy deadline is a *header* and nothing in a reply echoes it, so
-    /// this is the only place a test can read what the body actually announced (ADR-0024
-    /// courtesy-header addendum).
+    /// carried none. The courtesy deadline is a header and nothing in a reply echoes it, so this
+    /// is the only place a test can read what the body announced (ADR-0024 courtesy-header
+    /// addendum).
     timeouts: Arc<Mutex<Vec<Option<String>>>>,
 }
 
@@ -450,8 +449,8 @@ async fn connection_refused_maps_to_the_connection_variant() {
     let TransportError::Connection(message) = error else {
         panic!("expected the connection variant, got: {error:?}");
     };
-    // The folded source chain must name the actual cause, not just tonic's
-    // opaque "transport error" wrapper.
+    // The folded source chain must name the root cause rather than only tonic's opaque
+    // "transport error" wrapper.
     assert!(
         message.contains("refused") || message.contains("os error"),
         "message should name the root cause, got: {message}"
@@ -460,10 +459,10 @@ async fn connection_refused_maps_to_the_connection_variant() {
 
 #[tokio::test]
 async fn brain_death_after_connect_maps_to_the_connection_variant() {
-    // The taxonomy's most common runtime failure: the brain dies AFTER the
-    // channel connected. tonic surfaces that as a locally-synthesized status;
-    // the adapter must report it as Connection ("cannot reach the brain"),
-    // never as a brain-reported Rpc error.
+    // The most common runtime failure in the taxonomy: the brain dies after the channel
+    // connected. tonic surfaces that as a locally-synthesized status, and the adapter reports it
+    // as Connection, meaning the brain could not be reached, rather than as a brain-reported Rpc
+    // error.
     let (addr, shutdown, server) = spawn_stoppable_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
@@ -767,8 +766,8 @@ async fn ack_reminder_reports_what_the_brain_cleared() {
         .await
         .unwrap();
     assert!(client.ack_reminder("r1").await.unwrap()); // the id crossed the wire
-    // Nothing to clear is a `false` answer, not an error: the overlay dismissing a
-    // reminder the brain already dropped is a no-op, not a failure to report.
+    // Nothing to clear answers `false` rather than failing: the overlay dismissing a reminder
+    // the brain already dropped is a no-op.
     assert!(!client.ack_reminder("r-gone").await.unwrap());
 }
 
@@ -798,8 +797,8 @@ async fn seam_token_round_trips_when_the_brain_requires_it() {
             .await
             .unwrap();
     assert!(client.health().await.unwrap().ready);
-    // The client's Debug never carries the secret (tonic prints the
-    // interceptor by type name; the interceptor itself has no Debug).
+    // The client's Debug never carries the secret: tonic prints the interceptor by type name,
+    // and the interceptor itself has no Debug.
     let debugged = format!("{client:?}");
     assert!(debugged.contains("BrainSeamClient"));
     assert!(!debugged.contains("sekrit-seam-token"));
@@ -967,8 +966,8 @@ async fn preference_store_failures_map_to_the_rpc_variant() {
 }
 
 /// The real `Sleeper` over `tokio::time`, as the shell composes it. Repeated here because the
-/// shell is un-gated and this suite cannot import it: what the check below needs is a *real*
-/// clock, since the point is that a genuine gRPC call which never answers is ended by one.
+/// shell is un-gated and this suite cannot import it. The check below needs a real clock, since
+/// what it asserts is that a genuine gRPC call which never answers is ended by one.
 struct RealSleeper;
 
 impl Sleeper for RealSleeper {
@@ -987,14 +986,14 @@ impl Sleeper for RealSleeper {
 
 #[tokio::test]
 async fn a_brain_that_accepts_the_call_and_never_answers_is_ended_by_the_deadline() {
-    // The whole point of the deadline, over a real gRPC call rather than a fake transport: the
-    // fake brain accepts the connection and its `Health` never returns, which is the one
-    // failure no status can report and the case every retry knob was blind to. The plan's
-    // probe deadline ends it, the caller gets a `Timeout` naming that deadline, and the
-    // indicator therefore draws `Down` rather than waiting forever behind its in-flight latch.
+    // What the deadline exists for, over a real gRPC call rather than a fake transport: the
+    // fake brain accepts the connection and its `Health` never returns, which is the failure no
+    // status can report and the case no retry knob covered. The plan's probe deadline ends it,
+    // the caller gets a `Timeout` naming that deadline, and the indicator therefore draws `Down`
+    // rather than waiting forever behind its in-flight latch.
     //
-    // The deadline is deliberately short (120 ms) because this is the one check here that
-    // spends real time; a real clock is the point, so it cannot be faked away.
+    // The deadline is short (120 ms) because this is one of the two checks here that spend real
+    // time, and a real clock is what it measures, so it cannot be faked away.
     let addr = spawn_fake_brain(FakeBrain::new(Script::Hanging))
         .await
         .expect("fake brain should bind a loopback port");
@@ -1013,9 +1012,9 @@ async fn a_brain_that_accepts_the_call_and_never_answers_is_ended_by_the_deadlin
         transport.health().await.unwrap_err(),
         TransportError::Timeout { after: deadline }
     );
-    // And the classification the overlay renders from it: nothing answered, so `Down`, with
-    // the deadline in the detail. A status-shaped timeout would have drawn `Degraded` here,
-    // claiming the brain replied, which is the failure this design exists to avoid.
+    // And the classification the overlay renders from it: nothing answered, so `Down`, with the
+    // deadline in the detail. A status-shaped timeout would have drawn `Degraded` here, claiming
+    // the brain replied, which is what this design avoids.
     let status = probe_link(&transport).await;
     assert_eq!(status.state, LinkState::Down);
     assert_eq!(status.detail, format!("no reply within {deadline:?}"));
@@ -1023,20 +1022,20 @@ async fn a_brain_that_accepts_the_call_and_never_answers_is_ended_by_the_deadlin
 
 #[tokio::test]
 async fn tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure() {
-    // This check exists because the record once said the opposite, and said it from a reading
-    // of tonic rather than a run of it. The deadline decision (ADR-0024) first recorded that an
-    // expired client-side timeout arrives as a *sourceless* `Status::cancelled`, so
-    // `status_to_error` would call it `Rpc` and the indicator would claim the brain answered.
-    // The read stopped one frame early: `find_status_in_source_chain` does mint the cancelled
-    // status without a source, and its caller then attaches the originating
-    // `tonic::transport::Error` to it, so what actually arrives carries a transport source.
+    // This check exists because the record once said the opposite, from a reading of tonic
+    // rather than a run of it. The deadline decision (ADR-0024) first recorded that an expired
+    // client-side timeout arrives as a sourceless `Status::cancelled`, so `status_to_error`
+    // would call it `Rpc` and the indicator would claim the brain answered. That reading stopped
+    // one frame early: `find_status_in_source_chain` does create the cancelled status without a
+    // source, and its caller then attaches the originating `tonic::transport::Error` to it, so
+    // what arrives carries a transport source.
     //
-    // What that means is the hazard this pins. The classification is accidentally honest
-    // (`Connection`, drawn `Down`, since nothing answered), but `Connection` is in the
-    // retryable set, so a deadline armed on the transport would be *retried*: the load
-    // amplifier the same decision rules out, reached through a back door. Nothing in the tree
-    // arms a tonic timer today, so this is the gate that answers the next person who considers
-    // it. If a tonic upgrade changes any of it, this reddens and the answer gets re-derived.
+    // The hazard that creates is what this pins. The classification is correct by accident
+    // (`Connection`, drawn `Down`, since nothing answered), but `Connection` is in the retryable
+    // set, so a deadline armed on the transport would be retried, which is the load
+    // amplification the same decision rules out. Nothing in the tree arms a tonic timer today,
+    // so this check is the answer to the next person who considers it. If a tonic upgrade
+    // changes any of it, this fails and the answer gets re-derived.
     let addr = spawn_fake_brain(FakeBrain::new(Script::Hanging))
         .await
         .expect("fake brain should bind a loopback port");
@@ -1044,19 +1043,19 @@ async fn tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure
         .await
         .expect("the fake brain accepts connections; it just never answers");
     let mut request = Request::new(HealthRequest {});
-    // Real time, deliberately little of it: an armed clock is the whole point, 60 ms is enough
-    // of one, and the hanging brain cannot beat it by answering early.
+    // Real time, and little of it: an armed clock is what this measures, 60 ms is enough of
+    // one, and the hanging brain cannot beat it by answering early.
     request.set_timeout(Duration::from_millis(60));
     let status = raw
         .health(request)
         .await
         .expect_err("a brain that never answers cannot beat the timeout");
 
-    // The half the original reading got right, kept so the correction is legible here too.
+    // The half of the original reading that was right, kept so the correction is legible here.
     assert_eq!(status.code(), tonic::Code::Cancelled);
     assert_eq!(status.message(), "Timeout expired");
 
-    // The half it got wrong, which is the reason for the test.
+    // The half it got wrong, which is why this test exists.
     let error = body_rpc::status_to_error(&status);
     let TransportError::Connection(message) = &error else {
         panic!("tonic's own expiry should carry a transport source, got: {error:?}");
@@ -1077,10 +1076,10 @@ async fn tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure
 #[tokio::test]
 async fn an_announcing_client_tells_the_brain_each_call_s_own_deadline() {
     // The courtesy header on the wire (ADR-0024 courtesy-header addendum), read back off the
-    // request the fake brain actually received, because nothing in a reply echoes it. Two calls,
-    // because the value is PER METHOD: a probe and a read are bounded differently, and a client
-    // that announced one blanket number would tell the brain to keep working on an abandoned
-    // probe for twenty times its deadline.
+    // request the fake brain received, because nothing in a reply echoes it. Two calls, because
+    // the value is per method: a probe and a read are bounded differently, and a client that
+    // announced one number for both would tell the brain to keep working on an abandoned probe
+    // for twenty times its deadline.
     let fake = FakeBrain::new(Script::Ready);
     let announced = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();
@@ -1107,8 +1106,8 @@ async fn an_announcing_client_tells_the_brain_each_call_s_own_deadline() {
                 .unwrap(),
         ]
     );
-    // And what the brain heard is longer than what the body is actually holding it to, which is
-    // the whole ordering: the announcement arms tonic's clock too, and that clock must lose.
+    // And what the brain heard is longer than what the body holds it to, which is the ordering
+    // this rests on: the announcement arms tonic's clock too, and that clock must expire second.
     for (heard, enforced) in heard.iter().zip([
         plan.deadline_for(SeamMethod::Health).unwrap(),
         plan.deadline_for(SeamMethod::ListSessions).unwrap(),
@@ -1122,11 +1121,11 @@ async fn an_announcing_client_tells_the_brain_each_call_s_own_deadline() {
 
 #[tokio::test]
 async fn a_client_told_no_plan_announces_nothing_and_a_turn_never_does() {
-    // Two silences, for two different reasons. A client nobody told a plan to (every constructor
-    // returns one) sends no header at all, so this slice cannot have changed what an existing
-    // caller puts on the wire. And `Converse` sends none even from an announcing client, because
-    // the plan gives a turn no deadline: a header would hand tonic a clock to end a turn with,
-    // which is exactly the exemption's point.
+    // Two calls announce nothing, for two different reasons. A client that was never told a
+    // plan, which is what every constructor returns, sends no header at all, so this slice
+    // cannot have changed what an existing caller puts on the wire. And `Converse` sends none
+    // even from an announcing client, because the plan gives a turn no deadline and a header
+    // would hand tonic a clock to end a turn with, which is what the exemption prevents.
     let fake = FakeBrain::new(Script::Ready);
     let announced = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();
@@ -1150,15 +1149,16 @@ async fn a_client_told_no_plan_announces_nothing_and_a_turn_never_does() {
 
 #[tokio::test]
 async fn a_deadline_the_header_cannot_spell_is_dropped_rather_than_sent() {
-    // `grpc-timeout` carries at most 8 digits, and tonic PANICS on a duration past its coarsest
-    // unit. `RetryPlan`'s fields are public, so that duration is reachable; the adapter drops
+    // `grpc-timeout` carries at most 8 digits, and tonic panics on a duration past its coarsest
+    // unit. `RetryPlan`'s fields are public, so that duration is reachable. The adapter drops
     // such an announcement instead of clamping it, since a clamp would announce something
-    // SHORTER than the bound the core enforces and hand the race to tonic. The call still works,
-    // which is the point: a courtesy that cannot be paid must not cost the call.
+    // shorter than the bound the core enforces and let tonic's clock expire first. The call
+    // still succeeds, which is what this asserts: a courtesy that cannot be paid must not cost
+    // the call.
     //
-    // This one is far past the filter's bound rather than at it: the filter now sits at the
-    // millisecond rung, four rungs below the panic, and the case below holds that edge. Both
-    // are kept, because they pin two different facts about the same drop: a duration the header
+    // This duration is far past the filter's bound rather than at it. The filter sits at the
+    // millisecond rung, four rungs below the panic, and the case below holds that edge. Both are
+    // kept, because they pin two different facts about the same drop: a duration the header
     // cannot spell at all, and one it spells in a unit that reorders the two clocks.
     let fake = FakeBrain::new(Script::Ready);
     let announced = Arc::clone(&fake.timeouts);
@@ -1181,17 +1181,17 @@ async fn a_deadline_the_header_cannot_spell_is_dropped_rather_than_sent() {
 
 #[tokio::test]
 async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_sent() {
-    // Where the filter actually sits, and why it is not tonic's panic (ADR-0024 unit-ladder
-    // addendum). Three parts, the first of which is read off tonic rather than off its source.
+    // Where the filter sits, and why it is not at tonic's panic (ADR-0024 unit-ladder addendum).
+    // Three parts, the first of which is measured against tonic rather than read from its source.
     //
     // `set_timeout` is the whole of what the interceptor does, and the channel's own
     // `GrpcTimeout` layer parses that header back off the outgoing request and sleeps on what it
-    // DECODES. So putting an announcement past the millisecond rung through the public call
-    // shows the clock tonic would arm. It truncates onto whole seconds: 100_000_999 ms is
-    // announced and 100_000_000 ms is armed, which is 749 ms SHORT of the 100_000_749 ms bound
-    // the core would have been enforcing, so tonic's timer fires first and its expiry is
-    // retryable. That is the amplifier the grace margin exists to prevent, and it is the reason
-    // an announcement this far up is not sent at all.
+    // decodes. Putting an announcement past the millisecond rung through the public call
+    // therefore shows the clock tonic would arm. It truncates onto whole seconds: 100_000_999 ms
+    // is announced and 100_000_000 ms is armed, which is 749 ms short of the 100_000_749 ms
+    // bound the core would have been enforcing, so tonic's timer expires first and its expiry is
+    // retryable. That is the load amplification the grace margin prevents, and it is why an
+    // announcement this far up is not sent at all.
     let enforced = Duration::from_millis(100_000_749);
     let mut request = Request::new(());
     request.set_timeout(Duration::from_millis(100_000_999));
@@ -1211,7 +1211,7 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
         Duration::from_millis(749)
     );
 
-    // Second, the drop, over the wire: a plan holding exactly that bound announces NOTHING, and
+    // Second, the drop, over the wire: a plan holding exactly that bound announces nothing, and
     // the call it would have been a courtesy to still succeeds.
     let fake = FakeBrain::new(Script::Ready);
     let heard = Arc::clone(&fake.timeouts);
@@ -1259,15 +1259,14 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
 
 #[tokio::test]
 async fn the_core_s_own_bound_wins_the_race_the_announcement_starts() {
-    // The constraint the whole design turns on, measured rather than argued. Announcing a
-    // deadline arms tonic's own clock from the same header, so both clocks are running against
-    // this brain that accepts the call and never answers. The two are distinguishable by what
-    // they produce: the core's bound gives `Timeout` (terminal), tonic's would give a
-    // `Connection` folding "Timeout expired" (RETRYABLE, and so a deadline that would be retried
-    // twice more against a brain already too slow to answer). Getting `Timeout` here IS the
-    // proof the grace margin ordered them, and the elapsed bound is the second half of it: the
-    // announcement is 250 ms past the deadline, so finishing inside the deadline itself cannot
-    // be tonic's clock having fired.
+    // The ordering the design turns on, measured rather than argued. Announcing a deadline arms
+    // tonic's own clock from the same header, so both clocks are running against this brain that
+    // accepts the call and never answers. The two are told apart by what they produce: the
+    // core's bound gives a terminal `Timeout`, and tonic's would give a `Connection` folding
+    // "Timeout expired", which is retryable and would be repeated twice more against a brain
+    // already too slow to answer. Getting `Timeout` here shows the grace margin ordered them,
+    // and the elapsed bound is the second half of it: the announcement is 250 ms past the
+    // deadline, so finishing inside the deadline itself cannot be tonic's clock expiring.
     let addr = spawn_fake_brain(FakeBrain::new(Script::Hanging))
         .await
         .expect("fake brain should bind a loopback port");
@@ -1298,11 +1297,11 @@ async fn the_core_s_own_bound_wins_the_race_the_announcement_starts() {
 
 #[tokio::test]
 async fn a_brain_sent_deadline_exceeded_is_the_body_s_own_timeout_coming_back() {
-    // The safety net. The header invites the brain to give up on an abandoned call, so the body
-    // has to be able to hear that answer, and it means exactly what its own expired clock means:
-    // nothing came back inside the deadline. Same variant, so the indicator draws `Down` rather
-    // than the `Degraded` an `Rpc` would draw (which claims the brain answered the question), and
-    // the retry gate leaves it terminal. `after` is the deadline the brain was told, since that
+    // The header invites the brain to give up on an abandoned call, so the body has to be able
+    // to read that answer, and it means what its own expired clock means: nothing came back
+    // inside the deadline. It is the same variant, so the indicator draws `Down` rather than the
+    // `Degraded` an `Rpc` would draw, which would claim the brain answered the question, and the
+    // retry decision leaves it terminal. `after` is the deadline the brain was told, since that
     // is the one that expired at the far end.
     let addr = spawn_fake_brain(FakeBrain::new(Script::Expired))
         .await
@@ -1320,9 +1319,9 @@ async fn a_brain_sent_deadline_exceeded_is_the_body_s_own_timeout_coming_back() 
     );
     assert!(!is_transient(&error));
     assert_eq!(LinkStatus::from_error(&error).state, LinkState::Down);
-    // A call that announced nothing keeps the old answer: with no deadline of ours on the wire,
+    // A call that announced nothing stays an `Rpc`: with no deadline of the body's on the wire,
     // the status is the brain's own report about a bound it chose, and there is no duration to
-    // name. Terminal either way, so nothing about retry turns on the difference.
+    // name. Both are terminal, so the retry decision does not turn on the difference.
     assert_eq!(
         client.health().await.unwrap_err(),
         TransportError::Rpc {
@@ -1334,7 +1333,7 @@ async fn a_brain_sent_deadline_exceeded_is_the_body_s_own_timeout_coming_back() 
 
 #[tokio::test]
 async fn the_seam_token_never_reaches_a_debug_line() {
-    // The client now holds the token itself (it rebuilds an interceptor per call), so the
+    // The client holds the token itself, since it rebuilds an interceptor per call, so the
     // redaction that used to come free from tonic printing interceptors by type name is written
     // out instead. The secret must not be reachable through a `{:?}` of the client that carries
     // it (ADR-0016).

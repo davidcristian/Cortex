@@ -8,7 +8,7 @@ import type { Geometry } from "./panelGeometry";
  * How long a summon owns the panel's geometry, matching `.panel`'s own 0.44s transform transition
  * in overlay.css. It ends early the moment the user touches the panel (see `touched`).
  *
- * Whatever lands inside that window belongs to the panel ARRIVING rather than to the session, so it
+ * Whatever lands inside that window belongs to the panel arriving rather than to the session, so it
  * centres on it instead of growing upward from an edge pinned before it had its content. The
  * summon's reminder pull is the case that made this necessary: traced at 60Hz, the stack rolls open
  * 10ms behind the summon and settles 340ms later, and treating that as growth pinned the panel to
@@ -18,17 +18,16 @@ import type { Geometry } from "./panelGeometry";
  *
  * That 40px is a reading from before the panel's second bound was deleted on 2026-07-20, and only
  * the composer half of it is stale: re-measured 2026-08-06, a shrink against the ceiling moves the
- * composer 0px whatever edge the session is pinned to, the ceiling now capping the HEIGHT. What the
- * window still earns is the first half, which is the whole reason it exists. A panel pinned to the
- * centre of a height its content is a beat away from having spends the session off its own centre,
- * and off centre is where it sits until the next summon.
+ * composer 0px whatever edge the session is pinned to, the ceiling now capping the height. The
+ * first half is what the window is still for: a panel pinned to the centre of a height its content
+ * is a beat away from having spends the rest of the session off its own centre.
  */
 const ARRIVAL_MS = 440;
 
 export interface Memory {
   /** The geometry currently on screen, or null before the first measurement. */
   shown: Geometry | null;
-  /** The height the panel was last placed FOR: what its content asked of it, under the cap it was
+  /** The height the panel was last placed for: what its content asked of it, under the cap it was
    *  given. The watch on the panel's own box compares against this rather than against the box,
    *  because a move of the panel's own walks the box past it every frame while this stands still,
    *  and a render that resized the panel has already been answered by the placement that ran in it.
@@ -38,7 +37,7 @@ export interface Memory {
   /** Where `running` is taking the panel. Meaningless while `running` is null or finished. */
   aim: Geometry;
   /** When `running` is due to land, as `Date.now()`. A re-render that leaves the destination
-   *  unchanged RESUMES the move over the time left of this rather than restarting its clock. */
+   *  unchanged resumes the move over the time left of this rather than restarting its clock. */
   lands: number;
   /** The view the panel last settled into; anything else moves it. */
   view: string;
@@ -46,7 +45,7 @@ export interface Memory {
   open: boolean;
   /** When the panel was last summoned, as `Date.now()`; 0 before the first one. */
   arrived: number;
-  /** The bottom edge the panel is pinned to, UNCLAMPED: what it wants, not what fits. */
+  /** The bottom edge the panel is pinned to, unclamped: what it asks for, not what fits. */
   pinned: number;
   /** The bottom edge last written to the DOM, which is `pinned` after the ceiling had its say. */
   applied: number;
@@ -92,7 +91,7 @@ export interface Placement {
 /**
  * How tall the element is, in layout pixels, sub-pixels included.
  *
- * `getBoundingClientRect` is the wrong tool for this one number: it reports the box AFTER
+ * `getBoundingClientRect` is the wrong tool for this one number: it reports the box after
  * transforms, and the panel is scaled through the whole summon (`scale(0.92)` easing to 1, with a
  * spring that overshoots past it). Measured at boot: the panel read 327.5px tall while its layout
  * height was 356, so every geometry taken during a summon was ~8% short, the edge the session ends
@@ -109,7 +108,7 @@ export interface Placement {
  * keyframes below the height the eye had, so the panel stepped back by the remainder for a frame
  * ([ADR-0035](../../../../docs/adr/ADR-0035-console-and-motion.md), the fractional-height addendum).
  *
- * It reports the BORDER box, this app setting `box-sizing: border-box` on everything, so it is the
+ * It reports the border box, this app setting `box-sizing: border-box` on everything, so it is the
  * same box `offsetHeight` reported. An element with no layout box (jsdom, a `display: none`
  * ancestor, a node outside a document) has no used value to give and reports 0 here, which is what
  * `measured.ts` reads as "nothing to publish".
@@ -120,7 +119,7 @@ export function heightOf(element: HTMLElement): number {
 }
 
 /**
- * How tall the element would be right now if nothing were animating it, read WITHOUT cancelling
+ * How tall the element would be right now if nothing were animating it, read without cancelling
  * the move in the air.
  *
  * A height animation overrides the used height, so while the panel's own ease runs, content that
@@ -166,17 +165,17 @@ export function arriving(memory: Memory, at: Placement): boolean {
 
 /**
  * The user reached for the panel, which ends the summon's ownership of its geometry however much
- * of the window is left: what changes from here is the session's, and the session GROWS from its
+ * of the window is left: what changes from here is the session's, and the session grows from its
  * pinned edge rather than re-centring.
  *
  * Without this, a section the user rolled open inside the window re-pinned the panel to the centre
  * of a height that section was about to hand back. Traced at 60Hz in a 900px viewport: opening the
  * chat switcher 410ms after the summon wrote a pinned edge of 117px for the 666px the panel would
  * be with the list open, and closing the list left the 546px panel sitting on that same 117px, 60px
- * below its own centre, where it stayed for the rest of the session. Nothing washes a pinned edge
- * out: a trip to the console and back parks the bad edge and hands it straight back.
+ * below its own centre, where it stayed for the rest of the session. Nothing clears a pinned edge
+ * afterwards: a trip to the console and back parks the bad edge and hands it straight back.
  *
- * Input that lands while the panel is still SHUT is what summoned it (the orb click is a real
+ * Input that lands while the panel is still shut is what summoned it (the orb click is a real
  * pointerdown a beat before the panel appears), so it is not a touch. The arrival that follows it is
  * exactly the case the window exists for.
  */

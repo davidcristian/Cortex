@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Run `effect` once per summon: on the **rising edge of visibility**, re-arming when the
- * overlay hides.
+ * Run `effect` once per summon, on the rising edge of visibility, re-arming when the overlay
+ * hides.
  *
  * The body lives resident in the tray, so "on mount" is the wrong moment for anything the
  * user is meant to see or benefit from: it happens once, days before the window is looked at.

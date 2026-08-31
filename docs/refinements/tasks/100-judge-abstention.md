@@ -36,9 +36,9 @@ re-fetched or substituted the pool; `_recalled_context` (`turn_context.py`) alre
 the new basis, and it needed no new field for it, since `demur` with no hits, another basis with
 no hits, and a fallback's basis with hits are three readings of fields the line already carried.
 What the entry did not price and the close added is an invariant: a `DEMUR` ranking carrying hits
-is refused at construction, because a policy cannot both decline and return something. CI-gated at
+is rejected at construction, because a policy cannot both decline and return something. CI-gated at
 100% over the fakes, with the empty-pick path proved able to fail by restoring the old
-`if not order` branch (three tests redden, including the turn-assembly one). **Measured live on
+`if not order` branch (three tests fail, including the turn-assembly one). **Measured live on
 the same 41-note corpus that found it**: the four unanswerable questions now return nothing, 4 of
 4, the whole run fell back 0 of 26 where it fell back 4 of 26, and the ranking on the 22
 answerable questions is unchanged (aggregate MRR 1.000 against the cosine's 0.902, the

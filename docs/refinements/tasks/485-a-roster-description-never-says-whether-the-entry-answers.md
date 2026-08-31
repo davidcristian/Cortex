@@ -20,7 +20,7 @@ All five entries of the subagent row have now been run through the shipped const
 where a reader would guess: it is not monotone in size across families, the shipped default sits in
 the middle of it, and the entry that describes itself as small and fast is a full shape worse than
 another entry nobody mentions. A cortex choosing on the advertised text is choosing on speed and
-robustness while the thing it actually wants, an answer rather than a plan, varies more between
+robustness while the thing it actually needs, an answer rather than a plan, varies more between
 entries than either.
 
 **What is wrong with the present shape.** Nothing in the wiring is wrong; the description is doing
@@ -31,7 +31,7 @@ entry writes a description by hand, from taste, with no place to put a rate even
 **What would close it, and the three shapes it could take.** They are worth pricing against each
 other before one is built.
 
-1. **A sentence, per entry, in the description.** Free, immediate, and a lie the day the wording or
+1. **A sentence, per entry, in the description.** Free, immediate, and false the day the wording or
    the engine build changes, since nothing holds a hand-typed rate to a measurement.
 2. **A field on `SubagentProfile`** carrying the measured delivered rate and what it was measured
    on, rendered into the advertised text by the spec builder rather than typed into it. A port

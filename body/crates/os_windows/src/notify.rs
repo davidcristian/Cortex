@@ -2,9 +2,9 @@
 //!
 //! A thin adapter (AGENTS.md gate 3): it resolves the toast notifier for the app identity,
 //! asks whether the user allows notifications at all, renders the notification into the
-//! `ToastGeneric` template, and shows it. Every decision that could be wrong in an
-//! interesting way is already made in `body_core` (the inert text, the taint attribution,
-//! the XML escaping), so this file holds no branch worth testing but the ones the OS answers.
+//! `ToastGeneric` template, and shows it. Every decision that carries a risk is already made in
+//! `body_core` (the inert text, the taint attribution, the XML escaping), so the only branches
+//! here are the ones the OS answers.
 //!
 //! `WinRT` projections are safe, so the toast calls need no `unsafe`. Activating a `WinRT`
 //! factory does need a COM-initialized thread, and the body serves `BodyService` on tokio
@@ -12,9 +12,9 @@
 //! the audio backend makes (ADR-0023's narrow authorization for this crate, extended to the
 //! toast by ADR-0025).
 //!
-//! Host-authored, **validated on Windows by the user**. Like the other real backends it is
-//! never built or measured in CI (the whole crate is `cfg(windows)`, compiling to nothing on
-//! Linux).
+//! Host-authored and validated on Windows by the user. Like the other real backends it is
+//! never built or measured in CI, since the whole crate is `cfg(windows)` and compiles to
+//! nothing on Linux.
 //!
 //! [`Notify`]: body_core::Notify
 #![allow(unsafe_code)] // ADR-0025: WinRT activation needs a COM-initialized thread.
@@ -52,17 +52,18 @@ impl WindowsNotify {
 impl Notify for WindowsNotify {
     fn show(&self, notification: &Notification) -> Result<bool, NotifyError> {
         // The same split the volume backend maps its COM failures on: a notification service
-        // we cannot reach at all is transient, anything else is a backend fault.
+        // that cannot be reached at all is transient, and anything else is a backend fault.
         let unreachable = |error: WinError| NotifyError::Unavailable(error.message());
         let failed = |error: WinError| NotifyError::Backend(error.message());
         unsafe {
-            // Idempotent per thread; a prior initialization returns a non-fatal status we ignore.
+            // Idempotent per thread: a prior initialization returns a non-fatal status, which
+            // is ignored.
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
         let notifier =
             ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&self.app_id))
                 .map_err(unreachable)?;
-        // The user (or policy) can switch notifications off. That is an answer, not a
+        // The user or a policy can switch notifications off, which is an answer rather than a
         // failure: the reminder stays deliverable and the overlay's pull path shows it.
         if notifier.Setting().map_err(failed)? != NotificationSetting::Enabled {
             return Ok(false);

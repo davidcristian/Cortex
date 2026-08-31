@@ -79,7 +79,8 @@ def test_check_links_reads_the_index_alongside_the_tasks(tmp_path: Path) -> None
 
 
 def test_check_links_skips_an_index_that_is_not_there(tmp_path: Path) -> None:
-    """The index is an optional source here; whether it exists is the caller's finding."""
+    """The index is an optional source for this check, and whether it exists is the caller's
+    finding."""
     _write(tmp_path, "tasks/001-wire-the-memory-port.md", REFINEMENT)
     tasks = backlog.load(tmp_path / "tasks", "refinements")
     assert backlogcheck.check_links(tmp_path, tasks, tmp_path / "index.md") == []
@@ -222,7 +223,7 @@ def test_main_fails_on_a_stale_index_then_writes_it_then_passes(
 def test_main_reports_a_new_task_as_a_stale_index(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The gate in one line: a task file arrives, so the index describing them is now wrong."""
+    """A task file arrives, so the index describing the set of tasks is now out of date."""
     root = _repo(tmp_path)
     assert backlogcheck.main(["--root", str(root), "--write"]) == 0
     _write(root, "docs/refinements/tasks/002-split-the-module.md", REFINEMENT)
@@ -234,7 +235,7 @@ def test_main_reports_a_new_task_as_a_stale_index(
 def test_main_reports_a_pointer_left_aimed_at_a_renamed_area(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The gate's other half in one line: the link resolves, and the heading is gone."""
+    """The gate's other half: the link still resolves and the heading it aims at is gone."""
     root = _repo(tmp_path)
     _write(root, "docs/adr/ADR-0001.md", "See [the area](../refinements/index.md#brain).\n")
     assert backlogcheck.main(["--root", str(root), "--write"]) == 0
@@ -254,8 +255,8 @@ def test_main_judges_no_pointer_at_a_backlog_whose_index_it_could_not_render(
 ) -> None:
     """With the markers gone there is no rendering to judge against, so only that is reported.
 
-    The stale file on disk does render `### brain`, so nothing but the index's registration
-    as unjudgeable this run keeps the widened scan from answering out of it.
+    The stale file on disk still renders `### brain`, so what keeps the widened scan from
+    answering out of it is the index being registered as unjudgeable for this run.
     """
     root = _repo(tmp_path)
     _write(root, "docs/adr/ADR-0001.md", "See [the area](../refinements/index.md#brain).\n")
@@ -269,7 +270,7 @@ def test_main_judges_no_pointer_at_a_backlog_whose_index_it_could_not_render(
 def test_main_reports_a_pointer_left_aimed_at_a_renamed_heading_in_any_document(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The reach the gate grew: the target is an ordinary decision record, not an index."""
+    """The scan reaches beyond the two indexes: the target here is an ordinary decision record."""
     root = _repo(tmp_path)
     _write(root, "docs/adr/ADR-0001.md", "# The decision\n\n## Risks flagged for user review\n")
     task = root / REFINEMENTS / "tasks" / "001-wire-the-memory-port.md"

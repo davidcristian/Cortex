@@ -88,7 +88,7 @@ fails, set `CORTEX_HOST_CAPTURE=0`, stop, and record it before doing anything el
 | A failure sentence from real hardware | Added 2026-08-08. Switch capture off and ask again: the reply says **the body refused to capture the screen**, not that it could not be reached. Then shut the lid or detach the display and ask: the reply says **the host is not in a state to capture the screen** | Either sentence starting "could not reach the body", which is the defect the kinded gateway error removed and would mean a status code arriving as something other than what the mapping writes |
 | The receipt | An OS notification, "Screen captured", authored by the **body** | The indicator lights and no notification appears, which means the capture failed or was refused; the reply should say so |
 | Per-monitor DPI | The captured image matches what is on screen at the scaling in use | A crop, a stretch, or only part of a scaled monitor |
-| Protected surfaces | A **black** rectangle where a hardware-overlay or DRM-protected surface was | The same thing, silently, with no error to distinguish it from a dark screen. This is expected behaviour to know rather than a bug to file |
+| Protected surfaces | A **black** rectangle where a hardware-overlay or DRM-protected surface was | The same thing, with no error to distinguish it from a dark screen. This is expected behaviour to know rather than a bug to file |
 | Latency | Roughly 0.5 to 1 s over a text turn, dominated by the second inference pass | Materially worse, which points at the body rather than the model and is worth a number |
 
 One expectation that is not a failure: small text on a 4K display may be illegible. That is the
@@ -138,7 +138,8 @@ leave the focus-target check alone.
   own doc despite being W, because its bring-up and its failure mode differ from the rest of the
   Windows work and because this is the check that gets skipped if it is the sixth bullet on a
   tired evening. The sitting doc these two checks were written in opened with three reasons of its
-  own, and the one the index did not carry is that its failure modes are silent rather than loud.
+  own, and the one the index did not carry is that its failure modes go unreported rather than being
+  obvious.
 - 2026-07-19: The refinements index also recorded why this check moved rather than staying in that
   backlog under a tag. The two backlogs hold different kinds of not-done: the design one holds work
   anyone can pick up once a seam or a consumer unblocks it, and its emptiness gates the README,

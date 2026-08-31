@@ -192,16 +192,16 @@ cap, on two of the four report bodies. The same request on an unflagged twin of 
 deliberated on 8 draws of 8 and on 0 of 8 once the engine's own per-request
 `reasoning_budget_tokens: 0` was added, so the lever is real; adding that key **on top of** the flags
 left the failure reachable, which is why the delegated path still names no count. The sentence above
-is therefore the right default rather than a floor, and the lever that holds on this shape is the
-pick rather than a flag.
+therefore states the usual outcome rather than a guaranteed floor, and on this shape it is the model
+pick rather than a flag that determines whether reasoning is suppressed.
 
 **And the reason it is a majority is the other flag (2026-08-30, ADR-0005 marker addendum).** Split
 into single flag arms on two builds, `--reasoning-budget 0` **alone** wrote no reasoning character
 on 30 draws of that same request, while the kwarg alone reproduced the trace, the marker fragments
-and the empty reply and was identical to the pair on 20 of 20 matched seeds. The kwarg is what drops
-the `<|think|>` this family's template injects, and a budget with no thought to watch for never
-fires. So "the budget does work" is true of the budget on its own, the pair is one lever and one
-flag that turns it off, and what to do about that is
+and the empty reply and was identical to the pair on 20 of 20 matched seeds. The kwarg suppresses
+the `<|think|>` marker this model's chat template injects, and the budget has no effect when no
+marker is present. So "the budget does work" is true of the budget on its own, while in the shipped
+pair the kwarg disables the mechanism the budget depends on, and what to do about that is
 [R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).
 
 **And the Qwen half of that sentence is measured 2026-08-28** (ADR-0005 switch-is-advisory
@@ -210,8 +210,8 @@ above used. Asked on a prompt that does invite deliberation, at five draws a cel
 carrying neither flag, the Qwen3.5-2B override honours the kwarg on a plain request and on one
 carrying a `response_format` alike, 5 draws of 5 each. So the split named above is between the two
 subagent candidates rather than between a template and a shape: the kwarg carries the Qwen entry on
-both shapes and the budget carries the gemma-4-E entries on the constrained one, and a tier keeping
-both flags is a tier that does not have to know which pick it was handed.
+both shapes and the budget carries the gemma-4-E entries on the constrained one, so a tier carrying
+both flags suppresses reasoning for either pick without depending on which one it was given.
 
 At the time of this addendum, the **cortex-driven** path (a resident gemma-4-12B *deciding* to
 emit `spawn_subagents` end to end) remained the host-only half (needs the GPU); it was
@@ -250,7 +250,7 @@ spawning turn's one dispatch pool, so an `instructions` array could no longer bu
 number of external calls. It left the array itself unbounded, and named the gap: bounded in
 dispatches, still unbounded in **model runs**.
 
-The two really are different currencies, which is why the pool could not close this on its own.
+The two are different budgets, which is why the dispatch pool could not close this on its own.
 A subagent that calls no tools spends nothing from the dispatch pool while still costing an
 admission slot, a placement, and an inference. And `ResourceBudgetScheduler.admit` **queues**
 rather than refuses (by design, ADR-0012: over budget, callers wait), so an array of fifty was
@@ -265,7 +265,7 @@ check sits **ahead of item parsing**, so an oversized array is refused without w
 before a single `SubagentTask` is stored or a single subagent placed. The cap is advertised
 twice, as `maxItems` on the array (a bound a constrained decoder can enforce structurally) and as
 prose in both descriptions (for a model that reads only those), so the runtime check is the
-backstop rather than the first the cortex hears of it.
+backstop rather than the cortex's first notice of the limit.
 
 **Why per call, and not a turn-wide pool mirroring the dispatch budget.** The turn-wide addendum
 argued for one number over a product of two constants, and that argument does not carry here,
@@ -286,8 +286,8 @@ this host can run *concurrently*, which is a deployment fact. How many subtasks 
 as a constant. Eight sits above plausible delegation (two to five parallel subtasks in practice)
 and far below fan-out spam. A knob is recorded as deferred should a deployment ever want one.
 
-CI-gated over the fakes at 100%, with three guards mutation-proven (each reverted individually
-turns a distinct test red): the cap itself, its comparison (an off-by-one that would cost the
+CI-gated over the fakes at 100%, with three guards mutation-proven (reverting each one on its own
+makes a distinct test fail): the cap itself, its comparison (an off-by-one that would cost the
 cortex its largest legitimate batch), and the advertised `maxItems`.
 
 Remaining behind the same tool: a **`CORTEX_SUBAGENTS_MAX_BATCH` knob** if a host ever wants a
@@ -345,8 +345,9 @@ saturation never stalls the subagent behind a slow overlay. Event ordering is pr
 turn task is suspended in `dispatch` and puts nothing itself while the subagents run.
 
 **No proto change.** The overlay already renders `ToolActivity` and `StatusUpdate` chips, so the
-seam and the overlay reducer are untouched; the wire nothing-shows trap is avoided because the
-consumer already exists. CI-gated at 100% over the fakes (`RecordingProgressSink`), with the
+seam and the overlay reducer are untouched, and there is no risk of emitting events nothing
+consumes, since the consumer already exists. CI-gated at 100% over the fakes
+(`RecordingProgressSink`), with the
 routing, the runner emission, the taint containment, the two-sink isolation, and the sink's
 drop-under-saturation each mutation-proven; the end-to-end path (cortex spawns → subagent tool step
 → wire `ToolActivity`) is exercised over a real `converse()` stream. The bundled backlog entries
@@ -373,8 +374,8 @@ The batch-cap addendum above ends by naming two items as remaining behind the sa
 2026-08-18 and both are closed here, on separate reasoning, with nothing built and nothing changed
 in the shipped behaviour.
 
-**The knob: the paragraph above already decided it, and the read found a coupling it did not
-know.** "Why a code constant and not an env knob" still describes this tree exactly, and the
+**The knob: the paragraph above already decided it, and the re-derivation found a coupling that
+paragraph did not account for.** "Why a code constant and not an env knob" still describes this tree exactly, and the
 trigger recorded for it is a hypothetical second deployment where this repo has one. What the
 re-derivation added is that the ceiling is not a standalone number:
 `DEFAULT_ADMISSION_WAIT_S = 3600.0` in `scheduler.py` is arithmetic *over* a full batch of eight,
@@ -387,18 +388,18 @@ speculatively. The cost when that day comes is small and is recorded here so nob
 a keyword-only parameter with the constant as its default, threaded through `build_spawn_spec` and
 `SpawnSubagentsTool.__init__`, breaks none of the existing constructions.
 
-**A correction while we are here.** That addendum places the constant "in `spawn.py`". It has
+**A correction to that addendum.** It places the constant "in `spawn.py`". The constant has
 lived in `spawn_spec.py` since the line cap split the spec builder out; the value, the refusal and
 the double advertisement are all unchanged. The historical text stays as written and this is the
 amendment.
 
-**The cost-aware batch: both of its currencies are the wrong bound.** A cap in *placements* is
+**The cost-aware batch: both units it could be denominated in are the wrong bound.** A cap in *placements* is
 arithmetically the cap in items, because `invoke` builds one `SubagentTask` per instructions entry
 and the runner places each task exactly once, its one re-run releasing the first reservation
 before it starts and reusing the same admission. A cap in *estimated VRAM* bounds something the
 placer already hard-bounds: `VramBudgetPlacer.place` fit-tests every spawn against the remaining
-headroom and spills to CPU rather than refusing, so no batch size can overspend the card, and the
-currency the addendum above actually worries about is queued inferences rather than GPU bytes. A
+headroom and spills to CPU rather than refusing, so no batch size can overspend the card, and what
+the addendum above is actually bounding is queued inferences rather than GPU bytes. A
 summed-cost cap could also not be enforced where this cap is enforced: `maxItems` is a bound a
 constrained decoder applies structurally and the prose is a bound the model can restate, while a
 cost cap is neither, and it would reverse the deliberate ordering that refuses an oversized array

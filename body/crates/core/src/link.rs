@@ -1,29 +1,29 @@
 //! `LinkStatus`: what the overlay's connection indicator is allowed to claim (ADR-0011).
 //!
-//! The overlay shows one dot for the health of the body->brain seam. The honest signal is not
-//! "up or down": a seam call can fail three ways, and each proves something different, so the
-//! classification is a pure core concern rather than a colour chosen in a component.
+//! The overlay shows one dot for the health of the body->brain seam. A seam call can fail four
+//! ways and each proves something different, so the classification lives in the pure core
+//! rather than as a colour chosen in a component.
 //!
 //! - [`TransportError::Connection`] means the brain could not be reached at all (a refused dial,
 //!   a bad address, a channel that died before any reply). Nothing answered: [`LinkState::Down`].
-//! - [`TransportError::Rpc`] means the brain *answered*, with a status. It is running and
-//!   reachable, and something behind it is not serving (a store abort surfaces as `Unavailable`,
+//! - [`TransportError::Rpc`] means the brain answered with a status, so it is running and
+//!   reachable while something behind it is not serving (a store abort surfaces as `Unavailable`,
 //!   a rejected seam token as `Unauthenticated`): [`LinkState::Degraded`].
-//! - [`TransportError::Protocol`] means the brain answered something this side cannot read.
-//!   Reachable again, and wrong: [`LinkState::Degraded`].
-//! - [`TransportError::Timeout`] means the attempt was abandoned: nothing came back inside the
-//!   probe's deadline (ADR-0024 deadline addendum). Nothing answered, so [`LinkState::Down`],
-//!   and `Degraded` would be the lie the deadline exists to prevent, since its whole meaning is
-//!   that the brain answered. The detail names the deadline, so the tooltip still separates a
-//!   brain that is wedged from one that is absent.
+//! - [`TransportError::Protocol`] means the brain answered something this side cannot read, so
+//!   it is reachable and wrong: [`LinkState::Degraded`].
+//! - [`TransportError::Timeout`] means the attempt was abandoned because nothing came back
+//!   inside the probe's deadline (ADR-0024 deadline addendum), so [`LinkState::Down`].
+//!   `Degraded` would claim the brain answered, which is exactly what the deadline could not
+//!   establish. The detail names the deadline, so the tooltip still separates a brain that is
+//!   wedged from one that is absent.
 //! - A `Health` reply carries the brain's own verdict, so `ready = false` is the brain saying it
 //!   is up and not serving turns: [`LinkState::Degraded`] with its detail shown verbatim.
 //!
-//! There is deliberately no "connecting" state here. Whether a probe is in flight is the
-//! caller's own fact, not the seam's, and the caller already knows it; the overlay composes it
-//! over the last known state (see `docs/modules/body-app.md`). Patience is likewise composed
-//! rather than built in: probing through the `RetryingTransport` decorator (ADR-0024) means a
-//! single probe already spans the reconnect window before it reports `Down`.
+//! There is no "connecting" state here. Whether a probe is in flight is the caller's own fact
+//! rather than the seam's, and the overlay composes it over the last known state (see
+//! `docs/modules/body-app.md`). Waiting is composed the same way: probing through the
+//! `RetryingTransport` decorator (ADR-0024) means a single probe already spans the reconnect
+//! window before it reports `Down`.
 
 use crate::transport::{BrainTransport, SeamHealth, TransportError};
 
@@ -33,8 +33,8 @@ use crate::transport::{BrainTransport, SeamHealth, TransportError};
 pub enum LinkState {
     /// The brain answered and reports itself ready to serve turns.
     Ready,
-    /// The brain answered, and is not serving: not ready, a non-OK status, or an unreadable
-    /// reply. Reachable either way, which is what separates this from [`LinkState::Down`].
+    /// The brain answered and is not serving: not ready, a non-OK status, or an unreadable
+    /// reply. It is reachable either way, which is what separates this from [`LinkState::Down`].
     Degraded,
     /// The brain could not be reached at all.
     Down,
@@ -101,8 +101,8 @@ impl LinkStatus {
     }
 }
 
-/// Probes the seam once and reports what the answer proves. Never fails: a failure *is* the
-/// answer here, which is what lets the caller render a state instead of an error.
+/// Probes the seam once and reports what the answer proves. It never fails, because a failure
+/// is itself an answer here, which is what lets the caller render a state instead of an error.
 ///
 /// Composed over a [`crate::retry::RetryingTransport`] this is also the reconnect attempt, since
 /// `health` is one of the retried idempotent calls (ADR-0024): the probe reports `Down` only

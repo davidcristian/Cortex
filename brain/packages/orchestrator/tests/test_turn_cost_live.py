@@ -1,28 +1,28 @@
-"""What does a whole recalling turn cost, end to end over the seam, in ONE recall arm?
+"""Measure what a whole recalling turn costs, end to end over the seam, in one recall arm.
 
 This is the committed form of the harness that moved `CORTEX_MEMORY_RECALL` to `judge`
 (ADR-0038 turn-cost addendum), whose driver lived in a scratchpad and left the one measurement
 in that ADR that names no reproducing test. The shape it settles is argued in that ADR's harness
-addendum; what matters when reading this file is the division of labour it rests on, because that
+addendum. What matters when reading this file is the division of labour it rests on, because that
 explains every choice below:
 
 * **This test measures exactly one block, and never restarts anything.** An arm here is a brain
   container configured one way, and changing it means recreating that container, which is a
   deployment step rather than an assertion. A pytest process that recreated its own subject would
-  be instrument and operator at once, would need the whole compose file set spelled a second time
-  inside a test, and would own a stack it did not bring up and could not restore. So the restart
-  belongs to `just turn-cost`, which is committed and versioned like anything else, and this file
-  is what that recipe runs once per block.
+  be both the instrument and the operator, would need the whole compose file set spelled a second
+  time inside a test, and would own a stack it did not bring up and could not restore. So the
+  restart belongs to `just turn-cost`, which is committed and versioned like anything else, and
+  this file is what that recipe runs once per block.
 * **Because the arms live in separate processes, the sample has to outlive this one.** Each block
   writes its turns to a JSON file, and `scripts/contrast.py` reads the blocks afterwards and
   reports the paired bootstrap interval. That is why nothing here computes a statistic: the
   arithmetic behind the published number is the part that was unreproducible, so it lives in a
   gated tool with unit tests rather than inside an integration-marked print.
-* **So this file asserts invariants only**, in the discipline of `test_fold_under_load_live.py`:
-  every turn spoke and completed, every turn's scope is one the brain really recalled from and
+* **So this file asserts invariants only**, following `test_fold_under_load_live.py`: every turn
+  produced tokens and completed, every turn's scope is one the brain really recalled from and
   recorded into, and the corpus leaves nothing behind. No assertion depends on what the model says
-  or on how long it took, because the timing IS the output and a harness that asserted a bound on
-  it would be deciding the result in advance.
+  or on how long it took, because the timing is the output, and a harness that asserted a bound on
+  it would decide the result in advance.
 
 **The protocol.** Each turn runs in its own fresh session under `CORTEX_MEMORY_SCOPE=session`,
 whose scope is pre-seeded with all 41 notes of `recall_corpus.py`, so every turn ranks an identical
@@ -166,7 +166,8 @@ async def _seed(
 
 
 def _sample(turns: list[_Turn]) -> str:
-    """The block's sample as JSON text: the only thing this process produces for the report."""
+    """Return the block's sample as JSON text, the only output this process leaves for the
+    report."""
     return (
         json.dumps(
             {

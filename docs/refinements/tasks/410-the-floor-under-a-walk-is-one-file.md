@@ -11,7 +11,7 @@ Opened 2026-08-24 by the close of
 [R-409](409-a-gates-success-line-names-no-collection.md), which gave the four remaining cross-tree
 scans a success line naming what they read and put a floor of one file under the two that had none.
 
-`linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, and `composefiles.py` refuses a walk that
+`linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, and `composefiles.py` raises on a walk that
 found no compose file. All three answer one question: did this scan enter the tree at all. None of
 them answers the question a reader of the printed count actually has, which is whether it read as
 much as it read yesterday. A line cap that measured 3 of 379 files, because a directory name
@@ -30,5 +30,5 @@ merge conflict on every branch; or nothing at all, on the ground that a collapse
 comes from an edit to the gate itself, and an edit to the gate is reviewed. Note that `bindcheck`
 and `defaultcheck` already carry the shape of the middle option in their suites, as guards on the
 guard (`len(defaults) >= 6`, `len(repeated) >= 6`), which is a floor over the tree written where a
-stale one fails loudly rather than silently. Whether that pattern belongs in the other two suites
+stale one fails the suite rather than passing unnoticed. Whether that pattern belongs in the other two suites
 is the concrete first question.

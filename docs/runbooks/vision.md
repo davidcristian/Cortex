@@ -1,9 +1,10 @@
 # Runbook: vision (the assistant looks at your screen)
 
-The vision slice (ADR-0029) gives the cortex eyes: a model-initiated `capture_screen` built-in
-takes a picture of the primary display over the existing brain→body seam, and the picture rides
-the tool result into the next inference round. The CI-gated half is green under `just check` on
-Linux with fakes. This runbook covers the two halves a gate cannot see: the agent-runnable
+The vision slice (ADR-0029) gives the cortex a view of the screen: a model-initiated
+`capture_screen` built-in takes a picture of the primary display over the existing brain→body
+seam, and the picture rides the tool result into the next inference round. The CI-gated half is
+green under `just check` on Linux with fakes. This runbook covers the two halves no gate covers:
+the agent-runnable
 Docker half (the projector, the probe, and a real image through the real inference adapter), and
 the host-only Windows half (a real GDI blit of a real desktop).
 
@@ -26,7 +27,7 @@ host loads beside the cortex tier. Without it the server reports no vision, the 
 the tool is never advertised.
 
 **That variable was `CORTEX_MMPROJ_FILE_CORTEX` until 2026-08-30.** A projector is a model file
-like every other artifact this tree names, so it is spelled in that one family now and
+like every other artifact this tree names, so it now follows that one naming convention and
 `scripts/flagcheck.py` holds it (ADR-0029's projector-naming addendum). An `.env` still setting
 the old name is not an error anywhere: the model host reads no projector, the cortex tier starts
 text-only, and `capture_screen` quietly leaves the advertisement. If vision disappeared after an
@@ -65,26 +66,27 @@ The other knobs, all optional:
 
 ## What the body can be pointed at
 
-`CaptureScreenRequest.target` names one of two things, and the body honours it as of the same
+`CaptureScreenRequest.target` names one of two things, and the body acts on it as of the same
 commit that declared the field: `CAPTURE_TARGET_DISPLAY` (zero, the whole primary display, which
 is what every capture has always been) and `CAPTURE_TARGET_FOCUS` (the window the user is
 looking at). There is no rectangle to name and there will not be one until something can hand
-the model a coordinate frame; the body resolves the target itself, because only it knows where
-windows are.
+the model a coordinate frame; the body resolves the target itself, because only the body has the
+window positions.
 
 **The model is the one who chooses**, as of 2026-08-10. `capture_screen` takes one required
 argument, `target`, whose two values are `focus` and `display`, and the tool description tells the
 model which to reach for. There is no default. A call that names no target, or names one outside
-the two, comes back as a tool error and takes no picture, which is also what keeps the repeat
-bound honest (below).
+the two, comes back as a tool error and takes no picture, which is also what holds the repeat
+bound to four (below).
 
 **What the description tells it, and why it is narrower than it first was.** The window is
 steered as the picture for **small text in one thing**, an error, a figure, a line to transcribe,
 and the display for everything else. That is where the measurement of the same day put it: a
 window crop takes 15 px text from 5 of 12 to 9 or 10 of 12, is level at every size above that, and
 over a whole 47 string desktop corpus reads *worse* than the shrunk screen (29 to 31 against 32 to
-33) because it cannot see past its window. The description says that cost out loud, and it no
-longer promises full detail: the mechanism is being **unresampled**, not being cropped, so a
+33) because it cannot see past its window. The description states that cost, and it no
+longer claims full detail: what a window capture gains is being **unresampled** rather than being
+cropped, so a
 window wider than `CORTEX_BODY_CAPTURE_MAX_EDGE` is resampled to exactly what the whole screen is
 resampled to and reads no better than it. Nothing on the reply says which of those two happened,
 deliberately for now ([../refinements/index.md#vision](../refinements/index.md#vision)).
@@ -99,8 +101,8 @@ Two things to know about the focused window:
   capture.
 - A bare desktop is an **error**, not a whole-screen capture. The body answers
   `FAILED_PRECONDITION`, which the brain reads as "the host is not in a state to capture the
-  screen". Falling back to the display would send more of the screen than was asked for with
-  neither the model nor the OS receipt knowing.
+  screen". Falling back to the display would send more of the screen than was asked for, and
+  neither the model nor the OS receipt would say so.
 
 The receipt says which happened, in the body's own words: "A picture of your screen was sent to
 the assistant." or "A picture of one window was sent to the assistant." It is chosen by what
@@ -188,8 +190,8 @@ them: [docs/host/index.md#windows-capture](../host/index.md#windows-capture).
    it "looked". A ring that stays open all turn means the capture never reached the model (the
    switch off, the exclusion failed, an unreachable body, or a gated capture declined), and the
    reply should say so. The ring never goes the other way, so an open ring is not proof the
-   display was untouched: a capture that failed after the shutter fired looks the same from the
-   brain's side, and the OS receipt is the surface that settles that case.
+   display was untouched: a capture that failed after the picture was taken looks the same from
+   the brain's side, and the OS receipt is the surface that settles that case.
 3. **Verify the self-exclusion**, which is the one check that cannot be inferred: capture while
    the overlay is visible and confirm the assistant does **not** describe the overlay. If it
    does, the exclusion silently failed and the loop it prevents is live (a line an attacker gets
@@ -209,11 +211,11 @@ them: [docs/host/index.md#windows-capture](../host/index.md#windows-capture).
 
 ## What a capture does to the turn
 
-Worth knowing before the first surprise, because it is all deliberate:
+Every item below is deliberate, and worth reading before the first one surprises you:
 
 - The turn becomes **tainted**, so every gated tool (`send_email`, `escalate_to_brain`) is
   hard-denied for the rest of it, with no confirmation offered. "Read this email, then look at
-  my screen, then mail me a summary" will refuse the last step. Ask again in a fresh message.
+  my screen, then mail me a summary" is denied at the last step. Ask again in a fresh message.
 - **What taint does not close is the capture itself.** `capture_screen` is ungated, and the taint
   gate closes only gated tools, so an injected tool result can drive a capture **in the same turn
   it arrived in**, with the injection live in the context that decides to capture. That is the
@@ -222,18 +224,18 @@ Worth knowing before the first surprise, because it is all deliberate:
   strict, and nothing reaches durable memory.
 - The turn becomes **opaque**, which additionally: escalates the output guardrail to strict
   redaction (every URL the user did not send is removed from the reply), blocks the exchange
-  from durable memory whatever `CORTEX_MEMORY_ON_TAINTED` says, and refuses a deep-model
+  from durable memory whatever `CORTEX_MEMORY_ON_TAINTED` says, and denies a deep-model
   handoff outright: the swap conductor ends the turn with a note saying so, since a picture cannot
   be handed to the deep model and no brain-tier model could read one anyway.
-- **Nothing is retained.** The picture dies with the turn: no session store, no handoff record,
+- **Nothing is retained.** The picture is discarded when the turn ends: no session store, no handoff record,
   no memory. A reopened chat shows the reply and no evidence of what was seen, and the audit
   line records dimensions, a byte count and a timestamp only. A later dispute about what a
   capture contained genuinely cannot be answered from the store.
 - At most **two** captures per target and **four** per turn. Repeat detection keys on the tool
   name plus its arguments, so each target is its own identity and the old free bound of two
   doubled when the tool gained one. It is four rather than six because a call naming no target is
-  refused before the body is reached, and four rather than unbounded because the two spellings
-  are matched exactly, `Display` being refused rather than accepted beside `display`.
+  refused before the body is reached, and four rather than unbounded because the two accepted
+  values are matched exactly, `Display` being rejected rather than accepted beside `display`.
 
 ## If you want it gated
 
@@ -245,7 +247,7 @@ CORTEX_TOOLS_GATE_REASONS__capture_screen=the assistant will take a picture of y
 ```
 
 Know what it buys and costs. It buys an approval before every screen read, and since 2026-08-10
-that approval can say something: the call carries a target, so a card could promise "the window
+that approval can say something: the call carries a target, so a card could say "the window
 you are looking at" rather than only "a picture". What it still costs is the interaction: it makes
 "read this email, then look at my screen" structurally impossible, because a gated call on a
 tainted turn is denied outright and a first capture then self-denies a second, and it adds a card
@@ -253,8 +255,9 @@ to the flagship gesture. The receipt and the kill switch are the chosen mitigati
 
 ## Turning it off
 
-Any one of these is enough, and each is honest about which layer it turns off:
+Any one of these is enough, and each names the layer it turns off:
 
-- `CORTEX_HOST_CAPTURE` unset: the body refuses every capture, whatever the brain thinks.
+- `CORTEX_HOST_CAPTURE` unset: the body denies every capture, whatever the brain is configured for.
 - `CORTEX_VISION=off`: the tool is never advertised, so the model cannot ask.
-- `CORTEX_MODEL_FILE_CORTEX_MMPROJ` unset: the model has no eyes, and `auto` discovers that itself.
+- `CORTEX_MODEL_FILE_CORTEX_MMPROJ` unset: the model has no vision, and `auto` reads that off the
+  server itself.

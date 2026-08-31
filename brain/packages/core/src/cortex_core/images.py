@@ -1,20 +1,20 @@
 """Image parts: the only way pixels are expressed anywhere in the brain (ADR-0029).
 
-Pure data with a validating constructor, importing nothing but the standard library. That is
-what lets ``tools.py``, ``conversation.py``, and ``body.py`` all depend on it without a cycle,
-and it is also the security posture: **the core never decodes an image**. It checks a declared
-mime against an allow-list, checks the declared size against a bound, checks the byte count,
-and base64-encodes. Nothing here parses a pixel, so no attacker-controlled bytes reach a
-decoder inside the process that holds the durable memory store.
+Pure data with a validating constructor, importing nothing but the standard library. That is what
+lets ``tools.py``, ``conversation.py``, and ``body.py`` all depend on it without a cycle, and it is
+also the security posture: the core never decodes an image. It checks a declared mime against an
+allow-list, checks the declared size against a bound, checks the byte count, and base64-encodes.
+Nothing here parses a pixel, so no attacker-controlled bytes reach a decoder inside the process
+that holds the durable memory store.
 
-The bounds are the domain half of a ceiling the body enforces too. ``MAX_IMAGE_BYTES`` is the
-same 6 MiB as the body's ``MAX_CAPTURE_BYTES``, and the two must agree: a body ceiling looser
-than this one would let a legitimate capture pass the body and be refused here. Neither
-toolchain can import the other's constant, so the two are tied by a repo gate instead,
-``scripts/crosscheck.py``, which reads both declarations and fails when they disagree; each is
-still pinned to the literal in its own toolchain, and the brain still sends this number to the
-body as the request's ``max_bytes`` rather than trusting the body to hold the same constant.
-Editing this value means editing the body's too, which is what the gate now insists on.
+The bounds are the domain half of a ceiling the body enforces too. ``MAX_IMAGE_BYTES`` is the same
+6 MiB as the body's ``MAX_CAPTURE_BYTES``, and the two must agree: a body ceiling looser than this
+one would let a legitimate capture pass the body and then be rejected here. Neither toolchain can
+import the other's constant, so the two are tied by a repo gate instead, ``scripts/crosscheck.py``,
+which reads both declarations and fails when they disagree; each is still pinned to the literal in
+its own toolchain, and the brain still sends this number to the body as the request's ``max_bytes``
+rather than relying on the body to hold the same constant. Editing this value means editing the
+body's too, which is what that gate enforces.
 """
 
 import base64
@@ -22,12 +22,12 @@ from dataclasses import dataclass
 
 # The most bytes one image part may carry, 6 MiB. Matches the body's MAX_CAPTURE_BYTES: a
 # worst-case incompressible screen encodes to 4.33 MB at the body's 1600 px default edge, so a
-# tighter bound here would refuse ordinary photographic screens the body legitimately produced.
+# tighter bound here would reject ordinary photographic screens the body legitimately produced.
 MAX_IMAGE_BYTES = 6 * 1024 * 1024
 
 # The largest edge, in pixels, a declared image size may name. Far above anything the capture
-# path produces (the body clamps at 4096); it exists to refuse a nonsense declaration, since
-# the dimensions are metadata the core never verifies against the bytes.
+# path produces (the body clamps at 4096); it rejects a nonsense declaration, since the
+# dimensions are metadata the core never verifies against the bytes.
 MAX_IMAGE_EDGE = 8192
 
 # The encodings an image part may declare. PNG is all the capture path emits today; JPEG and
@@ -56,7 +56,7 @@ class ImagePart:
     def __post_init__(self) -> None:
         """Reject anything that is not a plausible, in-budget image.
 
-        Raises ``ImageError``. The dimensions are checked as *declarations*: they say what the
+        Raises ``ImageError``. The dimensions are checked as declarations: they say what the
         producer claims, and nothing here opens the bytes to confirm it, which is deliberate.
         """
         if not self.data:
@@ -77,7 +77,7 @@ class ImagePart:
 def data_uri(part: ImagePart) -> str:
     """Render ``part`` as a ``data:`` URI, the form an OpenAI content-parts array takes.
 
-    Standard-library base64 only. This is the whole of the brain's image processing.
+    Standard-library base64 only, which is the whole of the brain's image processing.
     """
     encoded = base64.b64encode(part.data).decode("ascii")
     return f"data:{part.mime_type};base64,{encoded}"

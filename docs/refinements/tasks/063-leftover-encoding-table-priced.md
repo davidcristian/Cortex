@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0015](../../adr/ADR-0015-output-guardrail.md)
 
-One row closed, the rest declined with the
+This pass closed one row and declined the rest with the
 reason written down, and the tail they sit in stays open on its class. The pass decided every row by
 one question, asked of the shipped path rather than of the spelling: **is there a resolver in
 this system's path for untrusted content that turns this spelling back into the attacker's
@@ -21,7 +21,7 @@ parsing every browser does) rather than reasoned about. **One row is live and it
 is not a rendering of the link, it is the link: the URL Standard skips `/` and `\` alike in a
 special scheme's authority and converts a path backslash to a solidus, so `new URL` returns the
 plain link for the JSON-escaped spelling, for `https:\\…`, for `https:/\…` and for a path
-backslash. The first three anchored **nothing**, so both policies were blind to them (the severe
+backslash. The first three anchored **nothing**, so neither policy matched them (the severe
 shape a fourth time), and the fourth carried a second identity the collected set never held, the
 CJK-dot shape. Both directions were measured through a real `TaintLedger` and a real streaming
 filter fed one character at a time, and the collected side is the worse one: untrusted content
@@ -35,7 +35,7 @@ parser's own rule, scoped to the schemes it holds for, so `mailto:a\b@x` keeps i
 by a compiler that is not here, and the parser that *is* here reads the escaped host
 `evil\u002eexample` as the host `evil` with the rest in the path. The identity now says that too,
 so folding the backslash did not admit these rows, it sharpened the decline. `%u002e` is not a
-percent-escape at all and the parser refuses the URL outright. A bracketless percent-encoded
+percent-escape at all and the parser rejects the URL outright. A bracketless percent-encoded
 separator is resolved by nobody, now confirmed: `new URL` throws. Stacked
 references still need two passes, and the one place a second pass exists already composes to a
 catch, measured rather than assumed: an HTML email spelling `https&amp;#58;//…` reaches the ledger

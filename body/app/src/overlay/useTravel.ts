@@ -6,41 +6,42 @@ import { EASING, MIN_DELTA_PX, MORPHING_ATTRIBUTE, MORPH_ROLL_MS } from "./morph
 //
 // The overlay had the two motions a list makes to a row it is losing or gaining: `Collapse` gives a
 // section its own height animation, and `usePresence` holds a removed row on screen for the length
-// of its exit. Neither covers the row that STAYS. The switcher re-lists pinned chats first and then
+// of its exit. Neither covers the row that stays. The switcher re-lists pinned chats first and then
 // by recency after every write, so pinning one regroups the list around it, and every row the
 // regrouping touches was somewhere else in the previous frame and at its new place in this one.
 // Traced at 900x900 before this existed: pinning the third of three chats took it 270 to 170 and
 // pushed the two above it 50px each, the whole rearrangement inside the single frame the re-listing
 // committed.
 //
-// The mechanism is the one usually called FLIP: read where each row IS, let the commit put it where
-// it BELONGS, and hand the difference back as a transform that decays to nothing over the same
+// The mechanism is the one usually called FLIP: read where each row is, let the commit put it where
+// it belongs, and hand the difference back as a transform that decays to nothing over the same
 // clock and curve a roll uses. The transform is what lets a list do this without disturbing
 // anything around it. Layout is already final in the frame the travel starts, so the card's height
 // never changes, the panel's `auto` height has nothing to follow, and the watch the panel keeps on
-// its own box (`panelWatch.ts`) has no resize to answer: a list motion that fought the panel's own
-// ease would be a worse defect than the snap it removed.
+// its own box (`panelWatch.ts`) has no resize to answer: a list motion that competed with the
+// panel's own ease would be a worse defect than the snap it removes.
 //
-// **A row is remembered by its element, not by a key.** React moves the DOM node a keyed row owns
-// rather than rebuilding it, which is what makes a reorder a reorder; so the element IS the
+// A row is remembered by its element rather than by a key. React moves the DOM node a keyed row
+// owns rather than rebuilding it, which is what makes a reorder a reorder; so the element is the
 // identity, and a row that was rebuilt (a chat that left and came back) is correctly a row with
 // nowhere to travel from. That also means nothing has to be cleaned up: a `WeakMap` forgets an
 // element the moment React drops it.
 //
-// **Where a row WAS is not always where the last commit left it.** A roll moves rows by LAYOUT,
+// Where a row was is not always where the last commit left it. A roll moves rows by layout,
 // frame by frame, and no commit happens while it does: a deleted row's neighbours travel 50px over
 // its 300ms exit and the next commit (the release, once the exit ends) would read that as a 50px
 // jump to answer, sending them back down to re-travel a distance they had already covered. So while
 // a roll is in flight inside the list, the record is refreshed every frame and nothing is played
-// from it. The frame loop only remembers; only a commit may animate. That is also what puts a
-// mid-roll regrouping on honest numbers, the leaving row included, since the position it is
+// from it. The frame loop only remembers, and only a commit may animate. That is also what puts a
+// mid-roll regrouping on correct numbers, the leaving row included, since the position it is
 // measured from is the one it had in the previous frame rather than the one it had 200ms ago.
 //
-// **An interrupted travel is composed, not cancelled.** A second regrouping landing mid-travel finds
-// the row visually between two places and structurally at the second one, so cancelling the first
-// animation to start a second would drop whatever of the first was left. Both are `composite: add`
-// instead: each is a translation that decays to zero, so the offsets sum to exactly the gap the eye
-// has and the row lands where layout already put it, whatever is still in the air.
+// An interrupted travel is composed rather than cancelled. A second regrouping landing mid-travel
+// finds the row visually between two places and structurally at the second one, so cancelling the
+// first animation to start a second would drop whatever of the first was left. Both are
+// `composite: add` instead: each is a translation that decays to zero, so the offsets sum to
+// exactly the gap the eye has and the row lands where layout already put it, whatever is still in
+// the air.
 
 /** The rows to watch, in the order the list renders them. */
 function rowsIn(list: HTMLElement, rows: string): HTMLElement[] {

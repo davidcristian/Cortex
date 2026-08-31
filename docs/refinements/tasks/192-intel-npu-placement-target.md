@@ -20,7 +20,7 @@ deferral itself has been recorded here and at its origin ADR since the extractio
 
 **Probed 2026-08-20 and re-triggered rather than closed** ([ADR-0012](../../adr/ADR-0012-resource-governance.md)
 NPU-probe addendum). Unknown (a) is answered and the guess about why was right, and the answer
-distinguishes three claims that wear one sentence. **Measured at the guest:** the only device node
+distinguishes three claims that share one sentence. **Measured at the guest:** the only device node
 is `/dev/dxg`, `/dev/accel` and `/dev/dri` do not exist, the PCI bus carries no Intel silicon at
 all, and the kernel is built `# CONFIG_DRM_ACCEL is not set`, so `intel_vpu` could not bind a
 device it was handed. **Measured at the paravirtualization:** `libdxcore.so` enumerates exactly two

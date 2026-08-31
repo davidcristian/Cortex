@@ -6,7 +6,7 @@
 
 What shipped first was the plainest of three pitched to the user: rows, hairlines,
 one way back. The maintainer picked the other two together, and both were built as predicted, inner
-markup on plumbing that did not move: the theme choices are thumbnails of the panel wearing each
+markup on plumbing that did not move: the theme choices are thumbnails of the panel in each
 theme, and the two destinations are one console with a tab strip
 ([ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 1). The motion is the panel's
 existing view morph, because the tab is part of the view name, so nothing about the geometry

@@ -17,7 +17,7 @@ than by arithmetic. It is a compose default plus a `SubagentsConfig` field, so n
 port has to move, and the same sitting should decide whether the roster's alternate entry needs
 its own figure. Pinned by a test today
 (`test_shipped_vram_budget_still_refuses_the_compose_placeholder_ask`), so a later change to the
-reservation cannot quietly flip the shipped stack into GPU placement without answering this.
+reservation cannot flip the shipped stack into GPU placement without answering this.
 **Closed 2026-08-08 by measuring the tier, one day after it opened
 ([ADR-0012 measured-ask addendum](../../adr/ADR-0012-resource-governance.md), procedure in
 [runbooks/subagents-cpu.md](../../runbooks/subagents-cpu.md) section 2c).** The ask is **3.5 GiB**
@@ -44,7 +44,7 @@ successor (GPU then CPU), the other holds the margin above the measured peak. Pr
 and not only in the gate: under the old ask the live GPU arm could not select itself (5.5 against
 5.4 GiB of headroom) and the tier served no task; under 3.5 the same command places one spawn
 there, answered in 152.11 ms against 13134.73 ms for the sibling that overflowed, and the arm was
-shown able to redden first by pointing the GPU endpoint at a closed port. **What is not fixed is
+shown able to fail first by pointing the GPU endpoint at a closed port. **What is not fixed is
 what the ask means for the second spawn:** the ledger charges one tier's whole footprint per
 spawn, and a second spawn onto that standing process allocates nothing, so refusing it buys decode
 speed rather than memory. That is the modelling gap recorded in
@@ -53,7 +53,7 @@ reading of the refusal.
 
 ## Trail
 
-- 2026-08-07: Opened by the cortex reservation's re-measurement, which refused to bend this term:
+- 2026-08-07: Opened by the cortex reservation's re-measurement, which deliberately left this term alone:
   8.5 GiB would have exactly admitted the 5.5 GiB the compose file asks, and choosing it would have
   been choosing the answer on a 131 MiB margin.
 - 2026-08-08: Closed by measuring the tier one day after it opened, recorded at the

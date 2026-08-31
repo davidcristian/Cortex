@@ -26,8 +26,8 @@ it does nothing about local processes.
    present and future, so no per-method discipline) must carry the token as
    `x-cortex-seam-token` metadata or is aborted `UNAUTHENTICATED` before any servicer code
    runs, through a rejection handler matching the method's own streaming shape. The compare is
-   constant-time (`secrets.compare_digest`); the denial does not reveal whether the token was
-   absent or wrong.
+   constant-time (`secrets.compare_digest`), and the denial is identical for an absent token and a
+   wrong one.
 3. **The body attaches it in a tonic client interceptor** (`BrainSeamClient::connect_with_token`;
    plain `connect` sends none). The interceptor holds the parsed metadata value and is
    deliberately not `Debug`. Combined with tonic printing interceptors by type name, the
@@ -71,8 +71,8 @@ it does nothing about local processes.
 
 ## Addendum (2026-08-03): the header's three declarations are tied by a gate
 
-The Consequences note above ("renaming the header touches server, client, and compose") stayed
-true and stayed unenforced: `SEAM_TOKEN_HEADER` is declared by hand three times, in
+The Consequences note above ("renaming the header touches server, client, and compose") was
+accurate and unenforced: `SEAM_TOKEN_HEADER` is declared by hand three times, in
 `body/crates/rpc/src/auth.rs`, `body/crates/rpc/src/client.rs`, and `brain/packages/seam`, and
 no test anywhere compared them. `scripts/crosscheck.py` now does, as one entry in its registry
 of cross-language constants; the mechanism and why the seam token is in it are argued in
@@ -83,28 +83,29 @@ itself changes here.
 The compose healthcheck in `docker/docker-compose.yml` holds a **fourth** copy, inline in a
 one-line Python command rather than as a declaration, so the gate does not reach it: a rename
 would still break the healthcheck silently. That is recorded as an open deferral in
-[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates) rather than solved by teaching a
-constant scanner to read a shell string embedded in YAML.
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates) rather than solved by
+extending a constant scanner to parse a shell string embedded in YAML.
 
 ## Addendum (2026-08-25): the live suite's token precondition is checked, not merely implied
 
 The Risks section above named the papercut this decision would cause and pointed at the runbooks to
-mitigate it: "a configured brain + an unconfigured body fails loudly". The direction that actually
-bit is the mirror of it, an **unconfigured brain** plus a check that needs a configured one, and no
-runbook covered it because the instructions that mattered were not in a runbook. `just seam-health`
-carried its own, in the comment above the recipe, and they said "Needs a running brain (`just up`
-or `just brain-serve`)" and stopped there. Following them exactly produces a red suite:
-`a_rejected_seam_token_is_answered_at_once_and_never_retried` dials with a deliberately wrong token
-and a brain serving without one accepts it, so the check reports the brain as `Ready` and fails.
+mitigate it: "a configured brain + an unconfigured body fails loudly". The failure that actually
+occurred is the mirror of that one, an **unconfigured brain** plus a check that needs a configured
+one, and no runbook covered it because the instructions that mattered were not in a runbook. `just
+seam-health` carried its own instructions in the comment above the recipe, and they said "Needs a
+running brain (`just up` or `just brain-serve`)" and nothing more. Following them exactly produces a
+failing suite: `a_rejected_seam_token_is_answered_at_once_and_never_retried` dials with a
+deliberately wrong token, a brain serving without one accepts it, and so the check reports the brain
+as `Ready` and fails.
 
-That check is right and stays as it is. A token-free brain's interceptor is a pass-through, so
-there is no rejection to observe, and the check says so in its own failure message rather than
-skipping, on the standing principle that a live check which quietly opts out is worse than one that
-says what it needs. What was wrong is that the instructions produced the failure and then could not
-explain it: at a glance a red check meaning "you configured it wrong" reads exactly like one
-meaning "the seam regressed", and the reader has no way to tell which without opening the source.
+That check is correct and stays as it is. A token-free brain's interceptor is a pass-through, so
+there is no rejection to observe, and the check states that in its own failure message rather than
+skipping: a live check that opts out silently reports success without having tested anything. What
+was wrong is that the instructions produced the failure and gave the reader nothing to interpret it
+with. At a glance, a failure meaning "you configured it wrong" looks exactly like one meaning "the
+seam regressed", and telling them apart means opening the source.
 
-**Decision: the recipe refuses to start without the token, before it spends a build.** `just
+**Decision: the recipe exits when the token is unset, before it runs a build.** `just
 seam-health` now checks `CORTEX_SEAM_TOKEN` first and, when it is empty, prints what the suite
 needs and both ways forward: serve with a token and present the same value here, or run the rest of
 the suite by hand with that one check skipped and say so in what is reported. The recipe comment
@@ -117,12 +118,12 @@ run against a protected brain needs the variable in its own environment whatever
 Requiring it states the precondition rather than adding one.
 
 **Not read off the running brain.** The recipe could ask docker what token the container serves
-with, and then it would know only about a dockerized brain: `just brain-serve` has no container to
-ask. It would also widen where the secret travels, to buy the operator nothing they do not already
-have, since the value is one they chose.
+with, but that would cover only a dockerized brain, since `just brain-serve` has no container to
+query. It would also widen where the secret travels and gain the operator nothing, since the value
+is one they chose.
 
 **Not a skip.** Skipping the check when the token is absent would make the common misconfiguration
-invisible, which is the failure mode the check was written against. The suite would go green while
+invisible, which is the failure mode the check was written against. The suite would pass while
 proving nothing about the token at all.
 
 ### Distrust green
@@ -135,17 +136,17 @@ The guard is proven to fire, and the check behind it is proven still able to cat
 | Token set, brain serving without one | 7 passed, 1 failed, in 6.42 s: "the brain accepted a deliberately wrong token, so it is serving without auth" |
 | Token set, brain serving with the same value | 8 passed, 0 failed, in 6.41 s |
 
-The middle row is the evidence that the guard is a signpost rather than a substitute: an operator
-who exports a token the brain does not serve with gets past it and then gets the check's own
-message, which names the fix. It was measured by taking the stack down and back up without a token,
-not inferred from the run this pass began with, where nothing was exported at all and the recipe
-said nothing about it.
+The middle row shows that the guard directs the operator without replacing the check: an operator
+who exports a token the brain does not serve with passes the guard and then reads the check's own
+message, which names the fix. That row was measured by taking the stack down and back up without a
+token, not inferred from the run this pass began with, where nothing was exported at all and the
+recipe said nothing about it.
 
 ### What this opens
 
-One papercut is left standing, and named where an operator meets it rather than solved: a token
-written into the git-ignored `.env` reaches compose, which reads that file, and never reaches
-`just`, which does not, so `just up` serves with a token that `just seam-health` cannot see. The
-guard's message says so. The fix, teaching the justfile to load the same file, has consequences for
+One papercut is left unfixed, and named where an operator meets it: a token written into the
+git-ignored `.env` reaches compose, which reads that file, and never reaches `just`, which does
+not, so `just up` serves with a token that is absent from `just seam-health`'s environment. The
+guard's message says so. The fix, making the justfile load the same file, has consequences for
 every recipe rather than this one, so it is
 [R-441](../refinements/tasks/441-a-token-in-dotenv-reaches-compose-and-not-just.md).

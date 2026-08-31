@@ -6,41 +6,41 @@ over the scripted host with a recording publisher standing in for the manager's 
 writer. The manager's own end of it (which model it will lease afterwards, and what the seam then
 says) is in ``test_residency.py``, where the beliefs live.
 
-Distrust-green proofs. Each mutation was applied to production code alone, ``__pycache__``
-cleared, and the whole ``packages`` suite re-run, so the counts below are what actually reddened
-rather than what was aimed at:
+Mutations proving these tests can fail. Each was applied to production code alone, ``__pycache__``
+cleared, and the whole ``packages`` suite re-run, so the counts below are measured rather than
+estimated:
 
 - treating a **first** observation as a change (dropping the ``self._seen is not None`` clause)
-  reddens **3**: the two seed cases here and
+  fails **3**: the two seed cases here and
   ``test_a_boot_that_could_not_reach_the_host_leaves_the_first_handoff_reconciling_nothing`` in
   ``test_residency.py``, which is the one that shows what getting it wrong would cost a real
   deployment, a co-resident plan losing the peers it exists to keep serving;
-- remembering nothing (never assigning ``self._seen``) reddens **12**, ten here and two in
+- remembering nothing (never assigning ``self._seen``) fails **12**, ten here and two in
   ``test_residency.py``, since every replacement then reconciles for ever;
 - clearing what was remembered when a host will not say (assigning ``self._seen`` unconditionally)
-  reddens **1**, ``test_a_host_that_will_not_say_is_no_evidence_in_either_direction``, and only on
+  fails **1**, ``test_a_host_that_will_not_say_is_no_evidence_in_either_direction``, and only on
   its last line: a silence between two daemons is the sole sequence in which erasing changes an
   answer, which is why that case walks one rather than asserting three reads in isolation;
-- skipping the deadline re-read after a replacement reddens **3**, the two cases here that turn on
+- skipping the deadline re-read after a replacement fails **3**, the two cases here that turn on
   bounds and the manager-level refusal in ``test_residency.py``;
-- refusing on an unreachable host instead of standing down reddens **2**,
+- refusing on an unreachable host instead of standing down fails **2**,
   ``test_a_host_that_cannot_be_asked_leaves_every_belief_where_it_was`` and the boot case in
-  ``test_residency.py``; doing the same for bounds that cannot be read reddens **1**,
+  ``test_residency.py``; doing the same for bounds that cannot be read fails **1**,
   ``test_bounds_that_cannot_be_read_after_a_restart_leave_the_pairing_unchecked``;
-- publishing nothing after a successful convergence reddens **7**, every case here that gets past
+- publishing nothing after a successful convergence fails **7**, every case here that gets past
   the comparison, which is what pins the beliefs to the reading rather than to the machine alone;
-  publishing nothing after a failed one reddens **1**,
+  publishing nothing after a failed one fails **1**,
   ``test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff``;
 - converging against a record of its own instead of the manager's (a fresh ``StandingTiers`` in
-  ``_converge``) reddens **1**,
+  ``_converge``) fails **1**,
   ``test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_proceeds``, which is the
   case for the third belief a replacement invalidates.
 
 The two ends of the wire are proved in their own suites: dropping the reconcile from the swap
-reddens 9 (``test_residency.py``, ``test_swap_conductor.py`` and four chaos boundaries, all of
-which read the op log), dropping the seed from the boot publish reddens 2, dropping ``boot_id``
-from the daemon's health body reddens 2, and a supervisor that mints a constant instead of a fresh
-value reddens 1.
+fails 9 (``test_residency.py``, ``test_swap_conductor.py`` and four chaos boundaries, all of
+which read the op log), dropping the seed from the boot publish fails 2, dropping ``boot_id``
+from the daemon's health body fails 2, and a supervisor that mints a constant instead of a fresh
+value fails 1.
 """
 
 import logging
@@ -160,7 +160,8 @@ async def test_the_same_daemon_answering_again_costs_one_read_and_changes_nothin
 async def test_a_replaced_daemon_is_converged_and_the_finding_is_published(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The whole point: the machine is put back into the standing shape and the beliefs follow.
+    """A replaced daemon is converged, so the machine is put back into the standing shape and
+    the beliefs follow.
 
     The fresh daemon here is the real one's behaviour after ``restart: unless-stopped`` revives
     it: its own boot default has the cortex up and nothing else, so convergence stops nothing,
@@ -214,7 +215,7 @@ async def test_one_restart_is_reconciled_once_however_many_handoffs_follow() -> 
 async def test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Beliefs known to be false are not kept: nothing is resident until something says it is.
+    """Beliefs known to be false are dropped: nothing is resident until something observes it.
 
     Deliberately unlike the boot publish, which leaves the resident alone on an unconfirmed
     cortex. There the seed is only ever an assumption and the machine may well be serving; here
@@ -240,7 +241,7 @@ async def test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff(
 
 
 async def test_a_daemon_that_came_back_with_bounds_the_deadline_cannot_clear_refuses() -> None:
-    """The other half a restart invalidates: the pairing the composition root checked at boot.
+    """A restart also invalidates the pairing the composition root checked at boot.
 
     Env cannot change under a running container, so this is the only event that can move it, and
     the refusal is the same judgement the boot check makes. It happens after the convergence and
@@ -272,7 +273,7 @@ async def test_a_daemon_that_came_back_within_the_deadline_runs_the_handoff() ->
 
 
 async def test_a_daemon_that_states_no_bounds_leaves_the_pairing_with_nothing_to_check() -> None:
-    """The scripted backend CI runs: it stops no process, so it bounds no stop to compare."""
+    """The scripted backend CI runs stops no process, so it declares no stop bound to compare."""
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a")
     watch = _watch(host)
     published = _Published()
@@ -315,7 +316,8 @@ async def test_bounds_that_cannot_be_read_after_a_restart_leave_the_pairing_unch
 async def test_a_host_that_cannot_be_asked_leaves_every_belief_where_it_was(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Tolerated exactly as the boot check tolerates it: nothing observed, so nothing rebuilt.
+    """An unreachable host is tolerated exactly as the boot check tolerates it: nothing was
+    observed, so nothing is rebuilt.
 
     A swap whose host is unreachable fails at its very next move with the failure that really
     happened, which is a better answer than one invented here out of an unanswered question.

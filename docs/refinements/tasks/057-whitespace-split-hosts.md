@@ -24,7 +24,7 @@ sentences about a connection dot or a red dot.
 
 What made the close possible is one rule rather than any table: **a gap is admitted only
 immediately after the separator and only while every label so far is dotless**, because defanging
-replaces a host's dot and never adds one. That was found by measurement, not foresight: written as
+replaces a host's dot and never adds one. That was found by measurement rather than foresight: written as
 one more alternative inside the body's `+` loop it is defeated, the loop re-entering it at every
 position and reading `visit http://example.com dot the file` as a host, which destroys an identity
 that was already correct. The narrowings a worse answer would have needed are each a data table
@@ -33,7 +33,7 @@ also turned up a third failure shape past the "leaked" and "wrong identity" ones
 addenda found: on a link split both ways both policies fired and the user still read `[link
 removed: untrusted source] dot example/pay`, a redaction that stops at the first gap and hands over
 the host beside its own marker. The hold-back carries the same dotless rule, and that is not a
-detail: holding on any trailing space held every URL in every reply and reddened 28 existing tests
+detail: holding on any trailing space held every URL in every reply and made 28 existing tests fail
 before the rule went in.
 
 The same widening turned up a live spelling on none of its rows, the shape this ADR has now found

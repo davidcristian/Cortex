@@ -15,7 +15,7 @@ import type { Message } from "./turnState";
 // arrival takes the caret with it (`arrival`), and what becomes of the draft the outgoing chat was
 // holding. That last one is nothing at all for three of them: the composer's text is keyed by
 // session id and parked as it is typed (`drafts.ts`), so a chat leaving keeps what it was holding
-// and a chat arriving is handed its own, with no arm doing anything. Only a DELETE has work,
+// and a chat arriving is handed its own, with no arm doing anything. Only a delete has work,
 // having taken away the conversation a draft belonged to.
 
 export const NEW_CHAT_TITLE = "New chat";
@@ -23,8 +23,8 @@ export const NEW_CHAT_TITLE = "New chat";
  * The character bound on a title, the same number the brain's `cortex_core.sessions.TITLE_MAX`
  * bounds every listed title to, and tied to it by `scripts/crosscheck.py` so neither can move
  * alone. It has to be the same number rather than merely a number, because `deriveTitle` below is
- * a STAND-IN for the brain's derivation and not a bound of its own: it names a chat the brain has
- * not listed yet, and the moment that chat is listed the switcher row beside the header carries
+ * a stand-in for the brain's derivation rather than a bound of its own: it names a chat the brain
+ * has not listed yet, and the moment that chat is listed the switcher row beside the header carries
  * the brain's rendering of the same first message. At 32 against 48 those two strings differed on
  * screen at once, a 42-character first message reading in full in the row and cut at 32 in the
  * header, in a header box measured wider than the row (339px against 314px at a 900px viewport,
@@ -88,18 +88,18 @@ function headerTitle(
 
 /**
  * Mint a fresh chat over whatever is on screen (ADR-0035 addendum, 2026-08-03). The console leaves
- * with the old chat. Both doors here, Ctrl+N and the header's pencil, are aimed at the conversation,
- * so they land in the conversation: the arm sets `mode: "panel"` for that reason, and leaving
+ * with the old chat. Both gestures here, Ctrl+N and the header's pencil, are aimed at the
+ * conversation, so they land in it: the arm sets `mode: "panel"` for that reason, and leaving
  * `consoleTab` alone emptied the chat *behind* the console, which stayed up (the user's pick; Ctrl+N
  * is the reachable half of the pair, the pencil being under the console with the rest of the chat).
  * This is the opposite call from `dismiss` and for the opposite reason: the panel stays on screen
  * here, so the morph back to the chat is the movement that was asked for rather than one the window
  * makes on its way out.
  *
- * The two doors part company on one thing only, which is whether the swap is announced. The pencil
- * is labelled "New chat" and hands back exactly that string, so it stays silent; the keystroke names
- * nothing, so it speaks (`notice.ts`). They agree about focus, as every pair of doors on one arm
- * does: the empty chat arrives with the caret in it (`arrival`).
+ * The two gestures part company on one thing only, which is whether the swap is announced. The
+ * pencil is labelled "New chat" and hands back exactly that string, so it stays silent; the
+ * keystroke names nothing, so it speaks (`notice.ts`). They agree about focus, as every pair of
+ * gestures on one arm does: the empty chat arrives with the caret in it (`arrival`).
  *
  * And they agree about the draft, which needs no line here. The fresh id has nothing parked under
  * it, so the composer is empty; the sentence the user was half way through stays under the chat
@@ -129,15 +129,15 @@ export function newChat(state: OverlayState, sessionId: string, announce: boolea
  * clear they loaded another conversation behind the standing console, which is the same
  * surprise the new-chat arm was answering and the same answer.
  *
- * `announce` is the caller's door, not this arm's decision, because the doors are three and the
- * arm is one: a cycle key and a reminder's open control speak, a switcher row does not
+ * `announce` is the caller's decision rather than this arm's, because the callers are three and
+ * the arm is one: a cycle key and a reminder's open control speak, a switcher row does not
  * (`notice.ts`). What is announced is the title computed right here, so the live region and the
  * header cannot disagree about which chat arrived, in the same way the header and the switcher
  * row cannot (`headerTitle`).
  *
- * Focus is the arm's own decision and needs no flag, all three doors wanting the same landing: the
- * chat arrives with the caret in the composer (`arrival`, and `Composer` for why there). Two of
- * these doors are why that rule exists, a switcher row and a reminder's open control both sitting
+ * Focus is the arm's own decision and needs no flag, all three callers needing the same landing:
+ * the chat arrives with the caret in the composer (`arrival`, and `Composer` for why there). Two of
+ * these callers are why that rule exists, a switcher row and a reminder's open control both sitting
  * inside a section this swap takes away.
  */
 export function openSession(
@@ -176,7 +176,7 @@ export function openSession(
  * dismiss would otherwise read as an untouched boot and be hijacked.
  *
  * It is the one chat swap that says nothing, and it needs no flag to stay quiet: there is no
- * gesture behind it to answer, and it runs only while `touched` is false, which every door that
+ * gesture behind it to answer, and it runs only while `touched` is false, which every gesture that
  * can raise a notice sets. So a restore cannot arrive over something said, and the notice it
  * carries forward is always the `null` it started at.
  */
@@ -200,7 +200,7 @@ export function adoptSession(
 
 /**
  * Remove a deleted chat from the switcher list, handling the current-session hazard (ADR-0021
- * delete addendum). Deleting any other chat only drops its row. Deleting the CURRENTLY OPEN chat
+ * delete addendum). Deleting any other chat only drops its row. Deleting the currently open chat
  * must never leave a deleted transcript on screen, so the panel resets to a fresh empty chat in
  * place (the panel stays open, the switcher stays as it was so the user can keep managing chats),
  * taking `fallbackSessionId` for its identity: the reducer cannot mint ids, so the controller mints
@@ -213,23 +213,23 @@ export function adoptSession(
  * so this is unreachable from there besides.
  *
  * That reset is a chat swap and it always announces, with no flag to say so, because it has only
- * the one door and that door names the wrong chat: the button pressed is "Confirm delete" plus the
- * title of the conversation LEAVING, which says nothing about the empty one taking its place
- * (`notice.ts`).
+ * the one gesture behind it and that gesture names the wrong chat: the button pressed is "Confirm
+ * delete" plus the title of the conversation leaving, which says nothing about the empty one taking
+ * its place (`notice.ts`).
  *
- * AND THE ROW LEAVING SPEAKS ON BOTH PATHS, which is the half this arm used to be silent about
+ * The row leaving speaks on both paths, which is the half this arm used to be silent about
  * (ADR-0035 addendum, 2026-08-07). Deleting any other chat swaps nothing, and it used to say
  * nothing either, so a reader heard the name of the control they landed on and never heard that the
  * write had landed or what the list held now. It says so now, and when the delete also swaps, the
  * one region says both in the order they happened rather than a second region racing the first.
- * `gone` is what keeps that honest: an id the list never held (a repeated dispatch, a stale row)
+ * `gone` is what keeps that true: an id the list never held (a repeated dispatch, a stale row)
  * changes no list, so it raises no sentence about one.
  *
  * It is a swap for focus too, and the reset counts as an arrival: the confirm button is inside the
  * row that leaves, so the caret goes to the composer of the chat that arrived rather than nowhere
  * (`arrival`). The switcher stays open behind it, which is deliberate above and unchanged here.
  *
- * It is also the ONE arm that touches a draft, and it does so on both of its paths, because a draft
+ * It is also the one arm that touches a draft, and it does so on both of its paths, because a draft
  * belongs to a conversation and this is where a conversation stops existing (`drafts.ts`). Deleting
  * another chat drops the text parked under it, which nothing could ever reach again; deleting the
  * open one drops it too, and the empty chat taking its place is handed nothing, since the sentence

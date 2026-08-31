@@ -1,14 +1,14 @@
 """Schedule value types + the pure recurrence math (ADR-0025): durable, swap-safe time.
 
 Pure data and pure arithmetic, no I/O and no ``ports`` import. That lets ``ports.py`` depend on
-these without a cycle, exactly as ``subagents.py`` is depended on. A schedule *outlives every
-model swap and restart* (the one hard rule), so every ``ScheduledItem`` lives behind the
+these without a cycle, exactly as ``subagents.py`` is depended on. A schedule outlives every
+model swap and restart (the one hard rule), so every ``ScheduledItem`` lives behind the
 ``ScheduleStore`` port and every timestamp is timezone-aware (a naive time on a durable record
 is ambiguous). ``ScheduleClaim``/``FireOutcome`` carry the fenced claim→finish protocol: a
 claim's ``token`` is minted per claim, and a ``finish``/``release`` presenting a stale token is
 a no-op, so a fire that outran its lease cannot clobber the re-claim's newer state (ADR-0025
 decision 1). Named ``schedule``/``ScheduleTicker`` throughout, never "Scheduler", because that word
-means resource *admission* here (``SubagentScheduler``).
+means resource admission here (``SubagentScheduler``).
 """
 
 from dataclasses import dataclass
@@ -52,15 +52,14 @@ class ScheduledItem:
     ``text`` is the reminder text or the task instruction; ``session_id`` is the origin chat
     (``""`` until a turn-context stamp exists, per the ADR-0025 deferral). ``every`` makes the
     item recurring (a positive interval, enforced here; the 60 s floor is tool-boundary
-    policy). ``rule`` is the *other* recurrence shape, a wall-clock calendar rule that follows
-    daylight saving where an interval would drift against it (ADR-0025 calendar addendum);
-    **at most one of the two is set**, so "how does this item recur?" always has one answer
-    and ``next_occurrence`` never has to reconcile a conflict. ``anchor`` pins the *interval*
-    grid origin separately from ``due_at`` (the next fire): it is ``None`` until an occurrence
-    snooze moves one fire off the grid, after which ``recurrence_base`` reads it so the series
-    resumes its original cadence instead of drifting (ADR-0025 occurrence-snooze addendum). A
-    calendar item needs no anchor, because its rule *is* the grid. ``model`` is the task's
-    roster hint (``""`` = the
+    policy). ``rule`` is the other recurrence shape, a wall-clock calendar rule that follows
+    daylight saving where an interval would drift against it (ADR-0025 calendar addendum); at most
+    one of the two is set, so "how does this item recur?" always has one answer and
+    ``next_occurrence`` never has to reconcile a conflict. ``anchor`` pins the interval grid origin
+    separately from ``due_at`` (the next fire): it is ``None`` until an occurrence snooze moves one
+    fire off the grid, after which ``recurrence_base`` reads it so the series resumes its original
+    cadence instead of drifting (ADR-0025 occurrence-snooze addendum). A calendar item needs no
+    anchor, because its rule is the grid. ``model`` is the task's roster hint (``""`` = the
     default; ADR-0017 resolution still rules at fire time). ``tainted`` starts as the creating
     turn's taint (the dispatcher's stamp, ADR-0018) and is OR'd with each fire's outcome taint
     at ``finish``, and it decides listing trust and rides both delivery wire paths.
@@ -102,8 +101,8 @@ class ScheduledItem:
 class ScheduleClaim:
     """One claimed fire: the item as of the claim (status FIRING) plus the fencing token.
 
-    ``finish``/``release`` apply only under the token the store minted for the *current*
-    claim; a stale claimant's call is a no-op ``False`` (ADR-0025 decision 1).
+    ``finish``/``release`` apply only under the token the store minted for the current claim;
+    a stale claimant's call is a no-op ``False`` (ADR-0025 decision 1).
     """
 
     item: ScheduledItem
@@ -162,12 +161,12 @@ def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> dateti
     """The next anchored occurrence strictly after ``now``, or None for a one-shot.
 
     Occurrences are ``due_at + k * every`` (integer ``k >= 1``): missed occurrences while
-    the brain was down **coalesce** into the single fire that just happened. The next
-    re-arm is in the future, one catch-up fire instead of a flood (ADR-0025 decision 2).
-    ``every`` must be positive (the ``ScheduledItem`` invariant; enforced here too so the
-    pure function is total on its own terms). An occurrence past ``datetime.max`` cannot
-    be scheduled, so the recurrence **ends** (None, since terminal beats a fire that can never
-    persist its re-arm and lease-cycles forever; post-review hardening).
+    the brain was down coalesce into the single fire that just happened. The next re-arm is
+    in the future, one catch-up fire instead of a flood (ADR-0025 decision 2). ``every`` must
+    be positive (the ``ScheduledItem`` invariant; enforced here too so the pure function is
+    total on its own terms). An occurrence past ``datetime.max`` cannot be scheduled, so the
+    recurrence ends and this returns ``None``, because a fire that could never persist its
+    re-arm would cycle its lease for ever.
     """
     if every is None:
         return None

@@ -5,26 +5,12 @@ took that file to the 300-line cap. Its counterpart is ``request.py``; the seam 
 the direction a value travels, and ``backend.py`` keeps the lease, the HTTP call, and the order
 events come out in.
 
-Three different stances toward a malformed answer live here, and the differences are deliberate:
-
-- **Reply content, reasoning, and tool calls fail loud.** A chunk this module cannot parse raises
-  ``InferenceError`` rather than being skipped, because a silently dropped chunk loses reply text
-  or a tool call, which is the failure mode the store adapter refuses too. A tool call whose
-  ``arguments`` will not parse raises the narrower ``MalformedToolCallError`` (ADR-0005
-  tool-call-cut addendum), because that fragment is the model's own tokens rather than the
-  server's protocol, and a caller holding the completion's stop reason can then tell a call a
-  token limit cut from a backend that died.
-- **The decode cadence fails quiet.** It is a diagnostic that arrives after the answer, so a
-  server whose ``timings`` object is missing, oddly shaped, or negative yields no cadence and
-  changes nothing else. Killing a finished reply over a telemetry field would trade the thing the
-  user asked for against the thing the operator would have liked, and ``CadenceWatch`` already
-  understands "no reading" as its own answer rather than as a pass.
-- **The stop reason fails into a value.** A ``finish_reason`` this module has no member for, or
-  one that is not even a string, is neither raised nor dropped: it becomes ``StopReason.UNKNOWN``,
-  which is the one true statement available (the server said something about why it stopped and
-  this core cannot read it). Raising would cost the reply as above; staying silent would put an
-  unreadable answer in the same place as no answer, and the whole point of carrying the reason is
-  that "it ended for a reason nobody told us" must not read as "it finished".
+A malformed answer is handled three different ways here, each argued in
+docs/modules/brain-inference.md: reply content, reasoning and tool calls raise, a tool call whose
+``arguments`` will not parse raising the narrower ``MalformedToolCallError`` (ADR-0005
+tool-call-cut addendum); the decode cadence yields no cadence and changes nothing else, being a
+diagnostic that arrives after the answer; and a ``finish_reason`` this module cannot read becomes
+``StopReason.UNKNOWN`` rather than being raised on or dropped.
 """
 
 import json
@@ -48,8 +34,8 @@ __all__ = [
 # llama.cpp's finish-reason vocabulary mapped onto the core's closed set (ADR-0005 finish-reason
 # addendum). All three are verified against the shipped CPU subagent tier, build
 # ``b9879-72874f559``: a capped request closes on ``length``, an ordinary reply on ``stop``, and a
-# completion that ends in a function call on ``tool_calls``. Anything else is a word this core has
-# not been taught, and it arrives as ``UNKNOWN`` rather than as one of these.
+# completion that ends in a function call on ``tool_calls``. Any other word arrives as ``UNKNOWN``
+# rather than as one of these.
 _STOP_REASONS = {
     "stop": StopReason.FINISHED,
     "length": StopReason.CAPPED,
@@ -90,8 +76,8 @@ class PendingCall:
 
 
 def _require_text(value: object, field: str) -> str | None:
-    """A delta text field is a string or absent; anything else fails loud (a non-string is a
-    protocol violation, never silently dropped, matching the store adapter's stance)."""
+    """A delta text field is a string or absent; anything else raises, a non-string being a
+    protocol violation that must not be dropped."""
     if value is None:
         return None
     if not isinstance(value, str):
@@ -105,7 +91,7 @@ def _non_negative(value: object) -> float | None:
 
     ``bool`` is excluded explicitly because it is a subclass of ``int`` in Python, so a server
     answering ``true`` where a rate belongs would otherwise arrive as 1.0 tokens per second and
-    read as the most catastrophic spill imaginable.
+    read as an extreme spill.
     """
     if isinstance(value, bool) or not isinstance(value, int | float):
         return None
@@ -123,9 +109,8 @@ def _cadence(data: Mapping[str, object]) -> DecodeCadence | None:
     rather than required to be one, a server reporting a whole number as a float being no
     protocol violation.
 
-    Anything unexpected reads as no cadence, per this module's quiet stance: a build that omits
-    ``timings``, a field of the wrong type, or a negative figure. Silence here is honest, since
-    the port lets a backend report no cadence at all.
+    A build that omits ``timings``, a field of the wrong type, or a negative figure yields no
+    cadence, which the port allows a backend to report.
     """
     raw = data.get("timings")
     if not isinstance(raw, dict):
@@ -142,12 +127,12 @@ def _stop(choice: Mapping[str, object]) -> DecodeStop | None:
     """The completion's stop reason off llama.cpp's ``finish_reason``, or ``None`` (ADR-0005).
 
     llama-server carries ``finish_reason`` on the **final** streamed chunk's first choice and
-    ``null`` on every chunk before it, so ``None`` here is both a build that never reports one and
-    every ordinary mid-stream chunk; the two are the same statement, that this chunk did not end
-    the completion. Anything present but unreadable, a word outside ``_STOP_REASONS`` or a value
-    that is not a string at all, is ``UNKNOWN``: the server did end the completion and named a
-    reason, and reporting no stop there would file a fact this core failed to read under the same
-    silence as a fact nobody offered.
+    ``null`` on every chunk before it, so ``None`` here covers both a build that never reports one
+    and every ordinary mid-stream chunk; both mean that this chunk did not end the completion.
+    Anything present but unreadable, a word outside ``_STOP_REASONS`` or a value that is not a
+    string at all, is ``UNKNOWN``, because the server did end the completion and did name a
+    reason, and returning ``None`` there would report a reason this core failed to read the same
+    way as no reason at all.
     """
     raw = choice.get("finish_reason")
     if raw is None:
@@ -159,10 +144,10 @@ def _stop(choice: Mapping[str, object]) -> DecodeStop | None:
 
 @dataclass(frozen=True, slots=True)
 class ChunkRead:
-    """Everything one streamed chunk had to say, each field ``None`` when it said nothing of it.
+    """What one streamed chunk carried, each field ``None`` when the chunk carried nothing for it.
 
     A record rather than a tuple because the chunk carries four independent facts now, two of them
-    closing events that ride the same final chunk without being the same statement (ADR-0005
+    closing events that ride the same final chunk without meaning the same thing (ADR-0005
     finish-reason addendum), and a caller unpacking four positional optionals reads worse with
     every one added.
     """
@@ -182,11 +167,10 @@ def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
     different parts of it, the cadence off the chunk's own ``timings`` and the stop off its first
     choice, which is why a build reporting one and not the other still reports what it has.
 
-    Malformed JSON or an unexpected shape raises ``InferenceError``. A silently skipped chunk
-    would drop reply text or a tool call, exactly the failure mode the store adapter refuses.
-    The cadence is read **before** the choices are, because a build that closes a stream with a
-    choice-less chunk would otherwise never be asked for its timings; such a chunk carries no
-    choice to have ended, so it has no stop reason to read either.
+    Malformed JSON or an unexpected shape raises ``InferenceError``, because a skipped chunk would
+    drop reply text or a tool call. The cadence is read before the choices are, so that a build
+    which closes a stream with a choice-less chunk still has its timings read; such a chunk carries
+    no choice, so it has no stop reason to read either.
     """
     try:
         data = json.loads(payload)
@@ -220,14 +204,13 @@ def finish_calls(pending: dict[int, PendingCall]) -> list[ToolCall]:
 
     The failure here is the port's narrower one (``MalformedToolCallError``, ADR-0005
     tool-call-cut addendum) rather than a bare ``InferenceError``, because what did not parse is
-    the **model's own tokens** and not the transport: the stream arrived, and the ``arguments``
-    string it carried is not JSON. Measured against a real server, that is what a token limit
-    landing mid ``arguments`` leaves behind (a cap of 20 to 160 tokens on a long-argument call
-    gave 71 to 899 characters of fragment under ``finish_reason: "length"``, unterminated every
-    time), so a caller holding the completion's stop reason can tell a cut call from a dead
-    backend. Every other failure in this module stays the wider type, which is the honest line:
-    a status, a stall, or a chunk this module cannot read is the server's, and another server may
-    do better.
+    the model's own tokens and not the transport: the stream arrived, and the ``arguments`` string
+    it carried is not JSON. Measured against a real server, that is what a token limit landing mid
+    ``arguments`` leaves behind (a cap of 20 to 160 tokens on a long-argument call gave 71 to 899
+    characters of fragment under ``finish_reason: "length"``, unterminated every time), so a
+    caller holding the completion's stop reason can tell a cut call from a dead backend. Every
+    other failure in this module stays the wider type, because a status, a stall, or a chunk this
+    module cannot read comes from the server rather than from the model.
     """
     calls: list[ToolCall] = []
     for slot in pending.values():

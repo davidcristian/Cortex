@@ -4,7 +4,7 @@ One of the three data files `crosscheck.py` reads as a single registry, and all 
 the scan is all of the logic. It was split off `couplings.py` on the seam that file names in its own
 first sentence, the vocabulary an entry is written in against the entries themselves, and split
 again when the entries here reached the 300-line cap a second time. Nothing in the scan asks which
-file an entry sits in, so a coupling moves house without the gate noticing.
+file an entry sits in, so a coupling can move between parts with every gate still green.
 
 What is left here is the kind this file is named for: the body's Rust, the brain's Python and the
 overlay's TypeScript holding the same number or the same string where neither toolchain can import

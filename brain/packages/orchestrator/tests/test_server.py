@@ -7,33 +7,33 @@ The Health cases below run against a **real** ``SwappingModelManager`` driven th
 residency scope over the scripted host, never a stand-in reporter: a fake would answer whatever
 this file handed it, which would constrain nothing about what the seam publishes.
 
-Distrust-green proofs (each mutation applied to production code alone with the whole brain
+Proof these cases can fail (each mutation applied to production code alone with the whole brain
 workspace re-run, then restored, so the counts are measured rather than aimed at):
 - answering ``ready=True`` unconditionally again (dropping the report branch in ``Health``)
-  reddens 3 and nothing else: ``test_health_reports_the_swap_window_it_is_in``,
+  makes 3 tests fail and no others: ``test_health_reports_the_swap_window_it_is_in``,
   ``test_health_answers_while_a_stalled_swap_holds_the_gpu``, and
   ``test_health_tells_the_truth_about_residency_through_the_whole_wiring`` in test_swap_wiring.py;
 - reading the manager's own ``_resident`` instead of the report it publishes (the wrong source:
-  it calls the deep model "serving") reddens 5, the first and third of those plus three cases in
-  the core's test_residency.py. It does not reach the stalled-load case, nothing being resident
-  there either way;
+  it calls the deep model "serving") makes 5 tests fail, the first and third of those plus three
+  cases in the core's test_residency.py. It does not reach the stalled-load case, nothing being
+  resident there either way;
 - making the report a coroutine that takes the GPU lease fails
   ``test_health_answers_while_a_stalled_swap_holds_the_gpu`` with ``TimeoutError`` rather than
   hanging the suite, which is the point of bounding the RPC there.
 
 The last two cases exist because an audit measured that the core's own restoring and gave-up
 cases pin only which report was published: flipping ``RESIDENCY_RESTORING.serving`` or
-``RESIDENCY_LOST.serving`` to ``True`` left the whole workspace green while the seam answered
+``RESIDENCY_LOST.serving`` to ``True`` left the whole workspace passing while the seam answered
 ready for the entire swap back and, after a restore gave up, for good. Both now read ``ready``
-as the literal ``False`` it has to be, and each of those two mutations reddens its own case here
-(plus the core's constants case, and nothing else). Answering ready unconditionally now reddens
-6 rather than 3.
+as the literal ``False`` it has to be, and each of those two mutations makes its own case here
+fail (plus the core's constants case, and nothing else). Answering ready unconditionally now
+makes 6 tests fail rather than 3.
 
 Two cases are the readiness that is **true** and still has something to say. Dropping the
 serving-detail branch from ``Health`` (so a healthy brain always answers its version string)
-reddens both, and each is also tied to the record behind it rather than to a string this file
-arranged: dropping ``mark_missing`` in the core reddens the peer one, and dropping the pace note
-from the core's read-time composition reddens the spilled-handoff one.
+makes both fail, and each is also tied to the record behind it rather than to a string this file
+arranged: dropping ``mark_missing`` in the core makes the peer one fail, and dropping the pace
+note from the core's read-time composition makes the spilled-handoff one fail.
 """
 
 import asyncio
@@ -135,7 +135,8 @@ async def _serving(manager: SwappingModelManager) -> tuple[aio.Server, str]:
 
 
 async def test_health_reports_the_swap_window_it_is_in() -> None:
-    """Not-ready between turns in the residency's own words, and green again after the swap back."""
+    """Health answers not-ready during a swap, in the residency's own words, and ready again once
+    the swap back has finished."""
     manager = _swapping_manager(ScriptedModelHost(running=["cortex"]))
     server, address = await _serving(manager)
     try:
@@ -154,7 +155,7 @@ async def test_health_reports_the_swap_window_it_is_in() -> None:
 
 
 async def test_health_answers_while_a_stalled_swap_holds_the_gpu() -> None:
-    """The probe must not queue behind the load it is reporting on (ADR-0030 decision 6).
+    """Health answers without queueing behind the load it is reporting on (ADR-0030 decision 6).
 
     The swap is paused inside the host's ``start``, which is where the manager holds the GPU
     lease across the whole move, minutes at tier scale. The RPC is bounded, so a Health that
@@ -178,11 +179,12 @@ async def test_health_answers_while_a_stalled_swap_holds_the_gpu() -> None:
 
 
 async def test_health_stays_not_ready_through_the_swap_back() -> None:
-    """The restoring window answered at the seam, with ``ready`` read as the literal it is.
+    """The restoring window is answered at the seam, with ``ready`` asserted as the literal
+    ``False``.
 
     The core's own case for this window compares the report to the constant that names it, which
     says nothing about what that constant claims: with ``RESIDENCY_RESTORING.serving`` flipped it
-    stays green while the seam tells the overlay the brain is fine for the minutes a swap back
+    keeps passing while the seam tells the overlay the brain is fine for the minutes a swap back
     takes. This drives the window through ``Health`` instead, paused inside the host's ``start``
     of the cortex, which is where the swap back genuinely is.
     """
@@ -204,12 +206,12 @@ async def test_health_stays_not_ready_through_the_swap_back() -> None:
 
 
 async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
-    """The one not-ready that outlives its turn, and the loudest thing the seam can say.
+    """After a restore gives up, Health stays not-ready for the life of the process.
 
     Nothing is resident, no retry is left, and the runbook's manual recovery is what clears it,
     so a ``Health`` that answered ready here would put a green dot over a GPU serving nothing for
-    as long as the process lives. Read at the seam and asserted as a literal, because the core's
-    case for it can only compare the report to the constant whose readiness is in question.
+    as long as the process lives. This is read at the seam and asserted as a literal, because the
+    core's case for it can only compare the report to the constant whose readiness is in question.
     """
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _swapping_manager(host)
@@ -227,7 +229,7 @@ async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
 
 
 async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back() -> None:
-    """Serving and degraded at once, which is a sentence this reply could not say before.
+    """The reply stays ready and still names a peer tier that did not come back.
 
     The cortex is up and answering, so ``ready`` has to stay true or the overlay would go amber
     over a brain that is fine. What changed is that delegated work is now running on the CPU,
@@ -259,12 +261,13 @@ async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back()
 async def test_health_stays_ready_and_says_the_last_deep_task_ran_far_slower_than_measured() -> (
     None
 ):
-    """The other sentence a serving brain can now say, and the one nothing else would mention.
+    """A serving brain reports that the last deep task spilled, which nothing else on the seam
+    would mention.
 
     A spilled handoff succeeds: both tiers report ready, the card reads like a fit, and only the
-    throughput says otherwise (ADR-0030 spill-note addendum). Written where a deep phase writes
-    it, through the manager's own record, so what this asserts is the seam's end of that path and
-    not a string the test arranged.
+    throughput says otherwise (ADR-0030 spill-note addendum). The note is written where a deep
+    phase writes it, through the manager's own record, so what this asserts is the seam's end of
+    that path rather than a string the test arranged.
     """
     manager = _swapping_manager(ScriptedModelHost(running=["cortex"]))
     manager.handoff_pace.note_pace(spilled=True)

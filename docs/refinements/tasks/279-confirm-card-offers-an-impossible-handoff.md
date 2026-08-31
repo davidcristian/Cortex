@@ -7,13 +7,13 @@
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
-before it and left one surface still lying: the ADR-0022 confirm card.
+before it and left one surface still misstating it: the ADR-0022 confirm card.
 
 On a deployment whose model host carries no deep tier, the cortex still advertises
 `escalate_to_brain`, still calls it, and the user is still shown a card saying the deep model will
-take over and the machine will be busy for a while. They approve it, and the conductor then refuses
-with the honest note. Nothing is unloaded and nothing is lost, so what remains is a question asked
-under a false premise.
+take over and the machine will be busy for a while. They approve it, and the conductor then
+rejects it with the accurate note. Nothing is unloaded and nothing is lost, so what remains is a
+question asked under a false premise.
 
 **Both surfaces that could close it are the per-turn hot path, which is why this waits.** The tool
 spec is rebuilt per turn (`build_cortex_tools`), and the gate's reason is static config

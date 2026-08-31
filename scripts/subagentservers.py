@@ -7,18 +7,18 @@ subagent servers are not a directory listing and not a name written on a page, s
 them had to name each one by hand, and a server added tomorrow was registered by whoever
 remembered.
 
-**A service is a subagent server for either of two reasons, and each catches what the other
-misses.** The wiring says so: an environment value under `CORTEX_SUBAGENTS_ENDPOINT`,
+A service is a subagent server for either of two reasons, and each catches what the other misses.
+The wiring says so: an environment value under `CORTEX_SUBAGENTS_ENDPOINT`,
 `CORTEX_SUBAGENTS_GPU_ENDPOINT` or a `CORTEX_SUBAGENTS_ROSTER__<name>` object writes its address
 (ADR-0010/0018), and the host inside that address is a service name on the compose network. Or the
 argv says so: the command names its model file under a `CORTEX_MODEL_FILE_SUBAGENT*` variable,
 which is how both shipped servers spell the pick and how nothing else in the tree spells anything.
 The first alone misses a server whose override leaves its address to the host environment; the
-second alone misses one whose model path is written out. **The image is not part of the answer**,
-and deliberately: `docker-compose.memory.yml` starts the CPU embedder from the very same llama.cpp
-image, and a rule that read the image would demand a chat template of a server that serves no chat.
+second alone misses one whose model path is written out. The image is deliberately not part of the
+answer: `docker-compose.memory.yml` starts the CPU embedder from the very same llama.cpp image, and
+a rule that read the image would require a chat template of a server that serves no chat.
 
-**A service that declares no command of its own is not one.** Its argv comes from somewhere this
+A service that declares no command of its own is not one. Its argv comes from somewhere this
 reader cannot see, which is either an image's entrypoint or a supervisor: the model host's
 subagent tier is a child process it starts by hand, and `hostedtiers.py` reads that placement off
 the sidecar's own declaration, so the rule reaches it without this reader guessing at a service
@@ -26,12 +26,12 @@ whose command is not written here. Nothing is lost either way, because a llama.c
 with no command names no model and never serves a request, so a subagent server without one is a
 stack that fails loudly rather than a tier that answers wrongly.
 
-**An endpoint that writes no address dials nothing here.** A deployment may pass the variable
-straight through and name the server only in the host environment, which is a legitimate shape and
-not one any reader of this tree can resolve. Such a server is still found by its argv on the day
-this tree starts it, which is the day it becomes this gate's business.
+An endpoint that writes no address dials nothing here. A deployment may pass the variable straight
+through and name the server only in the host environment, which is a legitimate shape and not one
+any reader of this tree can resolve. Such a server is still found by its argv on the day this tree
+starts it, which is the day this gate can see it at all.
 
-**The wiring is read across the whole tree before any service is judged**, because the file that
+The wiring is read across the whole tree before any service is judged, because the file that
 dials a server and the file that starts it need not be one file: a stack is layered, and the
 roster override adds an entry to a wiring the file under it opened.
 """

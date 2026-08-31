@@ -8,7 +8,7 @@ lets a deployment re-point a tier without the brain knowing (ADR-0030 decision 3
 The roster is fixed at boot from the daemon's own env. Nothing a request carries can add a model,
 change an argv, or name a path: the client of this API is the brain, which streams model output
 and dispatches tools, so a request-supplied argv would be remote code execution against the GPU
-container (ADR-0030 decision 3's rejected alternatives are all about that blast radius).
+container (ADR-0030 decision 3 records the alternatives rejected for that reason).
 """
 
 from collections.abc import Iterable
@@ -27,7 +27,7 @@ class ModelSpec:
     """One logical model the supervisor can run: its id, its port, and its whole argv.
 
     ``argv`` is complete and already includes the binary, so the supervisor spawns it verbatim
-    and holds no opinion about llama.cpp's flags. ``port`` is fixed per model (ADR-0030
+    and interprets none of llama.cpp's flags. ``port`` is fixed per model (ADR-0030
     decision 3: cortex 8080, deep model 8081, GPU subagent 8083) so the brain's endpoint map is
     static config rather than something discovered at runtime.
     """
@@ -59,14 +59,14 @@ class ModelSpec:
 
 
 def build_roster(specs: Iterable[ModelSpec]) -> dict[str, ModelSpec]:
-    """Index specs by logical id, refusing a duplicate id or two models sharing a port.
+    """Index specs by logical id, raising on a duplicate id or on two models sharing a port.
 
-    A shared port is the misconfiguration that would quietly defeat a swap: the second child
-    dies at once with ``couldn't bind HTTP server socket`` while the first keeps answering
-    ``/health`` on that port, so a status that trusted the probe alone would call the dead model
-    ready and leave the previous weights resident. The supervisor closes that hole at runtime by
-    reading its own child's exit before it probes anything; this closes it at boot, where the
-    operator can still fix it.
+    A shared port is the misconfiguration that would break a swap with nothing reporting it: the
+    second child dies at once with ``couldn't bind HTTP server socket`` while the first keeps
+    answering ``/health`` on that port, so a status derived from the probe alone would report the
+    dead model ready and leave the previous weights resident. The supervisor closes that hole at
+    runtime by reading its own child's exit before it probes anything; this closes it at boot,
+    where the operator can still fix it.
     """
     roster: dict[str, ModelSpec] = {}
     ports: dict[int, str] = {}

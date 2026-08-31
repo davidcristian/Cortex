@@ -17,7 +17,7 @@ introduced. Two things the implementation found: ruff **exempts `__init__.py` fr
 (useless-import-alias) precisely because the redundant alias is the re-export convention there,
 so `select = ["ALL"]` needed no new ignore; and nothing in the tree read `cortex_core.__all__`
 (only `cortex_seam`'s own facade test reads its package's list), so dropping it broke no
-contract. Verified green: ruff, ruff format, pyright strict, and the full brain suite at 100%.
+contract. Verified clean: ruff, ruff format, pyright strict, and the full brain suite at 100%.
 
 ## Trail
 

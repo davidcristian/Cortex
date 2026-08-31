@@ -153,7 +153,7 @@ def test_build_ticker_wires_the_loop() -> None:
 
 async def test_start_and_stop_ticker_lifecycle() -> None:
     assert start_ticker(None) is None
-    await stop_ticker(None, None)  # both no-ops must be clean
+    await stop_ticker(None, None)  # both arguments None: the call must not raise
     ticker = ScheduleTicker(
         InMemoryScheduleStore(),
         SystemClock(),
@@ -189,7 +189,7 @@ async def test_log_ticker_death_covers_each_ending() -> None:
 
     failed = asyncio.get_running_loop().create_task(boom())
     await asyncio.gather(failed, return_exceptions=True)
-    _log_ticker_death(failed)  # logs the death (the supervision posture)
+    _log_ticker_death(failed)  # a ticker that raised is logged
 
     async def forever() -> None:
         await asyncio.Event().wait()
@@ -197,11 +197,12 @@ async def test_log_ticker_death_covers_each_ending() -> None:
     cancelled = asyncio.get_running_loop().create_task(forever())
     cancelled.cancel()
     await asyncio.gather(cancelled, return_exceptions=True)
-    _log_ticker_death(cancelled)  # cancelled: not a death, nothing logged
+    _log_ticker_death(cancelled)  # a cancelled ticker is a normal stop, so nothing is logged
 
 
 async def test_the_configured_zone_reaches_every_rendering_builtin() -> None:
-    """CORTEX_SCHEDULE_TZ is inert unless the builder threads it, so assert all three."""
+    """CORTEX_SCHEDULE_TZ has no effect unless the builder passes it on, so all three renderings
+    are asserted here."""
     store = InMemoryScheduleStore()
     await store.add(
         ScheduledItem(
@@ -231,8 +232,8 @@ async def test_the_configured_zone_reaches_every_rendering_builtin() -> None:
 async def _rearm_of_a_nine_am_rule(config: ScheduleConfig) -> datetime:
     """Fire a 09:00 calendar reminder through a built ticker and report where it re-armed.
 
-    Asserted through behavior rather than by reading the ticker's settings: the zone matters
-    only because it moves the re-arm, so the re-arm is what the test should pin.
+    The assertion goes through behavior rather than through the ticker's settings, because the
+    zone matters only in that it moves the re-arm, so the re-arm is what the callers below pin.
     """
     store = InMemoryScheduleStore()
     await store.add(
@@ -254,7 +255,8 @@ async def _rearm_of_a_nine_am_rule(config: ScheduleConfig) -> datetime:
 
 
 async def test_build_ticker_threads_the_configured_zone_into_its_settings() -> None:
-    """Creating and firing must read one zone, or a rule fires somewhere it was not scheduled.
+    """Creating and firing read the same zone, so a rule cannot fire at a time it was not
+    scheduled for.
 
     ``build_schedule_tools`` already gave the rendering built-ins ``CORTEX_SCHEDULE_TZ``; the
     ticker needs the same value because a calendar re-arm is wall-clock arithmetic

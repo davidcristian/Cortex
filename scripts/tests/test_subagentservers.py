@@ -1,10 +1,10 @@
-"""Behaviour of the reader that derives which servers a composed stack starts as subagents.
+"""Tests for the reader that derives which servers a composed stack starts as subagents.
 
-The set is the deliverable here, so the tests below are mostly about membership: what makes a
+The set is what this module produces, so the tests below are mostly about membership: what makes a
 service one of these servers, what keeps a service that looks like one out, and which of the two
-readings catches which. The last tests run it over the committed compose tree, because a reader
-that agreed with its own fixtures and found nothing real would leave the gate above it green over
-an empty set.
+readings catches which. The last tests run the reader over the committed compose tree, because a
+reader that agreed with its own fixtures and found nothing in the tree would leave the gate above
+it green over an empty set.
 """
 
 from pathlib import Path
@@ -66,7 +66,7 @@ services:
 
 
 def _tree(root: Path, files: dict[str, str]) -> Path:
-    """A compose tree written under ``root``, which is how a stack arrives here."""
+    """Write a compose tree under ``root``, which is the shape a stack arrives in."""
     (root / "docker").mkdir(parents=True, exist_ok=True)
     for name, text in files.items():
         (root / "docker" / name).write_text(text, encoding="utf-8")
@@ -74,7 +74,7 @@ def _tree(root: Path, files: dict[str, str]) -> Path:
 
 
 def _one(text: str) -> Started:
-    """The one service of ``text`` that starts with a command, which is the server under test."""
+    """Return the one service of ``text`` that declares a command, the server under test."""
     found = [started for started in read_starts(text) if started.command is not None]
     assert len(found) == 1, found
     return found[0]
@@ -84,7 +84,8 @@ def _one(text: str) -> Started:
 
 
 def test_a_server_the_flat_wiring_dials_is_one(tmp_path: Path) -> None:
-    """Its own argv writes its model path out, so the wiring is the only thing that finds it."""
+    """This server's argv writes its model path out in full, so the wiring is the only thing that
+    finds it."""
     found = servers(_tree(tmp_path, {"docker-compose.subagents.yml": WIRED}))
     assert [server.service for server in found] == ["llama-subagent"]
     assert found[0].file == "docker/docker-compose.subagents.yml"
@@ -100,8 +101,8 @@ def test_a_server_a_roster_entry_dials_is_one(tmp_path: Path) -> None:
 def test_a_server_whose_argv_names_a_subagent_model_is_one_with_nobody_dialling_it(
     tmp_path: Path,
 ) -> None:
-    """The reading the wiring cannot make: an override that starts a server and leaves its
-    address to the host environment is exactly the fourth server this scan was written for."""
+    """An override that starts a server and leaves its address to the host environment is found by
+    its argv, since no wiring in the tree names it. That is the fourth server this scan covers."""
     found = servers(_tree(tmp_path, {"docker-compose.subagents-third.yml": BY_ARGV}))
     assert [server.service for server in found] == ["llama-subagent-third"]
 
@@ -124,16 +125,16 @@ def test_a_server_dialled_from_one_file_and_started_in_another_is_still_one(tmp_
 def test_the_embedder_is_not_a_subagent_server_though_it_runs_the_same_image(
     tmp_path: Path,
 ) -> None:
-    """The image is deliberately not part of the answer: the CPU embedder is started from the
-    very same llama.cpp server image and would be asked for a chat template it never uses."""
+    """Membership is not decided by the image. The CPU embedder starts from the same llama.cpp
+    server image, and counting it in would require of it a chat template it never uses."""
     stack = {"docker-compose.memory.yml": EMBEDDER, "docker-compose.subagents.yml": WIRED}
     found = servers(_tree(tmp_path, stack))
     assert [server.service for server in found] == ["llama-subagent"]
 
 
 def test_a_dialled_service_that_declares_no_command_is_not_one(tmp_path: Path) -> None:
-    """The supervisor case: the model host starts its subagent tier as a child process, and that
-    argv is read off the sidecar's own declaration rather than from any compose file."""
+    """This is the supervisor case: the model host starts its subagent tier as a child process, and
+    that argv is read from the sidecar's own declaration rather than from a compose file."""
     supervised = """\
 services:
   brain:
@@ -159,17 +160,17 @@ services:
 
 
 def test_an_endpoint_that_writes_no_address_dials_nothing() -> None:
-    """A pure passthrough names the server only in the host environment, which no reader of this
-    tree can resolve; it is a legitimate shape rather than one to guess at."""
+    """A passthrough substitution names the server only in the host environment, which no reader of
+    this tree can resolve, so it dials nothing rather than being guessed at."""
     assert dialed(read_starts(PASSTHROUGH)[0]) == frozenset()
 
 
 def test_a_variable_that_only_starts_like_the_subagent_prefix_is_not_a_subagent_model() -> None:
-    """`CORTEX_MODEL_FILE_EMBED` and `CORTEX_MODEL_FILE_CORTEX` are the two neighbours, both in
-    the family every artifact here is named in and neither beginning with the longer prefix that
-    says a server is serving this tier. The embedder is the sharper of the two since the rename
-    brought it into the family: what keeps it out of this set is the variable and the wiring,
-    never the flag that says it serves no chat."""
+    """`CORTEX_MODEL_FILE_EMBED` and `CORTEX_MODEL_FILE_CORTEX` are the two neighbouring variables.
+    Both follow the naming convention every model artifact here uses, and neither begins with the
+    longer prefix that marks a server serving the subagent tier. The embedder is the closer case,
+    since the rename brought it under that convention, and what keeps it out of this set is the
+    variable name and the wiring rather than the flag saying it serves no chat."""
     cortex = (
         'services:\n  c:\n    command:\n      - "/models/${CORTEX_MODEL_FILE_CORTEX:-x.gguf}"\n'
     )
@@ -181,8 +182,8 @@ def test_a_variable_that_only_starts_like_the_subagent_prefix_is_not_a_subagent_
 
 
 def test_a_command_spending_a_dollar_form_no_reader_can_name_is_raised() -> None:
-    """The substitution reader owns that refusal and this one re-raises it with the service on
-    it, since a fault naming only a line number would send a reader to the wrong file."""
+    """The substitution reader raises, and this reader re-raises with the service named, because a
+    fault carrying only a line number would send a reader to the wrong file."""
     broken = 'services:\n  s:\n    command:\n      - "${"\n'
     with pytest.raises(ComposeStartError, match="the command of 's' cannot be read"):
         names_a_subagent_model(_one(broken))
@@ -199,8 +200,9 @@ def test_a_compose_file_that_cannot_be_read_is_named(tmp_path: Path) -> None:
 
 
 def test_the_committed_tree_starts_the_two_subagent_servers_it_ships(tmp_path: Path) -> None:
-    """A fixture-only reader could be right about nothing real. The count is asserted loosely,
-    since a new override adding a third server should extend this set rather than fail here."""
+    """The reader finds the two servers the tree ships, which the fixtures above cannot show. The
+    set is asserted loosely, since an override adding a third server should extend it rather than
+    fail here."""
     found = servers(REPO_ROOT)
     assert {server.service for server in found} >= {"llama-subagent", "llama-subagent-qwen"}
     assert all(server.command for server in found)

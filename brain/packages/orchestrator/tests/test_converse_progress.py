@@ -1,4 +1,4 @@
-"""Progress a suspended turn cannot yield reaches the overlay over the real converse() stream.
+"""Progress from a suspended turn reaches the overlay over the real converse() stream.
 
 A delegating cortex turn suspends its own generator inside the spawn dispatch, so a subagent's
 steps can only reach the wire through this stream's SeamProgressSink. This wires a real
@@ -56,8 +56,11 @@ _READ_SPEC = ToolSpec(name="read", description="Read a file", parameters={})
 
 
 class _OneReadThenAnswer:
-    """Stateless subagent backend: read once, then answer (read off the messages, so a batch's
-    concurrent subagents share one instance without a counter overlap would scramble)."""
+    """Stateless subagent backend: read once, then answer.
+
+    Which step to take is read off the messages rather than from a counter, so the concurrent
+    subagents of one batch can share a single instance.
+    """
 
     async def stream(
         self,
@@ -95,7 +98,8 @@ class _SpawnThenReply:
 
 
 def _delegating_factory() -> EngineFactory:
-    """An engine whose cortex delegates to a tool-using subagent, per stream (ADR-0010)."""
+    """Build an engine whose cortex delegates to a tool-using subagent, one per stream
+    (ADR-0010)."""
 
     def make(_confirmer: ConfirmerPort, progress: ProgressSink) -> TurnEngine:
         task_store = InMemoryTaskStore()
@@ -164,11 +168,12 @@ async def test_a_delegating_turn_surfaces_subagent_progress_on_the_wire() -> Non
 async def test_a_delegated_step_reaches_the_wire_announced_and_unsettled() -> None:
     """The outcome pairing covers the turn's own dispatches and not this stream (ADR-0029).
 
-    A delegated step rides the progress sink as a ``ToolActivity`` and nothing settles it, so
-    the wire carries more activities than outcomes. Pinned rather than left as a comment
-    because the proto, the body's ``TurnEvent`` and both module docs now say exactly this, and
-    a reader on the far side cannot tell a delegated activity from the turn's own: widening
-    ``ProgressEvent`` to carry an outcome would make three published contracts wrong at once.
+    A delegated step reaches the wire as a ``ToolActivity`` on the progress sink and nothing
+    settles it, so the wire carries more activities than outcomes. That is asserted here rather
+    than left as a comment, because the proto, the body's ``TurnEvent`` and both module docs all
+    state it, and a reader on the far side cannot tell a delegated activity from the turn's own.
+    Widening ``ProgressEvent`` to carry an outcome would make three published contracts wrong at
+    once.
     """
     events = await _collect(converse(_delegating_factory(), _events_from(_user_turn("delegate"))))
     activities = [
@@ -202,7 +207,7 @@ class _AccountThenReply:
 
 
 def _folding_factory(store: InMemorySessionStore) -> EngineFactory:
-    """An engine whose history window recaps what it drops, per stream (ADR-0038)."""
+    """Build an engine whose history window recaps what it drops, one per stream (ADR-0038)."""
 
     def make(_confirmer: ConfirmerPort, progress: ProgressSink) -> TurnEngine:
         backend = _AccountThenReply()
@@ -222,9 +227,9 @@ def _folding_factory(store: InMemorySessionStore) -> EngineFactory:
 async def test_a_folding_turn_says_so_on_the_wire_before_the_reply_arrives() -> None:
     """The fold runs inside message assembly, before the turn's generator yields anything.
 
-    That is the whole reason it needs the side channel: an event emitted there rides the
-    stream's own queue rather than the suspended generator, so it reaches the overlay while
-    the user is still waiting rather than after the answer it was meant to explain.
+    That is why it needs the side channel: an event emitted there travels on the stream's own
+    queue rather than through the suspended generator, so it reaches the overlay while the user
+    is still waiting rather than after the answer it was meant to explain.
     """
     store = InMemorySessionStore()
     at = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)

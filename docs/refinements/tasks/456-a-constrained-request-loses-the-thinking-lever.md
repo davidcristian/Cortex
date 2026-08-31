@@ -23,7 +23,7 @@ constrained arm's arrives 210.9 to 505.0 s in. A probe at a cap of 200 on the co
 decoded **200 tokens of which none were reply text and 763 characters were reasoning**, opening
 `Here's a thinking process to ensure all details are captured accurately`. Read off the wire, the
 same request is 200 SSE lines over 156.3 s with not one content delta among them and a longest gap
-of 3.46 s, so nothing is wedged and the 600 s stall ceiling never comes near it;
+of 3.46 s, so nothing is stalled and the 600 s stall ceiling never comes near it;
 `stream_tool_loop` simply drops every reasoning delta unread.
 
 The consequence is the whole of R-431. The shipped tool-less shape spends most of a cap sized on
@@ -43,7 +43,8 @@ an unbounded attempt starts sending a key it never sent. And it wants the same l
 got: one constrained run at a small cap, through
 `brain/packages/orchestrator/tests/test_envelope_cost_live.py`, showing the reasoning gone and the
 reply arriving at once. Whether the fix belongs per request or per tier is the open half; a server
-flag that a request silently overrides is not a lever this repo can keep relying on either way.
+flag a request overrides with nothing reporting it is not something this repo can keep relying on
+either way.
 
 ## Trail
 

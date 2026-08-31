@@ -12,11 +12,11 @@ use body_core::{
     Modifier, VolumeChange, VolumeState,
 };
 
-/// A fake `Hotkey` backend: records the chords it registers and fires the
-/// callback once per successful registration; scripted to fail on demand.
-/// `RefCell` (not `Mutex`) since the `Hotkey` port requires no `Sync` and the
-/// tests are single-threaded. It also keeps `unwrap` out of this non-`#[test]`
-/// method, where clippy would deny it.
+/// A fake `Hotkey` backend: records the chords it registers and fires the callback once per
+/// successful registration, or fails on demand. The interior mutability is a `RefCell` rather
+/// than a `Mutex` because the `Hotkey` port requires no `Sync` and these tests are
+/// single-threaded, which also keeps `unwrap` out of this non-`#[test]` method, where clippy
+/// denies it.
 struct FakeHotkey {
     fail: Option<HotkeyError>,
     registered: RefCell<Vec<String>>,
@@ -78,9 +78,9 @@ fn accelerator_maps_supported_keys_to_codes() {
 
 #[test]
 fn accelerator_rejects_unsupported_keys() {
-    // Covers the single-char non-alnum path (`-`), an out-of-range f-key
-    // (`f0`/`f25`/`f99` parse ok but fail the range check), and a non-numeric f-word
-    // (`foo` fails to parse), all falling through to the empty named match.
+    // Covers the single-char non-alphanumeric path (`-`), an out-of-range f-key (`f0`, `f25`
+    // and `f99` parse but fail the range check), and a non-numeric f-word (`foo` fails to
+    // parse), all falling through to the empty named match.
     for key in ["-", "f0", "f25", "f99", "foo"] {
         let chord = HotkeyChord::parse(key).unwrap();
         assert_eq!(
@@ -172,9 +172,9 @@ fn hotkey_backend_reports_registration_failure_without_firing() {
     assert!(backend.registered.borrow().is_empty());
 }
 
-/// A fake `AudioControl` backend: reads/writes a `Mutex`-held state (the port requires
-/// `Send + Sync`, so (unlike `FakeHotkey`'s `RefCell`) the interior mutability is a `Mutex`),
-/// or returns a scripted error.
+/// A fake `AudioControl` backend: reads and writes a `Mutex`-held state, or returns a scripted
+/// error. The interior mutability is a `Mutex` rather than `FakeHotkey`'s `RefCell` because
+/// this port requires `Send + Sync`.
 struct FakeAudio {
     state: Mutex<VolumeState>,
     fail: Option<AudioError>,
@@ -229,7 +229,6 @@ fn audio_backend_reads_and_writes_through_the_bound() {
             muted: false,
         },
     );
-    // Level and mute both set.
     assert_eq!(
         set_via(&backend, VolumeChange::new(Some(0.9), Some(true))).unwrap(),
         VolumeState {
@@ -237,7 +236,7 @@ fn audio_backend_reads_and_writes_through_the_bound() {
             muted: true,
         },
     );
-    // A None field leaves that dimension untouched (mute changes, level stays 0.9).
+    // A `None` field leaves that dimension untouched: mute changes and the level stays 0.9.
     assert_eq!(
         set_via(&backend, VolumeChange::new(None, Some(false))).unwrap(),
         VolumeState {
@@ -268,7 +267,6 @@ fn audio_backend_surfaces_its_error() {
 
 #[test]
 fn volume_change_clamps_a_present_level() {
-    // Both fields set; in-range level is preserved.
     assert_eq!(
         VolumeChange::new(Some(0.5), Some(true)),
         VolumeChange {
@@ -276,11 +274,11 @@ fn volume_change_clamps_a_present_level() {
             mute: Some(true),
         },
     );
-    // Out-of-range clamps to the nearest bound; NaN clamps to the silent floor.
+    // An out-of-range level clamps to the nearest bound, and NaN clamps to the silent floor.
     assert_eq!(VolumeChange::new(Some(1.5), None).level, Some(1.0));
     assert_eq!(VolumeChange::new(Some(-0.2), None).level, Some(0.0));
     assert_eq!(VolumeChange::new(Some(f32::NAN), None).level, Some(0.0));
-    // A missing level stays absent; mute rides alone.
+    // A missing level stays absent while mute is still applied.
     assert_eq!(
         VolumeChange::new(None, Some(false)),
         VolumeChange {

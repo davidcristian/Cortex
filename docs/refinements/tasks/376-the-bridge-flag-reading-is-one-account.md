@@ -12,9 +12,9 @@ repo builds: the probe's Dovecot lists `Parent`, refuses it, and
 tree is whatever that account happens to hold; the probe has no such name and cannot grow one
 without being told to.
 
-So the evidence for half the rule is a measurement of somebody's mailbox rather than a fixture,
-and it goes stale the way any account does. The stand-in carries the Bridge's flags verbatim as
-`OPEN_NODE_FLAGS`, which keeps the unit tests honest about the shape, but a stand-in cannot show
+So the evidence for half the rule is a measurement of somebody's mailbox rather than a fixture, and
+it goes stale the way any account does. The stand-in carries the Bridge's flags verbatim as
+`OPEN_NODE_FLAGS`, which keeps the unit tests accurate about the shape, but a stand-in cannot show
 that a real server still behaves that way.
 
 **What would close it.** Add a mailbox to `docker/docker-compose.imap-probe.yml` that Dovecot

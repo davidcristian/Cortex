@@ -16,8 +16,8 @@ interface PanelProps {
   readonly open: boolean;
   readonly dark: boolean;
   readonly mark: MarkStyle;
-  /** The window's edge style (ADR-0036): Still leaves the panel exactly as it was; a liquid
-   *  style hands the panel's face to the `PanelEdge` layers. */
+  /** The window's edge style (ADR-0036): Still leaves the panel's own surface as it is, while a
+   *  liquid style draws that surface through the `PanelEdge` layers. */
   readonly edge: EdgeStyle;
   /** The chosen theme name, or `null` while following the system scheme (the view shows it). */
   readonly themeName: string | null;
@@ -37,7 +37,7 @@ interface PanelProps {
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  /** Load a chat, announcing it or not by the door it came from (`overlay/notice.ts`). */
+  /** Load a chat, announced or not depending on which control opened it (`overlay/notice.ts`). */
   readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
@@ -52,15 +52,15 @@ interface PanelProps {
  *  view being left is never cut away mid-movement. */
 const MORPH_MS = MAX_DURATION_MS;
 
-/** A view of the panel. The console's tab is NOT part of the name: both tabs are mounted inside it,
- *  so switching tabs is not a view change, does not re-centre the panel, and does not re-run the
- *  chrome's enter animation. Making a tab a view of its own was the first shape, and it flinched:
- *  the panel jumped 12px between two tabs that differ by that much, and the header and the back
- *  chevron faded out and in around content that was the only thing actually changing.
+/** A view of the panel. The console's tab is deliberately not part of the name: both tabs are
+ *  mounted inside it, so switching tabs is not a view change, does not re-centre the panel, and
+ *  does not re-run the chrome's enter animation. The first version made each tab a view of its own,
+ *  which made the panel jump 12px between two tabs that differ by that much and faded the header
+ *  and the back chevron out and in around the only content that was changing.
  *
- *  A tab change can still resize the panel, and there is one number saying when (`TAB_SPREAD_PX` in
- *  `ConsoleView`): tabs within it share the taller one's height, tabs beyond it each get their own
- *  and the panel morphs, which is the ordinary growth-inside-a-view move and not a view change. */
+ *  A tab change can still resize the panel, and `TAB_SPREAD_PX` in `ConsoleView` says when: tabs
+ *  within it share the taller one's height, tabs beyond it each take their own and the panel
+ *  morphs, which is a resize inside one view rather than a view change. */
 type View = "chat" | "console";
 
 const CONSOLE: View = "console";
@@ -74,14 +74,13 @@ const CONSOLE: View = "console";
  *  its field survive a trip to the console and back (the draft would survive an unmount too, being
  *  state above this, but the caret would not). The view being left behind is held
  *  for one morph, absolutely positioned so it cannot define the height the panel is easing to, and
- *  faded out over the one arriving. The history's scroll position is the one thing that does NOT
- *  come along for free: being out of the flow is exactly what loses it, so `ChatView` parks it and
- *  hands it back. */
+ *  faded out over the one arriving. The history's scroll position is the one thing being out of the
+ *  flow does lose, so `ChatView` records it and restores it. */
 export function Panel(props: PanelProps) {
   const { state, open, themeName, mark, edge, onOpenConsole, onCloseConsole } = props;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // A style with no waves is Still, and Still mounts nothing: the panel keeps its own face and
-  // pays nothing per frame, so the crisp choice is exactly the panel this feature found.
+  // A style with no waves is Still, which mounts no edge layers at all: the panel keeps its own
+  // surface and costs nothing per frame.
   const liquid = edge.waves.length > 0;
   const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);
@@ -89,13 +88,13 @@ export function Panel(props: PanelProps) {
   // The chat's own column, handed to the view inside it. A roll in the chrome (the switcher list,
   // the reminder stack, a row leaving either of them) is a sibling of the history and its start
   // event never reaches that box, so the log listens here instead (`useLogScroll`). The console's
-  // column is deliberately a different element: a roll in there is not the chat log's business.
+  // column is deliberately a different element, so a roll inside the console never reaches the log.
   const chatRef = useRef<HTMLDivElement>(null);
   // Which tab the console is showing, kept for the morph it spends on its way out. The console is
-  // still mounted then and its tab is already null, so the fallback below was drawing the FIRST tab
-  // over the one the user was actually looking at: leaving from the shortcuts, the appearance tab
-  // appeared for the length of the fade and left with it. Assigned during the render, so it is
-  // right by the time the render that closed the console reads it.
+  // still mounted then and its tab is already null, so falling back to the first tab drew the
+  // appearance pane over the one the user was looking at: leaving from the shortcuts, the
+  // appearance tab appeared for the length of the fade and left with it. Assigned during the
+  // render, so it holds the right tab by the time the render that closed the console reads it.
   const tab = useRef<ConsoleTab>("appearance");
   tab.current = state.consoleTab ?? tab.current;
   // Entering another view centres it, returning to the chat restores where the chat was, and any

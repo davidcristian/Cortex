@@ -7,20 +7,20 @@ next "look at my screen" blitted a display, notified the user, tainted the turn,
 llama.cpp's own ``image input is not supported`` 500. Every case below is one link in the chain
 that now cannot happen.
 
-Distrust-green proofs (each mutation applied to `sighted.py` alone, `packages/core` plus
+Mutations proving these tests can fail (each applied to `sighted.py` alone, `packages/core` plus
 `packages/orchestrator` re-run, measured 2026-08-06):
 
-- deleting the `invoke` guard reddens 3: `test_a_capture_is_refused_before_the_body_is_ever_asked`,
+- deleting the `invoke` guard fails 3: `test_a_capture_is_refused_before_the_body_is_ever_asked`,
   `test_the_answer_that_authorizes_a_capture_is_taken_at_the_call`, and the composition root's
   own `test_a_capture_the_model_can_no_longer_read_reads_no_pixels`. The second is the one that
-  matters: the first would also redden under a describe-time-only fix, the second would not;
-- deleting the `describe_tools` filter reddens 2, this suite's
+  matters: the first would also fail under a describe-time-only fix, and the second would not;
+- deleting the `describe_tools` filter fails 2, this suite's
   `test_a_blind_model_is_not_offered_the_screen` and the root's
   `test_the_probes_answer_decides_whether_the_screen_is_offered`;
-- caching the first answer (asked once, reused) reddens 2, and they are exactly the two cases
+- caching the first answer (asked once, reused) fails 2, and they are exactly the two cases
   that change the world between the advertisement and the call, which is the entire point of the
   port;
-- dropping the "is the capture tool even here" short circuit reddens 1,
+- dropping the "is the capture tool even here" short circuit fails 1,
   `test_a_registry_without_the_screen_never_asks`.
 """
 
@@ -74,7 +74,7 @@ async def test_a_seeing_model_is_offered_the_screen_and_may_use_it() -> None:
 
 
 async def test_a_blind_model_is_not_offered_the_screen() -> None:
-    """The courtesy half: a model that cannot read a picture is not told it can take one."""
+    """A model that cannot read a picture is not offered the tool that takes one."""
     inner = _Registry(CAPTURE_SCREEN_TOOL_NAME, GET_VOLUME_TOOL_NAME)
     registry = SightedToolRegistry(inner, ScriptedVisionProbe([False]))
 
@@ -82,7 +82,8 @@ async def test_a_blind_model_is_not_offered_the_screen() -> None:
 
 
 async def test_a_capture_is_refused_before_the_body_is_ever_asked() -> None:
-    """The half that protects the user: no pixels are read, so no privacy cost is paid."""
+    """A capture is refused before the body is asked, so no pixels are read and no privacy cost
+    is paid."""
     inner = _Registry(CAPTURE_SCREEN_TOOL_NAME)
     registry = SightedToolRegistry(inner, ScriptedVisionProbe([False]))
 
@@ -142,12 +143,13 @@ async def test_the_scripted_probe_repeats_its_last_answer() -> None:
 
 
 async def test_the_default_scripted_probe_can_see() -> None:
-    """An unarguments fake is a sighted one, so a test only writes the script it cares about."""
+    """A fake built with no script answers that it can see, so a test writes only the script it
+    cares about."""
     assert await ScriptedVisionProbe().can_see() is True
 
 
 async def test_it_is_a_tool_registry() -> None:
-    """Port-preserving: it goes wherever a `ToolRegistry` goes, including inside a composite."""
+    """It satisfies `ToolRegistry`, so it goes wherever one goes, a composite included."""
     registry: ToolRegistry = SightedToolRegistry(_Registry(), ScriptedVisionProbe([True]))
 
     assert await registry.describe_tools() == ()

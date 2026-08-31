@@ -23,13 +23,14 @@ export type WhisperPhase = "breath" | "talking" | "settled";
 
 /** How fast the posed box chases the front (per second of gain). */
 const BOX_GAIN = 10;
-/** The mist eases a little quicker than the box, so it reads as leading, not dragged. */
+/** The mist eases a little quicker than the box, so it reads as leading rather than dragged. */
 const MIST_GAIN = 12;
 /** How far the front must travel before the breath becomes speech. */
 const TALK_THRESHOLD = 0.05;
 /** How deep the band's blur goes at the mist end of a letter's ramp. */
 const BLUR_PX = 4;
-/** A clock tick is capped here so a background tab's resumed frame cannot teleport the front. */
+/** A clock tick is capped here so a background tab's resumed frame cannot jump the front far
+ *  forward in one step. */
 const MAX_TICK_SECONDS = 0.05;
 /** A height change worth reporting to the tail pin; the box eases in sub-pixel steps below it. */
 const GROWTH_NOTICE_PX = 0.5;
@@ -203,7 +204,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       s.h = h;
       bubble.style.width = `${s.w.toFixed(1)}px`;
       bubble.style.height = `${s.h.toFixed(1)}px`;
-      // Clamped into the box, so the blob hugs an edge rather than leaving the bubble.
+      // Clamped into the box, so the mist stops at an edge rather than leaving the bubble.
       const gx = clamp(fx + MIST_GAP, m.padX, s.w - MIST_W - 6);
       const gy = clamp(fy + m.line / 2 - MIST_H / 2, 4, s.h - MIST_H - 4);
       s.mx = approach(s.mx, gx, dt, MIST_GAIN);
@@ -212,11 +213,11 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       if (grown >= GROWTH_NOTICE_PX) {
         f.onGrow();
       }
-      // The settle waits for the mist. The drain sprints the front and the blob trails it on
-      // its own ease, so stopping the clock the instant the last letter cleared froze the glide
+      // The settle waits for the mist. The drain moves the front quickly and the mist trails it
+      // on its own ease, so stopping the clock the instant the last letter cleared froze the glide
       // mid-line and the evaporation played a dozen letters short of the reply's end (the user
-      // caught the smudge in a screenshot). This coda runs the loop the few frames it takes the
-      // mist to reach the last word, and the reply ends where it says it does.
+      // caught the smudge in a screenshot). These last frames run the loop until the mist reaches
+      // the last word, so the reply ends where it says it does.
       if (finished && Math.abs(gx - s.mx) < 1 && Math.abs(gy - s.my) < 1) {
         bubble.removeAttribute(MORPHING_ATTRIBUTE);
         bubble.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));

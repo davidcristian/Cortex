@@ -12,7 +12,7 @@ height costing half its error rather than all of it: measured 2026-07-20 at a 90
 panel rests at `bottom: 177px` where its real 545.75px earns 177.1px, and every switcher round
 trip after it is bit-exact. The fix is a `ResizeObserver` on the panel driving the same placement
 the morph end event does, which would also retire the event; the care needed is that the observer
-must not fight the animations, since every placement resizes the element it is watching.
+must not conflict with the animations, since every placement resizes the element it is watching.
 - **LANDED 2026-08-03 as the observer this entry names, `overlay/panelWatch.ts`, and the event
   STAYS** ([ADR-0035 addendum](../../adr/ADR-0035-console-and-motion.md)). It cannot be retired,
   which the observer is itself the instrument for saying: a roll ends without changing the panel's

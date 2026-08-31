@@ -233,7 +233,7 @@ Recorded in [session-history](../refinements/index.md#session-history) and
   widening of `HistoryWindow.select` alongside it, and the config. **Trigger:** it is the next
   slice in this area; nothing blocks it now.
 - **A cross-encoder rank.** Decision 7 ships the LLM-judge form of the model reranker. A
-  cross-encoder is the other form and wants a different port (a scoring model, not a chat
+  cross-encoder is the other form and needs a different port (a scoring model, not a chat
   completion), so it is a new adapter rather than a policy. **Trigger:** a measured shortfall of
   the judge on a real corpus, or a latency budget the judge cannot meet.
 - **Auditing the candidates that were dropped.** `RecallAudit` carries the kept hits and the pool
@@ -283,11 +283,11 @@ Four things the decision did not say, found while implementing it.
    the conversation.
 
 **A test that could not fail, caught and fixed.** The lease test first asserted that the reply's
-acquire succeeds after selection. Removing `drain_text` from the window did **not** redden it:
+acquire succeeds after selection. Removing `drain_text` from the window did **not** make it fail:
 the abandoned generator was unreferenced, so asynchronous-generator finalization closed it on the
 loop before the reply's acquire, exactly the "at the mercy of the collector" release decision 8
 names. The test now asserts that the adapter's acquire block was left with **no `await` between
-the assertion and `select`'s return**, which the collector cannot rescue, and it does redden when
+the assertion and `select`'s return**, which the collector cannot rescue, and it does fail when
 the drain is removed. Its twin, which retains an abandoned stream and watches the next acquire
 time out, stays in the tree to prove the harness's lock is genuinely non-reentrant.
 
@@ -360,7 +360,7 @@ window does not:
    here the pass is the feature: the alternative is not "store the raw text instead", it is "have
    no recap".
 2. **It promoted the answer.** The recap enters as `Role.SYSTEM`, the most trusted position in a
-   turn, is cached in Redis, and is folded forward for the life of the session. A laundered
+   turn, is cached in Redis, and is folded forward for the life of the session. An injected
    sentence would therefore outlive by an unbounded margin the assistant message it came from,
    which the window drops.
 
@@ -371,14 +371,14 @@ dropped transcript and the previous account inside `wrap_untrusted`, under one n
 that call, the way a turn's tool results share the turn's. The instruction that names them stays
 outside every fence, so the only text the prompt asks the model to obey is text this repo wrote.
 The recap then enters a turn through `fence_recap`, wrapped under a **second** nonce minted after
-the model has spoken. That ordering is the load-bearing part rather than a detail: a shared nonce
-would hand a compromised summarizer the one string that ends its own fence, and a nonce cached
-alongside the recap text would be a session-long secret instead of a per-selection one. Neither
-wrap takes an argument or sits behind a condition, so no state of the window produces an unfenced
-recap; the fence is a property of the only two functions that build these messages, not of a
-caller remembering to ask. The recap explains its markers in its own text, because a window
-cannot know whether the turn it feeds will also carry the preamble (which is prepended only for a
-tool-enabled or already-tainted turn), and an unexplained marker is worse than none.
+the model has spoken. That ordering is what the fence depends on rather than a detail: a shared
+nonce would hand a compromised summarizer the one string that ends its own fence, and a nonce cached
+alongside the recap text would be a session-long secret instead of a per-selection one. Neither wrap
+takes an argument or sits behind a condition, so no state of the window produces an unfenced recap;
+the fence is a property of the only two functions that build these messages, not of a caller
+remembering to ask. The recap explains its markers in its own text, because the turn it feeds may or
+may not also carry the preamble (which is prepended only for a tool-enabled or already-tainted
+turn), and an unexplained marker is worse than none.
 
 **Taint is deliberately not spread by a recap**, and this is the one place the decision trades
 safety for usefulness knowingly. Spreading it would close the outbound surface (a tainted gated
@@ -386,8 +386,8 @@ call is hard-denied) on every turn of every long conversation for the rest of it
 or not a tool ever ran, which is the "too blunt" failure the fence-without-block recall mode is
 already open against. It would also be inconsistent: the plain window hands the model the same
 assistant messages, unfenced and untainted, on every turn until they age out, so tainting the
-narrower derived artifact while its own source stays trusted would be theatre. That inconsistency
-is a real finding rather than an excuse, and it is recorded as its own entry in the
+narrower derived artifact while its own source stays trusted would protect nothing. That
+inconsistency is a real finding rather than an excuse, and it is recorded as its own entry in the
 untrusted-content area, where it belongs; it is wider than this feature and predates it.
 
 **What it costs.** The recap now reads as data rather than as the assistant's own notes. The
@@ -395,7 +395,7 @@ preamble tells the model that fenced content is inert information to analyze or 
 facts should still be usable, but "should" is the word: the measurement in the addendum above ran
 before the fence and has not been re-run behind it. The safety direction needs no model (it is
 structural, and asserted against what falls outside the fences), but the usefulness direction
-does, and it is recorded as open beside the one-corpus entry, which wants the same run.
+does, and it is recorded as open beside the one-corpus entry, which needs the same run.
 
 **Alternatives rejected.** *Refusing the recap on a tools-enabled deployment* is fail-closed and
 structural, but it does not close what it claims (a user can paste untrusted text into their own
@@ -461,16 +461,16 @@ and this is what incomplete looks like when it compounds.
 30.8 s typically, with outliers of 77.3 s and **224.5 s**. The server's own numbers say why: that
 224.5 s fold decoded 6286 tokens for a 370-token prompt, and a typical one decodes 400 to 850,
 while the account it stores is 330 to 650 characters, which is 80 to 160 tokens. Most of every
-fold is reasoning that `drain_text` drops on the floor, and nothing bounds it: `RECAP_MAX` cuts
+fold is reasoning that `drain_text` discards, and nothing bounds it: `RECAP_MAX` cuts
 the text after the model has spoken, not the request before it. This is the same gap the session
-title has, where a reasoning cortex can spend a whole budget thinking, and it wants the same
-missing thing, a way for the inference port to ask for no thinking.
+title has, where a reasoning cortex can spend a whole budget thinking, and the fix is the same in
+both: a way for the inference port to ask for no thinking.
 
 **Decision: `CORTEX_HISTORY_SUMMARY` stays `False`.** The user's decision to turn it on was made
 against 11 s per boundary move and a single measured fold, and this re-run falsified both halves
 of that premise, so shipping it on would be shipping against numbers rather than on them. A turn
 that stalls for as long as 224 s with nothing on screen saying why, and a 1 in 3 chance of the
-account quietly forgetting what the conversation opened with, is not a default. It stays exactly
+account quietly dropping what the conversation opened with, is not a default. It stays exactly
 one env variable away for a deployment that would rather wait than forget, which is what it was
 built to be.
 
@@ -532,8 +532,8 @@ was re-measured holding in both shapes.
 
 Per request rather than per server is the whole point. One resident cortex both answers the user,
 where deliberation earns its wait and the compose file deliberately leaves it on, and folds a
-recap, where the deliberation is discarded by construction. A server flag cannot tell those apart.
-`None` stays the default and emits no key, so every user-facing reply sends the byte-identical
+recap, where the deliberation is discarded by construction. A server flag cannot distinguish the
+two. `None` stays the default and emits no key, so every user-facing reply sends the byte-identical
 request it always did.
 
 #### A cap, sized from the account and paired with the switch
@@ -677,7 +677,7 @@ records what somebody once measured rather than what the tree does now:
 the request's own unit with room to spare: 48 characters is 12 tokens at the roughly 4 characters
 per token this repo's character budgets assume, and eight times the four tokens a title actually
 costs. A test pins the relation rather than the number, so lowering the cap under twelve tokens
-reddens the suite instead of quietly starting to cut stored titles.
+fails the suite instead of quietly starting to cut stored titles.
 
 `rank_bounds(k)` is `max_tokens=24 + 8k, thinking=False` (`rerank_judge.py`), and it is **computed
 rather than fixed** because unlike prose this reply's length is known before it is asked for:
@@ -809,7 +809,7 @@ each), and every one of those omissions was correct, since the gold note was alw
 The reversed arm ranks the same pool worst first and scores 0.000 in every category: a scorer that
 cannot fail has been watched failing. And the cosine's own behaviour splits the way the corpus
 predicted rather than being uniformly good or bad, failing on `TRAP` and `STALE` and holding 1.000
-on `LEXICAL`, `TWIN` and `CLAUSE`. A measurement whose control does not fire has measured nothing.
+on `LEXICAL`, `TWIN` and `CLAUSE`.
 Note that the cosine scores **worse on the original six here (0.806) than in the run above
 (0.917)**, which is the pool widening rather than a contradiction: the same six questions now draw
 their 12 candidates from 41 notes instead of 10, so there are more distractors available to
@@ -1148,7 +1148,7 @@ for whoever reopens this:
 - **A fifth name cannot reach the consumer above.** `CORTEX_MEMORY_RECALL` selects one policy. A
   `floor` member would be a policy a deployment runs *instead of* the judge, which leaves the
   judge's own fallback, the default path, exactly as unfloored as it is today. The floor has to be
-  something the fallback can wear.
+  something that can wrap the fallback too.
 - **A floor is orthogonal to how you rank**, so a name per combination multiplies the matrix: five
   policies become ten the moment a deployment wants a floor under `mmr`. The shape that composes is
   a decorator holding an inner `RecallPolicy`, the shape `JudgeRecallPolicy` already uses for its
@@ -1231,7 +1231,7 @@ embedder is a different decision behind the other.
 
 **The instrument was proved able to fail before its result was believed**, since a floor that never
 fires and a floor that works are indistinguishable on a corpus of answerable questions. Three
-mutations, each reddening the assertion that covers it: an operator that drops a hit breaks the
+mutations, each failing the assertion that covers it: an operator that drops a hit breaks the
 floor-of-zero identity (68 hits handed out where an unfloored run hands 102); an operator that
 ignores its floor breaks the absurd end (a floor of 1.01 returned three hits instead of none); and
 running the finding assertion over a corpus restricted to `LEXICAL` plus `ABSENT`, whose populations
@@ -1403,7 +1403,7 @@ The Deferred section above filed the audit of dropped candidates with a stated o
 non-picked candidate's `SPREAD`/`SWEEP` key is not well defined, because an MMR objective depends
 on the kept set at each step and an unpicked candidate never joined one. That is true and it is not
 the whole question. The trigger it named, the first investigation that needs to know why a specific
-memory was *not* returned, has grown teeth since: `CORTEX_MEMORY_RECALL` ships as `judge` from the
+memory was *not* returned, matters more now: `CORTEX_MEMORY_RECALL` ships as `judge` from the
 turn-cost addendum, and the judge is measured returning 1.17 notes where the cosine returned 5, so
 the shipped rank drops most of the pool on most turns. The trail was thinnest exactly where the
 most is now discarded.
@@ -1446,7 +1446,7 @@ to omit the key that does not apply, rather than to invent one.
 4. **Bounded at twenty, and the number is sized from what ships.** A recall of `DEFAULT_RECALL_K`
    (5) at the default `CORTEX_MEMORY_RECALL_POOL_FACTOR` (4) is a pool of 20, so a shipped
    deployment never truncates its own trail and `dropped_omitted` reads 0 on every line. The bound
-   bites only where a deployment over-fetches wider than what ships, and there an audit line that
+   applies only where a deployment over-fetches wider than what ships, and there an audit line that
    grew with the pool would make the trail the thing worth turning off, which is a defect of its
    own. What a bound cuts is the tail of the store's own order, `MemoryStore.search` promising
    most-similar first, so what survives is what the store rated highest. The count of what was cut
@@ -1478,7 +1478,7 @@ to omit the key that does not apply, rather than to invent one.
 
 ### Distrust green
 
-Seven mutations, each run against the three suites that cover this path, each reddening only what
+Seven mutations, each run against the three suites that cover this path, each failing only what
 it should:
 
 | Mutation | Result |
@@ -1521,7 +1521,7 @@ shipped. The deferral it left was narrowed the same day by the fold-under-load r
 a seam-spanning driver and thereby settled where such a thing lives, down to two questions: **how a
 committed test expresses an arm that needs the brain container restarted with one environment
 variable changed**, and **how it reports a distribution with a confidence interval rather than
-asserting a bound**. The A/B/A control was the same question in different clothes. This addendum
+asserting a bound**. The A/B/A control was the same question again. This addendum
 answers all three and records the reproduction.
 
 ### The decision: a division of labour, not one clever test
@@ -1839,7 +1839,7 @@ consistency caveat is documented rather than papered over.
 
 ### Distrust green
 
-Eight mutations, six against the CI suites and two against real Postgres, each reddening only what
+Eight mutations, six against the CI suites and two against real Postgres, each failing only what
 it should:
 
 | Mutation | Result |
@@ -1863,7 +1863,7 @@ this one was one number away from being it.
 
 The `integration` suite against real Postgres + pgvector in its own `cortex_contract` database:
 `1 passed, 39 deselected`, the three new checks included. The two live mutations above were run
-against the same store and reddened `check_count_candidates_sizes_the_set_a_search_ranked` on
+against the same store and failed `check_count_candidates_sizes_the_set_a_search_ranked` on
 `20 != 25`.
 
 ### Deferred by this addendum
@@ -1881,10 +1881,10 @@ rejected is gone the moment the turn is. So an operator watching a fold that kee
 is left with two fixes that point in opposite directions, raising `RECAP_MAX_TOKENS` or folding
 less, versus rewriting `_INSTRUCTION`, and no way to choose between them.
 
-**The behaviour wants nothing, and that has not changed.** `clean_recap` rejects on shape rather
+**The behaviour needs no change, and none is made here.** `clean_recap` rejects on shape rather
 than on transport, and that check is right whichever way this decision goes: it catches a fold the
 server cut, a fold the model ended mid-thought, and a fold that arrived mangled, where a stop
-reason catches only the first. Rejecting rather than trimming stays load-bearing for the reason
+reason catches only the first. Rejecting rather than trimming still matters for the reason
 already recorded, that a stored cut account advances `covers` past turns its missing tail never
 reached. Nothing here touches any of it. This addendum is entirely about the line beside it.
 
@@ -1900,9 +1900,9 @@ half is free and needs no signature at all, which is why it is here rather than 
 The length is measured through `collapse_recap`, a new one-line public function in
 `recap_prompt.py` that `clean_recap` now calls too. That indirection exists for one reason: the
 number a rejection is *logged* with must be the number the rejection was *decided* on. A second
-spelling of the same normalization would agree with the first everywhere except on a reply sitting
-within a few characters of `RECAP_MAX`, which is precisely the reply whose bucket a reader would
-be trying to settle.
+implementation of the same normalization would agree with the first everywhere except on a reply
+sitting within a few characters of `RECAP_MAX`, which is precisely the reply whose bucket a reader
+would be trying to settle.
 
 **The reversal, stated rather than slipped in.** ADR-0005's finish-reason addendum considered this
 exact consumer and declined it in writing: making the fold read a stop means changing `drain_text`,
@@ -1924,7 +1924,7 @@ written; it was true on its date, and this records where it stopped being.
 **Consequences.**
 
 - `drain_text` goes from five arguments to six, which is ruff's `max-args` ceiling exactly. It
-  passes, and it is now full: a seventh collaborator wants the `ToolLoopContext` move, a bundle,
+  passes, and it is now full: a seventh collaborator needs the `ToolLoopContext` move, a bundle,
   rather than another keyword. That is stated in the docstring so the next person meets it before
   the linter does.
 - The two callers that want only a string are unchanged, which was the whole objection to the
@@ -1942,12 +1942,12 @@ not ([R-309](../refinements/tasks/309-a-silent-judge-fallback.md)).
 ## Unjudged-rank addendum (2026-08-19): the rank that fell back to geometry says which way it did
 
 `JudgeRecallPolicy` is the shipped default recall policy, so its fallback is the path most turns
-take when anything is wrong with the model, and until now it took that path in complete silence.
-`rerank_judge.py` imported no logger at all. The pool came back ranked by cosine, the ranking
-carried the fallback's own basis, and nothing anywhere said the model had been asked and had not
-answered. A deployment whose judge had never once answered was indistinguishable from one where it
-answers every turn, which is a worse blindness than the fold's: a rejected fold at least logged a
-line saying it had been attempted and rejected.
+take when anything is wrong with the model, and until now it took that path without logging
+anything. `rerank_judge.py` imported no logger at all. The pool came back ranked by cosine, the
+ranking carried the fallback's own basis, and nothing anywhere said the model had been asked and had
+not answered. A deployment whose judge had never once answered was indistinguishable from one where
+it answers every turn, which leaves an operator less to go on than the fold did: a rejected fold at
+least logged a line saying it had been attempted and rejected.
 
 **The behaviour is untouched, again.** Every fallback still falls back to the same policy with the
 same basis, the refusal is still believed, and `parse_order` still has its three outcomes. This is
@@ -1958,8 +1958,8 @@ returns without a verdict does so in one of four ways, and they are not one even
 
 - An **empty pool** logs nothing. No candidates means no judgement was possible and none was
   attempted, so there is no fault to report; a line here would fire on every turn a deployment
-  recalls nothing on and would dilute the two that mean a rank was lost. This is the same silence
-  `SummarizingHistoryWindow` keeps when its inner window dropped nothing.
+  recalls nothing on and would dilute the two that mean a rank was lost. `SummarizingHistoryWindow`
+  logs nothing in the same case, when its inner window dropped nothing.
 - An **`InferenceError`** logs `the model could not be asked to rank recall; falling back to the
   unjudged ranking`, carrying the pool it gave up on, the `k` asked of it, and the backend's own
   error as `exc_info`. There is no completion to describe on this path, so the cause is the
@@ -1988,13 +1988,13 @@ all.
 **What the line carries, and why exactly two readings.** `capped` separates the two causes with
 opposite fixes, and they are indistinguishable in the text: a rank cut at `rank_bounds(k)` comes
 back `{"order":` (measured), and a model that ended by itself in the wrong shape can come back the
-same way. True wants a wider bound or a smaller `k`; False wants the constrained decoding checked.
-`chars` splits that second case again for free: `0` is a model that emitted no assistant text at
-all, which on this path means a reasoning tier ignoring `thinking=False` and putting the whole
-reply where `drain_text` drops it, and any other length is text that arrived and was not the
+same way. True calls for a wider bound or a smaller `k`; False calls for checking the constrained
+decoding. `chars` splits that second case again for free: `0` is a model that emitted no assistant
+text at all, which on this path means a reasoning tier ignoring `thinking=False` and putting the
+whole reply where `drain_text` drops it, and any other length is text that arrived and was not the
 envelope. Unlike the fold, no normalization stands between the number and the decision:
-`parse_order` is handed the same `raw` whose length is logged, so there is no second spelling to
-disagree with the first and no `collapse_recap` analogue is needed.
+`parse_order` is handed the same `raw` whose length is logged, so there is no second implementation
+to disagree with the first and no `collapse_recap` analogue is needed.
 
 **Both readings ride the message as well as the record.** The brain configures
 `logging.basicConfig(level=logging.INFO)` and nothing else, so the shipped handler prints
@@ -2115,7 +2115,7 @@ has two halves because the leak has two shapes.
 **By name.** A field whose name contains `token`, `password`, `passwd`, `secret`, `credential`,
 `apikey`, `api_key`, `authorization` or `cookie`, case-insensitively, prints `<redacted>` instead
 of its value. A **denylist** rather than an allowlist, deliberately: an allowlist would have to be
-edited for every new field, which is this very defect wearing a different hat, a field nobody
+edited for every new field, which is this very defect in another form, a field nobody
 registered being silently dropped instead of never printed, and a silent drop is the harder of the
 two to notice. The match is a substring, so `max_tokens` is withheld too. That is the trade this
 direction of error buys: a token count a reader can recover from the message costs less than one
@@ -2137,13 +2137,13 @@ Measured in this session, each mutation applied to production code alone with
 `packages/core/tests/test_log_format.py`, `packages/memory/tests/test_recall_audit.py` and
 `packages/tools/tests/test_audit.py` re-run (34 cases):
 
-- dropping the appended fields from `PlainFormatter.formatMessage` reddens **11**, including both
+- dropping the appended fields from `PlainFormatter.formatMessage` fails **11**, including both
   audit trails, which is the point: the trails now depend on the formatter and their tests say so;
-- dropping the URL redaction from both formatters reddens **2**;
-- dropping the secret-name redaction from `record_fields` reddens **3**.
+- dropping the URL redaction from both formatters fails **2**;
+- dropping the secret-name redaction from `record_fields` fails **3**.
 
 The reserved-attribute set has its own guard, asserted as a difference in both directions, so a
-Python release that adds a `LogRecord` attribute reddens a test here rather than printing a new
+Python release that adds a `LogRecord` attribute fails a test here rather than printing a new
 stdlib field as though a caller had attached it.
 
 ### Verified live
@@ -2232,15 +2232,15 @@ and the id it used to show inside the quote is read off the field beside it.
 
 Each mutation was applied to production code alone, with the package's own suite re-run:
 
-- dropping `extra=` from the two supervisor lifecycle lines reddens exactly
+- dropping `extra=` from the two supervisor lifecycle lines fails exactly
   `test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about` (1 of 136);
-- dropping `extra=` from the adapter's FAILED line reddens exactly
+- dropping `extra=` from the adapter's FAILED line fails exactly
   `test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail` (1 of 136);
-- dropping `model` from the sweep's unhosted-tier line reddens exactly
+- dropping `model` from the sweep's unhosted-tier line fails exactly
   `test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_again`;
-- dropping `error` from boot recovery's deep-tier line reddens exactly
+- dropping `error` from boot recovery's deep-tier line fails exactly
   `test_a_deep_tier_the_daemon_does_not_serve_is_a_config_fault_not_an_amber_boot`;
-- dropping `worst_s` from the deadline-pairing line reddens exactly the assertion that reads it off
+- dropping `worst_s` from the deadline-pairing line fails exactly the assertion that reads it off
   the rendered line, which is the one that moved.
 
 The mutations matter more here than the count does. A test that asserted a field through
@@ -2373,12 +2373,12 @@ session adapter keeps `item_id`, which is what that module has always called it.
 
 Three mutations, each applied to production code alone with the package's own suite re-run:
 
-- dropping `extra=` from the quarantine line reddens exactly
+- dropping `extra=` from the quarantine line fails exactly
   `test_the_quarantine_lines_carry_the_id_and_the_key_as_fields` (1 of 117);
-- dropping `session_id` from the inference failure reddens exactly the `_inference_failure` case of
+- dropping `session_id` from the inference failure fails exactly the `_inference_failure` case of
   `test_a_turn_that_failed_names_the_session_it_was_serving` and neither of its two siblings, which
   is what pins the field to its own line rather than to the family (1 of 22);
-- restoring the filtered `gather` results in place of the zip reddens exactly
+- restoring the filtered `gather` results in place of the zip fails exactly
   `test_both_pass_degradation_lines_name_the_item_they_are_about` (1 of 29).
 
 ### Verified live
@@ -2468,9 +2468,9 @@ arms answer the same `False` the retry policy reads, so the retry, the give-up a
 ### Distrust green
 
 Six mutations, each applied to production code alone with the whole brain workspace re-run
-(2752 tests), so the counts are what actually reddened rather than what was expected to:
+(2752 tests), so the counts are what actually failed rather than what was expected to:
 
-| Mutation | Reddens | Which |
+| Mutation | Tests failed | Which |
 | --- | --- | --- |
 | boot clearing's field names the cortex | **2** | both boot cases that fail at the deep model |
 | boot settling's field names the deep model | **1** | the cortex case added for this branch |
@@ -2481,7 +2481,7 @@ Six mutations, each applied to production code alone with the whole brain worksp
 
 The third row is the interesting one. Collapsing boot recovery back into one `try` leaves the
 cortex case green, because a cortex that fails last is the model the collapsed arm happens to
-name; what reddens is the pair that fail at the deep model, which then read as the cortex having
+name; what fails is the pair of cases at the deep model, which then read as the cortex having
 gone. That is the fault this addendum exists to remove, so the pair is where it has to be caught,
 and a suite that had only the new case would have let the collapse back in.
 
@@ -2561,9 +2561,9 @@ and the recovery is the first half of its step 2 rather than the second.
 ### Distrust green
 
 Six mutations, each applied to production code alone with the whole brain workspace re-run (2753
-tests), so the counts are what actually reddened:
+tests), so the counts are what actually failed:
 
-| Mutation | Reddens | Which |
+| Mutation | Tests failed | Which |
 | --- | --- | --- |
 | the eviction answers the cortex | **2** | the eviction retry case, and the give-up that never evicts |
 | the cortex's start answers the swapped-in model | **2** | the retry case, and the give-up that never starts |
@@ -2670,7 +2670,7 @@ and rests where the correction above put it, on what a 5xx means. The decision i
 
 Five mutations, each applied to production code alone with the whole brain workspace re-run:
 
-| Mutation | Reddens | Which |
+| Mutation | Tests failed | Which |
 | --- | --- | --- |
 | every refusal back to one `WARNING` | **1** | the 503 case |
 | every refusal at `ERROR` | **3** | the 404 parameterization |
@@ -2694,7 +2694,7 @@ half of the premise a test could otherwise leave unstated.
 
 ### Deferred by this addendum
 
-The five that keep both spellings, carried forward with the narrower question that is left now
+The five that keep the value in both places, carried forward with the narrower question left now
 that dropping their logs is refuted:
 [R-331](../refinements/tasks/331-five-raised-messages-keep-their-numbers-in-prose.md).
 
@@ -2798,7 +2798,7 @@ as its own entry rather than settled here.
 
 Six mutations, each applied to `log_fields.py` alone with the suite re-run:
 
-| Mutation | Reddens | Which |
+| Mutation | Tests failed | Which |
 | --- | --- | --- |
 | the scalar way out stops passing the bound | **5** | including the whole-line and rendered-text cases |
 | the compact-JSON way out stops passing the bound | **5** | the same five, since both ways out feed them |
@@ -2903,7 +2903,7 @@ well, for a pairing target that has no turn id of its own.
 
 Seven mutations, each applied to production code alone with the core suite re-run.
 
-| mutation | reddens |
+| mutation | tests failed |
 | --- | --- |
 | `MemoryRecaller.recall` stops passing the id | **1**, the recaller's own case |
 | the unreachable-model line stops naming the session | **3**, the naming, unnamed and no-content cases |
@@ -3037,7 +3037,7 @@ fields rather than left alone.
 Five mutations, each applied to production code alone with the core and orchestrator suites
 re-run, then restored:
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | the failure lines mint a fresh id instead of reporting the turn's | 5 |
 | the failure lines drop the `turn_id` field | 5 |
@@ -3199,10 +3199,10 @@ value and not this constant's to answer.
 
 The audit's reproduction was re-run against the shipped code first, and the security case was
 written before the fix and confirmed red on it, failing on `'hunter2' is contained here:
-://cortex:hunter2<cut 17 chars>`. Six cases redden in total on the unfixed source. Five mutations
+://cortex:hunter2<cut 17 chars>`. Six cases fail in total on the unfixed source. Five mutations
 were then applied to `log_fields.py` alone, each read back from disk before the suite was trusted:
 
-| Mutation | Reddens | Which |
+| Mutation | Tests failed | Which |
 | --- | --- | --- |
 | the bound stops withholding before it cuts | **1** | the credential the cut falls across |
 | the withholding runs after the cut instead of before it | **1** | the same one, which is the point: the order is the defence, not the call |
@@ -3426,7 +3426,7 @@ the recipe is in the `justfile`, the reading is here with its date, and the capt
 Eight mutations, each applied to `scripts/trailwidth.py` alone with
 `scripts/tests/test_trailwidth.py` re-run, 23 cases:
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | the rendering stops at the next space rather than at the next field | **4** |
 | the cut marker is looked for anywhere rather than at the end | **1** |
@@ -3440,7 +3440,7 @@ Eight mutations, each applied to `scripts/trailwidth.py` alone with
 The second row is the one that had to be earned. It survived the first pass of this table, which is
 what the rule is for: the anchor is real, a cut marker only ever sitting at the end of a rendering
 that stopped, and nothing had asked what happens when a value's own text spells one. A case that
-puts the marker inside the value was added, and the mutation reddens.
+puts the marker inside the value was added, and the mutation now fails.
 
 ### Consequences
 
@@ -3479,9 +3479,9 @@ opens `INFO:cortex.memory.recall:memory.recall `, the stdlib's own basic format 
 `PlainFormatter` builds on, so the word the reader looks for sits on every line twice: once as the
 logger's tail and once as the message. Rename the message alone and the reader goes on qualifying
 lines on the logger's half, working by accident while its own comment, which says this is the
-message the sink writes, has stopped being true. The field is the load-bearing needle: it is cut
-out of the line by ` dropped=`, it appears nowhere else on the line, and a rename of it is exactly
-the silence the entry described.
+message the sink writes, has stopped being true. The field is the needle that does the work: it is
+cut out of the line by ` dropped=`, it appears nowhere else on the line, and a rename of it is
+exactly the silence the entry described.
 
 Both are registered anyway. A needle that works by accident is a needle nobody may rely on, and
 the rename that actually happens to a trail is the wholesale one, the message and the logger
@@ -3492,11 +3492,11 @@ moving together, which silences the reader outright.
 The question this entry really asks is whether `trailwidth.py` may sit in a registry of couplings
 at all, being the tree's one reader that fails nothing. It may, and the argument is
 `fixturecouplings.py`'s, sharpened: **a value nothing runs on every commit needs the registry more
-than a shipped one does, not less.** A shipped default has a suite that would notice. This reader
-is run by hand, on a GPU, when somebody chooses to measure, so a needle that stopped matching waits
-in the tree until the next measurement and then surfaces as `no memory.recall line carrying a
-dropped field`, which reads as a stack that wrote no trail. Fifteen minutes of GPU time and a
-misattributed failure is the cost of the silence.
+than a shipped one does, not less.** A shipped default has a suite that fails when it moves. This
+reader is run by hand, on a GPU, when somebody chooses to measure, so a needle that stopped
+matching waits in the tree until the next measurement and then surfaces as `no memory.recall line
+carrying a dropped field`, which reads as a stack that wrote no trail. Fifteen minutes of GPU
+time and a misattributed failure is the cost of the silence.
 
 What makes it registrable is not what the module is used for but what its literals ARE: claims
 about another module's output, in a tree that cannot import it, which is the whole of the
@@ -3549,7 +3549,7 @@ Ten mutations, each applied alone with the scripts suite re-run, over the 1338 c
 `scripts/tests/`. The first six mutate the tree the registry reads; the next three mutate the
 registry, which is production code here; the last is the interaction.
 
-| mutation | reddens |
+| mutation | tests failed |
 | --- | --- |
 | the sink renames the key its dropped candidates ride under | 8 |
 | the sink renames the message it writes | 8 |
@@ -3562,8 +3562,8 @@ registry, which is production code here; the last is the interaction.
 | GATE: the entry keeps only its two Python places | 1 |
 | INTERACTION: a sibling key moves in the very same dict | 6 |
 
-Rows over the committed tree redden every check that copies it, which is by design: the doctored
-tests copy the real files, so a place that moved house leaves the suite failing rather than quietly
+Rows over the committed tree fail every check that copies it, which is by design: the doctored
+tests copy the real files, so a place that moved leaves the suite failing rather than quietly
 checking a tree nobody reads. Row three is high for a reason worth stating rather than smoothing:
 sixteen of its twenty five are the reader's own suite, which pins the needle from the other side,
 and the registry contributes nine.
@@ -3580,7 +3580,7 @@ its decoration. The last row is the interaction: the conversation this sink name
 
 ### Consequences
 
-- A rename of the recall trail's message or of its widest field reddens `just check` on the day it
+- A rename of the recall trail's message or of its widest field fails `just check` on the day it
   is made. The reader that measures that field, and the two documents that tell an operator what
   it holds, move with it or the gate says which of them did not.
 - The registry now holds an entry whose declaring side gates nothing, and the reason is written
@@ -3696,7 +3696,7 @@ field's was.
 Ten mutations, each applied to `scripts/trailwidth.py` alone with `scripts/tests/test_trailwidth.py`
 re-run, 29 cases:
 
-| Mutation | Reddens |
+| Mutation | Tests failed |
 | --- | --- |
 | the line's width is counted off the captured text | **11** |
 | the message is matched anywhere in the line again | **13** |
@@ -3726,7 +3726,7 @@ report. A mutation table that finds two of its own checks vacuous is the argumen
   it takes the split, and the seam is already visible: reading a capture on one side, reporting a
   distribution on the other.
 - The reader qualifies a line by the message where the formatter puts it, so the constant registry's
-  needle for that message is load bearing rather than redundant.
+  needle for that message does real work rather than being redundant.
 
 ### Deferred by this addendum
 
@@ -3758,7 +3758,7 @@ The second correction is sharper, because the entry's cost sentence rests on it.
 leaves both sentences instructing an operator about a logger nothing writes through "with every
 gate green". That is false of the code and true of the documents. Nine of the memory package's
 forty checks read a line back through `caplog.at_level(..., logger="cortex.memory.recall")`, and a
-rename reddens every one: a record logged under some other name never reaches a handler at INFO,
+rename fails every one: a record logged under some other name never reaches a handler at INFO,
 so those tests see no lines at all. So the defect was never
 that a rename is silent. It is that a rename is loud in one tree and silent in the three documents
 an operator actually reads, and the loud half is what makes the silent half plausible to leave
@@ -3853,17 +3853,17 @@ was always loud in the package that writes the trail and silent in every documen
 Row six is why decision 2 is not a separate slice: three reds, all of them the reader's own suite,
 and a green gate over a brain whose recall trail this reader can no longer see.
 
-Rows seven and eight are one claim in two halves and the only rows here that redden nothing. A
+Rows seven and eight are one claim in two halves and the only rows here that make nothing fail. A
 needle rendering the name alone holds the rename exactly as well, each of the three documents
 spelling this name once, so the sentence in each template buys nothing against the mutation the
 entry was filed for. Row eight is what it does buy: with the bare needle, a document that keeps the
-name and loses the sentence around it is green, where row three reddens eight. The three templates
+name and loses the sentence around it is green, where row three fails eight. The three templates
 therefore pin **which sentence** carries the name rather than that the file carries it somewhere,
 which is the difference between holding an instruction and holding a mention of one.
 
 ### Consequences
 
-- A rename of the recall trail's logger reddens `just check` on the day it is made, and the two
+- A rename of the recall trail's logger fails `just check` on the day it is made, and the two
   runbooks and the module contract move with it or the gate names the ones that did not.
 - `samplecheck.py` resolves a logger a sink names through a constant, so a runbook that starts
   printing a rendered line of this trail is held to the call that writes it like every other.

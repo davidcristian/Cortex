@@ -1,9 +1,8 @@
 // One behavior suite over every `BrainBridge` implementation CI can run (ADR-0011 addendum).
 //
-// The driver stays thin on purpose, the way the brain's `test_task_store_contract.py` does: it
-// builds a fresh case per check and runs the shared list over it. Every claim lives in
-// `bridgeContract.ts`, so a check appended there reaches both implementations without anyone
-// remembering to write it twice.
+// The driver stays thin, as the brain's `test_task_store_contract.py` does: it builds a fresh case
+// per check and runs the shared list over it. Every claim lives in `bridgeContract.ts`, so a check
+// appended there reaches both implementations without being written twice.
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 
 import { deriveTitle } from "../overlay/sessionState";
@@ -12,7 +11,7 @@ import { DemoBridge } from "./demoBridge";
 import { FakeBridge } from "./fakeBridge";
 import type { TurnSink } from "./types";
 
-/** A sink for a turn the fixture only wants the side effect of. */
+/** A sink for a turn the fixture needs only the side effect of. */
 const DROPPED: TurnSink = { onEvent: () => undefined, onError: () => undefined };
 
 const advance = async (milliseconds: number): Promise<void> => {
@@ -21,8 +20,8 @@ const advance = async (milliseconds: number): Promise<void> => {
 
 function fakeCase(): BridgeCase {
   const bridge = new FakeBridge();
-  // The fake serves the tables its test assigns, so the fixture assigns what every
-  // implementation is expected to have something in: one reminder that has fired.
+  // The fake serves the tables its test assigns, so the fixture assigns the one thing every
+  // implementation is expected to have: a reminder that has fired.
   bridge.reminders = [
     {
       reminderId: "fake-r1",
@@ -58,8 +57,8 @@ function demoCase(): BridgeCase {
   const bridge = new DemoBridge();
   return {
     bridge,
-    // The demo bridge comes by a chat the way the brain does: it is spoken in. The turn is
-    // dropped on the spot, these checks being about the catalog rather than the stream.
+    // The demo bridge gains a chat the way the brain does, by being spoken in. The turn is
+    // cancelled immediately, since these checks are about the catalog rather than the stream.
     addChat: (sessionId, firstMessage) => bridge.converse(sessionId, firstMessage, DROPPED)(),
     advance,
   };

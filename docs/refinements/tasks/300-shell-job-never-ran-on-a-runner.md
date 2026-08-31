@@ -19,15 +19,15 @@ workspace in the same repo without colliding with the rust job's, and that a job
 raises no complaint from the workflow parser. Each is likely and none is checked, and the repo's
 own rule is that a gate which has never run is indistinguishable from one that cannot fail.
 
-The reason this is a follow-up rather than a hole in the landing is that the maintainer pushes
-and the agent does not, so the first real execution is a push away and costs nothing to wait
-for. It closes on the first CI run whose diff reaches the shell, which is also the first run
-that executes the job: green closes it, and a red on the apt line, the cache key or the job id
-is a small fix at a known place rather than a re-argued design. Note that the commit landing the
-job touches `.github/workflows/` and `justfile`, both shared gate files, so the classifier sets
+The reason this is a follow-up rather than a hole in the landing is that the maintainer pushes and
+the agent does not, so the first real execution is a push away and costs nothing to wait for. It
+closes on the first CI run whose diff reaches the shell, which is also the first run that executes
+the job: a passing run closes it, and a failure on the apt line, the cache key or the job id is a
+small fix at a known place rather than a re-argued design. Note that the commit landing the job
+touches `.github/workflows/` and `justfile`, both shared gate files, so the classifier sets
 `shell=true` for that commit and the job runs on its own landing. The measurements it should
-confirm, for comparison against whatever the runner reports, are in the origin's 2026-08-17
-addendum and in [009](009-shell-clippy-in-ci.md).
+confirm, for comparison against whatever the runner reports, are in the origin's 2026-08-17 addendum
+and in [009](009-shell-clippy-in-ci.md).
 
 ## Trail
 

@@ -1,9 +1,9 @@
-"""Behavior tests for the salience policies: which calls deserve dispatching (ADR-0009).
+"""Behavior tests for the salience policies: which calls are dispatched (ADR-0009).
 
 The rule under test is one sentence with two clauses: an identical call runs at most once per
 round, and at most ``limit`` times per loop. The tests state each clause separately, because the
-first is absolute (nothing can be learned from a twin the model chose blind) while the second is
-a cap on a legitimate repeat.
+first is absolute (a twin the model chose before seeing either result returns nothing new) while
+the second is a cap on a legitimate repeat.
 """
 
 from collections.abc import Sequence
@@ -69,7 +69,7 @@ def test_a_repeat_in_a_later_round_is_admitted_once() -> None:
 
 
 def test_a_third_identical_call_across_rounds_is_refused() -> None:
-    """Past the cap the model is spinning, and no reading of the third attempt is legitimate."""
+    """Past the cap the model is repeating itself, so the third identical call is not dispatched."""
     call = _call(path="a.txt")
     assert REPEAT_SALIENCE.admits(call, _rounds([call], [call], [])) is False
 
@@ -97,7 +97,7 @@ def test_arguments_compare_structurally_rather_than_by_key_order() -> None:
 
 
 def test_a_tighter_limit_refuses_the_second_call() -> None:
-    """The cap is the policy's, not a constant baked into the comparison."""
+    """The cap comes from the policy instance rather than a constant inside the comparison."""
     call = _call(path="a.txt")
     assert RepeatSalience(limit=1).admits(call, _rounds([call], [])) is False
 
@@ -109,6 +109,6 @@ def test_the_default_limit_is_the_shared_constant() -> None:
 
 @pytest.mark.parametrize("limit", [0, -1])
 def test_a_non_positive_limit_is_rejected_at_construction(limit: int) -> None:
-    """A limit of zero refuses even the first call, which would be a silent hole."""
+    """A limit of zero would block even the first call, so a non-positive limit raises here."""
     with pytest.raises(ValueError, match="salience limit must be positive"):
         RepeatSalience(limit=limit)

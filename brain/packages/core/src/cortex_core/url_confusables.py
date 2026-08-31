@@ -1,28 +1,27 @@
-"""The curated cross-script *confusable* fold, behind the output guardrail (ADR-0015).
+"""The curated cross-script confusable fold, behind the output guardrail (ADR-0015).
 
-Split from ``url_identity`` (which owns the identity and the seven passes around this one) as the
-lookalike policy landed, and split by **responsibility** rather than by size. Every other pass
-there is a resolver's own reading, so the spelling it folds and the spelling it folds to are the
-same host; this pass is a *judgement about what looks alike*, and a confusable host is a
-**different** host that merely renders like the one it imitates (ADR-0015 thirteenth addendum
-measured exactly that and declined the full UTS-39 set on it). The lookalike policy has to read a
-host with this one pass switched off, since a host built wholly out of table entries would
-otherwise fold to plain ASCII and carry no sign of anything at all; the pass living in its own
-module is what lets ``normalize_url`` be run either way (ADR-0015 fourteenth addendum).
+Split from ``url_identity``, which owns the identity and the seven passes around this one, by
+responsibility rather than by size. Every other pass there is a resolver's own reading, so the
+spelling it folds and the spelling it folds to are the same host; this pass judges what looks
+alike, and a confusable host is a different host that renders like the one it imitates. The
+lookalike policy reads a host with this pass switched off, because a host built wholly out of
+table entries would otherwise fold to plain ASCII and carry no sign of anything, and the pass
+living in its own module is what lets ``normalize_url`` be run either way (ADR-0015 fourteenth
+addendum).
 
-Deterministic and dependency-free (stdlib only). Pure state- and I/O-free.
+Deterministic and dependency-free (stdlib only), with no state and no I/O.
 """
 
-# The common single-script *confusables*: Cyrillic and Greek letters that render identically to an
+# The common single-script confusables: Cyrillic and Greek letters that render identically to an
 # ASCII Latin letter, folded to that letter so a homoglyph host (`<cyr>evil.example`) normalizes to
 # its plain twin (ADR-0015 fourth addendum). A curated, high-confidence table, deterministic and
-# dependency-free, but NOT the full UTS-39 confusables set, which is priced and declined (ADR-0015
-# thirteenth addendum): the attacker picks the codepoint, so no table is the boundary against a
-# chosen one, and what is the boundary is a policy reading the host's shape (fourteenth addendum).
-# Folding only ever *widens* a redaction and is *symmetric* on both sides of the defense, so its
-# false-positive surface is a legitimately Cyrillic/Greek URL, rare in a single-user deployment, and
-# already redacted on a tainted turn under the lookalike and strict policies. Keys are `\u` escapes
-# so the source stays ASCII and each confusable codepoint is explicit.
+# dependency-free, rather than the full UTS-39 confusables set, which ADR-0015's thirteenth
+# addendum priced and declined: an attacker chooses the codepoint, so the boundary is the policy
+# that reads the host's shape (fourteenth addendum) rather than any table. Folding only ever widens
+# a redaction and runs on both sides of the comparison, so its false-positive surface is a
+# legitimately Cyrillic or Greek URL, rare in a single-user deployment and already redacted on a
+# tainted turn under the lookalike and strict policies. Keys are `\u` escapes so the source stays
+# ASCII and each confusable codepoint is explicit.
 _CONFUSABLES = str.maketrans(
     {
         # Cyrillic -> Latin, lowercase (a e o p c y x i j s d h l)

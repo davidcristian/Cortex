@@ -21,7 +21,7 @@ tokens, and two were cut at 1024 and came back refused.** So on the shape that w
 lands, the cap sits about 12% above a real answer and fires on 5% of draws.
 
 **Why it was left.** Retuning against a distribution measured under a probe instruction is the same
-mistake this entry's parent refused twice: the cap was once derived from a shape nothing shipped,
+mistake this entry's parent declined twice: the cap was once derived from a shape nothing shipped,
 and it declined to be re-derived from a reply nobody would accept. A cap sized to an instruction
 that has not been decided on yet is the third version of it. The two cut runs are also not obviously
 answers being truncated: they spent 3351 and 3692 characters in the reasoning channel that a

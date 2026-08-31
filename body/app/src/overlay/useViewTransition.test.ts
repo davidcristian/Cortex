@@ -24,8 +24,8 @@ describe("useViewTransition", () => {
       initialProps: { view: "chat" },
     });
     rerender({ view: "console:appearance" });
-    // Not one paint later: this render is the one that has to lift the chat out of the layout
-    // flow, or it would define the height the panel is easing away from.
+    // This render and not one paint later: it is the render that has to lift the chat out of the
+    // layout flow, or the chat would define the height the panel is easing away from.
     expect(result.current).toBe("chat");
   });
 

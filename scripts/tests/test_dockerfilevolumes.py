@@ -1,8 +1,8 @@
-"""Behaviour of the Dockerfile side of the image-volume record: what a file here declares.
+"""Tests for the Dockerfile side of the image-volume record: what a file here declares.
 
 Two kinds of thing are exercised, and they fail in different directions. `read_volumes` and
-`onbuild_volumes` are readers, so most of what is below asserts a refusal: a shape one was not
-taught has to raise rather than be walked past, since a `VOLUME` this reader skipped is a declared
+`onbuild_volumes` are readers, so most of what is below asserts a raise: a shape one was not
+taught raises rather than being walked past, since a `VOLUME` this reader skipped is a declared
 path the record would go on denying. `undeclared` is the rule over them, and it is where every
 side of a built row meets: what the file declares itself, what its base declares for it, and what
 its base's triggers would declare into it, asked over one read. All are one-directional by design,
@@ -25,7 +25,7 @@ HERE = Build(".", DEFAULT_DOCKERFILE)
 
 
 def _tree(root: Path, dockerfile: str) -> Path:
-    """A fixture tree whose compose file sits beside the Dockerfile it says it builds from."""
+    """Write a fixture tree whose compose file sits beside the Dockerfile it builds from."""
     (root / "docker").mkdir(parents=True, exist_ok=True)
     (root / DEFAULT_DOCKERFILE).write_text(dockerfile, encoding="utf-8")
     return root / "docker" / "docker-compose.yml"
@@ -47,7 +47,8 @@ def test_a_json_array_volume_declares_every_path_in_it() -> None:
 
 
 def test_the_instruction_is_matched_however_it_is_cased() -> None:
-    """Docker does not care, so a reader that did would miss a real declaration."""
+    """Docker matches the instruction case-insensitively, so a case-sensitive reader would miss a
+    real declaration."""
     assert read_volumes("volume /a\n") == ("/a",)
 
 
@@ -64,7 +65,8 @@ def test_a_trailing_slash_is_not_a_second_spelling_of_one_path() -> None:
 
 
 def test_a_file_declaring_nothing_declares_nothing() -> None:
-    """The answer both of this repo's Dockerfiles give, and it has to be an answer, not a skip."""
+    """Both of this repo's Dockerfiles give this answer, and it is an answer rather than a skipped
+    read."""
     assert read_volumes('FROM scratch\n# VOLUME /a\n\nCMD ["true"]\n') == ()
 
 
@@ -74,7 +76,8 @@ def test_an_onbuild_volume_is_not_this_image_declaring_one() -> None:
 
 
 def test_an_instruction_left_open_on_a_continuation_is_still_read() -> None:
-    """A file ending mid-continuation is malformed, and reading what it got beats reading none."""
+    """A file ending mid-continuation is malformed, and the paths read so far are reported rather
+    than none of them."""
     assert read_volumes("VOLUME \\\n  /a \\\n") == ("/a",)
 
 
@@ -103,7 +106,8 @@ def test_a_json_scalar_is_refused_as_an_array_rather_than_read_as_a_path() -> No
 
 
 def test_a_json_object_is_refused_for_the_reason_it_is_wrong() -> None:
-    """It parses, so the fault is what it is and not a path that failed to be absolute."""
+    """A JSON object parses, so the fault names the array it is not rather than a path that failed
+    to be absolute."""
     with pytest.raises(DockerfileError, match="is not a JSON array"):
         read_volumes('VOLUME {"a": 1}\n')
 
@@ -117,8 +121,8 @@ def test_an_escape_directive_below_the_first_instruction_is_an_ordinary_comment(
 
 
 def test_a_recorded_trigger_declares_the_path_it_names() -> None:
-    """The whole reason the dimension is recorded raw: the row says what docker said, and the
-    paths are read here, by the gate everybody runs rather than once on one machine."""
+    """The dimension is recorded as docker wrote it, and the paths are read here, by the gate
+    everybody runs rather than once on one machine."""
     assert onbuild_volumes(("VOLUME /probe/onbuild",)) == ("/probe/onbuild",)
 
 
@@ -133,22 +137,23 @@ def test_a_trigger_that_is_not_a_volume_declares_nothing() -> None:
 
 
 def test_an_image_carrying_no_trigger_declares_nothing_through_one() -> None:
-    """The answer every row in this repo's record gives today, and it is an answer."""
+    """Every row in this repo's record gives this answer today, and it is an answer rather than a
+    gap."""
     assert onbuild_volumes(()) == ()
 
 
 @pytest.mark.parametrize("entry", ["/probe/onbuild", ""], ids=["path", "empty"])
 def test_a_trigger_not_opening_with_an_instruction_is_refused(entry: str) -> None:
-    """The refusal aimed at the hand that pastes a row rather than at docker: a trigger written as
-    the path it resolves to would read as an instruction this reader passes over, and a row in the
-    wrong shape would then declare nothing while the base declares a path."""
+    """This one is aimed at whoever pastes a row rather than at docker: a trigger written as the
+    path it resolves to would read as an instruction this reader passes over, and the row would
+    then declare nothing while the base declares a path."""
     with pytest.raises(DockerfileError, match="does not open with an instruction"):
         onbuild_volumes((entry,))
 
 
 def test_a_trigger_the_reader_cannot_read_is_refused_rather_than_resolved_to_nothing() -> None:
-    """It is a path the next build may declare, so a silence here would be the gate agreeing with
-    a record that denies it."""
+    """It is a path the next build may declare, so reading it as nothing would leave the gate
+    agreeing with a record that denies it."""
     with pytest.raises(DockerfileError, match="carries an expansion"):
         onbuild_volumes(("VOLUME ${CACHE}",))
 
@@ -190,7 +195,8 @@ def test_an_absolute_context_lands_on_one_file_rather_than_twice(tmp_path: Path)
 
 
 def test_a_declared_path_the_row_does_not_carry_is_reported(tmp_path: Path) -> None:
-    """The whole point: the built image declares a path and the record goes on denying it."""
+    """This is the case the rule exists for: the built image declares a path and the record goes on
+    denying it."""
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /var/cache/thing\n")
     reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
     assert reading.dockerfiles == (DEFAULT_DOCKERFILE,)
@@ -265,8 +271,8 @@ def test_a_path_a_bases_trigger_declares_and_the_row_carries_is_the_record_in_st
 def test_a_recorded_trigger_the_reader_refuses_is_a_fault_on_the_build_that_stands_on_it(
     tmp_path: Path,
 ) -> None:
-    """A row nobody can read is not a base declaring nothing; the fault names the file, the row
-    and what could not be read, since the fix is a hand edit at the record."""
+    """A row nobody can read is not the same as a base declaring nothing, so the fault names the
+    file, the row and what could not be read, the fix being a hand edit at the record."""
     compose = _tree(tmp_path, "FROM base:1\n")
     records = {"base:1": Row((), ("VOLUME relative/path",))}
     faults = undeclared(tmp_path, compose, HERE, "tree-brain", (), records).faults
@@ -313,7 +319,8 @@ def test_a_row_carrying_a_trailing_slash_still_covers_the_path(tmp_path: Path) -
 
 
 def test_a_build_pointing_where_no_dockerfile_lands_is_a_fault(tmp_path: Path) -> None:
-    """A mapping that reaches nothing checks nothing, which is the silence this gate is against."""
+    """A build mapping that reaches no file checks nothing, so it is reported rather than passing
+    over."""
     compose = _tree(tmp_path, "FROM scratch\n")
     faults = undeclared(
         tmp_path, compose, Build("./nowhere", "Dockerfile"), "tree-x", (), {}
@@ -370,8 +377,8 @@ def test_a_dockerfile_outside_the_root_is_named_by_the_way_back_to_it(tmp_path: 
 
 
 def test_this_repos_own_dockerfiles_are_readable_and_declare_nothing() -> None:
-    """A guard on every fixture above: the shapes it agrees with have to be the tree's shapes, and
-    the answer here is a measured silence rather than a file nobody could parse."""
+    """This guards every fixture above: the shapes they exercise have to be the tree's shapes, and
+    the empty answer here is measured rather than the result of a file nobody could parse."""
     built = ["brain/Dockerfile", "brain/Dockerfile.modelhost"]
     read = {name: (REPO_ROOT / name).read_text(encoding="utf-8") for name in built}
     assert {name: read_volumes(text) for name, text in read.items()} == dict.fromkeys(built, ())

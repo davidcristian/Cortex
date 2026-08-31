@@ -12,11 +12,11 @@ Opened 2026-08-24 by the close of
 requiring every label in `CONSTANTS` to be distinct.
 
 That catches the copy this repo's own design invites: the scan never asks which file an entry came
-from, so a coupling moves house freely, and a move done as a copy without a delete leaves the same
-entry in two parts under the same label. It does not catch the copy that was also renamed. Two
+from, so a coupling moves between parts freely, and a move done as a copy without a delete leaves the
+same entry in two parts under the same label. It does not catch the copy that was also renamed. Two
 entries carrying different labels over an identical tuple of sites and mentions pass the equality,
-pass the label check, and are counted twice by `shape.entries`, which is the same lie about the
-size of the collection that the label rule was added to refuse. A drift at those places is then
+pass the label check, and are counted twice by `shape.entries`, which is the same false count of
+the collection's size that the label rule was added to catch. A drift at those places is then
 reported twice, once per label, and a reader has no way to tell one coupling described twice from
 two couplings that genuinely overlap.
 

@@ -37,8 +37,8 @@ pub(crate) async fn list_due_reminders(call: SeamCall) -> Result<Vec<DueReminder
         .collect())
 }
 
-/// Marks one reminder delivered (`BrainService.AckReminder`). `false` is the brain
-/// reporting there was nothing to clear, not a failure.
+/// Marks one reminder delivered (`BrainService.AckReminder`). `false` is the brain reporting
+/// that there was nothing to clear, which is a state rather than a failure.
 pub(crate) async fn ack_reminder(
     call: SeamCall,
     reminder_id: String,

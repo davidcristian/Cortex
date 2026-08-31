@@ -7,10 +7,10 @@ is the shape of the completion those two events close, and it was the arm restat
 shared, described once by the core's suite over its own twin and again by the adapter's suite over
 a llama-server transcript.
 
-**What a stream owes, said without saying when.** Two implementations produce their events at
-different rates from different sources, one from a script and one from bytes arriving over HTTP,
-so nothing below counts events, sizes one, or asks when it arrives. Every check is an obligation
-or an order:
+**What a stream must produce, with nothing said about timing.** Two implementations produce their
+events at different rates from different sources, one from a script and one from bytes arriving
+over HTTP, so nothing below counts events, sizes one, or asks when it arrives. Every check is an
+obligation or an order:
 
 - the reply is its text deltas joined in the order they arrived, and no other event kind carries
   any of it;
@@ -52,7 +52,7 @@ on the events that came out of ``stream``, never on how the implementation got t
 The served-model check needs no fifth builder, and that is the point of writing it this way: every
 builder here stands for a deployment that serves ``CONTRACT_MODEL`` and nothing else, the adapter's
 because its manager is constructed with that one resident and the twin's because it is told the
-same, so asking any of them for ``UNSERVED_MODEL`` is already the world the check wants. The
+same, so asking any of them for ``UNSERVED_MODEL`` is already the world the check needs. The
 ignored-switch check needs none either, for the same reason read the other way: ``deliberating`` is
 a deployment that thought, and asking *it* for no thinking is exactly the world where a switch went
 unhonoured, which is a real deployment and not a hypothetical (ADR-0005 switch-is-advisory
@@ -97,10 +97,10 @@ CONTRACT_CALL = ToolCall(id="c1", name="read", arguments={"path": "/x"})
 
 _AT = datetime(2026, 8, 16, 12, 0, 0, tzinfo=UTC)
 
-# What a wedged backend looks like when it must not be a hung run. It asserts nothing about how
-# fast an implementation answers, only that the abandonment check below fails rather than parking
-# the suite forever, which is the same device (and the same bound) the adapter's own
-# lease-release test uses.
+# The watchdog bound for the abandonment check. It asserts nothing about how fast an
+# implementation answers, only that the check below fails rather than parking the suite
+# indefinitely, and it is the same device and the same bound the adapter's own lease-release test
+# uses.
 _WEDGE_WATCHDOG_S = 5.0
 
 
@@ -206,7 +206,7 @@ async def check_a_trace_the_request_budgeted_away_still_crosses(
     The sibling of the check above, and a separate obligation rather than a restatement of it,
     because the temptation is not the same. ``thinking=False`` is a request to a template and
     reads like one; ``trace_tokens=0`` reads like an order, so an implementation is far more
-    likely to think it may make the count true by dropping what came back. It may not. The count
+    likely to make the count true by dropping what came back. It may not. The count
     is carried to an engine that reads it or is not carried at all (ADR-0005 request-lever
     addendum), and on a deployment where it was not carried, or was carried to a build that
     ignores it, the trace that arrives is the only evidence the caller has that its budget bought
@@ -252,8 +252,8 @@ async def check_the_closing_events_arrive_once_each_and_in_one_order(
     """A completion reporting both closes with one stop and then one cadence, after everything.
 
     Each sibling list holds its own event alone, so this is the only place the pair is described:
-    why a completion ended explains the text that just ended, and how fast it decoded is the
-    machine's own footnote to all of it. Both are facts about a completion that has finished, so
+    why a completion ended explains the text that just ended, and how fast it decoded is a fact
+    about the whole of it. Both are facts about a completion that has finished, so
     neither may arrive before the thinking and the text it describes.
     """
     events = await events_of(subject.deliberating())
@@ -303,7 +303,7 @@ async def check_an_abandoned_completion_costs_the_backend_nothing(
 async def check_a_backend_that_cannot_answer_fails_with_inference_error(
     subject: BackendUnderTest,
 ) -> None:
-    """The port has one failure channel and every implementation owes it.
+    """A backend that cannot answer fails its caller with ``InferenceError``.
 
     What is pinned is the *type* a caller would have to catch, not the moment: asking for the
     stream and consuming it are one act here, deliberately, because the port promises an

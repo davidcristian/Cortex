@@ -3,8 +3,8 @@
 Split out of `values.py` when the boolean and the signed integer brought that file to the 300-line
 cap, on the seam its first paragraph had been drawing since it was written: one half says what a
 declaration's right-hand side reduces to and how a mention may spell it, and this half says
-whether a set of readings holds. Nothing here reads a file, and nothing here knows where a value
-lives; `crosscheck.py` finds the declarations and reports the ones this module refuses.
+whether a set of readings holds. Nothing here reads a file, and nothing here depends on where a
+value lives; `crosscheck.py` finds the declarations and reports the faults this module returns.
 
 Most couplings are equalities. ``ORDERED`` holds the sites to non-decreasing order, for the bounds
 that must sit under one another rather than match, and it compares integers: a string, a decimal

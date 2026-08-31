@@ -31,11 +31,11 @@ const FULL_TRAVEL_PX = 240;
 /** The clear space kept above the panel, as a fraction of the viewport: how far its top edge stays
  *  off the top of the screen, so a tall conversation never runs up against the monitor's bezel.
  *
- *  It is the ONLY bound on growth. There used to be a second one, a flat maximum height, and the two
- *  together meant a panel that had climbed to this ceiling kept growing DOWNWARD to reach that
- *  height, walking its bottom edge back down the screen with the composer on it. Growth is upward or
- *  it does not happen: at the ceiling the panel simply stops getting taller and the history scrolls,
- *  which is what the history is for. */
+ *  It is the only bound on growth. There used to be a second one, a flat maximum height, and the two
+ *  together meant a panel that had climbed to this ceiling kept growing downward to reach that
+ *  height, walking its bottom edge back down the screen with the composer on it. Growth only ever
+ *  goes upward: at the ceiling the panel stops getting taller and the history scrolls, which is what
+ *  the history is for. */
 const MIN_TOP_RATIO = 0.12;
 
 export interface Geometry {
@@ -47,15 +47,15 @@ export interface Geometry {
 /**
  * One end of a move, as a keyframe.
  *
- * The CEILING travels with it, which is not decoration: `max-height` clamps an animated `height`
- * exactly as it clamps a laid-out one, and the ceiling belongs to the edge the panel is going to, so
- * it is already the destination's while the panel is still at the origin's size. Traced at 60Hz at
+ * The ceiling travels with it, because `max-height` clamps an animated `height` exactly as it
+ * clamps a laid-out one, and the ceiling belongs to the edge the panel is going to, so it is
+ * already the destination's while the panel is still at the origin's size. Traced at 60Hz at
  * 640x720, opening the console from a full-height chat: the ease was written 450 to 347, and the
- * panel stood at 351 one frame after the click and eased the last 4px from there. What the eye gets
- * is the whole shrink in a single frame followed by an animation of nothing, which is the "it pops
- * and then animates" this exists to stop. Ridden along, the cap is never tighter than the height it
- * is clamping: both ends interpolate under one easing, so a from-cap at or above the from-height
- * keeps the cap above the height for every frame between.
+ * panel stood at 351 one frame after the click and eased the last 4px from there, which the reader
+ * sees as the whole shrink in one frame followed by an animation of nothing. Carried along this
+ * way, the cap is never tighter than the height it is clamping: both ends interpolate under one
+ * easing, so a from-cap at or above the from-height keeps the cap above the height for every frame
+ * between.
  */
 export function frame(height: number, bottom: number, ceiling: number): Keyframe {
   return { height: `${height}px`, bottom: `${bottom}px`, maxHeight: `${ceiling}px` };
@@ -71,9 +71,9 @@ export function settled(from: Geometry, to: Geometry): boolean {
 /**
  * The tallest the panel may be from the edge it is pinned to: everything between that edge and the
  * clear space kept at the top. It therefore depends on where the panel currently sits, which is what
- * makes growth purely upward. Written to the element as `max-height`, and also
- * the cap on any PREDICTED height: a prediction above it is a height the panel cannot reach, and
- * placing the panel for one ran it off the bottom of the screen (see `rideAlong`).
+ * makes growth purely upward. Written to the element as `max-height`, and also the cap on any
+ * predicted height: a prediction above it is a height the panel cannot reach, and placing the panel
+ * for one ran it off the bottom of the screen (see `rideAlong`).
  *
  * Whole pixels, because this number is written to the DOM and then reasoned about afterwards, and
  * the two have to be the same number. Left fractional they were not: `panelPlacement` rounded it on
@@ -90,7 +90,7 @@ export function maxHeight(viewport: number, bottom: number): number {
   return Math.round(viewport * (1 - MIN_TOP_RATIO) - Math.max(0, bottom));
 }
 
-/** The tallest a panel can be before it is placed, which is the tallest a CENTRED one can be. A
+/** The tallest a panel can be before it is placed, which is the tallest a centred one can be. A
  *  centred panel of height h sits at `(viewport - h) / 2`, so the ceiling above allows
  *  `0.88v - (v - h)/2`, and solving `h <= that` gives `h <= 0.76v`. Used to measure the natural
  *  height before the bottom edge is known, which is the order the two have to be decided in: the
@@ -106,12 +106,12 @@ export function centred(viewport: number, height: number): number {
 }
 
 /**
- * The bottom edge a view of more than one shape arrives on: the one that puts its TOP where its
- * TALLEST shape would have put it, hanging this shape from there.
+ * The bottom edge a view of more than one shape arrives on: the one that puts its top where its
+ * tallest shape would have put it, hanging this shape from there.
  *
  * Worked out in full here rather than as an adjustment to the edge, because the tallest shape may
  * not fit above that edge at all, and then its top is the clear space kept at the screen's top
- * instead. Getting that wrong is not a rounding error but a second movement: the first cut added
+ * instead. Getting that wrong costs a second movement rather than a few pixels: the first cut added
  * the slack to the edge and let the panel's own top-holding correct it on the next render, which
  * put the console through two eases, the second one sliding its bottom down 44px after it had
  * apparently arrived.
@@ -129,7 +129,7 @@ export function arrivalBottom(
 
 /**
  * The pinned edge as the DOM may have it: on screen, and nothing more. The ceiling is no longer
- * applied here, because it is applied to the HEIGHT instead (`maxHeight`); pushing the bottom edge
+ * applied here, because it is applied to the height instead (`maxHeight`); pushing the bottom edge
  * down to make room for a taller panel is exactly the downward growth that is not wanted.
  */
 export function clamped(pinned: number): number {

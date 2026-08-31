@@ -12,8 +12,8 @@ describe("EdgeMini", () => {
     expect(svg).toHaveAttribute("aria-hidden", "true");
     expect(container.querySelector("linearGradient")).toBeNull();
     expect(container.querySelector(".edge-mini-glow")).toBeNull();
-    // The portrait's furniture: the little window's title, reply and composer, and NO ground of
-    // its own, the tile being the ground it floats on.
+    // The small window's contents: title, reply and composer, and no ground of its own, since the
+    // tile is the ground it sits on.
     expect(container.querySelector(".edge-mini-ground")).toBeNull();
     expect(container.querySelectorAll(".edge-mini-bar")).toHaveLength(2);
     expect(container.querySelector(".edge-mini-pill")).not.toBeNull();
@@ -23,11 +23,11 @@ describe("EdgeMini", () => {
   });
 
   it("shows each liquid's signature, and Lucid none, so the tiles can be told apart", () => {
-    // Lucid is a liquid without a glow: its tile is the moving outline alone, which is also
-    // what separates it from Reverie in the row.
+    // Lucid is liquid without a glow, so its tile is the moving outline alone, which is what
+    // separates it from Reverie in the row.
     const strict = render(<EdgeMini style={LUCID} idPrefix="m1b" animated={false} />);
     expect(strict.container.querySelector(".edge-mini-glow")).toBeNull();
-    // Trance's ember is constant: one accent stroke, no neutral twin, no cycle.
+    // Trance's ember is constant: one accent stroke, no neutral stroke beside it, and no cycle.
     const ember = render(<EdgeMini style={TRANCE} idPrefix="m3" animated={false} />);
     const glows = ember.container.querySelectorAll(".edge-mini-glow");
     expect(glows).toHaveLength(1);
@@ -37,10 +37,10 @@ describe("EdgeMini", () => {
   });
 
   it("freezes Reverie exactly mid-blend, so a still tile shows both of its states at once", () => {
-    // Reverie IS the change between a neutral rest and the accent while working: frozen in the
-    // accent alone it read as a lighter Trance (the maintainer's words), which is Trance's identity,
-    // not Reverie's. Animated, the two strokes cross-fade on a slow cycle; frozen, the phase is
-    // chosen so the pose splits the difference and both truths show at once.
+    // What defines Reverie is the change between a neutral rest and the accent while working.
+    // Frozen in the accent alone it read as a lighter Trance (the maintainer's words), which is
+    // Trance's behaviour rather than Reverie's. Animated, the two strokes cross-fade on a slow
+    // cycle; frozen, the phase is chosen so the pose sits mid-blend and both states show at once.
     const { container } = render(<EdgeMini style={REVERIE} idPrefix="m2" animated={false} />);
     const rest = container.querySelector(".edge-mini-glow.rest") as SVGPathElement;
     const accent = container.querySelector(".edge-mini-glow.settled") as SVGPathElement;

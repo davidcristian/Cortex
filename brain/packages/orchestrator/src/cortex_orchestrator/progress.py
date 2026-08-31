@@ -7,18 +7,19 @@ task is suspended inside ``dispatch`` and its own generator cannot yield: the ba
 wire by the same ``to_server_event`` the turn's own events use (injected, so this module never
 imports ``converse_stream``).
 
-Unlike the confirmer, which must always deliver its request, progress is **best-effort and
-credit-balanced**: ``emit`` takes a buffer credit only when one is free right now (the same
-``max_buffered_events`` bound the reply's deltas draw on), else it drops the event. So a stalled
-consumer loses cosmetic progress rather than stalling the subagent behind it, and the buffer bound
-does not drift the way an unconditional control-path ``put`` would: an acquired-then-dequeued
-progress event balances exactly like a reply delta (``events`` releases one credit per dequeue),
-whereas the confirmer's control-path events over-credit by design (bounded, ADR-0022). Nothing is
-persisted and nothing survives the turn, so the one hard rule holds by the sink carrying no state.
+Unlike the confirmer, which must always deliver its request, progress is best-effort and
+credit-balanced: ``emit`` takes a buffer credit only when one is free right now (the same
+``max_buffered_events`` bound the reply's deltas draw on), and otherwise drops the event. A
+stalled consumer therefore loses cosmetic progress rather than stalling the subagent behind it,
+and the buffer bound does not drift the way an unconditional control-path ``put`` would: an
+acquired-then-dequeued progress event balances exactly like a reply delta (``events`` releases one
+credit per dequeue), whereas the confirmer's control-path events over-credit by design (bounded,
+ADR-0022). Nothing is persisted and nothing survives the turn, so the one hard rule holds because
+the sink carries no state.
 
-While a subagent runs, the turn task is suspended inside ``dispatch`` and is *not* itself
-acquiring credits, so the sink contends with no producer for them and the ordering on the queue is
-the natural one: the spawn call's own ``ToolActivity`` (already queued by the turn before it
+While a subagent runs, the turn task is suspended inside ``dispatch`` and is not itself acquiring
+credits, so the sink contends with no producer for them and the ordering on the queue is the
+natural one: the spawn call's own ``ToolActivity`` (already queued by the turn before it
 suspended), then the batch status and the subagents' steps, then the reply resumes.
 """
 
@@ -48,7 +49,7 @@ class SeamProgressSink:
 
         Non-blocking: ``locked()`` is False only when a permit is free (and no waiter is owed it),
         and no ``await`` sits between that check and the acquire, so in single-threaded asyncio the
-        permit is still ours when ``acquire`` takes its synchronous fast path (no suspension). A
+        permit is still free when ``acquire`` takes its synchronous fast path (no suspension). A
         saturated buffer (``locked()``) drops the event rather than blocking the subagent, and the
         turn's own deltas keep their exact bound.
         """

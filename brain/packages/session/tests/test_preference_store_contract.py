@@ -42,7 +42,7 @@ async def test_backend_failure_wraps_into_preference_store_error(operation: str)
     ops: dict[str, Callable[[], Awaitable[object]]] = {
         "all": store.all,
         "set": lambda: store.set("overlay.theme", "midnight"),
-        # The clear path is a different Redis command (HDEL), so it needs its own proof.
+        # The clear path is a different Redis command (HDEL), so it needs its own case.
         "clear": lambda: store.set("overlay.theme", ""),
     }
     with pytest.raises(PreferenceStoreError) as excinfo:
@@ -75,7 +75,8 @@ def test_from_url_builds_its_own_client() -> None:
 
 
 async def test_decodes_fields_a_configured_client_returns_as_text() -> None:
-    """A client built with decode_responses answers str, not bytes; both must read the same."""
+    """A client built with decode_responses returns str where the default returns bytes, and the
+    store reads both the same way."""
     client = FakeAsyncRedis(server=FakeServer(), decode_responses=True)
     store = RedisPreferenceStore(client)
     await store.set("overlay.mark", "wobble")
@@ -83,7 +84,8 @@ async def test_decodes_fields_a_configured_client_returns_as_text() -> None:
 
 
 async def test_the_fake_can_be_armed_to_fail() -> None:
-    """The fake's error arm raises the same typed error, so callers can prove their handling."""
+    """The fake's error arm raises the same typed error, so callers can test their handling of
+    it."""
     store = InMemoryPreferenceStore(initial={"overlay.mark": "foam"})
     store.fail_with = "store is down"
     with pytest.raises(PreferenceStoreError):

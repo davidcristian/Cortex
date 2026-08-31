@@ -5,9 +5,8 @@ Split from ``ports.py`` for the line cap; ``ports`` re-exports these six, so eve
 schedule, and mid-turn handoff state each lives only behind one of these ports (AGENTS.md hard
 rule): no such state may sit inside a model process, so a model swap is survivable. The sixth,
 ``PreferenceStore``, holds the user's settings rather than turn state, and is here because it is
-durable state the brain owns on the same terms. Method bodies
-are one-line ``...`` stubs; failures cross these boundaries exclusively as the typed errors in
-``errors.py``.
+durable state the brain owns on the same terms. Method bodies are one-line ``...`` stubs; failures
+cross these boundaries exclusively as the typed errors in ``errors.py``.
 """
 
 from collections.abc import Mapping, Sequence
@@ -32,17 +31,16 @@ class SessionStore(Protocol):
     returns recent chats most-recently-active first as ``SessionSummary`` values (ADR-0021) for the
     overlay's chat list/switcher/cycling, unioning the newest ``limit`` with the pinned set so a
     pinned chat lists regardless of recency (pinning addendum). ``set_title`` persists a display
-    title (titles addendum) ``list_sessions`` prefers over the first-message derivation.
+    title (titles addendum) that ``list_sessions`` prefers over the first-message derivation.
     ``set_pinned`` pins/unpins a chat (pinning addendum), in ``SessionSummary.pinned``, idempotent.
-    ``delete`` HARD-deletes a whole session (history, title, recency member, pin, recap), the
+    ``delete`` hard-deletes a whole session (history, title, recency member, pin, recap), the
     "forget" write (delete addendum). ``set_recap``/``recap`` hold the summarizing window's
     cached account of the turns that fell out of the window (ADR-0038 decision 9): ``recap``
     answers ``None`` until one is written, a later ``set_recap`` overwrites, and the pair is
-    here rather than behind a port of its own because a recap's lifetime IS the session's, so
-    the whole-session delete must take it in the same write. Note what this port does NOT
-    have: no verb edits or removes a single message. That is what makes a recap of a prefix
-    safe to cache, since it can only go incomplete, never wrong. Failures surface as
-    ``SessionStoreError``.
+    here rather than behind a port of its own because a recap's lifetime is the session's, so
+    the whole-session delete must take it in the same write. This port has no verb that edits
+    or removes a single message, which is what makes a recap of a prefix safe to cache: it can
+    only go incomplete, never wrong. Failures surface as ``SessionStoreError``.
     """
 
     async def append(self, session_id: str, message: Message) -> None: ...
@@ -63,18 +61,17 @@ class SessionStore(Protocol):
 
 
 class MemoryStore(Protocol):
-    """Durable, cross-session memory: append a record, retrieve the top-k, size the candidate
-    set, forget a namespace.
+    """Durable, cross-session memory: add, retrieve, size the candidate set, forget a namespace.
 
     ``add`` persists one ``MemoryRecord`` that the caller builds (id, timestamp, embedding,
     scope), so the store only translates, as ``SessionStore.append`` does. ``search`` returns
     the ``k`` records whose embeddings are most similar to ``embedding``, most-similar first;
     ``scopes`` restricts the candidate set to those namespaces (ADR-0008 scoping addendum) and
-    defaults to ``None``, which ranks over ALL memories, the global-space v1 behavior.
+    defaults to ``None``, which ranks over every memory, the global-space v1 behavior.
     ``count_candidates`` answers how many memories that same candidate set holds, which
     ``search`` structurally cannot: it returns the top rows, so a pool filled to the requested
     width is indistinguishable from a store that held exactly that many (ADR-0038
-    candidate-count addendum). It must be the store's OWN count and never a length over rows
+    candidate-count addendum). It must be the store's own count and never a length over rows
     some search returned, because the whole distinction it draws is between a memory that
     ranked below the cutoff and one that was never there. ``scopes`` means exactly what it
     means for ``search``, so the two describe one candidate set.
@@ -123,8 +120,8 @@ class ScheduleStore(Protocol):
     only here. ``claim_due`` claims items due at ``now``, plus FIRING items whose
     ``lease`` expired (a crash or overrun mid-fire), taken oldest-due-first, at most ``limit``,
     each under a fresh fencing token: firing is at-least-once, and a record that fails to
-    decode on this path is quarantined (dead-lettered, logged loudly), never a poison pill
-    that halts the pass. ``finish`` persists one fire (fire-time taint ORs onto the item;
+    decode on this path is quarantined (dead-lettered and logged), so one undecodable record
+    never halts the pass. ``finish`` persists one fire (fire-time taint ORs onto the item;
     ``next_due`` re-arms, ``None`` is terminal and the item is deleted unless deliverable) and
     ``release`` un-claims (FIRING → PENDING, due unchanged); both apply only under the
     claim's token and no-op ``False`` for a stale claimant. ``cancel`` deletes outright, and
@@ -205,15 +202,15 @@ class HandoffStore(Protocol):
 class PreferenceStore(Protocol):
     """Durable store for the user's own settings: opaque key/value pairs the brain never reads.
 
-    The point of the port is WHERE the record lives, not what is in it. A choice made in the
-    overlay (theme, activity mark) belongs to the user rather than to the window that set it, so
-    it lives here beside the conversation state and outlives a body restart, a body reinstall, and
-    any single surface. ``all`` returns every set pair; ``set`` writes one, last write wins, and an
-    EMPTY value CLEARS the key so the reader falls back to its default (the ``set_title`` empty
-    convention). Values are opaque strings this side never parses: a new preference is a new key,
-    never a schema change, which is what keeps it off the seam. It holds no conversation content,
-    so it is outside the one hard rule rather than an exception to it. Failures surface as
-    ``PreferenceStoreError``.
+    The point of the port is where the record lives rather than what is in it. A choice made in
+    the overlay (theme, activity mark) belongs to the user rather than to the window that set it,
+    so it lives here beside the conversation state and outlives a body restart, a body reinstall,
+    and any single surface. ``all`` returns every set pair; ``set`` writes one, last write wins,
+    and an empty value clears the key so the reader falls back to its default (the ``set_title``
+    empty convention). Values are opaque strings this side never parses: a new preference is a new
+    key, never a schema change, which is what keeps it off the seam. It holds no conversation
+    content, so it is outside the one hard rule rather than an exception to it. Failures surface
+    as ``PreferenceStoreError``.
     """
 
     async def all(self) -> Mapping[str, str]: ...

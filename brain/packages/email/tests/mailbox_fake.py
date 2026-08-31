@@ -1,16 +1,16 @@
-"""The fake `Mailbox`: canned messages, no IMAP, and the port's two corrections on demand.
+"""The fake `Mailbox`: canned messages, no IMAP, and the port's two error paths on demand.
 
-One fake for the reader tests, the server tests and the contract driver, because the thing that
-would drift if there were three is the one that matters: what an implementation of the port does
-when it cannot answer the call as asked. It holds a folder list and honours it, the way a real
-server does, so a folder no mailbox has needs no knob at all; `refuse` and `break_folder_opening`
-are the two conditions of the world no method can create, and each raises exactly what
-`ImapMailbox` raises when a real server produces it.
+One fake serves the reader tests, the server tests and the contract driver, which keeps the part
+most likely to drift across three copies in one place: what an implementation of the port does
+when it cannot answer the call as asked. It holds a folder list and answers from it the way a
+real server does, so a folder no mailbox has needs no knob at all; `refuse` and
+`break_folder_opening` are the two failures no ordinary call can produce, and each raises exactly
+what `ImapMailbox` raises when a real server produces it.
 
-`nodes` is the third condition of a real server, and not a knob either: the names its LIST
-answers with that are only points in the hierarchy. A real server offers them and refuses to
-open them, so this fake holds them without listing them, which is what the port requires of
-every implementation.
+`nodes` is the third such case and is not a knob either: the names a real server's LIST answers
+with that are only points in the hierarchy. A real server offers them and returns an error when
+asked to open one, so this fake holds them without listing them, which is what the port requires
+of every implementation.
 """
 
 from collections.abc import Sequence
@@ -39,14 +39,14 @@ class FakeMailbox:
         self.searched: list[tuple[str, str, int]] = []
 
     def refuse(self) -> None:
-        """Make every later search come back refused, as a server answering BAD would."""
+        """Make every later search raise ``SearchRefusedError``, as a server answering BAD does."""
         self._refusing = True
 
     def break_folder_opening(self) -> None:
         """Make every later call fail to open its folder for a reason that is not the name.
 
-        The contrast case the classification exists for: a folder that is listed, so it is really
-        there, and still cannot be examined right now.
+        This is the contrast case the classification exists for: a folder that is listed, so it
+        really is there, and still cannot be examined right now.
         """
         self._unopenable = True
 
@@ -58,7 +58,7 @@ class FakeMailbox:
             raise FolderUnknownError(folder)
 
     def list_folders(self) -> Sequence[str]:
-        """Everything the server lists, less the nodes: the filtering the port owes a caller."""
+        """Everything the server lists, less the nodes, which is the filtering the port requires."""
         return [name for name in self._listed if name not in self._nodes]
 
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:

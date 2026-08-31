@@ -48,7 +48,7 @@ def _client(handler: _Handler) -> httpx.AsyncClient:
 
 
 async def test_a_build_that_range_checks_the_field_reads_a_trace_budget() -> None:
-    """The yes: a 400 naming the key is a build that parsed it.
+    """A 400 naming the key is read as a build that parsed it.
 
     The request is asserted beside the verdict, because a probe that asked the wrong question
     would answer confidently and wrongly: the value has to be outside the range a knowing build
@@ -71,7 +71,7 @@ async def test_a_build_that_range_checks_the_field_reads_a_trace_budget() -> Non
 
 
 async def test_a_build_that_answers_the_completion_reads_no_trace_budget() -> None:
-    """The no that matters: the field was ignored, so the request must never carry one.
+    """A build that answers the completion ignored the field, so no request may carry one.
 
     This is every llama.cpp older than the build that introduced the key, and it is the case the
     floor exists for. Ignoring is silent, so nothing but this probe distinguishes it from a build
@@ -96,11 +96,11 @@ async def test_a_refusal_about_something_else_is_not_a_yes() -> None:
 
 
 async def test_a_server_that_cannot_be_reached_is_read_as_no_lever() -> None:
-    """Every failure is a no, and the request goes back to what it always was.
+    """Every failure is read as no lever, and the request goes back to what it always was.
 
-    The direction is the design. A wrong no costs a deployment a knob it can set by hand
+    Failing towards no is deliberate. A wrong no costs a deployment a knob it can set by hand
     (``CORTEX_INFERENCE_TRACE_LEVER=on``); a wrong yes puts a key on every request that nothing
-    enforces and says so nowhere.
+    enforces and nothing reports.
     """
 
     def handler(request: httpx.Request) -> httpx.Response:

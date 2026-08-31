@@ -1,50 +1,50 @@
 //! `RetryingTransport`: bounded-retry resilience over the `BrainTransport` port (ADR-0024).
 //!
-//! Slice 2's deferred refinement. The brain is a supervised local process that occasionally
-//! blinks out (restarting after a model swap, a momentary loopback drop) and a read the
-//! overlay makes fails hard when a retry a beat later would succeed. This module adds that
-//! retry as a **decorator over the port**, not code in the adapter: `RetryingTransport` *is* a
-//! [`BrainTransport`] that wraps an inner one and loops the repeatable calls on a transient
-//! failure, so `body_rpc`'s `BrainSeamClient` stays the thin translation it was (AGENTS.md).
+//! A deferred refinement of the health check. The brain is a supervised local process that occasionally
+//! goes away for a moment (restarting after a model swap, a momentary loopback drop), and a
+//! read the overlay makes fails hard when a retry a beat later would succeed. This module adds
+//! that retry as a decorator over the port rather than as code in the adapter:
+//! `RetryingTransport` is itself a [`BrainTransport`] that wraps an inner one and loops the
+//! repeatable calls on a transient failure, so `body_rpc`'s `BrainSeamClient` stays the thin
+//! translation it was (AGENTS.md).
 //!
-//! Three effects are kept out of this pure crate behind seams ([`effects`]): the backoff *wait*
-//! and the *deadline* on one attempt are both the [`Sleeper`] port (a real `TokioSleeper` lives
-//! in the ungated shell; a `FakeSleeper` records the schedule in tests, so no wall-clock
-//! elapses), the jitter *draw* is a [`Randomness`] port
-//! (ADR-0024 addendum; [`FullDelay`] pins it to the deterministic schedule), and
-//! dialing/reconnecting is the inner transport's job (composed over a lazy channel).
-//! See [body-rpc.md](../../../docs/modules/body-rpc.md).
+//! Three effects are kept out of this pure crate behind seams ([`effects`]): the backoff wait
+//! and the deadline on one attempt are both the [`Sleeper`] port (a real `TokioSleeper` lives
+//! in the ungated shell; a `FakeSleeper` records the schedule in tests, so no wall-clock time
+//! elapses), the jitter draw is a [`Randomness`] port (ADR-0024 addendum; [`FullDelay`] pins
+//! it to the deterministic schedule), and dialing or reconnecting is the inner transport's job
+//! (composed over a lazy channel). See [body-rpc.md](../../../docs/modules/body-rpc.md).
 //!
-//! **Every retry decision goes through one door**, [`RetryPlan::policy_for`], and it is asked
-//! about the *method* before anything is asked about the error ([`plan`]): `health`,
-//! `list_sessions`, `session_messages` and `list_due_reminders` are repeatable and get a
-//! schedule; `converse` and `ack_reminder` get `None`, which runs the same loop on
-//! [`RetryPolicy::ONCE`], so a refused call makes exactly one attempt without taking a path a
-//! permitted one does not.
-//! [`RetryPolicy`] and [`is_transient`] ([`policy`]) then decide whether *this* failure earns
-//! one of the attempts the gate allowed. `converse` never reaches the gate at runtime, since a
-//! stream cannot be re-issued the way a future can, but it is classified all the same so the
-//! port's methods are covered exhaustively.
+//! Every retry decision passes through [`RetryPlan::policy_for`], which is asked about the
+//! method before anything is asked about the error ([`plan`]): `health`, `list_sessions`,
+//! `session_messages` and `list_due_reminders` are repeatable and get a schedule; `converse`
+//! and `ack_reminder` get `None`, which runs the same loop on [`RetryPolicy::ONCE`], so a
+//! refused call makes exactly one attempt without taking a path a permitted one does not.
+//! [`RetryPolicy`] and [`is_transient`] ([`policy`]) then decide whether this particular
+//! failure earns one of the attempts the plan allowed. `converse` never reaches that decision
+//! at runtime, since a stream cannot be re-issued the way a future can, but it is classified
+//! all the same so the port's methods are covered exhaustively.
 //!
-//! **Every attempt is also bounded** ([`deadline`]). The plan carries a per-method deadline
-//! beside the schedule, and the decorator wraps each attempt in [`within_deadline`], so a brain
-//! that accepts the connection and never answers fails as [`TransportError::Timeout`] instead
-//! of hanging the caller. That failure is terminal by decision, not by omission: a retried
-//! deadline is the classic load amplifier, and a timeout is our own decision to stop waiting
-//! rather than the brain's report that a repeat might go better (ADR-0024 deadline addendum).
-//! The plan answers a second question about the same clock, [`RetryPlan::announced_deadline_for`],
-//! which is what the *adapter* tells the brain the call will be waited on. It is deliberately
-//! longer than the bound enforced here, by [`ANNOUNCED_DEADLINE_GRACE_MS`], because announcing a
-//! deadline arms a clock in the transport too and this one has to win that race by construction
-//! (ADR-0024 courtesy-header addendum).
+//! Every attempt is also bounded ([`deadline`]). The plan carries a per-method deadline beside
+//! the schedule, and the decorator wraps each attempt in [`within_deadline`], so a brain that
+//! accepts the connection and never answers fails as [`TransportError::Timeout`] instead of
+//! hanging the caller. That failure is terminal by decision: retrying a deadline amplifies
+//! load, and a timeout records that this side stopped waiting rather than that the brain
+//! reported a repeat might go better (ADR-0024 deadline addendum). The plan answers a second
+//! question about the same clock, [`RetryPlan::announced_deadline_for`], which is the deadline
+//! the adapter tells the brain the call will be waited on. It is longer than the bound
+//! enforced here by [`ANNOUNCED_DEADLINE_GRACE_MS`], because announcing a deadline also starts
+//! a clock in the transport, and the bound enforced here has to expire first (ADR-0024
+//! courtesy-header addendum).
 //!
-//! **The turn is bounded too, by its silence rather than by its length** ([`gap`]). `Converse` has
-//! no deadline and never will, a working turn being long by design, so what the plan gives it
-//! instead is a pair of gaps: the longest quiet allowed before its first event, and the longest
-//! allowed between two of them. Every delta, tool step and status resets the clock, so the bound
-//! is invisible to a turn that keeps talking and ends one that has stopped
-//! (ADR-0024 idle-gap addendum). Between [`RetryPlan::deadline_for`] and [`RetryPlan::gaps_for`]
-//! every call on the port is now bounded, by one of the two and never by both.
+//! A turn is bounded by its silence rather than by its length ([`gap`]). `Converse` has no
+//! deadline and will not get one, a working turn being long by design, so the plan gives it a
+//! pair of gaps instead: the longest quiet allowed before its first event, and the longest
+//! allowed between two of them. Every delta, tool step and status resets the clock, so the
+//! bound never fires on a turn that keeps producing events and ends one that has stopped
+//! (ADR-0024 idle-gap addendum). Between [`RetryPlan::deadline_for`] and
+//! [`RetryPlan::gaps_for`] every call on the port is bounded, by one of the two and never by
+//! both.
 
 pub mod deadline;
 pub mod effects;
@@ -69,15 +69,16 @@ use crate::retry::effects::jittered;
 use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
 use crate::transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};
 
-/// Runs `call` and retries it while [`RetryPolicy::backoff`] says so, sleeping the (jittered)
-/// delay between tries. The retry loop itself, public so patience can be composed around any
-/// fallible async factory, not only a wrapped transport: the shell's turn path wraps its eager
-/// dial in it (ADR-0024 addendum), which is safe because the non-idempotent turn has not begun
-/// until the dial succeeds. `call` re-issues a fresh future per attempt.
+/// Runs `call` and retries it while [`RetryPolicy::backoff`] says so, sleeping the jittered
+/// delay between tries. It is public so retrying can be composed around any fallible async
+/// factory rather than only a wrapped transport: the shell's turn path wraps its eager dial in
+/// it (ADR-0024 addendum), which is safe because the non-idempotent turn has not begun until
+/// the dial succeeds. `call` re-issues a fresh future per attempt.
 ///
-/// This is the schedule executor, not the gate. It takes the caller's word that repeating
-/// `call` is safe, which is why every *seam method* reaches it only through
-/// [`RetryPlan::policy_for`]; a direct caller (the dial) is asserting that safety itself.
+/// This function executes the schedule and does not decide whether repeating is allowed. It
+/// assumes the caller has established that repeating `call` is safe, which is why every seam
+/// method reaches it only through [`RetryPlan::policy_for`], and a direct caller such as the
+/// dial takes that responsibility itself.
 ///
 /// # Errors
 ///
@@ -153,11 +154,10 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> RetryingTransport<T, S, R> {
     /// the plan's deadline for that method ([`within_deadline`]), so no attempt can outlive the
     /// answer's usefulness however the loop above it is configured.
     ///
-    /// The refusal is not an optimization. It is where the decorator declines to turn a call
-    /// with an effect into two of them, no matter how transient the failure looks. It runs
-    /// through the same loop as a permission on purpose: a refused call must not take a code
-    /// path that only a refused call can reach. The deadline is applied on the same terms, to
-    /// the refused calls too: bounding a write is not repeating it.
+    /// A refused method is one the decorator must not turn into two calls carrying the same
+    /// effect, however transient the failure looks. It still runs through the same loop as a
+    /// permitted one, so a refused call takes no code path a permitted call does not. The
+    /// deadline applies to refused calls too, since bounding a write does not repeat it.
     async fn guarded<Out, Fut>(
         &self,
         method: SeamMethod,
@@ -188,14 +188,14 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        // The one method that cannot reach the retry gate: a stream is not a future the loop
-        // could re-issue. `SeamMethod::Converse` is refused all the same, so the classification
-        // stays exhaustive over the port (ADR-0024 decision 2).
+        // A stream is not a future the loop could re-issue, so this is the one method that
+        // cannot run through `guarded`. `SeamMethod::Converse` is refused all the same, which
+        // keeps the classification exhaustive over the port (ADR-0024 decision 2).
         //
-        // Not retried is not unbounded, though, and this is where the difference is spent: the
-        // items pass through untouched and the SILENCE between them is bounded by the plan's
-        // gaps, so a turn that keeps talking is never cut off and one that stops is ended and
-        // reported (ADR-0024 idle-gap addendum).
+        // Not being retried does not leave it unbounded: the items pass through untouched and
+        // the silence between them is bounded by the plan's gaps, so a turn that keeps
+        // producing events is never cut off and one that stops is ended and reported
+        // (ADR-0024 idle-gap addendum).
         within_gaps(
             self.plan.gaps_for(SeamMethod::Converse),
             &self.sleeper,
@@ -226,8 +226,8 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
     }
 
     async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
-        // The one write on the port. It goes through the same door as the reads and the plan
-        // refuses it, so the single attempt is the gate's answer rather than a bypass.
+        // The one write on the port. It runs through `guarded` like the reads and the plan
+        // refuses it, so the single attempt comes from the plan rather than from a bypass.
         self.guarded(SeamMethod::AckReminder, || {
             self.inner.ack_reminder(reminder_id)
         })
@@ -236,8 +236,8 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
         // A user-driven catalog write (ADR-0021). Like `ack_reminder` it carries an effect, so
-        // the plan refuses it and the same door grants exactly one attempt: a lost reply must
-        // not become a silent second relabel.
+        // the plan refuses it and exactly one attempt is made: a lost reply must not become a
+        // second relabel.
         self.guarded(SeamMethod::RenameSession, || {
             self.inner.rename_session(session_id, title)
         })
@@ -245,9 +245,9 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
     }
 
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
-        // A user-driven DESTRUCTIVE write (ADR-0021). The plan refuses it too, so the same door
-        // grants exactly one attempt: a destroy is the last call to re-issue automatically, and a
-        // silent retry could remove a chat re-materialized by a still-streaming turn.
+        // A user-driven destructive write (ADR-0021). The plan refuses it too, so exactly one
+        // attempt is made: a silent retry could remove a chat that a still-streaming turn
+        // re-materialized.
         self.guarded(SeamMethod::DeleteSession, || {
             self.inner.delete_session(session_id)
         })
@@ -260,8 +260,8 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         pinned: bool,
     ) -> Result<(), TransportError> {
         // A user-driven catalog write (ADR-0021 pinning addendum). Like rename it carries an
-        // effect, so the plan refuses it and the same door grants exactly one attempt: a lost
-        // reply must not silently re-assert a pinned value the user's next toggle reversed.
+        // effect, so the plan refuses it and exactly one attempt is made: a lost reply must not
+        // re-assert a pinned value the user's next toggle reversed.
         self.guarded(SeamMethod::SetSessionPinned, || {
             self.inner.set_session_pinned(session_id, pinned)
         })
@@ -269,16 +269,16 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
     }
 
     async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
-        // A read of the settings record, repeatable with the other reads: the retry returns a
-        // fresh answer to the same question and touches nothing.
+        // A read of the settings record, repeatable with the other reads: a retry returns a
+        // fresh answer to the same question and changes nothing.
         self.guarded(SeamMethod::GetPreferences, || self.inner.get_preferences())
             .await
     }
 
     async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
         // A user-driven write. Last write wins in the store, so a repeat cannot duplicate an
-        // effect, but the catalog-write convention still grants exactly one attempt: a lost reply
-        // must not re-assert a value the user's next change reversed.
+        // effect, but the catalog-write convention still allows exactly one attempt: a lost
+        // reply must not re-assert a value the user's next change reversed.
         self.guarded(SeamMethod::SetPreference, || {
             self.inner.set_preference(key, value)
         })

@@ -6,7 +6,7 @@
 plausibly a hand-written connection string in an env var whose password was never percent-encoded
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
-`_USERINFO` is `(?<=://)[^/\s@]*@`, and three shapes of credential walk past it:
+`_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three shapes of credential:
 
 - a userinfo containing a `/`: `postgres://admin:hun/ter@db/x` is returned untouched, because the
   character class excludes the `/` that would otherwise let the match run into a path;

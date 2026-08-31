@@ -1,27 +1,27 @@
 //! What one capture is pointed at, and where the backend found it (ADR-0029).
 //!
 //! Split from the [`screen`](super::screen) port by responsibility, the way
-//! [`screen_policy`](super::screen_policy) was. That module answers "what does a backend
-//! implement"; this one answers "which pixels of the display did the caller ask for"; the size
-//! policy answers "how many of them may cross the seam".
+//! [`screen_policy`](super::screen_policy) was: that module declares what a backend
+//! implements, this one says which pixels of the display the caller asked for, and the size
+//! policy says how many of them may cross the seam.
 //!
 //! Resolving a target to a rectangle is the OS backend's job, because only the OS knows where
 //! windows are. Everything after that is pure and lives here: clamping the rectangle into the
 //! frame, refusing one that lies off the display entirely, and deciding whether what came back
 //! is still the whole screen. That is the same division that put the downscale ladder in core
-//! rather than in `os_windows`, and it has the same payoff, since the arithmetic a crop gets
-//! wrong is arithmetic the coverage gate can see.
+//! rather than in `os_windows`, and it keeps the arithmetic a crop can get wrong where the
+//! coverage gate reaches it.
 
 use crate::os::screen::{CaptureError, RawFrame};
 
 /// What the body points the camera at, mirroring the wire's `CaptureTarget`.
 ///
-/// A closed vocabulary the body resolves, never a rectangle the caller names. The ADR's own
-/// measurement is the argument: given the source size and an explicit "unreadable" escape, the
-/// shipped cortex declined on 3 of 47 ground-truth strings and confidently invented the other
-/// 38. A model that will not admit it cannot read a screen will not decline to name a rectangle
-/// either; it will name a wrong one, and a wrong rectangle costs a second OS receipt and a
-/// second tainted read of the wrong part of the screen.
+/// A closed vocabulary the body resolves, rather than a rectangle the caller names. ADR-0029
+/// measured why: given the source size and an explicit "unreadable" escape, the shipped cortex
+/// declined on 3 of 47 ground-truth strings and invented the other 38. A model that does not
+/// decline when it cannot read a screen will not decline to name a rectangle either, and a
+/// wrong rectangle costs a second OS receipt and a second tainted read of the wrong part of
+/// the screen.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaptureTarget {
     /// The primary display, whole. The proto3 zero, and the behaviour this seam shipped with.
@@ -29,10 +29,11 @@ pub enum CaptureTarget {
     /// The topmost visible top-level window that is not the body's own and is not excluded
     /// from capture.
     ///
-    /// Deliberately **not** the foreground window. The user summons the overlay with a global
-    /// hotkey and types the question into it, so at the moment a capture runs the overlay *is*
-    /// the foreground window, and it sets `WDA_EXCLUDEFROMCAPTURE` on itself, so cropping to it
-    /// would yield an absent or black rectangle on the common path rather than in an edge case.
+    /// This is not the foreground window. The user summons the overlay with a global hotkey
+    /// and types the question into it, so the overlay is the foreground window at the moment a
+    /// capture runs, and it sets `WDA_EXCLUDEFROMCAPTURE` on itself. Cropping to the foreground
+    /// window would yield an absent or black rectangle on the common path rather than in an
+    /// edge case.
     Focus,
 }
 
@@ -41,9 +42,9 @@ pub enum CaptureTarget {
 ///
 /// Signed and unvalidated on purpose. A window may hang off the left or top of the display
 /// (negative edges), extend past its right or bottom, or sit entirely on another monitor, and
-/// Win32 reports all three without complaint. Deciding what those mean is
-/// [`CapturedFrame::region`]'s job, which is pure and gated; a backend's job is to report what
-/// the OS said.
+/// Win32 reports all three without an error. Deciding what those mean is
+/// [`CapturedFrame::region`]'s job, which is pure and gated; the backend reports what the OS
+/// said.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TargetRect {
     left: i32,
@@ -91,12 +92,12 @@ impl TargetRect {
 
 /// One backend answer: the display's pixels, and where in them the resolved target sits.
 ///
-/// The backend keeps blitting the **whole display** whatever the target is, and reports the
-/// rectangle beside the frame instead of cropping to it. Two reasons, both the ADR's existing
-/// ones. The crop is then pure arithmetic under the 100% line and branch gate, while only the
-/// Z-order walk that found the window is `cfg(windows)` and unmeasurable. And the value keeps
-/// the display's own size, which the brain shows the model and which must go on saying how big
-/// the *screen* is even when the picture is one window of it.
+/// The backend blits the whole display whatever the target is, and reports the rectangle
+/// beside the frame rather than cropping to it, for two reasons argued in ADR-0029. The crop
+/// is then pure arithmetic under the 100% line and branch gate, leaving only the Z-order walk
+/// that found the window `cfg(windows)` and unmeasurable. And the value keeps the display's
+/// own size, which the brain shows the model and which must go on saying how big the screen is
+/// even when the picture is one window of it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CapturedFrame {
     frame: RawFrame,
@@ -140,9 +141,8 @@ impl CapturedFrame {
     ///
     /// [`CaptureError::NoTarget`] if the clamped rectangle has no pixels: the window sits
     /// entirely off the captured display (another monitor, or scrolled off an edge), or the OS
-    /// reported an empty rectangle. Refusing is deliberate, and the alternative is worse than an
-    /// error: falling back to the whole display would send more of the screen than was asked
-    /// for, with neither the model nor the receipt knowing it happened.
+    /// reported an empty rectangle. There is no fallback to the whole display, which would send
+    /// more of the screen than was asked for without the model or the receipt reflecting it.
     pub(crate) fn region(&self) -> Result<Region, CaptureError> {
         let (width, height) = (self.frame.width(), self.frame.height());
         let Some(rect) = self.window else {
@@ -177,8 +177,8 @@ impl CapturedFrame {
 
 /// One edge clamped into `0..=bound`, in the frame's own pixels. A negative edge is a window
 /// hanging off the top or the left of the display and clamps to zero; an edge past the display
-/// clamps to its size. Nothing else can happen: the only way [`u32::try_from`] fails on an
-/// `i32` is a negative one.
+/// clamps to its size. No other case exists, because the only way [`u32::try_from`] fails on
+/// an `i32` is a negative value.
 fn clamp_edge(value: i32, bound: u32) -> u32 {
     u32::try_from(value).unwrap_or(0).min(bound)
 }
@@ -217,10 +217,10 @@ impl Region {
         self.height
     }
 
-    /// Whether this region is the whole frame, which is what decides which of the two fixed
-    /// receipt strings the body shows: a picture of the screen, or a picture of one window. It
-    /// reads the region rather than the request so the notice describes what was actually sent,
-    /// which is why a window covering the entire display honestly reports a screen capture.
+    /// Whether this region is the whole frame, which decides which of the two fixed receipt
+    /// strings the body shows: a picture of the screen, or a picture of one window. It reads
+    /// the region rather than the request so the notice describes what was sent, so a window
+    /// covering the entire display reports a screen capture.
     pub(crate) const fn covers(&self, width: u32, height: u32) -> bool {
         self.x == 0 && self.y == 0 && self.width == width && self.height == height
     }

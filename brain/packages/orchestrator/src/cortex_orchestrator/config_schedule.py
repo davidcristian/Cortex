@@ -16,9 +16,9 @@ from cortex_session import ZONEINFO_RESOLVER
 
 ScheduleBackendName = Literal["none", "redis"]
 
-# Whether a deployment gets a durable schedule store when nothing says otherwise. Named for the
-# reason the zone beside it already was: the base compose file ships the same answer as a
-# substitution default, and a scan can only hold that to a declaration it can read.
+# Whether a deployment gets a durable schedule store when nothing says otherwise. Declared as a
+# named constant for the same reason the zone default already is: the base compose file ships the
+# same answer as a substitution default, and a scan can only hold that to a declaration it reads.
 DEFAULT_SCHEDULE_BACKEND: ScheduleBackendName = "none"
 
 
@@ -28,7 +28,7 @@ def _resolve(name: str) -> DisplayZone:
     The resolver answers ``None`` for an unknown key; this wrapper raises instead, so the config
     validator fails the process at boot rather than let a bad ``CORTEX_SCHEDULE_TZ`` survive to the
     first render. The model-facing schedule path takes the same resolver directly and turns
-    ``None`` into a correction: one lookup (``UTC`` short-circuit included), two contracts.
+    ``None`` into a correction, so one lookup serves both contracts, ``UTC`` short-circuit included.
     """
     zone = ZONEINFO_RESOLVER.resolve(name)
     if zone is None:
@@ -68,7 +68,7 @@ class ScheduleConfig(BaseSettings):
     @field_validator("tz")
     @classmethod
     def _known_zone(cls, value: str) -> str:
-        """Reject an unknown key at boot rather than at the model's first listing.
+        """Raise on an unknown key at boot rather than at the model's first listing.
 
         A typo would otherwise survive as a latent failure that only surfaces once a turn
         renders a schedule, which is both far from the cause and inside a tool call.

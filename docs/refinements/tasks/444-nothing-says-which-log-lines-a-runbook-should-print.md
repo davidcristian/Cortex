@@ -26,8 +26,8 @@ worth an operator's attention, and the obvious mechanical answers are all wrong.
 runbooks into a log catalogue. Requiring every `WARNING` and above would be closer and still wrong,
 since the levels are a statement about the machine rather than about what a reader needs.
 
-**Why it was left.** The close it came out of was about a sample that lies, and it built the scan
-that stops one lying. Adding a coverage rule to the same scan would have meant inventing the
+**Why it was left.** The close it came out of was about a sample that disagrees with the code, and it
+built the scan that catches one. Adding a coverage rule to the same scan would have meant inventing the
 criterion in the same commit as the mechanism, with no evidence about which lines are actually
 missed. The evidence that would settle it is the cheap kind to collect and nobody has collected
 it: a note, each time somebody goes to the logs during a real failure, of which line they wanted

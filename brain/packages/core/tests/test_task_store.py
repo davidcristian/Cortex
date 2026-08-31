@@ -1,6 +1,6 @@
 """Contract tests for the TaskStore port via its in-memory fake (ADR-0010).
 
-The Redis adapter (Slice 7 CI half) must pass this same contract. The fake is its twin.
+The Redis adapter must pass this same contract, the fake being its twin.
 """
 
 from datetime import UTC, datetime

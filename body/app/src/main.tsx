@@ -28,10 +28,9 @@ if (root) {
       listen("cortex:activate", requestActivation),
     );
   } else {
-    // The browser build self-summons so the design is visible immediately. No deferral is needed
-    // (and none worked): passive effects flush after paint, so this always ran before App's
-    // listener existed. `requestActivation` records the request, and the listener takes it on
-    // attach.
+    // No deferral is needed here, and none worked: passive effects flush after paint, so this
+    // always ran before App's listener existed. `requestActivation` records the request, and the
+    // listener takes it on attach.
     requestActivation();
   }
 }

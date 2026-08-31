@@ -430,12 +430,13 @@ async def test_a_trace_budget_rides_the_request_where_the_engine_reads_one() -> 
 
 
 async def test_a_trace_budget_is_withheld_where_the_engine_does_not_read_one() -> None:
-    """The floor: an engine that ignores the key is sent no key at all (ADR-0005).
+    """An engine that does not read the key is sent no key at all (ADR-0005).
 
-    A build that does not know it ignores it in silence, which would make the port's count a knob
-    that lies, so the adapter carries it only where the composition root declared or measured that
-    this engine reads one. The lever defaults off, which is what this backend is built with, so
-    what is pinned is also the request every deployment got before the key existed.
+    A build that does not know the key drops it without saying so, which would leave the port's
+    count reporting a setting nothing applied, so the adapter carries it only where the
+    composition root declared or measured that this engine reads one. The lever defaults off,
+    which is what this backend is built with, so what is pinned is also the request every
+    deployment got before the key existed.
     """
     captured: dict[str, object] = {}
 
@@ -538,12 +539,13 @@ async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
 
 
 async def test_an_unparsable_tool_call_is_the_ports_narrower_failure() -> None:
-    """The model's own tokens, said apart from the transport's (ADR-0005 tool-call-cut addendum).
+    """A tool call the model left unparsable raises the narrow ``MalformedToolCallError``.
 
     Measured against a real server, this is what a token limit landing inside ``arguments``
     leaves: an unterminated fragment under ``finish_reason: "length"``. Reported as the wide
-    error it reads as a backend that did not answer, and the delegated runner spends a second
-    model load on it; the narrow one lets a caller pair it with the stop reason it already saw.
+    error it would read as a backend that did not answer, and the delegated runner would spend a
+    second model load on it; the narrow error lets a caller pair it with the stop reason it
+    already saw (ADR-0005 tool-call-cut addendum).
     """
     content = _sse(
         _chunk(
@@ -607,8 +609,8 @@ async def test_cancelling_mid_stream_frees_the_model_lease() -> None:
     must propagate out through that ``async with`` and free the lock. This is the crux of a
     mid-turn Cancel / drop-to-cancel (ADR-0011): a Stop that released the lock's holder task
     but left the lock taken would wedge every later turn behind a lease no one can reclaim.
-    Distrust-green: with ``acquire`` releasing outside a ``finally`` the re-acquire below
-    deadlocks and the timeout reddens this test.
+    This test was proved able to fail: with ``acquire`` releasing outside a ``finally`` the
+    re-acquire below deadlocks and the timeout fails it.
     """
     manager = SingleResidentModelManager("cortex", _ENDPOINT)
     streaming = asyncio.Event()  # set once the body has streamed its first line (lease held)
@@ -730,7 +732,7 @@ async def test_several_images_on_one_message_all_ride_the_same_parts_array() -> 
 # the order the adapter emits two things that arrived in one chunk. That last one is here rather
 # than in the contract for a reason found by mutating it: on this build the `timings` object rides
 # a content-less final chunk, so the contract's ordering check is satisfied by the transcript and
-# a reordering of the adapter's own yields does not redden it. A chunk carrying both is the case
+# a reordering of the adapter's own yields does not fail it. A chunk carrying both is the case
 # where the adapter's order is its own, so it is pinned where the adapter's own cases live.
 
 
@@ -776,9 +778,9 @@ async def test_content_precedes_the_cadence_when_one_chunk_carries_both() -> Non
 
 
 async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
-    # Read before the choices are, so a build closing on `{"choices":[]}` is not silently unheard.
-    # The exact event list is the other half: the stop is read off the first choice, so a chunk
-    # with no choice has none to report, and only the cadence comes out.
+    # The timings are read before the choices are, so a build closing on `{"choices":[]}` still
+    # has its cadence read. The exact event list is the other half: the stop is read off the first
+    # choice, so a chunk with no choice has none to report and only the cadence comes out.
     chunk = json.dumps(
         {"choices": [], "timings": {"predicted_per_second": 12.0, "predicted_n": 40}}
     )
@@ -804,7 +806,8 @@ async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
 async def test_an_unusable_timings_object_yields_no_cadence_and_keeps_the_reply(
     timings: str,
 ) -> None:
-    # The quiet stance: a diagnostic that arrives after the answer never costs the answer.
+    # An unreadable diagnostic arriving after the answer costs the answer nothing: no cadence is
+    # emitted and the reply text still crosses.
     body = _sse(
         '{"choices":[{"delta":{"content":"hi"}}]}',
         f'{{"choices":[{{"delta":{{}}}}],"timings":{timings}}}',

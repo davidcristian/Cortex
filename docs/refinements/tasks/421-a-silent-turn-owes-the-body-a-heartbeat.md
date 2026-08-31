@@ -14,13 +14,13 @@ which waits up to `DEFAULT_ADMISSION_WAIT_S` (3600 s) for the CPU budget and the
 unless it happens to call a tool. So the body cannot tell a brain working from a brain gone, and
 the overlay shows a thinking indicator for both.
 
-The tightening that suggests itself is refused for a reason worth keeping: the delegation does
-announce itself with a `StatusUpdate`, but progress rides a best-effort sink that drops an event on
+The tightening that suggests itself is rejected for a reason worth keeping: the delegation does
+emit a `StatusUpdate`, but progress travels on a best-effort sink that drops an event on
 a saturated buffer by design (`cortex_core/progress.py`), so a decision that ends a turn must not
 rest on having received one.
 
-**What would close it.** Something the brain owes rather than something the body guesses. Two
-shapes, and the second is probably right:
+**What would close it.** A message the brain sends on a schedule, rather than an inference the
+body makes. Two shapes, and the second is probably right:
 
 - A periodic `StatusUpdate` on a long wait, refreshed rather than emitted once, which would let the
   idle gap fall to minutes. It has to travel a path that cannot drop it, which is the part that is
@@ -28,8 +28,8 @@ shapes, and the second is probably right:
   and a heartbeat that shares that property is a heartbeat that can go missing exactly when the
   buffer is full.
 - A keepalive on the stream itself rather than in the turn's event vocabulary, which is a seam
-  question (`proto/body.proto`) and would serve every future long stretch without teaching each one
-  to announce itself.
+  question (`proto/body.proto`) and would serve every future long stretch without each one needing
+  an event of its own.
 
 Either way the body's side is one line: the gap decorator already resets on any item, so a
 heartbeat that reaches it costs nothing to consume. What the change buys, besides the number, is a

@@ -3,9 +3,9 @@
 //!
 //! Rejects any `BodyService` call not bearing the shared `x-cortex-seam-token` metadata with
 //! `UNAUTHENTICATED`, before any handler runs. This is the structural check the brain's Python
-//! `SeamTokenInterceptor` does for the other direction. It is **always attached** but a
-//! **pass-through when the configured token is empty** (a tokenless deployment is unchanged),
-//! the single-type equivalent of the brain's register-only-when-set. The compare is
+//! `SeamTokenInterceptor` does for the other direction. It is always attached and passes calls
+//! through when the configured token is empty, which leaves a tokenless deployment unchanged and
+//! is the single-type equivalent of the brain's register-only-when-set. The compare is
 //! constant-time, matching `secrets.compare_digest`.
 
 use tonic::metadata::MetadataValue;
@@ -17,8 +17,8 @@ use tonic::{Request, Status};
 /// `scripts/crosscheck.py` fails if this declaration, the client's, and that one stop agreeing.
 const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
 
-/// Validates the seam token on inbound `BodyService` calls. Deliberately NOT `Debug`: it holds
-/// the shared secret (mirrors the client `SeamTokenInterceptor`).
+/// Validates the seam token on inbound `BodyService` calls. It deliberately does not derive
+/// `Debug`, because it holds the shared secret, like the client's `SeamTokenInterceptor`.
 #[derive(Clone)]
 pub struct SeamTokenValidator {
     /// The expected token bytes, or `None` when auth is disabled (empty token = pass-through).
@@ -54,9 +54,9 @@ impl Interceptor for SeamTokenValidator {
     }
 }
 
-/// Fixed-time byte comparison (the Rust twin of `secrets.compare_digest`): unequal lengths fail
-/// fast, but equal-length inputs are compared in full so the time taken does not leak how much
-/// of the token matched.
+/// Fixed-time byte comparison, the Rust equivalent of `secrets.compare_digest`. Unequal lengths
+/// fail immediately, and equal-length inputs are compared in full so the time taken does not
+/// leak how much of the token matched.
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;

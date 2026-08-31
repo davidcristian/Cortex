@@ -478,7 +478,7 @@ async def check_edit_sets_a_rule_and_moves_the_item_on_the_due_index(
 ) -> None:
     """Setting a rule re-derives the next fire, so the item moves in the due order too.
 
-    The Redis leg is the one that owes real work here: unlike a text or interval edit, this
+    The Redis leg is where the real work is here: unlike a text or interval edit, this
     branch has to ``ZADD`` the new due position, so an unmoved index would leave the item
     claimable at its old time (ADR-0025 rule-edit addendum).
     """

@@ -33,7 +33,7 @@ from one height to the next.
    it either; it makes `auto` interpolable against a **length** (`height: 0` to `height: auto`,
    the accordion case), not one content-driven `auto` against the next. Both were written, shipped
    into a browser, and measured: opening the switcher moved the panel through exactly **one**
-   distinct height. The measurement is what turned the design around.
+   distinct height.
 
 3. **The running animation is cancelled before each measurement.** A height animation overrides
    the element's used height, so measuring mid-ease returns the in-flight value rather than the
@@ -78,22 +78,22 @@ which is what made it stand out.
 
 The defect was in the ride-along's arrival centring. It subtracted the aside's height from a
 panel-height prediction the OLD edge's ceiling had already clamped, so the chat was centred on
-the remainder of a number the ceiling had eaten rather than on its own height. That pinned an
-edge the whole panel could not fit above, the cap written for that edge squeezed the chat under
-the rolling stack, and the first placement after the roll recomputed from the raw height and
-undid it. Traced at a 760px viewport with the demo's reminders: the history lost 119px over the
-roll and a 40px ease handed most of it back a beat after the pop settled.
+what was left of a number the ceiling had already cut down rather than on its own height. That
+pinned an edge the whole panel could not fit above, the cap written for that edge squeezed the chat
+under the rolling stack, and the first placement after the roll recomputed from the raw height and
+undid it. Traced at a 760px viewport with the demo's reminders: the history lost 119px over the roll
+and a 40px ease handed most of it back a beat after the pop settled.
 
 The aside is now counted off the RAW prediction (bounded by `openHeight`, the same loose cap an
 ordinary placement measures under), and the height the roll is placed for is capped by the
 ceiling of the edge that centring actually picks. The two deciders agree on the edge, so the
 placement after the roll finds nothing left to move: re-traced, the bottom edge stands still
 from summon to settle, the panel grows to its honest ceiling during the roll, and the history
-yields once, to the height it keeps.
+shrinks once, to the height it keeps.
 
-A second look found the half the edge fix alone did not buy: with the edge standing
+A second look found the part the edge fix alone did not address: with the edge standing
 still the second ease was gone, but the squeeze itself had only moved inside the roll. The
-panel's `auto` height followed the roll one-for-one until the cap bit, and the stack's
+panel's `auto` height followed the roll one-for-one until the cap applied, and the stack's
 remaining growth then compressed the chat in the roll's tail, so the empty state held its size
 and resized only at the end. An arrival whose section outgrows the ceiling now CARRIES the
 panel's height, the mechanism interrupted eases already use, driving it to the predicted

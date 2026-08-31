@@ -16,8 +16,8 @@ whether it is ignored, `commitlint.py` reads a message, and `dashcheck.py` now a
 listing. The suites duplicate it a fourth and fifth time in their own fixtures.
 
 This is not a value spelled twice, so the constant scan has nothing to say about it. It is a
-correctness detail with no single home, and the failure it prevents is silent: a caller that forgets
-the strip gets an answer about the wrong repository and never learns it.
+correctness detail with no single home, and the failure it prevents goes unreported: a caller that
+omits the strip gets an answer about the wrong repository and nothing says so.
 
 **Why it was left.** The close was about what the dash ban reads, and moving a shared helper out of
 two other gates would have been a second change riding along with a decision about a rule. Three
@@ -25,7 +25,7 @@ copies of five lines is also not yet a cost anybody has paid.
 
 **What would close it.** Decide whether the shared thing is the environment or the call. The
 environment alone is one function and leaves each gate its own argv, which is honest because the
-three ask different questions. The call is more tempting and worse: the three want different exit
+three ask different questions. The call is more tempting and worse: the three need different exit
 code handling, `check-ignore` answering with 1 for a legitimate no, so a shared runner would grow a
 parameter per caller. If a module lands, it takes the fixtures too, since a test that rebuilds the
 environment by hand can drift from the gate it tests.

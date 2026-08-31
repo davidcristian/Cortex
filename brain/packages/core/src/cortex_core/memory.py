@@ -41,11 +41,11 @@ class ScoredMemory:
 
     ``score`` is always the store's raw cosine similarity, in ``[-1, 1]``, and never the key a
     ``RecallPolicy`` ranked by (ADR-0008 relevance-field addendum). A reranking policy reorders and
-    prunes above the store, so the emitted order is *not* explained by this field and no caller may
+    prunes above the store, so the emitted order is not explained by this field and no caller may
     infer a ranking from it. A second field carrying a policy's own blended relevance is
     deliberately absent: nothing reads a recall score today, and the opt-in policies rank by three
     different quantities, one of them computed against the kept set and so incomparable between
-    hits. Keeping one meaning here is what stops the two being confused.
+    hits.
     """
 
     record: MemoryRecord

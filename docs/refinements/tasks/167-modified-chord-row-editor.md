@@ -46,7 +46,7 @@ not. Nothing blocks it.
   already ruled a day earlier that a half-typed sentence is work rather than something a swap may
   discard. Auto-committing the name first was considered and rejected: it makes a store write
   nobody asked for, and an emptied editor commits the clear-the-custom-title signal, so `Ctrl+N`
-  after a Backspace would silently wipe a title. The delete confirm is deliberately left passing
+  after a Backspace would wipe a title. The delete confirm is deliberately left passing
   chords, holding no text to lose (measured: `Ctrl+N` over an open question minted the chat, closed
   the switcher and deleted nothing).
   **What it cost**: `overlay/fieldKeys.ts`, a 76-line pure module holding `chord` and a `fieldKey`

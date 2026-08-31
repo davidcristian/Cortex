@@ -28,8 +28,8 @@ of markdown here starts from an answer rather than from a fourth copy.
 
 **Why it was left.** The close that added the third copy was about log samples, and extracting a
 shared markdown reader means editing `commitlint.py` and `headingshapes.py`, two gates that close
-had no business touching, in the same commit as a new scan. Two copies is a coincidence and three
-is a pattern, so the extraction is worth doing and worth doing on its own.
+had no business touching, in the same commit as a new scan. With three copies rather than two, the extraction is worth
+doing and worth doing on its own.
 
 **What would close it.** Either a `scripts/markdown.py` (or a name designed for it) holding the
 fence token, with all three gates reading it and each suite still holding its own behaviour, or a

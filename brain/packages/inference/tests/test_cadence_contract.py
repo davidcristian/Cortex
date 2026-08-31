@@ -9,10 +9,10 @@ to the contract's, so what the parser is held to is bytes the server actually em
 Mutations run against this file, each reverted, proving the checks can fail rather than trusting
 that they pass:
 
-- dropping the ``timings`` object from the adapter's final chunk reddens
+- dropping the ``timings`` object from the adapter's final chunk fails
   ``check_reports_the_servers_rate`` and ``check_cadence_closes_the_stream`` on the adapter leg
   and neither scripted case, which is the derived half doing its work;
-- yielding the cadence before the text in ``LlamaCppBackend.stream`` reddens
+- yielding the cadence before the text in ``LlamaCppBackend.stream`` fails
   ``check_cadence_closes_the_stream`` alone;
 - making ``_non_negative`` accept a bool lets ``"predicted_per_second": true`` through as 1.0,
   which is what ``test_backend.py``'s own cadence cases pin.
@@ -75,7 +75,7 @@ def _body(*, cadence: bool) -> bytes:
 
 @pytest.fixture
 def scripted() -> BackendUnderTest:
-    """The core twin, scripted with the world-condition rather than asked to derive it."""
+    """Build the core twin, scripted with the world-condition rather than asked to derive it."""
 
     def build(*, cadence: bool) -> InferenceBackend:
         events: list[InferenceEvent] = [TextChunk(delta) for delta in _DELTAS]
@@ -95,7 +95,7 @@ def scripted() -> BackendUnderTest:
 
 @pytest.fixture
 def adapter() -> BackendUnderTest:
-    """The real adapter over a MockTransport serving the real llama-server body."""
+    """Build the real adapter over a MockTransport serving the real llama-server body."""
     clients: list[httpx.AsyncClient] = []
 
     def build(*, cadence: bool) -> InferenceBackend:
@@ -140,11 +140,12 @@ async def test_llamacpp_backend_meets_the_cadence_contract(
 async def test_the_adapter_leg_really_parses_the_servers_own_json(
     adapter: BackendUnderTest,
 ) -> None:
-    """The contract's derived half, stated once outside the shared checks.
+    """The adapter reads the rate and the token count out of the server's own JSON.
 
-    The scripted twin cannot fail this: it is handed a ``DecodeCadence``. The adapter is handed
-    bytes, so this pins that ``predicted_per_second`` and ``predicted_n`` were read out of a real
-    llama.cpp ``timings`` object and not out of anything the test built for it.
+    This is the contract's derived half, stated once outside the shared checks. The scripted twin
+    cannot fail it, because it is handed a ``DecodeCadence``. The adapter is handed bytes, so this
+    pins that ``predicted_per_second`` and ``predicted_n`` were read out of a real llama.cpp
+    ``timings`` object and not out of anything the test built for it.
     """
     body = _body(cadence=True).decode()
     assert '"predicted_per_second"' in body

@@ -10,7 +10,7 @@
 import { MORPHING_ATTRIBUTE, TAB_SLACK_ATTRIBUTE } from "./morph";
 import { heightOf } from "./panelMemory";
 
-/** A section the panel leaves out when it centres itself, in the view being PLACED. The reminder
+/** A section the panel leaves out when it centres itself, in the view being placed. The reminder
  *  stack arrives with the summon and can be two rows or five, so centring on it puts the
  *  conversation wherever the day's reminders happen to leave it. The chat centres on itself and the
  *  stack grows it upward from there, the way every other arrival does.
@@ -30,7 +30,7 @@ const ASIDE = ".view:not(.out) .collapse.aside";
 const SCROLL_BOXES = ".history, .rows";
 
 /**
- * How tall the aside will be once everything settles: the height it is rolling TO while it rolls,
+ * How tall the aside will be once everything settles: the height it is rolling to while it rolls,
  * and the height it has otherwise. Zero when the view being placed has no aside at all.
  *
  * Reading the roll's target rather than the box is what lets the ride-along count an aside the same
@@ -47,7 +47,7 @@ export function asideHeight(element: HTMLElement): number {
   return rolling === null ? heightOf(aside) : Number(rolling);
 }
 
-/** The height the panel centres ON, which is not always the height it HAS: everything but the
+/** The height the panel centres on, which is not always the height it has: everything but the
  *  aside. One function with two callers on purpose, the measured height in `panelPlacement` and the
  *  predicted one in `panelRide`, so an arrival and the placement that follows it cannot disagree
  *  about where the panel's middle is. */
@@ -73,15 +73,15 @@ export function tabSlack(element: HTMLElement): number {
  *
  * The panel measures itself by growing to the loosest cap any edge could allow and reading what it
  * becomes (`openHeight`). A scroll box inside a taller panel is a taller box, and the engine answers
- * a box that has outgrown its own scroll range by CLAMPING it to the range it now has, which putting
+ * a box that has outgrown its own scroll range by clamping it to the range it now has, which putting
  * the real cap back does not undo. So the panel's own measurement walks the log up under the reader.
  *
  * Traced at 60Hz at 640x720 through a streamed reply, wheeling 60px up from the tail: `scrollTop`
  * read 312, then 252 the frame the wheel landed, then 215 two frames later with nothing else
  * touching it, 215 being exactly the deepest a 390px window can scroll a 605px log. Every token did
- * it again, which is what "the history will not let me scroll while a reply streams" is. The same
- * clamp lands on the way back from the console, where it took the position `ChatView` had just
- * restored and left the log 97px off the tail rather than where the reader was.
+ * it again, which is the reported symptom that the history cannot be scrolled while a reply
+ * streams. The same clamp lands on the way back from the console, where it took the position
+ * `ChatView` had just restored and left the log 97px off the tail rather than where the reader was.
  */
 export function holdScroll(element: HTMLElement): () => void {
   const boxes = [...element.querySelectorAll<HTMLElement>(SCROLL_BOXES)].map(

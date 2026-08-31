@@ -8,7 +8,7 @@ the work running would satisfy every assertion about the raise.
 
 **The slow stub answers late rather than never, and that is the point of it.** A stub that waits
 on an event nothing sets makes the production bound the only way out of the case, so deleting the
-bound leaves every overrun case hanging rather than red, and a suite that cannot report is a
+bound leaves every overrun case hanging rather than failing, and a suite that cannot report is a
 suite that cannot fail. Answering after a fixed multiple of the bound turns both mutations into
 verdicts instead: delete the bound and the call returns a result where a `ToolError` was
 required, widen it past that multiple and the same thing happens. It ties the two expressions no

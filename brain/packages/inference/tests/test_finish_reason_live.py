@@ -98,10 +98,11 @@ async def test_a_real_server_says_when_it_cut_a_completion_and_when_it_did_not()
 
 
 async def test_the_core_reads_a_capped_delegated_reply_as_unanswered() -> None:
-    """The consumer, end to end: the shipped attempt over the shipped adapter over a real server.
+    """The shipped attempt reports a capped delegated reply as unanswered.
 
-    Without the arm this run comes back `ok=True` carrying a cut sentence, which is the failure the
-    whole entry is about. The refusal names the cap so the reader lands on the knob.
+    This runs the shipped attempt over the shipped adapter over a real server. Without the arm the
+    run comes back `ok=True` carrying a cut sentence, which is the failure the whole entry is
+    about. The refusal names the cap, so a reader is sent to the setting that caused it.
     """
     task = SubagentTask(id="t-live", instruction=_ESSAY, context="", at=datetime.now(UTC))
     attempt = PlacedAttempt(

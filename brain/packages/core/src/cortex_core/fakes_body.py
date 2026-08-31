@@ -130,7 +130,7 @@ class InMemoryBodyGateway:
     ) -> ScreenCapture:
         """Record what was asked for and answer the scripted capture, or raise the failure.
 
-        The scripted capture is answered **verbatim**, target included, rather than being
+        The scripted capture is answered verbatim, target included, rather than being
         rewritten to match the ask. That is the real body's behaviour: what a reply says it
         points at is read off the picture that was encoded, so a focus request can honestly come
         back as a display capture (a window filling the screen), and a test that wants the
@@ -138,8 +138,8 @@ class InMemoryBodyGateway:
 
         The bounds are the one thing not answered verbatim, and they are the reason this is the
         gRPC adapter's twin rather than the body's: a non-zero ``max_edge``/``max_bytes`` is a
-        bound on the **reply**, so a scripted capture outside one is refused here exactly as the
-        adapter refuses a body that ignored the hint, from the same domain rule.
+        bound on the reply, so a scripted capture outside one raises here exactly as it does in
+        the adapter when a body ignored the hint, from the same domain rule.
         """
         if self._fail is not None:
             raise self._fail

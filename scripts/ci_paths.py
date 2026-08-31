@@ -5,9 +5,9 @@ from stdin and writes exactly four ``GITHUB_OUTPUT``-format lines to stdout:
 ``python=true|false``, ``rust=true|false``, ``overlay=true|false``, then
 ``shell=true|false``. Each path is
 classified by ordered rules (first match wins); the result is the union over all paths.
-Unmatched paths fail closed to ALL toolchains -- unknown means over-test, never
-under-test (ADR-0006). The script must keep running under a plain ``python3`` on a
-GitHub runner: stdlib only, no uv sync.
+Unmatched paths fail closed to ALL toolchains, an unrecognized path being one to
+over-test rather than under-test (ADR-0006). The script must keep running under a plain
+``python3`` on a GitHub runner: stdlib only, no uv sync.
 """
 
 import sys

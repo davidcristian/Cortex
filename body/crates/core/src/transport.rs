@@ -1,14 +1,12 @@
 //! The `BrainTransport` port: the body's typed async client to the brain.
 //!
 //! The body talks to the dockerized brain only over the gRPC seam declared in
-//! `proto/body.proto` (AGENTS.md). This module is the pure side of that seam:
-//! the port trait plus its result and error types. No tonic, no network. That is
-//! why the concrete gRPC adapter lives in `body/crates/rpc` and must pass the same
-//! contract shape as any fake implementing this trait.
+//! `proto/body.proto` (AGENTS.md). This module holds the pure side of that seam, the port
+//! trait plus its result and error types, with no tonic and no network; the concrete gRPC
+//! adapter lives in `body/crates/rpc` and passes the same contract tests as any fake.
 //!
-//! The *turn* vocabulary a `converse` call carries ([`TurnEvent`] and [`ConfirmDecision`])
-//! lives in [`turn`], split out for the line cap and re-exported here, so this module stays
-//! the port and the types its calls resolve to.
+//! The turn vocabulary a `converse` call carries ([`TurnEvent`] and [`ConfirmDecision`])
+//! lives in [`turn`], split out for the line cap and re-exported here.
 
 pub mod turn;
 
@@ -48,18 +46,16 @@ pub enum TransportError {
     },
     /// The brain was reached and streamed a reply, but the wire data could
     /// not be interpreted: an empty `ServerEvent` (no event set) or a
-    /// `Converse` stream that ended before a `TurnComplete`. Distinct from a
-    /// brain-*reported* turn error, which arrives as [`TurnEvent::Failed`].
+    /// `Converse` stream that ended before a `TurnComplete`. A turn error the
+    /// brain itself reports arrives as [`TurnEvent::Failed`] instead.
     #[error("malformed seam message: {0}")]
     Protocol(String),
     /// The attempt was abandoned: nothing came back within the deadline the caller gave it
     /// (`after`), so the call was dropped (ADR-0024 deadline addendum).
     ///
-    /// A fourth variant rather than a reuse of the three above, because it is a fourth thing.
-    /// [`TransportError::Connection`] says nothing accepted the call and
-    /// [`TransportError::Rpc`] says the brain answered; a deadline says **we stopped waiting**,
-    /// which neither of those can report without claiming something that did not happen. A brain
-    /// that accepts the connection and then goes quiet produces exactly this and nothing else.
+    /// A brain that accepts the connection and then goes quiet produces this and nothing
+    /// else, which is why it is its own variant: [`TransportError::Connection`] would claim
+    /// nothing accepted the call and [`TransportError::Rpc`] would claim the brain answered.
     #[error("no reply from the brain within {after:?}")]
     Timeout {
         /// The deadline that expired, as the caller set it.
@@ -71,11 +67,10 @@ pub enum TransportError {
 /// "Ports and traits").
 ///
 /// Implementations own the connection lifecycle behind this surface; callers
-/// see only typed calls. `async fn`-style methods are declared as
-/// `impl Future + Send` so the returned futures are guaranteed `Send` and can
-/// be awaited from multi-threaded runtimes; implementors must also be
-/// `Send + Sync` (supertrait bounds) so one transport can be shared across
-/// tasks.
+/// see only typed calls. Methods return `impl Future + Send` rather than using
+/// `async fn` so the returned futures can be awaited from multi-threaded
+/// runtimes, and the `Send + Sync` supertrait bounds let one transport be
+/// shared across tasks.
 pub trait BrainTransport: Send + Sync {
     /// Probes `BrainService.Health` and returns the brain's readiness.
     ///
@@ -93,8 +88,8 @@ pub trait BrainTransport: Send + Sync {
     ///
     /// Session continuity is external (the brain persists session state), so
     /// each call is independent and a caller reuses one `session_id` across
-    /// turns. Dropping the returned stream cancels the turn (the RPC aborts and
-    /// the brain sees the client half-close). Each item is `Ok(TurnEvent)` for
+    /// turns. Dropping the returned stream cancels the turn: the RPC aborts and
+    /// the brain sees the client half-close. Each item is `Ok(TurnEvent)` for
     /// a brain event, or `Err(TransportError)` for a transport failure: an
     /// unreachable brain or non-OK gRPC status ([`TransportError::Connection`]
     /// / [`TransportError::Rpc`]), or a malformed stream
@@ -103,9 +98,9 @@ pub trait BrainTransport: Send + Sync {
     /// `decisions` answers mid-turn [`TurnEvent::ConfirmRequest`]s (ADR-0022):
     /// each item is forwarded to the brain on the open request stream, which
     /// half-closes when `decisions` ends. A caller with no confirm surface
-    /// passes an empty stream (an immediate half-close, which is the pre-confirm shape).
-    /// An unanswered or undeliverable confirm is denied brain-side
-    /// (fail-closed), so a decision sent after teardown is a harmless no-op.
+    /// passes an empty stream, which half-closes immediately and is the shape
+    /// that predates confirms. An unanswered or undeliverable confirm is denied
+    /// brain-side, so a decision sent after teardown is a harmless no-op.
     fn converse(
         &self,
         session_id: &str,
@@ -155,10 +150,10 @@ pub trait BrainTransport: Send + Sync {
     /// Marks one reminder delivered (`BrainService.AckReminder`, ADR-0025), which is
     /// what the overlay calls when the user dismisses it. `true` means this call
     /// cleared it; `false` means there was nothing to clear (an unknown id, or an
-    /// already-acked one), so the answer is a state report, not a failure.
+    /// already-acked one), which is a state report rather than a failure.
     ///
-    /// The one write on this port, and a narrow one: acking twice is a no-op, so a
-    /// caller that cannot tell whether its first attempt landed may repeat it.
+    /// Acking twice is a no-op, so a caller that cannot tell whether its first
+    /// attempt landed may repeat it.
     ///
     /// # Errors
     ///
@@ -173,13 +168,11 @@ pub trait BrainTransport: Send + Sync {
     /// `""` clears any custom/brain-generated title so the switcher falls back to the
     /// first-message derivation. The brain re-bounds the label when listing.
     ///
-    /// A **write**, and a user-only one. Unlike a gated `Converse` tool call (whose gate is the
-    /// mid-turn confirm card), this is reachable only from the overlay's own controls, never
-    /// from a model, tool, or tainted turn, so no injected content can drive it. It carries an
-    /// effect, so the resilient transport refuses to retry it (`SeamMethod::RenameSession` is
-    /// not repeatable): one attempt, and a transient failure surfaces rather than risking a
-    /// second write. Setting the same title twice is harmless, but a lost reply must not become
-    /// a silent second relabel of whatever the row holds by then.
+    /// A write, reachable only from the overlay's own controls and never from a model, tool,
+    /// or tainted turn, so no injected content can drive it. The resilient transport does not
+    /// retry it (`SeamMethod::RenameSession` is not repeatable), so a transient failure
+    /// surfaces instead of a lost reply becoming a second relabel of whatever the row holds
+    /// by then.
     ///
     /// # Errors
     ///
@@ -195,16 +188,13 @@ pub trait BrainTransport: Send + Sync {
     /// hard-deletes the transcript and catalog entry and cascades to the session's private
     /// memories; the reply is a bare acknowledgement (the overlay drops the row and re-lists).
     ///
-    /// A **destructive, irreversible write**, and a user-only one. Its gate is the same structural
-    /// user-only reachability `rename_session` has (never a model, tool, or tainted turn), and the
-    /// user's intent is secured OUT of band by an overlay-local confirm before this is ever called.
-    /// Because it carries a destructive effect, the resilient transport refuses to retry it
-    /// (`SeamMethod::DeleteSession` is not repeatable): one attempt, and a transient failure
-    /// surfaces rather than silently re-issuing a destroy. The delete is idempotent, so a repeat is
-    /// a no-op ONLY while nothing re-creates the id; but deleting the currently-open chat while its
-    /// turn still streams is exactly a concurrent `append` that can re-materialize it between a lost
-    /// reply and a retry, so a silent retry could destroy a transcript the user never confirmed
-    /// removing. The user, who confirmed once, retries deliberately instead.
+    /// A destructive, irreversible write with the same user-only reachability `rename_session`
+    /// has, and an overlay-local confirm takes the user's intent before it is ever called. The
+    /// resilient transport does not retry it (`SeamMethod::DeleteSession` is not repeatable).
+    /// The delete is idempotent only while nothing re-creates the id, and deleting the open
+    /// chat while its turn still streams is a concurrent `append` that can re-materialize it
+    /// between a lost reply and a retry, so a silent retry could destroy a transcript the user
+    /// never confirmed removing.
     ///
     /// # Errors
     ///
@@ -219,12 +209,11 @@ pub trait BrainTransport: Send + Sync {
     /// into `list_sessions` regardless of recency and sorts above the recency group, so pinning
     /// keeps an important chat reachable after it ages out of the recency window.
     ///
-    /// A **write**, and a user-only one. Its gate is the same structural user-only reachability
-    /// `rename_session`/`delete_session` have (never a model, tool, or tainted turn). Setting the
-    /// same state twice is a no-op (idempotent by value), yet the resilient transport still refuses
-    /// to retry it (`SeamMethod::SetSessionPinned` is not repeatable), the catalog-write convention:
-    /// one attempt, so a lost reply never silently re-asserts a pinned value the user's next toggle
-    /// reversed. The overlay re-lists after it resolves to reflect the change.
+    /// A write with the same user-only reachability `rename_session` and `delete_session` have.
+    /// Setting the same state twice is a no-op, but the resilient transport still does not
+    /// retry it (`SeamMethod::SetSessionPinned` is not repeatable), following the catalog-write
+    /// convention: a lost reply must not re-assert a pinned value the user's next toggle
+    /// reversed. The overlay re-lists after it resolves.
     ///
     /// # Errors
     ///
@@ -240,9 +229,8 @@ pub trait BrainTransport: Send + Sync {
     /// and applies what it recognises, so an unknown key is data for some other surface, not an
     /// error. An empty record is the normal first-run answer.
     ///
-    /// A **read**, and repeatable with the other reads (`SeamMethod::GetPreferences`): it is a
-    /// view of a store it does not touch. Values are opaque strings; this side parses them only
-    /// where it knows the key.
+    /// A read, and repeatable with the other reads (`SeamMethod::GetPreferences`). Values are
+    /// opaque strings; this side parses them only where it knows the key.
     ///
     /// # Errors
     ///
@@ -252,15 +240,14 @@ pub trait BrainTransport: Send + Sync {
     ) -> impl Future<Output = Result<Vec<(String, String)>, TransportError>> + Send;
 
     /// Writes one setting (`BrainService.SetPreference`): `key` is a namespaced name the caller
-    /// owns, `value` an opaque short string, and an EMPTY value CLEARS the key so the reader's
-    /// own default applies again (the `rename_session` empty-title convention).
+    /// owns, `value` an opaque short string, and an empty value clears the key so the reader's
+    /// own default applies again, following the `rename_session` empty-title convention.
     ///
-    /// A **write**, and a user-only one: its gate is the same structural user-only reachability
-    /// `rename_session` has, and it carries a display preference, never conversation content. Last
-    /// write wins in the store, so a repeat cannot duplicate an effect, yet the resilient transport
-    /// still refuses to retry it (`SeamMethod::SetPreference` is not repeatable), the catalog-write
-    /// convention: a lost reply must not silently re-assert a value the user's next change
-    /// reversed.
+    /// A write with the same user-only reachability `rename_session` has, carrying a display
+    /// preference and never conversation content. Last write wins in the store, but the
+    /// resilient transport still does not retry it (`SeamMethod::SetPreference` is not
+    /// repeatable), following the catalog-write convention: a lost reply must not re-assert a
+    /// value the user's next change reversed.
     ///
     /// # Errors
     ///

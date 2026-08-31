@@ -18,7 +18,7 @@ bit, and deliberately no text at all, the tool audit's stance on result bytes ap
 conversation content. `CORTEX_MEMORY_RECALL_AUDIT=1` turns it on. **The model rank** is
 `JudgeRecallPolicy` (`rerank_judge.py`, `CORTEX_MEMORY_RECALL=judge`), which sends the
 over-fetched pool to the resident cortex as a numbered list under a JSON-schema-constrained
-request and falls back to another policy on any failure to reach or believe it, the emitted basis
+request and falls back to another policy on any failure to reach it or to accept its answer, the emitted basis
 then being the fallback's so the trail says what actually ranked. **Measured against the cosine
 that ships**, on ten notes and six questions worded so the answer shares no vocabulary with the
 question while a distractor shares plenty: mean reciprocal rank 0.917 to 1.000, the correct note
@@ -27,7 +27,7 @@ because it drops notes that do not help, which is a larger win in the turn's con
 ranking. It costs a full cortex generation per recall, so the default stays `raw`. **Two claims of
 the audited entries did not hold.** Both name `_inference_messages` in `engine.py` as the caller,
 a method that no longer exists (it is `MemoryRecaller.recall` in `recall.py` for this port, still
-`async`, so the substance held); and neither noticed that **`select` did not carry the query**, so
+`async`, so the substance held); and neither recorded that **`select` did not carry the query**, so
 the widening was three changes rather than two, which is the one place their cost estimate was
 too small. Still open here: a **cross-encoder** rank, which is the other form of a model reranker
 and wants a scoring-model port rather than a chat completion, so it is a new adapter and not a
@@ -40,7 +40,7 @@ under it** ([ADR-0038](../../adr/ADR-0038-ranked-recall.md) dropped-candidate ad
 was filed as fix-when-it-bites against a trail nobody was reading yet; what changed is that
 `CORTEX_MEMORY_RECALL` ships as `judge`, which is measured returning 1.17 notes where the cosine
 returned 5, so the recall trail was thinnest exactly where most of the pool now disappears.
-**The stated obstacle is real and answers itself.** There is no `SPREAD`/`SWEEP` key for a
+**The stated obstacle is real, and it settles what the line can carry.** There is no `SPREAD`/`SWEEP` key for a
 candidate that never joined a kept set, and there is no `VERDICT` key either, since the judge
 leaves an unhelpful note out of its order rather than scoring it low; under `ECHO` and `EMBER` a
 key could be computed after the fact, which is not the same as having one, a `Ranking` carrying
@@ -50,12 +50,12 @@ cosine and omits the key that does not apply. The line now carries
 `dropped`, one id and score per candidate the rank passed over, and `dropped_omitted`, so an id
 in neither `hits` nor `dropped` was never a candidate at all, which is the distinction an
 investigation actually arrives with and the one a pool *count* could never draw. **What it
-deliberately cannot say is why**: a rank has an opinion on record only about what it kept, so the
+deliberately cannot say is why**: a rank records a judgment only about what it kept, so the
 trail is an account of what was available. **Bounded at 20**, the whole pool a default deployment
 fetches (`DEFAULT_RECALL_K` 5 at `pool_factor` 4), so a shipped line never truncates and the
 bound bites only on a wider over-fetch, where a line growing with the pool would make the trail
 the thing worth turning off; what it cuts is the tail of the store's own order and the count of
-what it cut rides the line. Text is absent structurally rather than by the sink's restraint,
+what it cut rides the line. Text is absent structurally rather than by the sink omitting it,
 `DroppedCandidate` having no field that could hold any. Hexagonal placement is the core's
 `dropped_candidates(pool, ranking)` for the difference and the bound, the sink for the emission
 and nothing else. **Cost correction:** the entry priced nothing, and the shape it implied (a key

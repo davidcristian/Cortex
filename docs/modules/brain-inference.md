@@ -13,10 +13,10 @@ No orchestration, no session state (the one hard rule). The core keeps talking o
 **Three modules, split by the direction a value travels.** `request.py` maps core values onto
 the wire, `decode.py` maps the wire back, and `backend.py` keeps what neither can own: the lease,
 the HTTP call, and the order events leave in. The split happened when the cadence arm took
-`backend.py` to the 300-line cap. A fourth module, `lever.py`, is not on that axis at all: it
-asks a server one question before any request is built (below). The three mapping modules are
-package-internal but not underscored, a leading underscore being exactly the thing that would
-forbid the adapter from importing them.
+`backend.py` to the 300-line cap. A fourth module, `lever.py`, sits on no such axis: it asks a
+server one question before any request is built (below). The three mapping modules are
+package-internal but carry no leading underscore, since that prefix marks a module as private to
+the one that defines it and `backend.py` imports all three.
 
 **Public contract** (everything importable from `cortex_inference`; `__all__` is the API):
 
@@ -33,7 +33,7 @@ forbid the adapter from importing them.
      OpenAI `tool_calls` array, and a `TOOL` result→`{role: "tool", tool_call_id, content}`.
      A `TOOL` message carrying `images` (ADR-0029) emits `content` as an OpenAI
      **content-parts array** instead, and a tool message is the only one that can carry them
-     (`Message` refuses images on every other role precisely because this mapping would drop
+     (`Message` rejects images on every other role precisely because this mapping would drop
      them): one `{type: "text"}` part followed by one
      `{type: "image_url", image_url: {url: "data:<mime>;base64,…"}}` part per image. Measured
      against the real cortex: a `role: "tool"` message in that form is accepted inside a full
@@ -58,7 +58,7 @@ forbid the adapter from importing them.
      `timings` object, read from `predicted_per_second` and `predicted_n` (ADR-0030 spill-watch
      addendum). On build `b10298-15586e2d7` exactly one chunk of a stream carries it, the last,
      and it arrives unasked, so no request changed to get it. Timings are read **before** the
-     chunk's `choices` are, so a build closing on `{"choices": []}` is still heard. The event is
+     chunk's `choices` are, so a build closing on `{"choices": []}` is still read. The event is
      emitted after the text it describes, a rate being unknowable before the tokens are counted.
   - **The two closing events are independent.** They ride the same final chunk on this build but
     come off different parts of it, the stop off the first choice and the cadence off the chunk,
@@ -81,8 +81,8 @@ forbid the adapter from importing them.
 (ADR-0005 request-lever addendum). `GenerationBounds.trace_tokens` renders as llama.cpp's
 `reasoning_budget_tokens`, a sampler the engine reads off the body and falls back to the tier's
 `--reasoning-budget` for where the request names nothing. It is the half of the thinking lever a
-request shape cannot overrule, where the `chat_template_kwargs` half can. But a build that does
-not know the key **ignores it in silence**, so the adapter carries it only when `trace_lever` is
+request shape cannot overrule, where the `chat_template_kwargs` half can. A build that does not
+parse the key **ignores it without any error**, so the adapter carries it only when `trace_lever` is
 true, which the composition root decides once from `CORTEX_INFERENCE_TRACE_LEVER`
 (`auto`/`on`/`off`). Two rules hold it in place, both pinned by tests:
 
@@ -92,15 +92,16 @@ true, which the composition root decides once from `CORTEX_INFERENCE_TRACE_LEVER
   setting three shipped bounds depend on.
 
 **`reads_a_trace_budget(endpoint, model, client)` is that capability read**, and the package
-exports it beside the adapter, along with `TRACE_LEVER_PROBE_TIMEOUT_S`, the leash the composition
-root gives the client it hands in. One POST carrying an out-of-range budget: a build that parses the key
-range-checks it and refuses by name (HTTP 400), and a build that does not know it answers the
-completion (HTTP 200). Measured 2026-08-29 against two real builds one minute apart,
-`b10666-4e97ac86e` refusing and `b9870-2d973636e` answering, and each build's behaviour under the
-key matching its own verdict on the one cell that separates them. Every failure is a no: unreachable, another status, or a 400 that does not name
-the key all leave the request carrying no budget, which is the request this repo sent before the
-key existed. It is asked **once**, at wiring, because the answer is a property of a binary, where
-the vision probe beside it re-asks forever because its answer is a property of an argv.
+exports it beside the adapter, along with `TRACE_LEVER_PROBE_TIMEOUT_S`, the timeout the
+composition root gives the client it hands in. It sends one POST carrying an out-of-range budget: a
+build that parses the key range-checks it and rejects it by name (HTTP 400), and a build that does
+not parse it answers the completion (HTTP 200). Measured 2026-08-29 against two real builds one
+minute apart, `b10666-4e97ac86e` rejecting and `b9870-2d973636e` answering, and each build's
+behaviour under the key matched its own verdict on the one cell that separates them. Every failure
+reads as absent: unreachable, another status, or a 400 that does not name the key all leave the
+request carrying no budget, which is the request this repo sent before the key existed. The probe
+runs **once**, at wiring, because the answer is a property of a binary, where the vision probe
+beside it repeats because its answer is a property of an argv.
 
 **A non-2xx quotes the server.** `raise_for_status` alone would report a bare status, because
 the response is streamed and its body is never read, which makes the most likely
@@ -121,8 +122,8 @@ with the cause chained:
   caught as `ModelManagerError` and re-raised, so the core sees only `InferenceError`;
 - any transport or non-2xx status is caught as `httpx.HTTPError` and re-raised, with
   `_transport_failure` naming a **stall** apart from a dead server: an `httpx.ReadTimeout` means
-  the client's ceiling fired on a server that took the request and then went quiet, which sends
-  an operator somewhere else entirely than "nothing answered" does;
+  the client's stall ceiling fired on a server that accepted the request and then stopped sending,
+  which points an operator at a different problem than "nothing answered" does;
 - a malformed streaming chunk (bad JSON, unexpected shape, non-string content) raises
   `InferenceError` directly, since a silently skipped chunk would drop reply text or a tool call,
   the same fail-loud stance the session store takes on corrupt records;
@@ -133,18 +134,20 @@ with the cause chained:
   and the `DecodeStop` has already been yielded when this raises, so a caller holding a
   `StopLedger` can pair the two into "the run was cut" rather than "the backend died". It is a
   subclass, so every `except InferenceError` still catches it;
-- **the decode cadence is the one exception, and it fails quiet.** A `timings` object that is
+- **the decode cadence is the one exception, and a malformed one is dropped without an error.** A
+  `timings` object that is
   missing, not an object, missing either field, holding a non-number, holding a bool (which is an
   `int` in Python and would otherwise arrive as 1.0 tok/s), or holding a negative yields no
   cadence and changes nothing else about the stream. It is a diagnostic that arrives after the
-  answer, so killing a finished reply over it would trade what the user asked for against what the
-  operator would have liked, and the core's `CadenceWatch` already reads "no cadence" as its own
-  answer rather than as a healthy one.
-- **the stop reason is the third stance, and it fails into a value.** A `finish_reason` outside
+  answer, so raising over it would discard a completed reply for the sake of a measurement, and
+  the core's `CadenceWatch` already reads "no cadence" as its own answer rather than as a healthy
+  one.
+- **the stop reason is the third stance, and an unreadable one becomes a value.** A
+  `finish_reason` outside
   the three words above, or one that is not a string at all, is neither raised nor dropped: it
-  crosses as `StopReason.UNKNOWN`. Raising would cost the reply as above, and silence would file
-  a reason this core could not read under the same heading as a reason nobody offered, which is
-  the exact conflation the arm exists to remove.
+  crosses as `StopReason.UNKNOWN`. Raising would cost the reply as above, and dropping it would
+  file a reason this core could not read under the same heading as a reason nobody offered, which
+  is the exact conflation the arm exists to remove.
 
 **Invariants.**
 - Stateless per call: nothing about a turn outlives `stream`; no KV or context is held
@@ -165,8 +168,8 @@ with the cause chained:
   ports-before-adapters gate: `tests/cadence_contract.py` for the decode rate,
   `tests/stop_contract.py` for the stop reason, and `tests/stream_contract.py` for the completion
   those two close, each run twice by its `test_*_contract.py`. All three feed the adapter leg a
-  real llama-server body, so passing means the parser found the fact in bytes nobody shaped for
-  it. The stop's live twin is `tests/test_finish_reason_live.py`
+  real llama-server body, so a pass means the parser found the fact in bytes that were not written
+  for the test. The stop's live twin is `tests/test_finish_reason_live.py`
   (`integration`-marked), which caps a real request at eight tokens and follows the answer through
   the shipped `PlacedAttempt`. `tests/test_cut_tool_call_live.py` is the other half of that live
   pair: it caps a request while the model is writing a tool call's `arguments`, asserts the server
@@ -174,40 +177,43 @@ with the cause chained:
   `TRUNCATED` outcome (ADR-0005 tool-call-cut addendum). It needs a server started the way a
   subagent tier is, deliberation off at the server, since the attempt sends no `thinking` of its
   own.
-- **`tests/test_thinking_switch_live.py` is the probe for whether a deployment honours
-  `thinking=False` at all** (`integration`-marked, ADR-0005 switch-is-advisory addendum). One
-  prompt four ways against one endpoint, plain and carrying `REPLY_ENVELOPE`, each with the switch
-  and without it, answering per request shape rather than per tier because that is how the answer
+- **`tests/test_thinking_switch_live.py` measures whether a deployment honours `thinking=False`
+  at all** (`integration`-marked, ADR-0005 switch-is-advisory addendum). It sends one prompt in
+  four shapes against one endpoint, plain and carrying `REPLY_ENVELOPE`, each with the switch
+  and without it, and reports per request shape rather than per tier because that is how the answer
   came out: run over every chat entry of the lineup, all of them honour it plain and the two
   gemma-4-E entries deliberate straight through it under a `response_format`, the shipped E4B pick
-  on 4 draws in 5 and the E2B on 5. It wants a server started with
-  **neither** `--chat-template-kwargs` nor `--reasoning-budget`, both of those being the deployment
-  answering for the model, and it **asserts its control**: the arms that send no switch must
-  deliberate, or the prompt invited no thought and the run is thrown away rather than read. That
+  on 4 draws in 5 and the E2B on 5. It requires a server started with
+  **neither** `--chat-template-kwargs` nor `--reasoning-budget`, since either flag is the
+  deployment answering for the model, and it **asserts its control**: the arms that send no switch
+  must deliberate, or the prompt invited no thought and the run is discarded rather than read. That
   assertion is the whole difference between it and the two earlier readings of the same question.
   Each cell is drawn `CORTEX_THINKING_REPEATS` times, 1 by default and 5 or more for anything
   quoted as a tier's behaviour, since the cell that carries the finding is a split and not a
   constant. Ahead of the cells it reads the **rendered prompt** for all four request shapes off the
   server's own `POST /apply-template`, prints whether the template read the switch, and asserts
-  that the two shapes carrying one switch render the same prompt: that is what says a difference
-  between their cells is the schema's doing and not a difference of prompt, and it is also the
-  **predictor**, an entry whose template answers the switch with a thought already closed holding
-  under a schema where one that drops the block and adds nothing does not, on every entry measured
+  that the two shapes carrying one switch render the same prompt. That assertion is what
+  establishes that a difference between their cells comes from the schema rather than from the
+  prompt, and the rendering is also the **predictor**: on every entry measured, an entry whose
+  template answers the switch with an already-closed thought block holds under a schema, and one
+  whose template drops the block and puts nothing in its place does not
   (ADR-0005 switch-is-advisory addendum, mechanism and lineup sections). Both renderings are now
   **recorded with the cells**, in one JSON sample per tier (`CORTEX_THINKING_OUT`,
-  `CORTEX_THINKING_TAG`), and `just switch-tail` is what reads the prediction back against the
-  measurement, refusing to publish a run where the two disagree. The probe itself still judges
-  nothing about them, for the reason the envelope harness computes no rates: an integration-marked
-  file is code no gate runs, so a rule asserted in one is a rule nothing red-greens (ADR-0005
-  rendered-tail addendum). The reading lives on the prompt's **tail** rather than on the two
-  renderings differing, the failing pick's pair differing at the front and ending byte identically
-  (ADR-0005 template-probe addendum).
-- **`tests/test_trace_budget_live.py` is its sibling for the lever that holds**
+  `CORTEX_THINKING_TAG`), and `just switch-tail` compares the prediction against the
+  measurement and fails instead of publishing a run where the two disagree. The probe itself
+  asserts nothing about them, for the reason the envelope harness computes no rates: an
+  integration-marked file is code no gate runs, so a rule asserted in one is a rule nothing
+  enforces (ADR-0005 rendered-tail addendum). The prediction is read off the prompt's **tail**
+  rather than off the two renderings differing at all, because the failing pick's pair differs at
+  the front and ends byte identically (ADR-0005 template-probe addendum).
+- **`tests/test_trace_budget_live.py` measures the same question for the budget**, the half of the
+  lever that holds
   (`integration`-marked, ADR-0005 request-lever addendum). It asks the endpoint whether the engine
   parses a per-request trace budget, then draws the one cell the switch loses, a constrained reply
-  into the fixed envelope, with the budget and without it. It wants a server started with neither
-  reasoning flag for the switch probe's reason, and it **asserts the same control**: the arm that
-  sends no budget must deliberate, or the tier already bounds its trace and the run says nothing.
+  into the fixed envelope, with the budget and without it. It requires a server started with
+  neither reasoning flag, for the switch probe's reason, and it **asserts the same control**: the
+  arm that sends no budget must deliberate, or the tier already bounds its trace and the run says
+  nothing.
   `CORTEX_TRACE_REPEATS` sets the draws, 1 by default. Measured on the shipped subagent pick at
   `-ngl 0` on `b10666-4e97ac86e`: the switch alone deliberated on **17 of 20** and returned an
   empty capped reply on every one of them, and `trace_tokens=0` held on **20 of 20**. The leak the
@@ -215,15 +221,16 @@ with the cause chained:
   (`{"reply": "thought"}`, 1 of 58 budgeted draws, and 0 of 20 against a tier carrying the same
   sampler as a flag), so the file prints a leak count rather than asserting on one and the count
   reads two shapes.
-- **What the streaming list holds is what a stream owes, said without saying when.** Eleven checks
+- **The streaming contract states what every stream owes, and never when it owes it.** Eleven
+  checks
   over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
   tool, a completion with nothing to say, a backend that cannot answer): the reply is its deltas
   joined in arrival order; the thinking crosses as its own kind and is over before the reply
-  starts; a deliberation that arrived despite a request asking for none crosses all the same, an
-  implementation reporting what its deployment did rather than filtering it into the silence the
-  caller asked for (ADR-0005 switch-is-advisory addendum); a trace that arrived despite a request
+  starts; a deliberation that arrived despite a request asking for none crosses all the same, so an
+  implementation reports what its deployment did rather than suppressing it to match the request
+  (ADR-0005 switch-is-advisory addendum); a trace that arrived despite a request
   budgeting it to zero tokens crosses the same way, which is a separate obligation because a count
-  reads like an order where a switch reads like a request (ADR-0005 request-lever addendum); a
+  reads as a limit where a switch reads as a request (ADR-0005 request-lever addendum); a
   tool call crosses whole; a tool call
   never precedes the words beside it; the two
   closing events arrive at most once each with the stop first and both after what they describe; a
@@ -236,13 +243,14 @@ with the cause chained:
   fifth world: both legs' builders already stand for a deployment serving `CONTRACT_MODEL` alone,
   this adapter because its fixture's `SingleResidentModelManager` holds that one resident and the
   twin because it is constructed `serves=[CONTRACT_MODEL]`, so asking either for `UNSERVED_MODEL`
-  is the world the check wants. This adapter refuses before any request leaves the process, the
+  is the world the check requires. This adapter fails before any request leaves the process, the
   manager's `ModelUnavailableError` crossing as `InferenceError`; the port asks only that no reply
-  arrive for an id the implementation could not have served, so a backend fronting a router taking
-  the refusal off the wire would pass the same check (ADR-0001 served-model addendum).
+  arrive for an id the implementation could not have served, so a backend fronting a router that
+  reads the rejection off the wire would pass the same check (ADR-0001 served-model addendum).
 
 **Where this adapter legitimately differs from the core's twin, and so what the shared list does
-not say.** Three, each decided when the streaming list was written rather than left implicit:
+not say.** There are three differences, each decided when the streaming list was written rather
+than left implicit:
 
 - **A delta carrying no text is permitted by the port and dropped by this adapter.** llama-server
   opens with a role-only chunk and closes with an empty delta, and neither is anything a consumer
@@ -250,15 +258,16 @@ not say.** Three, each decided when the streaming list was written rather than l
   handed, an empty chunk included, and the core is written for that (`turn_output` drops a delta
   the guardrail empties, and `ThinkingChannel` drops an empty status because a blank one would
   clear the overlay's chip). The list therefore never asks an implementation to filter, and the
-  adapter's own suite holds this one: making `_chunk_events` emit a delta per chunk reddens 22
-  cases there and exactly one shared check, for an ordering reason rather than an emptiness one.
+  adapter's own suite holds this one: making `_chunk_events` emit a delta per chunk makes 22 cases
+  there fail, along with exactly one shared check, and that shared check fails for an ordering
+  reason rather than an emptiness one.
 - **Tool calls trail both closing events here**, because a call is only whole once the stream is
   over. The port asks only that a call never precede the words beside it, so a future backend
   whose engine hands over each call as it completes would still pass, which is why the check is
   written about order against the text rather than about position in the stream.
 - **The twin's script advances per `stream` call while this adapter is stateless per call**, which
-  is what makes a tool loop scriptable. So no check asks an implementation to answer twice the
-  same way; a sampled model could not, and unlike `Embedder` this port never promised it.
+  is what makes a tool loop scriptable. No check therefore asks an implementation to answer twice
+  the same way; a sampled model could not, and unlike `Embedder` this port does not require it.
 
 **Dependencies.** cortex-core (the `InferenceBackend`/`ModelManager` ports and typed
 errors), httpx (the async HTTP client). The composition root

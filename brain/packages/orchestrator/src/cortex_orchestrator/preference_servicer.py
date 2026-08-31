@@ -4,9 +4,9 @@ Its own mixin beside ``session_servicer`` (the same line-cap split), holding the
 RPCs ``BrainService`` mixes in. Each is a thin binding onto the ``PreferenceStore``: no policy, no
 interpretation of a value, and ``UNAVAILABLE`` on a store failure (the read-path precedent).
 
-With **no store wired** both answer benignly rather than erroring, the ``ScheduleStore`` precedent:
-a brain with no preference record is indistinguishable from one whose record is empty, and a body
-that cannot persist a choice should still apply it for the session rather than refuse it.
+With no store wired both answer benignly rather than erroring, following the ``ScheduleStore``
+precedent: a brain with no preference record is indistinguishable from one whose record is empty,
+and a body that cannot persist a choice should still apply it for the session.
 """
 
 import grpc

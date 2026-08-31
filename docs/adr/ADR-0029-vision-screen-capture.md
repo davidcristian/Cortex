@@ -5,7 +5,7 @@
 
 ## Context
 
-Slice 10 gives the cortex eyes: "what's on my screen?" answered in the overlay. The ROADMAP
+Slice 10 lets the cortex see the screen: "what's on my screen?" answered in the overlay. The ROADMAP
 scoped it as a `ScreenCapture` Windows backend plus a capture flowing brain-ward over the seam
 into the multimodal cortex. That is the third host OS capability after `AudioControl`
 (ADR-0023) and `Notify` (ADR-0025), and the first one whose *return value* is a payload rather
@@ -41,7 +41,7 @@ Six facts shape the design.
 
 The design was produced by a multi-lens design pass (six mapping agents over the affected
 subsystems, four independent designs from an architecture, security, systems, and delivery
-lens, then a synthesizing judge), and every load-bearing claim below was then re-measured
+lens, then a synthesizing judge), and every claim the decisions rest on was then re-measured
 directly against the real cortex artifact. The measurements are recorded first, because five
 decisions rest on them.
 
@@ -250,7 +250,7 @@ being chosen is whether "read this email, then look at my screen" should be poss
 An image lives on a `Role.TOOL` message in the tool loop's working list and dies with the turn.
 `Message.__post_init__` raises `ValueError` when `images` ride any role but `TOOL` (narrowed from
 "a persistable role" on 2026-07-19: SYSTEM is never persisted, but the inference adapter serialises
-images on a tool message only, so an image there would be dropped in silence). Both `SessionStore` implementations raise `SessionStoreError` on `append` of an
+images on a tool message only, so an image there would be dropped with no error). Both `SessionStore` implementations raise `SessionStoreError` on `append` of an
 image-bearing message, pinned by a new shared contract check. The Redis record schema stays at
 `v: 1`. `GetSessionMessages`, `ListSessions`, `summarize_ends`, `CharBudgetHistoryWindow`, and
 `SessionStore.delete` are untouched. Retention is zero, so there is nothing for `delete` to
@@ -336,7 +336,8 @@ pub trait ScreenCapture: Send + Sync {
 }
 ```
 
-Synchronous because the OS is, and an async signature would wrap a blocking call in a lie;
+Synchronous because the OS is, and an async signature would present a blocking call as one that
+does not block;
 getting it off the async worker is the server's job via `off_worker`. `Send + Sync` because the
 `BodyService` server holds the backend across async tasks, which is why `AudioControl` and
 `Notify` carry the bound and single-threaded `Hotkey` does not. It goes in a submodule because
@@ -620,7 +621,7 @@ which is the only side that knows what is on screen.
   inside the process holding the durable memory store, and it violates core purity.
 - **Add `display_index`, `region`, or `format` fields now, since one regeneration is cheaper than
   three.** Under proto3 an older peer silently ignores an unknown request field, so a knob the v1
-  body does not honor is a silent lie about a constraint the brain believes it set.
+  body does not honor is a constraint the brain believes it set and the body never applies.
 - **Rely on `max_edge` as the sole size defense.** Same reason: the receiver must verify after
   receipt.
 - **Raise the gRPC limit at all three call sites.** Only one direction carries pixels here.
@@ -629,7 +630,8 @@ which is the only side that knows what is on screen.
   `--mmproj` decision somewhere it can disagree with it, which is why the probe exists.
 - **Ship capture as an MCP sidecar tool.** Built-ins are cortex-only by construction; an MCP tool
   would reach subagents unless excluded by policy, and no subagent model on the mount has a
-  projector. Structure beats policy. Separately, `McpToolRegistry.invoke` joins only text blocks,
+  projector, so the built-in's structural exclusion is the stronger boundary. Separately,
+  `McpToolRegistry.invoke` joins only text blocks,
   so an image-bearing MCP result would arrive as an empty non-error string, a fail-silent defect.
 - **Hide the overlay, capture, then show it.** It flickers, blanks the window the user is typing
   into, and races the handler thread.
@@ -639,11 +641,11 @@ which is the only side that knows what is on screen.
 
 ## Risks
 
-1. **Legibility is the headline risk and is not disproved.** The projector tiles to a bounded
+1. **Legibility is the largest risk and is not disproved.** The projector tiles to a bounded
    token budget, so a 4K desktop downscaled to 1600 px may render small text unreadable. Expect
    layout-level answers to be good and small-text answers to be unreliable. The fix is region or
    window capture, not a bigger PNG, and the first ordered mitigation (`--image-max-tokens`) is a
-   deployment flag with no code change. This is the number most likely to want changing after the
+   deployment flag with no code change. This is the number most likely to need changing after the
    first real Windows session, and it is one env var.
 2. **The gating decision is a genuine fork, and the residual is same-turn.** Ungated means an
    injected tool result can drive a capture **in the very turn it arrived in**, with the injection
@@ -764,8 +766,8 @@ gate, the opaque escalation and the memory block, exactly as decision 4 states.
 **Worst-case bytes through the shipped policy**, incompressible noise, confirming measurement 5
 within rounding: 4.32 MB at 1600x900, and 4.28 MB and 3.99 MB for 2560x1440 and 3840x2160 screens
 downscaled to the 1600 default. Two things follow. A legitimate capture really does exceed gRPC's
-unconfigured 4 MiB receive default (4,194,304 bytes), so the raised channel option is
-load-bearing rather than precautionary. And a 4K screen at the **4096** edge clamp encodes to
+unconfigured 4 MiB receive default (4,194,304 bytes), so the raised channel option is required
+rather than precautionary. And a 4K screen at the **4096** edge clamp encodes to
 5.89 MB, which clears the 6 MiB ceiling by only 0.4 MB: that narrow margin is exactly why the
 ladder exists, and it is the number to re-measure if either constant moves.
 
@@ -831,14 +833,14 @@ mattered most were both about the boundary between pixels and a model swap.
 
 **Rejected, with evidence.** One audit reported the brain gate as nondeterministic, on two failing
 runs out of thirty-one. Both failure sets are exact signatures of source mutations: the first three
-tests are precisely what `Trust.UNTRUSTED` to `TRUSTED` in `screen_tool.py` reddens, and the second
-pair precisely what neutralising `ImagePart`'s byte-budget check reddens (both re-measured
+tests are precisely what `Trust.UNTRUSTED` to `TRUSTED` in `screen_tool.py` fails, and the second
+pair precisely what neutralising `ImagePart`'s byte-budget check fails (both re-measured
 2026-07-19). Both happened on the first run of that session's loop, while sibling audits were
 applying in-place mutations to the same worktree, and seven consecutive full-suite runs on a quiet
 tree are green. The lesson is about the harness, not the gate: a mutation probe belongs in its own
 worktree.
 
-Every fix carries a mutation proof naming the test it reddens, and the three-place refinement
+Every fix carries a mutation proof naming the test it fails, and the three-place refinement
 records for what it opened are in `docs/refinements/index.md#vision` with their index lines.
 
 
@@ -855,8 +857,8 @@ this slice owed only its host-side Windows pass. They are:
    ([docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager), where
    it sits as fix-when-it-bites beside token-budget capping); what is unmeasured is whether a
    vision turn is the case that needs it.
-2. **`llama-server`'s `mmproj`-less error body text.** This one is load-bearing rather than
-   cosmetic: it is on this ADR's own assumptions list, and the bounded 300-character non-2xx
+2. **`llama-server`'s `mmproj`-less error body text.** This one is not cosmetic:
+   it is on this ADR's own assumptions list, and the bounded 300-character non-2xx
    excerpt was built precisely so a forgotten `--mmproj` reads as its own hint instead of a bare
    status. The excerpt's whole value therefore rests on a string nobody has read.
 
@@ -971,7 +973,7 @@ wrong thing, since it can only ever compare a tree with itself.
 5. **Fail closed, because the alternative is a scan that agrees with itself forever.** A regex
    over two files fails **open** by default: rename the constant and the scan finds nothing and
    passes. Here every way of not establishing a value is a fault with exit 1: a missing file, an
-   unreadable or non-UTF-8 one, a suffix in a language the scan does not know, a name that is
+   unreadable or non-UTF-8 one, a suffix in a language the scan does not read, a name that is
    absent, a name declared twice (ambiguous, so nothing can be compared), a value that will not
    reduce, and a registry entry naming fewer than `MIN_SITES` sites. The suite additionally runs
    the registry against the real trees (`test_the_repo_itself_is_tied`) and refuses an entry in
@@ -1036,11 +1038,11 @@ and answers with an empty `content`. The shipped request carries no `max_tokens`
 `_build_payload` emits `model`, `messages`, `stream`, and then `tools` and `response_format` only
 when present, and the shipped server reports `n_predict: -1`, so nothing bounds the reply. Ten image
 runs across two screens each returned a reasoning trace and a non-empty reply. That absence is
-load-bearing rather than lucky, which was checked rather than argued: the identical payload with
+deliberate rather than lucky, which was checked rather than argued: the identical payload with
 `max_tokens: 64` comes back `finish_reason: "length"` carrying 247 characters of reasoning and an
 empty `content`, while 200, 400 and uncapped answer normally. The property is already held by the
 suite rather than by this record, and that too was measured: planting a `max_tokens` in
-`_build_payload` reddens `test_streams_content_deltas_and_stops_on_done` and
+`_build_payload` fails `test_streams_content_deltas_and_stops_on_done` and
 `test_offers_tools_and_serializes_the_tool_calling_conversation`, both of which pin the exact
 request body.
 
@@ -1086,7 +1088,7 @@ live-probe-refresh deferral) and a forced `CORTEX_VISION=on` as the ways in.
 `CORTEX_INFERENCE_ENDPOINT_NO_MMPROJ`, and asserts the status prefix, that the quoted body still
 parses as whole JSON rather than a cut-off prefix, and that the hint names the `mmproj`. It was
 proved able to fail before being trusted: run against the projector-loaded server it fails with
-`DID NOT RAISE InferenceError`. If it ever reddens on a build bump, the answer is to re-measure and
+`DID NOT RAISE InferenceError`. If it ever fails on a build bump, the answer is to re-measure and
 record the new string, since the excerpt bound is sized by it.
 
 **One correction came out of proving that, and it is why the canary carries a whole conversation.**
@@ -1293,15 +1295,15 @@ screen says, with the **user** asking rather than the picture. That arm is silen
 `chrome` and fires on `app`, which is the same ordering the corpus itself produced: the rendering
 where the payload sits inside a legitimate message is the one this model is readiest to act on, and
 the loud one claiming administrator authority is not. The earlier version of this row asserted on
-that arm and could therefore never pass, which is a gate that cannot fail wearing the other face;
+that arm and could therefore never pass, which is a gate that cannot fail in the other direction;
 it was redesigned before anything was concluded from it.
 
 **The two arms differ by the defence and by nothing else**, which is a property of the serialised
 request rather than of the model, so it is checked in CI with no GPU. `test_image_arm.py` asserts
 that the picture is byte-identical between the arms, that it rides as a `data:image/png;base64,`
 part in both, and that the framed tool message is the control's text wrapped in the fence. Both
-were proved able to fail: dropping `images` from the control's message reddens two of them, and
-building the framed arm without `result_message` reddens the third.
+were proved able to fail: dropping `images` from the control's message fails two of them, and
+building the framed arm without `result_message` fails the third.
 
 **The corpus cannot silently mangle a payload.** The font's coverage is asserted against what is
 actually drawn, and that check failed the first time it ran, on a real hole: two payloads carry a
@@ -1526,7 +1528,7 @@ falsifiable in both directions, and the price of a legitimate addition is one in
 `couplings.py`, on the line that already carries why the coupling exists. The objection that a
 gate failing on every benign addition is a gate people disable is real, and it is answered by the
 field being opt in rather than by weakening the comparison: a count is written only where losing
-one occurrence is a defect rather than a design change, so a stylesheet growing a rule reddens
+one occurrence is a defect rather than a design change, so a stylesheet growing a rule fails
 nothing unless someone deliberately declared those rules a closed set. A count below 1 is refused
 outright, zero being a mention that asks the value to be **absent**.
 
@@ -1645,7 +1647,7 @@ above added has no work to do here.
 
 ## Addendum (2026-08-06): what a 4K desktop is actually legible at, and what the knob costs
 
-The headline risk this ADR shipped with is that a 4K desktop downscaled to 1600 px renders small
+The largest risk this ADR shipped with is that a 4K desktop downscaled to 1600 px renders small
 text unreadable. It was a prediction, argued from the 266-token saturation measured before
 deciding. It has now been measured, and the prediction was right about the failure and wrong about
 one of its own premises. The first mitigation was written down as "a deployment flag with no code
@@ -1922,7 +1924,7 @@ exists.
 **The outcome is a bit rather than a taxonomy.** The indicator has exactly two honest rungs, and
 the difference between "the user declined" and "the body was unreachable" is a fact about the
 assistant's plumbing rather than about the user's privacy. It could not be told honestly anyway:
-`USER_DECLINED_MSG` is also what a missing confirmer returns, so a "declined" arm would be a lie
+`USER_DECLINED_MSG` is also what a missing confirmer returns, so a "declined" arm would be wrong
 on the fail-closed path. And it would change nothing rendered, since every non-success outcome has
 to leave the ring exactly where it was (below). So the bit is `ToolInvocation.ok`, the audit
 trail's own verdict read off the same result the audit line was written from, which means the
@@ -2043,7 +2045,7 @@ refuses it in `invoke` while the answer is no. `PropsVisionProbe` is the real ad
 `GET /props`, and `build_vision` is the root's builder: no body or `off` returns no bounds at all,
 `on` returns bounds and no probe (the owner has fixed the answer), `auto` returns both.
 
-Four things about the shape are load-bearing.
+Four properties of the shape carry the decision.
 
 **Both points, not just the advertisement.** A turn lists its tools once and then runs rounds
 against that list, so the advertisement is always a little older than the call it authorizes.
@@ -2125,8 +2127,8 @@ nothing on the brain side reads the code: `GrpcBodyGateway.capture_screen` catch
 sentence, and the sentences are entirely different. A refused capture reads "the capture is too
 large for the seam: N bytes", a broken backend "screen capture backend error: ...", an unanswered
 body "Deadline Exceeded", a switched-off host "screen capture is disabled on this host". The
-distinction the entry wants already reaches the only reader there is. A status code is worth adding
-for a caller that would branch on it, and there is none.
+distinction the entry asks for already reaches the only reader there is. A status code is worth
+adding for a caller that would branch on it, and there is none.
 
 What is genuinely wrong on that path is a **prefix**. `CaptureScreenTool.invoke` announces every
 failure as `could not reach the body to capture the screen`, and the body was reached in all but
@@ -2181,9 +2183,9 @@ at 2048 px. The margin behind it is a fifth rather than a quarter.
 **The harness was wrong in the other direction while finding this**, which is the part worth
 copying. Its verdict compared the returned width against `BRAIN_EDGE`, so the first run called the
 1920x1080 row a fired ladder and the assertion failed. Nothing had fired: a display inside the
-bound is returned untouched, and the test was asking for an upscale the policy explicitly refuses.
+bound is returned untouched, and the test was asking for an upscale the policy explicitly rejects.
 It compares against `min(the display's long edge, the requested edge)` now, which is the size the
-policy should have produced. A measurement gate that reddens for the wrong reason would have been
+policy should have produced. A measurement gate that fails for the wrong reason would have been
 read as a defect in the capture path and sent the next reader to rewrite the ladder.
 
 The three records for this re-read are [docs/refinements/index.md#vision](../refinements/index.md#vision), its
@@ -2264,10 +2266,10 @@ the alias holding the argument because that is the line a future reader would wi
 
 `test_a_delegated_step_reaches_the_wire_announced_and_unsettled` drives the same real path the
 measurement did and asserts the wire's activities are `["spawn_subagents", "read"]` against
-outcomes of `["spawn_subagents"]`. Adding the `StepOutcome` arm to `subagent_attempt.py` reddens
+outcomes of `["spawn_subagents"]`. Adding the `StepOutcome` arm to `subagent_attempt.py` fails
 it (`assert ['read', 'spawn_subagents'] == ['spawn_subagents']`), which is the point: the reversal
 is cheap enough that it could land as a tidy-up, and it would make three published contracts wrong
-in the same commit. The test is the thing that says so out loud.
+in the same commit. The test is what records that.
 
 ### What this does not do, and what would reopen it
 
@@ -2476,7 +2478,7 @@ that display, which is the `NoTarget` error rather than a wrong picture. It does
 taint, the opaque bit, retention, or the byte ceiling.
 
 Three things are the brain half's, and they are named here so the next commit does not have to
-rediscover them. `describe()`'s "downscaled from WxH" clause reads oddly for a crop and wants
+rediscover them. `describe()`'s "downscaled from WxH" clause reads oddly for a crop and needs
 wording that distinguishes a window from a shrunk screen. `RepeatSalience`'s free bound on
 identical dispatches stops being free the moment the tool takes an argument, since two captures
 with different targets are no longer byte-identical calls. And the model has to be told what the
@@ -2595,7 +2597,7 @@ makes each distinct spelling its own identity.
 Four is defensible on what the second target is. Two pictures of the window and two of the screen
 is what a model that legitimately re-looks does, each is still charged to the same
 `MAX_TOOL_DISPATCHES` pool and the same turn budget, and both are still bounded by the salience
-policy rather than by hope. The test says the number out loud
+policy rather than left open. The test states the number
 (`test_two_captures_per_target_is_what_a_loop_gets_now`) so the next person to add an argument here
 meets the arithmetic instead of rediscovering it.
 
@@ -2844,16 +2846,16 @@ confident pick and the data does support one:
 - The bare-desktop retry is unchanged, being the one recovery the model can act on and untouched by
   any of this.
 
-`_TARGET_HELP` carries the same two facts in schema-sized form, because a copy left behind is a
-lie the model still reads: the window is "cut out of the screen, so small text in it stays readable
+`_TARGET_HELP` carries the same two facts in schema-sized form, because a copy left behind would go
+on telling the model what this addendum corrects: the window is "cut out of the screen, so small text in it stays readable
 unless the window is very large, and nothing outside it is captured".
 
 **Held by a test rather than by this paragraph.** `test_the_steer_promises_only_what_the_window
 _crop_measurement_supports` asserts over **both** strings that neither says "full detail", that
 both name small text, and that the description carries the cost clause and the retry. It was proved
-able to fail three ways before being trusted: restoring "at full detail" reddens it, softening
-"shrunk exactly as the screen is" to "shrunk a bit" reddens it, and dropping the outside-the-window
-clause from `_TARGET_HELP` reddens it.
+able to fail three ways before being trusted: restoring "at full detail" fails it, softening
+"shrunk exactly as the screen is" to "shrunk a bit" fails it, and dropping the outside-the-window
+clause from `_TARGET_HELP` fails it.
 
 ### One more restatement was wrong, in a place nobody was looking
 
@@ -2943,7 +2945,7 @@ that trigger, because the form is cheap once the scan has somewhere to put it.
 ### The comparator reads registry order, and the collection goes last
 
 `Relation.MEMBER` joins `EQUAL` and `ORDERED`. Every site but the last declares a value; the last
-declares the collection that must carry all of them. Registry order is already load bearing for an
+declares the collection that must carry all of them. Registry order already decides an
 ordering, where the entry lists the bound before the ceiling it must sit under, so a membership
 listing the value before the set it belongs to reads the same way rather than inventing a second
 convention. A last site that declares a lone value is a fault and not a comparison: `in` over two
@@ -2958,7 +2960,7 @@ reads a declaration's own literal, and the result compared as a set so the write
 spacing decide nothing. A set literal is mutable and is not how this repo spells an allow-list; a
 multi-line spelling never reaches the reducer at all, a declaration being captured one line at a
 time; and a collection spelled in Rust or TypeScript does not reduce, no coupling in this repo
-having one. The reducer refuses what it does not understand rather than guessing, which is the same
+having one. The reducer rejects what it does not cover rather than guessing, which is the same
 policy that governs a right-hand side it cannot read, and the refusal is recorded as a limit with
 its own trigger rather than left to be discovered.
 
@@ -2972,7 +2974,7 @@ reads no files at all; the scan finds declarations and reports faults, and that 
 stylesheet, which is where the registry had been accumulating, leaving `couplings.py` with the
 vocabulary every entry is written in and the couplings that tie the body to the brain.
 `crosscheck.CONSTANTS` is the two halves read as one tuple, and nothing in the scan asks which half
-an entry is in, so a coupling can move house without the gate noticing.
+an entry is in, so a coupling can move between the two files without the gate noticing.
 
 ### Proved able to fail, twice, and proved newly able
 
@@ -3025,7 +3027,7 @@ the whole coupling exists for.
 share caps' handover and the thoughts marker's turn, so losing one is the drift rather than a design
 change and a third rule joining them is a registry line to correct rather than a silent widening.
 `var(--ease)` is a presence check: 52 transitions across unrelated features ride that curve, and a
-count over them would redden every time an unrelated rule is added, which is the churn the
+count over them would fail every time an unrelated rule is added, which is the churn the
 occurrences field was made opt in to avoid. That is the same division the three `[data-morphing`
 rules already have.
 
@@ -3162,7 +3164,7 @@ kinds meaning the body answered and said something.
 One consequence is worth stating plainly for an operator. A real host that is slower than 5 seconds
 on a volume read or a toast now fails that tool where it used to wait. The knob is the answer, the
 failure is typed and worded as an unreachable body, and the turn survives either way. This is the
-same trade the other direction took, and the same reason: a call that needs longer wants a longer
+same trade the other direction took, and the same reason: a call that needs longer gets a longer
 deadline, not an unbounded one.
 
 **Bounding is not repeating.** Nothing here retries. Capture stays attempted exactly once, for its
@@ -3195,7 +3197,7 @@ matters: a site retyped as `5` would go on agreeing with itself while the needle
 would report the coupling held. So a decimal becomes `values.Digits`, a one-field named tuple that
 compares as its characters and renders as them.
 
-`Digits` is its own type rather than a bare `str` for the same reason the reducer refuses what it
+`Digits` is its own type rather than a bare `str` for the same reason the reducer rejects what it
 cannot read: a decimal must not tie to a string literal that happens to spell the same characters,
 which is a comparison nobody wrote down and would be true by accident. The shape it accepts is
 digits, one point, digits, with `_` grouping either run the way it groups a product of integers. A
@@ -3226,7 +3228,7 @@ turn a retune into a rewrite of history, which is the opposite of what the recor
 split is the one that file's own first sentence had been describing since the overlay's half moved
 out: it held the vocabulary every entry is written in **and** the entries that tie the body to the
 brain. Those entries are now `scripts/seamcouplings.py`, leaving `couplings.py` as the vocabulary
-alone, and the registry is two data files over one grammar rather than one file wearing both hats.
+alone, and the registry is two data files over one grammar rather than one file doing both jobs.
 `crosscheck.CONSTANTS` is still the halves read as one tuple and nothing in the scan asks which file
 an entry came from.
 
@@ -3261,7 +3263,7 @@ The addendum above made the reducer textual, which was the right call and immedi
 side it could not reach: a number one place writes as `8.0` and another must write as `8`, because
 docker parses `mem_limit` as a size and refuses `8.0g`. Rendering the agreed value into a template
 reaches the first and cannot reach the second, and writing `8` into the registry beside `8.0` would
-be a second uncoupled copy wearing a gate's clothes.
+be a second uncoupled copy presented as a gate.
 
 So a `Mention` now carries a `Spelling`. `WRITTEN` is the default and what every mention registered
 before this used; `WHOLE` renders the same value with no fractional part. The second spelling is
@@ -3294,12 +3296,12 @@ Those entries are now `scripts/shippedcouplings.py`, and the name is the one the
 chosen: three of the six that moved call themselves a shipped default or a shipped deadline. The
 file that keeps the seam's name keeps the couplings that are one, `crosscheck.CONSTANTS` is the
 three parts read as one tuple in a fixed order, and nothing in the scan asks which file an entry
-came from, so a coupling still moves house without the gate noticing.
+came from, so a coupling still moves between files without the gate noticing.
 
 **The question that files an entry is written down**, because two of them could have gone either
 way. The brain's seam port is declared in Python, published by compose and dialled by two Tauri
 modules, and the seam token's metadata key is declared three times across two trees and spelled once
-inside a compose healthcheck. Both stay with the seam, on the rule that what decides is whether the
+inside a compose healthcheck. Both stay with the seam, on the rule that what matters is whether the
 far side's own code has to hold the value for the two trees to work together. A port the body dials
 does; a default a runbook quotes does not.
 
@@ -3379,20 +3381,20 @@ The first is registered and the second is not, and if the grace moves, the needl
 until the statement is corrected, while the measurement keeps its old number and is left alone.
 Nothing had to be said about which line the needle matched.
 
-The rule decides what is **eligible**, and the survey registered the statement forms: an env
+The rule determines what is **eligible**, and the survey registered the statement forms: an env
 table's `Default` cell, a "`X` is the default" clause, a module contract's named constant. Prose
 that argues with a number is eligible and mostly unregistered, because a needle over a clause
 inside an argument pins the argument's phrasing as much as the number. That is a review question
 and not a gate one, and it costs nothing the gate was holding: the statement is the sentence a
-retune must edit, so the drift still reddens.
+retune must edit, so the drift still fails the gate.
 
 ### Rule two: a default no tree declares is not a coupling, and this is not an oversight
 
 Most compose defaults appear in a compose file and nowhere else. **They are deliberately not
 registered, and the question is closed.** The scan compares a **declaration** against the places
 that restate it; a value nothing declares has no declaration to read, so registering one would mean
-typing the number into the registry beside the file, which is one more uncoupled copy wearing a
-gate's clothes. And a value several compose files spell with nothing behind it could only be
+typing the number into the registry beside the file, which is one more uncoupled copy presented as
+a gate. And a value several compose files spell with nothing behind it could only be
 compared with itself, which is a gate asserting that a file agrees with itself.
 
 There is one honest residue and it is not this gate's shape. `${CORTEX_PG_PASSWORD:-cortex}` is
@@ -3436,8 +3438,8 @@ fourth and fifth split, and every previous one edited `crosscheck.py` to add an 
 
 That stops here. `registry.py` is the only module that names the parts, and the scan imports one
 tuple from it, so a sixth part is a data file plus one line and the logic never learns the registry
-has parts. The risk the indirection adds is a part nobody adds to that list, gating nothing in
-silence, so `test_every_registry_part_on_disk_is_read` globs the `*couplings.py` files off disk
+has parts. The risk the indirection adds is a part nobody adds to that list, which would gate
+nothing and report nothing, so `test_every_registry_part_on_disk_is_read` globs the `*couplings.py` files off disk
 rather than reading the list that would be wrong, and it was proved able to fail by dropping the
 model host's line and watching it name the entries that fell out.
 
@@ -3455,7 +3457,7 @@ exited 1. The full table is in the commit that landed this.
 The three records are the task file
 [R-333](../refinements/tasks/333-compose-defaults-that-restate-a-declaration.md), which closes,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
-addendum. Four narrower tasks open in its place: the two value forms the reducer refuses
+addendum. Four narrower tasks open in its place: the two value forms the reducer rejects
 ([R-354](../refinements/tasks/354-two-declared-defaults-the-reducer-refuses.md)), a substitution
 whose several spends must agree with each other and with no declaration
 ([R-355](../refinements/tasks/355-one-variable-several-defaults-no-declaration.md)), the body's
@@ -3543,8 +3545,8 @@ already reading.
 
 The second task asked what a mention in prose looks like to the scan, and the answer is that it
 looks like every other mention. A mention was never syntax: it is a template with the agreed value
-rendered into it, required to appear as a token of its own in a file the scan otherwise knows
-nothing about. `docs/runbooks/llamacpp-gpu.md` has been pinned as `CORTEX_BODY_CAPTURE_MAX_EDGE={value}`
+rendered into it, required to appear as a token of its own in a file the scan reads nothing else
+out of. `docs/runbooks/llamacpp-gpu.md` has been pinned as `CORTEX_BODY_CAPTURE_MAX_EDGE={value}`
 since the survey, which is the same `VAR=value` shape a compose comment writes. The only thing new
 about these two is the file they sit in, and the scan does not ask what else a file is for, so
 `docker/docker-compose.body.yml` carries a substitution for one value and a mention of another
@@ -3662,7 +3664,7 @@ its subject, or earn one of their own. They earn one. `scripts/emailcouplings.py
 ago as the sixth part and the first added as a subject rather than as a split under the line cap,
 and its subject is written narrowly on purpose: the read-only IMAP sidecar's own env surface, three
 variables whose default is an answer rather than a number. A dovecot fixture's mailbox names are
-not that sidecar's shipped answers. They are not the same subject wearing a different hat; they are
+not that sidecar's shipped answers. They are not the same subject in another form; they are
 the same **topic**, which is not what the parts are named for. Filing them there because both say
 IMAP would make the part's own docstring false, and the next reader would learn that a part's name
 is a hint rather than a claim.
@@ -3728,8 +3730,8 @@ table is about. This part is 4 of those entries, 4 of those sites and 4 of those
 | the script renames the child segment | 1 fault, the child alone, the parent segment still standing |
 
 All nine exited 1 and all nine restorations matched by digest. The seventh and the ninth are the
-pair that shows the two path entries are not one entry written twice: renaming the parent reddens
-both, renaming the child reddens only the child.
+pair that shows the two path entries are not one entry written twice: renaming the parent fails
+both, renaming the child fails only the child.
 
 ### Records
 
@@ -3848,15 +3850,15 @@ those entries, 3 of those sites and 22 of those mentions.
 All seventeen exited 1 and all seventeen restorations returned the gate to green. Four **controls**
 ran the other way, each rewriting a sentence the sort left out, and all four stayed green: the GPU
 runbook's measured `=1024` arm, its "4 of 47 at 2048 px" finding, the swap runbook's reservation
-row, and the body contract's "resampled to 2048 px" reading. A sort that cannot be shown to exclude
-anything is a sort nobody made.
+row, and the body contract's "resampled to 2048 px" reading. Without those controls, nothing would
+show that the sort excludes anything.
 
 ### What is deliberately still out
 
 [modules/repo-gates.md](../modules/repo-gates.md) quotes both numbers while explaining what this
 gate holds. It is a module contract in the present tense and it does become wrong, but pinning it
 would tie the gate's own prose to the gate's own data, so re-wording an example of a registration
-would redden a gate about a coupling that never moved. A document describing the registry is not a
+would fail a gate about a coupling that never moved. A document describing the registry is not a
 far side of the registry. Two narrower residues are written down instead
 ([R-387](../refinements/tasks/387-a-second-spelling-shares-a-held-line.md),
 [R-388](../refinements/tasks/388-the-headroom-suite-spells-its-own-constant.md)).
@@ -3972,10 +3974,10 @@ suite: a suite's numbers say nothing about the collection this table is about. T
 | the script moves the root above the account to `/var/mail` | 1 fault: found 0 of 2 |
 
 All five exited 1 and all five restorations matched by digest. The converse was run too, since a
-gate that reddens on a legitimate rename is worse than one that misses: renaming the account in the
+gate that fails on a legitimate rename is worse than one that misses: renaming the account in the
 suite and in both of the script's spellings together exits 0, `crosscheck OK` over all 57. The
 fifth row is what the template's literal prefix buys and costs at once. A move of the mail root
-reddens this entry even though the value it compares did not change, so the registry has to be
+fails this entry even though the value it compares did not change, so the registry has to be
 edited along with the script, which is the moment somebody would notice `probe.conf` and the tmpfs
 standing where they were.
 
@@ -4071,7 +4073,7 @@ file restored from a copy taken beforehand, and the gate re-run green. The count
 crosscheck registry as it stands after this change, 57 entries over 67 sites and 163 mentions, and
 not over any test suite. The four rows this addendum adds are 4 of those mentions; the other
 twenty one are every remaining mention of the four entries they joined, re-proved across the split,
-since a part that moved house and stopped being read would otherwise gate nothing in silence.
+since a part that moved and stopped being read would otherwise gate nothing and report nothing.
 
 | planted drift | what the gate said |
 |---|---|
@@ -4134,8 +4136,9 @@ independent things decide it, and only one of them is the constant this entry is
 The pull to register it is real, because the failure is real: retune the edge and that assertion
 fails in a suite nothing runs, with two numbers nothing in the file explains, while every gate here
 reports green. But a needle over `(2048, 1152)` would tie the capture edge and the fixture's aspect
-ratio into one answer, so changing the display the fixture is built at would redden a gate about
-the capture edge. That is the false red the survey's own rule forbids, wearing the same digits.
+ratio into one answer, so changing the display the fixture is built at would fail a gate about
+the capture edge. That is the false failure the survey's own rule forbids, arriving under the same
+digits.
 
 So the ruling is: **a derived literal is not a second spelling of a value, it is a consequence of
 one, and the registry cannot express a consequence.** The tool that checks arithmetic is the
@@ -4196,7 +4199,7 @@ one of them could not catch the assertion.
 
 The last two rows are the entry's whole argument, measured. A sixth planting is the one that is not
 in the table because it never reached a gate: `DEFAULT_MAX_EDGE` and `BODY_EDGE` were each moved
-alone while the two were a registered pair, and each reddened crosscheck with `sites are not
+alone while the two were a registered pair, and each failed crosscheck with `sites are not
 identical`, which is what an import makes unnecessary rather than what it makes untrue. Three
 **controls** ran the other way and all three stayed green: the halved `1024` in the suite's prose,
 the `1600` prose whose survey is deferred, and the body contract's dated `resampled to 2048 px`
@@ -4253,7 +4256,7 @@ contract's restatement of the field. The two it missed besides the comment are
 
 The middle row is the entry's own open question, and the headroom sort answered it before this one
 was picked up: 1800 s and 900 s are what a measured batch waits, and 3600 s is twice one of them.
-A needle over either would tie this bound to a measurement, so re-measuring the batch would redden
+A needle over either would tie this bound to a measurement, so re-measuring the batch would fail
 a gate about a default that never moved. **The arithmetic under a value is a consequence of it and
 of something else, and the registry holds values.** The failure the entry worried about, the pair
 moving without the sentence, is real and stays uncovered here for the reason the resampled size
@@ -4263,7 +4266,7 @@ does: the tool that checks arithmetic is not this one.
 sorts with the ADRs it indexes. Its sentence is "Its 2026-08-09 addendum bounds how long a spawn
 may queue for room (`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, 3600 s, ...)", whose subject is a dated
 addendum and whose predicate is what that addendum decided. Retune the default and the sentence is
-still true of the addendum. A précis of a decision record is a decision record.
+still true of the addendum. A précis of a decision record sorts as one.
 
 ### Proved able to fail, five times, over the crosscheck registry
 
@@ -4640,7 +4643,7 @@ worth less than the argument for: the recipes point both gates at the repo root,
 a message that says why is a better answer to a mistyped root than a green tick.
 
 The deeper counts get no floor. A compose file declaring no bind is ordinary, a tree whose
-variables are each spelled once is ordinary, and a floor over either would redden on a legitimate
+variables are each spelled once is ordinary, and a floor over either would fail on a legitimate
 tree. That is the line between the two: the file count is the walk, and the rest is the tree.
 
 ### Proved able to fail, ten times, over the scripts suite and the live tree
@@ -4736,7 +4739,7 @@ subject is usually the far side that moved rather than the registry line about i
 
 The second is that attributing a fault to a part is the scan learning that the registry has parts,
 which is a property this repo built on purpose and has paid for four times: "the scan never asks
-which file an entry came from, so a coupling moves house without the gate noticing". Today a
+which file an entry came from, so a coupling moves between files without the gate noticing". Today a
 coupling moving between parts changes nothing anywhere. With part-attributed faults it changes the
 gate's output, which turns an editorial decision into a behavioural one and gives a reviewer one
 more thing that can be wrong in a diff that fixed nothing. That is a real cost paid for a
@@ -4747,7 +4750,7 @@ convenience a grep already provides.
 The part count is answered by the list of parts in `registry.py`'s docstring, which names each
 part and what it holds, so counting the list counts the parts and a reader who counts it also
 learns what each one is for. That list was prose nobody checked, which is the same defect one
-level up: a tenth part could land and leave the list at nine in silence.
+level up: a tenth part could land and leave the list at nine with nothing reporting it.
 `test_registry_names_every_part_in_the_order_it_reads_them` closes that. It reads the bullet names
 out of `registry.__doc__` and requires them to be exactly the `*couplings.py` files on disk, in
 the order `CONSTANTS` joins them, which is the order the same docstring claims for them and the
@@ -4759,7 +4762,7 @@ registry's **numbers**, on the ground that a document describing the registry is
 it and that a tally goes stale on the next row. This holds a module's own docstring to the module's
 own directory, and it holds **names** rather than counts: the list is not a restatement of the data
 elsewhere, it is the only place the parts are named, and it goes stale only when somebody adds a
-part, which is exactly when it should redden.
+part, which is exactly when it should fail.
 
 The ordinals came out of `registry.py`. The three parts that state their own arrival ordinal keep
 it, because a part saying it was the sixth to arrive is a fact fixed on the day it arrived and
@@ -4897,7 +4900,7 @@ next to a number. Measured on the live tree by retuning `DEFAULT_STOP_GRACE_S` f
 The only `11` in that runbook is `11.3 s`, the measured time for the cortex to come back after a
 swap. It is not the grace, it is not a spelling of anything registered, and the old reading sent
 the reader off to hunt a neighbour's literal that never moved. That is the exact failure mode the
-misattribution addendum was written to remove, arriving through the one door it left open.
+misattribution addendum was written to remove, arriving through the one gap it left open.
 
 ### Proved able to fail, five times over the scripts suite and once over the live tree
 
@@ -4910,8 +4913,8 @@ after the last.
 | --- | --- | --- | --- |
 | 1 | the trail decimal guard dropped, leaving the word one | `2048.5` and `10.09` are found again, and the unfound reading misattributes | 3 failed, 841 passed |
 | 2 | the lead decimal guard dropped, leaving the word one | `0.2048` and `0.10` are found again | 2 failed, 842 passed |
-| 3 | the trail guard refuses every point, `(?!\.)` | `2048.` ending a sentence is lost | 1 failed, 843 passed |
-| 4 | the lead guard refuses every point, `(?<!\.)` | the range `1..6291456` is lost | 1 failed, 843 passed |
+| 3 | the trail guard rejects every point, `(?!\.)` | `2048.` ending a sentence is lost | 1 failed, 843 passed |
+| 4 | the lead guard rejects every point, `(?<!\.)` | the range `1..6291456` is lost | 1 failed, 843 passed |
 | 5 | the decimal guard taken at every word edge, not only a digit one | the two dotted-key rows fail | 2 failed, 842 passed |
 
 Row 5 is recorded honestly: on the first pass it **survived**, 844 passed, because the suite as
@@ -4959,8 +4962,8 @@ kind of entry rather than another row."
 
 ### Both halves of that sentence were re-derived and both were wrong
 
-A log field's name **is** spent, and in the most ordinary way this registry knows. Every site
-writes it as a string key opening an `extra=` dict, which is a bare literal a far side spells
+A log field's name **is** spent, and in the most ordinary way this registry has a name for. Every
+site writes it as a string key opening an `extra=` dict, which is a bare literal a far side spells
 without declaring, the case `couplings.py` already names and the case the 2026-08-08 widening
 added mentions for. What was missing was not a kind of entry, it was a declaring site, and that is
 one line: `cortex_core.log_fields` now declares the five names the dispatch stamp carries, and the
@@ -5001,7 +5004,7 @@ Two mentions pin an exact count. The ticker's three lines are one set, being its
 one fire, and a fourth arriving under another name is precisely the drift the entry that opened
 this was about; the claim path's two are one set because the scheduling runbook prints one of them
 verbatim and an operator following a corrupt record needs both. Every other mention is the presence
-check, a module free to grow a second line naming the same conversation without reddening a gate
+check, a module free to grow a second line naming the same conversation without failing a gate
 about a name that never moved.
 
 What is deliberately not tied: the Redis codecs spell four of the five as hash keys of their own
@@ -5373,8 +5376,8 @@ The fifty second is `crosscheck.py`'s own docstring, which said "the 1600 px def
 spelled in four places, one of them a proto comment" as the illustration for why there is no
 master. That census was true when it was written and is now false twice over, seventy being the
 count and the proto comment being about to stop being uncoupled. It is **removed** rather than
-held: the sentence's argument needs no number, and a gate that quotes a stale census in the file
-that watches for stale censuses is the wrong kind of joke.
+held: the sentence's argument needs no number, and a stale census inside the file that watches for
+stale censuses is the defect this gate exists to report.
 
 ### The two rules this needed, both sharpened rather than invented
 
@@ -5391,7 +5394,7 @@ that a suite CI runs holds itself, so a test asserting a default is out. `test_c
 case that settled it and it is the case that sharpens it: **a suite holds what it asserts**, and
 that file asserts `2048, 6291456, 10.0, 5.0` while only explaining the body's 1600 in the comment
 above. No assertion reaches it, and no Python could import it if one tried, so a retune leaves the
-comment lying with every test in that file green. It is **in**. `screen.rs`'s `1600` is the mirror
+comment wrong with every test in that file green. It is **in**. `screen.rs`'s `1600` is the mirror
 and stays out: it is asserted, on the line above the same value read from `DEFAULT_MAX_EDGE`, and
 cargo says so.
 
@@ -5639,7 +5642,7 @@ list of **names** or only a list of **numbers**. It covers numbers.
 The argument is the one the entry itself offered and it survives being tested. A tally goes stale
 on any edit anywhere, including edits that change nothing about what the document says, which is
 why holding one would make a gate out of arithmetic nobody reads. A name list goes stale on
-exactly one edit, adding or renaming a member, which is the edit that should redden it. They are
+exactly one edit, adding or renaming a member, which is the edit that should fail it. They are
 not the same object and the decision that covered one was never asked about the other.
 
 ### Re-derived first, and both copies were current and both were still unheld
@@ -5662,7 +5665,7 @@ holding, because the promise this document makes is that a future agent can work
 without reading it, and that promise breaks the day any module lands unnamed, not only a coupling
 part. So the registered roster is the paragraph and its members are the modules on disk. The parts
 are covered by it, and so is every module that has nothing to do with the registry, and so were
-the four modules this very change added, which the gate reported as four reds before the document
+the four modules this very change added, which the gate reported as four faults before the document
 was updated.
 
 The second copy is the tuple names in the `crosscheck.py` bullet, held on their own because they
@@ -5711,8 +5714,8 @@ mutants, fifteen killed, and the survivor is row 14.
 | 16 | INTERACTION: a bullet in the live roster loses its name | the roster scan fails and the anchor scan does not | 2 failed, 1200 passed |
 
 Rows 15 and 16 are the interaction rows, and they are the reason the roster question did not
-become a mode of the backlog gate. Renaming a heading this repo points at with a fragment reddens
-the anchor scan and leaves every roster green; a bullet losing its name in a roster reddens the
+become a mode of the backlog gate. Renaming a heading this repo points at with a fragment fails
+the anchor scan and leaves every roster green; a bullet losing its name in a roster fails the
 roster scan and leaves the anchor scan green. Two gates, two questions, neither shadowing the
 other.
 
@@ -5727,7 +5730,7 @@ since a wider passage can only make the gate see MORE names and never hide a mem
 lost, and it is filed as
 [R-447](../refinements/tasks/447-a-widened-passage-is-caught-only-by-accident.md) rather than
 closed here: every cheap fix for it either catches nothing, since a widened passage still carries
-every name, or turns an ordinary prose edit into a red.
+every name, or turns an ordinary prose edit into a failure.
 
 Row 06 was a survivor on the first run and is the reason the suite has one more test than it did.
 The reader allows an indented attribute so a suite grouping its checks in a `mod` block still has
@@ -5826,8 +5829,8 @@ entry says the names sit in a block no reader here can see, and the block is inv
 reader that strips fences before looking. This one does not, and the passage the boundary phrases
 cut out carries no fence marker at all, so the fenced block was never in the way; the code spans
 were. A mutant that skipped fenced lines inside the passage changed nothing and had to be rewritten
-to strip fences from the document first before it could redden anything, which is the measurement
-that says which of the two facts was load bearing.
+to strip fences from the document first before it could fail anything, which is the measurement
+that says which of the two facts decided it.
 
 ### What is still not held, on purpose
 
@@ -5865,7 +5868,7 @@ beside it is how many faults that run printed.
 | 14 | two CLI modules named only in the no CLI half | 1 | 1, two faults |
 
 Rows 04 and 05 are the two directions the split exists for, and row 04 is the one that could not
-redden before this change: the module is still named in the paragraph, so the whole-paragraph
+fail before this change: the module is still named in the paragraph, so the whole-paragraph
 roster saw nothing wrong. It reports exactly one fault, from the half that gained a member nobody
 named, which is the allowance behaving as designed rather than a hole in it. Rows 10 and 11 are the
 proof that the prose and its tally are free, and row 12 the proof that the allowance is one named
@@ -5899,7 +5902,7 @@ Row 03 is the fence row and it is the one that taught something. Written first a
 fenced lines **inside** the passage, it changed nothing and passed all 1221 tests, because the
 passage the boundary phrases cut out of a repo map carries no fence marker: it is inside a block
 rather than containing one. Only stripping the fences from the whole document before finding the
-passage reproduces the reader the entry describes, and that one reddens.
+passage reproduces the reader the entry describes, and that one fails.
 
 Rows 04, 10 and 12 are the interaction rows, each aimed at the seam between what landed here and
 the machinery that was already there: the new spelling dispatched to the old reader, the new
@@ -5940,7 +5943,7 @@ were read again before anything was written: `docker/docker-compose.subagents.ym
 `command:`, at the same six-space indentation, and `_REASONING_OFF` in the model host's
 `config.py` spells it as a four-string tuple. That much the entry had right. What it did not say
 is that the third spelling is already held: the model_manager roster suite pins that tier's argv
-whole and reddens when the budget leaves it, which the fix's own table measured. So what nothing
+whole and fails when the budget leaves it, which the fix's own table measured. So what nothing
 read was the two compose files, and that is what this entry is for.
 
 ### A co-occurrence is a needle's shape, and a relation would be a second way to say it
@@ -5977,7 +5980,7 @@ Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re
 1274 checks of that suite. Rows five and six mutate the gate's own data, which is production code
 here; row seven aims at the seam with the couplings that already hold this tier's numbers.
 
-| mutation | reddens |
+| mutation | checks it fails |
 | --- | --- |
 | the CPU subagent server loses `--reasoning-budget 0` | 10 |
 | the roster server loses the template kwarg | 9 |
@@ -5988,11 +5991,11 @@ here; row seven aims at the seam with the couplings that already hold this tier'
 | INTERACTION: a sibling entry's number moves in the same file | 7 |
 
 Row six is the row that names the deliverable. Narrowing the needle to `--reasoning-budget` and
-its count leaves every other check green and reddens exactly the two that take the kwarg away from
+its count leaves every other check green and fails exactly the two that take the kwarg away from
 a server, so what the suite holds really is the pair and not the number under one of its halves.
-Row five reddens the seven checks written for this entry and nothing else, which is the evidence
+Row five fails the seven checks written for this entry and nothing else, which is the evidence
 that no sibling coupling covered these lines and the entry is not a second gate over a held value.
-Row seven is the other direction of that same question: a neighbour's number moving reddens the
+Row seven is the other direction of that same question: a neighbour's number moving fails the
 neighbour and leaves the pair's own four checks green, so the two entries divide the one file they
 share rather than overlapping in it.
 
@@ -6002,7 +6005,7 @@ The record is the task file
 [R-460](../refinements/tasks/460-the-reasoning-off-pair-is-spelled-in-three-places.md), which
 closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from
 it, `scripts/subagentcouplings.py`, which carries the entry and the pair's template,
-`scripts/tests/test_crosscheck.py`, which reddens on the fault it was filed for,
+`scripts/tests/test_crosscheck.py`, which fails on the fault it was filed for,
 `brain/packages/model_manager/src/cortex_model_manager/config.py`, whose fixed count is now a
 named constant, [modules/brain-model-manager.md](../modules/brain-model-manager.md), which names
 it, and this addendum.
@@ -6055,7 +6058,7 @@ diffed label by label. No scan learned anything and no gate changed what it chec
 here would be counting mutants against unchanged logic.
 
 What was verified instead is that the suites already holding a split still catch the way one goes
-wrong. With the new part on disk and its line missing from the tuple, both registry checks redden,
+wrong. With the new part on disk and its line missing from the tuple, both registry checks fail,
 one naming the part the registry does not read and one naming the position at which the docstring's
 list disagrees with the directory.
 
@@ -6089,7 +6092,7 @@ name the eleventh part, and this addendum.
 
 The reasoning-off pair was held as one needle per named compose file, which is a claim about the
 two servers written down and says nothing about a third. A deployment that added one, in a new
-override or an existing one, shipped whatever its author remembered and reddened nothing. The
+override or an existing one, shipped whatever its author remembered and failed no gate. The
 missing half was never the check; it was the **set**. This landed the set, as a reader that
 derives it from the stack's own wiring and argv, and moved the rule onto it.
 
@@ -6155,7 +6158,7 @@ the subagent runbook, which states the pair to check on any tier's argv and hand
 compose gate can reach.
 
 That runbook is not decoration. Tying the sidecar's declaration only to the gate's data would have
-made the entry's two places both Python, which the registry's own suite refuses: an entry whose
+made the entry's two places both Python, which the registry's own suite rejects: an entry whose
 places are one language proves nothing about a seam. The refusal was right and the fix was to
 register the far side that was already there and unheld.
 
@@ -6172,11 +6175,11 @@ the seam `composeservices.py` and `composetargets.py` already fell on, and it is
 
 Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re-run over the 1333
 checks of that suite. The first five mutate the tree the gate reads; the rest mutate the gate,
-which is production code here. Rows over the committed tree redden every check that copies it,
-which is by design: those checks copy the real compose files so a server that moves house leaves
+which is production code here. Rows over the committed tree fail every check that copies it,
+which is by design: those checks copy the real compose files so a server that moves leaves
 the suite failing rather than quietly checking a stack nobody runs.
 
-| mutation | reddens |
+| mutation | checks it fails |
 | --- | --- |
 | the CPU subagent server loses `--reasoning-budget 0` | 10 |
 | the roster server loses the template kwarg | 10 |
@@ -6193,13 +6196,13 @@ the suite failing rather than quietly checking a stack nobody runs.
 | INTERACTION: a sibling coupling's number moves in the same compose file | 5 |
 
 Row five is the deliverable and the only row the tree could not have produced before: a server
-nothing registered, in a file nothing had heard of, reddens the gate and the CLI over the committed
-tree with nobody having listed it. Rows six and seven are what say the two readings are both load
-bearing rather than one being a spare: the fourth server is found by its wiring alone, since its
+nothing registered, in a file nothing had heard of, fails the gate and the CLI over the committed
+tree with nobody having listed it. Rows six and seven are what say both readings are needed rather
+than one being a spare: the fourth server is found by its wiring alone, since its
 model path is written out, and the argv reading is the only thing that finds a server nothing
 dials. Row eight is the row that keeps the pair a pair, narrowing it to the budget leaves every
-other check green and reddens exactly the three that take the kwarg away. The last row is the
-interaction: a neighbour's number moving in `docker-compose.subagents.yml` reddens the constant
+other check green and fails exactly the three that take the kwarg away. The last row is the
+interaction: a neighbour's number moving in `docker-compose.subagents.yml` fails the constant
 scan and not one check of this gate, so the two divide the file they share.
 
 ### What is still not held
@@ -6247,7 +6250,7 @@ tied the budget's count and nothing else about the pair.
 One phrasing deserves a correction rather than a repeat. The entry said the model_manager suite
 "pins that argv whole". It pins the **cortex** tier's argv whole, flag for flag, which is the
 equality that slice was built to defend; what it pins of the subagent tier is its tail, `-ngl`
-and the last six items, in two checks. Both redden when the tail goes, measured below, so the
+and the last six items, in two checks. Both fail when the tail goes, measured below, so the
 substance of the claim was right and its scope was generous.
 
 ### The cheap close, argued honestly, and why it was refused
@@ -6301,7 +6304,7 @@ The task asked whether the close should tie the rest of the requirement, `--jinj
 template kwarg, the way the registry already ties the budget's count. It does, and by the rule
 rather than by the registry, which is strictly stronger. The gate now reads the sidecar's own
 `_JINJA` and `_REASONING_OFF` and compares them against `REQUIREMENTS`, so a rename on either
-side reddens, in both directions, and a value coupling would only have said the same thing about
+side fails the gate, in both directions, and a value coupling would only have said the same thing about
 two of the three flags. The registry's entry stays because its far side is the one no rule
 reaches: the subagent runbook, whose `docker run` starts a server by hand outside any stack. Its
 comment is corrected to say that the sidecar's declaration is now read by a rule as well.
@@ -6321,11 +6324,11 @@ reader follows without becoming a Python parser with the corners missing.
 Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re-run over the
 1397 checks of that suite. The first three mutate the tree the gate reads, which here is the
 committed sidecar; the rest mutate the gate, which is production code here. Rows over the
-committed tree redden every check that copies it, by design, those checks copying the real files
-so a tier that moves house leaves the suite failing rather than quietly checking a stack nobody
+committed tree fail every check that copies it, by design, those checks copying the real files
+so a tier that moves leaves the suite failing rather than quietly checking a stack nobody
 runs.
 
-| mutation | reddens |
+| mutation | checks it fails |
 | --- | --- |
 | the hosted subagent tier loses its reasoning-off tail | 14 |
 | the sidecar renames the tool-capable template flag | 14 |
@@ -6342,15 +6345,15 @@ runs.
 
 Row three is the deliverable and the row the tree could not have produced before: a fourth tier
 in the sidecar's own tuple, with the setting that makes it one and the tail its author forgot,
-reddens the gate with nobody having listed it. Row five is what says the membership is derived
+fails the gate with nobody having listed it. Row five is what says the membership is derived
 rather than registered, narrowing it to today's one setting name leaves every other check green
-and reddens exactly the two that add a tier. Row four is the join itself, and it reddens only
+and fails exactly the two that add a tier. Row four is the join itself, and it fails only
 four because the rule and the readers are separable by construction.
 
 The two halves being complementary is measured rather than asserted. The first row's edit, run
-against the brain instead, reddens 2 of the 134 checks of the model_manager suite, both of them
+against the brain instead, fails 2 of the 134 checks of the model_manager suite, both of them
 in `test_model_roster.py`, which is the suite saying what the tier really starts with. The last
-row is the interaction: moving `_NO_REASONING_BUDGET` reddens 9 checks of the constant scan's
+row is the interaction: moving `_NO_REASONING_BUDGET` fails 9 checks of the constant scan's
 suite and 13 across this gate's own two, since the registry and the rule now read one declaration, and
 neither was taught about the other.
 
@@ -6394,17 +6397,17 @@ prefix they are being held to.
 The entry was a day old and reasoned from the readers alone, so both placements were mutated
 against the committed gate before anything was written. Renaming the sidecar's own alias to
 `CORTEX_SUBAGENT_MODEL_FILE_GPU` **and** deleting that tier's reasoning-off tail printed
-`flagcheck OK: the 2 subagent server(s) started` and exited 0: the tier left the set in silence,
-took its missing flags with it, and the count dropping from three to two was the only trace.
-The compose side behaved as the entry described. Respelling `CORTEX_MODEL_FILE_SUBAGENT` and
-taking `--jinja` off that server still reddened, because the wiring that dials it is a second
+`flagcheck OK: the 2 subagent server(s) started` and exited 0: the tier left the set with nothing
+reporting it, took its missing flags with it, and the count dropping from three to two was the only
+trace. The compose side behaved as the entry described. Respelling `CORTEX_MODEL_FILE_SUBAGENT` and
+taking `--jinja` off that server still failed the gate, because the wiring that dials it is a second
 reading; respelling it in an override that also leaves the server's address to the host
 environment printed OK over a server carrying none of the flags.
 
 What already holds the three written down is worth recording, because it is not nothing and it is
 not this. The model_manager suite pins all three aliases through the environment it sets, so
-**renaming** one of today's settings reddens the brain: the same respelling of the subagent tier's
-alias reddens 2 of the 136 checks that suite runs, both in `test_model_roster.py`. No suite and no
+**renaming** one of today's settings fails the brain suite: the same respelling of the subagent
+tier's alias fails 2 of the 136 checks that suite runs, both in `test_model_roster.py`. No suite and no
 scan says anything about a **fourth** artifact arriving under a name no reader looks at, which is
 the whole of what was open.
 
@@ -6439,7 +6442,7 @@ the open half.
 
 **The short spelling of the model flag is not read.** llama.cpp accepts `-m`, and this tree starts
 an MCP sidecar with `python -m cortex_email`: a reader taking the item after every `-m` as a model
-artifact would call a module name one, and redden a correct service whose only honest remedy would
+artifact would call a module name one, and fail a correct service whose only honest remedy would
 be to teach the gate. Every server started here spells the flag in full, and a server that did not
 would still be found by the wiring that dials it.
 
@@ -6476,11 +6479,11 @@ reading that answered emptily forever is already impossible.
 
 Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re-run over the
 **1453 checks of that suite**. The first four mutate the tree the gate reads; the rest mutate the
-gate, which is production code here. Rows over the committed tree redden every check that copies
-it, by design, those checks copying the real files so an artifact that moves house leaves the
+gate, which is production code here. Rows over the committed tree fail every check that copies
+it, by design, those checks copying the real files so an artifact that moves leaves the
 suite failing rather than quietly checking a stack nobody runs.
 
-| mutation | reddens |
+| mutation | checks it fails |
 | --- | --- |
 | the hosted subagent tier's artifact is respelled out of the family | 20 |
 | a shipped compose server's artifact is respelled out of the family | 17 |
@@ -6498,8 +6501,8 @@ suite failing rather than quietly checking a stack nobody runs.
 Row three is the deliverable and the row that measures the close: the same fourth tier the
 previous addendum added, arriving under a name outside the family, is now a fault instead of a
 tier in no set. Row six is the circularity argued above, made a number: narrowing the domain to
-the family leaves every other check green and reddens exactly the three that respell a name, which
-are exactly the faults the entry's literal shape would have missed. Row eleven reddens one check
+the family leaves every other check green and fails exactly the three that respell a name, which
+are exactly the faults the entry's literal shape would have missed. Row eleven fails one check
 and that check is the point of it, since no service in this tree writes `-m ${VAR}`; the row is
 what pins a deliberate exclusion to a decision rather than to an oversight. The last row is the
 interaction: `MODEL_PREFIX` is now built from `FAMILY_PREFIX`, so moving the family moves
@@ -6546,7 +6549,7 @@ refused here on the tree's own evidence, and the rename is what landed:
 ### Re-derived first, and the exclusion is worse than the entry said
 
 The entry was a day old and argued from the readers, so the gate was mutated before anything was
-written. Respelling the embedder's variable back reddens: `flagcheck` exits 1 naming
+written. Respelling the embedder's variable back fails the gate: `flagcheck` exits 1 naming
 `docker/docker-compose.memory.yml: llama-embed`, which is the rule doing its job now that nothing
 excuses that argv. The interesting mutation is the one the entry only predicted. A second non-chat
 server copied from the embedder's block, an `--embeddings` argv naming
@@ -6554,7 +6557,8 @@ server copied from the embedder's block, an `--embeddings` argv naming
 stood**: with the exclusion restored, the same tree printed `flagcheck OK: ... the 5 model
 artifact(s) this tree names are each named so a reader can say which tier they serve` and exited
 0, counting neither embedding server. So the exclusion was not one artifact's dispensation; it was
-a door, and the block beside it was the one an author of the next non-chat server would copy.
+a general way out, and the block beside it was the one an author of the next non-chat server would
+copy.
 
 ### The separate-family answer is refused, because this tree already wrote the other example
 
@@ -6593,7 +6597,7 @@ pick in silence. That failure is real and it is worth being exact about its size
   expand a nested default: `${CORTEX_MODEL_FILE_EMBED:-${CORTEX_EMBED_MODEL_FILE:-<pick>}}`
   resolves through both on compose v2.39.1, which contradicts the parenthetical
   `scripts/composedefaults.py` carried and which is corrected there. It is still not available in
-  this tree, because that reader refuses a nested form and three gates walk it over that very
+  this tree, because that reader rejects a nested form and three gates walk it over that very
   line, so the shim would land as a compose one-liner plus a substitution reader taught a shape
   whose default has no value for `defaultcheck.py`, `bindcheck.py` or `volumecheck.py` to
   compare. Teaching it is a decision about what those rules should then compare, recorded as
@@ -6608,7 +6612,7 @@ host sets it.
 ### The exclusion retires, and it was answering the wrong question
 
 With the artifact inside the family, keeping the exclusion would have left an inert branch that
-still opened the door measured above. It is removed, and the argument for removing it is not that
+still left open the way out measured above. It is removed, and the argument for removing it is not that
 it became unnecessary. **It was answering the membership question in the naming rule's chair.**
 Whether a server serves chat decides whether it can be a subagent, which is
 `subagentservers.py`'s question, and that reader answers it on its own here, by the variable the
@@ -6625,7 +6629,7 @@ Each mutation was applied alone, or in the one stated pair, with `cd scripts && 
 flagcheck.py --root ..` run and `cd scripts && uv run pytest -q --no-cov` re-run over the **1453
 checks of that suite**.
 
-| mutation | flagcheck | reddens |
+| mutation | flagcheck | checks it fails |
 | --- | --- | --- |
 | the embedder's artifact is respelled back out of the family | exit 1, `llama-embed` | 17 |
 | A SECOND NON-CHAT SERVER arrives named outside the family | exit 1, `llama-rerank` | 17 |
@@ -6634,9 +6638,9 @@ checks of that suite**.
 
 The last row is the deliverable and the reason the exclusion did not survive as an inert branch.
 The gate reports success over a tree carrying a model artifact no reader can classify, and the
-three checks it reddens are the three that assert the embedder is now named, none of which is the
-new server: the suite says the door is open, and only because it was told where to look. Rows one
-and two redden the same 17 because both are faults in the tree the flag checks copy, by design.
+three checks it fails are the three that assert the embedder is now named, none of which is the
+new server: the suite says the way out is open, and only because it was told where to look. Rows
+one and two fail the same 17 because both are faults in the tree the flag checks copy, by design.
 
 ### What is still not held
 
@@ -6878,7 +6882,7 @@ the picture rather than to itself.
 
 No gate holds the live arm to running at more than one frame. `FRAMES` is a tuple in an
 integration-marked file, and a future edit could drop the large frame and no check in this repo
-would redden; the same is true of `VISION_MODELS`, which is the lineup precedent this follows, and
+would fail; the same is true of `VISION_MODELS`, which is the lineup precedent this follows, and
 of the corpus's own membership. A registry row was considered and refused for the reason the
 corpus-frame addendum already gave: freezing this arm's shape against a literal would cement a
 measurement's setup rather than a shipped value, and the gate that matters is the legibility line,
@@ -6977,7 +6981,7 @@ Each mutation was applied alone, or in the one stated pair, with `cd scripts && 
 flagcheck.py --root ..` run and `cd scripts && uv run pytest -q --no-cov` re-run over the **1564
 checks of that suite**.
 
-| mutation | flagcheck | reddens |
+| mutation | flagcheck | checks it fails |
 | --- | --- | --- |
 | the projector is respelled back into the sibling shape | exit 1, `cortex_mmproj_file` | 18 |
 | A SECOND PROJECTOR arrives on another tier in that shape | exit 1, `brain_mmproj_file` | 18 |
@@ -6990,7 +6994,7 @@ was spelled yesterday, is a fault at the moment the field is written. The pair r
 reading had to grow rather than the name alone move: with the field walk dropped, the same tree
 carrying that second projector prints OK over six artifacts and exits 0, which is the state this
 entry was opened to describe. The last row is the suffix filter earning its place: without it the
-domain swallows every knob the settings class declares and the rule reddens over `CORTEX_NGL`,
+domain swallows every knob the settings class declares and the rule fails over `CORTEX_NGL`,
 which is a rule about something else.
 
 ### What is still not held
@@ -6998,7 +7002,7 @@ which is a rule about something else.
 The reading now rests on a convention of its own, one file down from the one it holds. A future
 artifact field named `cortex_mmproj_path` is outside the domain and would be found by nothing,
 exactly as the projector was, and the compose side still reads `--model` alone, so a compose
-service spending a projector variable after `--mmproj` names an artifact this reader walks past.
+service spending a projector variable after `--mmproj` names an artifact this reader does not see.
 Neither is a fault in the tree today, and both are the same question one level down, recorded as
 [R-515](../refinements/tasks/515-the-artifact-domain-rests-on-a-field-name-convention.md).
 

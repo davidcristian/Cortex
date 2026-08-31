@@ -1,20 +1,20 @@
 """The advertised ``spawn_subagents`` tool spec, built from the runner's roster (ADR-0010/0018).
 
 Split from ``spawn.py`` at the 300-line cap; the contract is the same. This module owns what the
-cortex is *told* about delegation (the tool name, the per-call batch cap, and the JSON-Schema/prose
-description), and ``spawn.py`` owns what *running* one does.
+cortex is told about delegation (the tool name, the per-call batch cap, and the JSON-Schema and
+prose description), and ``spawn.py`` owns what running one does.
 
-Slice 8.6 (ADR-0018): an instructions item is a bare string or ``{instruction, model?, context?}``
-so the cortex picks the subagent model per subtask from the roster and hands it working material.
-The spec is honest about the wiring: when subagents are tools-enabled, ADR-0017 pins every spawn to
-the robust default, so no ``model`` knob is advertised at all. It is also deliberately conservative
-about parallelism rather than making a blanket claim (ADR-0012 bounded-admission-wait addendum): an
-entry holds a backend per placement target and each keeps its lease for the whole stream, so
-subtasks sharing a model overlap at most two ways, the admitted pair, where the advertised text
-says they run one after another. That understatement is measured and left standing on purpose
-(ADR-0018 declined the rewrite, its task open in ``docs/refinements/index.md#subagents``): it
-points the cortex at distinct-model spread as the wall-clock lever, and one deployment's
-behaviour does not say which new wording would be taken.
+Under ADR-0018 an instructions item is a bare string or ``{instruction, model?, context?}``, so the
+cortex picks the subagent model per subtask from the roster and hands it working material. The spec
+matches the wiring: when subagents are tools-enabled, ADR-0017 pins every spawn to the robust
+default, so no ``model`` knob is advertised at all. It is also deliberately conservative about
+parallelism rather than making a blanket claim (ADR-0012 bounded-admission-wait addendum): an entry
+holds a backend per placement target and each keeps its lease for the whole stream, so subtasks
+sharing a model overlap at most two ways, the admitted pair, where the advertised text says they
+run one after another. That understatement is measured and left standing on purpose (ADR-0018
+declined the rewrite, its task open in ``docs/refinements/index.md#subagents``): it points the
+cortex at distinct-model spread as the wall-clock lever, and one deployment's behaviour does not
+say which new wording would be taken.
 
 One call's batch is capped at ``MAX_SPAWN_BATCH`` (ADR-0010 batch-cap addendum), advertised as the
 array's ``maxItems`` and in prose; the runtime check in ``spawn.py`` is the backstop.
@@ -28,9 +28,9 @@ from cortex_core.tools import ToolSpec
 SPAWN_TOOL_NAME = "spawn_subagents"
 
 # Upper bound on the subtasks one call may ask for (ADR-0010 batch-cap addendum). The turn's
-# dispatch pool (ADR-0009 turn-wide addendum) bounds what a batch may *reach*, not how much work
-# it queues: a subagent that calls no tools spends nothing from that pool while still costing an
-# admission slot, a placement, and a model run, and admission *queues* rather than refuses, so an
+# dispatch pool (ADR-0009 turn-wide addendum) bounds what a batch may reach rather than how much
+# work it queues: a subagent that calls no tools spends nothing from that pool while still costing
+# an admission slot, a placement, and a model run, and admission queues rather than refuses, so an
 # array of fifty was fifty inferences the turn waited on. Sized above plausible delegation (two to
 # five parallel subtasks) and far below fan-out spam. The turn's total is then two deliberate
 # factors rather than an open end: a spawn costs a quarter of the dispatch pool, so a turn affords
@@ -85,7 +85,7 @@ def _model_property(roster: SubagentRoster) -> dict[str, Any]:
 
 
 def build_spawn_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
-    """The advertised spec, built from the roster and honest about the wiring (ADR-0018)."""
+    """The advertised spec, built from the roster and matching the wiring (ADR-0018)."""
     item_properties: dict[str, Any] = {
         "instruction": {"type": "string", "description": "The self-contained subtask."},
         "context": {

@@ -12,8 +12,8 @@ import {
 
 describe("notice", () => {
   it("counts every announcement, so two with the same words are two things said", () => {
-    // A live region reports a mutation and not a value, so identical text landing twice is
-    // nothing landing twice. Two chats can carry one title and two deletes can leave the same
+    // A live region reports a mutation and not a value, so identical text landing twice announces
+    // nothing the second time. Two chats can carry one title and two deletes can leave the same
     // number of rows, which is why the count is the region's key. Reddens if it stops moving.
     const first = speak(null, [arrived("New chat")]);
     const second = speak(first, [arrived("New chat")]);

@@ -15,9 +15,9 @@ import type {
 // sink, and the test emits events/errors when it chooses, so streaming, mid-stream dismiss,
 // completion, and failures are all deterministic. The session reads resolve from injectable
 // tables (or reject when the failure flags are set), so the list/switcher/cycling paths are
-// exercised without a server. The browser dev bridge (timer-driven, for `vite dev`) is separate and
-// answers on its own; the two are held to one description by the shared checks in
-// `bridgeContract.ts`, which is where a claim about the port belongs rather than in either's suite.
+// exercised without a server. The browser dev bridge (timer-driven, for `vite dev`) is a separate
+// implementation, and the shared checks in `bridgeContract.ts` hold both to the same behaviour, so
+// a claim about the port lives there rather than in either implementation's own suite.
 export class FakeBridge implements BrainBridge {
   private sink: TurnSink | null = null;
   readonly calls: { readonly sessionId: string; readonly text: string }[] = [];
@@ -87,10 +87,10 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.link);
   }
 
-  // Bounded by the caller's `limit`, like every other implementation of the read: the table is
-  // the test's to assign, but how much of it one call may see is the call's argument, and a fake
-  // that answered past the bound would let a test pass against a listing production would cut.
-  // `0` is "the brain default" (`types.ts`), which for an injected table is all of it.
+  // Bounded by the caller's `limit`, like every other implementation of the read. The table is the
+  // test's to assign, but how much of it one call returns is the call's argument, and a fake that
+  // answered past the bound would let a test pass against a listing production would cut. `0` means
+  // the brain default (`types.ts`), which for an injected table is all of it.
   listSessions(limit: number): Promise<readonly SessionSummary[]> {
     this.listCalls += 1;
     if (this.listFails) {

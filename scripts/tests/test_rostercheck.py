@@ -1,12 +1,12 @@
-"""Behaviour of the gate holding a document's roster to the set it describes.
+"""Tests for the gate holding a document's roster to the set it describes.
 
 The fixture is a miniature of the real thing: one page carrying one bulleted roster, one Rust
-suite the roster is about. Every mutation below is an edit somebody could really make to one side
-and forget on the other, which is the whole reason this gate exists: a check lands in a suite no
-gate runs and the sentence describing that suite is two trees away.
+suite the roster is about. Every edit below is one somebody could really make to one side and
+forget on the other, which is why this gate exists: a check lands in a suite no gate runs, and
+the sentence describing that suite is two trees away.
 
-The last tests run the gate over the committed tree, where the rosters hold or the fixtures are
-testing the gate against itself.
+The last tests run the gate over the committed tree. Without them the fixtures would only be
+testing the gate against its own miniatures.
 """
 
 import re
@@ -241,7 +241,7 @@ def test_a_borrowed_name_that_is_also_a_member_is_still_owed(tmp_path: Path) -> 
     )
 
 
-def test_a_module_that_gained_a_cli_and_stayed_put_reddens_the_half_that_lost_it(
+def test_a_module_that_gained_a_cli_and_stayed_put_fails_the_half_that_lost_it(
     tmp_path: Path,
 ) -> None:
     """The defect the split exists for, and the reason the allowance leaves no hole.
@@ -268,7 +268,7 @@ def test_a_module_that_gained_a_cli_and_stayed_put_reddens_the_half_that_lost_it
 
 
 def test_a_set_a_roster_refers_to_that_cannot_be_read_is_an_input_failure(tmp_path: Path) -> None:
-    """The borrowed set is read from the tree like any other, so it fails by the same door."""
+    """The borrowed set is read from the tree like any other, so it fails the same way."""
     root = contract(tmp_path)
     (root / rostermembers.GATES / "linecap.py").write_text('"""No CLI now."""\n', encoding="utf-8")
     with pytest.raises(RosterCheckError, match="the CLIs in scripts came back empty"):
@@ -291,7 +291,7 @@ def test_a_passage_that_moved_out_from_under_its_phrases_is_one_fault(tmp_path: 
     )
 
 
-# ── inputs that leave by their own door ────────────────────────────────────────
+# ── inputs that fail on their own terms ────────────────────────────────────────
 
 
 def test_a_document_that_is_not_there_is_an_input_failure(tmp_path: Path) -> None:
@@ -368,7 +368,7 @@ def test_the_cli_refuses_a_root_that_is_not_a_directory(
 
 
 def test_the_repos_own_rosters_hold() -> None:
-    """The gate over the committed tree, so `check-scripts` reddens when the recipe is not run."""
+    """The gate over the committed tree, so `check-scripts` fails when the recipe is not run."""
     assert check(REPO_ROOT).faults == []
 
 
@@ -395,7 +395,7 @@ def test_the_repos_own_rosters_are_over_something() -> None:
 
 
 def test_the_repo_really_writes_a_roster_in_every_shape() -> None:
-    """A spelling nothing in the tree uses is a rule that cannot redden, so all three are pinned."""
+    """A spelling nothing in the tree uses is a rule that cannot fail, so all three are pinned."""
     shapes = {type(roster.written) for roster in rosters.ROSTERS}
     assert shapes == {Bulleted, Spelled, Bare}
 

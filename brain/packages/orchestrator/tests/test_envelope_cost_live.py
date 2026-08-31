@@ -33,14 +33,14 @@ Six knobs size a run to a budget or turn it into a probe. `CORTEX_ENVELOPE_BODIE
 the first N bodies; `CORTEX_ENVELOPE_ARMS` runs a subset of
 `raw,constrained,bare,described,prefaced`;
 `CORTEX_ENVELOPE_DRAWS` repeats every arm of every body that many times, because one draw of a
-sampled model is a draw and not a reading; `CORTEX_ENVELOPE_MAX_TOKENS` overrides the cap the runs
-are given, which is how the length the constrained arm would write is read past the shipped cap
-that censors it; and `CORTEX_ENVELOPE_TAG` suffixes the sample names so a probe cannot overwrite
-the run it sits beside. `CORTEX_ENVELOPE_HEAD` sets how much of each half of the stream is kept
-verbatim, which is separate from `output`: the reply itself is always kept whole, because what an
-answer says is the reading this harness grew to take. `CORTEX_ENVELOPE_INSTRUCTION` replaces the
-subtask every body is given, which is the only place this engine lets anything be said to the model
-about the envelope at all.
+sampled model is a single sample rather than a measurement; `CORTEX_ENVELOPE_MAX_TOKENS` overrides
+the cap the runs are given, which is how the length the constrained arm would write is read past
+the shipped cap that truncates it; and `CORTEX_ENVELOPE_TAG` suffixes the sample names so a probe
+cannot overwrite the run it sits beside. `CORTEX_ENVELOPE_HEAD` sets how much of each half of the
+stream is kept verbatim, which is separate from `output`: the reply itself is always kept whole,
+because what an answer says is the reading this harness takes. `CORTEX_ENVELOPE_INSTRUCTION`
+replaces the subtask every body is given, which is the only place this engine lets anything be
+said to the model about the envelope at all.
 
 Three arms exist for questions `raw` and `constrained` cannot ask between them. `raw` and
 `constrained` differ in whether a grammar is in play at all, and since the runner appends
@@ -50,23 +50,24 @@ the wire, which is the envelope as it stood before the sentence existed and the 
 rate below is read against. `described` is the shipped envelope with one sentence added to
 its `reply` property saying what the field is for, so the difference between it and `constrained`
 is the description and nothing else. The shipped `REPLY_ENVELOPE` is a bare typed string, which
-tells a model the shape of the field and nothing about its purpose, and whether that silence costs
-the answer anything is a schema away from being measurable. `prefaced` then asks the other
-question, whether what lands in `reply` is there because the grammar offers it nowhere else to go,
-by adding a required field ahead of it that it can go to.
+tells a model the shape of the field and nothing about its purpose, and whether saying nothing
+about its purpose costs the answer anything can be measured by changing the schema. `prefaced`
+then asks the other question, whether what lands in `reply` is there because the grammar offers it
+nowhere else to go, by adding a required field ahead of it that it can go to.
 
 What it found on 2026-08-26, recorded in full in the ADR-0005 envelope addendum: the envelope
 cost 1.01 to at least 2.36 times the raw shape's tokens for a shorter reply, the tokens going to a
-reasoning trace the run then dropped unread. The lever that stops that trace is a server flag and
-not a request key (ADR-0005 thinking-lever addendum), so **a server started without
-`--reasoning-budget 0` reproduces the defect and not the fix**: with it, the same three bodies at
-the shipped cap finish at 63 to 89 decoded tokens with no trace at all, and without it the first
-of them spends 200 tokens on trace alone.
+reasoning trace the run then dropped unread. The lever that stops that trace is a server flag
+rather than a request key (ADR-0005 thinking-lever addendum), so **a server started without
+`--reasoning-budget 0` reproduces the defect rather than the fix**: with it, the same three
+bodies at the shipped cap finish at 63 to 89 decoded tokens with no trace at all, and without it
+the first of them spends 200 tokens on trace alone.
 
 What it found on 2026-08-28, once the arms above existed and every cell was drawn ten times
-(ADR-0005 answer addendum): those short finished replies are the defect and not the fix. Over four
-bodies at ten draws the unconstrained arm returned a summary on 40 of 40 and the shipped envelope on
-10 of 40, the rest narrating the subtask rather than doing it, and neither schema arm moved that.
+(ADR-0005 answer addendum): those short finished replies are the defect rather than the fix. Over
+four bodies at ten draws the unconstrained arm returned a summary on 40 of 40 and the shipped
+envelope on 10 of 40, the rest narrating the subtask rather than doing it, and neither schema arm
+moved that.
 So a run of this harness that reports the envelope finishing quickly inside its cap is reporting
 the failure, and `output` is the field that says which it is.
 
@@ -79,8 +80,8 @@ change the constant and re-run rather than to type a longer instruction here.
 **Every rate this produces is read against `raw`, and that arm is held to a floor elsewhere**
 (ADR-0028 control-arm addendum). It returned 96 of 96 on three picks and then 93 and 92 on two
 more, both times because the pick failed the subtask rather than because the envelope took an
-answer away, so the arm every number here is divided by is a reading and not a constant. This file
-records what each run did, including the instruction the arm really sent and whether the arm is
+answer away, so the arm every number here is divided by is a measurement and not a constant. This
+file records what each run did, including the instruction the arm really sent and whether the arm is
 the control, and `scripts/envelopefloor.py` turns those records into rates with the interval the
 addenda publish and refuses to publish a comparison at all when a control cell is proven below
 nine tenths of its own runs. The arithmetic is over there rather than here for the reason
@@ -376,7 +377,7 @@ class _Recording:
 
 
 def _roster(backend: InferenceBackend) -> SubagentRoster:
-    """The shipped entry's own numbers, with every spawn kept on the CPU path.
+    """Build a roster from the shipped entry's own numbers, with every spawn kept on the CPU path.
 
     A zero-headroom placer is what a closed GPU tier leaves, and it is what the batch behind the
     whole-subtask interval used, so these readings sit beside that one.
@@ -393,7 +394,7 @@ def _roster(backend: InferenceBackend) -> SubagentRoster:
 async def _one(
     client: httpx.AsyncClient, name: str, body: str, *, arm: str, draw: int
 ) -> dict[str, Any]:
-    """Run one body on one shape through the real runner and say what came back."""
+    """Run one body on one shape through the real runner and report what came back."""
     schema = _SCHEMAS[arm]
     recorder = _Recording(
         LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client),
@@ -467,7 +468,7 @@ async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None
                 for arm in _ARMS:
                     turns[arm].append(await _one(client, name, body, arm=arm, draw=draw))
                     _write(arm, turns[arm])
-    # Said before the assertions below, so a run that trips one still names what it left behind.
+    # Printed before the assertions below, so a run that fails one still names what it wrote.
     # The rates are not computed here: an arm's delivered rate is a published number and the
     # arithmetic behind one belongs in a gated tool, which is also what holds the control arm to
     # its floor and refuses to publish a comparison read against a control that fell through it.
@@ -480,8 +481,8 @@ async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None
         f"  just envelope-floor {written}",
         flush=True,
     )
-    # The measurement is the numbers printed and written above; what must hold whatever the model
-    # decides is that every arm answered over the same bodies, which is what makes them pairable.
+    # The measurement is the numbers printed and written above. What has to hold whatever the
+    # model decides is that every arm answered over the same bodies, which is what pairs them.
     asked = [[(turn["question"], turn["draw"]) for turn in seen] for seen in turns.values()]
     assert all(seen == asked[0] for seen in asked), f"the arms asked different bodies: {asked}"
     everything = [turn for seen in turns.values() for turn in seen]

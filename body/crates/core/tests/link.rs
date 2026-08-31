@@ -2,8 +2,8 @@
 //! the `probe_link` call that turns an answer (or a failure) into a state the overlay can show.
 //!
 //! Network-free: a `ScriptedTransport` fake answers `health` from a script, and every other
-//! port method is unreachable here on purpose (the probe calls exactly one method, which is
-//! itself part of the contract: an indicator must not run a turn or a store read to draw a dot).
+//! port method is unreachable here on purpose, because the probe calls exactly one method.
+//! That is part of the contract: drawing the indicator must not run a turn or a store read.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -26,7 +26,8 @@ enum Script {
 }
 
 /// A `BrainTransport` whose `health` follows a script and counts its calls. The other methods
-/// answer empty: the probe must never reach them, and a panic body would hide it if it did.
+/// count the call and answer empty, so a probe that reached one shows up in the count the tests
+/// assert on rather than as a panic from inside the port.
 struct ScriptedTransport {
     script: Script,
     health_calls: AtomicUsize,
@@ -162,7 +163,7 @@ async fn a_ready_brain_probes_ready_and_carries_its_own_detail() {
 
 #[tokio::test]
 async fn a_brain_that_reports_itself_not_ready_is_degraded_not_down() {
-    // The brain answered, so it is reachable; it says it cannot serve. Those are different
+    // The brain answered, so it is reachable, and it says it cannot serve. Those are different
     // facts and the indicator shows different colours for them.
     let (status, ..) = probe(Script::NotReady("loading the brain-tier model")).await;
     assert_eq!(
@@ -189,7 +190,7 @@ async fn an_unreachable_brain_probes_down_with_the_dial_failure() {
 #[tokio::test]
 async fn a_non_ok_status_is_degraded_because_the_brain_answered_it() {
     // A rejected seam token (ADR-0016) is the everyday case: reporting "cannot reach the brain"
-    // would send the user looking at the wrong thing entirely.
+    // would send the user looking at the wrong thing.
     let (status, ..) = probe(Script::Rpc("Unauthenticated", "invalid seam token")).await;
     assert_eq!(
         status,
@@ -214,9 +215,9 @@ async fn an_unreadable_reply_is_degraded_and_says_so() {
 
 #[tokio::test]
 async fn a_probe_that_ran_out_of_time_is_down_and_names_the_deadline() {
-    // The state a hang draws, and the one place the deadline could have quietly lied. Degraded
-    // means the brain answered, so a probe that got no answer must not draw it however
-    // reachable the brain looked (ADR-0024 deadline addendum); the detail carries the deadline
+    // The state a hang draws, and the classification the deadline could most easily get wrong.
+    // Degraded means the brain answered, so a probe that got no answer must not draw it however
+    // reachable the brain looked (ADR-0024 deadline addendum). The detail carries the deadline,
     // so the tooltip still separates a wedged brain from an absent one.
     let (status, ..) = probe(Script::Timeout(Duration::from_millis(250))).await;
     assert_eq!(

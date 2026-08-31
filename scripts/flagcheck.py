@@ -1,61 +1,29 @@
 """Repo gate: fail when a subagent server this repo starts is missing a flag its tier requires.
 
-The claim a reader wants about this tier is a claim about **every** server in it, and until this
-scan the tree could only make the narrower one. The reasoning-off pair was held as a needle per
-named compose file, so the two servers written down really did carry both flags, and a third
-server added tomorrow in a new override carried whatever its author remembered and reddened
-nothing. The set is what was missing, and `subagentservers.py` is where it is now derived from the
-stack's own wiring and argv rather than registered by hand beside a check.
+The set of servers is derived rather than listed. `subagentservers.py` reads it off the compose
+stack's own wiring and argv, and `hostedtiers.py` answers for the one placement no compose file
+holds, the model host's hosted subagent tier. Neither reader says which flags matter: `REQUIREMENTS`
+below is the whole rule and runs over the union of both sets, so a flag added here reaches both
+placements. Both readers decide membership from the variable a model artifact is named under, so
+`artifactnames.py` finds every such variable structurally and the rule below holds each to beginning
+with `FAMILY_PREFIX`; a rule whose domain was the family itself could not fail for the misnaming it
+exists to catch. The ADR-0029 addenda on deriving the set a rule runs over, on covering both
+placements of one tier with one rule, and on holding the convention a derived set is read out of
+argue all three choices.
 
-**The set has two readers because the tier has two placements, and the rule stays one.** Most of
-these servers are compose services and `subagentservers.py` answers for them. The one that is not
-is the model host's own hosted subagent tier, which the supervisor starts as a child process from
-an argv assembled in Python, and `hostedtiers.py` answers for that. Neither reader says anything
-about which flags matter: `REQUIREMENTS` below is the whole of the rule and it runs over the union,
-so a fourth flag added here reaches both placements, and a flag renamed on either side reddens
-because the sidecar's own spelling is compared against this one rather than trusted.
+A server started without `--reasoning-budget 0` spends its whole token cap on reasoning output no
+caller reads, then answers a cap refusal (ADR-0005 switch-is-advisory addendum). One started without
+`--chat-template-kwargs '{"enable_thinking": false}'` does the same on the plain requests the budget
+does not cover, the two flags reaching different halves of the request shapes this tier serves. One
+started without `--jinja` cannot function-call at all, so a tools-enabled subagent loses its tools
+(ADR-0010). None of the three crashes: the server comes up healthy, passes its healthcheck, and the
+only symptom is a slow or empty subagent.
 
-**What a fault costs, which is why the flags are worth a gate.** A subagent server started without
-`--reasoning-budget 0` spends its whole token cap on a trace no reader ever sees and answers a cap
-refusal (ADR-0005 switch-is-advisory addendum). One started without `--chat-template-kwargs
-'{"enable_thinking": false}'` does the same on the plain requests the budget's own family does not
-cover, the two flags reaching different halves of the request shapes this tier serves. One started
-without `--jinja` cannot function-call at all, so a tools-enabled subagent loses its tools
-(ADR-0010). None of the three is a crash. Each is a server that comes up healthy, passes its
-healthcheck, and is wrong in a way whose only symptom is a slow or empty subagent, which is
-exactly the failure a gate is for and a test is not.
-
-**The requirements are grouped by the reason they exist, and a flag pair is one group.** Two flags
-that must travel together are one claim about a deployment, not two, so they are written as one
-requirement carrying one sentence, and a fault names that sentence whichever half went missing.
-This is the same reading the constant registry took when it held the pair as a single needle
-rather than inventing a relation for co-occurrence.
-
-**A value is held at every occurrence, not the first.** llama.cpp takes the last spelling of a
-repeated flag, so a server carrying `--reasoning-budget 0 --reasoning-budget 512` runs at 512
-while a reader of its first pair believes otherwise, and a check that stopped at the first would
-call that server compliant.
-
-**The count under `--reasoning-budget` is one value in two trees**, this rule's and the model
-host's `_NO_REASONING_BUDGET`, and `crosscheck.py` holds them together. So the sidecar's own
-hosted subagent tier and the compose servers here cannot drift into disagreeing about what
-"no thought" is, which matters because a narrow subtask wants none rather than a short one.
-
-**The set both readers derive rests on a naming convention, so the convention is held here too.**
-Each of them decides membership from the variable an artifact is named under, which made the whole
-promise, that a server added tomorrow is held the day it is written, rest on tomorrow's author
-spelling one variable the way three earlier ones were spelled. `artifactnames.py` finds every
-model artifact this tree names structurally, by llama.cpp's own `--model` and by the settings
-field a tier reads its path from, and the rule below holds each to beginning `FAMILY_PREFIX`. So
-an artifact spelled another way is a fault printed at the moment the variable is written, rather
-than a server or tier that leaves the set in silence and reddens nothing. The domain is
-deliberately not the family itself: a rule that only looked at the variables already spelled that
-way could not fail for the one fault it exists to catch.
-
-**Both floors are asserted**: a rule requiring no flag and a tree starting no subagent server are
-each reported rather than passed, since a scan over nothing would report success forever. The
-naming rule needs no third floor, `hostedtiers.py` already refusing a sidecar that declares no
-tier and a tier that names no artifact.
+Two flags that must travel together are written as one requirement carrying one sentence, so a
+fault names that sentence whichever half is missing. A flag's value is checked at every occurrence
+rather than the first, llama.cpp taking the last spelling of a repeated flag. Both floors are
+asserted: a rule requiring no flag, and a tree starting no subagent server, are each reported
+rather than passed.
 """
 
 import argparse
@@ -69,8 +37,8 @@ from composestarts import ComposeStartError
 from hostedtiers import HostedTierError, hosted
 from subagentservers import FAMILY_PREFIX, Server, servers
 
-# A gate over no server, or over no requirement, would be green forever, which is the one thing
-# every scan here refuses.
+# A gate over no server, or over no requirement, would be green forever, so every scan here fails
+# when either set is empty.
 MIN_SERVERS = 1
 MIN_FLAGS = 1
 
@@ -121,7 +89,7 @@ REQUIREMENTS: tuple[Requirement, ...] = (
         ),
         # The budget's count is the model host's `_NO_REASONING_BUDGET`, held to this spelling by
         # the constant scan, so the hosted tier and the compose servers cannot disagree about it.
-        # Zero rather than a count, because a narrow subtask wants no thought and not a short one.
+        # Zero rather than a count, because a narrow subtask needs no thought and not a short one.
         flags=(
             Flag("--chat-template-kwargs", '{"enable_thinking": false}'),
             Flag("--reasoning-budget", "0"),
@@ -134,8 +102,8 @@ REQUIREMENTS: tuple[Requirement, ...] = (
 # requirement prints why every server must meet it.
 WHY_NAMED = (
     "both readers of this gate's set decide whether a server or a tier serves subagents from that "
-    "spelling alone, so an artifact named another way leaves the set in silence and this scan "
-    "reports success over the server or tier it belongs to"
+    "spelling alone, so an artifact named another way drops out of the set unreported and this "
+    "scan passes over the server or tier it belongs to"
 )
 
 

@@ -1,40 +1,40 @@
-"""One URL's canonical *identity*, behind the output guardrail's laundering defense (ADR-0015).
+"""One URL's canonical identity, behind the output guardrail's laundering defense (ADR-0015).
 
-Split from ``urls.py`` (which owns the *grammar*: what counts as a clickable URL in text, even a
+Split from ``urls.py`` (which owns the grammar: what counts as a clickable URL in text, even a
 partial one mid-stream) at the line cap as the seventh addendum landed. This module answers the
 other half: given a matched URL, reduce it to a canonical string so a link collected from untrusted
 content and its reproduction in the reply compare equal however the model rewrote it.
 
-``normalize_url`` applies its passes in a fixed order, each one only ever *merging* two spellings
+``normalize_url`` applies its passes in a fixed order, each one only ever merging two spellings
 into one identity, never splitting one:
 
-1. *Decode escapes* to a fixpoint: HTML character references (``evil&#46;com``, the way HTML email
+1. Decode escapes to a fixpoint: HTML character references (``evil&#46;com``, the way HTML email
    hides a dot) and percent-escapes, stacked (``evil%252ecom``); ADR-0015 fourth + fifth addenda.
-2. *Refang* common defang tokens (``hxxp://``, ``evil[.]com``, ``[://]``), run after decode so an
+2. Refang common defang tokens (``hxxp://``, ``evil[.]com``, ``[://]``), run after decode so an
    entity-hidden bracket refangs too (ADR-0015 sixth addendum).
-3. *Strip format characters* (Unicode category ``Cf``: zero-width spaces/joiners, soft hyphen, BOM),
+3. Strip format characters (Unicode category ``Cf``: zero-width spaces/joiners, soft hyphen, BOM),
    which survive NFKC and otherwise let ``evi<ZWSP>l.com`` diverge from its plain twin.
-4. *Decode punycode* labels (``xn--e1awd7f`` to its Unicode form) via the stdlib ``idna`` codec, so
+4. Decode punycode labels (``xn--e1awd7f`` to its Unicode form) via the stdlib ``idna`` codec, so
    a registered IDN homoglyph host reduces to the letters it renders as, feeding pass 5.
-5. *NFKC* folding (fullwidth/compatibility homoglyphs to ASCII, which is also what reduces a
+5. NFKC folding (fullwidth/compatibility homoglyphs to ASCII, which is also what reduces a
    fullwidth scheme separator the matcher now anchors, a U+FF1A colon or a U+FF0F solidus, to
    its ASCII spelling).
-6. Fold a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes),
+6. Fold a curated table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes),
    which lives in ``url_confusables`` because it is the one pass here that is a judgement about
    what looks alike rather than a resolver's reading, and the one a caller may switch off
    (``confusables=False``) to read a host as the letters it was actually written in.
-7. Fold the *IDNA label separators* NFKC leaves standing (a U+3002 or U+FF61 stop between two
-   labels), which the resolver reads as a dot, and close the whitespace a *split* host spells the
+7. Fold the IDNA label separators NFKC leaves standing (a U+3002 or U+FF61 stop between two
+   labels), which the resolver reads as a dot, and close the whitespace a split host spells the
    same dot with (``evil dot com``); ADR-0015 eighth + twelfth addenda.
-8. *Drop what a URL parser removes* from its input before parsing it, which is the tab
+8. Drop what a URL parser removes from its input before parsing it, which is the tab
    (``url_removals``, run here rather than earlier so a gap spelled with tabs is still a gap, the
    literals above being ``permeable`` instead); ADR-0015 fifteenth + seventeenth addenda.
-9. Fold a *special scheme's backslashes* to the solidi the URL parser reads them as, and its run
+9. Fold a special scheme's backslashes to the solidi the URL parser reads them as, and its run
    of authority slashes to one pair however many it holds (none included), so the JSON-escaped and
    the slashless spellings of a link share the link's identity; ADR-0015 tenth + eleventh addenda.
 
-Passes 3 and 4 landed in the seventh addendum. Deterministic and dependency-free (stdlib only), the
-line that keeps this out of the heuristic/screening-model layer. Pure state- and I/O-free.
+Passes 3 and 4 landed in the seventh addendum. Deterministic and dependency-free (stdlib only),
+which is what keeps this out of the heuristic or screening-model layer. No state and no I/O.
 """
 
 import html
@@ -56,9 +56,9 @@ _OPEN_BRACKET = rf"[\[({{]{REMOVED_RUN}"
 _CLOSE_BRACKET = rf"{REMOVED_RUN}[\])}}]"
 
 # A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case),
-# built on the one defang token that is a *word* rather than a mark, which is therefore the one a
-# space can wrap with no bracket to bound it. The *refanger*'s tokens, applied after
-# `_decode_escapes`, so they need only the literal form; the *matcher*'s broader bracket chunk lives
+# built on the one defang token that is a word rather than a mark, which is therefore the one a
+# space can wrap with no bracket to bound it. These are the refanger's tokens, applied after
+# `_decode_escapes`, so they need only the literal form; the matcher's broader bracket chunk lives
 # in `urls.py`. Recognized only inside a URL, and public because `url_spellings.py` spends both on
 # the grammar's whitespace-split host, so the grammar and the fold cannot disagree about them.
 DOT_WORD = "dot"
@@ -74,7 +74,7 @@ _DEFANG_COLON = rf"{_OPEN_BRACKET}:{_CLOSE_BRACKET}"
 # identity, and preserved outside a redaction. Shared with the redactor.
 TRAILING_PUNCTUATION = ".,;:!?"
 
-# The schemes whose URLs a WHATWG parser reads a backslash in as a solidus (its *special* schemes,
+# The schemes whose URLs a WHATWG parser reads a backslash in as a solidus (its special schemes,
 # less the ones this grammar does not match). It lives here rather than in the grammar because it is
 # the resolver's own notion, and `urls.py` builds its authority-scheme words on top of it, adding
 # the defanged `hxxp` twins, so the two tables cannot drift. Order matters to the alternation the
@@ -112,13 +112,13 @@ def _refang(url: str) -> str:
     return url
 
 
-# Escape-decoding is applied to a **fixpoint**, not once, so a *stacked* escape (`evil%252ecom` →
+# Escape-decoding is applied to a fixpoint rather than once, so a stacked escape (`evil%252ecom` →
 # `evil%2ecom` → `evil.com`, or an HTML reference over a percent-escape `evil&#37;2ecom` →
 # `evil%2ecom` → `evil.com`) reduces to one identity (ADR-0015 fourth + fifth addenda). Each round
 # applies both `html.unescape` (HTML references → their character) and `unquote` (`%XX` → one char);
-# each only ever *shrinks* the string, so a round that changes anything strictly shrinks it and this
-# always terminates on its own. The cap is a belt-and-suspenders DoS bound: a URL with more stacked
-# escapes than this is never a real clickable link, and is left *partially* decoded, still symmetric
+# each only ever shrinks the string, so a round that changes anything strictly shrinks it and this
+# always terminates on its own. The cap is a defensive DoS bound: a URL with more stacked escapes
+# than this is never a real clickable link, and is left partially decoded, still symmetric
 # (both sides fold the same), so an equal-depth transform still matches; the bound only declines to
 # over-resolve an absurd one.
 _MAX_DECODE_PASSES = 5
@@ -127,9 +127,9 @@ _MAX_DECODE_PASSES = 5
 def _decode_escapes(url: str) -> str:
     """Decode ``url``'s HTML character references and percent-escapes to a fixpoint (bounded).
 
-    A multiply-encoded or HTML-entity-hidden escape reduces to its plain identity, not just a single
-    browser-hop decode. HTML references are decoded first each round so an entity-encoded percent
-    (`&#37;`) is exposed to the same round's ``unquote`` (ADR-0015 fifth addendum)."""
+    A multiply-encoded or HTML-entity-hidden escape reduces to its plain identity rather than to a
+    single browser-hop decode. HTML references are decoded first each round so an entity-encoded
+    percent (`&#37;`) is exposed to the same round's ``unquote`` (ADR-0015 fifth addendum)."""
     for _ in range(_MAX_DECODE_PASSES):
         decoded = unquote(html.unescape(url))
         if decoded == url:
@@ -142,7 +142,7 @@ def _strip_format_chars(url: str) -> str:
     """Drop Unicode format characters (category ``Cf``) from a URL's identity.
 
     Zero-width space/joiner/non-joiner, the directional marks, the soft hyphen, and the BOM render
-    as *nothing*, so `evi<ZWSP>l.com` and `evil.com` are the same link to the eye and to the
+    as nothing at all, so `evi<ZWSP>l.com` and `evil.com` are the same link to the eye and to the
     resolver, but they survive NFKC untouched and so used to compare unequal (ADR-0015 seventh
     addendum). Run after decoding, so a percent- or entity-encoded zero-width character
     (`evi%E2%80%8Bl.com`) is exposed first. Symmetric on both sides of the defense.
@@ -151,9 +151,9 @@ def _strip_format_chars(url: str) -> str:
 
 
 # An IDN label in its ASCII-compatible (punycode) encoding. Decoded back to the Unicode letters it
-# renders as, so a *registered* homoglyph domain (`xn--e1awd7f.com`, which resolves and renders as
-# Cyrillic `epic`) reduces through the confusable fold to the ASCII twin it imitates, instead of
-# sailing past a table that only ever saw the pre-encoded form (ADR-0015 seventh addendum). The
+# renders as, so a registered homoglyph domain (`xn--e1awd7f.com`, which resolves and renders as
+# Cyrillic `epic`) reduces through the confusable fold to the ASCII twin it imitates, rather than
+# passing a table that only ever saw the pre-encoded form (ADR-0015 seventh addendum). The
 # stdlib `idna` codec does this with no dependency, contrary to the sixth addendum's scope note.
 _PUNYCODE_LABEL = re.compile(r"\bxn--[a-z0-9-]+", re.IGNORECASE)
 
@@ -182,19 +182,19 @@ def _decode_punycode(url: str) -> str:
 # own IDNA codec splits a host on exactly U+002E, U+3002 (ideographic full stop), U+FF0E (fullwidth)
 # and U+FF61 (halfwidth ideographic) via `encodings.idna.dots`, and a host written with the U+3002
 # stop encodes to the plain ASCII host, so the reader decodes nothing and the resolver goes to the
-# same place. NFKC folds U+FF0E (and the one-dot leader U+2024) on its own but maps U+FF61 *onto*
+# same place. NFKC folds U+FF0E (and the one-dot leader U+2024) on its own but maps U+FF61 onto
 # U+3002 rather than to a dot, leaving that pair standing, which gave a collected link a second
 # identity the default policy missed while strict mode still caught it (ADR-0015 eighth addendum).
 # Symmetric and over-redaction-only like every other pass here: the false positive is a legitimate
 # host written with a CJK stop, which resolves to the same host anyway. Keys are `\u` escapes so the
 # source stays ASCII, the `_CONFUSABLES` convention. The ASCII dot leads the table (folding to
 # itself) because `url_spellings.py` spends the same string on the grammar's host anchor, which has
-# to know every reading of a dot the resolver has, so the two cannot disagree about what one is.
+# to admit every reading of a dot the resolver has, so the two cannot disagree about what one is.
 LABEL_SEPARATORS = ".\u3002\uff61\uff0e"
 
 _LABEL_DOTS = str.maketrans(dict.fromkeys(LABEL_SEPARATORS, "."))
 
-# The label separator a *gap* spells: the whitespace-split defang (`evil dot com`, `evil . com`),
+# The label separator a gap spells: the whitespace-split defang (`evil dot com`, `evil . com`),
 # which the grammar admits only inside a host that carries no plain dot of its own. Folding it
 # closes the whitespace, so the split spelling and the contiguous one are one identity. Every
 # other reading has already become an ASCII dot by the time this runs (escapes decoded, brackets
@@ -214,12 +214,12 @@ def _fold_label_dots(url: str) -> str:
 # one. Like the label separators above this is the resolver's reading and not a judgement about
 # what looks alike: the URL Standard's special-authority states skip both `/` and `\`, so
 # `new URL("https:\/\/evil.example/pay")` in any WHATWG-conforming parser (every browser) is
-# `https://evil.example/pay`, and the JSON-escaped spelling of a link IS the link rather than a
-# rendering of one (ADR-0015 tenth addendum). The run is `*` and not `+` because the same states
-# tolerate a slash that is *missing*: `https:evil.example/pay` is that link too, so the empty run
-# is one of the spellings this pass has to fold (ADR-0015 eleventh addendum). Run after NFKC, which
-# has already reduced the fullwidth solidus, and after the refanger, which has already turned
-# `hxxp` into `http`.
+# `https://evil.example/pay`, and the JSON-escaped spelling of a link is the link itself rather
+# than a rendering of one (ADR-0015 tenth addendum). The run is `*` and not `+` because the same
+# states tolerate a slash that is missing: `https:evil.example/pay` is that link too, so the empty
+# run is one of the spellings this pass has to fold (ADR-0015 eleventh addendum). Run after NFKC,
+# which has already reduced the fullwidth solidus, and after the refanger, which has already
+# turned `hxxp` into `http`.
 _SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]*", re.IGNORECASE)
 
 
@@ -257,9 +257,9 @@ def normalize_url(url: str, *, confusables: bool = True) -> str:
     equal).
 
     ``confusables=False`` runs every pass but the curated confusable fold, which is the only one
-    that is a judgement rather than a resolver's reading. Identity comparison always wants the
-    fold, so both sides of the defense take the default; the lookalike policy wants the host as it
-    was *written*, because a host built wholly out of table entries folds to plain ASCII and would
+    that is a judgement rather than a resolver's reading. Identity comparison always needs the
+    fold, so both sides of the defense take the default; the lookalike policy needs the host as it
+    was written, because a host built wholly out of table entries folds to plain ASCII and would
     otherwise read as an ordinary name (ADR-0015 fourteenth addendum). Structure is unaffected
     either way: every pass that decides where the ``://`` and the authority end runs regardless.
     """

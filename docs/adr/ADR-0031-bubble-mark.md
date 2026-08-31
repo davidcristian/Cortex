@@ -59,7 +59,7 @@ liked all four, which turned a one-of-four pick into the actual decision below.
    each drawn live at a glanceable size; choosing one applies it to both places at once. The
    alternative, a fifth header button, was rejected twice over: the header is deliberately four
    buttons, and a mark-shaped button in the resting header would put the accent palette on resting
-   chrome, which §1 of the design doc forbids. The control sits on the thing it changes.
+   chrome, which §1 of the design doc forbids.
 
 6. **The chosen style is session state, exactly like the theme.** `App` holds `markPreference`
    beside the theme `preference`; neither survives a restart today. Persisting appearance choices
@@ -103,12 +103,12 @@ moves, and each label names the motion it fronts: Mull turns the outline over wi
 Muse keeps a calm surface over a drifting film, Hunch is the sudden ripple that strikes the rim
 and fades, Tangent's side lobes swing on arcs around the main one without ever leaving it.
 
-The scheme is the point, not just the words. Naming here is a designed system with the same craft
-as the visuals, which the maintainer made standing policy when he approved this set: one word per
-style, distinct first letters, one metaphor for the whole family, and the family chosen to mean
+The scheme matters as much as the four words do. Naming here is a designed system with the same
+craft as the visuals, which the maintainer made standing policy when he approved this set: one word
+per style, distinct first letters, one metaphor for the whole family, and the family chosen to mean
 something (a picker for the thinking signal should ask "how does it think?"). Sibling registries
-speak sibling languages rather than sharing words, so no mark name collides with a theme name or
-any other pickable family.
+draw on related vocabularies rather than sharing words, so no mark name collides with a theme name
+or any other pickable family.
 
 Every `MarkStyle.name` is now a frozen key that differs from its label (`wobble`, `sheen`,
 `ping`, `foam`): the reasoning of the 2026-07-20 addendum holds for all four, and its closing
@@ -118,10 +118,10 @@ no key, number or behaviour did.
 ## Addendum (2026-07-21, later): the keys are healed
 
 The maintainer corrected the premise under the two addenda above: the project is private, nothing is
-in production, and no machine but his holds a stored preference, so key-freezing is policy that
-has not started yet rather than physics. Every `MarkStyle.name` now matches its label (`mull`,
-`muse`, `hunch`, `tangent`), and the shipped keys (`wobble`, `sheen`, `ping`, `foam`) live on as
-aliases inside `resolveMark`, so a preference written before the healing still resolves to the
+in production, and no machine but his holds a stored preference, so key-freezing is a policy that
+has not taken effect yet rather than a constraint. Every `MarkStyle.name` now matches its label
+(`mull`, `muse`, `hunch`, `tangent`), and the shipped keys (`wobble`, `sheen`, `ping`, `foam`) live
+on as aliases inside `resolveMark`, so a preference written before the healing still resolves to the
 style it named while every new write uses the current key. The freeze rule itself moved into
-AGENTS.md in its corrected form: keys freeze once anything beyond the host machine depends on
-them, and until then a mismatch is healed while healing is free.
+AGENTS.md in its corrected form: keys freeze once anything beyond the host machine depends on them,
+and until then a mismatch is healed while healing is free.

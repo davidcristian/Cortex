@@ -5,18 +5,18 @@ one it cannot, because the process died. A restart fails the stranded record and
 GPU back onto the cortex, and it never resumes a deep phase, because replaying side-effectful
 work without a request-identity design is the worse failure.
 
-Distrust-green proofs (each mutation reddened the named test, then was restored):
-- skipping the ``transition`` to FAILED reddens
+Mutations proving these tests can fail (each was applied on its own, then restored):
+- skipping the ``transition`` to FAILED fails
   ``test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused``;
-- skipping the stop of a still-running deep model reddens
+- skipping the stop of a still-running deep model fails
   ``test_a_deep_model_left_resident_by_a_crash_is_stopped``;
-- leaving an evicted tier stopped instead of restoring it reddens
+- leaving an evicted tier stopped instead of restoring it fails
   ``test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back``;
-- letting a ``ModelHostError`` escape reddens ``test_an_unreachable_host_does_not_fail_the_boot``.
+- letting a ``ModelHostError`` escape fails ``test_an_unreachable_host_does_not_fail_the_boot``.
 
 Convergence also answers whether the cortex was observed serving, which the composition root
 publishes onto the residency report (a log line nobody reads is not a readiness surface). One
-more measured mutation: returning ``True`` unconditionally reddens 4 (re-measured 2026-08-09,
+more measured mutation: returning ``True`` unconditionally fails 4 (re-measured 2026-08-09,
 having been 3 before a third such case was added here), every case that observes a cortex which is
 not serving, here and in ``test_residency_watch.py``, plus the composition root's
 ``test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so``.
@@ -25,50 +25,51 @@ That answer is about the cortex alone, which is three cases here plus three muta
 to production code alone with the whole brain workspace re-run, so the counts are measured:
 
 - letting a peer's refused ``start`` decide the verdict again (starting the evicted tiers back
-  inside the same ``try``, which is what this did before) reddens **5**: three here
+  inside the same ``try``, which is what this did before) fails **5**: three here
   (``..._will_not_start_is_recorded_and_not_counted``, ``..._does_not_serve_at_all_is_no_verdict``,
   ``..._still_asks_for_its_peers_back``),
   ``test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_proceeds`` in
   ``test_residency_watch.py``, and the composition root's
   ``test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready``;
 - letting a peer's refused ``status`` do the same (the clearing loop back inside that ``try``,
-  deep model included) reddens **1**,
+  deep model included) fails **1**,
   ``test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either``, which is the only case
   that fails one call earlier than the rest and the one a real sidecar produces;
 - marking the peers after an unreachable host too (calling ``restart_evicted`` before the
-  ``except``'s ``return``) reddens **1**, ``test_an_unreachable_host_does_not_fail_the_boot``.
+  ``except``'s ``return``) fails **1**, ``test_an_unreachable_host_does_not_fail_the_boot``.
 
 That last case is why it names a peer tier and hands the host a start it refuses. Written the
 obvious way, over this file's default plan, its last assertion was **vacuous**: that plan evicts
-nothing, so the mutation had no tier to mark and stayed green. Every path here that asserts on the
-record needs a plan with a peer in it, which is the shape the shipped defaults do not have.
+nothing, so the mutation had no tier to mark and the test still passed. Every path here that
+asserts on the record needs a plan with a peer in it, which is the shape the shipped defaults do
+not have.
 
 The deep tier is the one peer of none, and a host that does not carry it at all is the one failure
 of its clearing that says nothing about the card (ADR-0030 unrostered-tier addendum). Two more
 measured mutations, one per direction:
 
 - making that clearing fatal again (re-raising the ``ModelNotHostedError`` instead of logging it)
-  reddens **1**, ``..._is_a_config_fault_not_an_amber_boot``;
-- answering ``True`` where a cortex the daemon does not serve is caught reddens **1**,
+  fails **1**, ``..._is_a_config_fault_not_an_amber_boot``;
+- answering ``True`` where a cortex the daemon does not serve is caught fails **1**,
   ``..._is_amber_and_says_which_it_is``, which is the guard on the whole change: the tolerance is
   for a tier nothing can be resident under, never for the model that has to be.
 
 Three more for the model a failure names, measured once the clearing and the settling stopped
 sharing a ``try``, each applied to production code alone with the whole brain workspace re-run:
 
-- naming the cortex on the deep model's clearing reddens **2**,
+- naming the cortex on the deep model's clearing fails **2**,
   ``..._an_unreachable_host_does_not_fail_the_boot`` and
   ``..._a_deep_model_that_really_will_not_stop_still_fails_the_boot``, the two cases that fail at
   the deep model;
-- naming the deep model on the cortex's own failure reddens **1**,
+- naming the deep model on the cortex's own failure fails **1**,
   ``..._a_host_that_fails_at_the_cortex_names_the_cortex_and_not_the_deep_model``;
-- putting both calls back under one ``try`` reddens **2**, the same two deep-model cases and
+- putting both calls back under one ``try`` fails **2**, the same two deep-model cases and
   **not** the cortex one, which is why they are the pair that has to exist: a cortex that fails
   last is the model a collapsed arm happens to name, so a suite holding only the new case would
   let the collapse back in.
 
 One more, measured 2026-08-24 over ``brain/``: reverting the stranded line's work field to the
-bare ``handoff`` it used to spell reddens **1**,
+bare ``handoff`` it used to spell fails **1**,
 ``..._a_stranded_record_is_failed_so_the_next_handoff_is_not_refused``, whose assertion moved
 from the message alone to the whole record when the swap path joined the log vocabulary (ADR-0009
 sixth-name addendum).
@@ -101,7 +102,7 @@ _TIER = "subagent-gpu"
 def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[str, dict[str, object]]]:
     """What each line says and what it carries, read the way the formatter reads a record.
 
-    The message alone is not the assertion these cases want any more. A boot failure's whole job
+    The message alone is not the assertion these cases need any more. A boot failure's whole job
     is to name the tier the host refused, and that name rides as a field, so a check on the
     sentence would pass just as well on a line that named the other model.
     """
@@ -369,7 +370,7 @@ async def test_a_deep_model_that_really_will_not_stop_still_fails_the_boot(
 async def test_a_cortex_the_daemon_does_not_serve_is_amber_and_says_which_it_is(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The same distinction pointing the other way, which must not turn green.
+    """The same distinction pointing the other way, which must not read as a serving cortex.
 
     A daemon whose roster lacks the cortex is a misconfiguration too, and it is the one where
     nothing is serving turns: the verdict is the amber every unconfirmed cortex gets, and only the

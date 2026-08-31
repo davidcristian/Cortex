@@ -84,9 +84,9 @@ _HEX = re.compile(r"\b[0-9a-f]{7,40}\b")
 _FENCE = re.compile(r"^\s*(?:```|~~~)")
 
 # A terminal paste the author marked with a shell prompt. This is the only UNFENCED paste the
-# wrap steps over: a leading indent is not the signal the deferral guessed it was, because
-# every indented line in this repo's own history is prose (nested bullet continuations), so
-# exempting an indent would unwrap ordinary sentences.
+# wrap steps over. A leading indent is not a second signal: every indented line in this repo's own
+# history is prose (nested bullet continuations), so exempting an indent would unwrap ordinary
+# sentences.
 _PROMPT = re.compile(r"^\s*\$ \S")
 
 
@@ -189,8 +189,8 @@ def wrap_problems(classified: list[Line], opened_at: int | None) -> list[str]:
 
     A fenced block and a prompted paste say what they say because of where their newlines are,
     so the gate steps over them instead of asking for a reflow that would change their meaning.
-    A fence nobody closes is a violation of its own: left silent, one stray fence would exempt
-    every line after it, which is the gate quietly ceasing to hold.
+    A fence nobody closes is a violation of its own: left unreported, one stray fence would exempt
+    every line after it from the wrap.
     """
     problems = [
         f"line {line.number} is {len(line.text)} chars; "

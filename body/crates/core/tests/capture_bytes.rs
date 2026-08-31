@@ -7,7 +7,7 @@
 //! than the 1600 px view the default replaced. So the default is only safe if a screen a person
 //! would actually read text off stays inside the ceiling, and that is what this file measures.
 //!
-//! **These are byte fixtures, not a legibility corpus.** What a PNG costs is decided by how
+//! These are byte fixtures rather than a legibility corpus. What a PNG costs is decided by how
 //! compressible the picture is, so each screen here is built out of the two things that decide
 //! that on a real desktop: smooth photographic structure (three octaves of value noise per
 //! channel, which is what a wallpaper or a video still is to a compressor) and high-frequency
@@ -15,21 +15,21 @@
 //! readable, and none of it needs to be. The legibility half is measured against the real cortex
 //! in `brain/packages/inference/tests/test_image_budget_live.py`.
 //!
-//! The grain is added at the **source** resolution and then averaged down by the body's own box
-//! filter, exactly as a real capture is, which is the whole reason a 2048 px capture costs so
-//! much more than a 1600 px one: the wider edge averages fewer source pixels per output pixel, so
-//! more of the noise survives, over more pixels.
+//! The grain is added at the source resolution and then averaged down by the body's own box
+//! filter, exactly as a real capture is. That is why a 2048 px capture costs so much more
+//! than a 1600 px one: the wider edge averages fewer source pixels per output pixel, so more
+//! of the noise survives, over more pixels.
 //!
-//! That is also why the display's own size is a variable here rather than a constant. What decides
-//! how much grain survives is the **ratio** between the display and the requested edge, so the
+//! That is also why the display's own size is a variable here rather than a constant. How much
+//! grain survives is decided by the ratio between the display and the requested edge, so the
 //! costliest screen is not the biggest one: a 4K display averages three and a half source pixels
 //! into each output pixel and most of the grain dies there, a 2560x1440 display averages almost
 //! nothing, and a 1920x1080 display is inside the bound already and crosses the seam untouched.
 //!
 //! `#[ignore]`d: it is 4 s of CPU on 33 MB frames in release and 48 s of it unoptimized, which
-//! is the shape `just check` runs, so it is a measurement rather than a gate. It is not on every
-//! commit's critical path for a number that only moves when the capture edge, the byte ceiling,
-//! or the downscaler does. Re-run it when one of those changes:
+//! is the shape `just check` runs, so it is a measurement rather than a gate. The number only
+//! moves when the capture edge, the byte ceiling, or the downscaler does. Re-run it when one of
+//! those changes:
 //!
 //! ```text
 //! cargo test -p body-core --test capture_bytes --release -- --ignored --nocapture --test-threads=1
@@ -47,11 +47,11 @@ const SOURCE: (u32, u32) = (3840, 2160);
 
 /// The body's own default edge, what a caller that asks for nothing still gets.
 ///
-/// Read from the policy rather than spelled, which is the difference between this and
-/// [`BRAIN_EDGE`] below. Both are numbers this suite must follow rather than choose, and neither
-/// is a fixture; but this one is declared in a crate the suite already imports, so the compiler
-/// holds it and nothing else has to. The brain's lives in another language, where no compiler
-/// reaches, which is why that one is spelled here and tied by `scripts/crosscheck.py` instead.
+/// Read from the policy rather than spelled again, which is the difference between this and
+/// [`BRAIN_EDGE`] below. Both are numbers this suite follows rather than chooses, and neither is
+/// a fixture. This one is declared in a crate the suite already imports, so the compiler holds
+/// the two together. The brain's lives in another language that no compiler here reaches, so it
+/// is spelled below and tied by `scripts/crosscheck.py` instead.
 const BODY_EDGE: u32 = DEFAULT_MAX_EDGE;
 
 /// The edge the brain asks for by default from this slice on.
@@ -242,7 +242,7 @@ fn full_screen_photograph(grain: i32) -> RawFrame {
 }
 
 /// The same photograph on a display of any size, because how much grain survives the downscale
-/// is decided by the *ratio* between the display and the requested edge rather than by either
+/// is decided by the ratio between the display and the requested edge rather than by either
 /// number alone. A 4K screen averages three and a half source pixels into every output pixel and
 /// most of the grain dies there; a display closer to the requested edge averages barely anything.
 fn full_screen_photograph_on(source: (u32, u32), grain: i32) -> RawFrame {
@@ -264,8 +264,8 @@ fn text_desktop() -> RawFrame {
     screen.frame()
 }
 
-/// Uniform per-pixel noise: not a screen anyone has, and the incompressible bound the ladder
-/// exists for.
+/// Uniform per-pixel noise. It is not a screen anyone has, and it is the incompressible bound
+/// the ladder exists for.
 fn uniform_noise() -> RawFrame {
     let mut rng = Rng::new(0x5EED_0004);
     let mut screen = Screen::new(SOURCE);
@@ -282,15 +282,14 @@ fn uniform_noise() -> RawFrame {
 /// policy's own rule, the longest edge landing on the bound and the other scaled by the same
 /// ratio and floored, written once here instead of a pair of digits per case.
 ///
-/// A case that pins that pair as digits fails in this suite the day the edge is retuned, with two
-/// numbers nothing in the file explains, while every repo gate stays green. No registry row can
-/// close that, and the reason is worth keeping: the height is not a second spelling of the edge,
-/// it is a **consequence** of the edge and of the display's shape, so a needle over the pair would
-/// tie two independent couplings into one and redden on a change to the fixture's aspect ratio.
-/// Arithmetic here removes the coupling instead of holding it. What an assertion against this
-/// gives up is an independently written floor; what it still catches is a capture that was not
-/// resampled at all, one resampled to the wrong bound, one that lost its aspect ratio, and the
-/// halving ladder firing.
+/// A case that pins that pair as digits fails the day the edge is retuned, with two numbers
+/// nothing in the file explains, while every repo gate stays green. The constant registry cannot
+/// hold it either: the height is a consequence of the edge and of the display's shape rather
+/// than a second spelling of the edge, so a needle over the pair would tie two independent
+/// couplings into one and fail on a change to the fixture's aspect ratio. Computing the pair
+/// here removes the coupling. An assertion against this gives up an independently written
+/// expected size, and still catches a capture that was not resampled at all, one resampled to
+/// the wrong bound, one that lost its aspect ratio, and the halving ladder firing.
 fn brain_size(source: (u32, u32)) -> (u32, u32) {
     let longest = source.0.max(source.1);
     if longest <= BRAIN_EDGE {
@@ -305,7 +304,7 @@ fn brain_size(source: (u32, u32)) -> (u32, u32) {
 }
 
 /// One frame through the real policy at one edge: the bytes that would cross the seam, and the
-/// size they came back at, which is how the halving ladder announces itself.
+/// size they came back at, which is how a fired halving ladder shows up.
 fn measure(captured: &CapturedFrame, edge: u32) -> (usize, u32, u32) {
     let capture = ok(Capture::from_bgra(captured, &CaptureRequest::new(edge)));
     (capture.data().len(), capture.width(), capture.height())
@@ -314,13 +313,14 @@ fn measure(captured: &CapturedFrame, edge: u32) -> (usize, u32, u32) {
 /// Prints one screen's row and answers whether the wider edge kept the size it should have.
 ///
 /// The bytes printed are always the ones that would cross the seam, so a row whose ladder fired
-/// prints a *small* number at a *small* size, which is exactly the failure this default has to
-/// avoid: the capture does not error, it silently arrives at 1024 px.
+/// prints a small number at a small size, which is the failure this default has to avoid: the
+/// capture does not error, it arrives at 1024 px.
 ///
 /// The size it should have is `min(the display's long edge, the requested edge)` rather than the
 /// requested edge itself, because `downscale` never upscales: a display already inside the bound
 /// crosses the seam pixel for pixel. Comparing against the request alone would call a 1920x1080
-/// desktop's untouched 1920x1080 capture a fired ladder, which is how this measurement first read.
+/// desktop's untouched 1920x1080 capture a fired ladder, which is how this measurement was first
+/// written.
 fn report(name: &str, frame: RawFrame) -> bool {
     let captured = CapturedFrame::display(frame);
     let (body_bytes, ..) = measure(&captured, BODY_EDGE);

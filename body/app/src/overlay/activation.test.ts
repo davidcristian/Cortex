@@ -25,8 +25,8 @@ describe("activation", () => {
   });
 
   it("keeps the request for a listener that attaches afterwards", () => {
-    // The whole point: the browser self-summon and a cold-start hotkey press both land before
-    // the app's passive effect has attached anything.
+    // This is the case the module exists for: the browser self-summon and a cold-start hotkey
+    // press both land before the app's passive effect has attached anything.
     requestActivation();
     expect(takePendingActivation()).toBe(true);
   });

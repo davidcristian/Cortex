@@ -3,8 +3,8 @@
 The sidecar cannot import the brain's core (it is deployed on its own, ADR-0009), so the port's
 failure channel is declared here rather than in `cortex_core.errors`, in the same shape that
 module established: one base for every way the mailbox could not answer, and beneath it the
-narrower types for the failures a caller can act on. There are two, one per guess the read tools
-invite: the query and the folder.
+narrower types for the failures a caller can act on. There are two, one for each thing the read
+tools let a caller get wrong: the query and the folder.
 """
 
 from cortex_email.values import FOLDER_UNKNOWN, SEARCH_REFUSED

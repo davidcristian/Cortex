@@ -1,8 +1,8 @@
 """The `Mailbox` contract, run over every implementation (AGENTS.md: ports before adapters).
 
 The port returns messages, and until a call cannot be answered as asked that is all any check can
-see. The failures are the other half of the port, and two of the three are the half a caller must
-be able to act on, one per argument it guessed. A folder no mailbox has needs no arrangement, only
+see. The failures are the other half of the port, and two of the three are ones a caller can act
+on, one per argument it guessed. A folder no mailbox has needs no arrangement, only
 a name `list_folders` did not return, which is exactly the mistake the tool descriptions warn
 about. The other two are conditions of the world no method can create, so each fixture supplies
 them as knobs: **the server refuses the next search**, and **the next folder cannot be opened for

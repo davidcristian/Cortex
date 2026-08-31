@@ -11,8 +11,8 @@ Opened 2026-08-29 by the close of
 engine may or may not read and left the reporting where the switch's already was.
 
 `drain_text` warns when a request that asked for no thinking is answered with a trace anyway, which
-is the one runtime line saying a lever did not hold. It fires on `bounds.thinking` and knows nothing
-about `bounds.trace_tokens`, so the three cases the new count adds are all silent: a bound naming a
+is the one runtime line saying a lever did not hold. It fires on `bounds.thinking` and does not read
+`bounds.trace_tokens`, so nothing reports the three cases the new count adds: a bound naming a
 count on a deployment whose lever is off, a bound naming a count the engine took and ignored, and a
 positive count that was honoured at a different number than the one asked for. The middle case
 cannot happen on a probed deployment, which is the point of the probe, and the first is a
@@ -38,4 +38,4 @@ probably the whole of what this needs.
 
 - 2026-08-29: opened by the close of
   [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which added a per-request
-  count whose failure to be read is as silent as the switch's was before the drain's warning.
+  count whose failure to be read goes as unreported as the switch's did before the drain's warning.

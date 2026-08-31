@@ -11,7 +11,7 @@ flag pair in the two compose subagent servers by naming each of them in the regi
 The claim a reader wants is that **every** subagent server this repo starts carries both
 reasoning-off flags. What the registry holds is narrower: the two servers written down in it do.
 The difference is a fourth server, added tomorrow in a new override or in an existing one, which
-carries whatever its author remembered and reddens nothing. That is the fault
+carries whatever its author remembered and fails nothing. That is the fault
 [R-460](460-the-reasoning-off-pair-is-spelled-in-three-places.md) was filed for, held in one of
 its two shapes.
 

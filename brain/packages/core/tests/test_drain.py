@@ -1,4 +1,4 @@
-"""Behavior of drain_text: one model call consumed to its end, its stream closed at a point.
+"""Behavior of drain_text: one model call consumed to its end, with its stream closed in one place.
 
 What the helper guarantees (ADR-0038 decision 8) is that the adapter's ``async with
 manager.acquire(...)`` block is left before the call returns, however the call ends: a stream still
@@ -134,7 +134,8 @@ async def test_drain_accepts_a_stream_that_is_not_a_generator() -> None:
 
 
 async def test_bounds_reach_the_backend_unchanged() -> None:
-    """The helper is a pass-through for how far the call may go, not a policy about it.
+    """``drain_text`` passes bounds through to the backend unchanged, applying no policy of
+    its own.
 
     Every ``drain_text`` caller is an in-turn side call whose thinking this helper throws away
     a line later, which is exactly what makes a bound worth asking for here.
@@ -159,7 +160,7 @@ def test_bounds_default_to_the_deployments_own_settings() -> None:
 
 
 def test_a_negative_trace_budget_is_refused_because_the_port_has_no_word_for_unrestricted() -> None:
-    """``None`` already says "leave it to the tier", so no negative can mean it too.
+    """``None`` already means leave it to the tier, so a negative value has no meaning to add.
 
     llama.cpp spells unrestricted `-1` on its own flag, and letting that sentinel through here
     would give the port two ways to say one thing and a caller two things to get right (ADR-0005
@@ -180,7 +181,7 @@ def test_a_cap_of_no_tokens_is_a_configuration_mistake_not_a_silent_empty_reply(
 
 
 async def test_a_capped_stop_reaches_the_ledger_a_caller_handed_in() -> None:
-    """The optional collaborator, threaded the way the tool loop threads one.
+    """A ``StopLedger`` handed in receives the stop, and the returned text does not.
 
     A ``DecodeStop`` says why the machine stopped, not what the model said, so it must reach the
     ledger and never the returned text. The text assertion is half the point: a stop that leaked
@@ -196,7 +197,7 @@ async def test_a_capped_stop_reaches_the_ledger_a_caller_handed_in() -> None:
 
 
 async def test_a_completion_that_ended_itself_leaves_the_ledger_uncapped() -> None:
-    """The contrast that makes the flag mean something: same shape, opposite reading."""
+    """The contrast arm: the same stream with a FINISHED stop leaves ``capped`` false."""
     ledger = StopLedger()
     backend = _GeneratorBackend(
         [TextChunk("They agreed to ship on the"), DecodeStop(reason=StopReason.FINISHED)]
@@ -208,10 +209,10 @@ async def test_a_completion_that_ended_itself_leaves_the_ledger_uncapped() -> No
 
 
 async def test_a_stop_with_no_ledger_is_dropped_exactly_as_it_always_was() -> None:
-    """The two callers that want only a string are untouched by the new keyword.
+    """A stop arriving with no ledger to receive it is discarded silently.
 
-    A stop arriving with nowhere to go must be discarded silently, which is the behaviour this
-    helper shipped before a ledger could be passed at all.
+    That is how this helper behaved before a ledger could be passed at all, so the two callers
+    that want only a string are unaffected by the keyword.
     """
     backend = _GeneratorBackend([TextChunk("a title"), DecodeStop(reason=StopReason.CAPPED)])
     assert await drain_text(backend, "cortex", [_message()]) == "a title"
@@ -219,7 +220,7 @@ async def test_a_stop_with_no_ledger_is_dropped_exactly_as_it_always_was() -> No
 
 
 async def test_an_event_that_is_neither_text_nor_a_stop_is_dropped_with_a_ledger_watching() -> None:
-    """The arm a ledger must not change: private thinking stays out of the text either way."""
+    """Passing a ledger does not change what reaches the text: a reasoning chunk stays out."""
     ledger = StopLedger()
     backend = _GeneratorBackend([ReasoningChunk("thinking out loud"), TextChunk("the answer")])
     assert await drain_text(backend, "cortex", [_message()], stops=ledger) == "the answer"
@@ -236,7 +237,7 @@ async def _drained(
     events: Sequence[InferenceEvent],
     bounds: GenerationBounds | None,
 ) -> tuple[str, list[logging.LogRecord]]:
-    """One drain, and whatever it said about the deliberation it was handed."""
+    """One drain, plus the lines it logged about the deliberation it dropped."""
     caplog.clear()
     caplog.set_level(logging.WARNING, logger=_DRAIN_LOGGER)
     text = await drain_text(_GeneratorBackend(events), "cortex", [_message()], bounds=bounds)
@@ -246,7 +247,8 @@ async def _drained(
 async def test_a_trace_arriving_despite_the_switch_is_reported_with_what_it_cost(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The deployment ignored the switch, so the drop is announced instead of silent.
+    """A trace arriving although the request switched thinking off is logged once, with the
+    number of characters it cost.
 
     This is the failure the line exists for (ADR-0005 switch-is-advisory addendum): the caller
     paired a cap with a switch the template did not honour, so the model is spending that cap on a
@@ -269,7 +271,7 @@ async def test_a_trace_arriving_despite_the_switch_is_reported_with_what_it_cost
 async def test_a_switch_the_deployment_honoured_says_nothing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The ordinary case, and the reason a line here means the one thing.
+    """A deployment that honoured the switch streams no reasoning, so nothing is logged.
 
     A tier that skipped its deliberation, or one whose trace its own ``--reasoning-budget`` ended
     at once, streams no reasoning at all, so nothing is dropped and nothing is said.
@@ -284,7 +286,7 @@ async def test_a_switch_the_deployment_honoured_says_nothing(
 async def test_a_trace_nobody_asked_against_is_dropped_as_quietly_as_ever(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Both ways of not asking: bounds that left thinking on, and no bounds at all.
+    """Neither way of leaving thinking on logs anything: bounds that permit it, and no bounds.
 
     Every ``drain_text`` caller discards deliberation by construction, so a trace here is unread
     whatever the request said. What makes it worth a line is only that the request asked against
@@ -300,7 +302,8 @@ async def test_a_trace_nobody_asked_against_is_dropped_as_quietly_as_ever(
 async def test_a_completion_that_failed_partway_describes_nothing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A stream that died mid-trace says nothing, there being no completion to describe.
+    """A stream that died mid-trace logs nothing, because there is no completed call to
+    describe.
 
     The same stance the rank's two warnings take: a backend that could not answer is reported by
     the caller that catches ``InferenceError``, and reading a partial trace as a deployment

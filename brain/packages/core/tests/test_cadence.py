@@ -1,19 +1,19 @@
-"""The spill watch: what a decode rate has to be before it is allowed to mean anything.
+"""The spill watch: the rules a decode rate has to meet before it is judged.
 
 The instrument this covers exists because an overcommitted card does not fail. It serves the
 answer, reports ``ready``, and reads on ``nvidia-smi`` exactly like a card that fitted; the only
 difference measured on the 24 GB card was throughput, 14.80 to 17.29 tok/s spilled against 25.07
-to 33.28 with the card to itself. So these are the rules that keep a slow number from being read
-as a spill and a spill from being read as fine.
+to 33.28 with the card to itself. These tests cover the rules that keep a slow number from being
+reported as a spill, and a spill from being reported as healthy.
 
-Distrust-green proofs (each mutation reddened the named test, then was restored):
-- dropping the ``min_tokens`` guard in ``CadenceWatch.observe`` reddens
+Mutations proving these tests can fail (each was applied on its own, then restored):
+- dropping the ``min_tokens`` guard in ``CadenceWatch.observe`` fails
   ``test_a_sample_too_short_to_judge_is_counted_and_never_judged``;
-- keeping the slowest sample instead of the fastest reddens
+- keeping the slowest sample instead of the fastest fails
   ``test_the_fastest_qualifying_sample_decides``;
-- letting ``collapsed`` compare against a floor of zero reddens
+- letting ``collapsed`` compare against a floor of zero fails
   ``test_an_undeclared_floor_reports_and_judges_nothing``;
-- returning a reading rather than ``None`` when nothing qualified reddens
+- returning a reading rather than ``None`` when nothing qualified fails
   ``test_a_watch_that_saw_nothing_judgeable_has_no_reading_at_all``.
 """
 
@@ -48,7 +48,8 @@ def test_a_rate_at_or_above_the_floor_is_not() -> None:
 
 
 def test_an_undeclared_floor_reports_and_judges_nothing() -> None:
-    """Zero is "this deployment never measured a rate", never "any rate will do"."""
+    """A floor of zero means the deployment never measured a rate, so the reading carries the
+    number and no verdict."""
     watch = CadenceWatch()
     watch.observe(_sample(0.4))
     reading = watch.reading()
@@ -59,7 +60,8 @@ def test_an_undeclared_floor_reports_and_judges_nothing() -> None:
 
 
 def test_a_sample_too_short_to_judge_is_counted_and_never_judged() -> None:
-    """A handful of tokens says more about the server's start than about the card."""
+    """A sample below ``MIN_CADENCE_TOKENS`` counts toward ``samples`` and is never judged,
+    because a handful of tokens measures the server's start rather than the card."""
     watch = CadenceWatch(_FLOOR)
     watch.observe(_sample(2.0, tokens=MIN_CADENCE_TOKENS - 1))
     assert watch.reading() is None
@@ -72,7 +74,8 @@ def test_a_sample_too_short_to_judge_is_counted_and_never_judged() -> None:
 
 
 def test_the_fastest_qualifying_sample_decides() -> None:
-    """A spill is a ceiling that holds all phase, so one slow round must not convict alone."""
+    """The fastest qualifying sample is the one judged, because a spill holds a ceiling for the
+    whole phase and one slow round on its own is not evidence of it."""
     watch = CadenceWatch(_FLOOR)
     watch.observe(_sample(31.0))
     watch.observe(_sample(9.0))
@@ -95,7 +98,8 @@ def test_a_tier_that_never_once_reached_its_floor_is_what_a_spill_looks_like() -
 
 
 def test_a_watch_that_saw_nothing_judgeable_has_no_reading_at_all() -> None:
-    """ "No reading" is a third answer, and a caller must be able to tell it from a pass."""
+    """A watch with no qualifying sample returns ``None``, which a caller can tell apart from a
+    reading that cleared the floor."""
     assert CadenceWatch(_FLOOR).reading() is None
 
 

@@ -6,7 +6,7 @@
 
 Opened
 2026-08-04 by the answer above, which put the arriving chat into speech and deliberately left
-focus alone. Three doors sit inside sections that the swap itself takes away: a switcher row
+focus alone. Three controls sit inside sections that the swap itself takes away: a switcher row
 (the list rolls shut), a reminder card's "open chat" (the stack rolls away as the history fills)
 and a delete confirm (the row leaves). `Collapse` unmounts its child when the roll ends, so the
 control that was focused stops existing and the browser falls back to `<body>`. Measured at
@@ -29,20 +29,20 @@ the deciding is the work. Nothing blocks it.
   the composer's existing focus effect reading it (`active: boolean` became
   `arrival: number | null`, one prop rather than two, which is one idea and also what keeps
   `ChatView` at 299 lines rather than standing exactly on its cap).
-  **The entry's own measurement was right about one door of three.** Only the switcher row holds
+  **The entry's own measurement was right about one path of three.** Only the switcher row holds
   focus for the roll: measured again at 900x900, the row keeps it at 0, 60, 150, 290 and 320ms and
   reads `BODY` by 700ms. The other two lose it in the commit itself, by two mechanisms the entry
   did not have. A reminder card's stack does not roll away at all, its `Collapse` being keyed on
   the session id, so a swap remounts it and the control is gone at once; and a leaving switcher row
   is `withdrawn` the moment `sessions` drops it, and `inert` blurs what it contains, so the delete
-  confirm reads `BODY` at 0ms too. **And the doors are not three.** `Ctrl+N` pressed with focus on
+  confirm reads `BODY` at 0ms too. **And the paths are not three.** `Ctrl+N` pressed with focus on
   a switcher row holds it to 290ms and reads `BODY` at 320, so this belongs to where the gesture
   was made rather than to which control made it, and the cycle keys reach it the same way. After,
-  every door reads the composer at 0ms and at every sample to 700ms: a switcher row, a reminder's
+  every path reads the composer at 0ms and at every sample to 700ms: a switcher row, a reminder's
   open control, a delete confirm on the open chat, `Ctrl+N` from a row, `Ctrl+↓` from the chats
   button, and the header's pencil. **The rule needed no flag, which is the one place this differs
-  from the notice it was opened by.** Every door on an arm wants the same landing, so each arm
-  answers for its own doors and nothing travels with the action; adoption is excluded by being its
+  from the notice it was opened by.** Every path on an arm needs the same landing, so each arm
+  answers for its own paths and nothing travels with the action; adoption is excluded by being its
   own arm. And the panel does not notice the caret moving under it: the switcher's roll is frame
   for frame what it was, 108 to 273.19 with the height 518 to 352.81 over 43 frames, the largest
   top step 25.42 before and 25.56 after, and the log's `scrollTop` identical, which is
@@ -58,5 +58,5 @@ the deciding is the work. Nothing blocks it.
 - 2026-08-06: Closed on the user's answer, which is the composer, for the delete confirm as well,
   and the area went 12 to 13 because it opened two entries behind it: the same rows losing focus for
   gestures that swap nothing, and the draft the caret now lands in belonging to no chat. Two of its
-  own claims wanted correcting, both about mechanism, and the doors are not three, any global key
+  own claims wanted correcting, both about mechanism, and the paths are not three, any global key
   pressed while focus sits inside the switcher having the identical defect.

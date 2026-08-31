@@ -1,38 +1,38 @@
-"""The line a call leaves behind when the caller stopped waiting for it (ADR-0024).
+"""Logging the calls whose caller stopped waiting for them (ADR-0024).
 
 The body announces a deadline on every unary call it makes, and `grpc.aio` enforces it by
 cancelling the servicer coroutine when the client drops the call. That much needs no brain code
-and has always worked. What it leaves behind is nothing: an abandoned call unwinds through the
-handler's own `finally` blocks and disappears, indistinguishable in the logs from a call that was
-never made. So the brain does the one thing with the announced deadline that needs no per-RPC
-judgement about what "not enough time left" means, and says the call was abandoned, with the
+and has always worked, but it leaves no record: an abandoned call unwinds through the handler's
+own `finally` blocks and disappears, indistinguishable in the logs from a call that was never
+made. So the brain does the one thing with the announced deadline that needs no per-RPC decision
+about what "not enough time left" means, and writes a line saying the call was abandoned, with the
 remaining time it can finally read printed beside it.
 
-**The reading is printed, never judged.** `time_remaining()` answers three different facts and
-this module decides between none of them. A value well above zero is a caller that stopped waiting
-early, which is the shipped body on every call, since it enforces a bound strictly shorter than
-the one it announces (ADR-0024's grace margin). An integer `0` is the announced deadline enforced
-by the brain's own clock, which is what is left when the body is killed or the connection
-half-opens and the cancellation it would have sent never arrives. `None` is a caller that
-announced no deadline at all, so what ended the call was a disconnect. The type carries the
-distinction the value cannot: `max(deadline - now, 0)` answers with its own second argument, an
-`int`, only once the deadline has passed, so a reading still counting down is a float whatever its
-size, and grpc floors rather than letting the subtraction run negative. When a caller arms its own
-clock on the deadline it announced, the two race, and a cancellation landing a hair early reads as
-an unspent sliver of the window instead of the floor. An operator reads the number; nothing here
-branches on it. Each of the three is asserted over a real wire (ADR-0024's 2026-08-22 addendum),
-in the shape that produces it on a deployed brain.
+The remaining-time reading is printed and never branched on. `time_remaining()` answers three
+different facts and this module distinguishes none of them. A value well above zero is a caller
+that stopped waiting early, which is the shipped body on every call, since it enforces a bound
+strictly shorter than the one it announces (ADR-0024's grace margin). An integer `0` is the
+announced deadline enforced by the brain's own clock, which is what is left when the body is
+killed or the connection half-opens and the cancellation it would have sent never arrives. `None`
+is a caller that announced no deadline at all, so what ended the call was a disconnect. The type
+carries the distinction the value cannot: `max(deadline - now, 0)` answers with its own second
+argument, an `int`, only once the deadline has passed, so a reading still counting down is a float
+whatever its size, and grpc floors rather than letting the subtraction run negative. When a caller
+arms its own clock on the deadline it announced, the two race, and a cancellation landing slightly
+early reads as a small unspent remainder of the window instead of the floor. Each of the three is
+asserted over a real wire (ADR-0024's 2026-08-22 addendum), in the shape that produces it on a
+deployed brain.
 
-**Only the unary methods are watched, which is the fence rather than an oversight.** `Converse`
-announces no deadline and must keep announcing none: a turn is long by design, and a stream that
-reported an abandonment against a deadline would be the first half of enforcing a bound this seam
-deliberately does not have. It is the one streaming method on the service, so "unary-unary or pass
-it through untouched" is that fence written as code rather than as a list of ten method names
-somebody has to keep current.
+Only the unary methods are watched, which is a deliberate boundary. `Converse` announces no
+deadline and must keep announcing none: a turn is long by design, and a stream that reported an
+abandonment against a deadline would be the first half of enforcing a bound this seam deliberately
+does not have. It is the one streaming method on the service, so "unary-unary or pass it through
+untouched" is that boundary written as code rather than as a list of ten method names somebody has
+to keep current.
 
 An interceptor rather than ten `try` blocks, for the reason the token interceptor is one
-(`auth.py`): a unary method added to the service later is covered by construction, not by
-remembering.
+(`auth.py`): a unary method added to the service later is covered by construction rather than by
+somebody remembering.
 """
 
 import asyncio
@@ -53,8 +53,8 @@ _logger = logging.getLogger(__name__)
 # it was and this sentence is true of both.
 ABANDONED_MESSAGE = "the caller stopped waiting; this call was abandoned mid-flight"
 
-# The shape of a unary-unary servicer behavior under `grpc.aio`. Spelled here because
-# `grpc-stubs` types `RpcMethodHandler.unary_unary` with the *synchronous* server's signature,
+# The shape of a unary-unary servicer behavior under `grpc.aio`. Declared here because
+# `grpc-stubs` types `RpcMethodHandler.unary_unary` with the synchronous server's signature,
 # which returns the reply rather than a coroutine yielding it; every behavior this server holds
 # is an `async def` on `BrainService`.
 type _UnaryBehavior = Callable[[object, aio.ServicerContext[object, object]], Awaitable[object]]

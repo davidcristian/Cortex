@@ -7,7 +7,7 @@
 
 Opened 2026-08-30 by the close of
 [R-493](493-a-base-may-declare-a-volume-through-onbuild.md), which decided that
-`dockerfilevolumes.read_volumes` goes on refusing `ONBUILD VOLUME` in a Dockerfile here and named
+`dockerfilevolumes.read_volumes` goes on not reading `ONBUILD VOLUME` in a Dockerfile here and named
 this as what that decision leaves open.
 
 A base's row now carries two dimensions, and the second is spent by the rule holding a built row to
@@ -23,7 +23,7 @@ declare `/x`. It is exactly the hole `dockerfilevolumes.py` exists to close for 
 dimension, in the dimension that reader deliberately does not read, and the reason it costs nothing
 today is that no file here stands on an image this repo builds.
 
-**Why it was left.** The refusal it comes out of is right and is not the thing to change: reading
+**Why it was left.** The decision it comes out of is right and is not the thing to change: reading
 an `ONBUILD VOLUME` into `read_volumes` would make the existing rule demand a path in the row for
 an image that truly declares none. Closing this needs a second reading rather than a widened one,
 and a second reading nothing in this tree can exercise is a rule written for a shape nobody has
@@ -31,7 +31,7 @@ yet.
 
 **What would close it.** Either read a Dockerfile's own `ONBUILD VOLUME` into a reading of its own
 and hold it to the recorded trigger dimension of the row it builds, one-directionally like every
-other rule here, or refuse the configuration instead: a build stanza whose base is an image this
+other rule here, or reject the configuration instead: a build stanza whose base is an image this
 walk also builds is a base whose row cannot be refreshed, and saying so is a fault of two lines.
 Whichever way it goes, the deciding evidence is whether a Dockerfile here has become a base for
 another one, which is what the trigger on this entry watches for.

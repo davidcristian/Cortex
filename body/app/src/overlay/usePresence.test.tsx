@@ -15,7 +15,7 @@ const keyOf = (item: Row): string => item.id;
 // Every case here renders under `StrictMode`, because the overlay does (`main.tsx`) and because
 // this hook's first shape passed all of these without it and dropped the row on the first frame in
 // a real browser. StrictMode invokes a render twice, so a hook that remembers what it just
-// rendered by writing a ref DURING the render reads its own first pass back on the second and
+// rendered by writing a ref during the render reads its own first pass back on the second and
 // concludes that nothing has left. The memory is written from a layout effect for that reason,
 // and this wrapper is what keeps it that way.
 
@@ -128,7 +128,7 @@ describe("usePresence", () => {
     rerender({ items: [row("a"), row("b")] });
     expect(shape(result.current.entries)).toEqual(["a", "b"]);
     // The exit that was interrupted still reports its end; a row back in the caller's list is not
-    // the hook's to remove, so the late word is ignored rather than obeyed.
+    // the hook's to remove, so the late release is ignored rather than applied.
     act(() => result.current.released("b"));
     expect(shape(result.current.entries)).toEqual(["a", "b"]);
   });

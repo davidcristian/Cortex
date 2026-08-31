@@ -1,21 +1,21 @@
 """What the GPU is serving right now, in the words the seam shows a human (ADR-0030 d6).
 
-The honesty surface behind ``Health``. ``SwappingModelManager`` publishes one of these values
+The reporting surface behind ``Health``. ``SwappingModelManager`` publishes one of these values
 every time residency changes, and the seam's readiness RPC reads the latest one synchronously,
 so the overlay's connection indicator can go amber for the minutes a handoff takes and green
 again the moment the usual assistant is back.
 
-All of it is **app-authored**, exactly like the swap's stream notes (``swap_notes.py``): the
+All of it is app-authored, exactly like the swap's stream notes (``swap_notes.py``): the
 model never writes any of it, so a detail cannot be steered by whatever the cortex read before
 it escalated. These strings do not ride the escalating turn's stream, which is why they live
 here rather than there: a ``StatusUpdate`` is progress on one turn, while a report answers a
 probe that any client may make between turns, including one that never saw the handoff start.
 
-Honesty over reassurance, and never a state that cannot be observed: a swap in and a swap back
-both leave nothing resident, so the direction is published with the residency rather than
-guessed from it, a restore that gave up says so instead of claiming it is still restoring, and a
-boot whose recovery could not settle the cortex says that rather than starting green on an
-assumption. The drain that precedes an eviction is deliberately **serving**: the cortex is still
+Every report describes something observed rather than assumed: a swap in and a swap back both
+leave nothing resident, so the direction is published with the residency rather than guessed from
+it, a restore that stopped retrying says so instead of claiming it is still restoring, and a boot
+whose recovery could not settle the cortex says that rather than starting green on an assumption.
+The drain that precedes an eviction is deliberately serving: the cortex is still
 resident and still answering turns while delegated work quiesces, so the dot stays green until
 something is actually unloaded.
 """
@@ -28,7 +28,7 @@ from dataclasses import dataclass
 class ResidencyReport:
     """One answer about the GPU: is the usual assistant serving, and if not, what is happening.
 
-    ``serving`` is the whole verdict the seam maps to ``HealthReply.ready``. ``detail`` is
+    ``serving`` is the value the seam maps to ``HealthReply.ready``. ``detail`` is
     display-only text for a human deciding whether something is broken, rendered verbatim by the
     overlay after "The brain is not serving".
 
@@ -48,10 +48,10 @@ def with_note(report: ResidencyReport, note: str) -> ResidencyReport:
 
     The read-time composition every annotator of a residency report shares, and the reason it is
     one function rather than a rule each of them keeps: a report that is not serving already
-    carries the swap's own words, and adding "and by the way" to *those* would be describing one
+    carries the swap's own text, and adding a second sentence to that would be describing one
     handoff twice and calling half of it a fault.
 
-    A second note **joins** the first rather than replacing it, because the annotators answer
+    A second note joins the first rather than replacing it, because the annotators answer
     different questions and have different remedies: which peer of the standing residency is down
     is a fact about now (``residency_tiers.py``), and how the last handoff ran is a fact about a
     handoff that has ended (``residency_pace.py``). Whichever composes outermost is the sentence
@@ -74,10 +74,10 @@ type ResidencyPublisher = Callable[[str | None, ResidencyReport], Awaitable[None
 # Whether nothing owns the GPU right now: no handoff claimed and no residency scope active. The
 # other half of the pair above, and the one the background pass is handed rather than the writer:
 # a pass may read the machine at any time and may only write when this answers ``True``.
-# **Synchronous by contract**, which is the whole worth of it. Read with nothing awaited between
-# the answer and the call it guards, no handoff can begin in the gap, so the callers that must
-# stand down rather than queue get an answer they can act on instead of a lock they would be
-# waiting on the very handoff for. ``SwappingModelManager._fence`` is the only implementation; the
+# Synchronous by contract, which is what makes it usable. Read with nothing awaited between the
+# answer and the call it guards, no handoff can begin in the gap, so the callers that must skip a
+# pass rather than queue get an answer they can act on instead of a lock they would be waiting on
+# the very handoff for. ``SwappingModelManager._fence`` is the only implementation; the
 # peer sweep (``residency_sweep.py``) reads it before every start and the board's guarded publish
 # (``residency_board.py``) reads it under the condition a claim is taken under.
 type Fence = Callable[[], bool]
@@ -101,7 +101,7 @@ RESIDENCY_DEEP = ResidencyReport(serving=False, detail="a deep task is in progre
 # The swap back, which is the recovery path: the deep model is stopped and the cortex is loading.
 RESIDENCY_RESTORING = ResidencyReport(serving=False, detail="bringing the usual assistant back")
 
-# The one state no retry cleared: the restore gave up loudly and the GPU serves nothing. Nothing
+# The one state no retry cleared: the restore stopped retrying and the GPU serves nothing. Nothing
 # in the swap will try again, so it stands until something outside one reads the machine: boot
 # recovery converging residency after a restart, or the background pass finding the cortex serving
 # with the deep tier off the card (``residency_regain.py``), which is why the manual recovery in

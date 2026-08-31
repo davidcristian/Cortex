@@ -35,8 +35,8 @@ source of audited, model-callable tools.
   serves around) and a **recovered sidecar rejoins without a restart** (the next call re-dials). An
   open failure (`McpError`/`OSError`/`httpx.HTTPError`, unwrapped from anyio's `ExceptionGroup` by
   `except*`) crosses the port as `ToolError`; a `ToolError` from the live session's own
-  `describe`/`invoke` passes through untouched (no double-wrap). Trades a per-call open for
-  robustness, and the trade was **measured on 2026-08-08 and kept**: the open costs 17.8 ms against
+  `describe`/`invoke` passes through untouched (no double-wrap). It pays a per-call open for that
+  boot tolerance, and the trade was **measured on 2026-08-08 and kept**: the open costs 17.8 ms against
   a control server on the FastMCP streamable-http transport `cortex_email` serves (the transport's
   floor, with nothing happening server-side on connect), and a pooled session is not the
   local optimization it looked like, since closing one needs a scope that every combinator would
@@ -59,21 +59,22 @@ source of audited, model-callable tools.
   of them can import it: the two runbooks that tell an operator to select the trail by it, the
   docstring that fixes the shipped level at INFO because this trail rides on it, and that module's
   suite, which writes a line under the name to prove it. `scripts/crosscheck.py` ties all four to
-  the declaration, so a rename here reddens the gate rather than leaving them describing a trail
+  the declaration, so a rename here fails the gate rather than leaving them describing a trail
   nothing writes (ADR-0009 audit-logger addendum). This contract names the declaration rather than
-  the name, deliberately: a fifth restatement written to be gated would be the gate choosing its
-  own subject. The word the line opens with is declared beside it as `_MESSAGE` and handed to the
+  the literal, deliberately: a fifth restatement added here only so the gate would have something
+  to compare is a mention the gate itself caused to exist.
+  The word the line opens with is declared beside it as `_MESSAGE` and handed to the
   emitting call, for the same reason and against the same three restatements, the runbook sentence
   that tells a reader what to look for and that suite's two spellings (ADR-0009 audit-message
   addendum). The sample gate cannot stand in for either: this sink builds its `extra=` by
   condition, so no runbook may print one of these lines as a rendered sample and have it hold.
-  A line also names the work it was for, `session_id`, `turn_id`,
-  `task_id` and `item_id` off the dispatch's stamp, under the field names the rest of the brain's
-  log lines
-  spell them with, and this is the one sink that takes those five names from
-  `cortex_core.log_fields` rather than writing them out, being the one place that writes the whole
-  vocabulary as a list (ADR-0009 one-vocabulary addendum), so the trail reads turn by turn, a
-  delegated call names both its task and
+  A line also names the work it was for: `session_id`, `turn_id`,
+  `task_id` and `item_id`, taken off the dispatch's stamp and written under the field names the
+  rest of the brain's log lines use.
+  This is the one sink that imports those five names from
+  `cortex_core.log_fields` rather than writing them out, because it is the one place that writes
+  the whole vocabulary as a list (ADR-0009 one-vocabulary addendum). The trail therefore reads
+  turn by turn, a delegated call names both its task and
   the turn that spawned it (ADR-0009 named-work addendum), and a scheduled fire names the item
   that fired (named-call addendum). It names the **call** too, `call_id` off `ToolCall.id`, which
   is what the result and its `Role.TOOL` message are keyed by, so a turn's lines stop being
@@ -81,8 +82,8 @@ source of audited, model-callable tools.
   the tool name and arguments are and read back by nothing; the field name is what tells a reader
   which class it is in, and the formatter's quoting and `VALUE_CHARS` are what keep it from
   forging a field or flooding a line. An id the dispatch did not have is
-  left off the line rather than printed empty, absence being the honest rendering of a caller
-  with no chat, turn or task behind it. All of it rides the record as `extra` and reaches the line through the
+  left off the line rather than printed empty, since a caller with no chat, turn or task behind
+  it has nothing to print there. All of it rides the record as `extra` and reaches the line through the
   process entry's formatter (ADR-0038 rendered-fields addendum); the sink used to serialize its
   own JSON copy into the message because the shipped handler printed no `extra`, and no longer
   does, so the trail now depends on that formatter being installed.
@@ -104,7 +105,8 @@ would hold a turn open for as long as the process lives. What bounds it is the c
 `BoundedToolRegistry`, which the composition root wraps each endpoint in **innermost** (ADR-0009
 bound addendum): an overrun cancels the call and crosses the port as `ToolError`, which is
 precisely the shape `SkipUnavailableToolRegistry` above it already serves around, so a hung
-sidecar finally behaves like a refused one. It sits above rather than inside this adapter because
+sidecar ends up on the same path as one whose dial was refused. It sits above rather than inside
+this adapter because
 the bound must cover the dial as well as the call, and because a bound belongs to the deployment
 rather than to one transport.
 
@@ -119,8 +121,8 @@ that a tool which ran and failed is an `is_error` result rather than an exceptio
 registry does not serve never comes back as a success; and that an unreachable backend raises
 `ToolError` from both verbs.
 
-The fifth of those sits at the altitude it does because the two kinds of registry genuinely
-diverge, and the port now says so: a registry that knows its whole set raises `ToolNotFoundError`
+The fifth of those is worded that loosely because the two kinds of registry genuinely
+diverge, and the port now says so: a registry that holds its whole set raises `ToolNotFoundError`
 for an unknown name, while this adapter can only relay what its server says, and an MCP server
 answers an unknown tool with an error *result*. The difference is visible downstream, since the
 dispatcher stamps its own `ToolError` message `TRUSTED` and leaves a relayed result `UNTRUSTED`,

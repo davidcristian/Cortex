@@ -50,7 +50,7 @@ narrower and better named:** how a committed test expresses an arm that needs th
 restarted with one environment variable changed (which only a driver going over gRPC ever needs),
 and how one reports a distribution with an interval rather than asserting a bound, the
 fold run having reported numbers and asserted only invariants that hold whatever the model says.
-The A/B/A question is the same one in different clothes: a control arm that is another
+The A/B/A question is the same question in another form: a control arm that is another
 container configuration belongs wherever the restart belongs. **Trigger unchanged**, minus the
 half this run answered: the next measurement that genuinely needs a differently-configured brain
 container between arms, or a challenge to the shipped recall default.
@@ -60,11 +60,11 @@ cited), and the answer to both remaining halves is one division of labour rather
 test ([ADR-0038 harness addendum](../../adr/ADR-0038-ranked-recall.md)). **An arm is a container
 configuration, so a restart is a deployment step and lives in a recipe**, `just turn-cost`, which
 brings the gpu plus memory stacks up and runs three blocks in A/B/A order, recreating only the
-brain between them. A test that recreated its own subject would be instrument and operator at
-once, would spell the whole compose file set a second time inside a test file, and would own a
-stack it neither brought up nor could restore. **That decision then makes the second half's
-answer forced rather than chosen**, which is why the entry was right to call them one question in
-different clothes and wrong about which clothes: restarting between arms puts the arms in
+brain between them. A test that recreated its own subject would both measure the stack and
+administer it, would spell the whole compose file set a second time inside a test file, and would
+own a stack it neither brought up nor could restore. **That decision then makes the second half's
+answer forced rather than chosen**, which is why the entry was right to call them one question
+and wrong about which one: restarting between arms puts the arms in
 separate processes, so no one process can hold the comparison, so each block writes a JSON sample
 and the interval is computed afterwards. It is computed by `scripts/contrast.py`, the first
 module in that tree that gates nothing, gated at 100% like everything beside it, which pairs the

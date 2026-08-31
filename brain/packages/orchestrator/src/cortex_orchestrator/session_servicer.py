@@ -101,8 +101,8 @@ class SessionRpcMixin:
         two codes. A cascade whose `delete_scope` met a reply this repo cannot read raises
         `MemoryDataError`, and that is not an outage: the row or the schema is wrong, so it reads
         the same on the next attempt and the next week, where every other `MemoryStoreError` says
-        Postgres was unreachable and heals by itself. `UNAVAILABLE` is the seam's word for the
-        second and would be a lie about the first, `INTERNAL` its word for a fault of this side.
+        Postgres was unreachable and heals by itself. `UNAVAILABLE` is the seam's code for the
+        second and would misreport the first; `INTERNAL` is its code for a fault on this side.
 
         Naming it changes what the failure says and not what either side does with it: the body
         classifies this method as non-repeatable, so no code on it was ever retried, and the

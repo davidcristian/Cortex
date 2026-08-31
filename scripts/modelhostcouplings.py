@@ -1,21 +1,16 @@
 """The couplings around the model host: which tiers it runs, and how patiently it stops them.
 
-One of the data files `crosscheck.py` reads as a single registry, split off `shippedcouplings.py`
-when the compose survey pushed that file past the 300-line cap. The subject is one env surface:
-`ModelHostConfig` and the supervisor beside it declare what a tier is served with, and one compose
-override spells nearly every one of those answers again as a substitution default. Because the
-override always sets the variable, the substitution is what a composed deployment actually runs and
-the Python default is what it merely appears to run, so a retune on the Python side alone changes
-nothing anywhere and says so nowhere. That is the drift these entries report.
+One of the data files `crosscheck.py` reads as a single registry. `ModelHostConfig` and the
+supervisor beside it declare what a tier is served with, and one compose override restates nearly
+every one of those answers as a substitution default. The override always sets the variable, so
+the substitution is what a composed deployment runs and the Python default is not, and retuning
+the Python side alone changes nothing anywhere. These entries report that drift.
 
-Several of the numbers here were hidden inside `Field(...)` calls, which this scan cannot read; the
-survey hoisted each into a module constant beside the field it defaults, which is the cost of a
-registered coupling and is paid once (ADR-0029's compose-default survey addendum).
-
-One entry reaches past that override and into the body's, because the token budget is half of a
-measured pair whose other half the brain sets: each file's prose names the other file's number,
-and a comment that states what the deployment does is a far side like any other sentence that
-becomes wrong when the value moves (ADR-0029's comment addendum).
+Several of these numbers were inside `Field(...)` calls, which this scan cannot read, and were
+hoisted into module constants beside the field they default (ADR-0029 compose-default survey
+addendum). One entry reaches into the body's compose override instead, the token budget being half
+of a measured pair whose other half the brain sets, and ties a comment there rather than a
+declaration (ADR-0029 comment addendum).
 """
 
 from couplings import Constant, Mention, Site, Spelling

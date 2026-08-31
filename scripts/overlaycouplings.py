@@ -1,8 +1,8 @@
 """The couplings inside the overlay: a name its TypeScript publishes and its stylesheet spends.
 
 Half of the registry `crosscheck.py` reads, split off `couplings.py` when the one file outgrew the
-300-line cap, and split along the line that was already there: every entry here ties one tree's two
-languages to each other, where every entry beside it ties the body to the brain. The far side is
+300-line cap, along a seam that was already there: every entry here ties one tree's two languages
+to each other, where every entry beside it ties the body to the brain. The far side is
 always `overlay.css`, and it is always a **mention**, a stylesheet having no declaration a scan
 could read. What a rename costs is written in each entry, because a custom property that resolves
 to nothing does not fail loudly: it falls back to whatever `:root` froze, or to the fallback in the
@@ -82,7 +82,7 @@ OVERLAY_COUPLINGS: tuple[Constant, ...] = (
         # Both halves of one name. The declaration renders the value beside it; the spends render
         # the name alone, which is the only thing that reaches a `var()` the value never appears
         # in. The spends stay a presence check because 52 transitions across unrelated features
-        # ride this curve, and a count over them would redden on the next one added; what the
+        # ride this curve, and a count over them would fail on the next one added; what the
         # presence check holds is that the property the sheet declares is the one they ask for.
         mentions=(
             Mention(OVERLAY_CSS, "{name}: {value};", name="--ease"),

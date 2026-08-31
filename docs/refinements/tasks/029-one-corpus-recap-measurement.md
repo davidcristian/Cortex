@@ -5,7 +5,7 @@
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
 **The measurement is one corpus, and half of what it did not measure has now been measured
-(2026-08-06).** It shows the mechanism works and is not a benchmark: a single hand-built
+(2026-08-06).** It shows the mechanism works rather than serving as a benchmark: a single hand-built
 conversation, by the author of the feature, with the needed fact placed where a summary would
 keep it. Two of the three things it did not cover were taken on the re-run below. **Fold quality
 after several boundary moves is no longer unmeasured, and it is the weak one:** over three
@@ -45,7 +45,7 @@ fold takes it through `drain_text` which leaves that block in a `finally`, and `
 awaits the whole of `assemble_inference_messages` several statements before it first iterates the
 reply. **What was proven, rather than assumed, is that the streams overlapped**: the run collects
 every moment one stream asked for the lease strictly inside a different stream's hold and fails
-when it finds none, because concurrent streams that never really contend produce a clean green
+when it finds none, because concurrent streams that never really contend produce a clean pass
 that means nothing, which is the null result this backlog has recorded twice. Three folds were
 requested at the same instant and five acquisitions were issued under someone else's hold. **The
 argument held on every point it claims**: no two holds ever overlapped, every stream's fold
@@ -58,7 +58,7 @@ the interleaving the argument never denied and nobody had priced. Two turns of O
 concurrently were run too, since append-only history is the whole reason a racing pair of folds
 is safe: both answered with the session's own reference and the surviving recap covered a prefix
 that really exists, the loser of the write race costing a repeated fold and never a wrong answer.
-**The harness was proven able to fail before it was believed**: a window that opens a model call
+**The harness was proven able to fail before it was trusted**: a window that opens a model call
 and never closes it, which is exactly what `drain_text` prevents, deadlocked the turn and the
 same checker named it (`fold took the lease and never released it`, `reply waited for the lease
 and never got it`), and the same two streams run one after the other reported zero contentions.
@@ -79,7 +79,7 @@ which no run retires.
 - 2026-08-08: Restated and split into a permanent authorship caveat, which no corpus this repo can
   build retires, and one item, the fold under a cortex under load.
 - 2026-08-08: The item closed the same day, by three overlapping `Converse` streams over the real
-  cortex with every lease timestamped and the run refusing to report unless the streams provably
+  cortex with every lease timestamped and the run failing unless the streams provably
   contended. The sequencing argument held on every point and the price is queueing, one reply
   waiting 5.41 s behind two folds that were not its own. The run opened one entry, a stalled
   consumer holding the lease for its whole reply, which sits in the fix-when-it-bites bucket.

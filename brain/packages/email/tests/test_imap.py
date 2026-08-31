@@ -51,14 +51,15 @@ def test_the_newer_spelling_of_unselectable_is_dropped_too(
     box = FakeBox(names=["INBOX"], nodes=["Ghost"], node_flags=NONEXISTENT_NODE_FLAGS)
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
-    assert box.set_calls == [("Ghost", True)]  # the newer word buys the same one question
+    assert box.set_calls == [("Ghost", True)]  # the newer word leads to the same single probe
 
 
 def test_a_flagged_name_the_server_opens_is_still_offered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The Bridge flags the parents of its own hierarchy and opens them, so believing the flag
-    # withholds names that work. The flag decides who gets asked; the server decides the rest.
+    # The Bridge flags the parents of its own hierarchy and opens them, so dropping every flagged
+    # name would withhold names that work. The flag only selects which names are probed, and
+    # whether the server opens the name is what decides if it is offered.
     box = FakeBox(names=["INBOX"], open_nodes=["Folders"], node_flags=OPEN_NODE_FLAGS)
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX", "Folders"]
@@ -66,8 +67,8 @@ def test_a_flagged_name_the_server_opens_is_still_offered(
 
 
 def test_a_flagged_name_the_server_refuses_is_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The other server's answer to the same question, and the loop the drop exists to close:
-    # Dovecot lists a node and then refuses it in the words that prove a folder missing.
+    # Dovecot lists a hierarchy node and then refuses to open it in the words that mean a folder
+    # is missing, so an offered name would send the caller straight back to the same refusal.
     box = FakeBox(names=["INBOX"], nodes=["Parent"])
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
@@ -141,12 +142,11 @@ def test_a_connection_lost_mid_search_is_not_reported_as_a_refusal(
 def test_a_select_refused_for_another_reason_keeps_the_library_s_account_of_why(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The fail-safe branch: a Bridge refuses a SELECT only for a name no mailbox has, so the
-    # other NO is scripted here from what a Dovecot with an ACL-shut mailbox really answers
-    # (the live half is `test_imap_probe_live.py`). The port promise (it is not reported
-    # missing) is a contract check; what this adds is the other half, that the base error still
-    # carries what the server did say, since for a mailbox that could not answer that text is
-    # the only account of why there is.
+    # A Bridge refuses a SELECT only for a name no mailbox has, so the other NO is scripted here
+    # from what a Dovecot with an ACL-shut mailbox really answers (the live half is
+    # `test_imap_probe_live.py`). That such a folder is not reported missing is a contract check;
+    # what this adds is that the base error still carries the server's own text, which is the
+    # only explanation available for a mailbox that could not answer.
     box = FakeBox(names=["INBOX"])
     box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
     patch_box(monkeypatch, box)
@@ -176,12 +176,12 @@ def test_the_second_server_s_own_words_for_a_missing_mailbox_are_read_too(
 def test_a_name_no_mailbox_could_have_is_read_off_the_code_and_not_the_prose(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The third fact one NO carries, and the one whose words say nothing about a mailbox: this
-    # server will not read the name as a name at all. Nothing in `Invalid mailbox name: Name is
-    # empty` matches a measured phrase, so the classification turns on RFC 5530's `[CANNOT]`,
-    # which is a claim the server made rather than a sentence it happened to phrase that way
-    # (ADR-0022 refused-name addendum). The correction is the folder one because a name no
-    # mailbox could have is a name `list_folders` never offered.
+    # A NO can also mean the server rejected the string as a mailbox name, and its words say
+    # nothing about a mailbox. Nothing in `Invalid mailbox name: Name is empty` matches a
+    # measured phrase, so the classification turns on RFC 5530's `[CANNOT]`, which is a claim the
+    # server made rather than a sentence it happened to phrase that way (ADR-0022 refused-name
+    # addendum). The correction is the folder one because a name no mailbox could have is a name
+    # `list_folders` never offered.
     box = FakeBox(names=["INBOX"])
     box.folder.select_error = MailboxFolderSelectError(REFUSED_NAME_ANSWER, "OK")
     patch_box(monkeypatch, box)
@@ -195,12 +195,12 @@ def test_a_name_no_mailbox_could_have_is_read_off_the_code_and_not_the_prose(
 def test_the_bracketed_code_is_read_and_not_the_english_word_inside_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The measured refusal with its brackets taken off. It is not a sentence any server here
-    # sent and is not offered as one: what it pins is the difference the rule turns on. A
+    # The fixture is the measured refusal with its brackets taken off. No server here sent that
+    # sentence, and it is not offered as one: it isolates the difference the rule turns on. A
     # response code is a claim the server made in a form ordinary prose cannot imitate, while
-    # `cannot` is a word a refusal about a mailbox that is merely shut could easily contain, and
-    # reading the word rather than the code would report such a mailbox missing. That is the one
-    # direction this classification may never go (ADR-0022 unknown-folder addendum).
+    # `cannot` is a word a refusal about a mailbox that is merely shut could easily contain, so
+    # reading the word rather than the code would report such a mailbox missing, which is the
+    # error this classification must not make (ADR-0022 unknown-folder addendum).
     box = FakeBox(names=["INBOX"])
     box.folder.select_error = MailboxFolderSelectError(
         ("NO", [b"CANNOT Invalid mailbox name: Name is empty (0.001 + 0.000 secs)."]), "OK"
@@ -214,10 +214,11 @@ def test_the_bracketed_code_is_read_and_not_the_english_word_inside_it(
 def test_the_other_server_reaches_that_same_answer_through_its_words(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The disagreement the port has to absorb: a Bridge has no code for this and answers the
-    # empty name with the `no such mailbox` it gives every other wrong name, which the measured
-    # phrases already read. Two servers, two facts, one correction, so a model that sent a name
-    # no mailbox could have is sent to the list on either of them.
+    # The port absorbs a disagreement between the two servers here: a Bridge has no response code
+    # for this and answers the empty name with the `no such mailbox` it gives every other wrong
+    # name, which the measured phrases already read. Each server states a different fact, and
+    # both reach the same correction, so a model that sent a name no mailbox could have is sent
+    # to `list_folders` on either of them.
     box = FakeBox(names=["INBOX"])
     patch_box(monkeypatch, box)
     with pytest.raises(FolderUnknownError) as raised:

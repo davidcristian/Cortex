@@ -4,7 +4,7 @@ The core's `InMemoryBodyGateway` and the real `GrpcBodyGateway` talking to a `Bo
 on loopback (127.0.0.1:0, CI-safe), so nothing is stubbed on the adapter's side of the port: the
 requests are real protobuf, the calls cross a real HTTP/2 connection, and the replies come back
 through the generated stub. The serving body imitates the Windows one on the one thing the port
-says the body decides, the volume clamp; everything else it does is record what it heard.
+says the body decides, the volume clamp; otherwise it only records what it received.
 
 The adapter's own edge cases (the seam token, every gRPC status mapped to a `BodyFailure` kind, a
 reply with no image at all, a blob the transport would refuse, the capture deadline) stay in
@@ -69,10 +69,10 @@ class ServingBody(BodyServiceServicer):
     """A `BodyService` that behaves the way the port says a body behaves.
 
     It holds a volume state and clamps a written level, which is the Windows backend's own rule
-    and the one place the port puts a decision on the body's side; it answers the contract's fixed
-    capture whatever it is asked for, exactly as a real body answers what it photographed rather
-    than what was requested; and it records every notify and capture request so a check can see
-    what crossed. `broken` aborts every call, which is a body that has gone away.
+    and the one place the port puts a decision on the body's side. It answers the contract's fixed
+    capture whatever it is asked for, the way a real body answers what it captured rather than
+    what was requested, and it records every notify and capture request so a check can see what
+    crossed. `broken` aborts every call, which is how a body that has gone away behaves.
     """
 
     def __init__(self) -> None:

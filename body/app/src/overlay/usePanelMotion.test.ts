@@ -18,12 +18,12 @@ interface Move {
 }
 
 /**
- * A stand-in for the browser's geometry animation, faithful in the ways that matter: while an
- * animation runs it OVERRIDES the properties it animates and nothing else, and a FINISHED animation
- * stops overriding them while still being the last animation the hook holds. That last one is what
- * the first version of this hook got wrong: it treated any non-null animation as live, read the
- * finished one's measurement as "what is displayed", and so animated only every other size change.
- * Measured in a browser: opening the chat switcher jumped, closing it eased, opening it jumped.
+ * A stand-in for the browser's geometry animation. It reproduces two behaviours the hook depends
+ * on: a running animation overrides the properties it animates and nothing else, and a finished
+ * animation stops overriding them while still being the last animation the hook holds. The first
+ * version of the hook treated any non-null animation as live and read the finished one's
+ * measurement as the displayed height, so it animated only every other size change. Measured in a
+ * browser: opening the chat switcher jumped, closing it eased, opening it jumped.
  */
 function harness() {
   const element = document.createElement("div");
@@ -35,8 +35,8 @@ function harness() {
     playState: "running" as AnimationPlayState,
     /** Model what `max-height` does to the panel's `auto` height. Off by default, because most of
      *  these tests are about the arithmetic and want to state a height and get it back; on for the
-     *  one defect that lives entirely in the gap between the height a cap allows and the height the
-     *  panel is actually standing at. */
+     *  defects that live in the gap between the height a cap allows and the height the panel is
+     *  actually standing at. */
     capped: false,
   };
   const moves: Move[] = [];
@@ -48,19 +48,19 @@ function harness() {
   let running = false;
   let animatesHeight = false;
 
-  // Only a LIVE animation overrides the box: one that has finished without a fill has handed the
-  // element back to its own layout, even though the hook is still holding on to it.
+  // Only a running animation overrides the box: one that has finished without a fill leaves the
+  // element to its own layout, even though the hook still holds a reference to it.
   const live = () => running && state.playState === "running";
   const ceiling = () => Number.parseFloat(element.style.maxHeight || "");
   const height = () => {
-    // The natural-height probe hands the box back to layout for the length of one read by declaring
-    // `height: auto` important, which outranks the animation origin. While it is on, the answer is
+    // The natural-height probe returns the box to layout for the length of one read by declaring
+    // `height: auto` important, which outranks the animation origin. While it is set, the answer is
     // the panel's own layout even though the animation is still running.
     const probing = element.style.getPropertyPriority("height") === "important";
     const own = live() && animatesHeight && !probing ? state.displayed : state.natural;
     return state.capped && !Number.isNaN(ceiling()) ? Math.min(own, ceiling()) : own;
   };
-  // The hook reads the HEIGHT off the computed style and only the bottom edge off the rect, because
+  // The hook reads the height off the computed style and only the bottom edge off the rect, because
   // the rect is measured after the panel's summon transform and the used height is not.
   lays(element, height);
   element.getBoundingClientRect = (() => {
@@ -110,8 +110,8 @@ function rolled(section: HTMLElement, height: number): void {
   lays(section, height);
 }
 
-/** A view inside the panel publishing how far short of its tallest shape it currently falls, the
- *  way `ConsoleView` does from the two tabs it has measured. */
+/** A view inside the panel publishing how far short of its tallest shape it currently falls, as
+ *  `ConsoleView` does from the two tabs it has measured. */
 function slack(parent: HTMLElement, px: number): void {
   const view = document.createElement("div");
   view.className = "view";
@@ -130,8 +130,8 @@ function rolling(parent: HTMLElement, target: number, height: number): HTMLEleme
   return section;
 }
 
-/** The box a view's content actually hangs in. The aside rule is written against the view being
- *  PLACED, so a section that is not inside one is not an aside of anything. */
+/** The box a view's content sits in. The aside rule is written against the view being placed, so a
+ *  section outside a view box is not an aside of anything. */
 function view(parent: HTMLElement): HTMLElement {
   const box = document.createElement("div");
   box.className = "view";
@@ -139,7 +139,7 @@ function view(parent: HTMLElement): HTMLElement {
   return box;
 }
 
-/** A section marked `aside` that is not rolling: the reminder stack, standing in the panel while
+/** A section marked `aside` that is not rolling: the reminder stack, present in the panel while
  *  something else moves. */
 function standing(parent: HTMLElement, height: number): HTMLElement {
   const section = document.createElement("div");
@@ -150,13 +150,13 @@ function standing(parent: HTMLElement, height: number): HTMLElement {
 }
 
 /**
- * A scrolling box inside the panel, wearing the browser's clamp.
+ * A scrolling box inside the panel, subject to the browser's scrollTop clamp.
  *
  * The panel measures itself under the loosest cap any edge could allow, so for that read it is
- * taller and every box inside it is taller too. A box that has outgrown its own scroll range is
- * clamped by the engine to the range it now has, and putting the real cap back does not undo it:
- * `deep` is what the box can hold at rest, and `measuring` the shallower thing it can hold while the
- * panel is being measured.
+ * taller and every box inside it is taller too. The engine clamps a box's scrollTop to the range it
+ * has at that moment, and putting the real cap back does not restore the old value: `deep` is the
+ * range the box has at rest, and `measuring` the shorter range it has while the panel is being
+ * measured.
  */
 function scrollBox(element: HTMLElement, deep: number, measuring: number): HTMLElement {
   const box = document.createElement("div");
@@ -183,8 +183,8 @@ function scrollBox(element: HTMLElement, deep: number, measuring: number): HTMLE
 
 /**
  * A clock the tests can move, because a summon owns the panel's geometry for a fixed window
- * afterwards. Everything a test does otherwise happens inside the same millisecond, which is the
- * honest simulation of a summon and the content landing behind it.
+ * afterwards. Without it every step of a test happens inside the same millisecond, which is what a
+ * summon and the content landing behind it actually look like.
  */
 function clock(): (ms: number) => void {
   let now = 1_000_000;
@@ -194,8 +194,8 @@ function clock(): (ms: number) => void {
   };
 }
 
-/** The browser's frame, held so a test can run it by hand: the panel's watch on its own box is
- *  lifted for the frame it writes in and taken up again on the next one. */
+/** The browser's frame callback, captured so a test can run it by hand: the panel's watch on its
+ *  own box is suspended for the frame it writes in and re-attached on the next one. */
 function frames() {
   const queue = new Map<number, FrameRequestCallback>();
   let next = 1;
@@ -278,9 +278,9 @@ describe("usePanelMotion", () => {
       initialProps: { view: "chat" },
     });
     expect(bottom()).toBe(150);
-    // The console is much shorter, and it takes its height standing where the chat stood: the
-    // maintainer chose the standing edge over the slide to true centre (2026-07-21), which stays one
-    // flip away (`VIEW_CHANGE_RECENTRES`) and is held green by the flipped-switch tests below.
+    // The console is much shorter and takes its height from the edge the chat stood on. The
+    // maintainer chose that edge over a slide to true centre (2026-07-21); the slide stays one flip
+    // of `VIEW_CHANGE_RECENTRES` away and is held green by the flipped-switch tests below.
     state.natural = 300;
     rerender({ view: "console:shortcuts" });
     expect(bottom()).toBe(150);
@@ -288,10 +288,10 @@ describe("usePanelMotion", () => {
   });
 
   it("slides to true centre on a view change with the recentre switch flipped back on", () => {
-    // The shipped behaviour, kept one flip away: entering another view resizes the panel AND
-    // slides it to the middle of the screen, and the way back restores the chat's parked edge
-    // rather than centring a second time. Driven through `place` directly, because the hook
-    // always places at the constant's own setting.
+    // The behaviour kept one flip away: entering another view resizes the panel and slides it to
+    // the middle of the screen, and the way back restores the chat's parked edge rather than
+    // centring a second time. Driven through `place` directly, because the hook always places at
+    // the constant's own setting.
     const { element, state, keyed, bottom } = harness();
     const memory = emptyMemory(true, "chat");
     state.natural = 700;
@@ -301,9 +301,9 @@ describe("usePanelMotion", () => {
     state.natural = 300;
     place(element, memory, { open: true, view: "console:shortcuts", recentre: false }, true);
     expect(bottom()).toBe(350);
-    // The ceiling belongs to where the panel is GOING (880 less 350) and is on the element
+    // The ceiling belongs to where the panel is going (880 less 350) and is on the element
     // already, so the move's first frame starts the cap where the panel actually stands: at 700,
-    // not clamped flat to 530 on its first frame.
+    // not clamped flat to 530.
     expect(keyed.at(-1)).toEqual([
       { height: "700px", bottom: "150px", maxHeight: "700px" },
       { height: "300px", bottom: "350px", maxHeight: "530px" },
@@ -315,10 +315,10 @@ describe("usePanelMotion", () => {
   });
 
   it("enters a multi-shape view at the top its tallest shape would take", () => {
-    // The console's two tabs are different heights, so entering on the shorter one used to put
-    // its strip lower down the screen than entering on the taller one did, and the maintainer caught
-    // it. The view publishes how far short it falls and the panel spends that on its bottom edge,
-    // which fixes the TOP at one height whichever tab it is opened on.
+    // The console's two tabs are different heights, so entering on the shorter one put its strip
+    // lower down the screen than entering on the taller one did. The view publishes how far short
+    // it falls and the panel adds that to its bottom edge, which fixes the top at one height
+    // whichever tab it is opened on.
     const { ref, element, state, bottom } = harness();
     state.natural = 700;
     const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
@@ -326,9 +326,9 @@ describe("usePanelMotion", () => {
     });
     expect(bottom()).toBe(150);
     state.playState = "finished";
-    // Into the console on its SHORTER tab: 300 tall, 60 short of the tallest. It stands on the
-    // chat's 150 plus that 60, which puts its top at 1000 - 210 - 300 = 490: exactly where the
-    // 360px tall tab would have started from the same edge.
+    // Into the console on its shorter tab: 300 tall, 60 short of the tallest. It sits on the
+    // chat's 150 plus that 60, which puts its top at 1000 - 210 - 300 = 490, where the 360px tall
+    // tab would have started from the same edge.
     slack(element, 60);
     state.natural = 300;
     rerender({ view: "console" });
@@ -337,7 +337,8 @@ describe("usePanelMotion", () => {
     state.playState = "finished";
     rerender({ view: "console" });
     expect(bottom()).toBe(210);
-    // Back to the chat, which is one shape and takes its own parked edge, slack or no slack.
+    // Back to the chat, which is one shape and takes its own parked edge whether or not slack is
+    // published.
     state.natural = 700;
     rerender({ view: "chat" });
     expect(bottom()).toBe(150);
@@ -351,13 +352,13 @@ describe("usePanelMotion", () => {
     });
     expect(bottom()).toBe(150);
     state.playState = "finished";
-    // Entering stands on the edge the chat was on: the opener that was clicked is in the hint
-    // strip, at the bottom. The panel's top is now at 1000 - 150 - 300 = 550.
+    // Entering sits on the edge the chat was on, because the opener that was clicked is in the hint
+    // strip at the bottom. The panel's top is now at 1000 - 150 - 300 = 550.
     state.natural = 300;
     rerender({ view: "console" });
     expect(bottom()).toBe(150);
-    // A tab change is the same view resizing, and the strip that was clicked is at the top, so
-    // THAT edge holds: 550 stays, and the bottom moves to 1000 - 550 - 420 = 30.
+    // A tab change is the same view resizing, and the strip that was clicked is at the top, so the
+    // top edge holds: 550 stays, and the bottom moves to 1000 - 550 - 420 = 30.
     state.playState = "finished";
     state.natural = 420;
     rerender({ view: "console" });
@@ -382,9 +383,9 @@ describe("usePanelMotion", () => {
     expect(bottom()).toBe(300);
     // Each move settles before the next begins, so every step eases from the last one's end.
     state.playState = "finished";
-    // The console resizes on that same edge, and the chat comes back to it. The parked edge would
-    // guarantee the return even if the way out had moved, which is what keeps the restore correct
-    // the moment the slide is switched back on.
+    // The console resizes on that same edge, and the chat comes back to it. The parked edge gives
+    // the same return even if the way out had moved, so the restore stays correct the moment the
+    // slide is switched back on.
     state.natural = 200;
     rerender({ view: "console:appearance" });
     expect(bottom()).toBe(300);
@@ -402,7 +403,7 @@ describe("usePanelMotion", () => {
     });
     expect(bottom()).toBe(350);
     // The session opened on the console, so no chat edge was ever parked: the chat takes the edge
-    // on screen, the same hold-your-ground rule as every other view change.
+    // on screen, the same rule as every other view change.
     state.natural = 500;
     rerender({ view: "chat" });
     expect(bottom()).toBe(350);
@@ -413,14 +414,14 @@ describe("usePanelMotion", () => {
     state.natural = 400;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
     expect(bottom()).toBe(300);
-    // A section rolls open and the panel wants more room than there is above it. Growth is upward
-    // or it does not happen: the edge the composer sits on does not move, and the panel simply
-    // stops getting taller at 880 - 300, which puts its top edge on the 12% line.
+    // A section rolls open and the panel needs more room than there is above it. All growth is
+    // upward: the edge the composer sits on does not move, and the panel stops getting taller at
+    // 880 - 300, which puts its top edge on the 12% line.
     state.natural = 700;
     rerender();
     expect(bottom()).toBe(300);
     expect(ref.current.style.maxHeight).toBe("580px");
-    // Closing it again changes nothing about the edge either, so a round trip is a round trip.
+    // Closing it again leaves the edge where it was, so the panel returns to its starting geometry.
     state.natural = 400;
     rerender();
     expect(bottom()).toBe(300);
@@ -436,10 +437,10 @@ describe("usePanelMotion", () => {
     rerender({ open: true });
     expect(bottom()).toBe(350);
 
-    // The reminder stack rolls in behind the summon, taking the panel to 500. It is delivery
-    // rather than conversation and can be two rows or five, so the panel centres on the 300 the
-    // chat is and lets the stack grow it upward: centring on 500 instead put the conversation
-    // wherever the day's reminders happened to leave it, measured 26px below its own centre.
+    // The reminder stack rolls in behind the summon, taking the panel to 500. The stack can be two
+    // rows or five, so the panel centres on the 300 the chat takes and the stack grows it upward
+    // from there. Centring on 500 instead placed the conversation according to the day's reminder
+    // count, measured 26px below its own centre.
     tick(1);
     const section = rolling(view(element), 200, 0);
     section.classList.add("collapse", "aside");
@@ -456,24 +457,24 @@ describe("usePanelMotion", () => {
     });
     rerender({ open: true });
     expect(bottom()).toBe(300);
-    // The stack rolling in behind this summon wants more than the ceiling above that edge allows:
-    // 400 of chat plus 250 of reminders against the 580 the edge affords. Centring the chat on
-    // the CLAMPED prediction pinned an edge the whole panel could not fit above, the cap written
-    // for it squeezed the chat under the rolling stack, and the placement after the roll undid
-    // it: a second beat on every summon whose reminders outgrow the ceiling, which the user
-    // caught at a 760px viewport (the history lost 119px over the roll and got 40 back
-    // afterwards). Counted off the raw height, the chat's own 400 centres and the edge stands
-    // exactly where the summon put it.
+    // The stack rolling in behind this summon needs more than the ceiling above that edge allows:
+    // 400 of chat plus 250 of reminders against the 580 the edge affords. Centring the chat on the
+    // clamped prediction pinned an edge the whole panel could not fit above, the cap written for it
+    // squeezed the chat under the rolling stack, and the placement after the roll undid it, which
+    // is a second movement on every summon whose reminders outgrow the ceiling. Reported by the
+    // user at a 760px viewport: the history lost 119px over the roll and got 40 back afterwards.
+    // Counted off the raw height, the chat's own 400 centres and the edge stays where the summon
+    // put it.
     tick(1);
     const section = rolling(view(element), 250, 0);
     section.classList.add("collapse", "aside");
     rerender({ open: true });
     expect(bottom()).toBe(300);
-    // And because the stack outgrows even that edge's ceiling, the panel DRIVES its height to
-    // the prediction over the roll's own clock: left to `auto` it grew one-for-one until the cap
-    // bit and the chat's window was squeezed only in the roll's tail, the empty state holding
-    // its size and then resizing at the end (a second look). Driven, the window
-    // compresses in step with the stack and everything arrives at the size it keeps.
+    // And because the stack outgrows even that edge's ceiling, the panel animates its height to
+    // the prediction over the roll's own duration. Left to `auto` it grew one-for-one until the cap
+    // applied, so the chat's window was squeezed only in the roll's tail: the empty state held its
+    // size and then resized at the end. Animated, the window compresses in step with the stack and
+    // everything arrives at its final size.
     expect(moves).toEqual([
       { from: { height: 400, bottom: 300 }, to: { height: 580, bottom: 300 } },
     ]);
@@ -482,12 +483,12 @@ describe("usePanelMotion", () => {
 
   it("counts an aside that is only STANDING off an arriving roll's prediction too", () => {
     // Ctrl+N with the switcher list open: one commit summons the panel and rolls that list shut,
-    // and the reminder stack stands in the panel through the whole of it. The roll is not the
-    // aside, so the ride-along used to count the stack INTO the height it centred on while the
-    // placement at the end of the roll counted it out again, and the two disagreed by a whole
-    // stack. Measured at 900x1000 over the demo: the summon pinned 227 and the placement at the
-    // end re-centred to 324, so a touch inside the arrival window, which is exactly what stops
-    // that placement re-centring, left the session 97px low for the rest of it.
+    // and the reminder stack is present in the panel throughout. The roll is not the aside, so the
+    // ride-along counted the stack into the height it centred on while the placement at the end of
+    // the roll counted it out again, and the two disagreed by a whole stack. Measured at 900x1000
+    // over the demo: the summon pinned 227 and the placement at the end re-centred to 324, so a
+    // touch inside the arrival window, which stops that placement re-centring, left the session
+    // 97px low for the rest of it.
     const tick = clock();
     const { ref, element, state, bottom } = harness();
     const chat = view(element);
@@ -499,13 +500,13 @@ describe("usePanelMotion", () => {
     });
     rolling(chat, 0, 120);
     rerender({ open: true });
-    // 546 arriving, less the 190 the stack takes: the chat's own 356 centres, and the stack grows
-    // it upward from there.
+    // 546 arriving, less the 190 the stack takes: the chat's own 356 centres and the stack grows it
+    // upward from there.
     expect(bottom()).toBe(322);
 
     // A key inside the arrival window hands the geometry to the session, so the placement at the
-    // end of the roll no longer re-centres. It has nothing to re-centre: the edge the summon
-    // pinned is the one that measurement would have produced.
+    // end of the roll no longer re-centres. There is nothing to re-centre either: the edge the
+    // summon pinned is the one that measurement would have produced.
     tick(1);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k" }));
     state.natural = 546;
@@ -515,11 +516,12 @@ describe("usePanelMotion", () => {
   });
 
   it("bounds an arriving roll where the placement bounds it, before the aside comes off", () => {
-    // The prediction and the measurement have to be counted in the same ORDER as well as by the
-    // same rule. `place` reads the panel under the loose cap and takes the aside off what it
-    // reads, so a prediction that outgrows that cap has to be cut to it BEFORE the aside comes
-    // off. Cut afterwards, the ride-along stood a whole aside above the placement that followed
-    // it, which is a second beat on the summon rather than a wrong edge for the session.
+    // The prediction and the measurement have to be counted in the same order as well as by the
+    // same rule. `place` reads the panel under the loose cap and subtracts the aside from what it
+    // reads, so a prediction that outgrows that cap has to be cut to it before the aside is
+    // subtracted. Cut afterwards, the ride-along landed a whole aside above the placement that
+    // followed it, which is a second movement on the summon rather than a wrong edge for the
+    // session.
     const tick = clock();
     const { ref, element, state, moves, bottom } = harness();
     const chat = view(element);
@@ -557,16 +559,17 @@ describe("usePanelMotion", () => {
       initialProps: { open: false },
     });
     rerender({ open: true });
-    // The pull lands a beat behind the summon and the panel is really 546 tall. That is the panel
-    // ARRIVING with its content, not growing after the fact, so it centres on it. Pinning it to the
-    // centre of the 356 instead left it 95px above its own centre and hard against its ceiling for
-    // the rest of the session. (The clause that used to end this sentence, "where every later
-    // shrink slid the composer", was true of the two-bound panel and stopped being true on
-    // 2026-07-20; the cost the window prevents is the off-centre session, not a moving composer.)
+    // The pull lands a frame behind the summon and the panel is really 546 tall. That counts as the
+    // panel arriving with its content rather than growing afterwards, so it centres on 546. Pinning
+    // it to the centre of the 356 instead left it 95px above its own centre and against its ceiling
+    // for the rest of the session. (An earlier version of this comment added "where every later
+    // shrink slid the composer", which was true of the two-bound panel and stopped being true on
+    // 2026-07-20. The cost the arrival window prevents is the off-centre session.)
     state.natural = 546;
     rerender({ open: true });
     expect(bottom()).toBe(227);
-    // Once it has arrived, the same growth is growth: the bottom edge holds and the top rises.
+    // Once it has arrived, further growth is ordinary growth: the bottom edge holds and the top
+    // rises.
     tick(500);
     state.natural = 646;
     rerender({ open: true });
@@ -583,16 +586,16 @@ describe("usePanelMotion", () => {
     rerender({ open: true });
     expect(bottom()).toBe(322);
     // The reminder stack rolls open from nothing to 190px, 10ms behind the summon. Riding along
-    // with it to the CENTRE of the 546 it is taking the panel to is one movement; pinning to the
+    // with it to the centre of the 546 it is taking the panel to is one movement; pinning to the
     // edge below and re-centring when the roll ended would have been two.
     rolling(element, 190, 0);
     rerender({ open: true });
     expect(bottom()).toBe(227);
-    // A slide, and only a slide: the section owns the height and the panel takes its edge along.
+    // A slide of the bottom edge alone: the section owns the height for the length of the roll.
     expect(moves).toEqual([
       { from: { height: null, bottom: 322 }, to: { height: null, bottom: 227 } },
     ]);
-    // And the edge it landed on is the one the session is then pinned to: the placement at the end
+    // The edge it landed on is the one the session is then pinned to, so the placement at the end
     // of the roll has nothing left to correct.
     tick(500);
     state.natural = 546;
@@ -611,7 +614,7 @@ describe("usePanelMotion", () => {
     });
     rerender({ open: true });
     expect(bottom()).toBe(322);
-    // A key, a beat after the panel appeared. Whatever grows from here is the user's doing, so it
+    // A key, one tick after the panel appeared. Growth from here is the user's own doing, so it
     // grows from the pinned edge rather than re-centring under their hand.
     tick(1);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k" }));
@@ -637,8 +640,7 @@ describe("usePanelMotion", () => {
     tick(1);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k" }));
     // The switcher rolls open to 400px, which is more room than there is above the panel. The edge
-    // it is pinned to does not move for that, and now neither does anything else: the height is
-    // what gives way.
+    // it is pinned to does not move, and the height gives way instead.
     const section = rolling(element, 400, 0);
     rerender({ open: true });
     expect(bottom()).toBe(322);
@@ -649,10 +651,10 @@ describe("usePanelMotion", () => {
     element.dispatchEvent(new CustomEvent("cortex:morphend", { bubbles: true }));
     expect(bottom()).toBe(322);
 
-    // Closing it lands on the edge the panel had before it opened, to the pixel, and gets there by
-    // never having left it. The edge a summon centres on is the edge the session keeps: a roll
-    // inside the arrival window used to re-pin the panel to the centre of the height it was about
-    // to be, and closing the list then stranded it 60px below its own centre for the session.
+    // Closing it lands on the edge the panel had before it opened, to the pixel, because that edge
+    // never moved. A roll inside the arrival window used to re-pin the panel to the centre of the
+    // height it was about to be, and closing the list then left it 60px below its own centre for
+    // the rest of the session.
     section.setAttribute("data-morphing", "0");
     rolled(section, 400);
     rerender({ open: true });
@@ -661,8 +663,8 @@ describe("usePanelMotion", () => {
   });
 
   it("does not read the press that summoned the panel as the user touching it", () => {
-    // The orb is clicked to maximize, so a real pointerdown lands a beat BEFORE the panel appears.
-    // The arrival that follows it is exactly the case the window exists for.
+    // The orb is clicked to maximize, so a real pointerdown lands just before the panel appears.
+    // The arrival that follows it is the case the arrival window exists for.
     const { ref, state, bottom } = harness();
     state.natural = 356;
     const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
@@ -686,16 +688,16 @@ describe("usePanelMotion", () => {
     expect(durations).toEqual([120]);
 
     // 55ms later the next token arrives and leaves the height exactly where it was. Starting a
-    // fresh 120ms ease here is what made the panel chase the text: measured over one reply, a 23px
-    // line started four eases 55ms apart and settled 285ms after the words were on screen.
+    // fresh 120ms ease here made the panel lag the text: measured over one reply, a 23px line
+    // started four eases 55ms apart and settled 285ms after the words were on screen.
     tick(55);
     state.displayed = 408;
     rerender();
     expect(moves[1]).toEqual({ from: { height: 408, bottom: 300 }, to: { height: 422, bottom: 300 } });
     expect(durations[1]).toBe(65);
 
-    // And the token after that shortens the same move again. The line lands 120ms after it
-    // appeared, whatever arrives while it is landing.
+    // The token after that shortens the same move again, so the line settles 120ms after it
+    // appeared whatever arrives while it is landing.
     tick(55);
     state.displayed = 419;
     rerender();
@@ -709,8 +711,8 @@ describe("usePanelMotion", () => {
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
     state.natural = 422;
     rerender();
-    // Another line of growth mid-ease is a different destination, so it is paced from where the eye
-    // is to where the panel is now going, and not squeezed into what was left of the last move.
+    // Another line of growth mid-ease is a different destination, so it is paced from the height on
+    // screen to the new one rather than squeezed into what was left of the last move.
     tick(55);
     state.displayed = 408;
     state.natural = 530;
@@ -725,10 +727,10 @@ describe("usePanelMotion", () => {
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
     expect(bottom()).toBe(120);
     state.playState = "finished";
-    // A section rolls open from nothing to 190px. Taking that prediction at face value asks where a
-    // 950px panel goes in a viewport that allows 760, and the answer is off the bottom of the
-    // screen: traced at 60Hz, the panel's bottom edge ran 108px down to the floor over the roll and
-    // came back up afterwards.
+    // A section rolls open from nothing to 190px. Placing for the uncapped prediction asks where a
+    // 950px panel goes in a viewport that allows 760, and puts it off the bottom of the screen:
+    // traced at 60Hz, the panel's bottom edge ran 108px down to the floor over the roll and came
+    // back up afterwards.
     rolling(element, 190, 0);
     rerender();
     expect(bottom()).toBe(120);
@@ -736,14 +738,14 @@ describe("usePanelMotion", () => {
   });
 
   it("caps that prediction at the same whole-pixel ceiling the element was given", () => {
-    // 720 is the body's own window, and 76% of it is 547.2: the one case the test above cannot see,
+    // 720 is the body's own window, and 76% of it is 547.2: the case the test above cannot see,
     // because 76% of 1000 is already whole. The panel is given a `max-height` in whole pixels, so a
     // prediction capped at the raw 547.2 places it for a height it can never have, and the roll
     // slides the edge it was standing on. Traced at 60Hz at 640x720 with the reminder stack up
-    // before this was fixed, back when the edge was also written rounded: every roll inside the
-    // panel began with `bottom` stepping 87 to 86 in a single frame and stepped back the frame the
-    // roll ended. The edge now carries its own fraction, so the same disagreement is worth 0.2px
-    // rather than a whole one, and the ceiling is still what has to agree with itself.
+    // before this was fixed, when the edge was also written rounded: every roll inside the panel
+    // began with `bottom` stepping 87 to 86 in a single frame and stepped back the frame the roll
+    // ended. The edge now carries its own fraction, so the same disagreement is worth 0.2px rather
+    // than a whole pixel, and the ceiling still has to agree with itself.
     vi.spyOn(window, "innerHeight", "get").mockReturnValue(720);
     const { ref, element, state, moves, bottom } = harness();
     state.natural = 547;
@@ -768,8 +770,8 @@ describe("usePanelMotion", () => {
     rerender({ view: "console" });
     // The edge holds at 150, so the ceiling is 880 less 150 at both ends of the move, and the
     // from-frame's cap never sits below the height the ease starts from. The clamped-first-frame
-    // defect this once traced belongs to the slide now, and is held down in the flipped-switch
-    // test above, where the bottom edge genuinely rises mid-move.
+    // defect this once covered now belongs to the slide, and is covered by the flipped-switch test
+    // above, where the bottom edge rises mid-move.
     expect(keyed.at(-1)).toEqual([
       { height: "700px", bottom: "150px", maxHeight: "730px" },
       { height: "300px", bottom: "150px", maxHeight: "730px" },
@@ -777,9 +779,9 @@ describe("usePanelMotion", () => {
   });
 
   it("centres the arriving view on itself, not shy of an aside the leaving view still holds", () => {
-    // Centring on a view change lives behind the flipped switch, so the defect this guards is
-    // driven through `place` the way the slide's own test is. The chat holds the reminder stack
-    // (an aside): the panel centres on the conversation and lets the stack grow it upward.
+    // Centring on a view change lives behind the flipped switch, so this defect is driven through
+    // `place` as the slide's own test is. The chat holds the reminder stack (an aside): the panel
+    // centres on the conversation and the stack grows it upward.
     const { element, state, bottom } = harness();
     const chat = document.createElement("div");
     chat.className = "view";
@@ -794,10 +796,10 @@ describe("usePanelMotion", () => {
     expect(bottom()).toBe(350);
 
     // Into the console, which has no stack of its own. The chat is held for one morph as `.view.out`
-    // with its stack still in it, and subtracting that from the height of the view ARRIVING centred
-    // a 300px console as though it were 100px: measured at 640x720, that put the console 96px above
-    // the middle of the screen and, the ceiling being measured from the edge it sits on, capped it
-    // at 351px where 448 would have fitted, leaving four spare pixels in the whole view.
+    // with its stack still in it, and subtracting that from the height of the arriving view centred
+    // a 300px console as though it were 100px. Measured at 640x720: the console sat 96px above the
+    // middle of the screen and, the ceiling being measured from the edge it sits on, was capped at
+    // 351px where 448 would have fitted, leaving four spare pixels in the whole view.
     chat.className = "view out";
     state.playState = "finished";
     state.natural = 300;
@@ -811,17 +813,18 @@ describe("usePanelMotion", () => {
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
     expect(element.style.maxHeight).toBe("580px");
     state.playState = "finished";
-    // A roll is not a placement: nothing takes the measuring cap back off until the roll ENDS, so
-    // left there it is the section's licence to roll the panel past the clear space kept above it.
+    // A roll is not a placement, and nothing removes the measuring cap until the roll ends, so a
+    // loose cap left in place lets the section roll the panel past the clear space kept above it.
     // Traced at 60Hz at 640x720 with the panel already on its ceiling, opening the chat switcher:
     // the panel went to the loose 547 with its top edge 11px off the top of the screen, stayed
     // there for the whole 300ms roll, and the placement at the end put the real 450 back in a
-    // single frame. Capped for the duration instead, the section rolls to its full height and the
-    // history gives the room up, which is what the history is for.
+    // single frame. Held at the real cap for the duration, the section rolls to its full height and
+    // the history gives up the room instead.
     rolling(element, 190, 0);
     rerender();
     expect(element.style.maxHeight).toBe("580px");
     // And on every render inside the same roll, since each one writes the measuring cap first.
+
     rerender();
     expect(element.style.maxHeight).toBe("580px");
   });
@@ -835,7 +838,7 @@ describe("usePanelMotion", () => {
     state.playState = "finished";
 
     // A section rolls open to more than there is room for: 400 less nothing plus 190 is 590, and the
-    // panel may only be 580 tall from the edge it sits on, so the roll ends ON the ceiling.
+    // panel may only be 580 tall from the edge it sits on, so the roll ends on the ceiling.
     const section = rolling(element, 190, 0);
     state.natural = 590;
     rerender();
@@ -862,8 +865,8 @@ describe("usePanelMotion", () => {
     history.scrollTop = 120;
 
     // Any placement at all: a token landing, a section rolling, the window resizing. Before this,
-    // every one of them walked the log up under the reader by exactly the difference above, which
-    // is what "the history will not let me scroll while a reply streams" was.
+    // every one of them moved the log up under the reader by exactly the difference above, which
+    // the user reported as the history not letting them scroll while a reply streams.
     state.playState = "finished";
     state.natural = 420;
     rerender();
@@ -892,19 +895,19 @@ describe("usePanelMotion", () => {
     state.natural = 552;
     rerender({ view: "chat" });
     expect(durations[1]).toBe(206);
-    // A whole view changing moves the top edge 262px, which is past the travel that earns the full
-    // duration, so it takes the ceiling and not a millisecond more.
+    // A whole view changing moves the top edge 262px, past the travel that earns the full duration,
+    // so it takes the ceiling.
     state.natural = 180;
     rerender({ view: "console:appearance" });
     expect(durations[2]).toBe(380);
   });
 
   it("publishes every cap it writes, so the sections are budgeted against the panel's own number", () => {
-    // The sections in the panel's chrome are capped out of this number (overlay.css spends it), and
-    // the one thing that must never happen is the panel standing under one ceiling while they are
-    // sized for another. Asserted at each of the three caps a placement writes, because they are
-    // three different numbers: the loose measuring cap, the cap a roll leaves in place, and the real
-    // ceiling of the edge the panel settles on.
+    // The sections in the panel's chrome are capped out of this number (overlay.css reads it), so
+    // the panel must never sit under one ceiling while they are sized for another. Asserted at each
+    // of the three caps a placement writes, because they are three different numbers: the loose
+    // measuring cap, the cap a roll leaves in place, and the real ceiling of the edge the panel
+    // settles on.
     const { ref, element, state, bottom } = harness();
     state.capped = true;
     state.natural = 300;
@@ -917,7 +920,7 @@ describe("usePanelMotion", () => {
     const section = rolling(element, 400, 0);
     rerender();
     expect(element.style.getPropertyValue(CEILING_PROPERTY)).toBe(element.style.maxHeight);
-    // And the panel picks its own geometry back up at the end of the roll, on a new edge.
+    // And the panel places itself again at the end of the roll, on a new edge.
     section.remove();
     state.natural = 760;
     rerender();
@@ -947,10 +950,9 @@ describe("usePanelMotion", () => {
   });
 
   it("cancels the running animation and measures the NATURAL box, not the in-flight one", () => {
-    // The regression this hook exists to avoid: a height animation overrides the measured height,
-    // so reading it mid-ease returns the in-flight value. Animating from in-flight to in-flight
-    // never converges, and during a stream the panel would sit permanently short of its content
-    // with the text clipped.
+    // A height animation overrides the measured height, so reading it mid-ease returns the
+    // in-flight value. Animating from in-flight to in-flight never converges, and during a stream
+    // the panel sat permanently short of its content with the text clipped.
     const { ref, state, moves, cancels } = harness();
     state.natural = 300;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
@@ -961,7 +963,7 @@ describe("usePanelMotion", () => {
     state.natural = 460;
     rerender();
     expect(cancels).toEqual([1]);
-    // From where the eye is (360), to the true content height, not to the in-flight one.
+    // From the height on screen (360) to the true content height rather than the in-flight one.
     expect(moves[1]).toEqual({ from: { height: 360, bottom: 350 }, to: { height: 460, bottom: 350 } });
   });
 
@@ -986,7 +988,7 @@ describe("usePanelMotion", () => {
 
     // A section 60px tall starts rolling shut. It animates its own height and the panel's `auto`
     // height follows frame by frame, so the panel must not animate the same pixels against it. The
-    // panel is nowhere near its ceiling here, so it has no slide of its own to make either.
+    // panel is nowhere near its ceiling here, so it has no slide of its own to make.
     const section = rolling(element, 0, 60);
     state.natural = 460;
     rerender();
@@ -1014,9 +1016,9 @@ describe("usePanelMotion", () => {
     rerender();
     expect(bottom()).toBe(350);
 
-    // A section rolls open from nothing to 100px, taking the panel past what fits above it. There
-    // is nothing for the panel to do about that any more: the height gives way instead, so the
-    // edge the composer sits on stays where it is and the roll is the whole movement on screen.
+    // A section rolls open from nothing to 100px, taking the panel past what fits above it. The
+    // height gives way instead, so the edge the composer sits on stays where it is and the roll is
+    // the whole movement on screen.
     rolling(element, 100, 0);
     rerender();
     expect(bottom()).toBe(350);
@@ -1024,9 +1026,9 @@ describe("usePanelMotion", () => {
   });
 
   it("has nothing left to move when a roll it followed ends", () => {
-    // A section rolling OPEN finishes without changing any state, so no render follows it: this
-    // event is the panel's only word that it happened. Having already gone where the roll was
-    // taking it, there is nothing to animate here, and animating anything would be a second beat.
+    // A section rolling open finishes without changing any state, so no render follows it and this
+    // event is the panel's only notification of it. The panel is already where the roll was taking
+    // it, so there is nothing to animate and animating anything would be a second movement.
     const { ref, element, state, moves, bottom } = harness();
     state.natural = 300;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));

@@ -1,4 +1,4 @@
-"""What does recapping a dropped prefix cost, and does it keep what a follow-up needs?
+"""Measure what recapping a dropped prefix costs and whether it keeps what a follow-up needs.
 
 Integration-marked: excluded from CI and the coverage gate by the workspace addopts
 (`-m "not integration"`). Needs the gpu stack for the resident cortex:
@@ -103,7 +103,7 @@ _FENCE_TAG = wrap_untrusted("", nonce="0").split(" ", 1)[0].lstrip("<")
 
 
 def _exchanges(pairs: Sequence[tuple[str, str]]) -> list[Message]:
-    """``pairs`` as stored history: one user message and one assistant reply per exchange."""
+    """Render ``pairs`` as stored history: one user message and one assistant reply each."""
     messages: list[Message] = []
     for index, (user, assistant) in enumerate(pairs):
         turn = f"t{index}"
@@ -113,7 +113,7 @@ def _exchanges(pairs: Sequence[tuple[str, str]]) -> list[Message]:
 
 
 def _asking(pairs: Sequence[tuple[str, str]]) -> list[Message]:
-    """Those exchanges with the follow-up appended, which is what a turn hands the window."""
+    """Return those exchanges with the follow-up appended, as a turn hands them to the window."""
     return [*_exchanges(pairs), Message(role=Role.USER, text=_QUESTION, at=_AT, turn_id="ask")]
 
 
@@ -283,14 +283,14 @@ _PRICING_RUNS = 3
 
 
 def _fold_prompt() -> list[Message]:
-    """The prompt one fold sends: a session's first account of its whole dropped opening."""
+    """Build the prompt one fold sends: a session's first account of its dropped opening."""
     dropped = _exchanges([*_OPENING, *_FILLER[:2]])
     return build_recap_messages(None, dropped, at=_AT, turn_id="t4")
 
 
 @pytest.mark.integration
 async def test_the_fold_costs_less_once_it_stops_paying_for_thinking_nobody_reads() -> None:
-    """The before and after, over the identical prompt, through the shipped adapter.
+    """The bounded fold is cheaper than the unbounded one over the identical prompt.
 
     ``bounds=None`` is exactly the request the fold sent before this addendum: no cap, and
     whatever the server's chat template does about thinking, which for the cortex is think
@@ -300,7 +300,7 @@ async def test_the_fold_costs_less_once_it_stops_paying_for_thinking_nobody_read
     What is asserted is the part a default rests on and that is not a coin flip: the bounded
     fold still produces a usable account (``clean_recap`` accepting it is the same gate the
     window applies), and it is cheaper in total across the runs. The per-run numbers are
-    printed rather than asserted, because pinning a model's speed pins the model.
+    printed rather than asserted, because a model's speed varies from run to run.
     """
     async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
@@ -330,8 +330,9 @@ async def test_the_fold_costs_less_once_it_stops_paying_for_thinking_nobody_read
 
 @pytest.mark.integration
 async def test_a_small_cap_against_a_thinking_model_is_the_trap_the_pairing_avoids() -> None:
-    """Why the cap is not shipped on its own, with the number that says so.
+    """A small cap with thinking left on can be spent before the model answers at all.
 
+    This is why the cap is not shipped on its own, and the run prints the number that says so.
     A reasoning model spends its budget deliberating BEFORE it answers, so a cap can be reached
     with nothing said. This runs the shipped cap with thinking left on and reports what came
     back; the outcome is reported rather than asserted, because whether a given run finishes
@@ -365,7 +366,7 @@ _SHIPPED_FLOOR = min(_DEFAULT_FLOOR, _BUDGET)
 
 @pytest.mark.integration
 async def test_the_shipped_fold_floor_pays_for_fewer_folds_over_the_same_conversation() -> None:
-    """What the default would actually do, counted rather than assumed.
+    """The shipped floor turns fewer of the same boundary moves into a model pass.
 
     Fewer folds is the whole mechanism by which the floor helps: a recap's losses compound
     across folds, so the interesting number is how many of the five boundary moves the floor

@@ -84,10 +84,10 @@ export interface OverlayState {
    * re-selecting the chat already open is still an arrival and still takes its own row away, and
    * rather than a flag, because two arrivals in a row have to read as two events.
    *
-   * Unlike the notice beside it this is NOT decided per door (`notice.ts`): every gesture that
-   * replaces the conversation wants the caret in one place, so each arm answers for all of its own
-   * doors and nothing travels with the action. Cold-start adoption is the one swap that does not
-   * count, having no gesture behind it to answer and running only while the panel is untouched.
+   * Unlike the notice beside it this is not decided per gesture (`notice.ts`): the caret belongs in
+   * one place for every gesture that replaces the conversation, so each arm answers for all of the
+   * gestures that reach it and nothing travels with the action. Cold-start adoption is the one swap
+   * that does not count, having no gesture behind it and running only while the panel is untouched.
    */
   readonly arrival: number;
   /** What the composer is holding for each conversation, keyed by session id (`drafts.ts`). The
@@ -102,10 +102,10 @@ export interface OverlayState {
    * How far this turn's screen-capture claim has climbed, or `null` if nothing was asked for
    * (ADR-0029). Raised to `"asked"` by the `capture_screen` tool activity, to `"read"` by the
    * outcome that settles it, and cleared only when the turn ends, so the indicator stays lit
-   * for the rest of the turn rather than blinking past with the chip. This is a **consent
-   * surface**, which is part of why the capture tool ships without an approval card: the user
-   * is told plainly, by the app, that a picture was taken. Within a turn it only ever climbs,
-   * because a privacy indicator may over-report and may never under-report.
+   * for the rest of the turn rather than blinking past with the chip. It is a consent surface,
+   * which is part of why the capture tool ships without an approval card: the user is told
+   * plainly, by the app, that a picture was taken. Within a turn it only ever climbs, because a
+   * privacy indicator may over-report and may never under-report.
    */
   readonly capture: CaptureClaim | null;
   readonly seq: number;
@@ -200,31 +200,31 @@ export const initialState: OverlayState = createInitialState("");
 export function reduce(state: OverlayState, action: Action): OverlayState {
   switch (action.kind) {
     case "open":
-      // A summon always arrives at the chat. Clearing the console HERE and not on dismiss is the
-      // whole trick: the panel fades out wearing whatever it had on, instead of morphing back to
-      // the chat first and then fading, which read as the window changing its mind on the way out.
+      // A summon always arrives at the chat. Clearing the console here rather than on dismiss is
+      // what lets the panel fade out showing whatever it had up, instead of morphing back to the
+      // chat first and then fading, which read as the panel reversing itself on the way out.
       return { ...state, mode: "panel", consoleTab: null, touched: true };
     case "submit":
       return submit(state, action.text);
     case "draft":
-      // Typing is the user acting on the overlay, which `touched` has always claimed to cover and
-      // until now could not: nothing dispatched on a keystroke, so a cold-start adoption could
-      // replace the chat under a sentence somebody was in the middle of. Now it cannot.
+      // Typing is the user acting on the overlay, which `touched` claims to cover and could not
+      // before this: nothing dispatched on a keystroke, so a cold-start adoption could replace the
+      // chat under a sentence somebody was in the middle of.
       return {
         ...state,
         touched: true,
         drafts: parkDraft(state.drafts, state.sessionId, action.text),
       };
     case "event": {
-      // Any event at all is the brain serving, so the turn keeps the indicator honest for free:
-      // no probe fires while a stream is arriving. The identity check keeps a no-op event a
-      // no-op (a late confirm request on a dead turn must not resurrect anything).
+      // Any event at all is the brain serving, so the indicator stays current with no probe while
+      // a stream is arriving. The identity check keeps a no-op event a no-op (a late confirm
+      // request on a dead turn must not resurrect anything).
       const next = applyEvent(state, action.event);
       const link = linkServing(state.link);
       return link === state.link ? next : { ...next, link };
     }
     case "transportError":
-      // The turn ends *and* the indicator learns: this is the failure the user is looking at.
+      // The turn ends and the indicator takes the failure, which is the one the user is looking at.
       return { ...endTurn(state, action.error.message), link: linkFailed(state.link, action.error) };
     case "linkProbing":
       return { ...state, link: linkProbing(state.link) };
@@ -235,7 +235,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "dismiss":
       // Dismissing drops any pending approval with it (walking away is a deny, since the brain
       // fails closed by timeout, ADR-0022); the turn itself keeps streaming to the store. The
-      // console is deliberately LEFT OPEN: it is closed by the next summon instead, so the panel
+      // console is deliberately left open: it is closed by the next summon instead, so the panel
       // fades out as it stands rather than morphing back to the chat under a fading window.
       return {
         ...state,

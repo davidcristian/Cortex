@@ -5,7 +5,7 @@
 
 ## Context
 
-Slice 6 gives the cortex hands. It calls tools, starting with a filesystem, then read-only
+Slice 6 lets the cortex call tools, starting with a filesystem, then read-only
 email, and **every call is audited**. Per the founding arc and AGENTS.md, tools are
 reached through **MCP** servers, behind **one port** so every later tool (including the
 body-backed OS actions of Slices 9-10) dispatches through the same audited path.
@@ -963,13 +963,13 @@ between.
    `${CORTEX_TOOLS_SALIENCE_LIMIT:-2}`, which is the core's `MAX_IDENTICAL_DISPATCHES` written a
    second time, so `crosscheck.py` now carries the pair: retuning the constant alone would leave
    every container started with the old number and nothing saying so. Proved by drifting the
-   compose default to 3, which reddens the scan with the reason printed, then restoring it.
+   compose default to 3, which fails the scan with the reason printed, then restoring it.
 
 Three guards were mutation-proven rather than assumed. Dropping the threaded limit
-(`RepeatSalience()` for `RepeatSalience(limit=self.salience_limit)`) reddens exactly two tests:
+(`RepeatSalience()` for `RepeatSalience(limit=self.salience_limit)`) fails exactly two tests:
 the config one that asserts the configured number reaches the policy, and the wiring one that
 asserts it reaches both the cortex dispatcher and the subagent dispatcher, which is the shape a
-refactor threading the kind and dropping the number would take. Deleting the boot check reddens
+refactor threading the kind and dropping the number would take. Deleting the boot check fails
 both parametrized cases of the below-one test. The wiring test's history is one earlier round
 holding one identical call, so the same-round clause is silent and only the across-loop cap can
 decide it: a limit of 1 refuses, the shipped 2 admits.
@@ -1085,7 +1085,7 @@ what its messages are stamped with is `unit_id`, the work they belong to.
 Eight mutations, each applied to production code alone with the whole brain suite re-run, then
 restored and read back off disk:
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the loop's stamp drops the turn id | 3 |
 | the loop's stamp drops the task id | 2 |
@@ -1096,10 +1096,10 @@ restored and read back off disk:
 | the Redis task record forgets the attribution it was handed | 1 |
 | a subagent's messages regroup under the spawning turn | 1 |
 
-The fourth row reddens two of the sink's three cases and not the third, which is the point of the
+The fourth row fails two of the sink's three cases and not the third, which is the point of the
 third: it asserts the ids are **absent** from an unattributed line, so a sink that prints nothing
 satisfies it truthfully, and the fifth row is what that case is there to catch. The seventh is the
-narrowest and the one worth having: it reddens only the Redis arm of the task-store contract, the
+narrowest and the one worth having: it fails only the Redis arm of the task-store contract, the
 fake having nothing to serialize, which is exactly the asymmetry a contract test exists to catch.
 
 ### Consequences
@@ -1218,7 +1218,7 @@ far past a healthy call and far short of forever: the runbook's own table measur
 `invoke` at 154 ms and a listing at 146 ms against the shipped filesystem sidecar, so 60 s is some
 four hundred times the slowest call this deployment has ever timed, leaving room for a mailbox
 search nobody here has measured. A value at or below zero fails at boot rather than refusing every
-call in silence.
+call with no explanation.
 
 **It bounds a call and not a turn**, which is the one thing about this number worth reading twice.
 A loop lists its tools once before its rounds and dispatches inside them, and every one of those
@@ -1245,7 +1245,7 @@ Thirteen mutations, each applied to production code alone and run over one suite
 `packages/orchestrator/tests/test_wiring.py`, `packages/orchestrator/tests/test_config.py`), then
 restored and each file compared by checksum against the copy taken before the first mutation:
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | a call spends a hundred times the bound it was given | 2 |
 | a call spends ten times the bound it was given | 2 |
@@ -1289,7 +1289,7 @@ stops returning at all.
 
 The cancellation row is the other assertion no message could make: `asyncio.shield` around the
 inner call leaves the overrun raising exactly the same `ToolError` while the sidecar call runs on,
-which would leak a session per dispatch. It reddens two cases rather than one now, the overrun
+which would leak a session per dispatch. It fails two cases rather than one now, the overrun
 case having gained the same `cancelled` assertion.
 
 The registry in `scripts/` was proved the same way and separately, its own gate being a different
@@ -1388,7 +1388,7 @@ blank gate reason and an ask no admission could ever fit all fail at boot rather
 becoming something else.
 
 **A logged warning was rejected.** It leaves the misordering running, so the failure still arrives,
-still wearing a diagnosis that names the wrong cause. The reason to check at boot in the first
+still reported with a diagnosis that names the wrong cause. The reason to check at boot in the first
 place is that the reason is a knob two settings away that nobody would look at, and a warning line
 in a container log at boot is exactly as invisible as the knob it describes. The one place a
 warning **is** right is where `check_control_deadline` puts one, a far side that cannot be *asked*;
@@ -1428,7 +1428,7 @@ guessing at it would be a decision to know less than the process does.
 
 **Widening it to a whole run was rejected too.** A run makes many dispatches over many rounds, so
 the honest ceiling on what one wedged sidecar can cost a run multiplies this again by
-`MAX_TOOL_DISPATCHES`. The shipped 60 s under 2400 s does not clear that, so the check would refuse
+`MAX_TOOL_DISPATCHES`. The shipped 60 s under 2400 s does not clear that, so the check would reject
 the stack this repo ships. It would also be protecting the wrong thing: the failure here is a run
 cut *mid call* and reported as a subtask that would not stop talking, and avoiding that needs the
 model to reach the tool error at all, not the run to survive every possible wedge. What a passing
@@ -1473,7 +1473,7 @@ Eleven mutations, each applied to production code alone and run over the whole `
 suite of 2836 cases (80 integration cases deselected), then restored and both files compared by
 checksum against the copy taken before the first mutation:
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the comparison reads the two fields the other way round | 5 |
 | the comparison accepts equality | 1 |
@@ -1488,7 +1488,7 @@ checksum against the copy taken before the first mutation:
 | the composition root stops calling the check | 1 |
 
 **The third row is the one the table exists for now.** It is the check as it was first written,
-comparing the two bounds as typed, and the five cases it reddens are what the first version had no
+comparing the two bounds as typed, and the five cases it fails are what the first version had no
 way to notice: nothing in that suite drove a pair that was ordered and still lost a run. The case
 that pins it is named for what it is, a pair the bare comparison admits, and it carries the
 reviewer's own numbers, 700 s under 900 s.
@@ -1501,15 +1501,15 @@ typed, at knobs a reader typed, and the set on the record is read through the sh
 rather than out of `caplog.text`, which carries the message alone and would have passed for as long
 as the numbers happened to be printed twice.
 
-The first row is worth its own sentence too, because it reddens the direction cases and not the
+The first row is worth its own sentence too, because it fails the direction cases and not the
 equality one: reversed, the comparison still refuses an equal dispatch, so the case that pins
 strictness cannot tell a swapped comparison from the shipped one. Two mutations, two different
 cases, and neither case is spare.
 
 One row is reported rather than tidied. The whole sweep was run twice, and on the second run the
-equality arm reddened a second case, `test_abandon.py`'s reading of the time a dropped call had
+equality arm failed a second case, `test_abandon.py`'s reading of the time a dropped call had
 left, which no comparison in this module can reach. The arm was run a third time on its own and
-reddened only its own case, as it had the first time, so that reading is load-sensitive rather than
+failed only its own case, as it had the first time, so that reading is load-sensitive rather than
 caused by anything here, three processes having shared the machine on the run that saw it. It is
 filed as
 [R-370](../refinements/tasks/370-an-expiry-reading-is-asserted-exactly.md) rather than left as a
@@ -1606,7 +1606,7 @@ for the state of three names.
 No behaviour. The two built-in sets are still assembled at the root, and the deep set is still
 built whether or not escalation is on, which is what it did before. The window, the guardrail and
 the dispatcher are still built per stream rather than hoisted to boot, since that is where they
-were built and hoisting one would be a behaviour change wearing a refactor's clothes. Every
+were built and hoisting one would be a behaviour change presented as a refactor. Every
 existing case in `test_wiring`, `test_swap_wiring` and `test_vision_wiring` passes unchanged
 except for two `monkeypatch.setattr` targets in the vision suite, `build_cortex_tools` and
 `BrainPhase`, which now name the module those two are called from. No assertion moved.
@@ -1614,12 +1614,12 @@ except for two `monkeypatch.setattr` targets in the vision suite, `build_cortex_
 ### Distrust green
 
 Four mutations, each applied to `engines.py` alone with the 445 tests of `packages/orchestrator`
-re-run over it. Caching the bundle so every stream gets the first stream's reddens exactly one
+re-run over it. Caching the bundle so every stream gets the first stream's fails exactly one
 case, the new suite's two-confirmer one, which is the property no end-to-end suite can see: each
 of them opens a single stream, so all three stayed green under that mutation while the second
 stream's gated call would have prompted the wrong overlay. Handing the deep phase the cortex's
-built-in set reddens two, the new deep-tier case and the vision suite's. Dropping the reply bound
-from the bundle reddens one. Returning the plain engine unconditionally reddens four, which is the
+built-in set fails two, the new deep-tier case and the vision suite's. Dropping the reply bound
+from the bundle fails one. Returning the plain engine unconditionally fails four, which is the
 whole escalating arm and no more.
 
 ### Consequences
@@ -1774,7 +1774,7 @@ Nine mutations, each applied to production code alone with the 2,865 tests of `b
 over it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored
 and read back off disk:
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the dispatcher stops copying the call's own id onto the record | 5 |
 | the record's call id is filled from the fired item instead of from the call | 5 |
@@ -1786,10 +1786,10 @@ and read back off disk:
 | a rendered value may stay bare even carrying whitespace | 11 |
 | a bare rendering escapes the length bound | 7 |
 
-The first two rows redden the same five cases, which is the point of the second: the five assert
+The first two rows fail the same five cases, which is the point of the second: the five assert
 the id the **call** carried, so a line that names an id truthfully and names the wrong one fails
 exactly as one that names none does. The sixth row is the narrowest and the one worth having. It
-reddens only the case that asserts `item_id` is **present**, because the case beside it asserts
+fails only the case that asserts `item_id` is **present**, because the case beside it asserts
 the field is absent from a model-authored `schedule-` line, and a sink that prints no item at all
 satisfies that one truthfully; the seventh row is what that asymmetry is there to catch.
 
@@ -1797,7 +1797,7 @@ The last two rows are mutations of `log_fields.py` rather than of anything this 
 and they are here because the adversarial cases are claims about a defence they do not own. A
 `_BARE` pattern that tolerates whitespace lets a hostile id render unquoted, and the newline, the
 quote and the control-character cases go red together with eight of the formatter's own; dropping
-the length guard from the bare path reddens the over-long case with six more. Without those two
+the length guard from the bare path fails the over-long case with six more. Without those two
 rows the three cases would be assertions about behaviour that happens to hold rather than about a
 defence that is load bearing.
 
@@ -1909,15 +1909,15 @@ Four mutations, each applied to `config_subagents.py` alone with the 2,875 tests
 over it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored and
 read back off disk:
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the run deadline is never compared with the admission wait | 1 |
 | the comparison admits equality | 1 |
 | a wait of zero is compared like any other | 3 |
 | the pair is compared the other way round | 45 |
 
-The first two redden the one case that asserts the ordering, which holds both arms of it, and the
-third is the one worth having: it reddens the zero case, the existing settable-including-zero case,
+The first two fail the one case that asserts the ordering, which holds both arms of it, and the
+third is the one worth having: it fails the zero case, the existing settable-including-zero case,
 and the wiring suite's own never-queue build, which is the pool proving behaviourally that a zero
 wait refuses rather than parks. The fourth row is not a subtler mutation but a sanity check on the
 sweep: comparing the pair the other way round refuses the shipped defaults, so 45 cases across the
@@ -1993,9 +1993,9 @@ above. The suite pins it: a record carrying every other field and no item is rea
 
 ### Decision 3: the four identities stay four keywords, and the bundle is declined
 
-The entry asked whether they want to travel as one value. They do not, and the criterion is the one
-`DeepTier` was built on in the root-headroom addendum: a bundle earns its name when its parts are
-meaningless apart, so that a half-wired state cannot be expressed. These four are the opposite.
+The entry asked whether they should travel as one value. They do not, and the criterion is the
+one `DeepTier` was built on in the root-headroom addendum: a bundle earns its name when its parts
+are meaningless apart, so that a half-wired state cannot be expressed. These four are the opposite.
 Each is independently present or absent, and decision 4 of the named-work addendum makes each
 absence a fact the trail states by leaving the field off. Every combination is a caller this tree
 really has: a turn (chat and turn), a turn's delegate (chat, turn, task), a fire (chat, item), a
@@ -2024,7 +2024,7 @@ Five mutations, each applied to production code alone with the 2,877 tests of `b
 it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored and read
 back off disk:
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the spawn tool stops writing the fired item onto the task | 1 |
 | the stored record drops the fired item on the way in | 4 |
@@ -2032,20 +2032,20 @@ back off disk:
 | the attempt does not read the item back into its loop context | 1 |
 | the loop stamp drops the item off every dispatch | 1 |
 
-Three of the rows of one are three different hops of one path, and the case they redden is the
+Three of the rows of one are three different hops of one path, and the case they fail is the
 same one: the end-to-end delegation case that dispatches a fire-shaped call and asserts the item
 on both the fire's line and its delegate's. That is the point of an end-to-end case over a chain
 nothing else joins, and it is why a per-hop unit case was not written beside it: each would assert
 the hop's own copy back, and none would say the chain carries an id from a fire to the work it
 caused.
 
-The third row is the narrow one and reddens a different case, the record missing an identity being
+The third row is the narrow one and fails a different case, the record missing an identity being
 read as corrupt. A codec that defaults a key it cannot find is invisible to every case that writes
 a record before reading it, which is every other case in the suite, so without that one the
 required key would be a decision nothing held.
 
 The second row is the loud one and its shape is the reading: dropping the item on the way into the
-store makes the record undecodable, so it reddens the Redis arm of the task-store contract, its
+store makes the record undecodable, so it fails the Redis arm of the task-store contract, its
 timezone case and the `from_url` case, and leaves the in-memory arm green, which is exactly the
 asymmetry a contract test over a fake and an adapter exists to catch.
 
@@ -2106,7 +2106,7 @@ whatever the backend, so the class cannot be built out of a misordered trio.
 That is the load-bearing consequence and it is what the entry missed: because those three
 declarations are the class's own defaults, **a bare construction is a reading of the repo's shipped
 numbers**, and the orchestrator suite makes many. Retuning any one of the three into an inversion
-reddens on the commit that types it, with no deployment and no capability enabled. The zero wait is
+fails on the commit that types it, with no deployment and no capability enabled. The zero wait is
 carved out inside the second validator, meaning never queue, so nothing waits on a running spawn
 and there is no relation to keep.
 
@@ -2139,7 +2139,7 @@ and delegation, which CI never does. The subagent trio has the opposite shape, s
 
 ### Measured, on `brain/packages/orchestrator/tests/test_config.py` (104 cases)
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the run deadline retuned to 4000.0, above the shipped wait | 11 |
 | the run deadline retuned to 500.0, under the shipped ceiling | 10 |
@@ -2147,7 +2147,7 @@ and delegation, which CI never does. The subagent trio has the opposite shape, s
 | the admission wait retuned to 2000.0, under the shipped deadline | 10 |
 
 Every row is a shipped default retuned into an inversion of a relation the core module's comment
-states, and every row is red without a deployment. The first row reddens 36 cases over the whole
+states, and every row is red without a deployment. The first row fails 36 cases over the whole
 brain workspace suite rather than 11. Restoring each file from a copy returns the suite to 104
 passed, and the converse holds: with the three declarations as they ship, nothing here is red.
 
@@ -2235,7 +2235,7 @@ The seam's `reminder_id` is untouched, and that the two differ is the decision r
 The alternative R-394 raised, carrying both fields on those three records, is refused for the
 reason it anticipated: the formatter renders every field a record carries, so both names would
 print on every one of the three lines and a reader would meet two names for one id in the same
-line, which is the defect wearing a bigger hat.
+line, which is a larger version of the same defect.
 
 ### Decision 2: the runbook cost is payable, because the interface has one consumer
 
@@ -2289,14 +2289,14 @@ Four mutations, each applied to production code alone with the 2,877 tests of `b
 it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored and read
 back off disk. All four restorations matched by digest.
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the recall trail reverts to the older `session` spelling | 1 |
 | the rank's two fallbacks revert to it | 3 |
 | the ticker's three lines revert to `reminder_id` | 1 |
 | the tool audit writes its own name for the conversation | 2 |
 
-The third row is the one to read. Reverting **all three** ticker lines reddens a single case, and
+The third row is the one to read. Reverting **all three** ticker lines fails a single case, and
 that case asserts two of them: no test in this repo has ever pinned the field name on the
 push-that-fell-back-to-pull line, which is the line an operator meets when the body is down. Its
 name is held by the registry mention alone, whose count of 3 is what notices a line leaving the
@@ -2401,7 +2401,7 @@ the next line that names two of anything, and it is currently the only such line
 
 [model-swap.md](../runbooks/model-swap.md) printed the failed-handoff line verbatim as the thing to
 look for while somebody is waiting. It now prints `turn_id=<turn id>` and says in one sentence why
-the two words are one number, and that the Redis key below is the one place the id still wears the
+the two words are one number, and that the Redis key below is the one place the id still carries the
 word `handoff`, being the record's address. [tools-mcp.md](../runbooks/tools-mcp.md)'s sentence
 about what `grep turn_id=t-...` gathers gains the swap path, which is the consequence rather than a
 second instruction.
@@ -2422,7 +2422,7 @@ Seven mutations, each planted in production code alone with the 2,877 tests of `
 it (`uv run pytest -q --no-cov`, the repo's own fixed seed, the 82 integration cases deselected as
 always), then restored and compared by digest. All seven restorations matched.
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the settler's failure line reverts to the bare `handoff` | 2 |
 | all three of the settler's lines revert to it | 2 |
@@ -2433,14 +2433,14 @@ always), then restored and compared by digest. All seven restorations matched.
 | boot recovery's stranded line reverts to `handoff` | 1 |
 
 The second row is this change's version of the reading the one-vocabulary addendum recorded about
-the ticker: reverting **all three** of the settler's lines reddens the same two cases as reverting
+the ticker: reverting **all three** of the settler's lines fails the same two cases as reverting
 one, because the only settler line any test names is the one the runbook prints, and it is named by
 a parametrized case that runs twice. Before this change **no test in the repo pinned any of the
 eleven field names**; after it six records are pinned by a test (the failed settle, the two-turn
 refusal, and the deep phase's three, which two spellings and two cases cover) and five are held by
 the registry's counts and presence checks alone: the settler's other two, and three of the
 conductor's four. That division is deliberate and is the reason the two counts are pinned rather
-than left as presence checks. Reverting the conductor's four reddens exactly the one case that
+than left as presence checks. Reverting the conductor's four fails exactly the one case that
 reads a whole line, which is what the count of four is there to catch instead.
 
 The fifth row is the one that proves decision 2 is load-bearing: a conductor that names both turns
@@ -2531,7 +2531,7 @@ config's, so it belongs where the runner's other shipped numbers are declared; a
 **held to the runner** instead of to a sentence, which
 `test_runner.py::test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorded` now does,
 asserting the counting backend's calls against the constant and against the literal both. A third
-attempt appearing in `_placed` reddens that case rather than silently making the boot check
+attempt appearing in `_placed` fails that case rather than silently making the boot check
 under-protect the queue by a whole deadline.
 
 The refusal names the product it computed, not just the two knobs, because the number an operator
@@ -2581,7 +2581,7 @@ than to shrink either of them.
 Five mutations, each applied to production code alone with the 2,878 tests of `brain/` re-run over
 it (`pytest -q`, integration cases deselected), then restored and read back off disk.
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the hold is not multiplied, so the bare deadline is compared again | 2 |
 | the comparison admits equality | 1 |
@@ -2794,7 +2794,7 @@ between plants, or a registry sweep will read its own ghosts.
 - A handoff that **worked** is visible from the chat for the first time, which is the half of the
   gap that attaching the field only to the failure paths would have left open.
 - Two writes stopped taking a bare id and started taking the record, which is the shape that made
-  the five plumbed lines cheap and is worth repeating: a line that names its work wants the object
+  the five plumbed lines cheap and is worth repeating: a line that names its work takes the object
   the work is, not one of its fields.
 - The residency lines are now the written-down contrast rather than an accident. A future line
   about the card has a rule saying it names neither identity.
@@ -2867,8 +2867,8 @@ with a shape.
 
 Two needles in `scripts/logcouplings.py` spelled the prefix, `"grep {value}=t-"` for the tools
 runbook and "`` `grep {value}=t- ``" for the swap one, so the scan was holding the fiction in
-place: correcting the prose alone would have reddened the gate, and reddening a gate is how a
-correction gets reverted. They now carry the corrected sentence around the field rather than the
+place: correcting the prose alone would have failed the gate, and a correction that fails a gate
+is a correction somebody reverts. They now carry the corrected sentence around the field rather than the
 field plus the invented shape. A needle that quotes prose is the house style here already, the
 task and call entries both doing it, and it buys exactly what is wanted: the prefix cannot come
 back without the scan noticing.
@@ -2908,7 +2908,7 @@ Seven mutations, each planted alone and `cd scripts && uv run python crosscheck.
 over the whole tree with `scripts/__pycache__` cleared between plants, then restored and compared
 by digest. All seven restorations matched. The count is the untied readings the scan reports.
 
-| Mutation | Reddens |
+| Mutation | Tests that fail |
 | --- | --- |
 | the swap runbook's grep reverts to the `t-` prefix | 1 |
 | the tools runbook's grep reverts to the `t-` prefix | 1 |
@@ -3059,26 +3059,26 @@ order anchor this addendum builds on lives.
 | the gate compares the level and not the fields | 6 | 0 |
 | the walk reads every document rather than the runbooks | 5 | 0 |
 
-The first four rows are the reading. Row one is the interaction: a reordered sample reddens both
+The first four rows are the reading. Row one is the interaction: a reordered sample fails both
 gates, so the anchor is intact and the new scan agrees with it rather than replacing it. Rows two
 and three are the entry's own defect in both directions, and a 3 beside a 0 is the whole claim of
 this addendum: neither was visible to the scan that already ran, and the anchor's blindness there
 is a property rather than an accident of the alphabet. Row four is the level, which nothing held
 before and which the runbook tells an operator to grep for.
 
-The last row is worth reading twice. Widening the walk from the runbooks to all of `docs/` reddens
+The last row is worth reading twice. Widening the walk from the runbooks to all of `docs/` fails
 five and reports seven misses on the committed tree, which is decision 3 paid for rather than
 asserted. Three are the model host's `before` block in ADR-0038, whose messages ended in a colon
 until the rendered-fields work took the colon off, so that record is a recording of the defect it
 fixed. Three are the audit transcripts, whose sink builds its field dict in code rather than at
 the call. One is the model host's request failure, written through `logger.log` at a level chosen
-while it runs, which is the shape this reader refuses by name.
+while it runs, which is the shape this reader rejects by name.
 
 ### Consequences
 
 - Three operator-facing log samples are held to the calls that write them, and a fourth is held
   the day it is written.
-- A field a call site stops or starts attaching now reddens a gate rather than leaving a runbook
+- A field a call site stops or starts attaching now fails a gate rather than leaving a runbook
   printing a line nothing emits. That is the whole of what the order anchor could not see.
 - `scripts/` gained the ability to read a call site rather than a declaration, without gaining an
   import of the brain. The next question of this shape has a reader to build on.
@@ -3139,8 +3139,8 @@ One consequence of doing it the second time is worth recording. Both self-named 
 their name above the call, so the literal spelling inside `getLogger` is a spelling this brain no
 longer writes anywhere. `logcalls.py` keeps reading it, because such a call is legal Python that a
 module may write tomorrow and a reader that stopped matching one would drop that logger out of its
-answer in silence, but the guard test that used to assert the brain writes all three spellings now
-says what is true: two spellings, one of them twice.
+answer without reporting it, but the guard test that used to assert the brain writes all three
+spellings now says what is true: two spellings, one of them twice.
 
 ### Decision 2: the docstring and the suite are mentions, and the entry asked why
 
@@ -3154,7 +3154,7 @@ than claims of one kind. What a rename does to an argument is exactly what it do
 instruction: the docstring would be arguing that the shipped level protects a durable record
 written through a logger nothing writes, in the module a reader goes to when asking why the level
 is fixed, and its suite would be demonstrating that argument on an abandoned name. The precedent is
-already in the registry next door, where a docstring restating a subagent budget is tied for the
+already in the constant registry, where a docstring restating a subagent budget is tied for the
 same reason, and the suite's two spellings are two needles rather than one counted twice, the call
 it writes and the line it asserts having different shapes and a rename having to move both.
 
@@ -3191,7 +3191,7 @@ docstring's claim and is where the fifth restatement lives.
 | the sink drops the declaration and spells the name inside the call again | **10** | 0 | 0 |
 | the tools runbook keeps the name and loses the sentence around it | **7** | 0 | 0 |
 | the local-dev runbook stops naming the logger among the two trails | **7** | 0 | 0 |
-| the process entry's docstring stops naming the logger it argues from | **7** | 0 | 0 |
+| the process entry's docstring stops naming the logger its argument rests on | **7** | 0 | 0 |
 | its suite moves both its spellings onto another name at once | **7** | 0 | 0 |
 | GATE: the entry drops the suite, and the suite renames with itself | 0 | 0 | 0 |
 | GATE: the four document needles render the name alone | 0 | 0 | 0 |
@@ -3213,7 +3213,7 @@ Rows eight and nine are the same honest non-claim the recall trail's close recor
 rendering the name alone holds a rename exactly as well, each of these places spelling the name
 once, so the sentence in each template buys nothing against the mutation this entry was filed for.
 What it buys is row nine against row three: with bare needles, a document that keeps the name and
-loses the instruction around it is green, where the templates redden seven.
+loses the instruction around it is green, where the templates fail seven.
 
 Row ten is the one thing this addendum does not hold, found by a mutation that was meant to be row
 two and measured zero instead. The registry compares the declaration against the places restating
@@ -3225,7 +3225,7 @@ the documents are held to the wrong one. That is
 
 ### Consequences
 
-- A rename of the tool audit's logger reddens `just check` on the day it is made, and the two
+- A rename of the tool audit's logger fails `just check` on the day it is made, and the two
   runbooks, the docstring and the suite move with it or the gate names the ones that did not.
 - Both of the brain's per-line trails are now held by name, which is what closes the asymmetry the
   recall trail's close opened rather than leaving it as a standing exception.
@@ -3314,7 +3314,7 @@ of two bindings, in whichever order the module happened to write them, is a read
 ### Consequences
 
 - A sink that inlines its logger name into the call, which is what an editor offers to do with a
-  constant used once, reddens `just check` on the day it is offered rather than on the day the
+  constant used once, fails `just check` on the day it is offered rather than on the day the
   literal moves.
 - The literal `getLogger("name")` spelling stays read, and a module that writes one while binding
   nothing is untouched: the rule is about two spellings of one name, not about literals.
@@ -3374,7 +3374,7 @@ about the trail.
 The entry's account of the code was otherwise accurate: three places, four spellings, and no
 declaration to tie them to. One file it leaves out is right to be left out.
 `brain/packages/tools/tests/test_audit.py` spells the word five times and asserts the rendered line
-rather than writing the message, so a rename in the sink reddens it instead of moving with it, which
+rather than writing the message, so a rename in the sink fails it instead of moving with it, which
 is the difference between it and the level suite and is what row one measures.
 
 ### Decision: a second constant in the sink, handed to the call that writes the line
@@ -3446,7 +3446,7 @@ That is
 
 ### Consequences
 
-- A rename of the word the tool audit's lines open with reddens `just check` on the day it is made,
+- A rename of the word the tool audit's lines open with fails `just check` on the day it is made,
   and the runbook and the level suite move with it or the gate names the one that did not.
 - Both words on this trail's rendered line are held now, as all three of the recall trail's are,
   which closes the last of the asymmetries the two closes before this one opened.
@@ -3511,9 +3511,9 @@ spell it.
 
 ### What did ship: the accident, said out loud
 
-Two accidents holding one property is still two accidents, and neither file said so. A guard
+Two unrelated assertions happened to hold one property between them, and neither file said so. A guard
 rewritten to assert about the sinks rather than about these names, or four assertions folded into a
-helper taking the logger as a parameter, would each take the property away in silence, and the next
+helper taking the logger as a parameter, would each remove the property without a failure, and the next
 renamed call would land in a tree that reads as though it were covered.
 
 So the places already holding it are registered. The two logger entries in `trailcouplings.py` gain
@@ -3544,7 +3544,7 @@ the gate run beside them: the **1,436 checks of the gate suite** (`scripts/tests
 of the three brain packages** that write or assert one of these lines, the tools package's 53, the
 memory package's 40 and the orchestrator package's 451
 (`brain/packages/{tools,memory,orchestrator}/tests/`), counted together in one column since a row
-reddening two of them at once is what half the table is about.
+failing two of them at once is what half the table is about.
 
 | Mutation | scripts | brain | `check-crosscheck` |
 | --- | --- | --- | --- |
@@ -3569,7 +3569,7 @@ retargeted onto another name and a suite that stops asserting the word are each 
 the property gone, and each is now a `check-crosscheck` failure naming the entry whose declaration
 lost its holder. Their scripts counts are large for a reason worth reading rather than counting:
 both mutate a real file that many registry entries name, so every control test that copies the tree
-unedited and both tests running the scan over the repo itself redden beside the two written for this.
+unedited and both tests running the scan over the repo itself fail beside the two written for this.
 
 Rows seven to nine are the needles themselves. Seven and eight are the mentions removed, which turns
 rows five and six back into the silence they were, and their counts are exactly the tests written
@@ -3594,7 +3594,7 @@ counting as holding the message.
 ### Deferred by this addendum
 
 The guard names its two sinks by hand, so a third self-named sink is held by nothing until somebody
-remembers to add a line, where `flagcheck.py` next door derives its set from the tree
+remembers to add a line, where `flagcheck.py` beside it derives its set from the tree
 ([R-491](../refinements/tasks/491-the-guard-holding-a-declared-logger-to-its-call-names-two-sinks-by-hand.md)).
 
 The one-name rule still reaches a logger's call and stops one word short of a message's, which is
@@ -3606,7 +3606,7 @@ untouched here and stays its own question about a module's own text
 The addendum above ends by naming what it left: the guard holding a sink's declaration to the call
 handed it looked up two logger names by hand, so a third self-named sink was held by nothing until
 somebody remembered to add a line. That is the shape the ADR-0029 addendum on deriving the set a
-rule runs over is against, and the shape `flagcheck.py` next door already answers by deriving its
+rule runs over is against, and the shape `flagcheck.py` already answers by deriving its
 servers from the stack's own wiring. The entry asking for this asked for three things to be weighed
 before anything was built, and all three are decided below on what the tree does.
 
@@ -3650,8 +3650,8 @@ twice, is about an ambiguity in the reading itself: two spellings leave the regi
 declaration to tie documents to. Nothing about `getLogger("cortex.x")` is ambiguous, so refusing it
 would not be the reader answering better. It would be the reader legislating this brain's naming
 over every fixture tree it walks, and the fixture it would break first is the one written a slice
-ago to keep a bare literal readable, whose argument is that losing a logger in silence is worse
-than a spelling nothing exercises. Refusing loudly answers that argument, which is why the rule is
+ago to keep a bare literal readable, whose argument is that dropping a logger from the answer with
+no report is worse than a spelling nothing exercises. Refusing loudly answers that argument, which is why the rule is
 worth having somewhere; it does not answer why a reader should carry it. The claim is about the
 committed brain, so it sits with the other claims about the committed brain, in the section of
 `scripts/tests/test_logcalls.py` written for them, where the guard it replaces already lived.
@@ -3669,7 +3669,7 @@ whose value is the identifier `_LOGGER_NAME` itself: declared by the guard, whic
 has to spell the naming it reads its set by, and spent by both sinks and by both module contracts,
 each of which already explains why its sink declares the name rather than writing it in the call.
 One entry now covers every self-named sink there will ever be, where the old pair covered exactly
-the two it named. The registry refuses an entry whose places are all one language, and the two
+the two it named. The registry rejects an entry whose places are all one language, and the two
 contracts are what make this one a coupling rather than a Python file agreeing with itself; both
 sentences predate this change, so nothing here was written in order to be gated.
 
@@ -3705,7 +3705,7 @@ entry was about, and they are the whole of what this change buys: zero to one, o
 written yet, in both of the shapes such a sink can be written wrong.
 
 Row six is the naming, and its count is large for a reason worth reading rather than counting: the
-guard's own assertion reddens, and so does every test that copies or scans the real tree, the entry
+guard's own assertion fails, and so does every test that copies or scans the real tree, the entry
 having lost all four of its needles at once. Rows seven and eight are those needles measured
 apart, and eight carries a second red beside its own test, the registry's rule that an entry's
 places may not all be one language, which is what the module contracts are doing in this entry.
@@ -3770,8 +3770,8 @@ model-facing sentences: `BUDGET_EXHAUSTED_MSG`, `REDUNDANT_MSG`, `DENIED_MSG`, `
 and a dozen more, each a refusal a tool call is answered with. So the mechanism that closed the
 logger half is unavailable here: that guard reads a structural set off the calls and compares it
 with the names bound under `_LOGGER_NAME`, and a message has no `_LOGGER_NAME`. Inventing one would
-place a new convention one letter from a large family meaning something else, and holding it would
-redden every model-facing constant in the core.
+place a new convention one letter from a large group of names meaning something else, and holding
+it would fail every model-facing constant in the core.
 
 ### Decision 1: the reader learns the second spelling, and the sample gate is what wanted it
 
@@ -3802,7 +3802,7 @@ domain. What the rule then says is what the one-name rule beside it says: only t
 what the constant registry ties documents to, so a module holding both spellings can move the
 literal alone and leave those documents restating a word the brain no longer writes. The measured
 surface is the argument's other half: the brain writes 90 literal log messages today, and not one
-of them is also bound at its module's top level, so the rule refuses nothing that exists and holds
+of them is also bound at its module's top level, so the rule rejects nothing that exists and holds
 every module written tomorrow.
 
 It runs over the tree rather than over the modules a document names. `messages` walks every
@@ -3826,9 +3826,9 @@ the move cost anything.
 A sink that binds `_MESSAGE` and hands its call some OTHER word is still two words rather than one
 spelled twice, and neither rule sees it. What refuses that today is what refused it this morning:
 `brain/packages/tools/tests/test_audit.py` asserts four whole rendered lines, and the registry names
-that assertion so it cannot be deleted in silence. A guard deriving that would need to know which
-declaration is a log message, which the section above shows this brain cannot say, so the residue
-is written down with the two paths worth weighing rather than guessed at
+that assertion so it cannot be deleted without a failure. A guard deriving that would have to
+identify which declaration is a log message, which the section above shows this brain cannot say,
+so the residue is written down with the two paths worth weighing rather than guessed at
 ([R-504](../refinements/tasks/504-a-declared-message-and-a-different-word-in-the-call.md)).
 
 ### Distrust green
@@ -3853,15 +3853,15 @@ one that shows the rule reaching a module the sample gate never opens, which is 
 the tree buys.
 
 Row four is the fault this slice fixes, and it runs the other way: the mutation is a correct
-document, and it is the tree BEFORE this change that reddens on it, `check-samplecheck` exiting 1
+document, and it is the tree BEFORE this change that fails on it, `check-samplecheck` exiting 1
 with the miss `brain_phase.py logs no message`. After, the sample is checked like any other and
-the gate is quiet. A gate that fails on a true statement is the worst kind, because the author
-believes it.
+the gate is quiet. A gate that fails on a correct document is the most expensive kind to live
+with, because the author trusts the gate and edits the document back to the fault.
 
 Rows five to seven are the needles. Five is the rule itself: both fixture faults and the walk over a
 miniature brain go red together. Six is the second spelling: the call handed a name stops being
 found, and the walk stops reporting it. Seven is thinner and worth saying so rather than dressing
-up: replacing the scan's reading of the tree with a stub of the same shape reddens the floor test
+up: replacing the scan's reading of the tree with a stub of the same shape fails the floor test
 alone, that floor being the only thing asserting the scan reads a brain at all.
 
 ### Consequences
@@ -3976,7 +3976,7 @@ failed-handoff sample lower down the same runbook, and both go red on one edit, 
 being over the tree rather than over a line. The third row is the one worth having on its own,
 since a hand writing a sample from a field list has the prose order in front of it and the printed
 order nowhere, and that is exactly the mistake this sample was one edit away from carrying. The
-fourth row is this addendum's finding run as a mutation: the reddening document is the correct,
+fourth row is this addendum's finding run as a mutation: the failing document is the correct,
 well-intentioned one, which is the same shape as the fault the addendum above fixed and a different
 cause.
 

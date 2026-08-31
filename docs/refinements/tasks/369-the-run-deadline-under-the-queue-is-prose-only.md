@@ -25,7 +25,7 @@ validator beside the stall-ceiling one rather than anything at the composition r
 decide when writing it. The wait may be **zero**, which means never queue at all
 (`Field(..., ge=0)` and the runbook's own "zero means never queue"), and a deployment that never
 queues has no relation to keep, so zero has to pass rather than fail as the smallest possible
-inversion. And the comparison wants the same strictness argument the neighbours got: equality here
+inversion. And the comparison needs the same strictness argument the neighbours got: equality here
 means a peer gives up at the exact instant the run it waited for releases, which is the race the
 other two refuse.
 

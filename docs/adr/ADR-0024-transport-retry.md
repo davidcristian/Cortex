@@ -16,8 +16,8 @@ The concrete failure the refinement targets: the brain is *briefly* unavailable,
 restarting after a model swap, or a momentary loopback blip drops the connection, and a
 read the overlay makes (`list_sessions` for the switcher) fails hard when a retry a beat
 later would have succeeded. The brain is a supervised local process that comes back within
-seconds; a single automatic retry with backoff turns a user-visible error into a hidden
-hiccup.
+seconds; a single automatic retry with backoff turns a user-visible error into a short delay
+nobody sees.
 
 Constraints from AGENTS.md the design must respect:
 
@@ -72,7 +72,7 @@ Constraints from AGENTS.md the design must respect:
    `TokioSleeper` (a one-line `tokio::time::sleep`), lives in the ungated Tauri shell (the
    composition root, host-validated), keeping the timer effect out of the gated crates.
 
-6. **A lazy channel makes the decorator load-bearing for the dial too.** The existing eager
+6. **A lazy channel lets the decorator cover the dial too.** The existing eager
    `BrainSeamClient::connect[_with_token]` fails immediately when the brain is down, so the
    decorator would never get a turn. So `body_rpc` gains
    `connect_lazy_with_token`, which builds the client over tonic's `Channel::connect_lazy`:
@@ -185,7 +185,7 @@ trigger named: a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`.
    call dismissed. Repeatability is therefore two tests, not one: no duplicated effect **and**
    no changed answer.
 
-2. **`RetryPlan::policy_for` is the one door, and it can say no.** It returns
+2. **`RetryPlan::policy_for` is the single decision point.** It returns
    `Option<RetryPolicy>`: a schedule for a repeatable method, `None` otherwise. The decorator
    routes every unary call through it, running the retry loop on the resolved schedule or on
    `RetryPolicy::ONCE` (one attempt, no wait) for a `None`, so `ack_reminder` is now unretried
@@ -210,20 +210,21 @@ trigger named: a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`.
    not spend honestly. One attempt always survives, so a budget buys back patience, never the
    call. `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s) configures it, and at the shipped
    defaults it does not bind (worst case 600 ms), so **behaviour is unchanged out of the box**;
-   what it removes is the ability to make the indicator lie by raising
-   `CORTEX_BRAIN_RETRY_ATTEMPTS` for the reads' sake.
+   what it removes is the ability to make the indicator report a state the seam has stopped
+   proving by raising `CORTEX_BRAIN_RETRY_ATTEMPTS` for the reads' sake.
 
 **Consequences.**
 
-- The overlay's indicator now has a bound, not a hope. Whatever the read knobs say, `Down`
+- The overlay's indicator now has a bound. Whatever the read knobs say, `Down`
   arrives within `probe_budget` of the probe starting, and the states themselves are
   unchanged: a refused dial is still `Down`, an answered `Unauthenticated` still `Degraded`
   and still immediately, since it is not transient and never enters the loop.
 - `RetryingTransport::new` / `with_randomness` take `impl Into<RetryPlan>`, so every existing
   composition that passes a `RetryPolicy` keeps compiling and keeps its behaviour.
 - The gate is only as strong as the enum: adding a port method does not *force* a `SeamMethod`
-  variant, it forces the author to pass one, and picking a wrong existing variant is a lie
-  rather than an accident. That is the realistic ceiling without a macro over the trait.
+  variant, it forces the author to pass one, and picking a wrong existing variant is a
+  deliberate misstatement rather than an accident. That is the realistic ceiling without a
+  macro over the trait.
 - The `converse` dial keeps using `retry_with` directly with the read policy. A dial is not a
   seam method and has no plan entry: it is retried because the turn has not begun, which is
   decision 2's own reasoning, not the gate's.
@@ -349,7 +350,7 @@ probe forever and the 5 s recovery interval fires into a no-op for the rest of t
 (`body/app/src/overlay/useLink.ts`). An unbounded attempt does not merely delay one answer, it
 ends the indicator.
 
-**The obvious shape is a trap, though not where reading tonic first said it was.** The natural
+**The obvious shape does not work, though not for the reason reading tonic first suggested.** The natural
 implementation is `Endpoint::timeout` or `Request::set_timeout`, letting tonic expire the call. In
 tonic 0.14 an expired client-side timeout is `TimeoutExpired`, and it reaches the caller as
 `Status::cancelled("Timeout expired")` carrying the originating `tonic::transport::Error` on its
@@ -357,8 +358,8 @@ source chain. The adapter's classifier keys on finding exactly that
 (`body/crates/rpc/src/status.rs`), so the body's own expired deadline would arrive as
 `TransportError::Connection` and the indicator would draw `Down`, which is the honest reading of a
 call nothing answered. What it would also be is **retryable**: `Connection` is in the transient set
-(decision 3), so a tonic-armed deadline would be retried, which is precisely the load amplifier the
-retryability section below rules out, reached through a back door and looking like it worked.
+(decision 3), so a tonic-armed deadline would be retried, which is the load amplifier the
+retryability section below rules out, reached indirectly and looking like it worked.
 
 > **Corrected 2026-08-18.** As first written this paragraph claimed the expiry arrives *sourceless*
 > and therefore classifies `TransportError::Rpc`, drawing `Degraded` and claiming an answer that
@@ -380,8 +381,8 @@ dial in it too: with that, no call the body makes on this seam is unbounded, the
 **The expiry is its own failure, not a status.** A new `TransportError::Timeout { after }` carries
 the deadline that expired. It is a fourth variant rather than a reuse of `Connection` or `Rpc`
 because it is genuinely a fourth thing: `Connection` is "nothing accepted the call", `Rpc` is "the
-brain answered", and a timeout is "we stopped waiting", which neither of the others can say
-without lying. `LinkStatus::from_error` draws it `Down`, because `Degraded`'s defining property is
+brain answered", and a timeout is "we stopped waiting", which neither of the others can state
+correctly. `LinkStatus::from_error` draws it `Down`, because `Degraded`'s defining property is
 that the brain answered and a timeout is precisely the absence of an answer; the detail line says
 `no reply within 250ms`, so the tooltip still separates a wedged brain from an absent one. The
 variant also unifies a race that would otherwise show two dots for one event: once the courtesy
@@ -438,7 +439,7 @@ pinning test names both the code and the new variant.
   the shell bounds its `converse` dial with the same helper. The turn stream itself is
   deliberately outside that, since ending a turn on a clock is a different decision with a
   different consumer.
-- The indicator's bound is now arithmetic rather than hope, and `Down` is what a hang draws. The
+- The indicator's bound is now computed rather than assumed, and `Down` is what a hang draws. The
   overlay's `inFlight` latch is released on every path, so the recovery cadence survives a wedged
   brain.
 - The default probe spends 2 attempts instead of 3. Raising `CORTEX_BRAIN_PROBE_BUDGET_MS` or
@@ -481,7 +482,7 @@ dies with the call that made it; the state would have to become process-lifetime
 open-to-half-open transition then has to read a clock, and `Sleeper` can only wait or bound an
 attempt. A clock-reading port would be new, with the fake and the adapter that go with it.
 
-**It would also make the indicator lie.** A call refused by stale open state reports a seam state
+**It would also make the indicator report an unverified state.** A call refused by stale open state reports a seam state
 nobody asked the brain about, which is precisely what the probe budget and the per-attempt deadline
 were built to rule out. The one genuinely unbounded cost this seam had was a brain that accepts a
 connection and then goes quiet, and that is what the deadline addendum above closed.
@@ -530,7 +531,7 @@ and `LinkStatus::from_error` draws it `Down`. The indicator would have been acci
 **The conclusion stands, on a different and worse hazard.** `Connection` is in the transient set
 (decision 3), so an expiry tonic enforced would be **retried**, two more times on the shipped
 schedule, against a peer that has just proved too slow or too stuck to answer. That is the load
-amplifier the retryability section above declines on the merits, arrived at through a back door
+amplifier the retryability section above declines on the merits, arrived at indirectly
 and, unlike the misread version, arrived at *silently*: nothing in the indicator would look wrong
 while it happened. Two smaller reasons survive alongside it. `Connection`'s contract is "nothing
 accepted the call", which is not what an expiry means, and folding the two loses the distinction
@@ -597,7 +598,7 @@ which took the interceptor and the `SEAM_TOKEN_HEADER` declaration with it under
 Threading a duration through every translation helper was the alternative and would have put the
 same number in four modules' signatures; a tonic `Extensions` value on each request reaches the
 interceptor too, but the request is built inside those same helpers, so it is the same threading
-wearing a different hat. Holding the plan also answers the reply side, which the header alone
+in another form. Holding the plan also answers the reply side, which the header alone
 cannot: `SeamCall` carries what it announced, so a brain-sent `DEADLINE_EXCEEDED` maps to
 `TransportError::Timeout { after }` naming the announcement that expired. The seam token now lives
 in a struct the client owns, so `Debug` is written out and redacts it rather than being derived.
@@ -700,8 +701,8 @@ The reading answers three different facts and an operator can tell them apart by
 | a value well above zero | the caller stopped waiting early, which is the shipped body on **every** call, since it enforces a bound strictly shorter than the one it announces (the grace margin above) |
 | `None` | the caller announced no deadline at all, so what arrived was a disconnect |
 
-A branch here would be the per-RPC policy this addendum is deliberately not landing, wearing the
-formatter's hat. The floor at zero is worth writing down because it is the difference between the
+A branch here would be the per-RPC policy this addendum is deliberately not landing, moved into
+the formatter. The floor at zero is worth writing down because it is the difference between the
 line an operator reads and the line the design predicted: the addendum above expected a negative
 remainder and the measurement on an unloaded machine returns exactly `0`, as an `int`. Under load
 it returns the sliver instead, which the later addendum below measures and which is why the suite
@@ -724,7 +725,7 @@ the token interceptor passes it through: there is nothing there to watch.
 Five mutations, each applied to `abandon.py` alone with the orchestrator suite re-run, then
 restored:
 
-| Mutation | Reddens |
+| Mutation | Tests it fails |
 | --- | --- |
 | the `except` arm deleted, so a cancelled handler prints nothing | 4 |
 | the cancellation swallowed instead of re-raised | 3 |
@@ -819,7 +820,7 @@ down, and that it lands on the floor:
 | `remaining == 0` | the landing the prose claims, measured 120 times before being demanded |
 
 The half-window bound is kept although the equality implies it, and deliberately: it is the loose
-half of the pair, so a reader who ever does see a scheduler hiccup redden the equality can see what
+half of the pair, so a reader who ever does see a scheduler hiccup break the equality can see what
 the case is really about without re-deriving it, and relax to the pair above rather than to nothing.
 
 ### Decision 2: the rendered tail spells the number out
@@ -838,7 +839,7 @@ alone, replacing `context.time_remaining()` in the `extra` of the abandonment li
 each run over `packages/orchestrator/tests/test_abandon.py`, then reverted and the file diffed
 against its pre-mutation copy:
 
-| Mutation | Reddens | The wire case fails on | Before this change |
+| Mutation | Tests it fails | The wire case fails on | Before this change |
 | --- | --- | --- | --- |
 | `0.05`, a grpc that stopped clamping and reports the sliver | 4 | `remaining == 0` | **green** |
 | `-0.05`, one that reports the negative remainder instead | 4 | `remaining >= 0` | **green** |
@@ -846,8 +847,8 @@ against its pre-mutation copy:
 
 The last column is the point. Each mutation was also run against the case exactly as it stood
 before this addendum, and all three passed it: `0.05` and `0.0` are both below half the announced
-window, and `-0.05` is below it too. The three that redden besides the wire case are the
-parameterized renderings, which redden on any constant because a constant is what they vary.
+window, and `-0.05` is below it too. The three that fail besides the wire case are the
+parameterized renderings, which fail on any constant because a constant is what they vary.
 
 ### Consequences
 
@@ -878,7 +879,8 @@ call and every tool call in this brain is made from a `Converse` turn, from boot
 a background loop, and `Converse` announces no deadline at all. So "the remaining time travels"
 had no route to travel by: the deadline a downstream call could inherit does not exist, and
 building the plumbing to inherit it would be the first half of enforcing on `Converse` the bound
-this seam deliberately does not have. The fence held by being looked at.
+this seam deliberately does not have. Reading the handlers is what established that, and the fence
+held.
 
 What that shape reduced to, once the announced deadline was out of it, is that a downstream call
 should have a bound at all. One of the two already did: every `ModelHost` verb spends
@@ -897,7 +899,7 @@ session read describes a memory cascade no read path on this seam has
 ## Addendum (2026-08-21, later): the expiry reading is a clock, so the case bounds it
 
 The addendum two above asserted `remaining == 0` on the wire case, on 120 readings that were all
-exactly `0` and all `int`. Hours later the same case reddened inside a mutation sweep over the
+exactly `0` and all `int`. Hours later the same case failed inside a mutation sweep over the
 whole brain suite, on an arm that changed a comparison no part of this path reaches. That was
 filed as a suspected load-sensitive flake rather than diagnosed, and this addendum is the
 diagnosis: it is one, it is easy to reproduce deliberately, and the exact assertion is what comes
@@ -906,14 +908,14 @@ out.
 ### Measured under load, on the same scenario, four ways
 
 The load was 48 busy shell loops on a 24 core machine, twice oversubscribed, with a second full
-`pytest` run of the brain suite beside them, which is the shape of the run that first reddened it.
+`pytest` run of the brain suite beside them, which is the shape of the run that first failed it.
 
 | Run | What was driven | Result |
 | --- | --- | --- |
 | idle baseline | 20 replays of the wire scenario | 20 readings of `0`, every one an `int` |
 | under load | 200 replays of the wire scenario | 32 positive floats, 168 integer zeros |
-| under load | 30 runs of the case itself, one `pytest` process each | 5 reddened, all on `remaining == 0` |
-| under load | one full brain suite of 2831 cases | this case reddened, alone, on `remaining == 0` |
+| under load | 30 runs of the case itself, one `pytest` process each | 5 failed, all on `remaining == 0` |
+| under load | one full brain suite of 2831 cases | this case failed, alone, on `remaining == 0` |
 
 The positive readings ran from 0.000017 s to 0.0073 s, median 0.0018 s. The largest is under 4% of
 the announced 0.2 s window and a thirteenth of the half-window bound that was standing beside the
@@ -931,7 +933,7 @@ the sliver. grpc's own contract is the floor, "a nonnegative float", and the flo
 `remaining >= 0` stays, being the floor and grpc's stated contract. `remaining < _ANNOUNCED_S / 2`
 stays and is now the whole of the second claim: the window really ran down, rather than the call
 ending some other way with most of it left. `remaining == 0` comes out, and so does the rendered
-tail beside it, which pinned the same reading in the same way and would have reddened on the same
+tail beside it, which pinned the same reading in the same way and would have failed on the same
 runs had it been reached first.
 
 The bound is kept at half the window rather than tightened to the measured maximum. A threshold
@@ -952,7 +954,7 @@ Four constants replacing `context.time_remaining()` in the `extra` of the abando
 orchestrator suite (`packages/orchestrator/tests`, 450 cases, 19 of them deselected as
 integration), then reverted and the file read back off disk:
 
-| Mutation | Reddens | The wire case fails on |
+| Mutation | Tests it fails | The wire case fails on |
 | --- | --- | --- |
 | `-0.05`, a grpc reporting the negative remainder | 4 | `remaining >= 0` |
 | `0.15`, a reading that has not run down | 4 | `remaining < _ANNOUNCED_S / 2` |
@@ -960,13 +962,13 @@ integration), then reverted and the file read back off disk:
 | `0.0`, one that floors to a float | 3 | nothing; the renderings carry it |
 
 The bottom two rows are the price, stated rather than hidden. Both mutants still die, in the three
-parameterized renderings, which redden on any constant because a constant is what they vary; what
+parameterized renderings, which fail on any constant because a constant is what they vary; what
 they no longer die to is the wire case, because the wire case can no longer tell them from the
 truth. The top two are new: nothing held the half-window bound to being able to fail before, and
 the `0.15` row is that proof.
 
-The corrected case was then re-run 40 times under the same load that reddened 5 of 30 before it,
-and reddened none.
+The corrected case was then re-run 40 times under the same load that had failed 5 of 30 before it,
+and none failed.
 
 ### What this opens
 
@@ -996,8 +998,8 @@ only thing it was protecting.
 Every claim in the three entries was checked against the tree before anything was written. The
 wire case did assert exactly `remaining >= 0` and `remaining < _ANNOUNCED_S / 2`; the other two
 rows were driven through `_Context`; the bound was 0.1 s against 0.2 s announced. The one claim
-that did not hold is R-371's count: it says the `0.05` mutation "reddens three cases, and all
-three are the parameterized renderings". Re-run here before any change, that mutation reddens
+that did not hold is R-371's count: it records the `0.05` mutation as failing three cases, all
+three of them the parameterized renderings. Re-run here before any change, that mutation fails
 three, and the addendum above records the same three, so the entry is right about the tree and
 wrong about nothing. What did not survive is a claim of R-351's, that the `None` row is a shape
 "the body never sends, so it may be honest to leave that row as a rendering test". The row is not
@@ -1029,7 +1031,7 @@ A cancellation that arrives before the handler is entered produces no line at al
 cases that cancel have to cancel after it. The never answering store now sets an `asyncio.Event`
 from inside the handler and the fixture hands it out beside the target, so "the handler is
 running" is something the case knows rather than something it hopes. The line itself is waited for
-on the existing latch. No case sleeps to order two events, and the one case that wants the
+on the existing latch. No case sleeps to order two events, and the one case that needs the
 deadline to have passed does not wait for that either: announcing through the header with no
 client timer means no clock exists that could fire early, so the subtraction behind the reading
 has always already gone negative by the time anything reads it.
@@ -1046,7 +1048,7 @@ This is the answer to R-371, and it is neither of the two shapes that entry weig
 
 Not "drive the scenario N times and assert at least one reading is the integer floor". That buys a
 real distinction with N loopback round trips at the announced window each, and it buys it
-probabilistically: the reddening it prevents is the one where every one of N happens to be a
+probabilistically: the failure it prevents is the one where every one of N happens to be a
 sliver, which is a flake at a lower rate rather than no flake. Under the load measured below, 51
 of 400 replays were slivers, so a run of N slivers is not impossible at any N a suite can afford.
 
@@ -1057,7 +1059,7 @@ real suite time to guarantee an ordering that the header shape gets for free by 
 second clock instead of outrunning it.
 
 The case therefore asserts `isinstance(remaining, int)` and `remaining == 0`, and the rendered
-tail `time_remaining=0` beside them. The `int` is the load bearing one: a reading still counting
+tail `time_remaining=0` beside them. The `int` is the assertion that does the work: a reading still counting
 down is a float whatever its value, so the type alone separates the floor from the sliver, and it
 does so on a reading grpc produced rather than on one the file typed.
 
@@ -1067,16 +1069,16 @@ R-372 offered three shapes and said the third might be the answer. It is.
 
 Not `just shuffle`, and not a periodic reading in the turn cost measurement's shape. Both would
 sample a number, and the argument for sampling it was that a growing sliver would eventually
-redden the half-window bound, whose only remaining value was the floor-versus-sliver distinction
+fail the half-window bound, whose only remaining value was the floor-versus-sliver distinction
 R-371 filed. That distinction is now held by a case where the sliver cannot occur at all, so a
-sliver that grew costs exactly one thing: the two-clock case reddening if it ever reached 0.1 s.
+sliver that grew costs exactly one thing: the two-clock case failing if it ever reached 0.1 s.
 
 And the sliver cannot quietly reach 0.1 s, for a structural reason that the measurement below
 turned up. A sliver is the gap between the client's clock firing and the server's window still
 having something left, so it is bounded by the difference between the two, which is a function of
 the call setup this scenario has to complete anyway. A sliver approaching half the announced
 window would mean call setup taking half the announced window, and then the handler is not entered
-before the deadline, no line is written at all, and the case reddens on the latch timing out,
+before the deadline, no line is written at all, and the case fails on the latch timing out,
 which is a louder failure naming a real problem. Watching a number whose own upper bound is
 already enforced by the case's precondition is watching for nothing.
 
@@ -1124,7 +1126,7 @@ Nine mutations, each applied to
 **whole orchestrator suite** (`packages/orchestrator/tests`, 448 selected, 19 deselected as
 integration), then reverted and the file compared against its pre-mutation text:
 
-| Mutation | Reddens | Was, before this change |
+| Mutation | Tests it fails | Was, before this change |
 | --- | --- | --- |
 | the `except` arm deleted | 7 | 4 |
 | the cancellation swallowed instead of re-raised | 3 | 3 |
@@ -1137,7 +1139,7 @@ integration), then reverted and the file compared against its pre-mutation text:
 | `0.0`, one that floors to a float | **6** | 3, all renderings |
 
 The last two rows are what R-371 asked for and the only ones that needed a new kind of evidence.
-Both used to die only in the parameterized renderings, which redden on any constant because a
+Both used to die only in the parameterized renderings, which fail on any constant because a
 constant is what they vary, and the addendum above recorded that as the price of the bound. Both
 now die in the floor case as well, and the assertion each fails is `isinstance(remaining, int)`,
 checked directly: `isinstance(0.05, int)` and `isinstance(0.0, int)`. That is a reading grpc
@@ -1150,7 +1152,7 @@ cancelled the call itself, is told the same thing whether or not the servicer re
 three renderings remain the only cases in a position to watch the cancellation arrive.
 
 The full suite was then run 40 times, one `pytest` process each, under the same load. None
-reddened.
+failed.
 
 ### Consequences
 
@@ -1221,7 +1223,7 @@ new is asked of the `Sleeper` port: one poll of the stream is a future, and `bou
 a future against a duration and reports which won, so the gap decorator composes what the deadline
 path composes.
 
-`RetryPlan::gaps_for(method)` is the door, and it is the mirror of `deadline_for`: `Some` for
+`RetryPlan::gaps_for(method)` is the single decision point, and it is the mirror of `deadline_for`: `Some` for
 `Converse` alone where the other is `Some` for everything else. Together they carry an invariant
 worth more than either half, asserted over every variant in `retry_plan.rs` rather than left in
 prose: **every call on the port is bounded, by a clock on the call or a clock on its silence, and
@@ -1321,7 +1323,7 @@ Twelve mutations, each applied to `body/crates/core/src/retry/gap.rs` alone and 
 **whole `body-core` suite** (`body/crates/core`, 156 tests across ten binaries, 4 ignored as
 integration), then reverted and the file compared against its pre-mutation text:
 
-| Mutation | Reddens |
+| Mutation | Tests it fails |
 | --- | --- |
 | the first-event gap raised to the idle one, making the two numbers one | 1 |
 | the idle gap lowered to the first-event one, the same collapse the other way | 1 |
@@ -1336,12 +1338,12 @@ integration), then reverted and the file compared against its pre-mutation text:
 | the absent bound spelled as zero rather than as forever | 1 |
 | the caller's gaps ignored for the shipped ones | 5 |
 
-The two rows that redden one test each are the ones that should: the constants have exactly one
+The two rows that fail one test each are the ones that should: the constants have exactly one
 reader, the test that pins them and their ordering.
 
 **The first run of this table was wrong, and the reason is worth keeping.** It was run without
 `--no-fail-fast`, so cargo stopped at the first test binary that failed and the counts were counts
-of `retry.rs` alone: three rows read 1 where they redden 4 or 6, and the row that hangs read as a
+of `retry.rs` alone: three rows read 1 where they fail 4 or 6, and the row that hangs read as a
 **survivor**, because the binary that hangs is never reached when an earlier one fails. A mutation
 count taken from a fail-fast run measures the alphabet, not the suite.
 
@@ -1572,7 +1574,7 @@ The new wire case is `an_announcement_off_the_millisecond_rung_is_dropped_and_on
 `a_deadline_the_header_cannot_spell_is_dropped_rather_than_sent`, which is kept: the two pin two
 different facts about one drop, a duration the header cannot spell at all and one it spells in a
 unit that reorders the clocks. The new case reads the truncation off `Request::set_timeout` itself
-rather than off tonic's source, so a ladder that moves under a version bump reddens the case that
+rather than off tonic's source, so a ladder that moves under a version bump fails the case that
 rests on it.
 
 Mutation table, counts over `cargo test -p body-rpc --test client` (40 tests, all passing
@@ -1696,8 +1698,8 @@ passing unmutated against a brain served with a token):
 
 The fourth and the second are the same failure by two routes, and together they are the answer to
 "does this still fail if the probe stops retrying": it does, in 0.25 s, by count rather than by
-clock. The fifth is the one that says the dead address still bites on this host, where its verdict
-comes from the deadline.
+clock. The fifth is the one that says the dead address still has force on this host, where its
+verdict comes from the deadline.
 
 The two clock bounds that remain were then measured under load rather than at idle, since a bound
 read on a quiet box says little about the one a busy box will produce: with 48 spinners on 24 cores

@@ -1,17 +1,16 @@
 """Render the generated half of a backlog index from its task files.
 
-The index is two documents in one file. Above `BEGIN` a person writes what the backlog is
-and how to work it; between `BEGIN` and `END` this module writes what is in it. Nothing in
-the generated half is typed by hand, so no count here can drift from the files it counts:
-a number that disagrees with the tasks is a rendering bug, not a bookkeeping lapse, and
-`backlogcheck.py` fails the gate on it before anybody reads it.
+The index is two documents in one file. Above `BEGIN` a person writes what the backlog is and how
+to work it; between `BEGIN` and `END` this module writes what is in it. Nothing in the generated
+half is typed by hand, so no count here can drift from the files it counts: a number that disagrees
+with the tasks is a rendering bug rather than a bookkeeping lapse, and `backlogcheck.py` fails the
+gate on it before anybody reads it (ADR-0039).
 
-Order is fixed rather than clever. The open buckets come first, in the order a reader
-should try them (what is actionable now, then what waits on a seam, then the three kinds of
-deliberate wait), because "what remains" is the question this file exists to answer. The
-per-group roll call comes second and holds every task, open or closed, because a landed
-entry is this backlog's record of what a deferral became and finding it is the other
-question people arrive with.
+The order is fixed. The open buckets come first, in the order a reader should try them (what is
+actionable now, then what waits on a seam, then the three kinds of deliberate wait), because "what
+remains" is the question this file exists to answer. The per-group roll call comes second and holds
+every task, open or closed, because a landed entry is this backlog's record of what a deferral
+became, which is the other question people arrive with.
 """
 
 from backlog import NEEDS_TRIGGER, OPEN_STATES, UNRECORDED, Status, Task
@@ -125,9 +124,9 @@ def render(tasks: list[Task], group_word: str) -> str:
         if task.status.state in NEEDS_TRIGGER and task.fields.get("Trigger") == UNRECORDED
     ]
     if blank:
-        # This count exists to be driven to zero, so the sentence has to survive its own
-        # last reading: "1 of these wait" is the one number where the plural is wrong, and
-        # it is the number a reader sees on the pass that finishes the job.
+        # This count is driven to zero, so the sentence has to read correctly at one: "1 of
+        # these wait" would be the wrong plural, and one is the number a reader sees on the pass
+        # that finishes the job.
         opener = "One of these waits" if len(blank) == 1 else f"{len(blank)} of these wait"
         lines.append(
             f"{opener} on something nobody wrote down. That is a gap in the "

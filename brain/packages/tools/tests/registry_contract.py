@@ -5,10 +5,10 @@ the tool loop advertises whatever `describe_tools` answers and feeds the model w
 returns, and the routing combinators in `aggregate.py` re-walk the listing on every call rather
 than remembering one.
 
-Each fixture supplies the two conditions of the world no method of the port can create. `serve`
-replaces the tool set, which is how a check moves a world the port promises to re-read, and how it
-arranges a tool that runs and fails. `break_backend` takes the whole registry away, which is what
-a dead sidecar looks like from here.
+Each fixture supplies the two conditions no method of the port can create. `serve` replaces the
+tool set, which is how a check changes the set the port has to re-read and how it arranges a tool
+that runs and fails. `break_backend` makes the whole registry unreachable, which is what a dead
+sidecar looks like from here.
 """
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -25,7 +25,7 @@ _SCHEMA: Mapping[str, Any] = {
 
 
 def _echo(arguments: Mapping[str, Any]) -> str:
-    """The reply a served tool gives: the arguments it was handed, rendered."""
+    """Return the reply a served tool gives: the arguments it was handed, rendered as text."""
     return f"read {arguments.get('path', '')}"
 
 
@@ -33,8 +33,8 @@ def _echo(arguments: Mapping[str, Any]) -> str:
 class ServedTool:
     """One tool a fixture publishes: what the model is told, and what calling it does.
 
-    `failed` is the tool that ran and reported an error, which is the case the port's ``is_error``
-    exists for and the one no amount of result text can express on its own.
+    `failed` marks the tool that runs and reports an error, which is the case the port's
+    ``is_error`` flag exists for and one the result text alone cannot express.
     """
 
     spec: ToolSpec
@@ -77,10 +77,11 @@ async def every_served_tool_is_advertised_as_the_model_will_see_it(
 
 
 async def the_advertised_set_is_read_again_on_every_walk(under_test: RegistryUnderTest) -> None:
-    """Yesterday's listing is never reused, which is what the routing combinators stand on.
+    """Each walk reads the tool set again, so an earlier listing is never reused.
 
-    `AggregateToolRegistry` picks the registry that advertises a name *now*, and
-    `UngatedToolRegistry` refuses a name that is gated *now*. An implementation answering from a
+    The routing combinators depend on that. `AggregateToolRegistry` picks the registry that
+    advertises a name at call time, and `UngatedToolRegistry` rejects a name that is gated at call
+    time, both reading the listing then rather than at startup. An implementation answering from a
     set it cached would route a call to a server that has dropped the tool, and would hand a
     subagent a gated tool that was ungated when the process started.
     """
@@ -109,12 +110,14 @@ async def a_call_comes_back_stamped_with_its_own_id_and_the_tools_text(
 async def a_tool_that_ran_and_failed_is_a_result_rather_than_an_exception(
     under_test: RegistryUnderTest,
 ) -> None:
-    """A failing tool is news for the model, not an error for the turn.
+    """A tool that ran and reported a failure comes back as a result with ``is_error`` set, rather
+    than as a raised exception.
 
-    This is the distinction the port draws with ``is_error``: the call reached the tool and the
-    tool said no. The dispatcher hands that text back as untrusted content and the loop continues,
-    where a raised failure becomes the dispatcher's own trusted sentence instead. An
-    implementation that raised here would relabel a hostile file's error message as ours.
+    That is the distinction the port draws with ``is_error``: the call reached the tool, and the
+    tool reported an error. The dispatcher hands that text back as untrusted content and the loop
+    continues, while a raised failure becomes the dispatcher's own trusted sentence instead. An
+    implementation that raised here would relabel a hostile file's error message as the
+    dispatcher's own words.
     """
     under_test.serve([_tool("read", failed=True)])
     result = await under_test.registry.invoke(
@@ -127,12 +130,12 @@ async def a_tool_that_ran_and_failed_is_a_result_rather_than_an_exception(
 async def a_name_that_is_not_served_never_comes_back_as_success(
     under_test: RegistryUnderTest,
 ) -> None:
-    """Whatever an implementation does about an unknown name, it must not answer it green.
+    """An unknown name comes back as an error, either raised or flagged, and never as a success.
 
-    The two arms genuinely differ here and the port says so: a registry that knows its own set
+    The implementations differ here and the port allows both: a registry that holds its own set
     raises ``ToolNotFoundError``, while a remote one can only relay what its server says, and an
-    MCP server answers an unknown tool with an error result. Both are safe; a result with
-    ``is_error`` unset would not be, since the loop would feed the model a success it never had.
+    MCP server answers an unknown tool with an error result. Either is safe. A result with
+    ``is_error`` unset is not, since the loop would feed the model a success it never had.
     """
     under_test.serve([_tool("read")])
     call = ToolCall(id="c-3", name="ghost", arguments={"path": "/x"})
@@ -144,12 +147,12 @@ async def a_name_that_is_not_served_never_comes_back_as_success(
 
 
 async def a_backend_that_cannot_answer_raises_tool_error(under_test: RegistryUnderTest) -> None:
-    """Both verbs fail loudly through the port's one error type when the registry is unreachable.
+    """Both verbs raise the port's one error type when the registry is unreachable.
 
-    `SkipUnavailableToolRegistry` is built on exactly this: it catches ``ToolError`` from a walk
-    and reports a dead sidecar while the healthy ones keep serving. An implementation that
-    answered an empty listing instead would make a dead sidecar look like one with no tools, which
-    is the silent degradation that design exists to prevent.
+    `SkipUnavailableToolRegistry` is built on that: it catches ``ToolError`` from a walk and
+    reports a dead sidecar while the healthy ones keep serving. An implementation that answered an
+    empty listing instead would make a dead sidecar look like one that serves no tools, and the
+    turn would run on quietly without them.
     """
     under_test.serve([_tool("read")])
     under_test.break_backend()

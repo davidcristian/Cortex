@@ -88,12 +88,12 @@ _NOT_CRITERIA = frozenset({"IMAP", "SEARCH", "OR", "NOT"})
 
 @pytest.mark.integration
 def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
-    """The guard on what `search_emails` tells a model: only criteria that work may be named.
+    """Every criterion `SEARCH_QUERY_HELP` names is run against the live Bridge and accepted.
 
     The description was written from a live pass rather than from the RFC, against a server
-    whose SEARCH support is partial by reputation, so this is the test that keeps the two
-    together: name a criterion in `SEARCH_QUERY_HELP` and it is run here, and a server that
-    stops accepting one fails the run instead of quietly answering the model with a parse error.
+    whose SEARCH support is partial by reputation, so this test holds the two together: a
+    criterion named in `SEARCH_QUERY_HELP` is run here, and a server that stops accepting one
+    fails the run instead of leaving the model to receive a parse error.
     """
     config = EmailConfig()
     if not config.user:
@@ -122,15 +122,14 @@ def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
 
 @pytest.mark.integration
 def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> None:
-    """The live half of the unknown-folder classification, and the premise it rests on.
+    """A name no mailbox has raises `FolderUnknownError`, and every offered name opens.
 
-    Two facts only a real server can settle. Every name no mailbox has is refused the same way,
-    whatever shape the wrong name takes, so the classification is not reading one accident of one
-    spelling; and the offered list is exactly the names that open, so nothing the tool tells a
-    model to use comes back as the refusal it warns about, and no name that would have worked is
-    kept from it either. The `NO` the Bridge sends carries no
-    RFC 5530 response code, only the words, which is why the words are what is read
-    (ADR-0022 unknown-folder addendum).
+    Both facts need a real server to settle. Every wrong name is refused the same way whatever
+    shape it takes, so the classification is not reading one accident of one spelling; and the
+    offered list is exactly the names that open, so nothing the tool tells a model to use comes
+    back as the refusal it warns about, and no name that would have worked is kept from it
+    either. The `NO` the Bridge sends carries no RFC 5530 response code, only the words, which
+    is why the words are what is read (ADR-0022 unknown-folder addendum).
     """
     config = EmailConfig()
     if not config.user:
@@ -156,13 +155,13 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
 
 
 def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
-    """The other direction of the same promise, which only the server's own LIST can settle.
+    """Assert that every name this server opens is one `list_folders` offers.
 
-    `list_folders` drops a name the server flags unselectable and then refuses, and this Bridge
-    flags the two parents of its hierarchy and opens them both. So the offered list has to be
-    exactly the names that open, and a filter that believed the flag would withhold two working
-    names without any call on the port being able to see it (ADR-0022 flagged-and-refused
-    addendum).
+    Only the server's own LIST can settle this. `list_folders` drops a name the server flags
+    unselectable and then refuses, and this Bridge flags the two parents of its hierarchy and
+    opens them both, so the offered list has to be exactly the names that open. A filter reading
+    the flag alone would withhold two working names, and no call on the port could show it
+    (ADR-0022 flagged-and-refused addendum).
     """
     offered = set(mailbox.list_folders())
     # Reaching past the port is deliberate, hence both suppressions: what this asks about is
@@ -183,12 +182,12 @@ def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
 
 @pytest.mark.integration
 def test_send_round_trips_between_the_two_test_addresses() -> None:
-    """The ADR-0022 live send: SMTP out over the Bridge, arrival verified over IMAP.
+    """Send one message over SMTP through the Bridge and read its arrival back over IMAP.
 
-    Needs CORTEX_EMAIL_SMTP_* + CORTEX_EMAIL_SEND_ENABLED and a recipient address in
-    CORTEX_EMAIL_LIVE_SEND_TO (the second example.com address; both Bridge-hosted, so the
-    message lands in the same account's mailbox). Outbound and irreversible. This test
-    really sends one small message.
+    This is the ADR-0022 live send, and it really sends one small message, which is outbound and
+    irreversible. It needs CORTEX_EMAIL_SMTP_* + CORTEX_EMAIL_SEND_ENABLED and a recipient
+    address in CORTEX_EMAIL_LIVE_SEND_TO (the second example.com address; both are Bridge-hosted,
+    so the message lands in the same account's mailbox).
     """
     smtp_config = SmtpConfig()
     to = os.environ.get("CORTEX_EMAIL_LIVE_SEND_TO", "")

@@ -1,10 +1,10 @@
-"""Behaviour of the reader that turns a documented log line back into what it claims to print.
+"""Tests for the reader that turns a documented log line back into level, logger, message and
+field names.
 
-The fixtures are miniatures of the three samples the runbooks really carry, written the way each
-of those is written: one bare inside a `text` fence, one prefixed by compose's own container
-label, one commented out inside a shell block and wrapped over two lines. A fixture inventing its
-own spelling would test the reader against itself, so the last tests here read the committed
-runbooks, where the shapes are true or this gate is worthless.
+The fixtures are miniatures of the three samples the runbooks carry, each written the way the real
+one is written: one bare inside a `text` fence, one prefixed by compose's own container label, one
+commented out inside a shell block and wrapped over two lines. A fixture inventing its own spelling
+would test the reader against itself, so the last tests here read the committed runbooks.
 """
 
 from pathlib import Path
@@ -36,7 +36,7 @@ docker compose logs brain | grep "quarantining"
 
 
 def only(text: str) -> logsamples.Sample:
-    """The one sample in ``text``, asserted to be one so a miscount cannot read as a pass."""
+    """Return the one sample in ``text``, asserting the count so a miscount fails here."""
     found = logsamples.samples(text)
     assert len(found) == 1
     return found[0]
@@ -54,17 +54,20 @@ def test_a_fenced_line_yields_its_level_logger_message_and_field_names() -> None
 
 
 def test_the_line_number_is_the_line_the_sample_opens_on() -> None:
-    """A fault points a reader at the page, so the number is the sample's own line."""
+    """The reported line is the one the sample opens on, which is where a fault sends the
+    reader."""
     assert only(BARE).line == 4
 
 
 def test_values_are_dropped_and_only_the_names_survive() -> None:
-    """One runbook's captured port is a dated reading, so this reader must not carry values."""
+    """Field values are dropped and only the names are kept, because a captured value such as one
+    runbook's port is a dated reading."""
     assert only(PREFIXED).fields == ("host", "port")
 
 
 def test_a_container_label_in_front_of_the_line_is_decoration() -> None:
-    """Compose prefixes every line it prints, and none of that prefix is the line."""
+    """The container-name prefix is skipped, since compose adds it to every line it prints and it
+    is not part of the logged line."""
     assert only(PREFIXED).logger == "cortex_orchestrator.server"
 
 
@@ -77,13 +80,15 @@ def test_a_message_with_no_fields_reads_as_a_message_and_no_fields() -> None:
 
 
 def test_an_equals_inside_a_quoted_value_does_not_open_a_field() -> None:
-    """The formatter quotes any value carrying a space, so an `=` inside one is that value's."""
+    """An `=` inside a quoted value belongs to that value rather than opening a field, because the
+    formatter quotes any value carrying a space."""
     sample = only('```text\nINFO:cortex_core.engine:done reason="a=b happened" ok=True\n```\n')
     assert sample.fields == ("reason", "ok")
 
 
 def test_a_quoted_candidate_before_the_first_real_field_is_stepped_over() -> None:
-    """The message ends at the first field OUTSIDE a quote, not at the first candidate."""
+    """The message ends at the first field outside a quote, so a quoted `weird=thing` earlier in
+    the line does not end it."""
     sample = only('```text\nINFO:cortex_core.engine:said " weird=thing " ok=True\n```\n')
     assert (sample.message, sample.fields) == ('said " weird=thing "', ("ok",))
 
@@ -98,18 +103,19 @@ def test_a_wrapped_sample_is_read_as_the_one_line_it_stands_for() -> None:
 
 
 def test_the_comment_marker_on_a_continuation_is_dropped_rather_than_read() -> None:
-    """Left in, it would sit between the message and the first field and lengthen the message."""
+    """The `#` opening a continuation line is dropped; left in, it would sit between the message
+    and the first field and lengthen the message."""
     assert "#" not in only(WRAPPED).message
 
 
 def test_a_continuation_stops_at_the_fence_that_closes_the_block() -> None:
-    """A backslash on a block's last line must not swallow the marker that ends the block."""
+    """A backslash on a block's last line does not fold the closing fence into the sample."""
     text = "```text\nINFO:cortex_core.engine:done ok=True \\\n```\nprose ok=False\n"
     assert only(text).fields == ("ok",)
 
 
 def test_a_continuation_stops_at_the_end_of_the_document() -> None:
-    """The other end of the same guard: there is no next line to fold in."""
+    """The same guard at the end of the document, where there is no next line to fold in."""
     assert only("```text\nINFO:cortex_core.engine:done ok=True \\").fields == ("ok",)
 
 
@@ -117,7 +123,8 @@ def test_a_continuation_stops_at_the_end_of_the_document() -> None:
 
 
 def test_the_same_text_in_a_paragraph_is_prose_and_not_a_sample() -> None:
-    """Reading prose would make every inline mention owe a field list."""
+    """A log line written into a paragraph is not read as a sample; reading prose would make every
+    inline mention owe a field list."""
     assert logsamples.samples("Look for INFO:cortex_core.engine:the turn converged.\n") == []
 
 
@@ -133,7 +140,8 @@ def test_every_fenced_block_is_read_and_the_prose_between_them_is_not() -> None:
 
 
 def test_the_committed_runbooks_carry_the_three_shapes_the_fixtures_copy() -> None:
-    """A guard on the fixtures: a shape nobody writes any more would test this against itself."""
+    """This guards the fixtures above: a shape the runbooks no longer use would leave the fixture
+    copying it testing the reader against itself."""
     printed = {
         sample.logger: sample
         for runbook in sorted((REPO_ROOT / "docs" / "runbooks").glob("*.md"))

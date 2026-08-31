@@ -27,12 +27,12 @@ rather than expiring before the body's own bound, and the ordering the grace mar
 guarantee ("a strictly longer announcement cannot fire first") is helped rather than threatened. No
 bound in the repo is at risk from what was measured.
 
-**What would close it.** Two halves, and the second is the one with teeth. The sentence in the
-grace margin addendum comes down to what is true, which needs the mechanism named rather than
-guessed at: the readings above were taken from grpc-python's client, and the difference was not
-traced to the encoder, to the server's receipt-time stamping, or to both. And the shipped plan's
-own announced values, which are what the sentence actually claims zero for, were never among the
-three measured; measuring those is what says whether the claim is wrong about this seam or only
+**What would close it.** Two halves, and the second is where the real uncertainty sits. The
+sentence in the grace margin addendum comes down to what is true, which needs the mechanism named
+rather than guessed at: the readings above were taken from grpc-python's client, and the difference
+was not traced to the encoder, to the server's receipt-time stamping, or to both. And the shipped
+plan's own announced values, which are what the sentence actually claims zero for, were never among
+the three measured; measuring those is what says whether the claim is wrong about this seam or only
 about the numbers a probe happened to pick.
 
 ## Trail
@@ -47,11 +47,12 @@ about the numbers a probe happened to pick.
   headers against a grpc-python brain, and it now is: 500 ms and 5.25 s cross as `500ms` and
   `5250ms`, and the brain's window at handler entry is 0.16 ms to 1.16 ms **shorter** than the
   announcement, never longer, in 39 warm calls. The mechanism behind the entry's readings is
-  grpc-python's own client, which rounds a `timeout=` up onto a coarse unit ladder before encoding
-  it (`timeout=10.0` reaches the server as `10100ms`, read off the wire under `GRPC_TRACE=all`);
-  the server's receipt time stamping only ever subtracts transit. tonic truncates instead, under a
-  microsecond below 100 s, so the excess cannot happen in the body's direction at all. The margin
-  stays 250 ms: the term that sizes it is the scheduler stall, unchanged, and the two terms this
-  entry doubted are a millisecond and a microsecond. The measurement opened
+  grpc-python's own client, which rounds a `timeout=` up to the next value on a coarse unit scale
+  before encoding it (`timeout=10.0` reaches the server as `10100ms`, read off the wire under
+  `GRPC_TRACE=all`); the server's receipt time stamping only ever subtracts transit. tonic
+  truncates instead, under a microsecond below 100 s, so the excess cannot happen in the body's
+  direction at all. The margin stays 250 ms: the term that sizes it is the scheduler stall,
+  unchanged, and the two terms this entry doubted are a millisecond and a microsecond. The
+  measurement opened
   [R-436](436-an-announcement-past-the-millisecond-ladder-loses-the-race.md), the one range where
-  tonic's ladder really can outrun the margin.
+  tonic's rounding can exceed the margin.

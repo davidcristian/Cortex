@@ -7,12 +7,12 @@ grants it by construction, so both run the identical suite. Ids stay unique per 
 (the table's primary key). Embeddings are float4-exact values so the roundtrip check holds
 against pgvector's storage.
 
-The port needs one condition of the world no verb can create, so each arm supplies it as a knob:
-**the backend is gone**. Every other check here reads a value back, which leaves the port's only
-failure channel invisible to all of them, and that channel is now load-bearing: the core degrades
-a turn on ``MemoryStoreError`` rather than failing it (ADR-0008 unavailable-memory addendum), so
-an implementation letting its backend's own exception through would fail the turn the degradation
-promises to save. That is the ``Embedder`` list's arrangement (``embedder_contract.py``) on the
+One condition no verb on the port can create is that the backend is gone, so each arm supplies it
+as a knob. Every other check here reads a value back, which leaves the port's only failure channel
+invisible to all of them, and the core depends on that channel: it degrades a turn on
+``MemoryStoreError`` rather than failing it (ADR-0008 unavailable-memory addendum), so an
+implementation letting its backend's own exception through would fail the turn the degradation
+promises to save. The ``Embedder`` list (``embedder_contract.py``) is arranged the same way on the
 other port of the pair.
 """
 
@@ -45,9 +45,9 @@ class MemoryStoreUnderTest:
 
     ``break_backend`` makes every later call impossible, and it is awaited because taking a real
     backend away is I/O: the live arm closes the pool the adapter owns. A fake has no backend to
-    close, so it satisfies the knob by being scripted to raise what the port owes for a store it
-    cannot reach, which is the honest widening the ``Embedder`` list already uses: the check states
-    what an implementation must *do* when its backend is gone, not what went wrong underneath.
+    close, so it satisfies the knob by being scripted to raise what the port requires for a store
+    it cannot reach. The ``Embedder`` list widens its knob the same way, because the check states
+    what an implementation must do when its backend is gone rather than what went wrong underneath.
     """
 
     store: MemoryStore
@@ -164,11 +164,11 @@ async def check_count_candidates_sizes_the_set_a_search_ranked(
 ) -> None:
     """The count is the store's own total, never the length of a result some search returned.
 
-    ``_WIDER_THAN_ANY_POOL`` memories, a search for one. An adapter that answered with ``len(rows)``
-    over anything it fetched reads back its own cutoff, which is the one substitution this verb
-    exists to rule out, and the size is what makes that catchable: a check holding three memories
-    passes any implementation capped at three or more, including one capped at the pool width a
-    shipped deployment actually fetches.
+    The check stores ``_WIDER_THAN_ANY_POOL`` memories and searches for one. An adapter that
+    answered with ``len(rows)`` over anything it fetched reads back its own cutoff, which is the
+    one substitution this verb exists to rule out, and the size is what makes that catchable: a
+    check holding three memories passes any implementation capped at three or more, including one
+    capped at the pool width a shipped deployment actually fetches.
     """
     store = under_test.store
     scope = f"contract-count-{uuid4()}"
@@ -223,9 +223,9 @@ async def check_delete_scope_without_matches_returns_zero(under_test: MemoryStor
 async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
     under_test: MemoryStoreUnderTest,
 ) -> None:
-    """The port has one failure channel and every verb that touches the backend owes it.
+    """Every verb that touches the backend answers a lost one with ``MemoryStoreError``.
 
-    Walked over all four verbs rather than the one a caller happens to reach for, because a lost
+    All four verbs are walked rather than the one a caller happens to reach for, because a lost
     backend does not fail selectively: an implementation wrapping its searches while letting a
     driver exception out of ``add`` would pass a one-verb check and still take down the write half
     of the very degradation this pins. What is pinned is the *type*, since the core's two catches

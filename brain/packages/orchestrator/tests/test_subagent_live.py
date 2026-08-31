@@ -13,9 +13,9 @@ Skips unless CORTEX_SUBAGENTS_ENDPOINT is set (the `--no-cov` matters, since the
 otherwise fail the run). The roster test (ADR-0018) additionally needs the alternate server
 (docker-compose.subagents-roster.yml) and its endpoint in
 CORTEX_SUBAGENTS_QWEN_ENDPOINT (127.0.0.1:8083 as published). Every subagent server must have
-reasoning disabled, and the compose files bake in both flags that takes,
+reasoning disabled, and the compose files carry both flags that takes,
 `--chat-template-kwargs '{"enable_thinking": false}'` and `--reasoning-budget 0`; a reasoning model
-without them crawls (docs/runbooks/subagents-cpu.md).
+without them runs far slower (docs/runbooks/subagents-cpu.md).
 """
 
 import os
@@ -107,11 +107,11 @@ def _cpu_only_profile(backend: InferenceBackend, model: str) -> SubagentProfile:
     reason="set CORTEX_SUBAGENTS_ENDPOINT and CORTEX_SUBAGENTS_QWEN_ENDPOINT to live servers",
 )
 async def test_spawn_subagents_routes_each_pick_to_its_roster_model() -> None:
-    """One spawn batch, two live models (ADR-0018): the default plus a per-item 'qwen' pick.
+    """One spawn batch reaches two live models (ADR-0018), the default plus a per-item 'qwen' pick.
 
-    Servers are per-model (`llama-server` loads one GGUF), so a non-empty answer from the
-    batch on each endpoint IS evidence the pick reached its own model; cross-check request
-    counts in each container's logs (docs/runbooks/subagents-cpu.md).
+    Servers are per-model, since `llama-server` loads one GGUF, so a non-empty answer from the
+    batch on each endpoint is evidence that the pick reached its own model. Cross-check the
+    request counts in each container's logs (docs/runbooks/subagents-cpu.md).
     """
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         store = InMemoryTaskStore()
@@ -124,7 +124,7 @@ async def test_spawn_subagents_routes_each_pick_to_its_roster_model() -> None:
             },
             default=_MODEL,
         )
-        runner = SubagentRunner(store, roster, SystemClock())  # tool-less: the pick is honored
+        runner = SubagentRunner(store, roster, SystemClock())  # no tools, so only the pick runs
         tool = SpawnSubagentsTool(runner, store, SystemClock())
         call = ToolCall(
             id="c1",

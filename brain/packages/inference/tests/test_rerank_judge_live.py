@@ -1,4 +1,4 @@
-"""Does the model rank recall better than the cosine that ships? Measured, not assumed.
+"""Measure whether the model ranks recall better than the cosine that ships.
 
 Integration-marked: excluded from CI and the coverage gate by the workspace addopts
 (`-m "not integration"`). Needs the gpu stack for the cortex and the memory override's CPU embedder:

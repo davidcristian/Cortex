@@ -2,16 +2,16 @@
  * Render one confirm-card argument value as readable text (ADR-0022).
  *
  * The card's rule is that what you approve is what runs, so every value is shown verbatim.
- * `JSON.stringify` satisfies "shown" and fails "readable" the moment a value stops being a
- * string: an attached file arrives as `{"content":"# Week 30\n- one"}`, where the payload the
- * user is consenting to is buried behind escapes. This formats structure as indented lines and
- * leaves every string exactly as it is, so newlines are newlines.
+ * `JSON.stringify` shows the value but stops being readable as soon as it is not a string: an
+ * attached file arrives as `{"content":"# Week 30\n- one"}`, where the payload the user is
+ * consenting to is buried behind escapes. This formats structure as indented lines and leaves every
+ * string exactly as it is, so newlines render as newlines.
  *
- * Deliberately generic: it knows about JSON shapes, never about `send_email` or attachments.
- * The card renders whatever gated tool the brain asks about.
+ * It handles JSON shapes only and has no knowledge of `send_email` or attachments, because the card
+ * renders whatever gated tool the brain asks about.
  */
 
-/** A string that needs its own line: it is multi-line, or it is nested structure. */
+/** Whether a rendered value needs its own line, which it does when it spans more than one. */
 function needsOwnLine(text: string): boolean {
   return text.includes("\n");
 }

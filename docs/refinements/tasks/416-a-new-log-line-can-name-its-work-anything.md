@@ -12,8 +12,8 @@ Opened 2026-08-24 by the close of
 behind `scripts/logcouplings.py` and can hold only what that file lists.
 
 The new part ties five declarations to the modules that spell them and the runbooks that quote
-them, so a rename that moves one place and not the others reddens. What it cannot do is notice a
-place nobody registered. A module added tomorrow that writes `extra={"chat_id": ...}` is spelled in
+them, so a rename that moves one place and not the others makes the gate fail. What it does not cover
+is a place nobody registered. A module added tomorrow that writes `extra={"chat_id": ...}` is spelled in
 no mention, so every mention still resolves, the gate stays green, and the split the two closed
 entries were about is back with a new spelling. That is the presence check working as designed, the
 same limit every part of that registry has, but it bites harder here: a log line is a thing this

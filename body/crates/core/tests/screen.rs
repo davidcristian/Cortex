@@ -1,8 +1,7 @@
 //! Behavioral tests for `body_core::os::screen` and its `screen_policy` and `screen_target`
-//! siblings: the request resolution `CaptureRequest`
-//! applies to a proto3 hint, the frame validation `RawFrame` enforces, the crop a resolved
-//! target names (whole display, a window, one hanging off an edge, one off the display
-//! altogether), the downscale/encode/
+//! siblings: the request resolution `CaptureRequest` applies to a proto3 hint, the frame
+//! validation `RawFrame` enforces, the crop a resolved target names (whole display, a window,
+//! one hanging off an edge, one off the display altogether), the downscale, encode and byte
 //! bound ladder `Capture::from_bgra` runs (identity, box-filtered, and the `TooLarge` rung),
 //! the encoder's own rejects, `DeniedScreenCapture`, and a contract-style check that
 //! `ScreenCapture` works as a generic bound through a fake.
@@ -274,10 +273,10 @@ fn a_tall_frame_keeps_its_aspect_ratio_and_never_loses_an_edge() {
 
 #[test]
 fn a_window_target_crops_to_the_window_and_still_reports_the_display() {
-    // The trap this pins: three consumers read `source_*` as the size of the SCREEN (the wire's
-    // ImageBlob, the brain's own capture value, and the "downscaled from WxH" clause the model
-    // reads). A crop that flowed through as a smaller frame would silently make all three
-    // describe the window as though it were the display.
+    // Three consumers read `source_*` as the size of the screen: the wire's ImageBlob, the
+    // brain's own capture value, and the "downscaled from WxH" clause the model reads. A crop
+    // that flowed through as a smaller frame would make all three describe the window as though
+    // it were the display.
     let capture = Capture::from_bgra(
         &window(gradient(40, 20), 10, 5, 20, 15),
         &CaptureRequest::new(1600),
@@ -294,8 +293,8 @@ fn a_window_target_crops_to_the_window_and_still_reports_the_display() {
     // pixel is source (10, 5), whose blue is x + y.
     assert_eq!(&rgb[..3], &[0x40, 0x20, 15]);
     // The last column of the first row is source (19, 5), and the first column of the last row
-    // is source (10, 14). Both are inside the window and neither is anywhere near the display's
-    // own corner, which is what says the crop moved the origin rather than just the size.
+    // is source (10, 14). Both are inside the window and neither is near the display's own
+    // corner, which is what shows the crop moved the origin rather than only the size.
     assert_eq!(&rgb[27..30], &[0x40, 0x20, 24]);
     assert_eq!(&rgb[270..273], &[0x40, 0x20, 24]);
 }
@@ -366,8 +365,8 @@ fn a_window_with_nothing_on_the_display_is_refused_rather_than_widened() {
 #[test]
 fn a_window_that_covers_the_display_reports_a_screen_capture() {
     // A maximised window's frame can reach past every edge. What crosses the seam is then the
-    // whole display, so the receipt must say screen rather than window: the sentence describes
-    // what was sent, not what was asked for.
+    // whole display, so the receipt says screen rather than window, because the sentence
+    // describes what was sent rather than what was asked for.
     let capture = Capture::from_bgra(
         &window(gradient(40, 20), -8, -8, 48, 28),
         &CaptureRequest::new(1600),
@@ -456,7 +455,7 @@ fn a_one_pixel_wide_frame_keeps_its_only_column_while_its_height_shrinks() {
 
 #[test]
 fn the_ladder_shrinks_until_the_encoding_fits() {
-    // 1800x1800 of noise is over the ceiling; 900x900 is not. The ladder must return the
+    // 1800x1800 of noise is over the ceiling and 900x900 is not, so the ladder returns the
     // second rung rather than the first or an error.
     let frame = noise(1800, 1800);
     let capture = Capture::from_bgra(&whole(frame), &CaptureRequest::new(1800)).unwrap();

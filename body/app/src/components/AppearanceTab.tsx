@@ -27,9 +27,9 @@ interface TileProps {
   readonly children: ReactNode;
 }
 
-/** One choice, shown rather than named: its art above, its name under it. The chosen tile is
- *  lifted out of the row (a fill and a hairline); the rest rest. No accent anywhere, because a
- *  swatch is resting chrome even when the thing it draws is not (design/overlay-ux.md §1).
+/** One choice, shown rather than named: its art above, its name under it. The chosen tile takes a
+ *  fill and a hairline and the others take neither. No accent anywhere, because a swatch is
+ *  resting chrome even when the thing it draws is not (design/overlay-ux.md §1).
  *
  *  The visible name is also the accessible one: the art carries no text, so nothing here has a
  *  label the user cannot see. */
@@ -49,15 +49,15 @@ function Tile({ label, checked, hint, onPick, children }: TileProps) {
   );
 }
 
-/** The console's appearance tab (ADR-0032): the two choices that decide how the overlay looks,
- *  each made by looking at the thing rather than reading its name. Themes are miniature panels
- *  wearing themselves; marks are the real `BubbleMark`, drawn live and large enough that four
- *  styles that differ by how they MOVE can be told apart by watching them.
+/** The console's appearance tab (ADR-0032): the choices that decide how the overlay looks, each
+ *  made by looking at the thing rather than reading its name. A theme tile is a miniature panel
+ *  drawn in that theme's own tokens; a mark tile is the real `BubbleMark`, drawn live and large
+ *  enough that four styles differing only in how they move can be told apart by watching them.
  *
- *  Both rows are a map over their registry (`THEMES`, `MARKS`), so a fifth theme or a fifth mark
- *  style is a literal in that registry and no change here. That plug-and-play property is the
- *  stated invariant of both modules, and this view is built to keep it rather than to restate the
- *  four names it happens to ship with. */
+ *  Every row is a map over its registry (`THEMES`, `MARKS`, `EDGES`), so a fifth theme, mark or
+ *  edge is a literal in that registry and needs no change here. That plug-and-play property is the
+ *  stated invariant of those modules, and this view is written to keep it rather than to restate
+ *  the names it happens to ship with. */
 export function AppearanceTab({
   themeName,
   mark,
@@ -74,11 +74,10 @@ export function AppearanceTab({
       <section className="swatch">
         <h3 className="sect">Light</h3>
         <div className="tiles" role="radiogroup" aria-label="Light">
-          {/* Auto leads, because it is the only choice the header's toggle cannot express: that
-              toggle names the opposite theme outright and can only ever land on one of the two. The
-              tile is not captioned "Auto follows your system": the word Auto on a tile split between
-              the two themes beside it already says it, and a line of prose under three pictures is
-              the picture explained to someone who has just looked at it. */}
+          {/* Auto comes first, because it is the only choice the header's toggle cannot express:
+              that toggle names the opposite theme outright and can only land on one of the two. The
+              tile carries no caption, because the word Auto on a tile split between the two themes
+              beside it already says what it does. */}
           <Tile label="Auto" checked={themeName === null} onPick={() => onPickTheme(null)}>
             <AutoMini />
           </Tile>
@@ -114,16 +113,16 @@ export function AppearanceTab({
             </Tile>
           ))}
         </div>
-        {/* The chosen style's own note, under the row it belongs to: what moves is the thing being
-            chosen, and one line of it beats four labels nobody can tell apart. */}
+        {/* The chosen style's own note, under the row it belongs to. What differs between the four
+            styles is how they move, which a label cannot show and one line of prose can. */}
         <p className="note">{mark.note}</p>
       </section>
       <section className="swatch">
         <h3 className="sect">Dream</h3>
         <div className="tiles" role="radiogroup" aria-label="Dream">
-          {/* The registry's own order is the ladder, Still to Trance, so the row explains
-              intensity without a caption (ADR-0036). A map over the registry, like the rows
-              above: a fifth edge appears here with no change to this view. */}
+          {/* The registry's own order is the ladder, Still to Trance, so the row shows increasing
+              intensity without a caption (ADR-0036). A map over the registry, like the rows above,
+              so a fifth edge appears here with no change to this view. */}
           {EDGES.map((choice) => (
             <Tile
               key={choice.name}

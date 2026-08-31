@@ -1,7 +1,7 @@
 """Behavior tests for the ModelManager v1 policy: leasing, single-resident, serialization.
 
-These pin the ModelManager contract: Slice 11's process-lifecycle adapter must pass the
-same checks against the same port (ADR-0007).
+These pin the ModelManager contract, so the process-lifecycle adapter that replaces this
+manager has to pass the same checks against the same port (ADR-0007).
 """
 
 import asyncio
@@ -46,8 +46,8 @@ async def test_acquire_serializes_concurrent_callers() -> None:
     async def worker(tag: str) -> None:
         async with manager.acquire("cortex"):
             order.append(f"enter-{tag}")
-            # Yield control: a broken (lock-less) manager would let the other task
-            # slip in here and produce an interleaved order.
+            # Yield control: under a lock-less manager the other task runs here, which
+            # produces an interleaved order.
             await asyncio.sleep(0)
             order.append(f"exit-{tag}")
 

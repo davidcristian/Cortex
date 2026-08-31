@@ -1,55 +1,18 @@
 """The couplings around the brain's own log vocabulary: the name one work identity rides under.
 
-One of the data files `crosscheck.py` reads as a single registry, and the tenth part, added the way
-`registry.py` was built to take one: a data file plus one line there, with the scan never learning
-the registry grew. The subject is the one thing no other part holds, a NAME a log line is written
-with rather than a value one carries. Five of them are here, one per identity a line says which
-work it is about under. The recall trail's own three words left for `trailcouplings.py` when the
-logger brought this file to the 300-line cap, on the seam this paragraph had drawn since they
-landed: those are one line on one stream and these are one word across the whole brain.
+One of the data files `crosscheck.py` reads as a single registry. Its subject is a name a log line
+is written with rather than a value one carries: five identities, one entry each. The recall
+trail's own three words are in `trailcouplings.py`, which split off when the logger brought this
+file to the 300-line cap.
 
-**Why a name needs the gate.** Two identities were spelled two ways at once, and neither split was
-noticed until a reader needed both halves of one investigation. The first opened the day the recall
-trail did and stood for eighteen days, which is most of that trail's life so far.
-The recall trail and the rank's two fallbacks named a conversation `session` where six other
-modules named the same fact `session_id`, and the schedule ticker named a fired item `reminder_id`
-where the audit trail named it `item_id`. Both splits were invisible to every suite, each side
-asserting its own line back, and both were paid by a reader at the worst moment: a fire that went
-wrong is exactly when the ticker's lines and the tool calls it caused both matter, and `grep`
-returned one of the two. The names moved onto one vocabulary, the dispatch stamp's own (ADR-0009
-one-vocabulary addendum), and this part is what stops the next line drifting off it again.
+`cortex_core.log_fields` declares all five, and only the tool audit spends them as code; every
+other line writes one inside its own `extra=`, where the literal is what an operator greps for, and
+the runbooks name the fields to grep. Those far sides are tied here rather than made to import.
 
-**Why the registry and not an import.** `cortex_core.log_fields` declares all five and only the
-tool audit spends them as code, that sink being the one place that writes the whole vocabulary out
-as a list. Every other line names one identity inside its own `extra=`, and the string an operator
-greps is what a reader of that line came for, so the literal stays. That is the same trade the
-subagent part already makes for a docstring restating a number: a far side kept legible on purpose
-and tied here rather than made to import. The runbooks are the half no import could reach at all,
-each telling an operator to grep a field by name, which is the cost the deferred entry named.
-
-**What is deliberately not here.** The Redis codecs spell `session_id`, `turn_id`, `task_id` and
-`item_id` as hash keys of their own records. Those are a wire format rather than a log field, and a
-record on disk outlives the deployment that wrote it, so the two answers are free to move apart and
-must not be tied to each other. Nor is `NotifyRequest.reminder_id`, the seam's name for the message
-the body is handed: the ticker's line is the brain's reading of its own work and takes the brain's
-name for it, and that the two differ is the decision rather than a drift.
-
-**The swap path names both a turn and the conversation.** Its eleven lines spelled a handoff
-`handoff` and a turn `turn`, and the first of those looked like an identity the stamp does not
-carry until the mint was read: `EscalationSlot.snapshot` writes `handoff_id=turn_id`, so a handoff
-id is the escalating turn's id and those lines were naming a turn all along. They are tied to
-`TURN_FIELD` like any other, and the one line that names two turns at once spends the qualified
-spelling `active_turn_id`, tied to the same declaration through a template that renders the
-qualifier in front of it, so a rename of the family moves the qualified name with it. All eleven
-then gained the conversation as well (ADR-0009 named-conversation addendum), so the four swap
-modules appear under both of the first two entries below, and a fifth refusal or a fourth settle
-that named only one of the two is caught by whichever entry's count it broke.
-
-**The recall trail is next door and not in some other kind of part.** What keeps its three words
-out of the measurement part, whose reader declares two of them, is what the value IS: a message, a
-field name and a logger the brain writes are this subject and not a fixture's, and filing a log
-name under two parts would be the split each part is named to prevent. They sit in a part of their
-own because they are one line's, where every entry here is one word's across eleven modules.
+Two identities were once written two ways at once and neither split was visible to any suite, which
+is what these entries report. The ADR-0009 one-vocabulary and named-conversation addenda record
+both splits, why the Redis codecs and `NotifyRequest.reminder_id` are deliberately not tied to
+these names, and why the swap path's `handoff` field is an escalating turn's id.
 """
 
 from couplings import Constant, Mention, Site

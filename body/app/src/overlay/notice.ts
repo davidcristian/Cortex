@@ -1,18 +1,18 @@
-// WHAT THE OVERLAY SAYS OUT LOUD, AND EVERYTHING IT IS ALLOWED TO SAY.
+// What the overlay says out loud, and everything it is allowed to say.
 //
-// The overlay keeps ONE polite live region (`components/Announcer.tsx`), and this module is the
+// The overlay keeps one polite live region (`components/Announcer.tsx`), and this module is the
 // whole of what may go in it. Every sentence below is built here rather than at the arm that raises
-// it, so "what the region can carry" is a question with one file for an answer instead of a habit
-// spread over four reducer arms.
+// it, so what the region can carry is answered in one file instead of by a habit spread over four
+// reducer arms.
 //
-// IT STARTED AS THE CHAT THAT ARRIVED. A chat swap changes everything in the panel and moves
+// It started as the chat that arrived. A chat swap changes everything in the panel and moves
 // nothing: the header title, the history and the chat the composer is about to send into all become
 // another conversation's, while focus stays exactly where the reader left it. On screen that reads
 // at a glance, which is why it was silent for so long; the three other regions the overlay has are
 // about other things entirely (the connection dot's health, the capture ring's screen read, and a
-// failed reply's alert), none of them knowing a chat from another.
+// failed reply's alert), and none of them can tell one chat from another.
 //
-// WHICH SWAPS SPEAK, AND WHY THE REST DO NOT. A swap speaks when the gesture that fired it named no
+// Which swaps speak, and why the rest do not. A swap speaks when the gesture that fired it named no
 // chat: `Ctrl+↑` and `Ctrl+↓`, `Ctrl+N`, a reminder card's open control, and the fresh chat that
 // replaces a deleted one. It stays silent when the control that fired it carries the arriving chat's
 // name as its own accessible name, which is the switcher row and the header's pencil: a reader who
@@ -21,29 +21,29 @@
 // gesture rather than about the transition, which is why the flag travels with the action instead of
 // being decided in the reducer arm: one arm serves a row and a cycle key both.
 //
-// AND IT NOW CARRIES A LIST THAT SHRANK, which is the widening (ADR-0035 addendum, 2026-08-07).
+// It also carries a list that shrank, which is the widening in the ADR-0035 addendum of 2026-08-07.
 // Measured in Chromium at 900x900 before it: deleting a chat that was not the open one, deleting the
-// last one so the list emptied, and acking a reminder each produced ZERO mutations in any live
-// region on the page. The reader landed on a control whose name says what it is and heard nothing
-// about the list they had just changed. The row is gone from the tree by then, so unlike a held key
-// or an unmoved caret there is nothing left for them to re-read: the fact is destroyed rather than
-// merely unspoken, which is the test a sentence has to pass to earn a place here.
+// last one so the list emptied, and acking a reminder each produced no mutation in any live region
+// on the page. The reader landed on a control whose name says what it is and heard nothing about
+// the list they had just changed. The row is gone from the tree by then, so unlike a held key or an
+// unmoved caret there is nothing left for them to re-read: the fact is destroyed rather than merely
+// unspoken, which is the test a sentence has to pass to earn a place here.
 //
-// ONE REGION AND NOT TWO, deliberately. Deleting the chat that IS open shrinks the list and swaps
+// One region and not two, deliberately. Deleting the chat that is open shrinks the list and swaps
 // the conversation in a single commit, so a second region would put two announcements in flight at
 // once and leave whether both are spoken, and in which order, to the reader's own speech queue,
 // which nothing here can observe. One region says one thing, and when a delete does both, it says
 // both in one sentence in the order they happened (`chatDeleted` then `arrived`).
 //
-// AND IT NOW CARRIES A LIST THE READER ASKED FOR (ADR-0035 addendum, 2026-08-07). Measured in
-// Chromium before it, over thirteen ways the switcher opens: not one of them produced a mutation in
-// any live region on the page, and not one of them moved the caret. The only channel carrying the
-// fact was `aria-expanded` on the header's chats button, which flipped false to true where the
-// reader was not standing, so a reader who pressed `Ctrl+K` was handed silence. What the sentence
-// carries is what the list HOLDS rather than that a section toggled: the row count is the one thing
-// the tab order cannot hand back, and on an empty list it cannot hand back anything at all, the
-// line saying so being text rather than a tab stop (measured: Tab from the chats button on an empty
-// list walks the header's remaining three buttons and then leaves the list entirely).
+// It also carries a list the reader asked for (the same addendum). Measured in Chromium before it,
+// over thirteen ways the switcher opens: not one of them produced a mutation in any live region on
+// the page, and not one of them moved the caret. The only channel carrying the fact was
+// `aria-expanded` on the header's chats button, which flipped false to true where the reader was
+// not standing, so a reader who pressed `Ctrl+K` was handed silence. What the sentence carries is
+// what the list holds rather than that a section toggled: the row count is the one thing the tab
+// order cannot hand back, and on an empty list it cannot hand back anything at all, the line saying
+// so being text rather than a tab stop (measured: Tab from the chats button on an empty list walks
+// the header's remaining three buttons and then leaves the list entirely).
 
 /** One thing the overlay has to say. */
 export interface Notice {
@@ -74,8 +74,8 @@ export function arrived(title: string): string {
 }
 
 /** What the switcher's list says when it holds nothing, and the words the region borrows for the
- *  same state, so the line on screen and the sentence in the region cannot drift apart. It is the
- *  header-and-switcher lesson one surface down: two renderings of one fact are one string. */
+ *  same state, so the line on screen and the sentence in the region cannot drift apart. Two
+ *  renderings of one fact read from one string, the rule the list's own name follows below. */
 export const NO_OTHER_CHATS = "No other chats yet";
 
 /** What the chat list is called, in the one place both renderings of the name read it from: the
@@ -96,11 +96,11 @@ function tally(left: number, noun: string): string {
 /**
  * The chat list, opened, and what it holds.
  *
- * WHAT IT SAYS IS THE CONTENTS AND NOT THE TOGGLE, which is why there is no mirror of this for the
- * list closing. A reader who opens the list is asking what chats there are, and the answer is the
- * one thing they cannot get by walking: the rows are nine Tab presses ahead of the composer and the
- * empty line is not a tab stop at all. A reader who closes it is asking for it to go, and is
- * answered by the caret landing on the control that says so (`overlay/sectionCaret.ts`).
+ * The sentence names the contents rather than the toggle, which is why there is no mirror of this
+ * for the list closing. A reader who opens the list is asking what chats there are, and the answer
+ * is the one thing they cannot get by walking: the rows are nine Tab presses ahead of the composer
+ * and the empty line is not a tab stop at all. A reader who closes it is asking for it to go, and
+ * is answered by the caret landing on the control that says so (`overlay/sectionCaret.ts`).
  */
 export function switcherOpened(chats: number): string {
   return chats === 0

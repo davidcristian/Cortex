@@ -9,59 +9,59 @@ the scripted host), so an ordering mistake shows up here rather than in a mock's
 Every wait is event-driven and every elapsed bound is passed as zero (already expired), so no
 test sleeps wall-clock.
 
-Distrust-green proofs (each mutation reddened the named test, then was restored):
+Mutations proving these tests can fail (each was applied on its own, then restored):
 - marking the record BRAIN_ACTIVE before entering the residency scope (rather than after the
-  health gate passed) reddens the chaos suite's
+  health gate passed) fails the chaos suite's
   ``test_the_record_reaches_brain_active_only_once_the_deep_model_serves``;
-- returning True from drain's timeout path reddens
+- returning True from drain's timeout path fails
   ``test_a_drain_that_times_out_aborts_before_anything_is_evicted``;
-- skipping the ``active()`` precondition reddens
+- skipping the ``active()`` precondition fails
   ``test_a_second_concurrent_handoff_is_refused_without_evicting_anything``;
-- dropping the ``escalation=None`` on the deep phase's context reddens
+- dropping the ``escalation=None`` on the deep phase's context fails
   ``test_the_deep_phase_cannot_escalate_to_itself``;
 - deleting the ``opaque`` refusal in ``_prepare``, or moving a word of the note it answers with,
-  each reddens ``test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_note``
+  each fails ``test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_note``
   (measured 2026-07-19; without the refusal the snapshot's invariant raises straight out of the
   turn, which is the defect that test was written for);
 - answering the swap-failure note for a refused claim (which is what the note mapping did
-  while every doc said otherwise) reddens
+  while every doc said otherwise) fails
   ``test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_that_it_broke``;
-- releasing the record's claim only when the settling write landed reddens
+- releasing the record's claim only when the settling write landed fails
   ``test_a_store_that_fails_while_settling_the_record_does_not_fail_the_turn`` and
   ``test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck``;
 - moving any of the swap window's four statuses off the work it announces (the draining one
   after the drain, the loading one inside the residency scope, the working one above that
-  scope, the restoring one below it) reddens
+  scope, the restoring one below it) fails
   ``test_a_clean_handoff_walks_the_record_through_its_states`` and
   ``test_a_deployment_without_a_subagent_pool_has_nothing_to_drain``, through the window
   witness the harness takes at each yield. The plain order assertion beside it catches none of
   the four, which is why the witness exists;
-- dropping the last of those four statuses entirely, rather than moving it, reddens those same
+- dropping the last of those four statuses entirely, rather than moving it, fails those same
   two cases and nothing else in the package (measured 2026-07-18 over ``packages/core``), at
   the four-string equality in each and not at the witness: the witness reads the details as a
   PREFIX of the window, so a window that simply stopped early satisfies it;
 - the unrostered refusal's four mutations, all measured 2026-08-16 over the whole
-  ``packages`` suite: dropping it reddens **28**, moving it below the drain reddens **25**,
-  reading every host failure as a tier the host does not carry reddens **2**, and caching the
-  verdict for the life of the process reddens **2**. The first two counts are large because
+  ``packages`` suite: dropping it fails **28**, moving it below the drain fails **25**,
+  reading every host failure as a tier the host does not carry fails **2**, and caching the
+  verdict for the life of the process fails **2**. The first two counts are large because
   every "nothing was evicted" assertion in this suite and the chaos one now names the single
   call a handoff spends before it commits (``swap_harness.PREFLIGHT_CALLS``) rather than
   asserting an empty log, so the prologue's cost is pinned wherever it was ever cared about.
-  The last two are the two ways this could have been built wrongly, and each reddens the case
+  The last two are the two ways this could have been built wrongly, and each fails the case
   written for it plus the port's own three-answer case in ``test_residency.py``.
 
 The log-vocabulary mutations, all measured 2026-08-24 over ``brain/`` (ADR-0009 sixth-name
 addendum, where the whole table is):
 
 - naming the refused turn and the one the store still holds the other way round, and dropping
-  the qualifier so both are named alike, each reddens **1**,
+  the qualifier so both are named alike, each fails **1**,
   ``test_a_second_concurrent_handoff_is_refused_without_evicting_anything``;
-- reverting all four of the conductor's refusals to the bare ``turn`` reddens that same **1**
+- reverting all four of the conductor's refusals to the bare ``turn`` fails that same **1**
   case and no other: three of the four are pinned by no test here, and their names are held by
   ``scripts/logcouplings.py``'s count of four instead;
-- reverting the settler's failure line to the bare ``handoff`` reddens **2**, both parametrized
+- reverting the settler's failure line to the bare ``handoff`` fails **2**, both parametrized
   cases of ``test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down``, and reverting all
-  three of the settler's lines reddens exactly those same two, the other two lines being the
+  three of the settler's lines fails exactly those same two, the other two lines being the
   registry's to hold.
 """
 
@@ -292,7 +292,7 @@ async def test_a_deployment_whose_host_has_no_deep_tier_is_refused_before_the_dr
     drained, the cortex is stopped, the ``start`` comes back with the host's own refusal, and
     the scope's ``finally`` loads the cortex again, which at tier scale is minutes of the
     assistant being gone for a handoff that was never going to run, once per attempt. Every
-    assertion below is the negative of one step of that, so a refusal that moved later reddens.
+    assertion below is the negative of one step of that, so a refusal that moved later fails.
     """
     live = build_harness(Fakes(host=ScriptedModelHost(running=["cortex"], unhosted=["brain"])))
     await live.seed_session()
@@ -359,7 +359,7 @@ async def test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_tha
     """The scope's backstop refusal is not a swap failure, and the user must not be told it is.
 
     ``handoff_claim`` refuses every second handoff that goes through a conductor, so this is the
-    other door the same rule guards: something entered the residency scope without claiming
+    other path the same rule guards: something entered the residency scope without claiming
     first (the port keeps the guard for exactly that), and the swap then finds the GPU already
     handed over. At that moment the deep model IS loaded and the usual assistant is NOT back,
     which is the opposite of what the swap-failure note asserts, so the honest note is the one

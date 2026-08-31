@@ -21,7 +21,7 @@ makes this three or four rows rather than eight.
 
 **Why it was left.** The compose survey's rule is that prose arguing with a number is eligible and
 mostly unregistered, because a needle over a clause inside an argument pins the argument's
-phrasing as much as the number, and rewording an explanation would then redden a gate about a
+phrasing as much as the number, and rewording an explanation would then fail a gate over a
 coupling that never moved. The two comments that closed are statements of what the deployment does
 rather than arguments about it, which is what earned them a row. Some of these five are the same
 shape (the runbook's recipe block is a copyable statement) and some are plainly not (a table row
@@ -29,15 +29,15 @@ recording a measured arm is history, and history is never a far side).
 
 **What would close it.** Read the five, sort each by the survey's own tense test, and register the
 ones that state rather than argue, with a needle written to pin the number and not the sentence
-around it. The ones that argue stay out, and the sorting is the deliverable either way: what this
-task must not leave behind is another reading nobody wrote down.
+around it. The ones that argue stay out. The sorting is the deliverable either way, and it has to
+be written down rather than left as one more reading nobody recorded.
 
 ## Trail
 
 - 2026-08-22: opened by the close of
   [R-377](377-a-comment-restates-a-registered-value.md), which settled that a comment is a place a
-  value appears and not a form or a spelling, registered the two that state a deployment's own
-  pairing, and deliberately left the prose that argues for it unsorted.
+  value appears rather than a separate kind of site, registered the two that state a deployment's
+  own pairing, and deliberately left the prose that argues for it unsorted.
 - 2026-08-23: landed. The survey ran wider than this file: the two numbers are spelled 49 times in
   14 files outside the decision records and the backlog, not five times in three. Sorted by the
   tense test, the token budget went from three registered far sides to ten and the capture edge
@@ -50,8 +50,8 @@ task must not leave behind is another reading nobody wrote down.
   row, each true of the value it was taken at. Two needle shapes carry that sort without pinning a
   sentence: the recipe is pinned at a line start, since the measured table below it writes the same
   text inside a cell, and the counted mentions hold a file's several claims about one shipped
-  number as one set. Seventeen planted drifts each reddened the gate and four rewritten history
-  sentences each left it green. The reading of `docs/host/` that this entry's neighbour called a
+  number as one set. Seventeen planted drifts each made the gate fail and four rewritten history
+  sentences each left it green. The reading of `docs/host/` that this entry's companion called a
   judgement call is settled here and shared with it: a host file is a live instruction and not a
   record, because a completed check's file shrinks to a heading, its status and a pointer. Recorded
   in the ADR-0029 legibility-prose addendum, in

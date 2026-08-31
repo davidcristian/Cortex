@@ -12,12 +12,12 @@ had both become expensive: answering either meant reading an area doc end to end
 reading the index's running ledger for the corrections the area doc had not picked up.
 
 The failure mode is not a guess. This backlog documented it against itself, three times, and each
-account is worth keeping because each is the same defect wearing different clothes:
+account is worth keeping because each is the same defect in a different form:
 
 - A status was written in three places: the entry itself, its area doc's `**Open items:**`
   header, and the area's cell in the index table. Keeping three restatements true by hand is the
   whole job, and it was not done.
-- **A count that is right by cancellation hides both of its errors.** The body-overlay Open-items
+- **A count that is right by cancellation shows neither of its errors.** The body-overlay Open-items
   line had drifted twice in opposite directions: it still named an entry that had landed and had
   never picked up one that opened. Eleven names either way, so the header and its cell agreed at
   every moment, and the agreement was worth nothing. A reader following it would have opened a
@@ -50,7 +50,7 @@ a gate failure, because a title that says `landed 2026-08-06` is a fourth place 
 **4. The two states that are defined by waiting must name what they wait for.** `fix when it
 bites` and `dead until a consumer` each require a `**Trigger:**` line. Both states mean somebody
 decided not to act, and without a written trigger that is indistinguishable from a task quietly
-dropped. The gate refuses the file otherwise.
+dropped. The gate rejects the file otherwise.
 
 **5. An index is two documents in one file.** Above the marker a person writes what the backlog
 is and how to work it. Between the markers `backlogindex.py` writes what is in it: the open set
@@ -76,8 +76,8 @@ read past them.
 
 ## The work stream
 
-The point of all of the above is that finishing a task is one edit and the index follows. In
-full, and this is the whole procedure:
+The point of all of the above is that finishing a task is one edit and the index follows. The
+whole procedure:
 
 1. **Pick.** Read `## What remains` at the top of the index. It is generated, so it is complete.
    Buckets are ordered by what unblocks them, not by priority.
@@ -120,8 +120,8 @@ reading volume, which is the complaint that started this. A 2,279-line file with
 header is still a 2,279-line file.
 
 **Number within an area (`memory-01`).** Rejected. A task's area is a fact about it that can
-change, and an identity that changes when the fact does is not an identity. Global numbers cost
-one lookup and never move.
+change, so an identifier built from the area stops resolving the moment the area changes. Global
+numbers cost one lookup and never move.
 
 **YAML frontmatter instead of bolded field lines.** Rejected. The field lines parse exactly as
 well and still read as prose to a person opening the file, and every other doc in this repo is
@@ -213,13 +213,13 @@ making the parser agree with the renderer, not shrinking what the document may s
 
 Every other line of prose here is wrapped by hand near a column, the bodies of these same task
 files included. Refusing a wrapped field makes one line of one file kind the sole exception, and
-it bites hardest on the longest and most informative triggers; the two found here are 180 and 250
-characters. That puts a temptation to rewrap in front of every future author with a gate failure
-behind it, which is recurring friction bought in exchange for a parser fix made once.
+the constraint falls hardest on the longest and most informative triggers; the two found here are
+180 and 250 characters. That puts a temptation to rewrap in front of every future author with a gate
+failure behind it, which is recurring friction bought in exchange for a parser fix made once.
 
 Nothing else in this grammar is presentational. A field name, a status verb and a date are values,
-and where a line happens to break inside a value is not one. Making the source column load bearing
-would be the only rule here that reads the shape of a file rather than what it says.
+and where a line happens to break inside a value is not one. Making the source column matter to the
+grammar would be the only rule here that reads the shape of a file rather than what it says.
 
 The end of the block is the one question joining has to answer, a continuation line and the first
 line of the body being the same text. It ends at a blank line, the rule markdown itself uses to
@@ -261,12 +261,12 @@ what may be read and what may be asserted about, so a tree this repo does not ma
 here in both directions and cannot drift into being judged by one rule while excluded by another.
 
 Two alternatives were weighed. **Judging whatever git tracks** is the more precise definition of
-"prose this repo ships", and it is the test `bindcheck.py` already applies, but it asks the wrong
-authority: the heading set is read off the file in the working tree, so the permission to read it
-should come from the working tree too. Gating on the index would also fail a document that has been
-written but not yet added, which is an ordinary state in the middle of a slice, and would make the
-gate's verdict depend on what happens to be staged. **Judging everything under the root** is this
-rule without the exclusion, and the exclusion is the whole point: asserting what a vendored
+"prose this repo ships", and it is the test `bindcheck.py` already applies, but it takes its answer
+from the wrong place: the heading set is read off the file in the working tree, so what may be read
+should be settled by the working tree too. Gating on the index would also fail a document that has
+been written but not yet added, which is an ordinary state in the middle of a slice, and would make
+the gate's verdict depend on what happens to be staged. **Judging everything under the root** is
+this rule without the exclusion, and the exclusion is the whole point: asserting what a vendored
 `README.md` renders is precisely the overreach the residual warned about.
 
 **Fail closed, with one question left unasked.** A markdown target the scan does not read is
@@ -343,14 +343,14 @@ and a detector too narrow leaves the old approximation exactly where it already 
    support, and the run is already failing on the heading itself.
 4. **An underscore inside a word is never reported.** Six headings here carry one after code spans
    come off (`session_id`, `os_*`, `body_client`, `cortex_core`, `edit_scheduled`), CommonMark
-   reads none of them as emphasis, and a detector without its word-boundary guard reddens
-   `brain/packages/body_client and cortex_core` on the spot, which a test pins.
+   reads none of them as emphasis, and a detector without its word-boundary guard reports
+   `brain/packages/body_client and cortex_core` as a violation on the spot, which a test pins.
 
 **Proved before it was trusted.** A scratch document carrying all six shapes was written into
 `docs/` and the gate run against the real tree: six problems, one per shape, each naming the file,
 the line, the heading, the reason, and the remedy, and none of them fired on the legal headings
 sitting beside them in the same file. The document was then deleted and the gate returned to
-`backlogcheck OK`. Five further mutations each redden a distinct set of tests: dropping the
+`backlogcheck OK`. Five further mutations each make a distinct set of tests fail: dropping the
 unknown-anchor rule, unwiring the shape scan from the gate, deleting the entity detector, widening
 the emphasis detector, and not reading setext underlines.
 
@@ -375,10 +375,10 @@ taking the wider of the two branches that entry named.
 **The detector drops its trailing mark**, so the brackets alone are the shape. The alternative was
 to collect each document's link reference definitions in one pass and refuse a heading whose label
 names one. That is the more precise rule and the worse one. It would be the first thing in this
-gate needing more than the heading it is judging, it decides a heading's fate by a line hundreds of
-lines away, and it accepts the shape whose whole problem is that a reader cannot tell what it is
-either: a heading that looks like a link and is not one misleads before it misleads this gate.
-Refusing the span outright costs one regex and no second pass.
+gate needing more than the heading it is judging, it settles a heading's verdict from a line
+hundreds of lines away, and it accepts the shape whose whole problem is that a reader cannot tell
+what it is either: a heading that looks like a link and is not one misleads before it misleads this
+gate. Refusing the span outright costs one regex and no second pass.
 
 **The price is a literal pair of brackets in a heading**, and it is worth naming rather than
 burying, exactly as the six were. A heading that means its brackets literally now has to be written
@@ -389,7 +389,7 @@ gets designed against the real heading that asked for it
 ([R-334](../refinements/tasks/334-a-heading-that-means-its-brackets.md)).
 
 **The refusal's own sentence moved with the rule.** It used to say the heading carries a link whose
-target this rule would weld onto the anchor, which describes only the half that has a target. It now
+target this rule would join onto the anchor, which describes only the half that has a target. It now
 says the heading brackets a span, which markdown may make a link and this rule always reads
 literally, and that is true of every one of the four link forms and of a literal pair besides. The
 sentence is a named constant so the suite asserts what the gate prints rather than a paraphrase of

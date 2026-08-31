@@ -3,11 +3,11 @@
 The mapping half of `ListDueReminders`/`AckReminder`, kept beside `server.py` rather than inside it
 (the servicer stays a thin binding; this module holds the store-absent policy and the wire
 translation). With no `ScheduleStore` wired (`CORTEX_SCHEDULE_BACKEND=none`, the default) both
-views answer benignly, with an empty list / `acked=false` and never an error: a schedule-free brain
-is indistinguishable from one with nothing due, and an `UNAVAILABLE` here would turn every
-overlay open into a retry-backoff storm (the body's `RetryingTransport` treats it as
-transient). A live store's `ScheduleStoreError` propagates for the servicer to abort
-`UNAVAILABLE` (the ADR-0021 session-reads precedent).
+views answer benignly, with an empty list or `acked=false` and never an error: a schedule-free
+brain is indistinguishable from one with nothing due, and an `UNAVAILABLE` here would send every
+overlay open into the body's retry backoff, since its `RetryingTransport` treats that code as
+transient. A live store's `ScheduleStoreError` propagates for the servicer to abort `UNAVAILABLE`
+(the ADR-0021 session-reads precedent).
 """
 
 from datetime import datetime
@@ -26,11 +26,11 @@ def reminder_to_proto(item: ScheduledItem) -> DueReminder:
 
     `fired_at` is when the item became deliverable (`deliverable_since`; a deliverable
     item always carries it, with `due_at` as the defensive fallback). The delivered `text` is a
-    reminder's own text, or, for a **task**, the fire's `last_outcome`: the result the user is
-    being notified of, never the standing instruction, since the task-outcome addendum reuses this
+    reminder's own text, or, for a task, the fire's `last_outcome`: the result the user is being
+    notified of, never the standing instruction, since the task-outcome addendum reuses this
     reminder surface to deliver an outcome (the ticker always records one, so the `text` fallback
-    only guards the pure mapping's totality). `tainted` rides so the overlay can badge untrusted
-    provenance; `session_id` is the origin chat.
+    only guards the pure mapping's totality). `tainted` is carried so the overlay can badge
+    untrusted provenance; `session_id` is the origin chat.
     """
     fired_at = item.deliverable_since if item.deliverable_since is not None else item.due_at
     body = item.text
@@ -58,7 +58,7 @@ async def ack_reminder(schedules: ScheduleStore | None, reminder_id: str) -> Ack
     """Mark one reminder delivered; `acked=false` for unknown/not-deliverable/scheduling-off.
 
     Idempotent by construction (the store's `ack` no-ops `False` on a cleared slot), so a
-    retried ack is harmless, which is why this narrow write may ride the read-heavy seam.
+    retried ack is harmless, which is why this narrow write may sit on the read-heavy seam.
     """
     if schedules is None:
         return AckReminderReply(acked=False)

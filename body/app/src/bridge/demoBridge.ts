@@ -38,11 +38,10 @@ function streamWords(
 }
 
 // Browser-dev BrainBridge: streams a canned reply on a timer so `vite dev` shows the real
-// components with realistic streaming. Everything it says or serves lives in `demoScript.ts`;
-// what is left here is the behaviour. Gated like any other implementation of the port: the shared
-// checks in `bridgeContract.ts` drive it beside the fake, and `demoBridge.test.ts` holds what is
-// its alone, the recorded conversation and the four prompts that trip a hook. Browser validation
-// still says whether it looks right; the suites say whether it behaves.
+// components with realistic streaming. Every string it serves lives in `demoScript.ts` and only
+// the behaviour is here. Gated like any other implementation of the port: the shared checks in
+// `bridgeContract.ts` drive it beside the fake, and `demoBridge.test.ts` covers what is only its
+// own, the recorded conversation and the four prompts that trip a hook.
 export class DemoBridge implements BrainBridge {
   /** Resumes the paused confirm turn with the user's decision (null = none pending). */
   private pending: ((approved: boolean) => void) | null = null;
@@ -61,12 +60,12 @@ export class DemoBridge implements BrainBridge {
   // restart; a reload starts fresh, since there is no brain here to hold it.
   private prefs: Preference[] = [];
 
-  // A chat the user has spoken in is a chat the list holds, which is what the brain does: the turn
-  // is persisted and the next listing carries it, titled from the first message. The demo's list
-  // could only ever shrink before this, so a chat ARRIVING was the one thing about the switcher
-  // that could not be looked at by hand, and the empty line's two directions are told apart by
-  // exactly that case. The title is `deriveTitle`, the brain's own rule applied locally, so the row
-  // that lands reads like the header above it.
+  // A chat the user has spoken in joins the list, which is what the brain does: the turn is
+  // persisted and the next listing carries it, titled from the first message. Before this the
+  // demo's list could only shrink, so a chat arriving was the one switcher case that could not be
+  // driven by hand, and that is the case the empty line's mount rule turns on. The title comes from
+  // `deriveTitle`, the brain's own rule applied locally, so the row that lands reads the same as
+  // the header above it.
   private remember(sessionId: string, text: string): void {
     if (this.sessions.some((held) => held.sessionId === sessionId)) {
       this.patch(sessionId, { preview: text, lastActivityUnixMs: Date.now() });
@@ -92,21 +91,20 @@ export class DemoBridge implements BrainBridge {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
     // Say "screen" and the demo brain reports the capture built-in, so the header's capture ring
-    // (ADR-0029) is drivable by hand like the outage and confirm-timeout hooks above it. Without
+    // (ADR-0029) can be driven by hand like the outage and confirm-timeout hooks above it. Without
     // this the ring is unreachable in browser dev: it is lit by a `toolActivity` naming
-    // `capture_screen`, and no other demo turn emits a tool activity at all, so the one indicator
-    // whose whole job is to be seen was the one thing that could never be looked at.
+    // `capture_screen`, and no other demo turn emits a tool activity at all.
     //
-    // Both of its rungs are drivable, because the difference between them is the feature: the
-    // activity raises the ring to "asked" and the outcome settling that dispatch is what opens
-    // its eye (ADR-0029 outcome addendum). Say "refused" and the outcome comes back not ok, so
-    // the ring holds at the ask, which is what the shipping default does with the host's capture
-    // switch unset. The gap is long enough to watch the pupil grow.
+    // Both of its states are reachable here. The activity raises the ring to "asked", and the
+    // outcome settling that dispatch is what advances it (ADR-0029 outcome addendum). Say "refused"
+    // and the outcome comes back not ok, so the ring stays at the ask, which is what the shipping
+    // default does with the host's capture switch unset. The 310ms between the two timers is long
+    // enough to watch the change.
     //
-    // The ask rides a timer like everything else this bridge says, short though its wait is. It
-    // was announced inside the call until the shared check list asked whether a turn can deliver
-    // before it has handed back its cancellation: the real bridge carries events over a Tauri
-    // channel and cannot, and a caller assigns the handle from what `converse` returns.
+    // The activity is dispatched from a timer rather than inside the call, short though its wait
+    // is, because the shared check list asks whether a turn can deliver before it has handed back
+    // its cancellation. The real bridge carries events over a Tauri channel and cannot, and a
+    // caller assigns the handle from what `converse` returns.
     let asked: ReturnType<typeof setTimeout> | undefined;
     let settle: ReturnType<typeof setTimeout> | undefined;
     if (/screen|look at|see this/iu.test(text)) {
@@ -122,10 +120,10 @@ export class DemoBridge implements BrainBridge {
         sink.onEvent({ kind: "toolOutcome", toolName: "capture_screen", ok });
       }, 400);
     }
-    // Hold the bubble on the thinking shimmer, surface a reasoning burst as thinking statuses,
-    // then stream: the same shape a real reasoning turn has (ADR-0020). Several deltas so the
-    // accumulated trace is real, both as the live bobbing chip and, once the reply settles, as the
-    // collapsed "Thoughts" disclosure the deltas fold into (ADR-0020 addendum).
+    // Hold the bubble on the thinking animation, send a reasoning burst as thinking statuses, then
+    // stream the reply, which is the order a real reasoning turn arrives in (ADR-0020). Several
+    // deltas, so the accumulated trace has content both in the live chip and in the collapsed
+    // "Thoughts" disclosure the deltas fold into once the reply settles (ADR-0020 addendum).
     let cancelStream: Cancellation = () => undefined;
     const status = setTimeout(() => {
       cancelStream = streamWords(
@@ -166,8 +164,9 @@ export class DemoBridge implements BrainBridge {
       });
       if (expires) {
         this.expiry = setTimeout(() => {
-          // The brain answered for the user: drop the continuation first, so a click landing
-          // after the card closes resumes nothing (the stale-answer case, fail-closed).
+          // The demo brain answers for the user here, so the continuation is dropped first and a
+          // click landing after the card closes resumes nothing (the stale-answer case,
+          // fail-closed).
           this.pending = null;
           sink.onEvent({ kind: "confirmResolved", confirmId: "demo-confirm", outcome: "timeout" });
           resume(script.CONFIRM_TIMED_OUT);
@@ -187,7 +186,7 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  /** Forget the open question and its deadline, so neither path can resume the turn twice. */
+  /** Clear the open question and its deadline, so neither path can resume the turn twice. */
   private clearPending(): void {
     this.pending = null;
     if (this.expiry !== null) {
@@ -227,8 +226,8 @@ export class DemoBridge implements BrainBridge {
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) || b.lastActivityUnixMs - a.lastActivityUnixMs,
     );
-    // `0` means the brain's own default (`types.ts`), never "at most none": read as a bound it
-    // answers an empty switcher to any caller that asks for the default listing.
+    // `0` means the brain's own default (`types.ts`) rather than a limit of none. Read as a limit,
+    // it would answer an empty switcher to every caller that asks for the default listing.
     return Promise.resolve(limit === 0 ? ordered : ordered.slice(0, limit));
   }
 
@@ -268,11 +267,10 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  // A delete sticks, like the rename and the pin beside it. It was the one write left as a no-op
-  // over the held list, and that made the switcher's row exit unmeasurable by hand: the reducer
-  // drops the row, the refresh right behind it listed the chat again, and the row that had just
-  // started rolling out came straight back (which is the interrupted-exit path, arriving where
-  // nobody wanted it). The real bridge deletes; so does this one now.
+  // A delete sticks, like the rename and the pin beside it. It was the last write left as a no-op
+  // over the held list, which made the switcher's row exit impossible to watch by hand: the reducer
+  // dropped the row, the refresh behind it listed the chat again, and the row that had just started
+  // rolling out came straight back, taking the interrupted-exit path every time.
   deleteSession(sessionId: string): Promise<void> {
     this.sessions = this.sessions.filter((s) => s.sessionId !== sessionId);
     return Promise.resolve();

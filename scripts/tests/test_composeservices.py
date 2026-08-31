@@ -1,9 +1,9 @@
-"""Behaviour of the compose service reader, which answers what a service runs and what it covers.
+"""Tests for the compose service reader, which answers what a service runs and what it covers.
 
-The reader's whole job is to be unable to walk past something quietly, so most of what is below
-asserts a refusal. The shapes that are read rather than refused are asserted against the real
-compose files at the end, because a reader that agreed with every fixture in this file and with
-none of the tree would leave the gate above it green over nothing.
+The reader raises on a shape it does not recognize rather than skipping it, so most of what is
+below asserts a raise. The shapes it reads are asserted against the real compose files at the end,
+because a reader that agreed with every fixture in this file and with nothing in the tree would
+leave the gate above it green over nothing.
 """
 
 from pathlib import Path
@@ -40,7 +40,8 @@ services:
 
 
 def _one(text: str):  # noqa: ANN202 -- the single service under test, whatever shape it took
-    """The only service one fixture declares, so a test can assert on it without indexing twice."""
+    """Return the one service a fixture declares, asserting the count so a test can use it
+    directly."""
     services = read_services(text).services
     assert len(services) == 1, services
     return services[0]
@@ -175,7 +176,7 @@ def test_a_long_syntax_target_may_be_an_alias_too() -> None:
 
 def test_a_flush_list_is_read_rather_than_walked_past() -> None:
     """Compose accepts a sequence at its key's own indent, and a reader that closed the block at
-    the first line no deeper would read none of it, silently."""
+    the first line no deeper would read none of the entries and report nothing."""
     text = "services:\n  r:\n    image: r\n    volumes:\n    - type: bind\n      source: ./x\n"
     text += "      target: /x\n    - cache:/cache\n"
     assert _one(text).covered == ("/x", "/cache")
@@ -255,8 +256,8 @@ def test_a_bare_name_key_pins_nothing() -> None:
     ],
 )
 def test_a_shape_the_reader_was_not_taught_is_refused(text: str, message: str) -> None:
-    """Every one of these is raised rather than skipped: a reader that quietly walked past the one
-    mount a new override adds is a gate that cannot fail."""
+    """Each of these raises rather than being skipped, since a reader that walked past the one
+    mount a new override adds would leave the gate passing over it."""
     with pytest.raises(ComposeServiceError, match=message):
         read_services(text)
 
@@ -293,7 +294,7 @@ def test_a_trailing_comment_beside_a_key_is_not_read_as_a_value() -> None:
 
 
 def test_the_real_compose_files_are_all_readable() -> None:
-    """A guard on every fixture above: the shapes it agrees with have to be the tree's shapes."""
+    """This guards every fixture above: the shapes they exercise have to be the tree's shapes."""
     files = sorted((REPO_ROOT / "docker").glob("docker-compose*.yml"))
     read = {path.name: read_services(path.read_text(encoding="utf-8")) for path in files}
     assert len(read) >= 8, sorted(read)
@@ -321,7 +322,8 @@ def test_the_real_build_stanzas_are_read_in_both_spellings() -> None:
 
 
 def test_the_probe_file_really_covers_dovecots_two_declarations_through_its_anchors() -> None:
-    """The anchor case is the tree's, not the fixture's, and it is the one false red to avoid."""
+    """The anchor case comes from the tree rather than from a fixture, and it is the one place a
+    false fault would land."""
     text = (REPO_ROOT / "docker" / "docker-compose.imap-probe.yml").read_text(encoding="utf-8")
     probe = read_services(text).services[0]
     assert {"/srv/mail", "/etc/dovecot"} <= set(probe.covered)

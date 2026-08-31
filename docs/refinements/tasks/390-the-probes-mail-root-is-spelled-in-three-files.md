@@ -12,15 +12,15 @@ and found the root itself unregistrable.
 in `docker/dovecot/probe.conf` (twice, as the static userdb's `home=` and as `mail_home`) and in
 `docker/docker-compose.imap-probe.yml` (once, as the tmpfs that makes the store throwaway). All
 three must agree. Move the conf's alone and dovecot resolves a home nothing built, which is the
-same total failure a renamed account produces, all six live tests going red at once. Move the
-tmpfs alone and the store quietly stops being a tmpfs: the fixture still works and no longer starts
+same total failure a renamed account produces, all six live tests failing at once. Move the
+tmpfs alone and the store stops being a tmpfs without reporting anything: the fixture still works and no longer starts
 empty every time, which is the property its own comment claims for it.
 
 **Why it was left.** No tree declares it. `crosscheck.py` compares a declaration against the places
-restating it, and `registry_fault` refuses an entry with no site, so the two honest options are
+restating it, and `registry_fault` raises on an entry with no site, so the two honest options are
 both closed: there is nothing to read, and inventing a constant in a suite that has no use for the
-value would be the gate editing the contract it watches. The account's own mention carries
-`/srv/mail/{value}`, so the prefix is held in the script as part of that template's shape and in
+value would mean adding a declaration only to satisfy the gate. The account's own mention carries
+`/srv/mail/{value}`, so the prefix is held in the script as fixed text inside that template and in
 neither of the other two files. That is where it stands today.
 
 **What would close it.** The shape is the one the compose defaults were in before
@@ -31,7 +31,7 @@ share could be declared once in the compose file and passed into the container a
 variable the script and the conf both read, which turns three spellings into one and needs no scan
 at all; whether dovecot's config can take it from the environment is the first thing to check.
 Failing that, the question is whether a registry can hold a coupling whose places are all far
-sides, which is a change to `crosscheck.py`'s stated subject and wants an ADR rather than a row.
+sides, which is a change to `crosscheck.py`'s stated subject and needs an ADR rather than a row.
 
 ## Trail
 
@@ -52,7 +52,7 @@ sides, which is a change to `crosscheck.py`'s stated subject and wants an ADR ra
   variable in an operator's shell move the fixture. **One of the five spellings was dead**:
   `mail_home` is only ever the fallback for a userdb that answers with no home, and this one always
   does, so misspelling it alone changed nothing and it is removed rather than carried forward.
-  **The silent half is now loud**: the entrypoint checks that the mail root really is a tmpfs
+  **The failure that reported nothing now reports**: the entrypoint checks that the mail root really is a tmpfs
   before it builds anything, which also covers what the image does with that path, since it
   declares a volume there and docker fills an unmounted one with an anonymous volume that outlives
   the container. Six planted mutations over the probe's live suite, tabled in the one-mail-root

@@ -16,12 +16,12 @@ The third was found by the mutation table rather than designed for: tonic emits 
 banner **twice**, once into the client module and once into the server, so rewording one of the
 two copies in the stub leaves the other answering for it and the gate stays green. A comment
 present anywhere in the stub satisfies the rule, because the rule is containment rather than
-correspondence, and teaching it which copy belongs to which declaration means teaching it the
-stub's structure, which is most of the way to parsing generated Rust.
+correspondence, and making it decide which copy belongs to which declaration means giving it a
+model of the stub's structure, which is most of the way to parsing generated Rust.
 
 The first is **the other direction**. A comment deleted from the proto but still present in the
 stub passes, because every comment the proto now carries is still found. That is a stale stub
-too, and it is the same defect wearing the opposite sign. It was left because the reverse
+too, and it is the same defect with the opposite sign. It was left because the reverse
 comparison is not symmetric to write: the stub carries doc comments `prost` synthesizes rather
 than copies, `Nested message and enum types in ...` among them, so a naive reverse check has
 false positives that need their own list of exceptions, and a list of exceptions is a place for
@@ -30,7 +30,7 @@ a real staleness to hide.
 The second is **the Python stubs, which nothing holds at all**. They carry no comments, so this
 gate has nothing to compare, and the measurement behind the close showed why that is tolerable
 rather than fine: regenerating them is free, reproduces byte for byte, and sees only structural
-drift, which mostly fails loudly on its own. Mostly is not always. A message or field added to
+drift, which mostly fails on its own. Mostly is not always. A message or field added to
 the proto and never regenerated is invisible until somebody writes code against it, and the
 error it then produces names the missing attribute rather than the skipped regeneration.
 
@@ -41,7 +41,7 @@ realistic failure a proto edit with no regeneration at all, and that is exactly 
 gate catches.
 
 **What would close it.** For the doubled banner: decide whether counting occurrences is worth it,
-which means the gate would have to know how many copies of a given comment to expect and that
+which means the gate would need an expected number of copies for a given comment, and that
 number comes from the stub's own shape. For the direction: decide whether a reverse comparison
 with a named, argued list of `prost` synthesized comments is better than no reverse comparison,
 and be honest that the list is the risk. For the Python stubs: the regenerate-and-diff inside
@@ -54,7 +54,7 @@ Measure how long that run takes before arguing either way.
 
 - **2026-08-25, closed.** All three gaps settled, one closed and two declined, argued in the
   ADR-0003 addendum on counted copies. **The entry was wrong about the first one's cost**: it
-  said teaching the gate how many copies to expect means teaching it the stub's structure, and
+  said giving the gate a count of copies to expect means giving it a model of the stub's structure, and
   the number turned out to come from the **proto's** shape, which the reader already walks. A
   comment inside a `service` block, or in the unbroken run directly above the `service` line, is
   owed two copies; every other comment is owed one; the rule moved from set containment to a tally
@@ -66,7 +66,7 @@ Measure how long that run takes before arguing either way.
   list for prost-synthesized comments is a permanent hiding place, bought against a dead paragraph
   in generated code nobody hand-edits. The Python regenerate-and-diff is declined again, now with
   the timing the entry asked for: 0.08s, so cost was never the argument, and what it buys is drift
-  a compiler and pyright already make loud. **Nineteen mutations over the gate against the real
+  a compiler and pyright already report. **Nineteen mutations over the gate against the real
   proto and the real stub, all as designed, and twelve mutants over the gate's own 67 tests, all
   killed**, both tabled in that addendum. Row 07, the doubled banner, was green before this and
-  reddens now.
+  fails now.

@@ -34,25 +34,25 @@ barrel's future rather than a hunt for headroom.
 **Landed 2026-08-06, the same night, as the third option in the form its objection missed
 ([ADR-0026 barrel addendum](../../adr/ADR-0026-prose-style-gates.md)).** The decision this entry
 said was owed was taken rather than deferred again, and the criterion was the one the two
-bruises had established: whichever option left call sites alone. That ruled out the first two.
-A sub-barrel per area only relocates the wall unless consumers import from the sub-barrel, and
-the test doubles leaving the barrel is a real responsibility split whose bill is 155 files
+earlier attempts had established: whichever option left call sites alone. That ruled out the first two.
+A sub-barrel per area only moves the problem unless consumers import from the sub-barrel, and
+the test doubles leaving the barrel is a real responsibility split whose cost is 155 files
 (measured, `from cortex_core import` across the brain workspace), spent entirely on import
 lines. The third option, `__all__` over star imports, is the only one that moves nothing, and
 the entry had recorded it as blocked by ruff's F403. It is not: `cortex_core/_surface/` now
 holds eight area modules (`ports`, `turn`, `tools`, `subagents`, `memory`, `schedule`,
 `residency`, `fakes`), each importing its area's names from their defining modules and
 declaring them in its own `__all__`, and `cortex_core/__init__.py` re-exports all eight
-wholesale behind one `per-file-ignores` line naming the file and the reason. Pyright had the
-second objection, `reportWildcardImportFromLibrary`, which fires because the package resolves
+wholesale behind one `per-file-ignores` line naming the file and the reason. The second objection came from pyright,
+`reportWildcardImportFromLibrary`, which fires because the package resolves
 through its own editable install and which a relative import inside the source tree does not
 trip, so the barrel is the one relatively-importing file in the brain and needs no suppression.
 **The numbers:** 300 lines to 18, 290 public names to 294, and the largest sub-barrel at 151.
 `PLAIN_SECURITY_PREAMBLE` is back on the public surface with `HistoryRecap`, `RECAP_MAX` and
-`SummarizingHistoryWindow`, which is the whole of the inconsistency the two bruised slices left;
+`SummarizingHistoryWindow`, which is the whole of the inconsistency the two earlier slices left;
 the two production call sites that had imported them from their defining modules with a comment
 citing this entry now import them from the barrel like everything else, so the tree is back to
-one import style. **Honest about the headroom:** it is not unlimited, it is per area, and the
+one import style. **Honest about the headroom:** it is per area rather than unlimited, and the
 areas are uneven. `ports` at 151 lines has room for about 130 more names and `subagents` at 34
 has room for about 250, but a name lands in the area it belongs to rather than the area with
 space, so a run of port additions is the case that reaches a cap first. What is different is

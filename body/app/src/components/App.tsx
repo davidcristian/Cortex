@@ -32,10 +32,10 @@ export function App({ bridge, newSessionId }: AppProps) {
     applyTheme(theme, document.documentElement);
   }, [theme]);
 
-  // The host (the Tauri global hotkey) summons the overlay via a window event. An activation
-  // that arrived before this listener existed is waiting as a pending request, so a hotkey press
-  // during a cold start (and the browser build's self-summon on load, which loses the race every
-  // time) still opens the overlay instead of being dropped. Both paths consume the request.
+  // The host (the Tauri global hotkey) summons the overlay through a window event. An activation
+  // that arrived before this listener existed is held as a pending request, so a hotkey press
+  // during a cold start, and the browser build's self-summon on load, which always arrives first,
+  // still open the overlay instead of being dropped. Both paths consume the request.
   useEffect(() => {
     const summon = () => {
       takePendingActivation();
@@ -48,14 +48,14 @@ export function App({ bridge, newSessionId }: AppProps) {
     return () => window.removeEventListener(ACTIVATE_EVENT, summon);
   }, [controller.open]);
 
-  // The header's quick flip names the opposite theme outright, so it always lands somewhere
-  // definite; going back to "follow the system" belongs to the console's appearance tab (it can
-  // express the `null` the toggle cannot).
+  // The header's toggle names the opposite theme outright, so it always lands on a specific theme.
+  // Going back to "follow the system" belongs to the console's appearance tab, which is the only
+  // place that can set the `null` the toggle cannot express.
   const toggleTheme = () => setTheme(theme.scheme === "dark" ? "daylight" : "midnight");
 
-  // Click-away dismisses (design/overlay-ux.md §4): a press on the bare stage around the open
-  // panel is the same gesture as Esc. Presses inside the panel (or on the orb/preview, which
-  // own their click) bubble up with a different target and pass through.
+  // Click-away dismisses (design/overlay-ux.md §4): a press on the bare stage around the open panel
+  // does what Esc does. Presses inside the panel, or on the orb and preview, which handle their own
+  // clicks, arrive here with a different target and pass through.
   const onStageMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget && controller.state.mode === "panel") {
       controller.dismiss();

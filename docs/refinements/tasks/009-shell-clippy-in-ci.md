@@ -10,7 +10,7 @@ the Linux GTK/webkit/dbus dev packages (`apt-get install` on a runner; on this s
 an unpacked `libdbus-1-dev` in a userspace prefix plus a `pkg-config` shim) and a cold Tauri build
 with webkit. That build cost is why it is not folded into `check-body`, which every `body/` change
 runs. It is the one half of this entry that still lets a shell clippy finding accumulate
-unseen (two `collapsible_if` did, in `confirm.rs`, before 2026-07-16). The toolchain-linked
+unreported (two `collapsible_if` did, in `confirm.rs`, before 2026-07-16). The toolchain-linked
 full build of either tree stays host-side, as ADR-0011 already notes.
 
 **Reclassified 2026-07-16 to fix-when-it-bites, read against what CI installs and measured.**
@@ -26,22 +26,22 @@ recursive apt closure (measured with `apt-cache depends --recurse`), an uncachea
 packages), on top of a cold compile of the roughly 150-crate Tauri Rust graph (`wry`,
 `webkit2gtk-sys`, the gtk-rs `-sys` crates, `tauri`). That whole cost lands on `check-body`,
 which every `body/` change runs, to catch the occasional style lint on 881 lines (11 files) of
-host-validated thin wiring. Disproportionate at personal, local-first scale, and the user
+host-validated thin wiring. That is disproportionate at personal, local-first scale, and the user
 already catches shell clippy on the validation host (that is where the two `collapsible_if`
 were fixed). It moves to fix-when-it-bites with its trigger: **CI gaining the Tauri desktop
 stack for another reason** (a future CI-side Tauri build or smoke job), which drops the
 marginal cost of shell clippy to near zero and lets it ride along; failing that, shell findings
 accumulating faster than the user's local checks catch them, or the shell outgrowing the thin
-wiring the coverage-creep guard already watches. This is a sharpened deferral, still open, so
-the count is unchanged (the same bookkeeping the seam-transport and session-history sharpens
-used), not a decline; the check itself is real, it is only too costly here.
+wiring the coverage-creep guard already watches. This is a sharpened deferral rather than a decline, still
+open, so the count is unchanged (the same bookkeeping the seam-transport and session-history
+sharpens used); the check itself is real and only too costly here.
 **Confirmed clippy-clean now.** This host has neither `pkg-config` nor the webkit-dev stack
 (only the `libgtk-3` runtime, no `-dev`, and no sudo), so a permissive `pkg-config` shim stood
 in for it: the `-sys` build scripts consume only link flags, which clippy discards because it
 never links, so a shim that answers every query and version check lets the whole Tauri graph
 type-check. Under it `cargo clippy --all-targets -- -D warnings` on the shell exits 0, and a
 planted `useless_format` makes that exact command exit 101, so the declined check is real
-rather than vacuously green. The heavier note is that assembling even a shim for a one-off
+rather than passing over nothing. The heavier note is that assembling even a shim for a one-off
 local check mirrors the CI cost: the stack this host lacks is exactly the stack a CI runner
 would have to install on every shell change.
 
@@ -84,19 +84,19 @@ on a `body/app/src-tauri/` edit and on nothing else, and the arithmetic the decl
 stops applying. The numbers this entry carried were also too big: the real `-dev` closure is
 **103 packages, 39.6 MB, about 4 s to fetch** from five roots, the 630 being an unfiltered
 `apt-cache depends --recurse` walk, and the whole Tauri graph clippies from an **empty target
-directory in 30.9 s wall**. About a minute, once, on the change that could have broken it.
+directory in 30.9 s wall**. That is about a minute, once, on the change that could have broken it.
 `just check` deliberately does NOT run `check-shell`, since it is the only check needing system
 libraries and requiring them would make the single gate unrunnable on a clean checkout; that
 divergence, the first in this repo, is argued at the origin. A planted `useless_format` makes
 `just check-shell` exit 101, and routing the shell subtree back to plain rust fails the
-classifier suite, so neither half is trusted green untested. What did not land with it is the
+classifier suite, so neither half is trusted without being tested. What did not land with it is the
 verification asymmetry the split creates, filed as
 [300](300-shell-job-never-ran-on-a-runner.md).
 
 ## Trail
 
 - 2026-07-16: Recorded as the residual of the fmt-and-clippy landing and listed as actionable, the
-  shell's clippy being the one half that still lets a finding accumulate unseen.
+  shell's clippy being the one half that still lets a finding accumulate unreported.
 - 2026-07-16: Reclassified to fix-when-it-bites the same day, with the count unchanged, once
   reading what the rust CI job provisions (no system library at all) settled it against wiring: a
   630-package Tauri webkit-dev apt closure, uncacheable per job, plus a cold roughly 150-crate

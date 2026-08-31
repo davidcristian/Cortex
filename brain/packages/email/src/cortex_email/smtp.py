@@ -1,14 +1,14 @@
 """SmtpSender: the send twin of ImapMailbox, over ProtonMail Bridge SMTP (ADR-0022).
 
 One message per call, connecting per call (the sidecar holds no SMTP state, matching the
-`ImapMailbox` discipline). The sender authenticates as the Bridge user and sends **as that
-user**: `From` is the authenticated address, never a parameter, so the tool cannot spoof a
-sender. The `EmailDraft` (to/subject/body plus optional cc/bcc and an html alternative) is
-exactly what the user approves brain-side (ADR-0022 puts the gate and confirmation in the
-brain's dispatcher, not here); cc/bcc get the same CR/LF header-injection refusal as the
-recipient, and a Bcc rides the envelope but is stripped from the transmitted message by
-`send_message`. Real network I/O lives only in `send`; CI covers the composition and TLS
-selection over a fake smtplib, and the live round-trip is `test_email_live.py`.
+`ImapMailbox` discipline). The sender authenticates as the Bridge user and sends as that user:
+`From` is the authenticated address, never a parameter, so the tool cannot spoof a sender. The
+`EmailDraft` (to/subject/body plus optional cc/bcc and an html alternative) is exactly what the
+user approves brain-side (ADR-0022 puts the gate and confirmation in the brain's dispatcher, not
+here); cc/bcc get the same CR/LF header-injection check as the recipient, and a Bcc travels in the
+envelope but is stripped from the transmitted message by `send_message`. Real network I/O lives
+only in `send`; CI covers the composition and TLS selection over a fake smtplib, and the live
+round-trip is `test_email_live.py`.
 """
 
 import re
@@ -39,7 +39,7 @@ def _reject_header_injection(field: str, value: str) -> None:
 
 
 def _reject_bad_attachments(attachments: tuple[EmailAttachment, ...]) -> None:
-    """Raise unless every attachment is nameable, typeable, and within the send's bounds."""
+    """Raise unless every attachment has a usable filename and subtype and fits the bounds."""
     if len(attachments) > MAX_ATTACHMENTS:
         msg = f"a message may carry at most {MAX_ATTACHMENTS} attachments"
         raise ValueError(msg)

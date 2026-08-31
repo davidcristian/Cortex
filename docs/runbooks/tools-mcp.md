@@ -39,7 +39,8 @@ pays one session open to advertise its tools before the first token, plus one pe
 itself is cheap, 17.8 ms against a control server on the FastMCP transport the email sidecar
 serves, which is the transport's floor: what the client and the protocol cost when nothing happens
 server-side on connect. What is not cheap is what a sidecar *does* when a session opens, and the
-bridge in front of the reference filesystem server used to do the worst possible thing.
+bridge in front of the reference filesystem server used to spawn a whole server process per
+request and never reap it.
 
 | filesystem sidecar configuration | one open | `describe_tools` | one `invoke` |
 | --- | --- | --- | --- |
@@ -53,7 +54,7 @@ JSON-RPC request**, and `npx` spent about 420 ms of each spawn re-resolving the 
 children: a few hundred tool calls left **1452 live server processes holding 20.5 GiB**. Under
 `--stateful` one child serves one MCP session and dies when the client ends it, so the same run
 leaves one process and 110 MiB, and `--sessionTimeout 60000` reaps a session abandoned without
-that goodbye (verified: eight abandoned children, all gone after the idle window). Concurrency is
+that clean end (verified: eight abandoned children, all gone after the idle window). Concurrency is
 the thing `--stateful` could plausibly have broken, since sessions now share a map on the bridge,
 so it was checked: sixteen concurrent fresh-session `read_text_file` calls returned in 511 ms with
 no errors, no crossed content, and no child left behind.
@@ -69,7 +70,7 @@ cd brain && CORTEX_TOOLS_ENDPOINT=http://127.0.0.1:9000/mcp \
   uv run pytest -m integration --no-cov packages/tools
 ```
 
-`--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run. This
+`--no-cov` matters, since the 100% gate in the workspace addopts would otherwise fail the run. This
 opens a real streamable-http MCP session, lists the server's tools, and reads a file through
 `McpToolRegistry`. CI's fake session cannot prove that behavior. The same file's second case needs
 no sidecar at all: it stands up a listener that accepts the connection and answers nothing, and
@@ -111,7 +112,7 @@ delegate's work out of a batch. A schedule fire carries the chat that scheduled 
 `item_id` of the item that fired, and no
 turn, because nothing conversational is waiting on it.
 
-**None of the four wears a prefix**, so grep a field name with an id you already have rather than
+**None of the four carries a prefix**, so grep a field name with an id you already have rather than
 a shape you half remember (ADR-0009 bare-id addendum). The brain mints a turn, a task and an item
 as a bare `uuid4` and the overlay mints a chat as a bare `crypto.randomUUID`; the `t-` and `s-`
 ids you will meet reading the test suite are its fixtures and no running brain has ever written
@@ -191,7 +192,7 @@ separately. So one wedged sidecar costs a delegated dispatch **three** bounds wi
 configured and **seven** with two, and `CORTEX_TOOLS_CALL_TIMEOUT_S=700` under a 900 s run reads
 as ordered and is not.
 
-The brain therefore **refuses to start** when that product is not strictly under
+The brain therefore **fails to start** when that product is not strictly under
 `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` and both capabilities are on, naming both knobs, both values, the
 multiple and the product (ADR-0009 ordering addendum). Lower the call bound or raise the run bound;
 the shipped pair already clears by a factor of thirteen with one sidecar and five with two. With

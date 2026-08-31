@@ -86,7 +86,7 @@ SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL
 
 
 class TickingClock:
-    """Advances one second per reading: monotone, deterministic, and free."""
+    """A clock that advances one second per reading, monotone and deterministic, with no wait."""
 
     def __init__(self) -> None:
         self._ticks = 0
@@ -108,7 +108,7 @@ class Gate:
         await self.release.wait()
 
     async def arrived(self) -> None:
-        """Wait for the boundary to be reached; a bound, so a miss fails instead of hanging."""
+        """Wait for the boundary, under a timeout so a miss fails the test instead of hanging."""
         async with asyncio.timeout(5.0):
             await self.reached.wait()
 
@@ -188,9 +188,9 @@ class RecordingHandoffStore(InMemoryHandoffStore):
     ) -> bool:
         """As the in-memory twin, except that ``fail_settle`` refuses that state exactly once.
 
-        One transient hiccup on the write that ends a handoff, which is the failure that used to
-        strand the store's active pointer: the settling state never lands, so nothing releases
-        the claim the READY write took.
+        That is one transient failure on the write which ends a handoff, and it used to strand the
+        store's active pointer: the settling state never lands, so nothing releases the claim the
+        READY write took.
         """
         if state is self._fail_settle:
             self._fail_settle = None
@@ -227,10 +227,10 @@ class ScriptedBrainBackend:
     that this generator was actually finalized, so a test can tell a stream that was torn down
     deterministically from one abandoned to the garbage collector.
 
-    ``cadences`` is the world-condition the spill watch reads: one entry per round, ``None`` for a
-    round whose server reported no timings, the last entry repeating for any further round. Empty
-    (the default) is a backend whose engine reports nothing at all, which is what every test
-    written before the cadence arm expects and gets.
+    ``cadences`` supplies the timings the spill watch reads: one entry per round, ``None`` for a
+    round whose server reported no timings, and the last entry repeating for any further round.
+    The default, an empty sequence, is a backend whose engine reports no timings at all, which is
+    what every test written before the cadence arm expects.
     """
 
     def __init__(
@@ -304,7 +304,7 @@ def request() -> PlacementRequest:
 # there is a deep tier to load at all and refuses instead of draining when there is not (ADR-0030
 # unrostered-refusal addendum). Every "nothing was evicted" assertion is written against this
 # rather than against an empty log, so a `stop` or a `start` creeping in ahead of the drain still
-# reddens the case that forbids it.
+# fails the case that forbids it.
 PREFLIGHT_CALLS = [("status", "brain")]
 
 
@@ -487,14 +487,15 @@ async def run_handoff(
 
 
 def assert_the_window_announced_real_progress(live: Harness) -> None:
-    """Every swap-window status, checked against the work IT announces (ADR-0030 decision 6).
+    """Every swap-window status, checked against the work it announces (ADR-0030 decision 6).
 
     The order among the four details is the weaker half and it is asserted first: a handoff that
-    stopped early says less, never something else. The half that matters is below it, because
-    four strings in the right order relative to each other are satisfied by four strings emitted
-    at any four moments, and three of them assert facts about the GPU that only a witness taken
-    at the yield can check. So each status is pinned to the state of the machine when it
-    crossed: announced work must not have happened yet, and claimed work must already have.
+    stopped early emits a prefix of the four, never a different string. The stronger half follows,
+    because four strings in the right order relative to each other are satisfied by four strings
+    emitted at any four moments, and three of them assert facts about the GPU that only a witness
+    taken at the yield can check. Each status is therefore checked against the state of the
+    machine when it crossed: announced work must not have happened yet, and claimed work must
+    already have.
 
     Reads ``live.statuses``, which is one handoff's window (every caller asserts a handoff before
     running another on the same harness).
@@ -526,11 +527,11 @@ def _loading_was_true(live: Harness, seen: StatusWitness) -> None:
 
 
 def _working_was_true(live: Harness, seen: StatusWitness) -> None:
-    """ "The deep model is working on this": the one claim about the GPU, so witnessed hardest."""
+    """ "The deep model is working on this": the one status claiming the GPU already moved."""
     assert ("start", live.residency.brain_model) in seen.host_ops
     assert ("status", live.residency.brain_model) in seen.host_ops  # it health-gated, too
     assert seen.record_states[-1] is HandoffState.BRAIN_ACTIVE
-    assert seen.deep_calls == 0  # about to work; a claim of work already done would be a lie
+    assert seen.deep_calls == 0  # about to work; a round already run would make the status wrong
 
 
 def _restoring_was_true(live: Harness, seen: StatusWitness) -> None:

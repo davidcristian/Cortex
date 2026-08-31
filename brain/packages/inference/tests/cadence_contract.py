@@ -11,8 +11,8 @@ are. On the **adapter** leg the answer is derived: the transcript is a real llam
 including its ``timings`` object copied from a live run, and passing means the parser found the
 rate in bytes nobody shaped for it. On the **scripted** leg the events the fixture handed the twin
 come back verbatim, and what those cases pin is that the twin honours the world-condition it was
-given. That is what a fake owes a contract, and it is exactly why the real adapter is driven
-through the same checks rather than through its own.
+given. That is all a fake can be held to, which is why the real adapter is driven through these
+same checks rather than through its own.
 
 The world-condition no verb can create is whether the engine behind a backend reports how fast it
 decoded, so each implementation supplies it as ``BackendUnderTest.streaming(cadence=...)``: a
@@ -80,7 +80,7 @@ async def check_silence_is_a_legal_answer(subject: BackendUnderTest) -> None:
     """A backend whose engine reports no timings emits no cadence, and nothing else changes.
 
     The port permits this, so a consumer may never read the absence of a cadence as a healthy
-    rate; this check is what keeps that permission real rather than a sentence in a docstring.
+    rate, and this check holds every implementation to that permission.
     """
     events = await _events(subject.without_timings())
     assert not [event for event in events if isinstance(event, DecodeCadence)]

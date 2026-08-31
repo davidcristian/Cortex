@@ -15,7 +15,7 @@ def _line(record: logging.LogRecord) -> str:
     """The line an operator reads: the message, then the fields the entry's formatter renders.
 
     The sink used to serialize its own JSON copy into the message because the shipped handler
-    printed nothing else. It no longer does, so what the trail is worth is now a property of the
+    printed nothing else. It no longer does, so what the trail carries is now a property of the
     formatter, and these assertions are made against the rendered line rather than the record.
     """
     return PlainFormatter().format(record)
@@ -38,7 +38,7 @@ async def test_successful_invocation_logs_size_not_content(
         {"path": "/etc/hosts"},
     )
     assert fields["result_chars"] == 100
-    assert fields["trust"] == "untrusted"  # the ADR-0013 provenance rides the durable trail
+    assert fields["trust"] == "untrusted"  # the ADR-0013 provenance is on the durable trail
     assert "error" not in fields  # success never logs the (large/sensitive) content
     # The whole line, exactly: name order makes it deterministic, so this pins what an operator
     # sees rather than only what was attached.
@@ -82,9 +82,10 @@ async def test_trusted_invocation_logs_its_trust_stamp(
 async def test_the_line_names_the_work_the_call_was_made_for(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The join an operator makes (ADR-0009 named-work addendum), under the names it is made by.
+    """The three work ids reach the line under the field names an operator greps by (ADR-0009
+    named-work addendum).
 
-    The three ids are printed under exactly the field names the rest of this repo's log lines
+    They are printed under exactly the field names the rest of this repo's log lines
     spell them with, so grepping a failed turn's `turn_id` reaches the tool calls that preceded
     it and a delegated call names both its task and the turn that spawned it.
     """
@@ -112,8 +113,10 @@ async def test_the_line_names_the_work_the_call_was_made_for(
 async def test_an_unattributed_call_leaves_the_ids_off_the_line(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Absence, not an empty value: the ticker's own dispatch has no chat, turn or task, and
-    a printed `turn_id=` would read as a value that went missing rather than as no such thing.
+    """An id the call does not have is left off the line rather than printed empty.
+
+    The ticker's own dispatch has no chat, turn or task, and a printed `turn_id=` would read as a
+    value that went missing rather than as an id that never existed.
     """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
@@ -136,8 +139,8 @@ async def test_an_unattributed_call_leaves_the_ids_off_the_line(
 async def test_a_turnless_caller_still_names_the_chat_it_fired_for(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The schedule ticker's shape: a fired item has the chat that scheduled it and no turn,
-    so the line carries the one it has and stays silent about the one it does not.
+    """A fired schedule item has the chat that scheduled it and no turn, so the line carries the
+    session id and leaves the turn id off.
     """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
@@ -158,8 +161,8 @@ async def test_a_turnless_caller_still_names_the_chat_it_fired_for(
 
 
 async def test_the_line_names_the_call_it_records(caplog: pytest.LogCaptureFixture) -> None:
-    """Which dispatch this line is (ADR-0009 named-call addendum), under the name the result
-    and its `Role.TOOL` message are keyed by, so a turn's lines stop being interchangeable.
+    """The line carries the call id (ADR-0009 named-call addendum), the same key the result and
+    its `Role.TOOL` message use, so a turn's lines can be told apart.
     """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
@@ -179,9 +182,9 @@ async def test_the_line_names_the_call_it_records(caplog: pytest.LogCaptureFixtu
 async def test_a_fired_item_is_named_beside_the_call_that_fired_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The ticker's line: the item is its own field, off the stamp, and the call id that spells
-    the same item is beside it, because one of the two is a string the brain minted and the
-    other is only a string that happens to look like one.
+    """The ticker's line carries the item id as its own field, taken from the dispatch stamp,
+    beside the call id that spells the same item. The brain minted the first, while the second is
+    only a string that happens to look like it.
     """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
@@ -207,9 +210,9 @@ async def test_a_fired_item_is_named_beside_the_call_that_fired_it(
 async def test_a_model_authored_id_spelling_the_ticker_prefix_names_no_item(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The counterfeit the `schedule-` prefix invites, and why the item is not read out of it.
+    """A model-authored call id spelling the `schedule-` prefix puts no `item_id` on the line.
 
-    A model can emit any call id it likes, this one included, and the line prints it as asked.
+    A model can emit any call id it likes, this one included, and the line prints it as given.
     What it cannot do is put `item_id` on the line, because that comes off the dispatch stamp
     the dispatcher overwrote. So the trail's statement that an item fired stays the brain's.
     """
@@ -232,7 +235,7 @@ async def test_a_model_authored_id_spelling_the_ticker_prefix_names_no_item(
 
 
 async def test_a_hostile_id_cannot_forge_a_second_line(caplog: pytest.LogCaptureFixture) -> None:
-    """The newline attack: an id built to end the line and open a plausible next one.
+    """An id built to end the line and open a plausible next one stays inside one value.
 
     The formatter quotes any rendering carrying whitespace, and quoting is `json.dumps`, so the
     newline arrives escaped and the forgery lands inside one value. One record, one line.
@@ -252,11 +255,11 @@ async def test_a_hostile_id_cannot_forge_a_second_line(caplog: pytest.LogCapture
 async def test_a_hostile_id_cannot_counterfeit_another_field(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The quote attack: an id built to close its own value and open a field of its own.
+    """An id built to close its own value and open a field of its own stays inside one field.
 
     The quote is what forces quoting, so it comes back escaped and the whole forgery stays one
-    field. The genuine `turn_id` is still the only one the line's own structure carries, which
-    is the claim: a model chooses what is inside a value, never what the fields are.
+    field. The genuine `turn_id` is still the only one the line's own structure carries: a model
+    chooses what is inside a value, never what the fields are.
     """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
@@ -299,11 +302,11 @@ async def test_a_hostile_id_cannot_write_control_characters_into_the_stream(
 async def test_an_over_long_id_is_cut_at_the_same_bound_every_value_is(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A megabyte of id costs the line what any other value would: `VALUE_CHARS` and a marker.
+    """A very long id is cut to `VALUE_CHARS` and marked, the same bound every other value takes.
 
-    An id with no whitespace would otherwise render bare, so this also pins that the bound is
-    what forfeits bare rendering: the cut value is quoted, and the marker cannot be mistaken
-    for text the id carried.
+    An id with no whitespace would otherwise render unquoted, so this also pins that the cut is
+    what forces quoting: the cut value is quoted, and the marker cannot be mistaken for text the
+    id carried.
     """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(

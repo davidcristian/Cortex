@@ -6,8 +6,8 @@ call, and that one under the `BoundedToolRegistry` the composition root wraps it
 arms run over a serving `McpSession` that answers real ``mcp`` result types, so
 only the socket is missing: the adapter's spec mapping, argument passing, text rendering,
 ``is_error`` reading and failure wrapping are all exercised by the same six checks the fake
-passes. A stand-in server is the honest stand-in here rather than a measured fake, because the
-adapter's whole job is the translation between the two shapes.
+passes. A stand-in server is the right fake here, because the adapter's whole job is translating
+between the two shapes.
 
 The live half against a real filesystem MCP server is `test_registry_live.py`, integration-marked
 per AGENTS.md gate 3.
@@ -40,10 +40,10 @@ type Build = Callable[[], RegistryUnderTest]
 class ServingSession:
     """An `McpSession` standing in for a running MCP server, tools and all.
 
-    It answers what a real server answers, which is the point: an unknown tool comes back as an
-    error *result* (the SDK's own shape for it) rather than as a raise, and a broken server fails
-    both verbs at the transport, `McpError` on the listing and `OSError` on the call, so the
-    adapter's two wrapping sites are both walked.
+    It answers what a real server answers: an unknown tool comes back as an error result, which is
+    the SDK's own shape for it, rather than as a raise. A broken server fails both verbs at the
+    transport, `McpError` on the listing and `OSError` on the call, so both of the adapter's
+    wrapping sites are walked.
     """
 
     def __init__(self) -> None:
@@ -90,7 +90,8 @@ class ServingSession:
 
 
 def _handler(tool: ServedTool) -> Callable[[Mapping[str, Any]], Any]:
-    """The fake's handler for one served tool: its text, or a whole result when it failed."""
+    """Return the fake's handler for one served tool: its text, or a whole result when the tool
+    is marked failed."""
 
     async def handle(arguments: Mapping[str, Any]) -> str | ToolResult:
         rendered = tool.reply(arguments)
@@ -129,12 +130,13 @@ def _over_session(*, reconnecting: bool) -> RegistryUnderTest:
 
 
 def _bounded() -> RegistryUnderTest:
-    """The stack production wires: the per-call opener under the bound the root gives it.
+    """The stack production wires: the per-call opener under the bound the composition root gives
+    it.
 
-    The bound is generous rather than short, because what this arm asserts is that every one of
-    the six checks still holds *through* it: a wrapper that swallowed an unknown name, dropped a
-    spec's schema or relabelled a failed tool would be invisible in the bound's own tests, which
-    never let a call succeed. The overrun the bound exists for has its own suite in the core.
+    The bound is generous rather than short, because this arm asserts that all six checks still
+    hold through it. A wrapper that swallowed an unknown name, dropped a spec's schema or
+    relabelled a failed tool would be invisible in the bound's own tests, which never let a call
+    succeed. The overrun the bound exists for has its own suite in the core.
     """
     under_test = _over_session(reconnecting=True)
     return replace(under_test, registry=BoundedToolRegistry(under_test.registry))

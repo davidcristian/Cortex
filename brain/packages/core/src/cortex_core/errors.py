@@ -18,8 +18,8 @@ class InferenceError(Exception):
 class MalformedToolCallError(InferenceError):
     """The server answered and the tool call the model wrote could not be assembled.
 
-    The port's one narrower inference failure, and the distinction is between **a backend that
-    did not answer** and **a model whose own output will not parse** (ADR-0005 tool-call-cut
+    The port's one narrower inference failure, and the distinction is between a backend that did
+    not answer and a model whose own output will not parse (ADR-0005 tool-call-cut
     addendum). Every other ``InferenceError`` says the endpoint could not be reached, stalled,
     refused the request, or broke the streaming protocol, and every one of those is worth trying
     on another target: a second server may well answer. This one says the stream arrived and the
@@ -56,8 +56,9 @@ class MemoryDataError(MemoryStoreError):
     which heals when somebody changes the data or the schema and never before, so a turn that
     degraded around it would answer thinly for ever and call it an outage.
 
-    That heal test is the whole line: infrastructure degrades because the degradation ends, and a
-    data defect propagates because nothing about it ends. ``_recalled_context`` therefore names
+    Whether the failure heals on its own is what decides the handling: an infrastructure failure
+    is degraded around because it ends, and a data defect propagates because it does not.
+    ``_recalled_context`` therefore names
     this type ahead of the degrading catch and re-raises it, while ``record_exchange`` does not,
     its argument never having been about which failure it was (nothing there can be saved by
     failing, the reply having already streamed).
@@ -82,7 +83,7 @@ class ToolError(Exception):
 
 
 class ToolNotFoundError(ToolError):
-    """invoke() named a tool the registry does not know."""
+    """invoke() named a tool the registry does not hold."""
 
 
 class TaskStoreError(Exception):
@@ -110,18 +111,18 @@ class SubagentAdmissionError(Exception):
     because ``SubagentRunner`` catches exactly this and degrades it to an ``ok=False``
     ``SubagentResult``; catching ``ValueError`` there would swallow unrelated value errors.
     Construction-time validation (a non-positive budget, a non-positive ask) stays ``ValueError``
-    like every other frozen value type's, since that is a bad *value*, not a refused request.
+    like every other frozen value type's, since that is a bad value rather than a refused request.
     """
 
 
 class BodyFailure(Enum):
     """How far a ``BodyGateway`` call got before it failed (ADR-0023 2026-08-08 addendum).
 
-    The port's error currency, and a designed family rather than a transcription of gRPC's code
-    list: the members are ordered by the journey a call takes, from never arriving to arriving
-    and breaking. Three are **absences**, where the thing needed to do the work is not there
+    The port's error currency, and a designed vocabulary rather than a transcription of gRPC's
+    code list: the members are ordered by how far a call got, from never arriving to arriving and
+    breaking. Three are absences, where the thing needed to do the work is not there
     (``UNREACHABLE``, ``UNSUPPORTED``, ``UNREADY``, which the ``un`` prefix marks as a set), and
-    three are **events**, where something happened and it went a particular way (``REFUSED``,
+    three are events, where something happened and it went a particular way (``REFUSED``,
     ``OVERSIZE``, ``FAULTED``).
 
     ``REFUSED`` rather than ``DENIED`` because ``DENIED_MSG`` is already the gated-tool denial,
@@ -160,7 +161,7 @@ class BodyGatewayError(Exception):
     The gRPC adapter wraps its transport failures (a refused dial, a non-OK status) into this,
     cause chained, classifying the status code into a ``kind``; the volume and capture tools
     catch it and return an ``is_error`` result whose wording comes from that kind, so the cortex
-    hears what actually happened and can recover, never a turn-killing crash.
+    is told what happened and can recover rather than the turn crashing.
 
     ``kind`` defaults to ``BodyFailure.FAULTED``: an unclassified failure must never claim the
     body was unreachable, which is the falsehood the kind was added to remove.
@@ -202,11 +203,11 @@ class HandoffInProgressError(ModelManagerError):
     """Another handoff already owns the swap, so this one never started (ADR-0030).
 
     There is one GPU, so there is one handoff. Raised by the residency claim the conductor
-    takes **before** it drains or evicts anything, and by a second scope entry, so the losing
-    caller is refused while the machine is still untouched. Deliberately not a
-    ``SwapFailedError``: the two say opposite things about what is true now. A failed swap
-    leaves the cortex serving and nothing loaded; this one means the deep model IS loaded and
-    is working on somebody else's turn, so the note owed to the user is the other one.
+    takes before it drains or evicts anything, and by a second scope entry, so the losing
+    caller is refused while the machine is still untouched. A separate type from
+    ``SwapFailedError`` because the two say opposite things about what is true now: a failed swap
+    leaves the cortex serving and nothing loaded, while this one means the deep model is loaded
+    and is working on somebody else's turn, so the note owed to the user is the other one.
     """
 
 
@@ -232,8 +233,8 @@ class ModelHostError(Exception):
 class ModelNotHostedError(ModelHostError):
     """The host has no such logical model at all, so no wait and no retry will produce one.
 
-    The port's one narrower failure, and the distinction is between a **fact about the
-    deployment** and a **verdict about the machine** (ADR-0030 unrostered-tier addendum). Every
+    The port's one narrower failure, and the distinction is between a fact about the deployment
+    and a verdict about the machine (ADR-0030 unrostered-tier addendum). Every
     other ``ModelHostError`` says the host could not answer the question, which is a condition
     that heals: the sidecar comes back, the child stops dying, the socket answers again. This one
     says the question has no answer on this host, because the id was never in its roster, which is

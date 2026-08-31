@@ -29,12 +29,12 @@ addendum), measured first and designed second, on an RTX 5090 Laptop reporting 2
 real tiers driven through the shipped sidecar. The paragraph above is wrong in three of its
 numbers and the ADR corrects them there; the ones that matter here are that the cortex costs
 **8448 to 8468 MiB** with its projector at 16K rather than the ~11.3 GB every doc quoted, and the
-deep model **19117 to 19125 MiB**, so the pair wants **29139 MiB against 24463** over a 1552 MiB
+deep model **19117 to 19125 MiB**, so the pair needs **29139 MiB against 24463** over a 1552 MiB
 floor and misses by **4676 MiB**. **That cortex figure is an idle one**, and a controlled
 re-measurement hours later the same day put the tier's peak at 8573 MiB above the floor and
 lowered `CORTEX_VRAM_CORTEX_GB` from 11.3 to 8.6, which this paragraph declined to do and was
 right to decline; the close is at [resource-governance.md](../index.md#resource-governance), where the
-placer's budget lives, and it moves none of the pair arithmetic above. It does not miss loudly. Started with the cortex resident the
+placer's budget lives, and it moves none of the pair arithmetic above. Nothing reports the shortfall. Started with the cortex resident the
 deep tier reported `ready` at 23539 to 23642 MiB with 496 MiB free, because WSL2 pages the
 overcommit to system memory, and the only witness is decode: **14.80 to 17.29 tok/s co-resident
 against 25.07 to 33.28 alone**, with the cortex untouched at 44.68 to 49.47. So `nvidia-smi` alone

@@ -3,8 +3,8 @@
 **Status:** open, actionable
 **Area:** inference
 **Trigger:** any engine bump, since the column is a property of one build's handlers and the whole
-point of the reader is that a handler which learned to gate its reasoning rule on the key would
-break it silently.
+point of the reader is that a handler which started gating its reasoning rule on the key would
+break it with nothing reporting the break.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-30 by the close of

@@ -72,28 +72,30 @@ jobs:
           fi
 
   # The cross-tree scans are repo-wide and exempt from the path filter, so a Rust-only,
-  # overlay-only or docs-only change is still covered. linecap.py caps .py, .rs, .ts and
-  # .tsx everywhere (AGENTS.md gate 1); dashcheck.py bans a dash used as punctuation in
-  # any text file, which is mostly a docs concern and would otherwise never run;
-  # crosscheck.py ties the constants declared once per language, which by construction no
-  # single-toolchain job can see (ADR-0029 cross-language-constant addendum); bindcheck.py
-  # reads docker/'s bind defaults against .gitignore, which belongs to no toolchain either;
-  # defaultcheck.py holds one variable's several compose defaults to one value, which
-  # belongs to no toolchain either and spans the override files a single job never sees;
-  # volumecheck.py holds every volume an image declares to a mount some compose service
-  # makes, reading a recorded answer because this runner has no docker daemon and no
-  # images, which is the whole reason the answer is recorded (ADR-0011 addendum on
-  # evidence out of the gate's reach); stubcheck.py holds the committed Rust seam stub to
-  # the comments proto/body.proto carries, which spans two trees and so belongs to
-  # neither job; samplecheck.py holds every log line a runbook prints to the call site
-  # that writes it, which is a docs tree against a Python one and so belongs to neither
-  # job either; rostercheck.py holds every roster a document keeps to the set it
-  # describes, which is a docs tree against two others and belongs to none of the jobs;
-  # flagcheck.py holds every subagent server the compose tree starts to the flags its
-  # tier requires, deriving that set from the stack's own wiring and argv, which reads
-  # docker/ against scripts/ and a runbook and so belongs to no toolchain either;
-  # and backlogcheck.py holds each backlog index to its task files
-  # (ADR-0039), which is docs-only and so would otherwise never run.
+  # overlay-only or docs-only change is still covered. Each one spans trees that no
+  # single-toolchain job sees:
+  #   linecap.py       caps .py, .rs, .ts and .tsx everywhere (AGENTS.md gate 1).
+  #   dashcheck.py     bans a dash used as punctuation in any text file, mostly a docs
+  #                    concern, so a toolchain job would never run it.
+  #   crosscheck.py    compares constants declared once per language (ADR-0029
+  #                    cross-language-constant addendum).
+  #   bindcheck.py     reads docker/'s bind defaults against .gitignore.
+  #   defaultcheck.py  compares one variable's several compose defaults, spanning the
+  #                    override files a single job never sees.
+  #   volumecheck.py   checks every volume an image declares against a mount some service
+  #                    makes, from a recorded answer, because this runner has no docker
+  #                    daemon and no images (ADR-0011 addendum on evidence out of reach).
+  #   stubcheck.py     compares the committed Rust seam stub with the comments in
+  #                    proto/body.proto, which spans two trees.
+  #   samplecheck.py   compares every runbook log line with the call site that writes it,
+  #                    a docs tree against a Python one.
+  #   rostercheck.py   compares every roster a document keeps with the set it describes,
+  #                    a docs tree against two others.
+  #   flagcheck.py     checks every subagent server the compose tree starts against the
+  #                    flags its tier requires, deriving that set from the stack's own
+  #                    wiring and argv, reading docker/ against scripts/ and a runbook.
+  #   backlogcheck.py  compares each backlog index with its task files (ADR-0039),
+  #                    docs-only, so it would otherwise never run.
   cross-tree:
     runs-on: ubuntu-latest
     steps:

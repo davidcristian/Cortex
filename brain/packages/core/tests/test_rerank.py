@@ -303,7 +303,8 @@ async def test_raw_policy_keys_each_hit_by_the_stores_own_cosine() -> None:
 
 
 def test_only_the_order_dependent_bases_refuse_comparison() -> None:
-    """The family's structure IS the finding: an MMR key was measured against the kept set."""
+    """Only the order-dependent bases are incomparable, because an MMR key is measured against
+    the kept set at the moment the pick was made."""
     comparable = {basis for basis in RankBasis if basis.comparable}
     assert comparable == {RankBasis.ECHO, RankBasis.EMBER, RankBasis.VERDICT, RankBasis.DEMUR}
     assert not RankBasis.SPREAD.comparable
@@ -319,7 +320,8 @@ def test_a_declined_ranking_may_not_carry_hits() -> None:
 
 
 async def test_an_mmr_key_falls_as_the_kept_set_grows() -> None:
-    """Why SPREAD is incomparable: the second pick is scored against a non-empty kept set."""
+    """An MMR key falls as the kept set grows, which is why SPREAD is incomparable: the second
+    pick is scored against a non-empty kept set."""
     top = _hit("top", 0.90, (1.0, 0.0))
     redundant = _hit("redundant", 0.85, (1.0, 0.0))
     ranking = await _rank(_mmr(relevance_weight=0.5), [top, redundant], k=2)
@@ -333,10 +335,11 @@ _SHIPPED_POOL = 5 * 4
 
 
 async def test_the_dropped_set_is_the_pool_minus_what_the_rank_kept() -> None:
-    """The half of "why these?" a pool size cannot answer (ADR-0038 dropped-candidate addendum).
+    """The dropped set is the pool minus what the rank kept (ADR-0038 dropped-candidate
+    addendum).
 
-    A count says how many candidates were passed over; only their ids tell a memory that was never
-    offered from one the rank read and left behind.
+    A count says how many candidates were passed over; only their ids separate a memory that was
+    never offered from one the rank read and left behind.
     """
     pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0)), _hit("c", 0.2, (1.0, 1.0))]
     dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=1))
@@ -348,7 +351,8 @@ async def test_the_dropped_set_is_the_pool_minus_what_the_rank_kept() -> None:
 
 
 async def test_a_dropped_candidate_carries_the_stores_cosine_and_no_rank_key() -> None:
-    """A rank keys what it kept and has no opinion on record about what it passed over."""
+    """A dropped candidate carries the store's cosine and no rank key, because a rank keys only
+    what it kept."""
     pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0))]
     ranking = await _rank(_mmr(relevance_weight=0.5), pool, k=1)
     assert ranking.hits[0].key == pytest.approx(0.45)  # the kept hit's key is not its cosine
@@ -356,14 +360,16 @@ async def test_a_dropped_candidate_carries_the_stores_cosine_and_no_rank_key() -
 
 
 async def test_a_rank_that_kept_nothing_dropped_the_whole_pool() -> None:
-    """A refusal is exactly the recall whose trail most needs to say what was on offer."""
+    """A rank that kept nothing drops the whole pool, which is the recall whose trail most needs
+    to say what was on offer."""
     pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0))]
     declined = Ranking(hits=(), basis=RankBasis.DEMUR)
     assert [candidate.id for candidate in dropped_candidates(pool, declined).carried] == ["a", "b"]
 
 
 async def test_the_bound_cuts_the_tail_of_the_pools_own_order_and_counts_what_it_cut() -> None:
-    """An audit line that grows with the pool is its own defect, so the trail is bounded.
+    """The bound cuts the tail of the pool's own order and counts what it cut, so an audit line
+    cannot grow with the pool.
 
     The store's contract is most-similar first, so cutting the tail keeps the candidates it rated
     highest, and the count is carried so a truncated list is never read as the complete one.
@@ -375,7 +381,7 @@ async def test_the_bound_cuts_the_tail_of_the_pools_own_order_and_counts_what_it
 
 
 async def test_a_shipped_pool_never_reaches_the_bound() -> None:
-    """The sizing argument: the bound bites only past the width a deployment ships with."""
+    """A pool of the width a deployment ships with fits under the bound whole."""
     pool = [_hit(f"m{i}", 1.0 - i / 100, (1.0, 0.0)) for i in range(_SHIPPED_POOL)]
     dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=5))
     assert len(dropped.carried) == _SHIPPED_POOL - 5

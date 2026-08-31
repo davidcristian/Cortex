@@ -1,16 +1,17 @@
 """ResourceBudgetScheduler: a pure soft CPU/RAM admission budget (asyncio, no I/O, see ADR-0012).
 
-Owns policy, not a machine: a two-dimensional soft budget caps the summed ``cpus``/``memory_gb`` of
-admitted subagents. Under GPU-first placement (ADR-0012) this is the CPU-side counterpart to the
-``SubagentPlacer``'s VRAM ledger and ``ModelManager``'s exclusive GPU lease. They are three separate
-resources, composed at the runner (ADR-0010 decision 6). ``admit`` blocks until the request fits
-the remaining budget and releases it on exit; over budget, callers queue (depth-1 delegation means
-no spawn waits on another spawn (ADR-0010), so this cannot deadlock) for at most ``wait_timeout_s``
-seconds, past which the queue is refused rather than joined forever. A charge larger than the whole
-budget can never be admitted, so it raises ``SubagentAdmissionError`` rather than waiting at all:
-the budget's permanent wall. It is soft in the sense that it binds nothing it did not admit (no
-``.wslconfig``/parent cgroup, the user's constraint), yet what it *does* charge is a hard cap,
-because a waiting spawn holds none of the budget. The scheduler also owns the swap-time quiesce
+It owns policy rather than a machine: a two-dimensional soft budget caps the summed
+``cpus``/``memory_gb`` of admitted subagents. Under GPU-first placement (ADR-0012) this is the
+CPU-side counterpart to the ``SubagentPlacer``'s VRAM ledger and ``ModelManager``'s exclusive GPU
+lease. They are three separate resources, composed at the runner (ADR-0010 decision 6). ``admit``
+blocks until the request fits the remaining budget and releases it on exit; over budget, callers
+queue (depth-1 delegation means no spawn waits on another spawn (ADR-0010), so this cannot
+deadlock) for at most ``wait_timeout_s`` seconds, past which the queue is refused rather than
+joined forever. A charge larger than the whole budget can never be admitted, so it raises
+``SubagentAdmissionError`` rather than waiting at all: the budget's permanent wall. It is soft in
+the sense that it binds nothing it did not admit (no ``.wslconfig``/parent cgroup, the user's
+constraint), while what it does charge is a hard cap, because a waiting spawn holds none of the
+budget. The scheduler also owns the swap-time quiesce
 (ADR-0030 decision 4, the ADR-0012 deferral): ``drain`` stops admission for a model handoff and
 waits, bounded, for in-flight admissions to release; ``undrain`` reverses it. Doing no I/O, it is
 a pure reference impl of the ``SubagentScheduler`` port, in the core, fully covered with no real
@@ -42,8 +43,9 @@ ADMISSION_WAIT_MSG = (
     "would join the back of the same queue"
 )
 
-# How long an admit may queue before it is refused rather than waiting forever. Derived, not felt,
-# and it has to clear two different things at once (the addendum above carries the arithmetic).
+# How long an admit may queue before it is refused rather than waiting forever. Derived rather than
+# chosen by feel, and it has to clear two different things at once (the addendum above carries the
+# arithmetic).
 #
 # The first is the worst wait a batch that is working can legitimately produce. One full
 # MAX_SPAWN_BATCH of 8 against the shipped budget admits two at once, and how fast those two free
@@ -62,8 +64,8 @@ ADMISSION_WAIT_MSG = (
 # is 4800 s, above the first figure, so the hold is what binds here and the bound is stated in
 # deadlines: three of them, the two a task can spend plus one of margin, which is also about four
 # times the serial batch wait and covers two full batches queued at once on either placement. A
-# peer therefore never gives up on a run that is still inside the time this deployment granted it,
-# which is the relation `SubagentsConfig` refuses at boot rather than merely stating.
+# peer therefore never stops waiting on a run that is still inside the time this deployment granted
+# it, which is the relation `SubagentsConfig` enforces at boot rather than merely stating.
 #
 # Four places outside this module state the number rather than derive it: the delegation runbook's
 # env paragraph, the two module contracts, and the sibling module's ordering above the deadline it
@@ -97,7 +99,7 @@ class ResourceBudgetScheduler:
         self._wait_timeout_s = wait_timeout_s
         self._cpu_used = 0.0
         self._mem_used_gb = 0.0
-        # In-flight admissions counted as an int: the drain-complete predicate must not trust
+        # In-flight admissions counted as an int: the drain-complete predicate must not depend on
         # float residue (summed float charges can release back to a nonzero epsilon).
         self._in_flight = 0
         self._draining = False
@@ -121,8 +123,8 @@ class ResourceBudgetScheduler:
         admit is refused rather than queued, including a caller already waiting on a full budget
         when the drain begins (``drain`` wakes it so it refuses instead of sleeping through the
         swap). And a wait that outlasts ``wait_timeout_s`` refuses rather than queuing forever
-        (the bounded-admission-wait addendum), which is the one refusal the caller pays for
-        before it hears it, so the bound is sized above both the worst wait the shipped batch cap
+        (the bounded-admission-wait addendum), which is the one refusal the caller waits out
+        before receiving it, so the bound is sized above both the worst wait the shipped batch cap
         was measured producing and the longest one admitted task can hold the room being waited
         for, which is more than one run deadline wherever a placed attempt may be re-run.
 

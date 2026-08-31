@@ -1,8 +1,8 @@
 """Integration: the vision probe against a real ``llama-server``, and what it costs a turn.
 
-The fakes prove the logic; this proves the adapter reads a real server's `/props` and that
-asking per turn is affordable, which is the measurement the whole design rests on. Nothing here
-runs in CI or under the coverage gate (`integration`-marked, AGENTS.md gate 3).
+The fakes cover the logic. This file checks that the adapter reads a real server's `/props` and
+measures what asking once per turn costs, which is the measurement the per-call design rests on.
+Nothing here runs in CI or under the coverage gate (`integration`-marked, AGENTS.md gate 3).
 
 Bring up the GPU stack (`docs/runbooks/llamacpp-gpu.md`) with a projector named in the repo-root
 `.env`, then:
@@ -12,8 +12,8 @@ Bring up the GPU stack (`docs/runbooks/llamacpp-gpu.md`) with a projector named 
 
 Validated 2026-08-06 on the 24 GB card against gemma-4-12B + its projector: the probe answered
 True, and 40 samples cost 1.5 ms at the median idle and 1.7 ms with a generation in flight, worst
-2.5 ms. The half a test cannot stage from here is the projector going away, which needs the model
-host recreated without `CORTEX_MMPROJ_FILE_CORTEX`; that procedure and its result are in
+2.5 ms. The case this file cannot stage is the projector going away, which needs the model host
+recreated without `CORTEX_MMPROJ_FILE_CORTEX`; that procedure and its result are in
 `docs/runbooks/vision.md`.
 """
 
@@ -36,7 +36,8 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.mark.integration
 async def test_the_probe_reads_a_real_servers_modalities() -> None:
-    """Whatever this deployment loaded, the probe and the server agree about it."""
+    """The probe's answer matches what the server's own `/props` reports, whatever this
+    deployment loaded."""
     async with httpx.AsyncClient(timeout=PROBE_TIMEOUT_S) as client:
         probe = PropsVisionProbe(_ENDPOINT or "", client)
         answer = await probe.can_see()
@@ -50,9 +51,9 @@ async def test_the_probe_reads_a_real_servers_modalities() -> None:
 
 @pytest.mark.integration
 async def test_asking_every_turn_costs_a_turn_nothing_measurable() -> None:
-    """The number the per-call design rests on: a probe is noise beside a capture.
+    """Measure one probe call, which is the number the per-call design rests on.
 
-    A screen read blits a display, downscales it and PNG-encodes it; if a `/props` were anywhere
+    A screen read blits a display, downscales it and PNG-encodes it. If a `/props` cost anywhere
     near that, caching would have to come back with all the staleness it carries.
     """
     async with httpx.AsyncClient(timeout=PROBE_TIMEOUT_S) as client:

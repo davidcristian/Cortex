@@ -2,15 +2,15 @@ import type { ConsoleTab } from "../overlay/overlayState";
 import { DownArrowKey, ReturnKey, SlidersIcon, UpArrowKey } from "./icons";
 
 interface HintStripProps {
-  /** Open (or close again) one console tab: each opener here owns its own tab. */
+  /** Open (or close again) one console tab: each button here opens its own tab. */
   readonly onToggleConsole: (tab: ConsoleTab) => void;
 }
 
-/** The row of keyboard affordances under the composer, plus the two doors into the console.
+/** The row of keyboard hints under the composer, plus the two buttons that open the console.
  *
- *  Esc is not listed: the strip is a convenience, it had run out of room once the settings button
- *  joined it, and Esc-to-dismiss is the most guessable of the five. The console's shortcuts tab
- *  still lists every binding, that one being the complete list. */
+ *  Esc is not listed. The strip is a convenience and it had run out of room once the settings
+ *  button joined it, and Esc-to-dismiss is the most guessable of the five. The console's shortcuts
+ *  tab is the complete list and still names every binding. */
 export function HintStrip({ onToggleConsole }: HintStripProps) {
   return (
     <div className="hints">
@@ -20,14 +20,14 @@ export function HintStrip({ onToggleConsole }: HintStripProps) {
         </b>{" "}
         send
       </span>
-      {/* Shift and Return are two caps, not one cap holding two glyphs: every other hint here
-          already separates its keys, and the console's shortcut list separates all of them, so a
-          single cap made this the one place a chord read as one key.
+      {/* Shift and Return are two caps rather than one cap holding two glyphs. Every other hint
+          here separates its keys and the console's shortcut list separates all of them, so a single
+          cap made this the one place a chord read as one key.
 
-          Shift is SPELLED OUT, like Ctrl and Alt beside it. Its glyph is the one modifier with a
-          drawing, so drawn it was the only modifier on the row you had to recognise rather than
-          read, sitting against three that are words. The drawn glyphs left are the keys that have
-          no name worth writing: return, and the two cycle arrows. */}
+          Shift is spelled out, like Ctrl and Alt beside it. It is the one modifier with a standard
+          glyph, so drawing it made it the only modifier on the row a reader had to recognise rather
+          than read, next to three that are words. The keys still drawn as glyphs are the ones with
+          no short name: return, and the two cycle arrows. */}
       <span>
         <b>Shift</b>
         <b className="key">
@@ -49,12 +49,12 @@ export function HintStrip({ onToggleConsole }: HintStripProps) {
         </b>{" "}
         chats
       </span>
-      {/* Two doors into the one console, each landing on the tab it names: the sliders on
+      {/* Two buttons into the one console, each landing on the tab it names: the sliders on
           appearance, the ? on the shortcut list. A press here is always an open, because the
-          console is a view and replaces this one outright (`.view.gone` is `display: none`), so
-          neither button is reachable while it is up. They still dispatch the toggle rather than
-          the open, so that the strip and the ? KEY, which IS live inside the console and is the
-          binding that can close it that way, stay one behaviour with one name. */}
+          console is a view that replaces this one (`.view.gone` is `display: none`), so neither
+          button is reachable while the console is up. They still dispatch the toggle rather than
+          the open, so that these buttons and the ? key, which stays live inside the console and can
+          close it, share one handler and one name. */}
       <button
         className="qbtn"
         onClick={() => onToggleConsole("appearance")}

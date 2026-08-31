@@ -19,54 +19,54 @@ ever started because a convergence returned before its restart loop, and one who
 reach the host at all. Every one of them asserts a spawn on the GPU before the pass and on the CPU
 after it, because a sweep whose test never saw the dead endpoint proves nothing.
 
-Distrust-green proofs (each mutation applied to production code alone, the whole brain workspace
-re-run, then reverted, so the counts are measured rather than aimed at):
-- dropping ``tiers.mark_missing`` from ``residency_moves.restart_evicted`` reddens 7, six here
+Mutations proving these tests can fail (each applied to production code alone, the whole brain
+workspace re-run, then reverted, so the counts are measured rather than estimated):
+- dropping ``tiers.mark_missing`` from ``residency_moves.restart_evicted`` fails 7, six here
   (every case that asks where a spawn lands or what a probe reads after a failed restart) plus
   ``test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back`` at the seam;
-- dropping ``tiers.mark_standing`` from the same loop's ``else`` reddens 1,
+- dropping ``tiers.mark_standing`` from the same loop's ``else`` fails 1,
   ``test_a_second_handoff_that_restarts_the_peer_reopens_the_gpu``;
-- reopening on any ``mark_standing`` rather than on an emptied record reddens 1,
+- reopening on any ``mark_standing`` rather than on an emptied record fails 1,
   ``test_one_peer_back_of_two_keeps_the_gpu_closed``;
-- annotating a not-serving report in ``StandingTiers.note_on`` reddens 1,
+- annotating a not-serving report in ``StandingTiers.note_on`` fails 1,
   ``test_an_evicted_tier_is_not_a_missing_one``, which is the down-versus-evicted rule itself;
-- consulting the headroom before the closed flag in ``VramBudgetPlacer.place`` reddens 7, five
+- consulting the headroom before the closed flag in ``VramBudgetPlacer.place`` fails 7, five
   here and two in test_placer.py;
-- starting a tier that reports ``LOADING`` reddens 1,
+- starting a tier that reports ``LOADING`` fails 1,
   ``test_a_sweep_leaves_a_tier_that_is_still_loading_alone``;
-- dropping the scope guard from the fence reddens 1,
+- dropping the scope guard from the fence fails 1,
   ``test_a_sweep_defers_while_a_handoff_owns_the_gpu``;
-- dropping the claim guard from the fence reddens 2,
+- dropping the claim guard from the fence fails 2,
   ``test_a_sweep_defers_while_a_handoff_is_claimed_and_the_pool_is_draining`` plus
   ``test_a_handoff_that_begins_mid_pass_wins_the_publish`` in ``test_residency_regain.py``
   (re-measured 2026-08-18, when the resident half joined the pass and began reading the same
   fence at its own write);
-- dropping the pass guard in ``TierHealer.run`` reddens 1,
+- dropping the pass guard in ``TierHealer.run`` fails 1,
   ``test_a_failing_pass_costs_one_pass_and_not_the_loop``, on its own bound rather than by
   hanging, which is why every wait in this file is inside an ``asyncio.timeout``.
 
 The tier-sweep pass measured eight more the same way, and they are the table this file's own
 design rests on:
-- sweeping only the tiers already believed missing reddens 10, which is the defect itself and
+- sweeping only the tiers already believed missing fails 10, which is the defect itself and
   every case written against it;
-- letting a host that could not be asked mark the tier anyway reddens 1,
+- letting a host that could not be asked mark the tier anyway fails 1,
   ``test_a_sweep_that_cannot_reach_the_host_leaves_the_record_alone``, and it is the direction
   that would be worse than the defect (one blip closing GPU placement for a pool that is fine);
-- going on retrying a tier the roster never had reddens 1;
-- reading an unrostered restart as an ordinary refusal reddens 1, which is the ``TierFault`` the
+- going on retrying a tier the roster never had fails 1;
+- reading an unrostered restart as an ordinary refusal fails 1, which is the ``TierFault`` the
   swap back's own loop has to write for the sweep to be able to retire it;
-- marking only when the pass may also start reddens 1, the fenced pass that still owes the placer
+- marking only when the pass may also start fails 1, the fenced pass that still owes the placer
   its reading;
-- dropping the mark the reading earned reddens 7 (6 when this table was measured; the regain's
+- dropping the mark the reading earned fails 7 (6 when this table was measured; the regain's
   ordering case reads the same mark through the seam);
-- dropping the claim half of the fence reddens 2 (1 when this table was measured; the regain's
-  own race case joined it on 2026-08-18) and dropping the scope half reddens 1, which is
+- dropping the claim half of the fence fails 2 (1 when this table was measured; the regain's
+  own race case joined it on 2026-08-18) and dropping the scope half fails 1, which is
   why the fence is the disjunction rather than either flag.
 
 One case here was vacuous when it was written and the mutation table is what found it:
 ``test_a_peer_that_would_not_restart_closes_gpu_placement`` held its first placement's 2.0 GiB
 against a 3.0 GiB headroom, so the spawn it asserted on spilled for want of room whatever the
-record said, and dropping ``mark_missing`` left it green. It releases now.
+record said, and dropping ``mark_missing`` left it passing. It releases the placement now.
 """
 
 import asyncio
@@ -167,7 +167,8 @@ def _manager(
 
 
 async def test_a_peer_that_would_not_restart_closes_gpu_placement() -> None:
-    """The entry's whole harm: admission reopens, and the next spawn is sent to a dead server.
+    """A peer that would not restart closes GPU placement, so the next spawn is not sent to a
+    dead server.
 
     The re-place on a failed GPU attempt makes that spawn survive, but it pays two loads to
     learn what the swap back already knew. Once the record exists, the placer skips the tier and
@@ -197,7 +198,8 @@ async def test_a_peer_that_came_back_leaves_placement_where_it_found_it() -> Non
 
 
 async def test_the_seam_says_which_peer_is_down_while_the_cortex_serves() -> None:
-    """Legible rather than silent, on the surface that already reaches the overlay's tooltip."""
+    """The report names the peer that is down, on the surface that already reaches the overlay's
+    tooltip."""
     host = ScriptedModelHost(running=["cortex", _TIER], fail={("start", _TIER): "no such device"})
     manager = _manager(host, _placer())
     async with manager.swap_scope("brain"):
@@ -208,7 +210,8 @@ async def test_the_seam_says_which_peer_is_down_while_the_cortex_serves() -> Non
 
 
 async def test_an_evicted_tier_is_not_a_missing_one() -> None:
-    """Down versus stopped on purpose, which is the distinction the whole record turns on.
+    """A tier stopped for the length of a handoff is not recorded as missing, which is the
+    distinction the whole record turns on.
 
     A peer is stopped for the length of every handoff, and the report already says a swap is in
     flight. Annotating that would call the swap a fault and would put two different sentences
@@ -225,7 +228,7 @@ async def test_an_evicted_tier_is_not_a_missing_one() -> None:
 
 
 async def test_a_second_handoff_that_restarts_the_peer_reopens_the_gpu() -> None:
-    """A successful start is a clearing path, so a handoff that works undoes a handoff that did."""
+    """A successful start clears the record, so a handoff that works undoes one that did not."""
     placer = _placer()
     host = ScriptedModelHost(running=["cortex", _TIER], fail_once={("start", _TIER): "device busy"})
     manager = _manager(host, placer)
@@ -272,7 +275,8 @@ def test_a_deployment_with_no_pool_still_records_which_peer_is_down() -> None:
 
 
 async def test_a_sweep_that_meets_the_fence_mid_pass_records_without_starting() -> None:
-    """The fence is read again immediately before each start, so a handoff wins the race it enters.
+    """The fence is read again immediately before each start, so a handoff wins the race it
+    enters.
 
     The record is written first and deliberately: whether or not this pass may touch the card, the
     placer must stop sending spawns at a tier the reading just found stopped.
@@ -319,7 +323,8 @@ def test_marking_a_tier_standing_that_was_never_missing_changes_nothing() -> Non
 async def test_a_retry_that_finds_the_tier_serving_reopens_the_gpu(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The clearing path the record owes, since the next handoff may be hours away.
+    """A retry that finds the tier serving reopens the GPU, since the next handoff may be hours
+    away.
 
     Two passes by design: the first finds the tier stopped and asks for it, the second observes
     it serving. Readiness is never gated inside a pass, so a tier that takes minutes to load
@@ -354,7 +359,7 @@ async def test_a_sweep_leaves_a_tier_that_is_still_loading_alone() -> None:
 async def test_a_sweep_that_cannot_reach_the_host_leaves_the_record_alone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A pass never raises, and a host that cannot answer is never evidence about a tier.
+    """A pass never raises, and a host that cannot answer is not evidence about a tier.
 
     The second half is what a sweep has to get right and a marked-only retry never faced: a pass
     that reads a transport failure as a tier being down would close GPU placement for the whole
@@ -393,7 +398,8 @@ async def test_a_sweep_defers_while_a_handoff_owns_the_gpu() -> None:
 
 
 async def test_a_sweep_defers_while_a_handoff_is_claimed_and_the_pool_is_draining() -> None:
-    """The claim is the wider half of the fence, and it is taken before anything is evicted.
+    """A sweep defers while a handoff is claimed, since the claim is taken before anything is
+    evicted and is the wider half of the fence.
 
     A conductor holds it through the drain, which is up to a minute in which the scope flag says
     nothing at all. A pass that started a tier in that window would be loading a peer into the
@@ -411,7 +417,8 @@ async def test_a_sweep_defers_while_a_handoff_is_claimed_and_the_pool_is_drainin
 
 
 async def test_a_peer_that_accepted_its_start_and_then_died_is_found_by_the_next_pass() -> None:
-    """The shape measured against a real sidecar: ``200 loading``, then ``failed`` seconds later.
+    """A peer that accepted its start and then died is found by the next pass. The shape was
+    measured against a real sidecar: ``200 loading``, then ``failed`` seconds later.
 
     The swap back marked the tier standing on the host's acceptance, which is all an accepted
     start ever proved, so nothing in the record is wrong and nothing in the record is right
@@ -436,7 +443,8 @@ async def test_a_peer_that_accepted_its_start_and_then_died_is_found_by_the_next
 async def test_a_peer_that_died_between_handoffs_is_found_without_any_handoff(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """No swap, no refusal, nothing to write the record: the reading is the only witness."""
+    """With no swap and no refusal, nothing writes the record, so the reading is the only
+    witness."""
     placer = _placer()
     host = ScriptedModelHost(running=["cortex", _TIER])
     manager = _manager(host, placer)
@@ -507,7 +515,7 @@ async def test_a_boot_that_could_not_reach_the_host_is_swept_when_it_answers_aga
 async def test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_again(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The fifth shape, which does not escape and is retried for ever: noise rather than harm.
+    """A tier the roster never had is recorded once and never asked about again.
 
     A 404 is the one answer no retry can change while that daemon runs, so it closes placement
     exactly as firmly and stops costing a control call a pass.
@@ -533,7 +541,7 @@ async def test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_agai
 
 
 async def test_a_restart_refused_for_a_tier_the_roster_lacks_is_not_an_ordinary_refusal() -> None:
-    """The restart loop draws the same line, so a boot's own mark is the right kind at once.
+    """The restart loop draws the same line, so a boot writes the right kind of mark at once.
 
     Boot recovery is the reachable way to get there: a deployment that mistyped a tier reaches
     that loop before it ever escalates, and the mark it writes is what decides whether every pass
@@ -553,7 +561,7 @@ async def test_a_restart_refused_for_a_tier_the_roster_lacks_is_not_an_ordinary_
 
 
 async def test_a_replaced_daemon_asks_an_unhosted_tier_again() -> None:
-    """The one event that can grow a roster rebuilds the record, which is the clearing path.
+    """A replaced daemon is the one event that can grow a roster, and it rebuilds the record.
 
     Nothing was built for it: the boot watch already converges residency when the daemon under
     this brain turns out to be a different one, and that convergence ends in the restart loop that
@@ -592,7 +600,7 @@ async def test_a_deployment_that_evicts_nothing_still_asks_nobody_anything() -> 
 
 
 async def test_the_loop_keeps_retrying_until_it_is_closed() -> None:
-    """``TierHealer`` is the pacing and the task; a pass is whatever it was handed."""
+    """``TierHealer`` supplies the pacing and the task, and a pass is whatever it was handed."""
     passes = asyncio.Event()
     count = 0
 
@@ -617,7 +625,7 @@ async def test_the_loop_keeps_retrying_until_it_is_closed() -> None:
 async def test_a_failing_pass_costs_one_pass_and_not_the_loop(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A bug nobody enumerated must cost a retry, never the retrying a degraded stack waits on."""
+    """A pass that raises costs one retry and never the loop a degraded stack waits on."""
     survived = asyncio.Event()
     calls = 0
 

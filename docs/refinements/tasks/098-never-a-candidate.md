@@ -4,8 +4,8 @@
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
-That close draws the line between "was a candidate and was dropped" and "was not a
-candidate" and stops there, which is the whole of what its own entry asked for. The next question
+The dropped-candidate close draws the line between "was a candidate and was dropped" and "was
+not a candidate" and stops there, which is the whole of what its own entry asked for. The next question
 is why an id is in neither list, and three answers the line cannot separate: the memory ranked
 below the pool cutoff, its scope was not read, or it was never written. Two thirds of that is
 thinner than it looks, which is why this is filed small rather than as an observability gap. The
@@ -56,8 +56,8 @@ materializes all 100,000 rows, `embedding::text` included, before the top-20 hea
 them, and at 20k rows that is invisible, which is how it would have shipped looking free. The
 count is issued only inside the `audit is not None` guard, so an unaudited recall runs no
 counting query at all, and it runs next to the search rather than after the rank, two reads not
-being one transaction with a second of model time available to sit between them. **Distrust
-green:** eight mutations, six in CI and two against real Postgres, each reddening only what it
+being one transaction with a second of model time available to sit between them. **Proved able
+to fail:** eight mutations, six in CI and two against real Postgres, each failing only what it
 should, and the first of them had to be *fixed* rather than watched: the contract check was
 written with three memories, which any count capped at three or more passes, and it caught a
 cutoff-capped count only once it held more memories than the widest pool a shipped deployment
@@ -65,8 +65,8 @@ fetches. **It also closed a gate that was only half a gate**: `memory_contract.A
 driven solely by the live pgvector run, so a check added to the shared file reached CI only if
 someone wrote it a second time by hand, and a count faked as a length over rows is exactly what
 that would have hidden; the fake now runs the same file in CI. Verified live in the
-`cortex_contract` database (1 passed, 39 deselected), where the `len(rows)` mutation reddens the
-count check on 20 against 25. **Opens nothing:** the two derivable causes are answered by not
+`cortex_contract` database (1 passed, 39 deselected), where the `len(rows)` mutation makes the
+count check fail on 20 against 25. **Opens nothing:** the two derivable causes are answered by not
 building them rather than filed, and an exact count leaves no bound to revisit.
 
 ## Trail

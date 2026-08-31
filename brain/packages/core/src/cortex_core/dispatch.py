@@ -2,19 +2,19 @@
 
 ``ToolDispatcher`` is a stateless function over the ``ToolRegistry`` + ``ToolAuditSink``
 ports, like ``MemoryRecaller`` over the memory ports: it holds no state, so a restart or
-model swap between calls changes nothing (the one hard rule). Its contract is that **every**
+model swap between calls changes nothing (the one hard rule). Its contract is that every
 dispatch writes exactly one audit record, so a dispatch failure becomes an ``is_error``
 ``ToolResult`` (the model is told and can recover), never an unaudited crash.
 
 It is also the capability gate (ADR-0013, table revised by ADR-0022 decision 2): a ``gated``
-(irreversible/outbound) tool runs only with the human's out-of-band approval via the
-``Confirmer`` port. On a turn that has read untrusted content (``tainted``) it never
-runs at all, the confirmer deliberately unconsulted: an action demanded by injected content
-must not be merely a confirm-away. Every block returns an error result **without invoking
-the tool** (``DENIED_MSG`` for the taint block, ``USER_DECLINED_MSG`` for a declined or
-unreachable confirmation, the fail-closed no-confirmer default included, and a
-``DispatchRefusal`` message when the caller refused the call before it got here) and is audited.
-The approval is the human's, reached out of band, never the (possibly jailbroken) model's.
+(irreversible or outbound) tool runs only with the human's out-of-band approval via the
+``Confirmer`` port, which is reached outside the model's reply and so cannot be answered by a
+jailbroken model. On a turn that has read untrusted content (``tainted``) a gated tool does not
+run at all and the confirmer is not consulted, so an action demanded by injected content is never
+one approval away. Every block returns an error result without invoking the tool (``DENIED_MSG``
+for the taint block, ``USER_DECLINED_MSG`` for a declined or unreachable confirmation, the
+fail-closed no-confirmer default included, and a ``DispatchRefusal`` message when the caller
+refused the call before it got here) and is audited.
 """
 
 from collections.abc import Collection, Mapping, Sequence
@@ -64,9 +64,9 @@ REDUNDANT_MSG = (
 )
 
 # The result content fed back on the one slot a truncated round keeps (ADR-0009 round-cap
-# addendum). It names the cap, as the spawn batch cap's error does, because a bound the model
-# can restate is one it can obey; and it invites the next reply rather than ending tool use,
-# since the calls it dropped may be work the turn still needs.
+# addendum). It names the cap, as the spawn batch cap's error does, so the model can restate the
+# bound in its next reply; and it invites that reply rather than ending tool use, since the calls
+# it dropped may be work the turn still needs.
 ROUND_OVERSIZED_MSG = (
     f"REFUSED: one reply may ask for at most {MAX_CALLS_PER_ROUND} tool calls at once. This "
     "reply asked for more, so this call and every call after it were dropped without running. "
@@ -78,10 +78,11 @@ ROUND_OVERSIZED_MSG = (
 class DispatchRefusal(Enum):
     """Why the caller refused a call before it could run, and what the model is told.
 
-    The member's value **is** the model-facing message, so a new reason cannot be added without
-    writing one, and ``dispatch`` keeps a single refusal branch however many reasons appear. A
-    reason rather than one boolean per bound (ADR-0009 salience addendum): parallel keywords all
-    meaning "refuse this and say why" is the shape the ``TurnStamp`` widening already rejected.
+    The member's value is the model-facing message, so a new reason cannot be added without
+    writing one, and ``dispatch`` keeps a single refusal branch however many reasons appear. One
+    enum rather than one boolean argument per bound (ADR-0009 salience addendum), since a set of
+    parallel keywords each meaning "refuse this and say why" is the shape the ``TurnStamp``
+    widening already rejected.
     """
 
     BUDGET = BUDGET_EXHAUSTED_MSG
@@ -150,13 +151,10 @@ class ToolDispatcher:
         self._audit = audit
         self._clock = clock
         self._confirmer = confirmer
-        # Everything the composition root declares about dispatching: the authoritative gated
-        # set (ADR-0022), what each tool spends of the caller's budget (ADR-0009 cost addendum),
-        # and which calls are worth running (ADR-0009 salience addendum). None of the three is
-        # ever read off a `ToolSpec`, so a sidecar can neither ungate, price, nor un-refuse
-        # itself. The dispatcher decides none of them either: the loop asks, then states its
-        # verdict as a `DispatchRefusal`, and the dispatcher's job is to make that verdict
-        # audited like any other outcome.
+        # None of the policy is ever read off a `ToolSpec`, so a sidecar can neither ungate nor
+        # reprice itself. The dispatcher applies none of it either: the loop asks the policy,
+        # states its verdict as a `DispatchRefusal`, and the dispatcher audits that verdict like
+        # any other outcome.
         self._policy = policy
 
     async def describe_tools(self) -> Sequence[ToolSpec]:

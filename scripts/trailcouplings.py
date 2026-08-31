@@ -8,11 +8,12 @@ line on a single stream. The recall trail's three come first, ordered the way on
 renders: the logger it is written through, the message it opens with, and the field whose width is
 the subject of everything that reads it. The tool audit's logger and message follow, two words
 rather than three: that trail has no reader outside the brain and no field of its own to measure,
-and the identities its line carries are next door under the log vocabulary. The sixth is a word of
-another kind, an identifier rather than anything a line prints, and the paragraph on the derived
+and the identities its line carries are in `logcouplings.py` under the log vocabulary. The sixth
+is a word of another kind, an identifier rather than anything a line prints, and the paragraph on
+the derived
 guard below says why it belongs beside these rather than in a part of its own.
 
-**Why a logger name needs the gate, and why it has a declaration to be held to.** The name is what
+A logger name needs this gate, and it has a declaration to be held to. The name is what
 an operator selects this trail by on a stream carrying every other line the brain writes, and it is
 restated by three documents that between them turn the trail on, name it among the loggers a
 deployment can raise or lower, and state what the sink writes. A rename in the sink would leave all
@@ -20,11 +21,11 @@ three instructing a reader about a logger nothing writes through, with every gat
 the same silence the two recall entries below were registered against. The sink names it in a
 constant rather than inside the `getLogger` call so there is a declaration here at all; that was
 the first of the two places in this registry where a far side gained a line to be tied by, the tool
-audit's sink being the second, and both are argued at their ADRs rather than assumed here. What
-keeps it from being the gate editing the code it watches is that the name
-now sits where the rest of this brain's log vocabulary already sits, `cortex_core.log_fields`
-declaring the field names for the same reason, and that `loggernames.py` learned the spelling in
-the same slice, so `samplecheck.py` goes on resolving a documented sample of this trail against it.
+audit's sink being the second, and both are argued at their ADRs rather than assumed here. That
+is not this gate changing the code it reads: the name now sits where the rest of this brain's log
+vocabulary already sits, `cortex_core.log_fields` declaring the field names for the same reason,
+and `loggernames.py` learned that form in the same slice, so `samplecheck.py` goes on resolving a
+documented sample of this trail against it.
 
 **The tool audit's logger is the same shape one trail over, and two of its four restatements are a
 different kind of claim.** Two are instructions, the tools runbook saying one such line is written
@@ -41,53 +42,53 @@ restating a number and a live suite spelling an address for the same reason. The
 spellings are two needles rather than one counted twice, the call it writes and the line it
 asserts having different shapes and a rename having to move both.
 
-**The half this entry cannot hold** is worth stating beside it: that same docstring sentence names
+The half this entry cannot hold is worth stating beside it: that same docstring sentence names
 the recall trail in prose rather than by its logger, so it is tied to one of the two loggers it is
 about, and nothing here would notice the other's rename in it, there being no name in the file to
 notice.
 
-**Its message is held here rather than by the sample gate, which cannot reach this line at all.**
+Its message is held here rather than by the sample gate, which cannot reach this line at all.
 `samplecheck.py` holds a documented log line to the call writing it, message included, but only
 where a runbook prints a RENDERED line, and this one may not be printed: the sink builds its
 `extra=` across statements and by condition, a success carrying a size where a failure carries an
-error and four identities riding only when the dispatch had them, so `logcalls.py` refuses to read
-a field list off it and any fenced sample of this trail fails as a call it cannot account for.
+error and four identities present only when the dispatch had them, so `logcalls.py` cannot read a
+field list off it and any fenced sample of this trail fails as a call it cannot account for.
 There is also no single field list to print. So the message is registered exactly like the logger
 beside it, on the runbook sentence that tells a reader what to look for and on the two spellings in
 the suite that proves the shipped level. The declaration is a second constant in the sink, the one
 kind of far side this part has now added twice, and it is handed to the emitting call rather than
 sat beside a literal of itself, so the module writes the word once.
 
-**Two entries share the suite's asserted line, and each renders its own half of it.** That line
+Two entries share the suite's asserted line, and each renders its own half of it. That line
 prints `LEVEL:logger:message` and so spends both values at once. The logger's needle used to spell
 the message as fixed text, which made this data file a place restating a word it does not declare:
-a rename of the message everywhere would have reddened the logger's entry, sending a reader to the
+a rename of the message everywhere would have failed the logger's entry, sending a reader to the
 wrong constant, and the fix would have been an edit to registry data rather than to the tree. Each
 needle now renders its own value and anchors on the punctuation the format puts around it, the
 logger on the colon that closes it and the message on the colon that opens it and the field that
 follows.
 
-**The other two run the other way round, and the reader that declares them gates nothing.**
+The other two run the other way round, and the reader that declares them gates nothing.
 `scripts/trailwidth.py` reads how wide the trail's widest field renders off captured container
 logs, and to find a line at all it spells the sink's message and the key that field rides under. It
 cannot import either: it is a standalone project that must never depend on the brain, which is the
 same wall every entry in the log part is built over. So the declaration sits in the reader and the
 sink holds the mentions, which the scan is indifferent to, comparing places and naming no master,
-and which a reader of this file should still be told. That the reader gates nothing is the argument
-FOR holding it rather than against, the same one `fixturecouplings.py` makes: a shipped value has a
-suite that runs on every commit and would notice, while this one is read by hand, on a GPU, when
-somebody chooses to measure, and a needle that stopped matching surfaces there as a stack with no
-trail lines rather than as a reader looking for the wrong word.
+and which a reader of this file should still be told. That the reader gates nothing argues FOR
+holding it, the same way `fixturecouplings.py` argues: a shipped value has a suite that runs on
+every commit, while this one is read by hand, on a GPU, when somebody chooses to measure, and a
+needle that stopped matching surfaces there as a stack with no trail lines rather than as a reader
+looking for the wrong word.
 
-**The message's needle is the emitting call and never the word alone.** A rendered line opens
+The message's needle is the emitting call and never the word alone. A rendered line opens
 `INFO:cortex.memory.recall:memory.recall `, the stdlib's own basic format being what the shipped
 formatter builds on, so the word the reader looks for sits on every line twice: once as the
 logger's tail and once as the message. A needle rendering the word alone would find the logger's
 half in the sink too and hold nothing. The entry above is why that resemblance is now stated in one
 place instead of being a coincidence two needles had to step around.
 
-**Three of these values are handed to their call as an identifier, and the place holding that
-is registered rather than left to be noticed.** `getLogger(_LOGGER_NAME)` and
+Three of these values are handed to their call as an identifier, and the place holding that is
+registered rather than left implicit. `getLogger(_LOGGER_NAME)` and
 `_logger.info(_MESSAGE, ...)` say nothing about the string they carry, so a sink binding one name
 and passing a different literal is two names rather than one spelled twice, which is the shape the
 rule against a word written twice, in `loggernames.py` for a logger and in `logcalls.py` for a
@@ -98,8 +99,8 @@ beside it. All of them were holding it by accident, none saying so. So the audit
 mention on the assertion its own suite makes, which turns a property held by an accident into one
 the scan names (ADR-0009 declared-name addendum).
 
-**The sixth entry is what the two loggers carry instead, and it is one entry rather than one
-apiece.** That guard used to look each of these two names up by hand, so each logger was tied to
+The sixth entry is what the two loggers carry instead, and it is one entry rather than one
+apiece. That guard used to look each of these two names up by hand, so each logger was tied to
 the spelling of its own lookup and a third self-named sink was held by nothing at all. It now reads
 the self-named sinks out of the tree, a logger that is not its module's dotted path being one by
 construction, and asks each of those modules for the name it binds its logger under. So there is no
@@ -109,7 +110,7 @@ in this part because the sinks it is about are the two this part is about, and b
 guards is the same sentence the two logger entries above make: that the name the documents restate
 is the name the brain writes through.
 
-**What is deliberately not here** is the ADR that argued all three. Its pages quote whole rendered
+What is deliberately not here is the ADR that argued all three. Its pages quote whole rendered
 lines as evidence of a run on a day, and this repo holds that a dated transcript is a record of the
 past rather than a claim about today's code, which is the same line `samplecheck.py` draws when it
 reads the runbooks and declares the decision records evidence.
@@ -135,7 +136,7 @@ TOOLS_MODULE = "docs/modules/brain-tools.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 
 # How the sink writes the field a line carries: a string key opening an ``extra=`` dict. The same
-# shape the work identities are spelled in next door, written out again rather than imported,
+# shape the work identities are spelled in there, written out again rather than imported,
 # because a part is data and the parts do not read each other: `registry.py` is the only thing that
 # joins them, which is what lets an entry move house without the scan noticing.
 FIELD_KEY = '"{value}":'
@@ -145,7 +146,7 @@ FIELD_KEY = '"{value}":'
 # through, so a bare needle would go on being found there after the message it names had moved.
 TRAIL_CALL = '_logger.info("{value}"'
 
-# How a sink writes the declaration the guard next door goes looking for: the assignment itself,
+# How a sink writes the declaration the logger guard looks for: the assignment itself,
 # which is where the identifier a `getLogger` call is handed is spelled the second time. The needle
 # carries the quote that opens the value, so a module spending the same word in prose is not one of
 # these places.
@@ -258,7 +259,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "in for this one, a line whose fields are built by condition being one no runbook may "
             "print as a rendered sample; the fourth place is the sink's own suite, which restates "
             "nothing and asserts the rendered line this sink emits, and so is the only thing "
-            "holding this declaration to the call handed it, the guard next door reaching a "
+            "holding this declaration to the call handed it, the logger guard reaching a "
             "logger name and no further (ADR-0009 declared-name addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
@@ -277,7 +278,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "by construction, and then asks each of those modules for this one name, so the "
             "naming is what the derivation is read by and the guard, both sinks and any third "
             "have to keep spelling it alike (ADR-0009 derived-sink addendum); a sink that renames "
-            "it reddens the guard as well as this entry, and what nothing else would notice is "
+            "it fails the guard as well as this entry, and what nothing else would notice is "
             "the guard itself going away, which takes the whole derivation with it and leaves the "
             "two declarations above tied to the documents restating them and to nothing at all "
             "saying the brain still writes through them; both module contracts name the "

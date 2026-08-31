@@ -2,17 +2,21 @@
 //! ADR-0011). Pure traits and value types here; per-platform adapters live in
 //! the `os_windows` / `os_linux` / `os_macos` crates behind them.
 //!
-//! Slice 8 introduces [`Hotkey`] (the global-hotkey backend); Slice 9 adds
-//! [`AudioControl`] (the first OS action the brain drives over `BodyService`), joined by
-//! [`Notify`] for proactive reminder delivery (Slice 9.5, ADR-0025, in the [`notify`]
-//! submodule since this file is at the line cap); Slice 10 adds [`ScreenCapture`], the first
-//! OS capability whose return value is a payload rather than a status, split across the
-//! [`screen`] port, the [`screen_policy`] that bounds what may cross the seam, the
-//! [`screen_target`] that says which pixels of the display were asked for (ADR-0029), and
-//! the private pixel arithmetic behind them; the input trait joins later. The overlay is summoned by a global
-//! hotkey whose chord is a [`HotkeyChord`]; a backend registers that chord with
-//! the OS and calls back on each press. Mapping a chord to the OS key identifier
-//! is pure and lives here ([`Accelerator`]); touching the OS is the adapter's job.
+//! Slice numbers below refer to `docs/ROADMAP.md`. The ports are:
+//!
+//! - [`Hotkey`], the global-hotkey backend. The overlay is summoned by a chord a
+//!   backend registers with the OS, calling back on each press. Resolving a [`HotkeyChord`]
+//!   to the OS key identifier is pure and lives here ([`Accelerator`]); touching the OS is
+//!   the adapter's job.
+//! - [`AudioControl`], the first OS action the brain drives over `BodyService`.
+//! - [`Notify`], which delivers a fired reminder as a native notification (
+//!   ADR-0025). It lives in the [`notify`] submodule because this file is at the line cap.
+//! - [`ScreenCapture`] (ADR-0029), the first OS capability whose return value is a
+//!   payload rather than a status, split across the [`screen`] port, the [`screen_policy`]
+//!   that bounds what may cross the seam, the [`screen_target`] that says which pixels of
+//!   the display were asked for, and the private pixel arithmetic behind them.
+//!
+//! The input trait joins later.
 
 pub mod notify;
 pub mod screen;
@@ -119,9 +123,9 @@ fn key_to_code(key: &str) -> Option<String> {
     named_code(key)
 }
 
-/// The `code` for a single-character key: a letter or a digit. The slice
-/// pattern keeps both arms reachable. A single ASCII char is one byte; empty
-/// or multi-byte keys take `_`. That leaves no dead branch to exclude.
+/// The `code` for a single-character key: a letter or a digit. Matching on the byte slice
+/// keeps both arms reachable, since a single ASCII char is one byte and empty or multi-byte
+/// keys take `_`, so there is no dead branch to exclude from coverage.
 fn single_char_code(key: &str) -> Option<String> {
     let ch = match key.as_bytes() {
         [byte] => *byte as char,

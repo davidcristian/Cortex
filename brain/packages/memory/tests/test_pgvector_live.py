@@ -6,7 +6,7 @@ host with the DB up, e.g.
   uv run pytest -m integration --no-cov packages/memory`. The `--no-cov` matters, the 100%
 gate in the workspace addopts would otherwise fail the run. The store it drives is the
 `cortex_contract` database (see tests/live_postgres.py), emptied before the suite and again after
-every check, so each check starts from the empty store the in-memory fake also grants it and no
+every check, so each check starts from the same empty store the in-memory fake gives it and no
 real memory is ever read, written, or deleted. That database and its `vector` extension and
 `memories` table are bootstrapped by docker/postgres/live-contract-db.sql through the compose.
 """
@@ -36,8 +36,8 @@ async def test_pgvector_store_satisfies_the_contract_live() -> None:
                 await check(under_test)
             finally:
                 await store.aclose()  # idempotent, so the broken arm closes exactly once
-            # Per check, not once at the end: a check that FAILS still leaves an empty
-            # table behind, so one bad run cannot poison every later one.
+            # Per check, not once at the end: a check that FAILS still leaves an empty table
+            # behind, so a failure cannot leave rows behind for the checks that follow.
             await live_postgres.reset(admin)
     finally:
         await live_postgres.reset(admin)

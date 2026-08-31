@@ -1,16 +1,16 @@
 """Behavior tests for the ``escalate_to_brain`` built-in (ADR-0030 decision 1).
 
-The safety-critical half is the gate composition: a tainted turn's escalation is hard-denied
+The gate composition is the safety-critical half: a tainted turn's escalation is denied outright
 by the dispatcher with the confirmer never consulted, a declined confirmation never writes the
 slot, and the model-authored brief is bounded before it can enter the handoff record. The tool
 itself holds no per-stream state: the slot rides each dispatch's stamp, so one shared instance
 serves every stream (the ``spawn_subagents`` progress-sink discipline).
 
-Distrust-green proofs (AGENTS.md), each verified by mutation when this landed:
-- weakening the dispatcher's tainted-turn check reddens the tainted test here;
-- skipping the declined-confirmation branch reddens the declined test (the slot gets written);
-- deleting the tool's length check reddens the over-bound test;
-- caching the slot on the tool instance reddens the two-slot isolation test.
+Mutations proving these tests can fail (AGENTS.md), each measured when this landed:
+- weakening the dispatcher's tainted-turn check fails the tainted test here;
+- skipping the declined-confirmation branch fails the declined test (the slot gets written);
+- deleting the tool's length check fails the over-bound test;
+- caching the slot on the tool instance fails the two-slot isolation test.
 """
 
 import asyncio
@@ -60,7 +60,8 @@ def _call(brief: object, *, slot: EscalationSlot | None, call_id: str = "c-1") -
 def _gated_dispatcher(
     tool: EscalateToBrainTool, confirmer: RecordingConfirmer | None
 ) -> ToolDispatcher:
-    """The wiring shape: the built-in behind the audited dispatcher, reasons from the policy."""
+    """The production wiring: the built-in behind the audited dispatcher, reasons from the
+    policy."""
     return ToolDispatcher(
         CompositeToolRegistry([tool]),
         RecordingAuditSink(),
@@ -76,8 +77,8 @@ def test_the_spec_is_gated_and_requires_a_bounded_brief() -> None:
     assert spec.gated is True  # the tool's own flag; the config backstop is belt-and-braces
     assert spec.parameters["required"] == ["brief"]
     assert spec.parameters["properties"]["brief"]["maxLength"] == MAX_BRIEF_CHARS
-    # Honest advertisement (the spawn-spec discipline): the swap's cost and the user's say
-    # are stated plainly, not sold as a free upgrade.
+    # Honest advertisement (the spawn-spec discipline): the description states the swap's cost
+    # and the user's approval plainly rather than presenting it as a free upgrade.
     assert "minutes" in spec.description
     assert "approve" in spec.description
 
@@ -91,8 +92,8 @@ async def test_invoking_writes_the_stripped_brief_and_tells_the_model_to_wrap_up
 
 
 async def test_without_a_slot_on_the_stamp_the_tool_refuses_honestly() -> None:
-    # An escalation-less wiring, or a turn-less caller (the ticker): nothing could consume a
-    # brief, so the tool says so instead of pretending a handoff is coming.
+    # An escalation-less wiring, or a turn-less caller such as the ticker: nothing could consume
+    # a brief, so the tool reports that rather than answering as though a handoff were coming.
     result = await EscalateToBrainTool().invoke(_call("go deep", slot=None))
     assert result.is_error is True
     assert "not available" in result.content
@@ -154,9 +155,9 @@ async def test_one_shared_tool_routes_each_calls_brief_to_its_own_slot() -> None
 
 
 async def test_a_tainted_turn_is_denied_before_the_tool_or_the_confirmer_sees_it() -> None:
-    # The safety spine (ADR-0030 decision 1): injected content must never force an eviction,
-    # so a tainted turn's escalation is blocked outright by the existing dispatcher gate. An
-    # approving confirmer changes nothing, because it is never consulted.
+    # The core safety property (ADR-0030 decision 1): injected content must never force an
+    # eviction, so a tainted turn's escalation is blocked outright by the existing dispatcher
+    # gate. An approving confirmer changes nothing, because it is never consulted.
     tool = EscalateToBrainTool()
     slot = EscalationSlot()
     confirmer = RecordingConfirmer(answer=True)
@@ -172,9 +173,9 @@ async def test_a_tainted_turn_is_denied_before_the_tool_or_the_confirmer_sees_it
 
 
 async def test_a_declined_confirmation_writes_nothing_and_shows_the_swap_reason() -> None:
-    # The user's "no" must leave no trace a later loop boundary could act on: the slot stays
-    # empty, so there is nothing to snapshot and no READY record can exist. The card carried
-    # the app-authored swap reason, not the generic outbound/irreversible text.
+    # A declined confirmation leaves no trace a later loop boundary could act on: the slot stays
+    # empty, so there is nothing to snapshot and no READY record can exist. The card carried the
+    # app-authored swap reason rather than the generic outbound-or-irreversible text.
     tool = EscalateToBrainTool()
     slot = EscalationSlot()
     confirmer = RecordingConfirmer(answer=False)
@@ -226,7 +227,8 @@ def _armed_slot(*, taint: TaintLedger) -> EscalationSlot:
 
 
 async def test_a_turn_that_looked_at_the_screen_is_denied_before_the_tool_runs() -> None:
-    """A capture closes escalation through the gate that already exists, not a check in the tool.
+    """A capture closes escalation through the gate that already exists, rather than through a
+    check inside the tool.
 
     ``TaintLedger.observe`` cannot mark a turn opaque without marking it tainted, and this tool
     is gated, so the dispatcher's hard-deny answers every escalation that follows a capture with
@@ -258,8 +260,9 @@ async def test_a_turn_that_looked_at_the_screen_is_denied_before_the_tool_runs()
 
 
 async def test_an_untainted_turn_reaches_the_tool_and_arms_the_slot() -> None:
-    """The control arm for the deny above: the same call, the same dispatcher, taint the only
-    difference, and it runs. Without this the denial could be measuring any other refusal."""
+    """The control arm for the denial above: the same call and the same dispatcher, with taint
+    the only difference, and it runs. Without this the denial could be measuring any other
+    refusal."""
     slot = _armed_slot(taint=TaintLedger())
     result = await _gated_dispatcher(
         EscalateToBrainTool(), RecordingConfirmer(answer=True)

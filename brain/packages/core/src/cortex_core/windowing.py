@@ -76,7 +76,7 @@ class CharBudgetHistoryWindow:
     ) -> Sequence[Message]:
         """The newest whole turns fitting the budget (the newest always among them).
 
-        Pure and synchronous in substance: the coroutine is the port's shape, not this
+        Pure and synchronous in substance; the coroutine is the port's shape rather than this
         policy's need. ``session_id`` names a session this policy never consults, and
         ``progress`` a stream it has nothing to report on, since counting characters costs
         the user no wait worth narrating.

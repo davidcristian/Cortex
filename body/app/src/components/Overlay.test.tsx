@@ -108,8 +108,8 @@ describe("Overlay", () => {
   it("shows the preview with the latest reply and reopens on click", () => {
     const controller = fakeController("preview", [reply]);
     const { container } = renderOverlay(controller);
-    // Asked of the card's own text box: the reply also stands in the always-mounted panel
-    // behind it, as one plain text node now that a settled bubble is not word spans.
+    // Read from the card's own text box, because the reply is also in the always-mounted panel
+    // behind it, as one plain text node now that a settled bubble is not split into word spans.
     expect(container.querySelector(".pv-b")?.textContent).toBe("the answer");
     fireEvent.click(screen.getByLabelText("Open reply"));
     expect(controller.open).toHaveBeenCalledOnce();
@@ -140,9 +140,9 @@ describe("Overlay", () => {
   });
 
   it("Ctrl+N announces the chat it mints and the header's pencil does not", () => {
-    // One controller call, two doors, and the difference is the whole rule: a keystroke names
-    // nothing, so the fresh chat is announced, while the pencil is labelled "New chat" and
-    // would be handing the reader back the label they just pressed (`overlay/notice.ts`).
+    // One controller call reached two ways, and the announce flag is the only difference: a
+    // keystroke has no label, so the fresh chat is announced, while the pencil is labelled
+    // "New chat" and would read back the label the reader just pressed (`overlay/notice.ts`).
     const controller = fakeController("panel");
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "n", ctrlKey: true });
@@ -152,10 +152,10 @@ describe("Overlay", () => {
   });
 
   it("keeps the live region outside the panel, which is out of the tree while dismissed", () => {
-    // The cycle keys are global, so a press can open the panel and swap the chat in one commit.
-    // A region inside the panel would arrive in the accessibility tree in the same frame as the
-    // words it wants read, out of a subtree that was `inert` until that frame. Reddens if the
-    // announcer is ever moved under the panel.
+    // The cycle keys are global, so a press can open the panel and swap the chat in one commit. A
+    // region inside the panel would enter the accessibility tree in the same frame as the words it
+    // carries, out of a subtree that was `inert` until that frame. This test fails if the announcer
+    // is ever moved under the panel.
     const controller = fakeController("hidden", [], {
       notice: { text: "Switched to Everything about model swaps.", count: 1 },
     });
@@ -171,23 +171,24 @@ describe("Overlay", () => {
     const controller = fakeController("panel");
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "k", ctrlKey: true });
-    // Announced, which is this door's whole difference from the header's button below: the key
-    // names nothing and moves no caret, so an opened list would otherwise arrive in silence.
+    // Announced, which is the only difference from the header's button below: the key has no label
+    // and moves no caret, so an opened list would otherwise arrive with no feedback.
     expect(controller.toggleSwitcher).toHaveBeenCalledWith(true);
     fireEvent.keyDown(document.body, { key: "ArrowUp", ctrlKey: true });
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
     fireEvent.keyDown(document.body, { key: "ArrowDown", metaKey: true });
     expect(controller.cycleNext).toHaveBeenCalledOnce();
-    // Arrows without the modifier are ignored (they scroll the history).
+    // Arrows without the modifier are ignored, since they scroll the history.
     fireEvent.keyDown(document.body, { key: "ArrowUp" });
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
   });
 
   it("all four chords still reach the overlay from the composer, whose text survives them", () => {
-    // The half of the rule that has to keep working (`overlay/fieldKeys.ts`): a field HOLDS a chord
-    // only when the chord would throw its text away, and this one keeps every keystroke under the
-    // chat it was typed into. It is also where a summon lands, so it is where these keys are
-    // pressed from. Reddens if the guard is ever widened from the editor to fields in general.
+    // The half of the rule that has to keep working (`overlay/fieldKeys.ts`): a field stops a chord
+    // only when the chord would discard its text, and the composer keeps every keystroke under the
+    // chat it was typed into. It is also where a summon lands, so it is where these keys are pressed
+    // from. This test fails if the guard is ever widened from the rename editor to fields in
+    // general.
     const controller = fakeController("panel");
     renderOverlay(controller);
     const composer = screen.getByLabelText("Message");
@@ -232,13 +233,13 @@ describe("Overlay", () => {
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "?" });
     expect(controller.toggleConsole).toHaveBeenCalledWith("shortcuts");
-    // In the composer a ? is just typing, never the console.
+    // In the composer a ? is a typed character and never opens the console.
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "?" });
     expect(controller.toggleConsole).toHaveBeenCalledOnce();
-    // And in the switcher's rename editor, which is the overlay's other field and an `<input>`
-    // rather than a textarea. The caret is put there by the pencil now (`overlay/rowCaret.ts`), so
-    // this is a question somebody can be halfway through typing: measured at 900x900 before this,
-    // "why?" left "why" in the field and the settings pane over the row being renamed.
+    // The same in the switcher's rename editor, the overlay's other field, which is an `<input>`
+    // rather than a textarea. The pencil now puts the caret there (`overlay/rowCaret.ts`), so a
+    // question can be typed into it: measured at 900x900 before this, "why?" left "why" in the
+    // field and the settings pane over the row being renamed.
     const editor = document.createElement("input");
     document.body.append(editor);
     fireEvent.keyDown(editor, { key: "?" });
@@ -251,7 +252,8 @@ describe("Overlay", () => {
       const controller = fakeController("panel", [], { consoleTab: tab });
       const { unmount } = renderOverlay(controller);
       fireEvent.keyDown(document.body, { key: "Escape" });
-      // One console, so one Esc: the settings-then-shortcuts two-step is gone with the two sheets.
+      // One console, so one Esc leaves it; the settings-then-shortcuts two-step went with the two
+      // separate sheets.
       expect(controller.closeConsole).toHaveBeenCalledOnce();
       expect(controller.dismiss).not.toHaveBeenCalled();
       unmount();

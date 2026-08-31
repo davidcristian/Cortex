@@ -3,21 +3,21 @@
 Split out of ``subagent_attempt.py`` when carrying a finish reason across the inference port added
 a third thing that could be true of a completed run (ADR-0005 finish-reason addendum) and took that
 file past the line cap and the complexity ceiling together. The seam is the one the split before it
-drew: ``subagent_attempt`` owns the **running**, meaning the loop, the deadline and the failures a
-run can raise on its way; this owns what the text it came back with **means** once the running is
-over.
+drew: ``subagent_attempt`` owns the running, meaning the loop, the deadline and the failures a run
+can raise on its way, and this module owns what the text it came back with means once the running
+is over.
 
 Both directions of the envelope live here, the schema a constrained request asks for and the
 unwrapping of the answer, because they are one grammar read twice and a change to either is a
 change to both (ADR-0028). The sentence the constrained path appends to its subtask lives here for
-the same reason and is the third side of the same contract: it says in words what the grammar can
-only enforce, and on this engine words are the only half the model ever reads (ADR-0028
+the same reason and is the third side of the same contract: it states in words what the grammar can
+only enforce, and on this engine those words are the only half the model ever reads (ADR-0028
 instruction addendum).
 
-The settling itself is an ordered reading, and the order is the whole of it: a run cut at a token
-limit is reported as cut even when the cut landed mid-envelope, because a reply the server stopped
-is not a model breaking its grammar, and saying so would send the reader to the model instead of to
-the limit. That is the same precedence the deadline arms already keep over this check.
+The settling is an ordered reading, and the order matters: a run cut at a token limit is reported
+as cut even when the cut landed mid-envelope, because a reply the server stopped is not a model
+breaking its grammar, and reporting it as malformed would send the reader to the model instead of
+to the limit. That is the same precedence the deadline arms already keep over this check.
 """
 
 import json
@@ -52,8 +52,8 @@ REPLY_ENVELOPE: JsonSchema = {
 # instruction addendum). A schema on this engine constrains the next token and never describes a
 # contract: the same pick renders a byte-identical prompt with the envelope and without it, so
 # ``reply`` is a name the grammar builder reads and the model never sees. Left to itself under that
-# grammar the tier answers a deliberation-inviting subtask one time in four, spending the field on
-# a plan instead, and this sentence is what takes it back.
+# grammar the tier answers a deliberation-inviting subtask one time in four by spending the field
+# on a plan, and this sentence is what recovers the answer.
 #
 # It names the answer rather than a genre, because a subtask here is a summarization, an extraction
 # or a lookup and the wording must not tune itself to one of them. It is appended rather than
@@ -95,12 +95,12 @@ def settle_reply(
     """What an attempt that ran to the end of its loop produced.
 
     ``capped`` is what the run's ``StopLedger`` saw, meaning at least one of its completions
-    stopped at a token limit rather than at an end of its own. It is read **first**, ahead of the
+    stopped at a token limit rather than at an end of its own. It is read first, ahead of the
     envelope, because a cut reply lands mid-envelope by construction and ``MALFORMED`` would then
-    blame the model for a sentence the server ended. It is the ``TRUNCATED`` the deadline reports,
-    in the other unit a runaway is measured in, so the runner declines to re-place it for the same
-    reason: a tier that filled its token budget will fill it again, and the slower one is the last
-    place to send it.
+    report a model error for a sentence the server ended. It is the ``TRUNCATED`` the deadline
+    reports, in the other unit a runaway is measured in, so the runner declines to re-place it for
+    the same reason: a tier that filled its token budget will fill it again, and the slower tier is
+    the last place to send it.
 
     ``max_tokens`` is this deployment's own cap, quoted in the refusal only when it set one.
     """

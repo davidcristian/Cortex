@@ -91,8 +91,8 @@ def test_read_keeps_raw_html_when_nothing_extracts() -> None:
 
 
 def test_a_refused_search_reaches_the_caller_as_the_port_s_error() -> None:
-    # The reader maps hits to summaries and owns no failure of its own, so a refusal must
-    # arrive at the tool exactly as the port raised it: same type, same query, nothing added.
+    # The reader maps hits to summaries and raises no error of its own, so a SearchRefusedError
+    # arrives at the tool exactly as the port raised it: same type, same query, nothing added.
     mailbox = FakeMailbox()
     mailbox.refuse()
     with pytest.raises(SearchRefusedError) as raised:

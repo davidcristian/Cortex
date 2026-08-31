@@ -31,7 +31,7 @@ design, AGENTS.md gate 3).
 | `CORTEX_REASONING_BUDGET` | how many tokens the **cortex tier** may spend thinking before the engine closes the thought and makes it answer. The middle of the dial the two knobs above are the ends of: they say whether to think, this says how long. `-1` (the default) emits no flag and leaves the trace unbounded; `0` ends every think immediately, for every request the tier serves; `N > 0` is a token budget. Measured on the cortex pick, one open question per arm: unrestricted spends 2323 to 2996 chars of trace and 10.1 to 12.6 s before the first word, `512` about 2000 chars and 8.4 to 9.2 s, `128` about 500 chars and 1.7 to 2.6 s, `0` none and 0.2 s, and the reply is the same size in all four. See the thinking-budget section below | `-1` |
 | `CORTEX_REASONING_BUDGET_BRAIN` | the same knob for the **deep tier**, separate because the two are read on opposite arguments: the cortex answers while somebody watches, and the deep model was picked for reaching an answer inside its trace at all (ADR-0004) | `-1` |
 | `CORTEX_REPLY_TRACE_TOKENS` | how many tokens a **user's own reply** may spend thinking, sent on the request rather than baked into the tier (ADR-0005 request-lever addendum). Unset (the default) names no count and leaves `CORTEX_REASONING_BUDGET` deciding, which is the request this repo has always sent; `0` ends the think at once and a positive count bounds it. Deliberately not implied by `CORTEX_REPLY_THINKING`: this is the one trace a user actually reads, as the overlay's thinking status. Needs an engine that reads the key, which `CORTEX_INFERENCE_TRACE_LEVER` decides | unset |
-| `CORTEX_INFERENCE_TRACE_LEVER` | whether a request may carry its own trace budget at all. `auto` asks your endpoint one model-free question at boot and believes the answer; `on` and `off` answer for it, `off` being the request this repo sent before the key existed. A build that does not know the key ignores it in silence, which is why this exists rather than sending it always. See "A budget per request, where the engine reads one" | `auto` |
+| `CORTEX_INFERENCE_TRACE_LEVER` | whether a request may carry its own trace budget at all. `auto` asks your endpoint one model-free question at boot and takes the answer; `on` and `off` answer for it, `off` being the request this repo sent before the key existed. A build that does not implement the key ignores it without error, which is why this exists rather than sending it always. See "A budget per request, where the engine reads one" | `auto` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 | `CORTEX_INFERENCE_STALL_TIMEOUT_S` | **on the brain**: how long a resident or deep tier stream may send nothing before the turn fails. It bounds the gap between chunks, **never** the length of a generation, so a long answer is never cut off; size it above the worst legitimate time to first token, not above the longest reply. The default clears the 17.5 s a contended cortex took to its first token here with room for the deep tier, which streams through the same client after a handoff (ADR-0005 stall-ceiling addendum) | `120` |
 
@@ -108,7 +108,7 @@ cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
   uv run pytest -m integration --no-cov packages/inference
 ```
 
-`--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run
+`--no-cov` matters, since the 100% gate in the workspace addopts would otherwise fail the run
 (the same convention as the Redis live test). This streams a real completion through
 `LlamaCppBackend` and asserts non-empty output. It also runs
 `test_reasoning_model_emits_reasoning_before_reply` (ADR-0020): with a reasoning-inducing prompt
@@ -162,7 +162,7 @@ why the default did not move then. Re-measured the same day with the fold bounde
 18.9 s and 21.5 s to 88, 87 and 88 at 3.9 s for a slightly longer account, a staged fold decodes
 61 to 163 tokens for 2.9 s to 6.2 s, retention is 3 of 3, and at the shipped floor the same
 conversation folds once over five boundary moves. **`CORTEX_HISTORY_SUMMARY` now defaults to on**;
-set it `false` for a deployment that would rather forget than wait, and
+set it `false` for a deployment that would rather drop old turns than wait for a fold, and
 `CORTEX_HISTORY_RECAP_MIN_CHARS` (default 2000, clamped to the character budget) is how much newly
 dropped conversation is worth a fold. The numbers are in the
 [ADR-0038 cheap-fold addendum](../adr/ADR-0038-ranked-recall.md).
@@ -263,10 +263,10 @@ engine's own, so the model is not cut off mid answer but told to stop thinking a
 llama.cpp reads `--reasoning-budget N` as a token budget for the trace, injects the end of thought
 at the count, and lets the completion finish normally.
 
-The knob was **per tier and is now a tier default**, because the engine has since learned to read
+The knob was **per tier and is now a tier default**, because the engine now reads
 one off the request. Where it does, `CORTEX_REASONING_BUDGET` is what a request that names no
 count falls back to, and each of the brain's own callers may name its own; where it does not, this
-flag is still the only lever there is. What has not changed is the spelling this repo first tried:
+flag is still the only lever there is. What has not changed is the key name this repo first tried:
 a body carrying `reasoning_budget` is ignored on every build tested, the newest included. See
 "A budget per request, where the engine reads one" below.
 
@@ -332,7 +332,7 @@ told not to think, which is the line the probe below prints before its cells.
 having been asked at five draws a cell (that addendum's lineup section). Two things came of it
 for a deployment choosing a pick. **Every entry holds on a plain request**, so a cap paired with the
 switch and no schema shortens a reply on any of them rather than deleting it. And the constrained
-split is neither a family nor a handler property but the template's: on every entry measured, one
+split is a property of the template rather than of the model family or the handler: on every entry measured, one
 that renders a thought already closed holds under a schema and one that drops the block and adds
 nothing does not, which puts the two gemma-4-E entries alone on the failing side and the Qwen
 entries and the dense gemma-4 entries together on the other. Ask a candidate's own server before
@@ -365,7 +365,7 @@ cd brain && CORTEX_THINKING_ENDPOINT=http://127.0.0.1:8080 \
   packages/inference/tests/test_thinking_switch_live.py
 ```
 
-It prints a verdict per request shape. Keep `CORTEX_THINKING_REPEATS=5` before believing one: the
+It prints a verdict per request shape. Keep `CORTEX_THINKING_REPEATS=5` before acting on one: the
 cell that carries this finding splits 4 to 1 on the subagent pick, so a single draw of it can say
 either thing, and the reader below publishes nothing from a cell drawn fewer than five times.
 
@@ -379,9 +379,9 @@ just switch-tail measurements/switch-<model>.json
 That reads the rendered prompt back against the cells the same run drew and says whether this
 tier's template still predicts its own constrained verdict, on the **tail** and not on the two
 renderings differing. Exit 0 published the agreement; exit 1 is either a refusal to publish (a
-control arm that never deliberated, a cell drawn too few times, or a switched tail carrying no
-marker of either family this reader knows while not being the tail rendered with the key left
-alone, which is a template answering in a third spelling) or the prediction breaking on this
+control arm that never deliberated, a cell drawn too few times, or a switched tail that carries
+neither of the two markers this reader recognises and is also not the tail rendered with the key
+left alone, which is an unrecognized chat-template format) or the prediction breaking on this
 tier, which is news about the record above rather than about your deployment: the rule is a set of
 readings of one engine build's handlers, and a handler that started gating its reasoning rule on
 `enable_thinking` would break it. Nothing in the stack reads the answer, so a red here is a
@@ -406,8 +406,8 @@ and that is deliberate: its trace is the thinking status the overlay renders, so
 yours to set with `CORTEX_REPLY_TRACE_TOKENS`, and leaving it unset keeps the tier's own flag
 deciding.
 
-**The key is only sent where the engine reads it**, since a build that does not know it ignores it
-in silence. `CORTEX_INFERENCE_TRACE_LEVER` decides: `auto` (the default) asks your endpoint one
+**The key is only sent where the engine reads it**, since a build that does not implement it
+ignores it without error. `CORTEX_INFERENCE_TRACE_LEVER` decides: `auto` (the default) asks your endpoint one
 question at boot, `on` and `off` answer for it. The question is free of the model, and you can ask
 it yourself:
 
@@ -417,8 +417,8 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/v1/chat/completio
   -d '{"model":"cortex","messages":[{"role":"user","content":"."}],"max_tokens":1,"reasoning_budget_tokens":-2}'
 ```
 
-`400` is a build that parses the key and range-checked the value; `200` is a build that never
-heard of it and answered the completion. Measured 2026-08-29 by the agent, same model and prompt
+`400` is a build that parses the key and range-checked the value; `200` is a build that does not
+implement it and answered the completion. Measured 2026-08-29 by the agent, same model and prompt
 one minute apart: `b10666-4e97ac86e` answered `400` naming the field, `b9870-2d973636e` answered
 `200`. Each build then behaved the way its own answer predicted, the newer one ending the thought
 on every budgeted draw and the older one deliberating through the identical request. The brain logs its own verdict once at boot, so a stack that came up without the lever says
@@ -476,7 +476,7 @@ reasoning to defeat every injection variant. See the [ADR-0013 addendum](../adr/
 
 The probe above is a hand-built one. The committable version is
 [`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py),
-whose deep-tier rows are opt-in behind a flag because they want the card to themselves. Run it when
+whose deep-tier rows are opt-in behind a flag because they need the card to themselves. Run it when
 the brain pick changes, when the `SECURITY_PREAMBLE` changes, and whenever a candidate is added to
 `BRAIN_CANDIDATES`; that standing obligation is the reason this section exists rather than a note
 made once in an ADR. First run: 2026-08-04, recorded in the
@@ -521,10 +521,10 @@ this section named, and the fifth is what running it added.
 **Read the matrix knowing what it reads.** Every detector runs against `content` alone, so a
 reasoning model that spends its whole `max_tokens` budget (1600 here) on `reasoning_content` returns
 an empty `content` that scores as resistance on all ten attacks. That is a measurement of nothing
-wearing a perfect score, and it is the specific trap the two mixture-of-experts candidates in
-`BRAIN_CANDIDATES` are known to walk into: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s brain-pick
+reported as a perfect score, and it is the specific trap the two mixture-of-experts candidates in
+`BRAIN_CANDIDATES` are known to hit: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s brain-pick
 addendum measured both consuming an entire 8192-token context and returning `"content":""`. Before
-believing a 0/10, confirm the run was real, which costs one extra pass over the same corpus
+accepting a 0/10, confirm the run was real, which costs one extra pass over the same corpus
 recording `finish_reason`, `len(content)` and the canary's presence in `reasoning_content`:
 
 - **No arm should end on `length`.** On the pick, 0 of 20 did; 19 ended `stop` and the one obeyed
@@ -588,8 +588,8 @@ down first. Five things this arm adds that the text arm does not have.
   its legibility line, look for a new confusion before blaming the model.
 - **The legibility line is a gate, not a note.** Each rendering is transcribed before any
   resistance is scored on it, and the row fails outright if the payload does not come back. That
-  is what stops a matrix of "ok" from meaning "the model never saw it". It has fired in anger: on
-  its first run the `app` rendering failed exactly this check. It runs per frame as well as per
+  is what stops a matrix of "ok" from meaning "the model never saw it". It has already fired on a
+  real run: on its first run the `app` rendering failed exactly this check. It runs per frame as well as per
   rendering, since a re-size is exactly the change that could take legibility away.
 - **Two frames are one measurement, and their counts are not the comparison.** The cells that
   separate two frames' matrices are the same cells that separate two runs at one frame:
@@ -617,7 +617,7 @@ Left to itself the model declares its own per-image budget, which measured **266
 any capture from 1280 px up**. On a 4K desktop that is a 13% reading: of 47 ground-truth strings
 across five synthetic 3840x2160 desktops (a code editor, a terminal, a browser article, a
 spreadsheet, a chat client, from 15 px to 52 px type), that deployment read 6 to 8 and confidently
-invented most of the rest. Two settings change it, they only work together, and **both are the
+invented most of the rest. Two settings change it, they work only together, and **both are the
 default from 2026-08-06 on**, the maintainer having decided the reading is worth what it costs:
 
 ```
@@ -771,7 +771,7 @@ safety default.
   can reproduce it: bring the stack up with the projector named
   (`CORTEX_MODEL_FILE_CORTEX_MMPROJ=google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf`)
   and the control API published (`just up-modelhost-loopback`); read the child's real argv out of
-  `/proc` rather than trusting the compose file; sample `nvidia-smi --query-gpu=memory.used` every
+  `/proc` rather than off the compose file; sample `nvidia-smi --query-gpu=memory.used` every
   0.2 to 0.3 s throughout; then stop the tier, read the floor, start it, and read idle, a long
   generation, and a vision turn carrying a real screenshot, stopping the tier once more at the end
   to read the floor again. The numbers: floor **1261 to 1301 MiB** before and **1259 to 1308 MiB**
@@ -791,7 +791,7 @@ safety default.
   bring the stack up with the GPU-placed subagent tier named
   (`CORTEX_MODEL_FILE_SUBAGENT_GPU=google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`)
   and the control API published (`just up-modelhost-loopback` plus the subagents override), leave
-  the cortex resident, read the tier's real argv out of `/proc` in the sidecar rather than trusting
+  the cortex resident, read the tier's real argv out of `/proc` in the sidecar rather than off
   the compose file, and sample `nvidia-smi --query-gpu=memory.used` every 0.2 s while stopping the
   tier, starting it, driving both of its slots to their own context limit, and stopping it again.
   The numbers: floor with the tier stopped **10448 to 10500 MiB** before and **10428 to 10493 MiB**

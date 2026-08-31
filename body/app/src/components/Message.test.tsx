@@ -25,8 +25,8 @@ const msg = (over: Partial<MessageModel>): MessageModel => ({
   ...over,
 });
 
-// A streaming message mounts the whisper's clock; its frames are swallowed here (the clock has
-// its own tests) so these stay about what the message renders.
+// A streaming message mounts the whisper's clock. Its frames are discarded here, since the clock
+// has its own tests, so these tests are about what the message renders.
 beforeEach(() => {
   vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
   vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
@@ -152,9 +152,9 @@ describe("Message", () => {
   it("settles the live thinking chip into the disclosure in place, one row for one row", () => {
     // The stylesheet gives both of these the same height (`--trace-row`) so that a turn completing
     // swaps them without resizing the log under them: traced at 60Hz, unequal boxes eased the whole
-    // panel down 4px at the moment the answer landed. That only holds while the two really are one
-    // row in two states, which is a structural contract no stylesheet can defend. Adding a second
-    // settled row, or leaving the chip's slot empty, puts the shrink back.
+    // panel down 4px at the moment the answer landed. That holds only while the two are one row in
+    // two states, which no stylesheet rule can enforce, so this test does. Adding a second settled
+    // row, or leaving the chip's slot empty, brings the shrink back.
     const reasoning = { streaming: true, status: "reasoning", statusState: "thinking" } as const;
     const live = render(<Show message={msg({ ...reasoning, thoughts: "step one" })} />).container;
     expect(live.querySelectorAll(".chip")).toHaveLength(1);
@@ -168,10 +168,10 @@ describe("Message", () => {
   });
 
   it("publishes the row height off whichever chip the turn shows", () => {
-    // The other half of the contract above. The disclosure matches the chip because the chip says
-    // how tall it is (`--trace-row`, overlay/measured.ts), so the pairing survives a change to the
-    // chip's padding or font that nobody thinks to re-derive a constant for. Both chips are the
-    // same box and either may be the only one a turn shows, so both have to say so.
+    // The other half of the arrangement above. The disclosure matches the chip because the chip
+    // publishes its own height (`--trace-row`, overlay/measured.ts), so the pairing survives a
+    // change to the chip's padding or font that nobody re-derives a constant for. Both chips are
+    // the same box and either may be the only one a turn shows, so both publish it.
     const settle = laysEverything(28);
     try {
       render(<Show message={msg({ streaming: true, status: "reasoning" })} />);

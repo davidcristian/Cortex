@@ -3,22 +3,21 @@ import type { Message as MessageModel } from "../overlay/overlayState";
 import { Thoughts } from "./Thoughts";
 import { WhisperBubble } from "./WhisperBubble";
 
-// A chat bubble. A user's line and a loaded reply are plain neutral bubbles; a live assistant
-// reply whispers in through `WhisperBubble` (ADR-0037): an accent mist breathes until the first
-// token, letters condense on a continuous front the mist glides along, and the bubble's box
-// grows at that front's pace. Until then, live tool/status activity renders as slim inline chips
-// above it, between bubbles (design/overlay-ux.md §3), gone on completion. A "thinking" status
-// reads as deliberation, not action, so its chip bobs (chip-think) rather than carrying the
-// steady tool pulse (ADR-0020 state-aware chip). Once a reply that reasoned settles, the live
-// chip drops and the accumulated trace stays available as a collapsed "Thoughts" disclosure
-// above the bubble (ADR-0020 addendum, `Thoughts.tsx`): the settled counterpart of the chip,
-// resting chrome only since the thinking is done. That disclosure owns its own open state, and
-// the whisper latches whether it streamed, which is why both are components rather than markup
-// here: this one stays a pure function of the message. Errors render as an alert. Colour lives
-// only on the working mist and the error tint.
+// A chat bubble. A user's line and a loaded reply are plain neutral bubbles, while a live assistant
+// reply is drawn by `WhisperBubble` (ADR-0037): an accent mist pulses until the first token,
+// letters fade in along a continuous front that the mist moves along, and the bubble's box grows at
+// that front's pace. Before the first token, live tool and status activity renders as slim inline
+// chips above the bubble (design/overlay-ux.md §3), removed on completion. A "thinking" status is
+// deliberation rather than an action, so its chip bobs (chip-think) instead of carrying the steady
+// tool pulse (ADR-0020 state-aware chip). Once a reply that reasoned settles, the live chip is
+// dropped and the accumulated trace stays available as a collapsed "Thoughts" disclosure above the
+// bubble (ADR-0020 addendum, `Thoughts.tsx`), drawn as resting chrome since the thinking is done.
+// That disclosure holds its own open state, and the whisper latches whether it streamed, which is
+// why both are components rather than markup here: this component stays a pure function of the
+// message. Errors render as an alert. Colour appears only on the working mist and the error tint.
 //
-// `onGrow` is how the whisper's drain (which outlives the turn's last render) reaches the
-// history's tail pin.
+// `onGrow` is how the whisper's drain, which outlives the turn's last render, reaches the history's
+// tail pin.
 
 export function Message({
   message,
@@ -41,9 +40,9 @@ export function Message({
 
   return (
     <>
-      {/* Both chips carry the ref that publishes their row height for the disclosure below to
-          match (overlay/measured.ts): they are the same box, and whichever the turn shows is on
-          screen well before the settled trace that has to be as tall as it. */}
+      {/* Both chips carry the ref that publishes their row height for the disclosure below to match
+          (overlay/measured.ts). They are the same box, and whichever one the turn shows is on screen
+          well before the settled trace that has to be as tall as it. */}
       {message.streaming && message.tool !== null ? (
         <span className="chip" ref={traceRowRef}>
           <span className="chip-t">{message.tool}</span>

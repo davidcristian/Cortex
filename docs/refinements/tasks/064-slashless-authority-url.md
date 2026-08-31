@@ -16,7 +16,7 @@ far constrains the spelling of a separator that is present, and this one must ad
 that is absent, so the anchor needs a **host-shaped lookahead** it has never needed (`https:`
 followed by any non-space run is the prose the fullwidth pass deliberately protected, `https：no
 slashes here`). The one precedent is `_DATA_ANCHOR`, a single scheme's MIME shape rather than a
-host grammar. Its cost is therefore a false-positive budget to design, not a table entry to
+host grammar. Its cost is therefore a false-positive budget to design rather than a table entry to
 generate, and it is counted from the day it opened.
 
 **It closed in exactly the shape it predicted, and the budget was the work.** The anchor gained
@@ -31,8 +31,8 @@ host. That percent reading is the only one in this grammar and it is there on a 
 `https:evil%2eexample/pay` resolves to the plain link while the stacked `%252e` is a parse error,
 so exactly one level is a reading, and the separator positions still decline the family because a
 parser throws on `https%3A//evil.example`. The bracketed literal requires the colon, so an IPv6
-address is admitted and `[1]` or `[abc]`, which a parser refuses, are not.
-**The budget is the single label, and it is spent where prose lives.** `https:scheme` really is
+address is admitted and `[1]` or `[abc]`, which a parser rejects, are not.
+**The budget is the single label, and it is spent on prose.** `https:scheme` really is
 `https://scheme/` to a parser, and it is also how a sentence names a scheme, so every one-label
 host is declined: `http:foo`, `https:localhost:8080/x` and this repo's own way of writing about a
 scheme all stay prose, and so does anything carrying a space, which is the shape the fullwidth

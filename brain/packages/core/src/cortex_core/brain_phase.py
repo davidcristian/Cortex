@@ -1,50 +1,18 @@
 """The deep model's half of a handoff: rehydrate from the record, run, persist (ADR-0030 d4).
 
-Steps 4 and 5 of the swap sequence, as a use-case of its own. It is the one hard rule made
-executable: every input it needs comes back out of a store or the handoff record, nothing from
-the process that ran the cortex phase, so the model that answers is a different process on a
-different set of weights and the turn still continues.
+Steps 4 and 5 of the swap sequence, as a use-case of its own, and the one hard rule made
+executable: every input comes back out of a store or the handoff record, nothing from the process
+that ran the cortex phase, so a different process on a different set of weights continues the same
+turn. ``docs/modules/brain-core.md`` lists what is rebuilt and from where.
 
-What is rebuilt, and from where:
-
-- **history** from ``SessionStore`` (windowed as usual), which already holds the user message
-  and the cortex's wrap-up;
-- **the working set** as preamble + recalled context + history + the record's ``loop_tail``,
-  the tail being the tool-call and fenced result messages the loop never persisted. The
-  cortex's brief needs no separate carrier: it rides the tail as the arguments of the very
-  ``escalate_to_brain`` call that asked for the handoff;
-- **the taint ledger** from the record, so a tainted turn stays tainted across the swap (taint
-  that did not survive would fail open) and the output guardrail opens over the same URL
-  evidence the cortex collected;
-- **the fence nonce** from the record, so the tail's fenced blocks stay explained by the
-  preamble's markers-carry-a-random-id rule;
-- **the dispatch budget** at its carried position, so a swap can never refill the turn's
-  allowance. The rounds allowance is deliberately fresh (the budget is the spend bound and it
-  carried; salience is per loop by design, so a cross-swap repeat costs budget but is not
-  refused, a bounded residual ADR-0030 accepts).
-
-The phase cannot escalate to itself: it runs with no escalation slot, so the built-in refuses
-honestly if the deep model ever calls it. A mid-work failure (an ``InferenceError`` from a
-server that died under it) persists the partial text with an honest note, the runner's
-parts-so-far discipline, and then re-raises so the conductor marks the handoff failed and
-converges back to the cortex.
-
-**It is also where a spilled handoff is caught** (ADR-0030 spill-watch addendum). The fit check
-inside ``swap_in`` reads free device memory immediately before the load, which is the only instant
-that reading means anything, and two things stay invisible to it: a deployment that declared the
-deep tier's cost too low, and memory the desktop took while the load ran. Both end in an
-overcommit the driver pages to host memory rather than refusing, so both tiers report ``ready``
-and the card reads like a fit. The one witness is throughput, and this phase is where a real
-completion on the deep tier can be watched. It says so once per handoff and does nothing else to
-the turn: the reply is already streaming by the time the rate is known, so refusing would spend a
-user's answer on an operator's problem, and there is nothing left to degrade.
-
-Saying so means two things, and only one of them is the log (ADR-0030 spill-note addendum). The
-verdict also goes to the ``PaceSink`` this phase was wired with, which is how it reaches an
-operator who is not tailing a container: that sink is the residency record the seam's readiness
-report is composed from (``residency_pace.py``), so a spilled handoff shows up in the overlay's
-connection tooltip instead of only in stdout. The phase still knows nothing about residency; it
-reports what it measured to a port and is done.
+It is also the only caller that watches decode cadence (ADR-0030 spill-watch addendum). A handoff
+that overcommitted the card still succeeds: both tiers report ``ready``, the fit check passed on a
+declared cost that was too low or on room the desktop took during the load, and the driver pages
+the excess to host memory rather than failing the load, so throughput is the only remaining
+witness. The reply is already streaming by the time the rate is known, so the phase reports what
+it measured once per handoff and changes nothing else about the turn. The verdict goes to the log
+and to the ``PaceSink`` this phase was wired with (ADR-0030 spill-note addendum), the sink being
+how a spill reaches an operator who is not tailing a container.
 """
 
 import logging

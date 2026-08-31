@@ -1,10 +1,10 @@
-"""Behaviour of the reader that says which scans the single gate actually runs.
+"""Tests for the reader that says which scans the single gate runs.
 
 The fixtures are miniatures of the two real files: one justfile whose `check` recipe opens with a
 run of scans and then forks the trees, one workflow whose `cross-tree` job runs the same list with
-sibling jobs written under the same key. Every case below is an edit somebody could really make to
-one of those two files, since a scan is added by editing both and the whole point of this reader
-is that it refuses to answer while only one of them has been.
+sibling jobs written under the same key. Every case below is an edit somebody could make to one of
+those two files. A scan is added by editing both, and this reader raises while only one of them
+carries it.
 """
 
 from pathlib import Path
@@ -82,15 +82,16 @@ def files(root: Path, *, justfile: str = JUSTFILE, workflow: str = WORKFLOW) -> 
 
 
 def test_the_run_a_gate_opens_with_is_what_it_runs_first() -> None:
-    """The shebang and the shell settings above the run are stepped over, not stopped at."""
+    """The shebang and the shell settings above the run are stepped over rather than ending it."""
     assert gate_scans(JUSTFILE) == ["check-linecap", "check-backlog"]
 
 
 def test_the_run_stops_at_the_first_command_that_is_not_a_scan() -> None:
-    """The trees below it are outside however they are launched, redirection or none.
+    """The per-tree recipes below the run are outside it however they are launched, with a
+    redirection or without one.
 
     Without the stop, a `just check-brain` written plainly would read as an eleventh scan, and
-    the reader would be describing the whole gate rather than the run it opens with.
+    the reader would describe the whole gate rather than the run it opens with.
     """
     plainly = JUSTFILE.replace('just check-brain >"$tmp/brain.log" 2>&1 &', "just check-brain")
     assert gate_scans(plainly) == ["check-linecap", "check-backlog"]
@@ -116,7 +117,8 @@ def test_a_recipe_the_justfile_does_not_carry_is_named() -> None:
 
 
 def test_the_job_names_every_recipe_it_runs_and_nothing_a_sibling_runs() -> None:
-    """The surprise this reader was rewritten for: every job is written under one key.
+    """Every job in the workflow is written under the one `jobs:` key, which is what this reader
+    was rewritten for.
 
     A block that ended only at column zero would swallow the sibling jobs below `cross-tree`,
     and the reader would report the whole workflow as the cross-tree scans.
@@ -125,7 +127,7 @@ def test_the_job_names_every_recipe_it_runs_and_nothing_a_sibling_runs() -> None
 
 
 def test_a_step_that_is_not_a_check_recipe_is_refused_rather_than_stepped_over() -> None:
-    """This job is the scans and nothing else, so a step it was not taught is a fault."""
+    """This job runs the scans and nothing else, so a step the reader does not recognize raises."""
     widened = WORKFLOW.replace(
         "      - run: just check-backlog",
         "      - run: echo scanning\n      - run: just check-backlog",
@@ -154,7 +156,7 @@ def test_a_recipe_that_runs_no_module_is_refused() -> None:
 
 
 def test_a_recipe_that_runs_two_modules_is_refused() -> None:
-    """Guessing which of two is the scan would put a claim behind a coin toss."""
+    """A recipe running two modules raises, since nothing in the body says which is the scan."""
     doubled = JUSTFILE.replace(
         "    cd scripts && uv run python backlogcheck.py --root ..",
         "    cd scripts && uv run python backlogcheck.py --root ..\n"
@@ -172,7 +174,7 @@ def test_the_scans_are_what_both_files_run(tmp_path: Path) -> None:
 
 
 def test_a_scan_added_to_the_gate_and_not_to_ci_is_refused(tmp_path: Path) -> None:
-    """The drift this reader exists to be honest about, arriving from the gate's side."""
+    """This is the drift the reader exists to report, arriving from the gate's side."""
     grown = JUSTFILE.replace(
         "    just check-backlog", "    just check-backlog\n    just check-dashcheck"
     )
@@ -181,7 +183,8 @@ def test_a_scan_added_to_the_gate_and_not_to_ci_is_refused(tmp_path: Path) -> No
 
 
 def test_a_scan_added_to_ci_and_not_to_the_gate_is_refused(tmp_path: Path) -> None:
-    """And from the other side, since a document agreeing with either half agrees with nothing."""
+    """The same drift from the workflow's side. A document compared against one half alone would
+    agree with a list the other file does not run."""
     grown = WORKFLOW.replace(
         "      - run: just check-backlog",
         "      - run: just check-backlog\n      - run: just check-dashcheck",
@@ -191,7 +194,7 @@ def test_a_scan_added_to_ci_and_not_to_the_gate_is_refused(tmp_path: Path) -> No
 
 
 def test_the_two_files_may_run_the_scans_in_different_orders(tmp_path: Path) -> None:
-    """The order a scan runs in is each file's own business, these scans being independent."""
+    """The scans are independent of each other, so the order each file runs them in is its own."""
     reordered = WORKFLOW.replace(
         "      - run: just check-linecap\n      - run: just check-backlog",
         "      - run: just check-backlog\n      - run: just check-linecap",
@@ -217,7 +220,8 @@ def test_a_workflow_that_cannot_be_decoded_is_named(tmp_path: Path) -> None:
 
 
 def test_the_real_gate_and_the_real_workflow_agree() -> None:
-    """The reader over the committed tree, which is also the floor under every roster using it."""
+    """The reader runs over the committed tree, which is the floor under every roster reading
+    it."""
     found = scan_modules(REPO_ROOT)
     assert "rostercheck.py" in found
     assert "backlogcheck.py" in found
@@ -225,7 +229,8 @@ def test_the_real_gate_and_the_real_workflow_agree() -> None:
 
 
 def test_the_real_gate_runs_a_recipe_whose_module_has_another_name() -> None:
-    """The reason a recipe is resolved through its body rather than by trimming its prefix."""
+    """At least one recipe runs a module whose name is not the recipe's own with `check-` trimmed,
+    which is why a recipe is resolved through its body."""
     justfile = (REPO_ROOT / scanrecipes.JUSTFILE).read_text(encoding="utf-8")
     named = {recipe: recipe_module(justfile, recipe) for recipe in gate_scans(justfile)}
     assert any(module != f"{recipe.removeprefix('check-')}.py" for recipe, module in named.items())

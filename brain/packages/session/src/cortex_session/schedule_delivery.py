@@ -10,7 +10,7 @@ everything after the fire: ``finish_claim`` records one outcome under the claim'
 Every transition here is optimistically atomic for the reason the claim path is: the token or
 deliverability guard and the state write share one WATCH→MULTI/EXEC transaction, so a
 ``cancel``/``ack``/re-claim landing between them fails the ``EXEC`` as ``WatchError`` and is
-answered like a stale token (``False``) rather than silently overwriting what the race won.
+answered like a stale token (``False``) rather than overwriting what the other transition wrote.
 """
 
 from dataclasses import replace
@@ -38,9 +38,9 @@ from cortex_session.schedule_codec import (
 async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome) -> bool:
     """Persist one fire under the claim's token; a stale or raced claimant no-ops False.
 
-    Fire-time taint ORs onto the item; ``next_due`` re-arms PENDING, ``None`` is
-    terminal, meaning DONE while deliverable, deleted otherwise (terminal cleanup). The guard
-    and the write share one WATCH transaction: a cancel/ack landing between them makes
+    Fire-time taint is ORed onto the item; ``next_due`` re-arms the item PENDING, and ``None``
+    is terminal, meaning DONE while deliverable and deleted otherwise (terminal cleanup). The
+    guard and the write share one WATCH transaction: a cancel or ack landing between them makes
     the EXEC fail, so nothing a user was told is undone (post-review hardening).
     """
     async with client.pipeline(transaction=True) as pipe:

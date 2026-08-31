@@ -115,7 +115,7 @@ def test_main_overlay_only_change(capsys: pytest.CaptureFixture[str]) -> None:
 def test_main_shell_edit_reaches_the_shell_job_without_the_overlay(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A shell edit must set `shell=true`, or its clippy job would never run at all."""
+    """A shell edit sets `shell=true`, which is what schedules its clippy job."""
     assert ci_paths.main(["body/app/src-tauri/src/tray.rs\n"]) == 0
     assert capsys.readouterr().out == "python=false\nrust=true\noverlay=false\nshell=true\n"
 
@@ -123,7 +123,8 @@ def test_main_shell_edit_reaches_the_shell_job_without_the_overlay(
 def test_main_body_change_outside_the_shell_leaves_the_shell_job_off(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The whole point of the fourth output: only a shell edit pays for the webkit apt line."""
+    """A body change outside the shell subtree leaves `shell=false`, so only a shell edit pays for
+    the webkit apt install."""
     assert ci_paths.main(["body/crates/rpc/src/lib.rs\n", "body/app/src/main.tsx\n"]) == 0
     assert capsys.readouterr().out == "python=false\nrust=true\noverlay=true\nshell=false\n"
 

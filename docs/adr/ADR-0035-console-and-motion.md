@@ -13,14 +13,14 @@ first exposed.
 
 The user answered the pitch that ends [ADR-0034](ADR-0034-panel-views.md) decision 8. Three
 directions for the panel's non-chat faces had gone out as a live artifact; the plainest shipped and
-two richer ones were left open (theme choices as thumbnails of the panel wearing them, and one
-tabbed console instead of two destinations). The answer was **both at once**, which is decision 1
-below and is a component change on plumbing that did not move, exactly as the deferral predicted.
+two richer ones were left open (theme choices as thumbnails of the panel drawn in each theme, and
+one tabbed console instead of two destinations). The answer was **both at once**, which is decision
+1 below and is a component change on plumbing that did not move, exactly as the deferral predicted.
 
 Then the maintainer watched the running overlay, and named five things by hand:
 
 - **"There is no animation when expanding thoughts."** The settled reasoning trace was a
-  `<details>`, which reveals its content in one frame and cannot be talked into easing it.
+  `<details>`, which reveals its content in one frame and offers no way to ease that reveal.
 - **The chat switcher's list flashed back** for a split second at the end of every close.
 - **The scrollbars** "look absolutely terrible and disturb the look of the application and also
   push elements around."
@@ -40,7 +40,7 @@ a trace, which is why every claim below carries the measurement it rests on.
 
 1. **The two other views became one console with a tab strip, so
    [ADR-0034](ADR-0034-panel-views.md) decision 1's three views are now two.** The pitch that ends
-   that ADR's decision list (thumbnails of the panel wearing each theme; one tabbed console
+   that ADR's decision list (thumbnails of the panel drawn in each theme; one tabbed console
    instead of two destinations) went to the user as a live artifact and came back as both at
    once: the swatch look, with the tab strip integrated. So `shortcuts` and `settings` are gone as
    separate destinations, and `chat` plus `console:appearance` / `console:shortcuts` are the
@@ -59,8 +59,8 @@ a trace, which is why every claim below carries the measurement it rests on.
      bottom 655) and the shortcut list 571px (top 164, bottom 735), and the switch moves both
      edges 80px in opposite directions over about 150ms, the paced duration for that distance,
      with the return trip landing back on 244/655 exactly. No second animation was written.
-   - **A theme is chosen by looking at it.** Each tile is a miniature of the panel wearing that
-     theme, drawn from that theme's own tokens (`components/ThemeMini.tsx`), and the Auto tile is
+   - **A theme is chosen by looking at it.** Each tile is a miniature of the panel drawn in that
+     theme, from that theme's own tokens (`components/ThemeMini.tsx`), and the Auto tile is
      the two themes `resolveTheme(null, …)` resolves to, split on the diagonal. Both rows are a
      map over their registry (`THEMES`, `MARKS`), so the plug-and-play property both modules claim
      survives this view: a fifth theme or mark appears here with no change to it. The marks are the
@@ -92,7 +92,7 @@ a trace, which is why every claim below carries the measurement it rests on.
      selection onto the arriving pane's selected tab, and leaving the console returns it to the
      composer, which is where a summon puts it and where the draft still is. The rest of the tab
      list pattern (a roving `tabindex` and arrow keys along the strip) and a leaving pane that is
-     untabbable as well as unannounced (which wants `inert`, and so React 19) are deferred and
+     untabbable as well as unannounced (which needs `inert`, and so React 19) are deferred and
      written down in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay). **Both landed
      on 2026-08-03**, in the addendum below on the strip's keyboard, which also records that the
      React 19 half of that parenthesis was wrong: only the type is missing from React 18.
@@ -146,8 +146,9 @@ a trace, which is why every claim below carries the measurement it rests on.
    the top edge 61px in a single frame with nothing animating it. Composing the residual on top of
    the `auto` height would be neater and is not available: measured in Chrome, an additive `height`
    animation over an `auto` height is silently demoted to replacing it. The end event stays: the
-   prediction is one section's word, and re-measuring is what keeps it honest, including when the
-   panel was resized by something else (a token landing mid-roll) while its height was being driven.
+   prediction comes from the section alone, and re-measuring is what keeps it honest, including when
+   the panel was resized by something else (a token landing mid-roll) while its height was being
+   driven.
 
 6. **A closing roll holds its collapsed height until React removes it.** With the Web Animations
    default `fill: "none"` the section snapped back to full size the instant the roll ended and
@@ -199,16 +200,16 @@ a trace, which is why every claim below carries the measurement it rests on.
    ride-along inside the window re-pins, and a section the user opens is a height they are about
    to hand back: traced at 60Hz, `Ctrl+K` 410ms into a summon wrote a pinned edge of 117px for the
    666px the panel would be with the list open, and closing the list left a 546px panel on that
-   same edge, 60px below its own centre, for the rest of the session. Nothing washes a pinned edge
-   out; a trip to the console and back parks the bad one and hands it straight back. So a
+   same edge, 60px below its own centre, for the rest of the session. Nothing clears a pinned edge
+   on its own; a trip to the console and back parks the bad one and hands it straight back. So a
    `pointerdown`, a `keydown` or a bare `click` anywhere in the window ends the arrival, in the
-   capture phase so that no handler in between can hide the user's hand by stopping the event.
-   Input that lands while the panel is still SHUT is what summoned it (the orb click is a real
-   press a beat before the panel appears) and is not a touch, which is checked against the panel's
-   own open state rather than against a timestamp, there being no race in it either way. Measured
-   after, as the panel's bottom edge down a 900px viewport, where a true centre is 722.9: a
-   switcher round trip started 100, 300, 450, 600 or 1500ms after the panel appeared now settles
-   at 723 to 725, where the first two settled at 730 and 783 before.
+   capture phase so that no handler in between can conceal the press by stopping the event. Input
+   that lands while the panel is still SHUT is what summoned it (the orb click is a real press a
+   beat before the panel appears) and is not a touch, which is checked against the panel's own open
+   state rather than against a timestamp, there being no race in it either way. Measured after, as
+   the panel's bottom edge down a 900px viewport, where a true centre is 722.9: a switcher round
+   trip started 100, 300, 450, 600 or 1500ms after the panel appeared now settles at 723 to 725,
+   where the first two settled at 730 and 783 before.
 
    Two costs, both measured rather than reasoned about. A token that arrives inside the window and
    is not preceded by any input still centres instead of growing upward, which is a few pixels
@@ -253,7 +254,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     is about how the panel moves and not about when it should not, and the user found the case:
     sending the first message *shrank* the window. The empty state (the mark, "Ask me anything", two example
     chips) is 185px of content, and a user bubble with a thinking bubble under it is less, so the
-    panel dutifully eased down at the exact moment the chat began. Traced at 60Hz on the body's
+    panel eased down at the exact moment the chat began. Traced at 60Hz on the body's
     720px window: 546px to 457px over 150ms, the top edge falling 89px. The chat's column of
     bubbles therefore carries a `min-height` of that same 185px, measured off the empty state
     rather than chosen, so the first exchange cannot leave the panel smaller than the invitation
@@ -318,12 +319,12 @@ a trace, which is why every claim below carries the measurement it rests on.
     which was true while every section was part of the panel's own chrome and opened on overlay
     state. The user's "there is no animation when expanding thoughts" broke that assumption twice
     over. Rebuilding the trace's disclosure on `Collapse` (a button carrying `aria-expanded` over a
-    rolling section, since `<details>` reveals its content in one frame and cannot be talked into
-    animating it) put a rolling section inside a message, and a message's disclosure owns its open
+    rolling section, since `<details>` reveals its content in one frame and offers no way to
+    animate it) put a rolling section inside a message, and a message's disclosure owns its open
     state locally: clicking it renders that message and nothing above it. Traced at 60Hz at a 900px
     viewport, the trace rolled open over its 300ms with the panel's `auto` height following it, and
-    then the panel, hearing only the end and placing itself from the geometry it had remembered
-    from before the roll, snapped back to its old height for a frame and eased 76px up and 43px
+    then the panel, receiving only the end event and placing itself from the geometry it had
+    recorded before the roll, snapped back to its old height for a frame and eased 76px up and 43px
     down a second time. So `Collapse` now dispatches a bubbling `cortex:morphstart` as well, after
     the attribute is set. That ordering is the whole of what the panel depends on: the attribute is
     where the roll publishes the height it is going to, and a listener arriving before it finds
@@ -338,10 +339,10 @@ a trace, which is why every claim below carries the measurement it rests on.
     nothing, there being no roll to ride along with. The panel reads what it is placing FOR out of a
     ref assigned during the render rather than out of each handler's closure, because this event
     alone arrives from inside a layout effect, before any passive effect of that render has
-    re-subscribed: the handler that hears a roll announced mid-commit is the PREVIOUS render's, so a
-    closure over its props would place the panel for the render before the one on screen. The case
-    that makes that reachable is one commit that both summons the panel and rolls a section, which
-    `newChat` and `openSession` produce by setting `mode: "panel"` and `switcherOpen: false`
+    re-subscribed: the handler that receives a roll announced mid-commit is the PREVIOUS render's,
+    so a closure over its props would place the panel for the render before the one on screen. The
+    case that makes that reachable is one commit that both summons the panel and rolls a section,
+    which `newChat` and `openSession` produce by setting `mode: "panel"` and `switcherOpen: false`
     together: Ctrl+N or a chat cycled to while the panel is minimized with the switcher list open.
     Reverting the ref to a closure and tracing that at 60Hz in a 900px viewport shows what is at
     stake: the list rolls shut over its full 300ms with the panel's bottom edge pinned where the
@@ -488,7 +489,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     the history is already down to its own padding (10px) and a draft pasted to the field's 120px
     ceiling had nowhere left to take from: the pill's bottom edge cleared the panel's clipped edge
     by 12.75px and the whole hint strip by 54.75px, so the writer lost the send button and every
-    shortcut at once. This is decision 12's failure mode arriving by the other door, and the
+    shortcut at once. This is decision 12's failure mode arriving from the other side, and the
     restack widened it: the same field height posed in the pre-restack inline layout (the button
     beside the field, no button row) leaves a 130px pill inside the panel with the hint strip
     clipped by 14.75px, so the restack turned "half the hint strip" into "the pill and all of it".
@@ -498,7 +499,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     The draft's window is the right thing to spend, because it is the one box here that already
     scrolls: past 120px the field scrolls itself, so a shorter window shows fewer lines of the same
     text and loses nothing, where the alternative is chrome that is not on screen. Three
-    declarations, and each one is load bearing:
+    declarations, and each one is needed:
 
     - **The stacked pill gets an explicit `min-height` of 84px, which REPLACES its automatic
       minimum** (a flex item's automatic minimum is its content, which is why it could not yield a
@@ -549,18 +550,18 @@ a trace, which is why every claim below carries the measurement it rests on.
     more text. Two declarations on `.field` answer it, and they are a pair:
 
     - **`mask-image` fades the field's own padding band at each end**, so a line the window cuts
-      dissolves into the pill instead of being guillotined, and the fade says the true thing about
-      why it is there. The band IS the padding, which is what makes it free: with the text inside
-      its window those 9px hold nothing but padding, so there is nothing for the mask to act on.
-      Diffed in Chromium against the same paint with the rules off, an empty pill is bit-identical
-      and a one-line pill moves by at most 7 of 255 on 0.6% of its pixels, which is the composited
-      layer's antialiasing rather than the fade.
+      dissolves into the pill instead of ending in a hard horizontal cut, and the fade says the true
+      thing about why it is there. The band IS the padding, which is what makes it free: with the
+      text inside its window those 9px hold nothing but padding, so there is nothing for the mask to
+      act on. Diffed in Chromium against the same paint with the rules off, an empty pill is
+      bit-identical and a one-line pill moves by at most 7 of 255 on 0.6% of its pixels, which is
+      the composited layer's antialiasing rather than the fade.
     - **`scroll-padding-block` keeps the writer's line out of that band.** Chromium scrolls a caret
       flush to the edge it moved toward, so without it the line being typed is the line being
       faded. Declaring the field's own padding as its scroll padding moves the reading above to 26
       with the caret on the last line, and to 0 rather than 9 with the caret walked back to the
-      first, so the caret's line always keeps its padding and the fade only ever eats text that is
-      genuinely outside the window.
+      first, so the caret's line always keeps its padding and the fade only ever falls on text that
+      is genuinely outside the window.
 
     The fade is about the scroll and not about the line it lands on, which is worth saying because
     it is visible: a line that happens to sit fully inside the window with more text below it is
@@ -600,8 +601,8 @@ a trace, which is why every claim below carries the measurement it rests on.
 
 22. **A scrollbar is reserved chrome, and it never borrows the content's width.** Only `.history`
     was styled at all, and its 7px thumb took real layout width, so the log jumped sideways the
-    first time a reply overflowed; the other six scroll regions wore the platform default. All
-    seven now wear one quiet rail (`--rail`, 6px) and, more importantly, **reserve** it permanently
+    first time a reply overflowed; the other six scroll regions used the platform default. All
+    seven now carry one quiet rail (`--rail`, 6px) and, more importantly, **reserve** it permanently
     (`scrollbar-gutter: stable`), so overflowing changes nothing about where content sits. Each
     container funds the rail out of its own inline-end padding, subtracted where there was enough
     to spare and added beside it where there was not, so no resting margin moved. This is
@@ -657,12 +658,13 @@ a trace, which is why every claim below carries the measurement it rests on.
   ([ADR-0034](ADR-0034-panel-views.md)'s first consequence); what is new is that there is one thing
   to leave rather than two stacked, so Esc closes it in a single press and the header's chevron is
   the visible way back.
-- **Three doors close the console and a fourth walks past it.** Esc, the chevron and `dismiss` all
-  clear `consoleTab`; `newChat` does not, so Ctrl+N mints the session and empties the chat behind a
-  console that stays on screen (measured at 900x900 after the merge, and true of the two sheets the
-  merge replaced, neither of which `newChat` cleared either). The merge neither caused it nor fixed
-  it, and which way it should go is a question for the user rather than a defect, so it is recorded
-  in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
+- **Three gestures close the console and a fourth leaves it standing.** Esc, the chevron and
+  `dismiss` all clear `consoleTab`; `newChat` does not, so Ctrl+N mints the session and empties the
+  chat behind a console that stays on screen (measured at 900x900 after the merge, and true of the
+  two sheets the merge replaced, neither of which `newChat` cleared either). The merge neither
+  caused it nor fixed it, and which way it should go is a question for the user rather than a
+  defect, so it is recorded in
+  [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 - **The panel's geometry went from one hook to four modules beside it.** `overlay/panelGeometry.ts`
   is the pure arithmetic (the clamp, the centre, the whole-pixel ceiling and the pacing, no DOM in
   any of it), `overlay/panelMemory.ts` is what the panel remembers between placements and how it
@@ -683,7 +685,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   pinned panel has to grow 615px at a 900px viewport before the ceiling binds at all: measured
   after it, acking a reminder, the pencil on a chat with a full reply in it, and a switcher round
   trip all move the composer 0px, where before decision 8 they moved it 40, 13 and 3. It still
-  bites on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
+  happens on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
   clamped edge, and saving the pre-roll edge per section to hand back when it rolls shut) is a
   design the user has not been asked for. Recorded in `docs/refinements/index.md#body-overlay`.
   - **This consequence was already false when it was written, and its rarity number was wrong on
@@ -764,7 +766,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   unchanged, and the cost is that a row's box reaches the reserved band, the painted thumb clearing
   the right-most child box by 1px. Only the box does: the hairline between two reminders is a
   border-top on a 12px-radius row, so it curves away and fades out nine columns clear of the thumb,
-  and text and controls stay 9px to 11px clear on the rows' own padding. It bites if a row ever
+  and text and controls stay 9px to 11px clear on the rows' own padding. It matters if a row ever
   drops that padding, or if the maintainer reads the rail as touching the chrome.
 
 ## Addendum, 2026-07-20: four corrections from a maintainer pass
@@ -792,7 +794,7 @@ at, which is why they are recorded together.
 
 4. **Dismissing leaves the console open; the next summon closes it.** Clearing the tab on dismiss
    changed the view in the same frame the panel started fading, so it morphed back to the chat under
-   a window that was already going, which reads as the panel changing its mind on the way out.
+   a window that was already going, which reads as the panel reversing itself on the way out.
    Traced at 60Hz: the live view now stays the console for the whole fade, opacity 1 to 0 over
    ~300ms, and the summon after it lands on the chat. The invariant the old code was protecting (a
    re-summon never opens onto stale settings) is unchanged; it is enforced on the way IN instead,
@@ -838,8 +840,8 @@ at, which is why they are recorded together.
 7. **The mark setting is the Iris**, after the rainbow in a soap film, which is both the thing being
    chosen and a word that sits beside Cortex. "Mark" named the implementation.
 
-8. **The Auto tile is not captioned.** A line of prose under three pictures explaining the word on
-   one of them is the picture explained to someone who has just looked at it.
+8. **The Auto tile is not captioned.** A line of prose under three pictures, explaining the word on
+   one of them, tells the reader what they have just looked at.
 
 ## Addendum, 2026-07-20: four corrections from a second maintainer pass
 
@@ -847,7 +849,7 @@ at, which is why they are recorded together.
    `TAB_SPREAD_PX` in `components/ConsoleView.tsx`.** Both tabs are mounted and stacked in one grid
    cell, so the taller decides the panel's height and a tab switch resizes nothing. That was
    written as a rule with no number, on the grounds that the two tabs that ship are 12px apart
-   (measured in Chromium at 640x720: the appearance tab wants 278px, the shortcut list 290px) and a
+   (measured in Chromium at 640x720: the appearance tab needs 278px, the shortcut list 290px) and a
    window that jumps 12px and back reads as a flinch. It stops being right for a tab that is
    genuinely shorter, where the panel holds a band of empty space under the content and the window
    is lying about how much is in it. Past 15px the pane not on screen leaves the flow, the cell is
@@ -934,14 +936,14 @@ frames were captured against the commit before it, and they are identical.
    The cap is a keyframe now, from a value at or above the height it starts on, and both ends
    interpolate under one easing so the cap is never tighter than the height it is clamping.
 
-3. **The leaving view is bounded by the panel.** It is lifted out of the flow so it cannot fight the
-   arriving view for the height, and it was then laid out at its own natural height: with the
-   session list open the chat's composer sat 388px down the panel at rest and 558px down one frame
-   after the click, inside a panel 347px tall, so it was clipped away instantly while the rows above
-   it faded for a quarter of a second. The maintainer read that as the chat bar being deleted rather than
-   crossfaded. A `bottom` on the leaving view is the whole fix, and it also gives the history a real
-   window for the length of the morph, which is one of the two things that used to take the log's
-   scroll position.
+3. **The leaving view is bounded by the panel.** It is lifted out of the flow so it cannot compete
+   with the arriving view for the height, and it was then laid out at its own natural height: with
+   the session list open the chat's composer sat 388px down the panel at rest and 558px down one
+   frame after the click, inside a panel 347px tall, so it was clipped away instantly while the rows
+   above it faded for a quarter of a second. The maintainer read that as the chat bar being deleted
+   rather than crossfaded. A `bottom` on the leaving view is the whole fix, and it also gives the
+   history a real window for the length of the morph, which is one of the two things that used to
+   take the log's scroll position.
 
 4. **Focus does not scroll the panel.** The panel clips its overflow, which makes it a scroll
    container the user can never scroll and the engine can, and bringing a newly focused element
@@ -993,14 +995,14 @@ and both amendments are the reason it is worth writing down.
    begins and here it is how one is called off, and a grey that says "a button" does not carry that.
    Its square eases shut (0.84) rather than travelling, having no direction to go in.
 
-   The red is `--halt`, which is not a new colour: it is what the trash on a chat row already wore
-   as a literal, now named once and used by the two controls in the overlay that undo something in
-   flight. It is the accent's own magenta walked to red (`--accent`'s middle stop is
+   The red is `--halt`, which is not a new colour: it is what the trash on a chat row already
+   carried as a literal, now named once and used by the two controls in the overlay that undo
+   something in flight. It is the accent's own magenta walked to red (`--accent`'s middle stop is
    rgb(226, 75, 196); this is the same two channels) rather than a traffic light imported from
-   nowhere, and it is read against the light panel as well as the dark one. This does not loosen
-   the rule that colour is reserved for working affordances: a stop offered mid-turn, and a trash
-   offered on hover, are working affordances at exactly the moment they are coloured, and neither
-   is coloured at rest.
+   nowhere, and it is read against the light panel as well as the dark one. This does not loosen the
+   rule that colour is reserved for working affordances: a stop offered mid-turn, and a trash
+   offered on hover, are working affordances at exactly the moment they are coloured, and neither is
+   coloured at rest.
 
 ## Addendum, 2026-07-21: four the maintainer measured rather than described
 
@@ -1010,7 +1012,8 @@ and both amendments are the reason it is worth writing down.
    stands 17px from the panel's and its right edge stands 17px from the panel's, so its bottom edge
    does too: 16px of padding on `.rows` plus the panel's 1px border. Read off the other two rather
    than judged, and it follows them if they change. The lesson generalises past this rule, which is
-   why it is written down: an inset that has a neighbour has an answer, not an opinion.
+   why it is written down: where an inset has a neighbour, its value is read off that neighbour
+   rather than judged by eye.
 
 2. **The console keeps its tab on the way out.** `Panel` renders the console while it is leaving so
    it can fade, and read its tab from the reducer, which had already set it to null: the fallback
@@ -1025,7 +1028,7 @@ and both amendments are the reason it is worth writing down.
    the one thing about the change that is not obvious from reading it.
 
 4. **The empty state does not scroll.** It is a picture rather than a log, with no more of it
-   further down, so a bar on it offers to reveal nothing and is only the panel admitting it could
+   further down, so a bar on it offers to reveal nothing and only shows that the panel could
    not fit its own welcome. `.log.bare` marks the case (no messages and no approval card), and there
    the column may be shorter than its content: it shrinks, centres, and clips, which is what leaves
    the history with nothing overflowing to offer a bar for. The clipping is symmetric because
@@ -1065,7 +1068,7 @@ and both amendments are the reason it is worth writing down.
    eases colour for its hover crossed at its own 0.16s to 0.35s pace. What the maintainer noticed was the
    chat's title and the reminder lines lagging, which are the two things in the panel that INHERIT
    the ground's colour rather than setting their own, and so were the only text following the 0.4s.
-   The forced flush is the load-bearing line: without it the attribute goes on and off inside one
+   The forced flush is what makes it work: without it the attribute goes on and off inside one
    task and the browser never resolves style in between.
 
 3. **A gradient is not a colour, and four rules asked for one.** `--accent` is a
@@ -1101,7 +1104,7 @@ and both amendments are the reason it is worth writing down.
    afterwards: the ground, the chat title, the session titles, the times, the previews, the hint
    strip and the pin all move together, frame for frame, on one curve.
 
-   Two details are load-bearing. The attribute goes on BEFORE the tokens, because a transition is
+   Two details matter. The attribute goes on BEFORE the tokens, because a transition is
    started from the after-change style, so the rule has to be in effect for the style that changes.
    And it comes off on a timer rather than a style flush, which is the opposite of what the snap
    needed: taken off in the same task there is nothing left to ease. The first application is not a
@@ -1142,7 +1145,7 @@ hangs the reserve off its end and the alignment the reserve exists for is the th
 is a failing test pointing at this number rather than a column that has quietly started moving.
 
 The time also keeps 8px off the pin beside it. The row's own 2px gap is the spacing WITHIN the
-cluster of three icon buttons, and a label that is not one of them wants its own.
+cluster of three icon buttons, and a label that is not one of them needs its own.
 
 ## Addendum, 2026-08-03: a chat arriving takes the console with it
 
@@ -1179,8 +1182,8 @@ did not carry:
    Both arms now clear the tab, so the rule is "a conversation arriving on the panel brings the chat
    with it" rather than a special case for one keystroke. The keyboard is the whole of the reachable
    surface here, which is worth saying because it bounds the defect: the header's pencil and the
-   switcher's rows are the pointer doors into these two arms and neither can be clicked while the
-   console is up, so what was measured is exactly what a user could hit.
+   switcher's rows are the pointer gestures that reach these two arms, and neither can be clicked
+   while the console is up, so what was measured is exactly what a user could hit.
 2. **The other two chat swaps deliberately keep the console, and now say why.** `deleteSession`
    resets the panel to a fresh chat in place, and it keeps the tab for the same reason it already
    keeps the switcher open: a delete is fired from a switcher row, so the user is managing chats
@@ -1193,11 +1196,11 @@ did not carry:
 This is the opposite call from `dismiss`, and for the opposite reason, so the maintainer-pass
 addendum above that gave the dismiss its rule is worth reading beside this one. A dismiss leaves the
 console standing because the panel is on its way out and
-morphing back to the chat under a fading window read as the window changing its mind; the summon
+morphing back to the chat under a fading window read as the window reversing itself; the summon
 after it is what clears the tab. Here the panel stays on screen, so the morph back to the chat is
 the movement the keystroke asked for rather than one the window makes on its own way out. Both
 halves are pinned in
-`overlay/overlayState.test.ts`: one case walks both tabs through both arriving doors, and a second
+`overlay/overlayState.test.ts`: one case walks both tabs through both arriving arms, and a second
 pins the delete and the adoption as leaving the console where it was, so a later "consistency" edit
 to those two has to argue with a test rather than pass silently.
 
@@ -1461,7 +1464,7 @@ wrong edge for the session.
 After: the panel's bottom edge holds at 676 for every frame of that roll and settles at 676 whether
 the user touches the panel mid-roll or not, at both 900x900 (edge 274, the panel on its ceiling) and
 900x1000 (edge 324). The aside's own roll behind a summon is unchanged, since for that case the two
-spellings were always the same number.
+computations were always the same number.
 
 Three functions moved with this, without changing: `centringHeight`, `tabSlack` and `holdScroll` are
 now `overlay/panelParts.ts`, the probes a placement makes into the panel's own tree, so that
@@ -1512,7 +1515,7 @@ At the body's own 640x720 window, in Chromium, driving the overlay's demo bridge
   own `overflow: hidden` box by 247px to bring the caret into view, which took the header off the
   top of the panel.
 - **It gets worse on a bigger screen, not better.** The caps are viewport fractions and the panel's
-  ceiling is not: at 640x1400 the two sections want 980px of a 708px panel, and the hint strip
+  ceiling is not: at 640x1400 the two sections need 980px of a 708px panel, and the hint strip
   measured **450px** past the edge; at 640x1000, 322px.
 
 **It is a pair and not a family**, which is the other thing worth checking rather than assuming.
@@ -1575,7 +1578,7 @@ pinned edge are unchanged in all five (436px at a 198px edge). At 640x1400, 640x
 with both sections open the hint strip reads -1 where it read 450, 322 and 290. The console view is
 untouched, having no sections at all.
 
-**Mutated three ways, each restored after.** Dropping the published property from `capTo` reddens
+**Mutated three ways, each restored after.** Dropping the published property from `capTo` fails
 `panelBudget.test.ts` and the placement test that asserts the ceiling is published at all three of
 the caps a placement writes. Putting the section caps back to the bare `vh` returns the harm
 exactly: 246px and 204px with both sections open, 35px and -7px with the tall draft, which is the
@@ -1735,8 +1738,8 @@ stands at 368px before the send and **352px** after it, a 16px dip that is exact
 deferral predicted. The invitation was restored afterwards.
 
 **Mutated three ways, each restored after.** Publishing the frozen `185px` instead of the measured
-height reddens five tests across the module and both components. Dropping the ref from the empty
-state reddens the Panel suite's floor test, and dropping it from a chip reddens the Message suite's.
+height fails five tests across the module and both components. Dropping the ref from the empty
+state fails the Panel suite's floor test, and dropping it from a chip fails the Message suite's.
 The browser is the evidence for the CSS half, which jsdom has no layout to hold an opinion about.
 
 ### What this does not do
@@ -1788,7 +1791,7 @@ events, reading `document.activeElement` after each one.
 
 ### The React 19 claim was wrong, and this is how
 
-The deferral said the leaving pane wants `inert` "which React types only from 19 (this tree is on
+The deferral said the leaving pane needs `inert` "which React types only from 19 (this tree is on
 18, and setting the attribute by hand around a subtree React owns is the kind of thing that reads as
 a bug later)". Only the first clause is true, and it is about types rather than about React. Probed
 against the tree's own react-dom 18.3.1, on the server renderer and on the client:
@@ -1821,15 +1824,15 @@ the shape: the estimate reasoned from a version number to a capability. The capa
    holds something mounted that is not on screen.** `overlay/withdrawn.ts` exports `withdrawn(away)`
    returning the pair, and the three places spread it: the panel while it is dismissed, the view
    being left for the length of its morph, and the tab not showing inside the console. The two
-   attributes are not two spellings of one idea, which is why the pairing is the rule rather than a
-   convenience. `aria-hidden` hides a subtree from assistive technology and leaves the tab order
-   alone, and a browser refuses it over an ancestor of the focused element, so it needs the app to
-   move focus first before it does anything at all. `inert` takes the subtree out of the tab order,
-   out of the pointer's reach and out of the accessibility tree, and it blurs whatever inside it had
-   focus rather than asking to be helped. `aria-hidden` stays beside it because it is what every
-   reader already understands, and it stays written in both directions, an explicit
-   `aria-hidden="false"` on the live view being a useful thing for the tree to say. `inert` is
-   written in one direction only: its absence is its false, and `inert="false"` would be an inert
+   attributes are not two ways of saying one thing, which is why the pairing is the rule rather
+   than a convenience. `aria-hidden` hides a subtree from assistive technology and leaves the tab
+   order alone, and a browser refuses it over an ancestor of the focused element, so it needs the
+   app to move focus first before it does anything at all. `inert` takes the subtree out of the tab
+   order, out of the pointer's reach and out of the accessibility tree, and it blurs whatever inside
+   it had focus rather than needing the app to move focus first. `aria-hidden` stays beside it
+   because it is what every reader already understands, and it stays written in both directions, an
+   explicit `aria-hidden="false"` on the live view being a useful thing for the tree to say. `inert`
+   is written in one direction only: its absence is its false, and `inert="false"` would be an inert
    element.
 2. **The strip is one stop in the tab order, and the stop is the tab that is up.** A roving
    `tabindex`, 0 on the selected face and -1 on the others. With selection following focus this
@@ -1875,7 +1878,7 @@ One piece of the ROLES came with the keys, the strip's roles having otherwise be
 decision 1: each face now carries `aria-controls` naming the pane it opens, over an id minted by
 `useId` rather than written by hand. The two already read alike, the pane taking its accessible name
 from the same label as its tab, but a reader offering "move to the panel" needs the pointer rather
-than the coincidence, and a duplicated id is what a test now reddens on.
+than the coincidence, and a duplicated id is what a test now fails on.
 
 The keys live in `overlay/tabStrip.ts` as one pure map, `nextTab(key, tabs, from)`, generic over
 what a tab is and returning the tab rather than its index. That is where the wrap lives, so what the
@@ -1908,12 +1911,12 @@ Same window, same bridge, same key presses, after.
   used to leave focus on the body once the fade finished. It now lands on the Chords tab, 40ms after
   the press and still there 440ms later.
 
-**Mutated six ways, each restored after.** Removing the roving `tabindex` reddens the one-stop test
-and the arrow test. Taking `onKeyDown` off the strip reddens four. Making the arrows stop at the
-ends instead of wrapping reddens two in the pure map's suite and one in the view's. Making
-`withdrawn` return `aria-hidden` alone, which is exactly the state this addendum found, reddens five
-across three suites. Dropping the `preventDefault` reddens the test that asserts which keys the
-strip claims. Dropping the focus effect reddens three in the console's suite and one in the panel's.
+**Mutated six ways, each restored after.** Removing the roving `tabindex` fails the one-stop test
+and the arrow test. Taking `onKeyDown` off the strip fails four. Making the arrows stop at the
+ends instead of wrapping fails two in the pure map's suite and one in the view's. Making
+`withdrawn` return `aria-hidden` alone, which is exactly the state this addendum found, fails five
+across three suites. Dropping the `preventDefault` fails the test that asserts which keys the
+strip claims. Dropping the focus effect fails three in the console's suite and one in the panel's.
 
 ### What this does not do
 
@@ -1986,9 +1989,9 @@ the row that hangs from it looks for it.
 reasons: a list whose items are wrapper `<div>`s is not a list to a screen reader. Its second
 reason does not apply, the switcher drawing no rule between rows, so there is no adjacent-sibling
 hairline here to switch off. A third reason the reminder stack did not have does apply, and it is
-the load-bearing one: `min-height: 50px` is what keeps a row the same height whether it is showing a
-title over a preview, a rename box, or a delete confirm, and left on the outside of the roll it is
-also a floor the roll cannot get under.
+the one that matters here: `min-height: 50px` is what keeps a row the same height whether it is
+showing a title over a preview, a rename box, or a delete confirm, and left on the outside of the
+roll it is also a floor the roll cannot get under.
 
 **A leaving row is withdrawn for the length of its exit.** `withdrawn(leaving)` from
 `overlay/withdrawn.ts` puts `aria-hidden` and `inert` on the slot. A row held on screen after its
@@ -2043,10 +2046,10 @@ Chromium over the demo bridge, three chats, the switcher open, traced per animat
 
 Three, each restored afterwards.
 
-1. **Placing a leaving row by index alone** reddens exactly two tests, the reorder case in
+1. **Placing a leaving row by index alone** fails exactly two tests, the reorder case in
    `overlay/usePresence.test.tsx` and the one in `components/SessionList.test.tsx`, and nothing
    else. The browser trace of the same mutation is the y=240.47 counterfactual above.
-2. **Rendering `sessions` instead of `stack.entries`** reddens six in the switcher's suite: the
+2. **Rendering `sessions` instead of `stack.entries`** fails six in the switcher's suite: the
    held row, the withdrawal, the reorder, the whole re-listing, two exits at once, and the empty
    line waiting.
 3. **Putting `min-height: 50px` back on `.switcher-slot`** passes every test, because jsdom has no
@@ -2145,8 +2148,8 @@ live DOM beside the roles that did come out of the tree.
 
 ### The mutation proof
 
-Putting `role="listbox"` back reddens the new test at its first assertion, and taking the
-`aria-current` line off reddens it at its last. Both were checked in place and restored.
+Putting `role="listbox"` back fails the new test at its first assertion, and taking the
+`aria-current` line off fails it at its last. Both were checked in place and restored.
 
 ### What this does not do
 
@@ -2195,14 +2198,14 @@ deferral asked for, and they turn out not to need a flag between them:
   50px at once and take the line's 39 off over the following 300ms, which is an overshoot bigger
   than the step it removes. This is the direction the deferral correctly refused to smooth.
 
-The order in the markup is load-bearing: the line renders BELOW the rows, so the first
+The order in the markup matters: the line renders BELOW the rows, so the first
 `data-morphing` in the tree during those 300ms is the leaving row's, and the ride-along
 (`panelRide.ts`) reads the target the card is actually going to rather than the line's.
 
 **`enter` is read once, at mount.** A section mounted with the view it belongs to is already there
 and animates only what happens to it afterwards, which is why the switcher's list rolls open when
 the panel opens it and not when it is built. Something mounted INTO a list already on screen has
-arrived, and only that case wants the roll. Opening the switcher on a list that is already empty
+arrived, and only that case needs the roll. Opening the switcher on a list that is already empty
 therefore shows the line at its full height with nothing animating, which is what keeps the
 section's own roll measuring a card of 53 rather than one growing out of nothing.
 
@@ -2277,7 +2280,7 @@ Chromium over the demo bridge, per animation frame, before and after.
 
 ### The mutation proof
 
-Eight, each restored afterwards, each reddening only what it should.
+Eight, each restored afterwards, each failing only what it should.
 
 1. **The line waits for the rendered rows again** (its old condition): one test fails, the empty
    line growing into the gap.
@@ -2308,7 +2311,7 @@ the row coming back is what the eye follows.
 
 **The travel is the switcher's alone.** The reminder stack only ever loses rows, so it has nothing
 to travel, and `useTravel` is written against a selector and a ref rather than against the switcher
-so that the second list to want it wires it in one line.
+so that the second list to need it wires it in one line.
 
 ## Addendum, 2026-08-03: the log rides a roll, and anchoring's good half comes back as code
 
@@ -2417,7 +2420,7 @@ moving on its own account. It is exactly reversible (closing the switcher reads 
 reader can scroll, so it is filed rather than bundled
 ([body-overlay](../refinements/index.md#body-overlay)).
 
-## Addendum, 2026-08-04: a chat swap says which chat arrived, unless its door already said it
+## Addendum, 2026-08-04: a chat swap says which chat arrived, unless its gesture already said it
 
 The switcher-role addendum above left the cycle keys exactly as they were and opened one deferral
 on its way out: the swap they perform is silent. This closes it. The overlay gains **one polite
@@ -2434,10 +2437,10 @@ Chromium at 900x900, on the demo's own seed, with the reminder stack and the swi
   "Everything about model swaps". The first press closes the switcher out from under the reader,
   `aria-expanded` going true to false, and `document.activeElement` is the chats button throughout.
   Nothing on the page says any of it.
-- **The other doors, which the entry did not have.** `Ctrl+N` has the identical shape: the title
+- **The other gestures, which the entry did not have.** `Ctrl+N` has the identical shape: the title
   goes back to "New chat", focus does not move, nothing is announced. A reminder card's "open chat"
   loads its origin chat ("Everything about model swaps") and says nothing. Deleting the chat that is
-  open resets the panel to a fresh one, also silently. So the doors are seven and not the two the
+  open resets the panel to a fresh one, also silently. So the gestures are seven and not the two the
   entry named.
 - **The page's live regions.** One `role="status"`, the connection dot, reading
   "Brain ready: cortex-orchestrator demo".
@@ -2462,11 +2465,11 @@ Wrong in four places, each of which changed the shape of the fix:
    the title the reducer arm computes, off the same `headerTitle` call the header takes, so the
    region and the header cannot disagree about which chat is on screen for the same reason the
    header and the switcher row cannot.
-3. **The decision cannot live in the reducer arm, because one arm serves two doors.**
+3. **The decision cannot live in the reducer arm, because one arm serves two gestures.**
    `openSession` is the switcher row AND the cycle keys; `newChat` is the pencil AND `Ctrl+N`. The
-   flag therefore travels with the action from the door that raised it, which is the only shape
+   flag therefore travels with the action from the gesture that raised it, which is the only shape
    that can deliver the entry's own "so a reader is not read back a title it just clicked": a rule
-   written into either arm would have to answer for both of that arm's doors at once.
+   written into either arm would have to answer for both of that arm's gestures at once.
 4. **A title said twice is not said twice.** A live region reports a mutation, not a value, so text
    replaced by identical text announces nothing. Two chats can easily share a title (the same
    question asked twice, or two runs of "New chat"), so the notice carries a count and the region's
@@ -2476,27 +2479,27 @@ Wrong in four places, each of which changed the shape of the fix:
 
 `overlay/notice.ts` holds a `Notice` (`title` plus `count`) and `speak`, which is the whole of the
 new state. `OverlayState` gains `notice: Notice | null`, the `openSession` and `newChat` actions
-gain an `announce` flag, and `components/Announcer.tsx` renders the region. Seven doors, and the
-rule is read off the gesture rather than off the transition:
+gain an `announce` flag, and `components/Announcer.tsx` renders the region. Seven gestures reach
+those two arms, and the rule is read off the gesture rather than off the transition:
 
-| Door | Speaks | Why |
+| Gesture | Speaks | Why |
 | --- | --- | --- |
 | `Ctrl+↑` / `Ctrl+↓` | yes | A keystroke names no chat and moves no focus. |
 | `Ctrl+N` | yes | The same, for the fresh chat it mints. |
 | A reminder's "open chat" | yes | The control is named for the act, not for the chat. |
-| The fresh chat after deleting the open one | yes | Its only door is `Confirm delete <title>`, which names the chat LEAVING. |
+| The fresh chat after deleting the open one | yes | The only control that fires it is `Confirm delete <title>`, which names the chat LEAVING. |
 | A switcher row | no | The row's accessible name IS the arriving title. |
 | The header's pencil | no | Labelled "New chat", which is what arrives. |
-| Cold-start adoption | no | No gesture to answer, and it runs only while `touched` is false, which every speaking door sets, so it can never land over something said. |
+| Cold-start adoption | no | No gesture to answer, and it runs only while `touched` is false, which every speaking gesture sets, so it can never land over something said. |
 
 A silent swap **clears** the notice rather than leaving it: a removal is not announced under the
 default `aria-relevant`, so nothing is read, and the region is left holding only what was actually
-last said. The delete fallback needs no flag, having the one door.
+last said. The delete fallback needs no flag, having the one gesture.
 
-The region sits at the overlay's root and not in the panel, which is load-bearing. A dismissed
+The region sits at the overlay's root and not in the panel, which is what makes it work. A dismissed
 panel is `aria-hidden` and `inert` (`overlay/withdrawn.ts`) and the cycle keys are global, so a
 press can put the panel on screen and swap the chat in one commit; a region inside it would be
-entering the accessibility tree in the same frame as the words it wants read. What it says is a
+entering the accessibility tree in the same frame as the words it announces. What it says is a
 sentence, `Switched to <title>`, because a bare title arriving out of nowhere names a thing without
 saying what happened to it.
 
@@ -2511,25 +2514,25 @@ Chromium at 900x900, same seed, after:
   "Switched to Everything about model swaps" in the region, each naming the title the header carries
   in the same frame. `Ctrl+N` reads "Switched to New chat". A reminder's "open chat" reads "Switched to
   Everything about model swaps". Deleting the open chat reads "Switched to New chat".
-- **The named doors stay quiet.** A switcher row click and the header's pencil each leave the region
-  empty, and a `MutationObserver` over it records only the removal of what stood there.
+- **The named gestures stay quiet.** A switcher row click and the header's pencil each leave the
+  region empty, and a `MutationObserver` over it records only the removal of what stood there.
 - **One title, twice, is two announcements.** Two `Ctrl+N` presses in a row record three mutations:
   an addition, then a removal, then an addition of the identical string. Without the keyed child
   the second press mutates nothing at all.
 
 ### The mutation proof
 
-Seven mutations, each reddening exactly one test and no other, checked in place and restored:
+Seven mutations, each failing exactly one test and no other, checked in place and restored:
 dropping the `key` on the region's child (the same-title test), pinning `speak`'s count at 1 (the
-counting test), making `openSession` ignore its flag (the door test), flipping the switcher row to
-announce (Panel's switcher test), flipping the reminder's control to silent (Panel's reminder
-test), giving `Ctrl+N` the pencil's rule (Overlay's door test), and dropping the notice from the
-delete fallback (the delete test). Moving the `Announcer` under the panel reddens the placement
-test on the `inert` subtree, which is the assertion that keeps it out.
+counting test), making `openSession` ignore its flag (the gesture test), flipping the switcher row
+to announce (Panel's switcher test), flipping the reminder's control to silent (Panel's reminder
+test), giving `Ctrl+N` the pencil's rule (Overlay's gesture test), and dropping the notice from the
+delete fallback (the delete test). Moving the `Announcer` under the panel fails the placement test
+on the `inert` subtree, which is the assertion that keeps it out.
 
 ### What this does not do
 
-**Focus is still exactly where the gesture left it, and for three doors that is now the body.**
+**Focus is still exactly where the gesture left it, and for three gestures that is now the body.**
 Measured at 900x900: clicking a switcher row keeps focus on the row for its 300ms roll and then
 loses it to `<body>` when `Collapse` unmounts the row; a reminder's "open chat" loses it in the same
 way, the stack rolling away as the history fills; and confirming a delete loses it with the row.
@@ -2604,12 +2607,12 @@ Wrong in two places, one of them the whole cost of the entry:
 
 **The log listens on the column, and the roll's own element is the event's target.** `Panel` holds a
 ref for the chat's `.view` and hands it to `ChatView`, which hands it to `useLogScroll`; the
-subscription moves from the box to that column. One listener hears both kinds, a roll inside the log
-bubbling through the box on its way there, so there is one doorbell and not two. The section is read
-off `event.target` rather than searched for by attribute, which is what keeps two rolls in the same
-frame apart (a switcher row leaving under an empty line arriving is the reachable pair) and which
-the roll contract already licenses: `morph.ts` says the element that announces is the element that
-was marked, and both dispatchers do exactly that.
+subscription moves from the box to that column. One listener receives both kinds, a roll inside the
+log bubbling through the box on its way there, so there is one subscription and not two. The section
+is read off `event.target` rather than searched for by attribute, which is what keeps two rolls in
+the same frame apart (a switcher row leaving under an empty line arriving is the reachable pair) and
+which the roll contract already licenses: `morph.ts` says the element that announces is the element
+that was marked, and both dispatchers do exactly that.
 
 **The cap is only ever about a section inside the box**, per the correction above. Outside it, the
 ride holds the tail and nothing bounds it but the box's own range.
@@ -2654,11 +2657,11 @@ that never paints, peaking at 36px on the way open, which is one frame of the ro
 
 ### The mutation proof
 
-Three mutations, each reddening exactly the tests that carry the claim, checked in place and
+Three mutations, each failing exactly the tests that carry the claim, checked in place and
 restored: taking the `box.contains` rule out again freezes the ride at its opening position (both
 new ride tests and the panel's wiring test), taking the ref off the panel's chat column leaves the
 log listening to nothing (the panel's wiring test alone), and putting the subscription back on the
-box reddens four (the chrome test, the two-rolls test, the unmounted-column test and the panel's
+box fails four (the chrome test, the two-rolls test, the unmounted-column test and the panel's
 wiring test) while leaving the inside-the-log ride green, which is the shape that says the two kinds
 of roll are one mechanism.
 
@@ -2721,9 +2724,9 @@ edge 184px, composer top 445. At 900x900 the same three readings are 518 at a 27
    the ack drops the top edge 108 to 138.5 with the composer at 535 on all 76 frames, and the round
    trip returns the panel to the identical 274px edge with the composer at 535 throughout.
 
-**The arm was reddened before it was trusted.** The deleted clamp was put back at the one line that
-spends it, `edge = max(0, min(wanted, 0.88v - height))`, which is the old `clamped` verbatim. The
-panel then arrives 546 tall at an 88px edge with the composer at 541, and acking one reminder
+**The arm was made to fail before it was trusted.** The deleted clamp was put back at the one line
+that spends it, `edge = max(0, min(wanted, 0.88v - height))`, which is the old `clamped` verbatim.
+The panel then arrives 546 tall at an 88px edge with the composer at 541, and acking one reminder
 settles it at 483: a 58px move, through a 96px excursion (541 down to 445 across the roll, back up
 to 483), with the edge walking 88 to 184 to 146. That is the entry's defect, reproduced on demand.
 The change was reverted and every green reading above was re-taken afterwards.
@@ -2765,10 +2768,11 @@ standing option.
 ## Addendum, 2026-08-06: the caret follows the conversation
 
 The live-region addendum above put a chat swap into speech and left focus exactly where the gesture
-had made it, filing the rest as its own deferral: three of the doors into a swap sit inside sections
-the swap takes away, so the control that fired it stops existing and the browser falls back to
-`<body>`, outside the panel and one Tab from the top of the page. This closes that. **Focus goes to
-the composer**, which is the user's answer, taken plainly over the two alternatives on 2026-08-06.
+had made it, filing the rest as its own deferral: three of the gestures that swap a chat sit inside
+sections the swap takes away, so the control that fired it stops existing and the browser falls back
+to `<body>`, outside the panel and one Tab from the top of the page. This closes that. **Focus goes
+to the composer**, which is the user's answer, taken plainly over the two alternatives on
+2026-08-06.
 
 ### What was measured before
 
@@ -2776,21 +2780,21 @@ Chromium at 900x900 against the demo bridge, `document.activeElement` read befor
 at 0, 60, 150, 290, 320 and 700ms after it.
 
 - **A switcher row** keeps focus for its whole roll, reading the row at every sample through 320ms
-  and `BODY` by 700, which is `Collapse` unmounting the row when the roll ends. This is the door the
-  entry described, and the only one of its three that behaves the way it said.
+  and `BODY` by 700, which is `Collapse` unmounting the row when the roll ends. This is the gesture
+  the entry described, and the only one of its three that behaves the way it said.
 - **A reminder card's "open chat"** reads `BODY` at 0ms. The stack does not roll away as the entry
   had it: that `Collapse` is keyed on the session id, so a swap remounts it outright and the control
   is gone in the commit itself.
 - **A delete confirm on the open chat** also reads `BODY` at 0ms, by a third mechanism again. The
   row leaving is `withdrawn` the moment `sessions` drops it, and `inert` blurs what it contains, so
   the control is blurred before any roll has started.
-- **The doors are more than three.** `Ctrl+N` pressed with focus on a switcher row holds the row to
-  290ms and reads `BODY` at 320, so the defect belongs to where the gesture was made rather than to
-  which control made it. The cycle keys are the same shape into the same arm and were not measured
-  separately from a row, `Ctrl+N` being the one traced.
-- **The doors that keep focus** are the ones whose control survives: `Ctrl+↓` from the header's chats
-  button leaves focus there through the swap, the pencil keeps it, and cold-start adoption has the
-  composer already, the browser build self-summoning into it.
+- **The gestures are more than three.** `Ctrl+N` pressed with focus on a switcher row holds the row
+  to 290ms and reads `BODY` at 320, so the defect belongs to where the gesture was made rather than
+  to which control made it. The cycle keys are the same shape into the same arm and were not
+  measured separately from a row, `Ctrl+N` being the one traced.
+- **The gestures that keep focus** are the ones whose control survives: `Ctrl+↓` from the header's
+  chats button leaves focus there through the swap, the pencil keeps it, and cold-start adoption has
+  the composer already, the browser build self-summoning into it.
 
 ### The decision
 
@@ -2807,8 +2811,9 @@ field is sitting in, and `ChatView` stands at 299 lines against a 300-line cap, 
 have left it exactly on that cap with nothing spare for whoever reads it next.
 
 **Unlike the notice, no flag travels with the action.** That rule is about the gesture, so one arm
-serving two doors had to be told which one rang; this rule is about the transition, every door on an
-arm wants the same landing, and each arm therefore answers for all of its own doors. Cold-start
+serving two gestures had to be told which one fired; this rule is about the transition, every
+gesture on an arm should land in the same place, and each arm therefore answers for every gesture
+that reaches it. Cold-start
 adoption is excluded by being its own arm, which is also the only correct answer: the panel it would
 be moving focus inside is shut, and shut it is `inert`.
 
@@ -2819,10 +2824,10 @@ events, which is the notice's lesson applied to the same problem one field over.
 
 **At the arrival and not at the end of the roll.** The swap is one commit, so focus leaves the doomed
 control before its section starts rolling, rather than riding 300ms on an element that is on its way
-out; two of the three doors have already been blurred by then anyway, so "the end of the roll" would
-mean 300ms parked on `<body>` for them.
+out; the controls behind two of the three have already been blurred by then anyway, so "the end of
+the roll" would mean 300ms parked on `<body>` for them.
 
-| Door | Focus before | Focus after |
+| Gesture | Focus before | Focus after |
 | --- | --- | --- |
 | A switcher row | the row, then `<body>` | the composer, from 0ms |
 | A reminder's "open chat" | `<body>` at once | the composer, from 0ms |
@@ -2834,9 +2839,9 @@ mean 300ms parked on `<body>` for them.
 
 ### What it measures
 
-Chromium at 900x900, same seed, after: every door in the table reads `TEXTAREA [Message]` at 0ms and
-at every sample through 700ms, with the arriving title in the header and the live region saying what
-it said before.
+Chromium at 900x900, same seed, after: every gesture in the table reads `TEXTAREA [Message]` at 0ms
+and at every sample through 700ms, with the arriving title in the header and the live region saying
+what it said before.
 
 **The panel does not notice.** The switcher's roll under a row press is frame for frame what it was:
 43 painted frames, the panel's top edge 108 to 273.19 and its height 518 to 352.81 in both traces,
@@ -2847,10 +2852,10 @@ component for.
 
 ### The mutation proof
 
-Two mutations, each reddening a different pair of tests, checked in place and restored. Pinning the
-three arms at `arrival: state.arrival` (the swap stops counting) reddens the reducer's arrival test
-and the App-level door test, and leaves the composer's own test green, which is the split the
-contract wants. Giving the effect the old rising edge, `[arrival !== null]`, reddens the composer's
+Two mutations, each failing a different pair of tests, checked in place and restored. Pinning the
+three arms at `arrival: state.arrival` (the swap stops counting) fails the reducer's arrival test
+and the App-level gesture test, and leaves the composer's own test green, which is the split the
+contract wants. Giving the effect the old rising edge, `[arrival !== null]`, fails the composer's
 test and the App-level one, and leaves the reducer green.
 
 ### What this does not do
@@ -2950,11 +2955,11 @@ alike, the observer's "loop completed with undelivered notifications" error fire
 
 ### The falsification proof
 
-Four reverts, each checked in place and restored, each reddening the tests that name it. Rounding
-the used height again reddens the sub-pixel keyframe test alone. Writing the bottom edge rounded
-again reddens that test and the whole-pixel-ceiling test. Putting the guard back so the watch waits
-the move out reddens the join test and the sub-pixel one. Measuring against the height last looked at
-rather than the height placed for reddens both watch-settling tests.
+Four reverts, each checked in place and restored, each failing the tests that name it. Rounding
+the used height again fails the sub-pixel keyframe test alone. Writing the bottom edge rounded
+again fails that test and the whole-pixel-ceiling test. Putting the guard back so the watch waits
+the move out fails the join test and the sub-pixel one. Measuring against the height last looked at
+rather than the height placed for fails both watch-settling tests.
 
 ### What this does not do
 
@@ -2985,9 +2990,9 @@ somewhere else. **The user's answer is a draft per chat**, taken over clearing o
 ### What was measured before
 
 Chromium at 900x900 against the demo bridge, "half a question" typed into the field and then every
-door into a swap fired. The entry's claim held exactly and at every door, not only the one it named:
-the value and the caret came through `Ctrl+↓`, a switcher row, `Ctrl+N`, the header's pencil, a
-delete confirm on the open chat, and a reminder card's open control, all reading
+gesture that swaps a chat fired. The entry's claim held exactly and at every gesture, not only the
+one it named: the value and the caret came through `Ctrl+↓`, a switcher row, `Ctrl+N`, the header's
+pencil, a delete confirm on the open chat, and a reminder card's open control, all reading
 `{"value":"half a question","caret":15}` afterwards, with the arriving chat's title in the header.
 
 One detail in the entry is worth correcting rather than repeating: **"caret at 15" is the end of the
@@ -3032,10 +3037,10 @@ each leaves again when its text is sent, when its chat is deleted, or when the f
 hand. A draft for a chat outside the loaded switcher window needs nothing special, being keyed by id
 rather than by list membership.
 
-**Sending a text empties the field that held it**, asked of the text and not of the door
+**Sending a text empties the field that held it**, asked of the text and not of the gesture
 (`turnState.submit`). The composer sends its own draft, so the draft goes; an example prompt on the
 empty state sends the chip's words, so a half-typed question sitting in the field beside it is not
-thrown away by a button pressed for something else. A send the reducer refuses (a blank field, a turn
+thrown away by a button pressed for something else. A send the reducer rejects (a blank field, a turn
 already streaming) spends nothing, where the field used to blank itself regardless.
 
 **Typing now counts as touching the overlay.** `touched` has always documented itself as covering
@@ -3043,7 +3048,7 @@ typing and could not, nothing having dispatched on a keystroke; the draft action
 closes the one path where a cold-start restore could take away the conversation a half-typed line was
 written in.
 
-| Door | The draft it leaves | The field it arrives on |
+| Gesture | The draft it leaves | The field it arrives on |
 | --- | --- | --- |
 | A switcher row | parked under the chat being left | that chat's own text, or empty |
 | `Ctrl+↑` / `Ctrl+↓` | parked under the chat being left | that chat's own text, or empty |
@@ -3067,11 +3072,11 @@ switcher row, comes back at 15; and typing an `X` at offset 4 of a standing draf
 
 ### What it measures
 
-**Every door, at 900x900**, after: a sentence typed in one chat is gone from the field the moment
-another conversation arrives and is waiting under the chat it was written in when any door goes back;
-`Ctrl+N` and the pencil arrive empty and leave both sentences behind them; a delete of the open chat
-arrives empty; a reminder's open control behaves as the row does; a trip to the console and back is
-unchanged, which it always was; a send empties the field and an example chip does not.
+**Every gesture, at 900x900**, after: a sentence typed in one chat is gone from the field the moment
+another conversation arrives and is waiting under the chat it was written in when any gesture goes
+back; `Ctrl+N` and the pencil arrive empty and leave both sentences behind them; a delete of the
+open chat arrives empty; a reminder's open control behaves as the row does; a trip to the console
+and back is unchanged, which it always was; a send empties the field and an example chip does not.
 
 **The panel does not jump, which is the hazard a taller composer carries.** The swap alone was
 traced per animation frame with the switcher already open and settled, at both viewports, against a
@@ -3094,13 +3099,13 @@ swap into a chat holding nothing:
 
 ### The falsification proof
 
-Seven mutations, each checked in place and restored, each reddening tests that name it and leaving
+Seven mutations, each checked in place and restored, each failing tests that name it and leaving
 the rest green. Reading the field off the last text typed anywhere rather than off the chat on screen
-reddens the App-level door test alone, which is the wiring that test exists for. Dropping the delete
-cascade's `dropDraft` reddens the delete test. Never spending a sent draft reddens the reducer's send
-test and the App-level one; always spending it reddens the send test on the example-chip half.
-Storing `""` as an entry reddens the eviction test. Taking `touched` off the draft arm reddens the
-adoption test. Carrying the outgoing draft into a freshly minted chat reddens the new-chat test and
+fails the App-level gesture test alone, which is the wiring that test exists for. Dropping the
+delete cascade's `dropDraft` fails the delete test. Never spending a sent draft fails the reducer's
+send test and the App-level one; always spending it fails the send test on the example-chip half.
+Storing `""` as an entry fails the eviction test. Taking `touched` off the draft arm fails the
+adoption test. Carrying the outgoing draft into a freshly minted chat fails the new-chat test and
 the App-level one.
 
 ### What this does not do
@@ -3117,11 +3122,11 @@ inventing a third word would have cost more than the collision does.
 **`ChatView` was split to make room for this**, the file having stood at 299 lines against a 300-line
 cap. The hint strip under the composer is its own component now (`components/HintStrip.tsx`), which
 is a split by responsibility rather than by line count: it is the row of keyboard affordances plus
-the two doors into the console, and it takes no state. `newChat` moved from the reducer's switch into
-`overlay/sessionState.ts` beside `openSession`, `adoptSession` and `deleteSession` for the same
-reason and with the same test: all four are conversation-swap arms answering the same three questions
-(what is announced, that the caret follows, and what becomes of the draft), and reading one is now
-reading the others.
+the two controls that open the console, and it takes no state. `newChat` moved from the reducer's
+switch into `overlay/sessionState.ts` beside `openSession`, `adoptSession` and `deleteSession` for
+the same reason and with the same test: all four are conversation-swap arms answering the same three
+questions (what is announced, that the caret follows, and what becomes of the draft), and reading
+one is now reading the others.
 
 ## Addendum, 2026-08-06: the caret stays in the list
 
@@ -3134,7 +3139,7 @@ what it did not do: the same rows drop focus for the gestures that swap nothing.
 
 Chromium at 900x900 against the demo bridge, `document.activeElement` read before each gesture and at
 0, 60, 150, 290, 320 and 700ms after it. **The entry filed five gestures and there are thirteen**,
-which is the sibling entry's lesson repeating: doors are counted by reading the component, not by
+which is the sibling entry's lesson repeating: gestures are counted by reading the component, not by
 remembering the last bug report.
 
 | Gesture | Before | Mechanism | After |
@@ -3272,14 +3277,15 @@ the composer changed but where the ref comes from.
 
 ### The mutation proof
 
-Thirteen mutations, each applied in place, run, and restored. Every one reddened at least one test and
-none reddened everything: dropping the editor's caret, aiming the confirm at its destructive half,
+Thirteen mutations, each applied in place, run, and restored. Every one failed at least one test and
+none failed all of them: dropping the editor's caret, aiming the confirm at its destructive half,
 narrowing `heir` to the row below, deleting the open-chat guard, dropping the field's `select()`,
 dropping the anchor fallback, dropping either Escape's `stopPropagation`, widening the `?` guard back,
 dropping the reminder row's withdrawal, dropping the ack's caret, and blanking the caret for a closing
 editor, a cancelled confirm and a confirmed delete. The one that spread furthest was the confirm's
-target, which reddened three tests across two files including the App-level door; the one that spread
-least was the open-chat guard, which reddened exactly the test that says the swap rule owns that door.
+target, which failed three tests across two files including the App-level gesture; the one that
+spread least was the open-chat guard, which failed exactly the test that says the swap rule owns
+that gesture.
 
 ### What this does not do
 
@@ -3351,9 +3357,9 @@ where it had got to. That is the whole of the "three test files sharing one prot
 the entry priced, and it landed as one helper rather than a rewrite per file, exactly as the
 panel's did.
 
-**Falsified both ways.** Reading `offsetHeight` again reddens eleven `Collapse` cases plus the
+**Falsified both ways.** Reading `offsetHeight` again fails eleven `Collapse` cases plus the
 per-row exits in `Reminders.test.tsx` and `SessionList.test.tsx`, which is the harness proving it is
-bound to production. Rounding the used height instead reddens exactly one case, the new one that
+bound to production. Rounding the used height instead fails exactly one case, the new one that
 rolls a section standing on a sub-pixel and asserts the keyframes and the published target both
 carry it.
 
@@ -3501,25 +3507,26 @@ pencil.
 
 Four, each run against the new tests plus the ones that were already there.
 
-Returning `pass` where `fieldKey` returns `hold` reddens two: the pure case, and the row case, which
+Returning `pass` where `fieldKey` returns `hold` fails two: the pure case, and the row case, which
 reports the window listener hearing all eight presses instead of none.
 
-Dropping `metaKey` from `chord` reddens five, and the extra three are the point: the overlay's own
+Dropping `metaKey` from `chord` fails five, and the extra three are the point: the overlay's own
 `Ctrl+N` and cycle-key cases go red too, which is the single definition proving it is shared rather
 than copied.
 
-Dropping the `pass` early return, so the editor keeps every key, reddens the assertion that a plain
+Dropping the `pass` early return, so the editor keeps every key, fails the assertion that a plain
 `?` still reaches the window. That is the guard against a fix that overshoots into the mechanism it
 was supposed to compose with.
 
-Giving the delete confirm the editor's handler reddens the confirm's own case, which pins the
+Giving the delete confirm the editor's handler fails the confirm's own case, which pins the
 scoping decision rather than leaving it as a comment.
 
 ### What this does not do
 
 **A list the reader CLOSES still drops the caret.** With no editor open and the caret on a resting
 row's pencil, `Ctrl+K` leaves `document.activeElement` on `<body>`, measured at 900x900. This
-addendum removes one door onto that (the same key from inside an editor) and leaves the rest. It is
+addendum removes one gesture that reaches it (the same key from inside an editor) and leaves the
+rest. It is
 not a one-liner: the switcher closes four ways, two of which already answer through the arrival rule
 above, and a rule for the other two has to move the caret only when the caret is inside the list, or
 `Ctrl+K` from the composer would pull the reader out of a sentence. Filed in
@@ -3583,7 +3590,7 @@ would therefore have two announcements in flight at once.
 The second is a location. The entry called the region "the panel's own announcer"; it is
 deliberately **outside** the panel, a sibling of it at the overlay's root, because a dismissed panel
 is `aria-hidden` and `inert` and the cycle keys are global, so a region inside it would be
-introducing itself to the tree in the same frame as the words it wants read. That is the fact that
+introducing itself to the tree in the same frame as the words it announces. That is the fact that
 rules out one of the three shapes the entry proposed.
 
 The third is a confirmation rather than a correction, and it was checked rather than assumed: the
@@ -3698,27 +3705,27 @@ switcher empties, `textarea[Message]` after the open chat goes and after the las
 
 Eight, each run against the whole suite.
 
-Making the non-open delete silent again reddens two: the sentence itself, and the no-op guard's case,
+Making the non-open delete silent again fails two: the sentence itself, and the no-op guard's case,
 which measures the notice through the same field.
 
-Dropping the guard, so the arm speaks whether or not a row left, reddens the repeated-dispatch case
+Dropping the guard, so the arm speaks whether or not a row left, fails the repeated-dispatch case
 alone, which is what pins the announcement to a row actually leaving rather than to the arm running.
 
-Dropping the delete clause from the open-chat path, leaving only the arrival, reddens the combined
+Dropping the delete clause from the open-chat path, leaving only the arrival, fails the combined
 sentence and the switcher's own case.
 
-Silencing the reminder arm reddens the stack's case.
+Silencing the reminder arm fails the stack's case.
 
-Taking the count key off the region's child reddens the second-announcement-with-the-same-words
+Taking the count key off the region's child fails the second-announcement-with-the-same-words
 case, which is the cycle-keys addendum's own guarantee re-proved over the new text.
 
-Making `tally` always plural reddens five, across three files, which is the pluralization being
+Making `tally` always plural fails five, across three files, which is the pluralization being
 shared rather than restated.
 
-Giving the switcher's empty line its own copy of the words, and moving the constant, reddens both
+Giving the switcher's empty line its own copy of the words, and moving the constant, fails both
 sides of the tie: the list's case and the region's.
 
-Joining the parts with no gap reddens the two cases that assert a whole sentence.
+Joining the parts with no gap fails the two cases that assert a whole sentence.
 
 ### What this does not do
 
@@ -3806,8 +3813,8 @@ The panel still never animates its own height during a reply, so nothing on that
 
 `useWhisperClock.test.ts` gains one case that lays a wrapped line on a 22.475px line box over a whole
 `offsetTop` and asserts the published target against the height the box settles at. Rounding to a
-whole pixel reddens it (`72` against `72.5`), publishing the unrounded target reddens it (`72.475`),
-and publishing to two decimals reddens it (`72.47`); nothing else in the suite moves under any of
+whole pixel fails it (`72` against `72.5`), publishing the unrounded target fails it (`72.475`),
+and publishing to two decimals fails it (`72.47`); nothing else in the suite moves under any of
 the three, which is the case being bound to the contract rather than to the arithmetic.
 
 The trace was falsified before it was trusted, since a reading of "no step" is worth nothing from an
@@ -3838,12 +3845,12 @@ takes every control in it, and the caret goes with it to `<body>`.
 
 Headless Chromium 1228 at 900x900 against the demo bridge, `document.activeElement` read once per
 animation frame for 800ms and reported as runs rather than as samples, so a caret that rides a roll
-and is dropped at its end is legible as such. Twenty three doors, each from a fresh page.
+and is dropped at its end is legible as such. Twenty three gestures, each from a fresh page.
 
-The switcher's own thirteen doors, which is where the entry filed four, several of them measured
+The switcher's own thirteen gestures, which is where the entry filed four, several of them measured
 from more than one caret position and so standing on more than one row:
 
-| Door | Caret before | Trace | Landing |
+| Gesture | Caret before | Trace | Landing |
 | --- | --- | --- | --- |
 | `Ctrl+K` | `button[Rename Summarize my unread email]` | pencil 1..337ms | `body` 353ms |
 | `Ctrl+K` | `button.switcher-item` | title 6..304ms | `body` 320ms |
@@ -3866,7 +3873,7 @@ from more than one caret position and so standing on more than one row:
 
 And the reminder stack's own, plus the two controls that close it from outside:
 
-| Door | Caret before | Trace | Landing |
+| Gesture | Caret before | Trace | Landing |
 | --- | --- | --- | --- |
 | ack a middle reminder | `button[Dismiss reminder]{ack:demo-r1}` | ack 6..23ms | `{ack:demo-r2}` 40ms |
 | ack the last reminder | `{ack:demo-r3}` | ack 3..37ms | `textarea[Message]` 53ms |
@@ -3938,13 +3945,13 @@ its rows are still mounted. The empty state's chips are decided **at the gesture
 unmounted in the very commit that submits, so by layout time the caret is already on `<body>` and
 there is nothing left to look inside; the chip calls `handOff` on the field it is about to leave the
 reader with. The reminder stack is deliberately not wired to the hook, every closing it has being
-answered elsewhere, and a rule with nothing to do is not a rule this repo wants wired.
+answered elsewhere, and a rule with nothing to do is not a rule this repo wires.
 
 ### What it measures now
 
-Same instrument, same twenty three doors.
+Same instrument, same twenty three gestures.
 
-| Door | Before | After |
+| Gesture | Before | After |
 | --- | --- | --- |
 | `Ctrl+K` from a row's pencil | `body` 353ms | `button[Recent chats]` 6..802ms |
 | `Ctrl+K` from a row's title | `body` 320ms | `button[Recent chats]` 18ms |
@@ -3953,14 +3960,14 @@ Same instrument, same twenty three doors.
 | `Ctrl+K` from the composer | field, caret 4 | field, caret 4 |
 | `Ctrl+K` from the chats button | `button[Recent chats]` | `button[Recent chats]` |
 | the chats button, pointer | `button[Recent chats]` 45ms | `button[Recent chats]` 39ms |
-| the seven swap doors | `textarea[Message]` | `textarea[Message]` |
+| the seven swap gestures | `textarea[Message]` | `textarea[Message]` |
 | `?` and the hint strip | `button.tab` | `button.tab` |
 | Escape and the tuck button | `body` | `body` |
 | the stack's two acks | heir, then the field | heir, then the field |
 
-The swap doors are worth reading closely, because they are where the deferral is visible: a switcher
-row goes `button.switcher-item` 7..23ms straight to `textarea[Message]` at 40ms, with no frame on
-the chats button in between.
+The swap gestures are worth reading closely, because they are where the deferral is visible: a
+switcher row goes `button.switcher-item` 7..23ms straight to `textarea[Message]` at 40ms, with no
+frame on the chats button in between.
 
 **And the panel does not notice the caret moving under it.** The same close traced at 60Hz twice,
 once with the handoff and once with it neutered, distinguished by reading the landing at the end of
@@ -3975,16 +3982,16 @@ in that trace is the frame at 322ms reading the unanimated layout at the handove
 `overlay/sectionCaret.test.tsx` (six cases) and three cases in `App.test.tsx` that drive the whole
 path: the key, the controller, the reducer, the roll and the caret.
 
-Neutering the handoff reddens the hook's own case and the end to end one, the latter with the defect
+Neutering the handoff fails the hook's own case and the end to end one, the latter with the defect
 restated as an assertion (`expected <body> to be <button class="hbtn" …>`).
 
-Dropping the arrival guard reddens the stand down case, which is the composition with the arrival
+Dropping the arrival guard fails the stand down case, which is the composition with the arrival
 rule pinned rather than assumed.
 
-Dropping the inside the section guard, so every close moves the caret, reddens both the unit case
+Dropping the inside the section guard, so every close moves the caret, fails both the unit case
 and the half typed sentence.
 
-Removing the chip's `handOff` reddens the chip case alone, which is what keeps the two call sites
+Removing the chip's `handOff` fails the chip case alone, which is what keeps the two call sites
 independently pinned.
 
 Nothing else in the suite moves under any of the four.
@@ -4023,17 +4030,17 @@ key that was supposed to show them their chats.
 
 ### What was measured before
 
-Headless Chromium 1228 at 900x900 against the demo bridge, each door from a fresh page:
+Headless Chromium 1228 at 900x900 against the demo bridge, each gesture from a fresh page:
 `document.activeElement` sampled every animation frame for 800ms across the opening roll, the
 devtools accessibility tree (`Accessibility.getFullAXTree`) read for the header control's own state,
 and a `MutationObserver` on every node carrying `aria-live`, `role="status"`, `role="alert"` or
 `role="log"`.
 
-**Thirteen doors, and the entry named two.** The switcher has one opening action in the reducer and
-that is what the entry counted; what a rule has to answer is where the caret is standing when it
+**Thirteen gestures, and the entry named two.** The switcher has one opening action in the reducer
+and that is what the entry counted; what a rule has to answer is where the caret is standing when it
 fires, which is a different list and a longer one.
 
-| Door | Caret before | Caret across the roll | Said |
+| Gesture | Caret before | Caret across the roll | Said |
 | --- | --- | --- | --- |
 | `Ctrl+K` from the composer, empty draft | `textarea[Message]` | unmoved 13..813ms | nothing |
 | `Ctrl+K` from the composer, caret at offset 4 of `half a question` | `textarea[Message]` | unmoved, selection still `[4,4]` | nothing |
@@ -4050,9 +4057,9 @@ fires, which is a different list and a longer one.
 | `Ctrl+K` onto an empty list | `textarea[Message]` | unmoved | nothing; the line reads `No other chats yet` |
 
 **The one channel that carries the fact** is `aria-expanded` on the header's chats button, which the
-tree reports flipping `false` to `true` on every one of those doors. The button carries no
+tree reports flipping `false` to `true` on every one of those gestures. The button carries no
 `aria-controls` (zero related nodes) and no description. So the state is readable exactly where the
-reader is not standing, on eleven of the thirteen doors.
+reader is not standing, on eleven of the thirteen gestures.
 
 **The distance the entry measured is not a property of the design.** Its figure was six Shift+Tab
 presses from the composer without reaching a row. Walked with the keyboard rather than counted from
@@ -4073,7 +4080,7 @@ is the one fact the tab order cannot hand back.
 **The caret does not move into an opening list.** Three measured reasons, in the order they decide
 it.
 
-The shape can only help the door that is already answered. A guard is not optional here: the same
+The shape can only help the gesture that is already answered. A guard is not optional here: the same
 rule that closes a section refuses to move the caret when the caret is outside it, because `Ctrl+K`
 is pressed as often from the composer as from the list, and an unguarded open would pull a reader
 out of a half-typed sentence. The mirror of that guard is "only when the caret is on the anchor",
@@ -4081,12 +4088,12 @@ and the anchor is the chats button, whose `aria-expanded` already says what happ
 caret that pressed it. Everything the guard would let through is the case with the least to gain.
 
 It cannot answer an empty list. There is no row to hand the caret to, so the rule would do nothing
-at exactly the door where the reader learns the least by walking.
+at exactly the gesture where the reader learns the least by walking.
 
 And it would have to choose a row without one being obviously right, the first or the open chat's,
 where the open chat frequently has no row at all (a fresh chat is unlisted until it is written to).
 
-**The header reorder is refused as well.** It buys three Tab presses at the one door already
+**The header reorder is refused as well.** It buys three Tab presses at the one gesture already
 answered, and it buys them by moving the control that opens the list to the end of a cluster whose
 last button is Dismiss, which is a visual change made for a reading-order fact. Reading order and
 visual order stay the same thing here.
@@ -4108,12 +4115,12 @@ the control that says so. Announcing both would put a sentence in the region for
 from inside the list, on top of the focus move the close rule already makes, which is the same fact
 said twice.
 
-**The door decides, not the arm**, which is the rule the arriving-chat arms already follow: the
+**The gesture decides, not the arm**, which is the rule the arriving-chat arms already follow: the
 action carries an `announce` flag, `Ctrl+K` passing true because the key names nothing and moves
 nothing, and the header's chats button passing false because it is the state's own control and the
-caret that pressed it is standing on it. The one door where both speak is `Ctrl+K` pressed with the
-caret parked on that button, which is the price of the door deciding rather than the DOM, and the
-same price the fresh chat's own two doors already pay.
+caret that pressed it is standing on it. The one gesture where both speak is `Ctrl+K` pressed with
+the caret parked on that button, which is the price of the gesture deciding rather than the DOM, and
+the same price the fresh chat's own two gestures already pay.
 
 **And a list that opened where nobody could see it says nothing.** Both chords stay live while the
 chat is not the view on screen, and measured, `Ctrl+K` opens the list from a tucked panel and from
@@ -4138,9 +4145,9 @@ is still true, and carrying the same object says nothing twice, the region repor
 
 ### What it measures now
 
-Same instrument, same thirteen doors.
+Same instrument, same thirteen gestures.
 
-| Door | Before | After |
+| Gesture | Before | After |
 | --- | --- | --- |
 | `Ctrl+K` from the composer, empty draft | silence | `Recent chats open. 3 chats.` |
 | `Ctrl+K` from the composer, caret at offset 4 | silence | the same sentence, draft and selection still `[4,4]` |
@@ -4166,17 +4173,17 @@ between raising nothing at all.
 ### The mutation proof
 
 `overlay/notice.test.ts` gains three cases and `overlay/overlayState.test.ts` five, with one in
-`components/Overlay.test.tsx` for the key's door and one in `App.test.tsx` driving the whole path.
+`components/Overlay.test.tsx` for the key itself and one in `App.test.tsx` driving the whole path.
 
-Neutering the sentence reddens the reducer's own case and the end to end one. Dropping the door's
-flag, so the button announces too, reddens four: the button's silence, the close, the carried
-notice, and the end to end case. Dropping the on-screen guard reddens the tucked and behind the
-console case alone. Announcing the close as well reddens the close case alone. Counting an empty
-list instead of borrowing the line's own words reddens the empty case and the reducer's. Making the
-key's door silent reddens the key's own case and the end to end one.
+Neutering the sentence fails the reducer's own case and the end to end one. Dropping the gesture's
+flag, so the button announces too, fails four: the button's silence, the close, the carried
+notice, and the end to end case. Dropping the on-screen guard fails the tucked and behind the
+console case alone. Announcing the close as well fails the close case alone. Counting an empty
+list instead of borrowing the line's own words fails the empty case and the reducer's. Making the
+key silent fails the key's own case and the end to end one.
 
-Six mutations, six distinct rednesses, and nothing else in the 670 test suite moved under any of
-them.
+Six mutations, six distinct sets of failing tests, and nothing else in the 670 test suite moved
+under any of them.
 
 ### What this does not do
 
@@ -4251,13 +4258,13 @@ path has no guard in it.
 
 ### The decision
 
-**The live region is refused because the sentence would be false at most of its doors.** A sentence
-raised at the `hold` branch fires on all nine presses in the table, so a reader who pressed `Ctrl+Z`
-and watched their whole name come back would be told the editor is waiting, and a reader who pressed
-`Ctrl+A` would be told it about a press that selected their text. Making the sentence true means
-teaching `fieldKeys.ts` which chords the overlay binds, which is exactly the coupling the hold rule
-removed when it decided about the text rather than about the key, and which goes stale on the day a
-fifth chord is bound.
+**The live region is refused because the sentence would be false at most of its gestures.** A
+sentence raised at the `hold` branch fires on all nine presses in the table, so a reader who pressed
+`Ctrl+Z` and watched their whole name come back would be told the editor is waiting, and a reader
+who pressed `Ctrl+A` would be told it about a press that selected their text. Making the sentence
+true means teaching `fieldKeys.ts` which chords the overlay binds, which is exactly the coupling the
+hold rule removed when it decided about the text rather than about the key, and which goes stale on
+the day a fifth chord is bound.
 
 **A `role="status"` line the editor owns is refused for that reason and one more.** The editor is
 unmounted by Enter and by Escape, so a region inside it leaves in the commit after the sentence it
@@ -4288,7 +4295,7 @@ the way out reads back the name that was settled.
 
 **It does not claim the reader is well served by silence in general**, only that this silence is
 right. If the Windows sitting finds that a reader cannot tell a held chord from a dead application,
-the finding goes to the entry rather than to this decision, and the shape it would want is a rule
+the finding goes to the entry rather than to this decision, and the shape it would need is a rule
 about the overlay's whole key table rather than about one field.
 
 **And it leaves the repeat question unanswered rather than answered**, since a rule that raises no
@@ -4333,12 +4340,13 @@ and every other key in the overlay belongs to a field or to a control that has t
 conversation should land in the conversation, which `sessionState.ts` argues in those words after a
 cycle key was measured loading a chat behind a standing console. `Escape` acts on whatever is
 topmost and is a no-op with nothing up. `Ctrl+↑` doing nothing in every column is not a fifth
-invisible door: `cycleTarget` does not wrap, the demo's restored chat sits at the newest end, and an
-out of range target reads back as null, so the key means "the previous chat" and there is not one.
+invisible gesture: `cycleTarget` does not wrap, the demo's restored chat sits at the newest end, and
+an out of range target reads back as null, so the key means "the previous chat" and there is not
+one.
 
 **The entry named one key and the table has two.** `?` mounts the console from a tucked panel in
 exactly the way `Ctrl+K` mounts the list, so a rule written for the key the entry named would have
-left its neighbour behind. That is the sixth entry in this chain to undercount its own doors, and
+left its neighbour behind. That is the sixth entry in this chain to undercount its own gestures, and
 the first where the undercount was a whole half of the defect.
 
 ### The decision
@@ -4383,12 +4391,12 @@ press meant to show it.
 
 ### The mutation proof
 
-Five mutations, five distinct rednesses, nothing else in the 673 test suite moving under any of
-them. Stopping `ontoChat` setting `mode` reddens three cases, the two tucked ones and the existing
-open-then-shut case, which the key can now only satisfy by summoning. Letting it leave `consoleTab`
-alone reddens the behind-the-console case. Restoring the bare `!state.switcherOpen` flip reddens the
-open-rather-than-toggle case. Asking the console's toggle for the flag alone reddens the `?` case.
-Dropping `touched` reddens both tucked cases.
+Five mutations, five distinct sets of failing tests, nothing else in the 673 test suite moving under
+any of them. Stopping `ontoChat` setting `mode` fails three cases, the two tucked ones and the
+existing open-then-shut case, which the key can now only satisfy by summoning. Letting it leave
+`consoleTab` alone fails the behind-the-console case. Restoring the bare `!state.switcherOpen` flip
+fails the open-rather-than-toggle case. Asking the console's toggle for the flag alone fails the `?`
+case. Dropping `touched` fails both tucked cases.
 
 ### What this does not do
 
@@ -4497,7 +4505,7 @@ values with a largest single frame of 17.36px, the history's worst frame going 8
 
 **The two hazards were measured, not argued.** A cap that lagged the panel could feed the panel's own
 watch on its box, and `--ceiling` is rewritten by every placement. It cannot: a share only binds when
-a section wants more than the column has, which is exactly when the panel stands at its ceiling, so
+a section needs more than the column has, which is exactly when the panel stands at its ceiling, so
 the history absorbs the change and the panel's box does not move. Over a console round trip and a
 viewport walked 720 to 900 and back with both sections open, the panel's top edge travels 0.062px
 with the ease against 1.625px without it, the switcher's worst frame on the resize goes 65.14px to

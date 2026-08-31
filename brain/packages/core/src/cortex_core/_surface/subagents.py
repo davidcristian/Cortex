@@ -1,8 +1,7 @@
 """Public core names for delegating a narrow task to a small model and getting a result back.
 
-One of the area sub-barrels the ``cortex_core`` barrel re-exports wholesale, so the
-import path for every name below stays ``cortex_core``. ``__all__`` is what that
-wildcard re-exports, and it is this file's contract.
+Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
+stays ``cortex_core``. ``__all__`` is this file's contract.
 """
 
 from cortex_core.placement import Placement, PlacementRequest, PlacementTarget

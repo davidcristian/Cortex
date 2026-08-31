@@ -2,19 +2,17 @@
 //! serves the generated `BrainService.Converse` on loopback (CI-safe port 0)
 //! and the adapter's `ServerEvent`→`TurnEvent` mapping is asserted end to end.
 //!
-//! Coverage of every branch in `crate::converse`: the happy path (which also
-//! proves the one-turn request is transmitted, because the fake echoes the received
-//! text and session id), a brain-reported `SeamError` (→ `Failed`), an empty
-//! `ServerEvent` and a stream that ends before `TurnComplete` (→ `Protocol`),
-//! the `Converse` call itself failing (→ `Rpc`), a status raised mid-stream
-//! (→ `Rpc`), and the confirm round-trip (ADR-0022): a mid-turn
-//! `ConfirmRequest` (→ non-terminal `TurnEvent::ConfirmRequest`) answered by a
-//! decision the client relays as a `confirm_response` on the still-open
-//! request stream (approve and deny), a `ConfirmResolved` for the confirm the
-//! caller never answered (→ non-terminal `TurnEvent::ConfirmResolved`), plus the
-//! half-close of an ended/empty decisions stream (the pre-8.8 one-shot shape).
-//! The `Connection` mapping is shared with `health` and covered in
-//! `tests/client.rs`.
+//! Every branch in `crate::converse` is covered: the happy path, which also shows the one-turn
+//! request is transmitted because the fake echoes the received text and session id; a
+//! brain-reported `SeamError`, which maps to `Failed`; an empty `ServerEvent` and a stream that
+//! ends before `TurnComplete`, which map to `Protocol`; the `Converse` call itself failing and a
+//! status raised mid-stream, which map to `Rpc`; and the confirm round-trip (ADR-0022), where a
+//! mid-turn `ConfirmRequest` becomes a non-terminal `TurnEvent::ConfirmRequest` answered by a
+//! decision the client relays as a `confirm_response` on the still-open request stream, both
+//! approved and denied, a `ConfirmResolved` for the confirm the caller never answered becomes a
+//! non-terminal `TurnEvent::ConfirmResolved`, and an ended or empty decisions stream half-closes
+//! in the one-shot shape that predates confirms. The `Connection` mapping is shared with
+//! `health` and covered in `tests/client.rs`.
 
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -40,8 +38,8 @@ use tonic::{Request, Response, Status, Streaming};
 /// What the scripted fake brain streams back for a `Converse` turn.
 #[derive(Clone, Copy)]
 enum Script {
-    /// Read the user turn and echo its text + session id, then a tool-activity,
-    /// a status update, and `TurnComplete`. This is the full happy path.
+    /// Read the user turn and echo its text and session id, then a tool activity, a status
+    /// update, and `TurnComplete`. This is the full happy path.
     Echo,
     /// One delta, then a brain-reported `SeamError` (terminal).
     PartialThenError,
@@ -53,18 +51,18 @@ enum Script {
     RejectCall,
     /// One delta, then a non-OK status raised mid-stream.
     MidStreamError,
-    /// Read the user turn, emit a `ConfirmRequest`, then read the next inbound
-    /// client event and assert it is the matching `ConfirmResponse` with this
-    /// `approved` value, proving the client kept its sender open and relayed
-    /// the caller's decision (ADR-0022). Then echo the verdict and complete.
+    /// Read the user turn, emit a `ConfirmRequest`, then read the next inbound client event and
+    /// assert it is the matching `ConfirmResponse` with this `approved` value, which shows the
+    /// client kept its sender open and relayed the caller's decision (ADR-0022). Then echo the
+    /// verdict and complete.
     Confirm { approved: bool },
     /// Read the user turn, emit a `ConfirmRequest`, then end the wait without any
     /// answer, as the brain's confirm timeout does: `ConfirmResolved{timeout}`,
     /// the declined turn's reply, and `TurnComplete` (ADR-0022 addendum).
     ConfirmTimeout,
-    /// Read the user turn, then assert the inbound stream half-closes (ends)
-    /// in the pre-8.8 shape when the caller's decisions stream is empty, then
-    /// complete normally.
+    /// Read the user turn, then assert the inbound stream half-closes when the caller's
+    /// decisions stream is empty, which is the shape that predates confirms, then complete
+    /// normally.
     HalfClose,
 }
 
@@ -81,9 +79,9 @@ fn delta(text: &str) -> ServerEvent {
     }
 }
 
-/// Reads the next inbound `ClientEvent` and returns its `(session_id, event)`
-/// oneof, or `None` when the client has half-closed. This is the generalized inbound
-/// reader every script builds on (the confirm scripts read past the user turn).
+/// Reads the next inbound `ClientEvent` and returns its `(session_id, event)` oneof, or `None`
+/// when the client has half-closed. Every script builds on this reader, and the confirm scripts
+/// use it to read past the user turn.
 async fn read_client_event(
     inbound: &mut Streaming<ClientEvent>,
 ) -> Result<Option<(String, client_event::Event)>, Status> {
@@ -102,12 +100,11 @@ async fn read_user_turn(inbound: &mut Streaming<ClientEvent>) -> Result<(String,
     }
 }
 
-/// The confirm round-trip response stream (ADR-0022): emit a `ConfirmRequest`,
-/// then read the client's next inbound event and assert it is the matching
-/// `ConfirmResponse{confirm_id, approved}` on the same session, which proves the
-/// client kept its request sender open past the user turn and relayed the
-/// caller's decision. Any mismatch fails the stream with an `internal` status
-/// the test surfaces as an unexpected `Rpc` error.
+/// The confirm round-trip response stream (ADR-0022): emit a `ConfirmRequest`, then read the
+/// client's next inbound event and assert it is the matching `ConfirmResponse{confirm_id,
+/// approved}` on the same session, which shows the client kept its request sender open past the
+/// user turn and relayed the caller's decision. Any mismatch fails the stream with an `internal`
+/// status the test surfaces as an unexpected `Rpc` error.
 fn confirm_script(
     mut inbound: Streaming<ClientEvent>,
     session_id: String,
@@ -174,10 +171,10 @@ impl BrainService for FakeBrain {
                             summary: String::from("reading inbox"),
                         })),
                     }),
-                    // The dispatch the activity above announced, settled (ADR-0029 outcome
-                    // addendum). `ok: false` is the interesting one to carry through the
-                    // adapter: proto3 leaves a bool defaulted, so a mapping that silently
-                    // dropped the field would look identical to a real refusal.
+                    // The outcome settling the activity above (ADR-0029 outcome addendum).
+                    // `ok: false` is the value worth carrying through the adapter, because
+                    // proto3 leaves a bool defaulted, so a mapping that dropped the field would
+                    // look identical to a real refusal.
                     Ok(ServerEvent {
                         event: Some(server_event::Event::ToolOutcome(ToolOutcome {
                             tool_name: String::from("read_email"),
@@ -265,8 +262,8 @@ impl BrainService for FakeBrain {
         }))
     }
 
-    // The session-read RPCs are unused by these converse tests; they exist only to
-    // satisfy the server trait (their own mapping is covered in tests/client.rs).
+    // The session-read RPCs are unused by these converse tests and exist only to satisfy the
+    // server trait. Their own mapping is covered in tests/client.rs.
     async fn list_sessions(
         &self,
         _request: Request<ListSessionsRequest>,
@@ -345,11 +342,10 @@ async fn spawn_fake_brain(script: Script) -> Result<SocketAddr, std::io::Error> 
     Ok(addr)
 }
 
-/// Runs one turn through the transport port and collects every stream item.
-/// `decisions` is the caller's confirm-answer stream (ADR-0022); the legacy
-/// scripts pass an empty one (immediate half-close, the pre-8.8 shape).
-/// Errors propagate (via `?`) so the `.unwrap()` stays in each `#[test]` body,
-/// where clippy allows it, rather than in this shared helper.
+/// Runs one turn through the transport port and collects every stream item. `decisions` is the
+/// caller's confirm-answer stream (ADR-0022), and the scripts that predate confirms pass an
+/// empty one, which half-closes immediately. Errors propagate through `?` so the `.unwrap()`
+/// stays in each `#[test]` body, where clippy allows it, rather than in this shared helper.
 async fn run_turn(
     script: Script,
     session_id: &str,
@@ -367,11 +363,11 @@ async fn run_turn(
     Ok(out)
 }
 
-/// Runs one `Script::Confirm` turn the way the overlay would: the decision is
-/// sent *in reaction to* the streamed `ConfirmRequest` over a channel whose
-/// sender the caller holds open. It is never pre-scripted. Proves the adapter keeps
-/// polling the outbound stream mid-turn (no deadlock between "brain awaits the
-/// response" and "client only sends at call time").
+/// Runs one `Script::Confirm` turn the way the overlay would: the decision is sent in reaction
+/// to the streamed `ConfirmRequest`, over a channel whose sender the caller holds open, rather
+/// than being scripted in advance. That shows the adapter keeps polling the outbound stream
+/// mid-turn, so a brain awaiting the response and a client that only sends at call time cannot
+/// deadlock.
 async fn run_confirm_turn(approved: bool) -> Result<Vec<TurnEvent>, Box<dyn std::error::Error>> {
     let addr = spawn_fake_brain(Script::Confirm { approved }).await?;
     let client = BrainSeamClient::connect(&format!("http://{addr}")).await?;
@@ -508,9 +504,9 @@ async fn status_raised_mid_stream_maps_to_rpc_error() {
 
 #[tokio::test]
 async fn approved_confirm_round_trips_over_the_open_request_stream() {
-    // The fake asserts the wire shape (echoed confirm_id + approved=true on
-    // the same session) before completing. A mismatch would surface as an
-    // unexpected Rpc error below instead of this exact event vector.
+    // The fake asserts the wire shape, an echoed confirm_id and approved=true on the same
+    // session, before completing. A mismatch would surface as an unexpected Rpc error below
+    // instead of this event vector.
     let events = run_confirm_turn(true).await.unwrap();
     assert_eq!(
         events,
@@ -551,9 +547,9 @@ async fn denied_confirm_round_trips_over_the_open_request_stream() {
 
 #[tokio::test]
 async fn an_unanswered_confirm_resolves_mid_turn_without_ending_it() {
-    // The overlay's timeout case (ADR-0022 addendum): the brain answers for the user and
-    // says so, so the caller can close the card. The resolution is non-terminal, which is
-    // what this vector proves: the turn's reply and TurnComplete still arrive after it.
+    // The overlay's timeout case (ADR-0022 addendum): the brain answers for the user and says
+    // so, so the caller can close the card. The resolution is non-terminal, which this vector
+    // shows, since the turn's reply and TurnComplete still arrive after it.
     let events = run_turn(
         Script::ConfirmTimeout,
         "s",
@@ -586,9 +582,9 @@ async fn an_unanswered_confirm_resolves_mid_turn_without_ending_it() {
 
 #[tokio::test]
 async fn empty_decisions_stream_still_half_closes_and_the_turn_completes() {
-    // The pre-8.8 one-shot shape: with no decisions the request stream ends
-    // right after the user turn; the fake proves the half-close reached it
-    // (an extra inbound event would fail the turn with an Rpc error).
+    // The one-shot shape that predates confirms: with no decisions the request stream ends
+    // right after the user turn, and the fake shows the half-close reached it, since an extra
+    // inbound event would fail the turn with an Rpc error.
     let events = run_turn(Script::HalfClose, "s", "hi", tokio_stream::empty())
         .await
         .unwrap();

@@ -14,8 +14,8 @@ The cap it would replace counts items: "`MAX_SPAWN_BATCH = 8` ... **refuses** an
 rather than truncating it", each subagent in a batch being "an admission slot, a placement, and an
 inference".
 
-**Declined because the alternative is not one.** Read against the tree on 2026-08-18, both of the
-currencies it offers turn out to be the wrong bound.
+**Declined, because neither unit it proposes bounds the right thing.** Read against the tree on
+2026-08-18, both of the units it offers turn out to be the wrong bound.
 
 **A cap in placements is the cap in items, spelled differently.** `SpawnSubagentsTool.invoke`
 builds exactly one `SubagentTask` per `instructions` entry
@@ -62,7 +62,7 @@ than a cost-denominated cap.
   them.
 - 2026-08-18: Declined on a re-derivation of the tree rather than on that sweep. The finding worth
   keeping is that placements and items are the same count in this wiring, which is why half of the
-  proposal was a rename; the other half bounds a currency the placer already spills rather than
+  proposal was a rename; the other half bounds a resource the placer already spills rather than
   overspends. The sibling ceiling knob ([046](046-subagents-max-batch-knob.md)) is a separate
   question, about the cap's value rather than its unit, and was read in the same pass. Both readings
   are recorded in the origin decision's addendum.

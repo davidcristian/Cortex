@@ -20,29 +20,29 @@ readings side by side.
 **Nothing here sleeps to order two events.** A cancellation that arrives before the handler is
 entered produces no line at all, so the cases that cancel wait on ``_Wire.entered``, which the
 never-answering store sets from inside the handler, and every case then waits on ``_Latch``, which
-the line itself sets. The one case that wants the deadline to have passed does not wait for it
+the line itself sets. The one case that needs the deadline to have passed does not wait for it
 either: it announces the deadline in ``grpc-timeout`` metadata and arms no client timer, so the
 only clock that can end the call is the brain's own and the subtraction behind the reading has
 always already gone negative.
 
-Distrust-green proofs, each mutation applied to `abandon.py` alone with the whole orchestrator
-suite (`packages/orchestrator/tests`, 448 selected and 19 deselected as integration) re-run, then
-restored:
-- deleting the ``except`` arm, so a cancelled handler prints nothing, reddens 7, every case here
+These checks were proved able to fail. Each mutation was applied to `abandon.py` alone with the
+whole orchestrator suite (`packages/orchestrator/tests`, 448 selected and 19 deselected as
+integration) re-run and then restored, so every count below is over that suite:
+- deleting the ``except`` arm, so a cancelled handler prints nothing, fails 7, every case here
   that expects a line;
-- swallowing the cancellation instead of re-raising it reddens 3, the three renderings, which are
+- swallowing the cancellation instead of re-raising it fails 3, the three renderings, which are
   the only cases that watch the cancellation reach whoever asked for it; the wire cases do not,
   because a client that has already been told its deadline expired, or that cancelled the call
   itself, is told the same thing either way;
-- watching every handler rather than only the unary-unary ones reddens the stream passthrough
+- watching every handler rather than only the unary-unary ones fails the stream passthrough
   here and then **hangs** ``test_converse_grpc.py`` outright, a stream rebuilt as a unary handler
-  having no behavior at all, which is the fence this module is built around;
-- dropping the ``method`` field reddens 7, and dropping ``time_remaining`` reddens 7;
+  having no behavior at all, which is the boundary this module is built around;
+- dropping the ``method`` field fails 7, and dropping ``time_remaining`` fails 7;
 - and four that stand in for a grpc whose reading stopped meaning what it means, each replacing
-  it with a constant: a negative (``-0.05``) reddens 7, a reading that has not run down (``0.15``)
-  reddens 7, a positive sliver (``0.05``) reddens 6 and a float zero (``0.0``) reddens 6. The last
+  it with a constant: a negative (``-0.05``) fails 7, a reading that has not run down (``0.15``)
+  fails 7, a positive sliver (``0.05``) fails 6 and a float zero (``0.0``) fails 6. The last
   two are the ones worth the wire: before these cases existed both died only in the parameterized
-  renderings, which redden on any constant because a constant is what they vary, and neither could
+  renderings, which fail on any constant because a constant is what they vary, and neither could
   be told from a real expiry. Both now die in the floor case as well, on ``isinstance(remaining,
   int)``, which is a reading grpc produced and no constant of either kind satisfies.
 """
@@ -146,7 +146,7 @@ async def never_answering_server() -> AsyncIterator[_Wire]:
 
 
 def _listing(channel: aio.Channel) -> Callable[..., aio.UnaryUnaryCall[object, object]]:
-    """The ``ListSessions`` callable off a real stub, typed past `grpc-stubs`' unknowns."""
+    """Return the ``ListSessions`` callable off a real stub, typed past `grpc-stubs`' unknowns."""
     stub = BrainServiceStub(channel)
     return cast(
         "Callable[..., aio.UnaryUnaryCall[object, object]]",
@@ -221,7 +221,7 @@ async def _line_left_behind(driver: Awaitable[None]) -> logging.LogRecord:
 
 
 def _reading_of(record: logging.LogRecord) -> object:
-    """The RPC's wire path, asserted, and the reading beside it, handed back unjudged."""
+    """Assert the RPC's wire path and return the reading beside it, unjudged."""
     # The wire path of the RPC that was dropped, which is the whole of what the interceptor knows
     # about a call it is deliberately generic over. Matched by its tail so the proto's package
     # name is spelled in the proto and nowhere else.
@@ -232,7 +232,7 @@ def _reading_of(record: logging.LogRecord) -> object:
 
 
 def _rendered(record: logging.LogRecord, printed: str) -> str:
-    """What the line reads as, with the method interpolated and the reading spelled out."""
+    """Render what the line reads as, with the method interpolated and the reading spelled out."""
     method = record.__dict__["method"]
     assert isinstance(method, str)
     return f"WARNING:{_ABANDON_LOGGER}:{ABANDONED_MESSAGE} method={method} {printed}"
@@ -241,7 +241,7 @@ def _rendered(record: logging.LogRecord, printed: str) -> str:
 async def test_an_abandoned_unary_call_says_so_and_prints_the_time_it_had_left(
     never_answering_server: _Wire,
 ) -> None:
-    """The whole point, end to end: the handler the caller dropped leaves a line behind.
+    """A handler the caller dropped leaves a line behind, end to end over a real wire.
 
     Before this, a call the body gave up on unwound in silence and read exactly like one that was
     never made. The remaining time is the reading the brain was handed and never took: here the
@@ -392,7 +392,7 @@ async def _watch(
 
 
 async def test_a_streaming_method_is_handed_back_untouched() -> None:
-    """`Converse` announces no deadline and must stay unwatched: the fence, as a shape check.
+    """`Converse` announces no deadline and is handed back unwatched.
 
     A stream-stream handler carries no unary-unary behavior, so the passthrough is decided by
     what the method *is* rather than by a name this interceptor would have to keep current.
@@ -414,7 +414,7 @@ async def test_an_unserviced_method_is_handed_back_untouched() -> None:
 async def test_a_unary_call_that_answers_is_not_reported_as_abandoned(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The ordinary path: the wrap returns the reply and writes nothing.
+    """A call that answers gets its reply back from the wrap, and no line is written.
 
     Asserted through the wrapped behavior rather than over the wire, because the assertion that
     matters is the negative one, and a silent line is only evidence if the same call would have
@@ -460,7 +460,7 @@ async def test_the_line_prints_the_reading_without_judging_it(
     printed: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Three different facts, one line, no branch: the operator reads the number.
+    """All three readings render on one line, with no branch: the operator reads the number.
 
     Each of the three is produced over the wire above, in the shape that produces it in
     production, and every claim about what grpc answers is held there. What is left for this case

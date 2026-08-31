@@ -1,16 +1,16 @@
-//! Contract tests for the `BodyService` server (ADR-0023, ADR-0025): the `body_service` adapter
-//! over a fake `AudioControl` + a fake `Notify` is served on loopback (127.0.0.1:0, CI-safe) and
-//! driven by the generated `BodyServiceClient` end to end, covering get/set with every
-//! optional-field combination, the two `AudioError` arms → their gRPC statuses, the push
-//! notification (shown, declined, and both `NotifyError` arms, plus the inert text that reaches
-//! the backend), the screen capture (a real PNG produced by pure core from a fake frame source,
-//! the body-authored receipt, and every `CaptureError` arm → its gRPC status), the
-//! not-yet-built RPC → `Unimplemented`, and the seam-token validator (pass-through when unset;
-//! every rejection path when set).
+//! Contract tests for the `BodyService` server (ADR-0023, ADR-0025). The `body_service` adapter
+//! over a fake `AudioControl` and a fake `Notify` is served on loopback (127.0.0.1:0, so CI can
+//! run it) and driven by the generated `BodyServiceClient` end to end. It covers get and set with
+//! every optional-field combination, the gRPC status each of the two `AudioError` arms maps to,
+//! the push notification (shown, declined, both `NotifyError` arms, and the inert text that
+//! reaches the backend), the screen capture (a real PNG produced by pure core from a fake frame
+//! source, the body-authored receipt, and the status each `CaptureError` arm maps to), the
+//! `Unimplemented` answer of the RPC that is not built yet, and the seam-token validator, which
+//! passes calls through when unset and takes every rejection path when set.
 //!
-//! The fakes also record **which thread** each call ran on, because where the synchronous OS
-//! call happens is part of the contract now (it must not park an async worker), and a
-//! current-thread test runtime makes that observable.
+//! The fakes also record which thread each call ran on, because where the synchronous OS call
+//! happens is part of the contract: it must not park an async worker, and a current-thread test
+//! runtime makes that observable.
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -374,8 +374,8 @@ async fn no_endpoint_maps_to_failed_precondition() {
         .get_volume(GetVolumeRequest {})
         .await
         .unwrap_err();
-    // Host state, not a body nobody could reach: the brain reserves `Unavailable` for a call
-    // that never arrived, so an unplugged speaker must not borrow that code.
+    // This reports host state rather than an unreachable body: the brain reserves `Unavailable`
+    // for a call that never arrived, so an unplugged speaker must not use that code.
     assert_eq!(status.code(), Code::FailedPrecondition);
     assert!(status.message().contains("gone"));
 }
@@ -428,9 +428,9 @@ async fn notify_shows_the_reminder_as_inert_text_and_reports_it() {
         .into_inner();
     assert_eq!(reply, NotifyReply { shown: true });
 
-    // The wire values reached the backend through `Notification`, so the newline is already
-    // a space and the taint carries its body-authored attribution. Markup characters stay:
-    // escaping is the renderer's step, and the value must not double-escape for it.
+    // The wire values reached the backend through `Notification`, so the newline is already a
+    // space and the taint carries its body-authored attribution. Markup characters stay, because
+    // escaping is the renderer's step and the value must not escape them a second time.
     let shown = notifier.seen();
     assert_eq!(shown.len(), 1);
     assert_eq!(shown[0].title(), "Reminder");
@@ -513,9 +513,9 @@ async fn every_os_call_runs_off_the_async_worker() {
         .unwrap();
 
     // `#[tokio::test]` builds a current-thread runtime, so the server task and its handlers run
-    // on this very thread. A synchronous OS call made inline would therefore report *this*
-    // thread; each of the three reporting a different one is the proof it was handed to the
-    // blocking pool instead, which is the whole point of the change (ADR-0023 addendum).
+    // on this thread. A synchronous OS call made inline would therefore report this thread, and
+    // each of the three reporting a different one shows it was handed to the blocking pool
+    // instead (ADR-0023 addendum).
     let here = thread::current().id();
     let ran_on = [recorded(&audio_threads), recorded(&notify_threads)].concat();
     assert_eq!(ran_on.len(), 3);
@@ -530,8 +530,8 @@ async fn a_panicking_audio_backend_answers_internal_and_keeps_the_connection() {
     assert_eq!(status.code(), Code::Internal);
     assert!(status.message().contains("the OS call failed"));
 
-    // The brain holds this connection for every later OS action, so a dead backend must cost
-    // it a status and not the channel: the next call is answered rather than dropped.
+    // The brain holds this connection for every later OS action, so a dead backend costs it a
+    // status rather than the channel: the next call is answered rather than dropped.
     let status = client
         .set_volume(SetVolumeRequest {
             level: Some(0.3),
@@ -642,9 +642,9 @@ struct FakeScreen {
     threads: Threads,
 }
 
-/// What a fake backend hands back. `Raw` is the honest shape of a backend fault in a buffer:
-/// the frame is built by production's own `RawFrame::new` inside the handler, so a miscounted
-/// buffer is rejected there and the message the brain reads is production's, not the test's.
+/// What a fake backend hands back. `Raw` is the real shape of a backend fault in a buffer: the
+/// frame is built by production's own `RawFrame::new` inside the handler, so a miscounted buffer
+/// is rejected there and the message the brain reads is production's rather than the test's.
 enum Answer {
     Frame(RawFrame),
     Window(RawFrame, TargetRect),
@@ -717,8 +717,8 @@ fn frame(width: u32, height: u32) -> RawFrame {
         .unwrap_or_else(|error| panic!("the fixture frame is malformed: {error}"))
 }
 
-/// Wall-clock milliseconds, read independently of the server so a timestamp assertion is not
-/// checking production against a value production produced.
+/// Wall-clock milliseconds, read independently of the server so a timestamp assertion does not
+/// check production against a value production produced.
 fn now_millis() -> i64 {
     let since_epoch = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -825,8 +825,8 @@ async fn an_unset_max_edge_reaches_the_backend_as_the_body_default() {
 
 #[tokio::test]
 async fn a_targeted_capture_reaches_the_backend_as_a_target_and_crosses_cropped() {
-    // The whole point of landing the field and the body's honouring of it together: a knob a
-    // shipping body ignores is a silent lie under proto3, so this asserts both halves at once.
+    // The field and the body's handling of it landed together: under proto3 a knob a shipping
+    // body ignores is indistinguishable from one it applies, so this asserts both halves.
     let screen = FakeScreen::showing(frame(40, 20), TargetRect::new(10, 5, 20, 15));
     let requests = screen.requests();
     let addr = spawn_screen(screen, FakeNotify::answering(true), true)
@@ -891,8 +891,8 @@ async fn a_desktop_with_no_window_to_point_at_is_a_host_state_failure() {
 
 #[tokio::test]
 async fn a_window_off_the_captured_display_is_refused_by_the_core_the_backend_fed() {
-    // The backend resolved a window; pure core found it has nothing on the display and refused.
-    // Nothing falls back to the whole screen, which is the widening this path must never do.
+    // The backend resolved a window, and pure core found it has nothing on the display and
+    // refused. Nothing falls back to the whole screen, which would send more than was asked for.
     let notifier = FakeNotify::answering(true);
     let addr = spawn_screen(
         FakeScreen::showing(frame(40, 20), TargetRect::new(200, 200, 300, 300)),
@@ -945,10 +945,10 @@ async fn the_receipt_says_window_when_one_window_was_sent() {
 
 #[tokio::test]
 async fn a_window_filling_the_display_is_announced_as_a_screen_capture() {
-    // The sentence describes what was sent rather than what was asked for, so a maximised
-    // window whose frame reaches past every edge honestly reports a screen capture. The reply's
-    // resolved target is read off the same predicate, which is what keeps the sentence the user
-    // is shown and the sentence the model reads from disagreeing about one picture.
+    // The sentence describes what was sent rather than what was asked for, so a maximised window
+    // whose frame reaches past every edge reports a screen capture. The reply's resolved target
+    // is read off the same predicate, which keeps the sentence the user is shown and the sentence
+    // the model reads from disagreeing about one picture.
     let notifier = FakeNotify::answering(true);
     let addr = spawn_screen(
         FakeScreen::showing(frame(40, 20), TargetRect::new(-4, -4, 44, 24)),
@@ -973,9 +973,9 @@ async fn a_window_filling_the_display_is_announced_as_a_screen_capture() {
 
 #[tokio::test]
 async fn the_reply_says_which_of_the_two_things_the_picture_is() {
-    // The brain cannot tell a crop from a shrunk screen out of the blob alone: `source_width` and
-    // `source_height` are the display's on both paths, deliberately. This field is how it can say
-    // honestly what it was shown, and a window that is genuinely a window reads as one.
+    // The brain cannot tell a crop from a shrunk screen out of the blob alone, because
+    // `source_width` and `source_height` are the display's on both paths. This field is how it
+    // can describe what it was shown, and a window reads as a window.
     let windowed_at = spawn_screen(
         FakeScreen::showing(frame(40, 20), TargetRect::new(10, 5, 20, 15)),
         FakeNotify::answering(true),
@@ -1037,8 +1037,8 @@ async fn the_receipt_can_be_switched_off_without_losing_the_capture() {
 
 #[tokio::test]
 async fn a_failed_receipt_does_not_lose_the_capture() {
-    // The pixels have already been read by the time the receipt runs, so refusing to answer
-    // would cost the capability and buy no privacy back.
+    // The pixels have already been read by the time the receipt runs, so failing the call would
+    // cost the capability and gain no privacy.
     let notifier = FakeNotify::failing(NotifyError::Unavailable(String::from("no service")));
     let addr = spawn_screen(FakeScreen::answering(frame(4, 4)), notifier, true)
         .await
@@ -1067,9 +1067,9 @@ async fn a_capture_runs_off_the_async_worker() {
     );
 }
 
-/// Every `CaptureError` variant, with the code the brain classifies it by. The whole set is
-/// here rather than a sample, because the brain reads the code to choose what it tells the
-/// model, so a variant sharing another's code is a variant the model cannot be told apart.
+/// Every `CaptureError` variant, with the code the brain classifies it by. The whole set is here
+/// rather than a sample, because the brain reads the code to choose what it tells the model, so
+/// two variants sharing one code would be indistinguishable to the model.
 fn capture_failure_table() -> [(CaptureError, Code, &'static str); 4] {
     [
         (
@@ -1116,10 +1116,10 @@ async fn no_two_capture_failures_share_a_status_code() {
     // `TooLarge` used to answer `Internal` beside `Backend`, which left a picture that was taken
     // and would not fit indistinguishable from a backend that broke.
     //
-    // This reads the table rather than the server, which is a harness rather than production, so
-    // on its own it proves nothing. What ties it down is the test above, which requires the
-    // server's code to equal this table's for every variant. Composed: production equals a table,
-    // and the table has no duplicates, so production has none either.
+    // This reads the table rather than the server, and the table is a harness, so on its own it
+    // shows nothing about production. The test above ties it down by requiring the server's code
+    // to equal this table's for every variant: production equals the table, the table has no
+    // duplicate codes, so production has none either.
     let mut codes: Vec<Code> = capture_failure_table()
         .into_iter()
         .map(|(_, code, _)| code)
@@ -1132,10 +1132,10 @@ async fn no_two_capture_failures_share_a_status_code() {
 #[tokio::test]
 async fn nothing_this_server_answers_is_unavailable() {
     // The rule that makes the brain's classification possible. tonic synthesizes `Unavailable`
-    // client-side when a channel cannot connect, and the brain's grpc-python client cannot tell
-    // a synthesized status from a sent one, so a body spending that code on host state would be
+    // client-side when a channel cannot connect, and the brain's grpc-python client cannot tell a
+    // synthesized status from a sent one, so a body returning that code for host state would be
     // indistinguishable from a body that is not running. Every failure this server can answer is
-    // driven here, capture, volume and notify alike.
+    // driven here: capture, volume and notify alike.
     for (error, _, _) in capture_failure_table() {
         let addr = spawn_screen(
             FakeScreen::failing(error),
@@ -1204,8 +1204,8 @@ async fn a_host_with_capture_switched_off_refuses_every_request() {
 
 #[tokio::test]
 async fn a_backend_that_miscounts_its_buffer_is_caught_by_the_pure_core_frame_check() {
-    // The frame is built INSIDE the handler here, from a raw buffer the fake hands over, so
-    // `RawFrame::new` really runs and the sentence the brain reads is production's own. Handing
+    // The frame is built inside the handler here, from a raw buffer the fake hands over, so
+    // `RawFrame::new` really runs and the message the brain reads is production's own. Handing
     // over a pre-built error instead would have made this a second copy of the Backend arm of
     // the mapping table above, asserting on a string the test itself wrote.
     let addr = spawn_screen(
@@ -1249,8 +1249,8 @@ async fn the_blob_carries_exactly_what_the_core_encoded() {
 
 #[tokio::test]
 async fn a_ceiling_the_ladder_cannot_meet_is_refused_as_too_large() {
-    // The brain names a ceiling no PNG can fit under, so all three rungs overshoot and the
-    // body refuses rather than sending a picture the caller already said it would not take.
+    // The brain names a ceiling no PNG can fit under, so all three rungs overshoot and the body
+    // refuses rather than sending a picture the caller already said it would not take.
     let addr = spawn_screen(
         FakeScreen::answering(frame(32, 32)),
         FakeNotify::answering(true),
@@ -1260,8 +1260,8 @@ async fn a_ceiling_the_ladder_cannot_meet_is_refused_as_too_large() {
     .unwrap();
 
     let status = capture_bounded(addr, 32, 40).await.unwrap_err();
-    // Resource exhausted, not internal: the picture was taken and the ladder ran out, which is
-    // a different thing from a backend that broke and is worth a different sentence.
+    // `ResourceExhausted` rather than `Internal`: the picture was taken and the ladder ran out,
+    // which is a different failure from a backend that broke and reads as a different sentence.
     assert_eq!(status.code(), Code::ResourceExhausted);
     assert!(
         status

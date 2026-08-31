@@ -1,22 +1,25 @@
 """The model-independent output guardrail: deterministic URL-laundering defense (ADR-0015).
 
-Prompt-level framing (ADR-0013) keeps capable models from obeying untrusted content, but the
-GPU validation showed output-laundering ("append this link to your summary") defeats the
-small tier regardless of preamble. This module is the deterministic backstop at the one seam
-where a laundered link becomes harm: the reply the user reads. A redacting guardrail opens one
-``OutputFilter`` per turn over the turn's live ``TaintView`` (the ledger's taint bit + the URLs
-it collected from every untrusted tool result); the filter scans the streamed assistant output
-and replaces flagged URLs (minus URLs the user themselves sent) with ``REDACTED_LINK`` before
-they reach the user. Three policies (ADR-0015 + addenda), each a set of the *grounds* below rather
-than a mode: ``UrlRedactingGuardrail`` redacts the verbatim-collected untrusted URLs (the default),
+Prompt-level framing (ADR-0013) keeps capable models from obeying untrusted content, but the GPU
+validation showed that output laundering ("append this link to your summary") defeats the small
+tier whatever the preamble. This module is the deterministic backstop at the one seam where a
+laundered link becomes harm: the reply the user reads. A redacting guardrail opens one
+``OutputFilter`` per turn over the turn's live ``TaintView`` (the ledger's taint bit plus the URLs
+it collected from every untrusted tool result); the filter scans the streamed assistant output and
+replaces flagged URLs, minus the URLs the user themselves sent, with ``REDACTED_LINK`` before they
+reach the user.
+
+There are three policies (ADR-0015 and its addenda), each a set of the grounds below rather than a
+mode: ``UrlRedactingGuardrail`` redacts the verbatim-collected untrusted URLs (the default),
 ``LookalikeUrlRedactingGuardrail`` adds every URL whose host is not plain ASCII on a tainted turn,
-and ``StrictUrlRedactingGuardrail`` redacts *every* non-user URL on a tainted turn. The URL grammar
-lives in ``urls.py``, its identity in ``url_identity.py`` and its streaming hold-back in
-``url_holdback.py``, and this module
-recognizes, normalizes, and streams URLs through them, so obfuscation-resistant matching (defang,
-percent-encoding, fullwidth homoglyphs) is inherited for free. Model-independent by construction:
-however injectable the generating model is, a laundered link does not survive the seam. Pure, no
-I/O; the only state is one turn's carry buffer, dying with the turn.
+and ``StrictUrlRedactingGuardrail`` redacts every non-user URL on a tainted turn.
+
+The URL grammar lives in ``urls.py``, its identity in ``url_identity.py`` and its streaming
+hold-back in ``url_holdback.py``. This module recognizes, normalizes and streams URLs through
+those, so obfuscation-resistant matching (defang, percent-encoding, fullwidth homoglyphs) comes
+with them. Redaction happens after generation, which is why it does not depend on how injectable
+the generating model is. Pure, no I/O; the only state is one turn's carry buffer, which dies with
+the turn.
 """
 
 from collections.abc import Set as AbstractSet
@@ -35,10 +38,10 @@ REDACTED_LINK = "[link removed: untrusted source]"
 class _Ground(Enum):
     """Why one URL in a reply is redacted, and the unit a policy below is assembled from.
 
-    A policy is the **set of grounds** it stands on, not a mode, which is what let a third policy
-    land without the seam moving (ADR-0015 fourteenth addendum): the grounds compose, an opaque
-    turn adds one to whatever was configured, and each is a separate sentence about one matched
-    URL rather than a branch through the other policies' code.
+    A policy is a set of grounds rather than a mode, which is what let a third policy land without
+    the seam moving (ADR-0015 fourteenth addendum): the grounds compose, an opaque turn adds one to
+    whatever was configured, and each is a separate reason for redacting one matched URL rather
+    than a branch through the other policies' code.
     """
 
     # Its identity was collected from this turn's untrusted content: verbatim laundering.
@@ -51,13 +54,13 @@ class _Ground(Enum):
 
 
 # The grounds that need untrusted content to have entered the turn. `COLLECTED` is not among them:
-# it needs no taint *bit* because a non-empty collected set is itself the evidence, and a turn
-# cannot collect a URL without being marked tainted in the same call.
+# it needs no taint bit, because a non-empty collected set is itself the evidence and a turn cannot
+# collect a URL without being marked tainted in the same call.
 _ON_TAINT = frozenset({_Ground.LOOKALIKE, _Ground.LINK})
 
-# What an **opaque** turn adds to whatever policy is configured (ADR-0029): a URL painted into
-# pixels is in no result text, so nothing is collected and no host is read, and distrusting every
-# link is the only ground left standing.
+# What an opaque turn adds to whatever policy is configured (ADR-0029): a URL painted into pixels
+# is in no result text, so nothing is collected and no host is read, which leaves `LINK` as the
+# only ground that can apply.
 _ON_OPAQUE = frozenset({_Ground.LINK})
 
 
@@ -74,7 +77,7 @@ class OutputFilter(Protocol):
 
 
 class TaintView(Protocol):
-    """The **live** taint signals the guardrail reads at scan time (ADR-0013/0015).
+    """The live taint signals the guardrail reads at scan time (ADR-0013/0015).
 
     A structural read-only view the turn's ``TaintLedger`` already satisfies. The guardrail
     cannot import ``untrusted`` (which imports this module), so it reads the ledger through this
@@ -106,14 +109,14 @@ class OutputGuardrail(Protocol):
 
 
 class UrlRedactingGuardrail:
-    """The default ``OutputGuardrail``: redact URLs sourced *verbatim* from untrusted content.
+    """The default ``OutputGuardrail``: redact URLs sourced verbatim from untrusted content.
 
     Exact-identity redaction means a URL in the reply whose normalized form was collected from an
-    untrusted result (and the user did not send) is replaced with ``REDACTED_LINK``. Tiny
-    false-positive surface; the model's own recalled links survive. See
-    ``LookalikeUrlRedactingGuardrail`` for the same policy plus the one shape an identity
-    comparison can never reach, and ``StrictUrlRedactingGuardrail`` for the verbatim-independent
-    policy.
+    untrusted result, and which the user did not send, is replaced with ``REDACTED_LINK``. The
+    false-positive surface is small and the model's own recalled links stream through. See
+    ``LookalikeUrlRedactingGuardrail`` for the same policy plus the homoglyph host an identity
+    comparison cannot match, and ``StrictUrlRedactingGuardrail`` for the policy that does not
+    depend on what was collected.
     """
 
     def open(self, taint: TaintView, *, allow: frozenset[str]) -> OutputFilter:
@@ -122,16 +125,16 @@ class UrlRedactingGuardrail:
 
 
 class LookalikeUrlRedactingGuardrail:
-    """The default policy plus one ground (ADR-0015 fourteenth addendum): on a **tainted** turn,
-    also redact a URL whose **host is not plain ASCII**, whatever this turn collected.
+    """The default policy plus one ground (ADR-0015 fourteenth addendum).
 
-    The answer to a homoglyph host, and the one answer that does not depend on a table. An
-    identity comparison catches a lookalike only when the fold reduces its characters to the twin
-    that was collected, so the attacker simply picks a character the fold does not carry, and no
-    table of any size is a boundary against a chosen codepoint (measured: ADR-0015 thirteenth
-    addendum). This ground is a statement about the **shape of what is emitted** rather than about
-    matching a collected string, so it holds identity-independently: any host that is not the plain
-    letters it appears to be is redacted, whichever codepoint was chosen.
+    On a tainted turn this also redacts a URL whose host is not plain ASCII, whatever this turn
+    collected. It is the answer to a homoglyph host, and the one answer that does not depend on a
+    table: an identity comparison catches a lookalike only when the fold reduces its characters to
+    the twin that was collected, so an attacker picks a character the fold does not carry, and no
+    table of any size covers every codepoint that could be chosen (measured: ADR-0015 thirteenth
+    addendum). This ground is about the shape of what is emitted rather than about matching a
+    collected string, so it applies whatever the identity: any host that is not the plain letters
+    it appears to be is redacted, whichever codepoint was chosen.
 
     The cost is a genuine internationalized domain named on a tainted turn, which is redacted with
     the lookalikes because nothing without a script database separates the two. Measured on the
@@ -147,14 +150,14 @@ class LookalikeUrlRedactingGuardrail:
 
 
 class StrictUrlRedactingGuardrail:
-    """The opt-in strict ``OutputGuardrail`` (ADR-0015 addendum): on a **tainted** turn, redact
-    *every* URL the user did not themselves send, going beyond the verbatim-collected ones.
+    """The opt-in strict ``OutputGuardrail`` (ADR-0015 addendum).
 
-    The answer to exact-match's blind spot: a model told to transform or reconstruct a laundered
-    URL never reproduces a collected string, so ``UrlRedactingGuardrail`` misses it; strict mode
-    distrusts every link on a turn that has read untrusted content. An untainted turn is untouched
-    (the model's own links stream freely), so the cost lands only where untrusted content is in
-    play.
+    On a tainted turn this redacts every URL the user did not themselves send, going beyond the
+    verbatim-collected ones. It covers what exact matching cannot: a model told to transform or
+    reconstruct a laundered URL never reproduces a collected string, so ``UrlRedactingGuardrail``
+    does not match it, while strict mode distrusts every link on a turn that has read untrusted
+    content. An untainted turn is untouched (the model's own links stream freely), so the cost
+    lands only where untrusted content is in play.
     """
 
     def open(self, taint: TaintView, *, allow: frozenset[str]) -> OutputFilter:
@@ -166,8 +169,8 @@ class _UrlRedactingFilter:
     """The streaming redactor behind the redacting guardrails (one instance per turn).
 
     ``grounds`` is the policy: the set of ``_Ground`` members this turn may redact a URL on. Every
-    policy reads the live taint view at scan time and shares this whole streaming machine; what
-    differs between them is only which sentences about one matched URL are allowed to be true.
+    policy reads the live taint view at scan time and shares this whole streaming path; what
+    differs between them is only which grounds may flag a matched URL.
     """
 
     def __init__(
@@ -195,15 +198,15 @@ class _UrlRedactingFilter:
         """Replace every URL this turn flags; leave all other text alone.
 
         Nothing is flagged (so nothing is scanned) until untrusted content is in play: a clean
-        turn under any policy short-circuits to the text unchanged, whether because nothing was
-        collected or because no taint-borne ground is standing.
+        turn under any policy returns the text unchanged, whether because nothing was collected or
+        because no taint-borne ground applies.
 
-        An **opaque** turn is scanned strictly whatever the configured policy (ADR-0029). The
-        default policy redacts URLs *collected from untrusted result text*, and a URL painted
-        into pixels is never in that text, so ``untrusted_urls`` is empty and the default is
-        structurally a no-op for exactly the laundering case vision introduces. Measured: the
-        model transcribes an attacker URL out of an image verbatim, framed or not. Strict
-        redaction, which flags every URL the user did not send, is the policy that catches it.
+        An opaque turn is scanned strictly whatever the configured policy (ADR-0029). The default
+        policy redacts URLs collected from untrusted result text, and a URL painted into pixels is
+        never in that text, so ``untrusted_urls`` is empty and the default is a no-op for exactly
+        the laundering case vision introduces. Measured: the model transcribes an attacker URL out
+        of an image verbatim, framed or not. Strict redaction, which flags every URL the user did
+        not send, is the policy that catches it.
         """
         grounds = (self._grounds | _ON_OPAQUE) if self._taint.opaque else self._grounds
         collected = (
@@ -226,12 +229,12 @@ class _UrlRedactingFilter:
     def _flagged(self, url: str, collected: frozenset[str], live: frozenset[_Ground]) -> bool:
         """Whether any ground this scan stands on holds for one matched URL.
 
-        The user's own links are answered first and by every policy alike: a URL they sent is
-        theirs to see again however it was spelled. ``collected`` is this turn's laundering
-        evidence, already less the allowlist; ``live`` is the taint-borne grounds. The lookalike
-        ground reads the host from an identity built **without** the confusable fold, so a host
-        spelled wholly in table entries is still read as the letters it was written in rather than
-        as the ASCII twin the fold would show (ADR-0015 fourteenth addendum).
+        The user's own links are checked first, by every policy alike: a URL they sent is theirs
+        to see again however it was spelled. ``collected`` is this turn's laundering evidence,
+        already less the allowlist; ``live`` is the taint-borne grounds. The lookalike ground reads
+        the host from an identity built without the confusable fold, so a host spelled wholly in
+        table entries is still read as the letters it was written in rather than as the ASCII twin
+        the fold would show (ADR-0015 fourteenth addendum).
         """
         identity = normalize_url(url)
         if identity in self._allow:

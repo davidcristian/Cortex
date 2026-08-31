@@ -59,7 +59,7 @@ def test_the_title_bound_is_forty_eight_characters() -> None:
     # The overlay's `sessionState.ts` declares the same number for the live title it derives
     # before a chat is listed, so the header and that chat's own switcher row cut at the same
     # place. Pinned to the literal rather than to itself: an assertion that `TITLE_MAX ==
-    # TITLE_MAX` stays green while the two halves drift, which is what they did (48 here
+    # TITLE_MAX` keeps passing while the two halves drift, which is what they did (48 here
     # against 32 there) until crosscheck.py tied them.
     assert TITLE_MAX == 48
 
@@ -180,7 +180,8 @@ async def test_generate_title_propagates_an_inference_error() -> None:
 
 
 async def test_the_title_request_asks_for_no_thinking_and_a_bounded_reply() -> None:
-    """The two levers ride the request, because a title is the reply and never the thinking.
+    """The request asks for no thinking and a bounded reply, because a title is the reply and
+    never the thinking.
 
     Asserted together: a cap against a model that deliberates first returns ``finish_reason:
     "length"`` and an empty reply, so the cap alone would turn every title into the fallback.
@@ -205,6 +206,6 @@ def test_the_title_cap_is_wider_than_the_title_that_gets_stored() -> None:
     than that, a reply cut at the cap was already going to be cut shorter still. Four characters
     per token is the conservative ratio this repo's character budgets assume; the cortex measured
     six. Lower the cap under twelve tokens and a cap-hit starts eating the stored title, which is
-    what this reddens for.
+    what this test exists to catch.
     """
     assert TITLE_MAX_TOKENS * 4 > TITLE_MAX

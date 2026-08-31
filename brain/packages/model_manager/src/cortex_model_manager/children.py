@@ -2,21 +2,21 @@
 
 The supervisor's lifecycle logic is gated at 100% over a fake of these two protocols; the real
 ``asyncio`` calls live here, in the thinnest wrapper that can hold them (AGENTS.md gate 3). Two
-deliberate choices, both measured rather than assumed:
+choices in the spawn are worth stating:
 
-- **The child inherits the daemon's stdout and stderr.** No pipe is created, so nothing can wedge
-  when llama.cpp's loading log outruns a buffer nobody drains, and ``docker logs model-host``
-  shows the daemon and every child interleaved, which is what an operator wants during a swap.
-  The cost is that a failed child's reason is in the container log rather than in the control
-  API's ``detail``, which carries the exit code instead.
-- **No new session or process group.** The child stays in the daemon's, so a container the
-  runtime tears down takes the child with it and no ``llama-server`` can outlive the container
-  holding the GPU reservation. The daemon still stops its children on shutdown, for the graceful
-  path; this is the backstop for the ungraceful one.
+- The child inherits the daemon's stdout and stderr. No pipe is created, so nothing can wedge when
+  llama.cpp's loading log outruns a buffer nobody drains, and ``docker logs model-host`` shows the
+  daemon and every child interleaved, which is what an operator needs during a swap. The cost is
+  that a failed child's reason is in the container log rather than in the control API's
+  ``detail``, which carries the exit code instead.
+- No new session or process group. The child stays in the daemon's, so a container the runtime
+  tears down takes the child with it and no ``llama-server`` can outlive the container holding the
+  GPU reservation. The daemon still stops its children on shutdown, for the graceful path; this is
+  the backstop for the ungraceful one.
 
 Reaping needs no explicit collector: asyncio's child watcher reaps on its own, so ``returncode``
-becomes non-``None`` for a child that died unasked without anybody awaiting it, which is exactly
-what the supervisor's status reads before it trusts a health probe.
+becomes non-``None`` for a child that died unasked without anybody awaiting it, and that is what
+the supervisor's status reads before it uses a health probe.
 """
 
 import asyncio
@@ -53,9 +53,9 @@ class AsyncioChild:
     """An ``asyncio.subprocess.Process`` behind ``ChildProcess``, absorbing the one race.
 
     ``terminate``/``kill`` raise ``ProcessLookupError`` when the child has already exited, which
-    is not an error for either caller here: the supervisor's whole point is to end a process, and
-    a process that ended on its own between the status read and the signal has done that. The
-    exit code is still readable afterwards, so nothing is lost by treating it as success.
+    is not an error for either caller here: both are trying to end the process, and a process that
+    ended on its own between the status read and the signal has ended. The exit code is still
+    readable afterwards, so nothing is lost by treating it as success.
     """
 
     def __init__(self, process: asyncio.subprocess.Process) -> None:

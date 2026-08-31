@@ -1,12 +1,12 @@
-"""Behaviour of the reader deriving which tiers the model host starts as subagents.
+"""Tests for the reader deriving which tiers the model host starts as subagents.
 
-The set is the deliverable, exactly as it was for the compose side: the sidecar's subagent tier
+The set is what this module produces, exactly as on the compose side. The sidecar's subagent tier
 was one position in a fixed tuple and correct by hand, so what is checked below is that a second
 one is found the day it is declared, that a tier serving something else stays out, and that a
-declaration this reader was not taught is refused rather than answered emptily.
+declaration this reader was not taught raises rather than coming back empty.
 
-The last tests run it over the committed sidecar, because a reader agreeing with its own fixtures
-and finding nothing real would leave the gate above it green over an empty set.
+The last tests run the reader over the committed sidecar, because a reader agreeing with its own
+fixtures and finding nothing in the tree would leave the gate above it green over an empty set.
 """
 
 from pathlib import Path
@@ -90,7 +90,7 @@ REASONING_OFF = (
 
 
 def _sidecar(root: Path, argv: str = ARGV, config: str = CONFIG) -> Path:
-    """A model host written under ``root``, which is how one arrives here."""
+    """Write a model host under ``root``, which is the shape one arrives in."""
     (root / MODEL_MANAGER).mkdir(parents=True, exist_ok=True)
     (root / MODEL_MANAGER / ARGV_MODULE).write_text(argv, encoding="utf-8")
     (root / MODEL_MANAGER / TIER_MODULE).write_text(config, encoding="utf-8")
@@ -113,13 +113,13 @@ def test_the_tier_whose_artifact_setting_names_a_subagent_is_one(tmp_path: Path)
 
 
 def test_a_tier_serving_anything_else_is_not_one(tmp_path: Path) -> None:
-    """The cortex tier is declared in the same tuple and carries no reasoning-off pair, by
-    design: a rule demanding one of it would be a rule about the wrong tier."""
+    """The cortex tier is declared in the same tuple and carries no reasoning-off pair by design,
+    so a rule demanding one of it would be a rule about the wrong tier."""
     assert [tier.named for tier in hosted(_sidecar(tmp_path))] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"]
 
 
 def test_a_second_subagent_tier_is_found_the_day_it_is_declared(tmp_path: Path) -> None:
-    """The whole reason this reader exists. A fourth tier for a second pick is a position in a
+    """This is the case the reader exists for. A fourth tier for a second pick is a position in a
     tuple nothing enumerated, so it used to carry whatever its author copied."""
     config = CONFIG.replace(
         "    def tiers(self):",
@@ -189,8 +189,8 @@ def test_an_item_only_the_running_program_knows_occupies_its_position(tmp_path: 
 
 
 def test_a_tier_declaring_no_tail_carries_only_what_every_tier_carries(tmp_path: Path) -> None:
-    """Which is exactly the fourth-tier defect: it comes up with the shared flags and none of
-    the ones that make it a subagent server."""
+    """This is the fourth-tier defect: the server comes up with the shared flags and none of the
+    ones that make it a subagent server."""
     config = CONFIG.replace(
         "self.subagent_gpu_file), extra=_REASONING_OFF", "self.subagent_gpu_file)"
     )
@@ -231,9 +231,9 @@ def test_a_tree_with_no_argv_builder_is_refused(tmp_path: Path) -> None:
 def test_an_argv_builder_this_reader_cannot_read_one_argv_out_of_is_refused(
     tmp_path: Path, body: str
 ) -> None:
-    """One tuple and one return. A builder whose argv depends on a branch is a builder whose
-    flags this reader is not evaluating, and taking the first would be a gate green over the
-    branch it did not take."""
+    """The reader takes one tuple out of one return. A builder whose argv depends on a branch has
+    flags this reader does not evaluate, and taking the first return would leave the gate passing
+    over the branch it never read."""
     argv = f"def llama_server_argv(binary, tier):\n{body}\n"
     with pytest.raises(HostedTierError, match="does not return exactly one tuple"):
         hosted(_sidecar(tmp_path, argv=argv))
@@ -251,7 +251,7 @@ def test_an_argv_builder_this_reader_cannot_place_a_tail_in_is_refused(
     tmp_path: Path, returned: str
 ) -> None:
     """Where the tail lands decides which flags a tier is credited with, so a builder that does
-    not splat it exactly once is a reading nobody should guess at."""
+    not splat it exactly once raises rather than being read."""
     argv = f'_JINJA = "--jinja"\n\n\ndef llama_server_argv(binary, tier):\n    return {returned}\n'
     with pytest.raises(HostedTierError, match="does not splat"):
         hosted(_sidecar(tmp_path, argv=argv))
@@ -268,8 +268,8 @@ def test_a_settings_class_naming_no_environment_variable_is_refused(tmp_path: Pa
 
 
 def test_a_tree_declaring_no_tier_at_all_is_refused(tmp_path: Path) -> None:
-    """A reading over nothing would report success forever, which is the one thing no reader
-    in this tree does."""
+    """A reading over no tiers raises, since it would otherwise report success every time it
+    ran."""
     config = (
         "class ModelHostConfig(BaseSettings):\n"
         '    cortex_file: str = Field(validation_alias="CORTEX_MODEL_FILE_CORTEX")\n'
@@ -279,7 +279,8 @@ def test_a_tree_declaring_no_tier_at_all_is_refused(tmp_path: Path) -> None:
 
 
 def test_a_tier_whose_artifact_names_no_known_setting_is_refused(tmp_path: Path) -> None:
-    """Not skipped: a tier this reader cannot sort is one it cannot say is not a subagent."""
+    """A tier this reader cannot sort raises rather than being skipped, since nothing shows it is
+    not a subagent."""
     config = CONFIG.replace("self._path(self.cortex_file)", '"/models/written-out.gguf"')
     with pytest.raises(HostedTierError, match="names no ModelHostConfig field"):
         hosted(_sidecar(tmp_path, config=config))
@@ -292,8 +293,8 @@ def test_a_tier_whose_artifact_names_no_known_setting_is_refused(tmp_path: Path)
 def test_a_subagent_tiers_tail_this_reader_cannot_reduce_is_refused_by_name(
     tmp_path: Path, written: str
 ) -> None:
-    """Filling it with an unreadable token instead would print a fault about a missing flag that
-    the reader can plainly see written in the file."""
+    """Filling the tail with an unreadable token instead would report a missing flag that is
+    written plainly in the file."""
     config = CONFIG.replace("extra=_REASONING_OFF", f"extra={written}")
     with pytest.raises(HostedTierError, match="CORTEX_MODEL_FILE_SUBAGENT_GPU declares an extra"):
         hosted(_sidecar(tmp_path, config=config))
@@ -303,16 +304,16 @@ def test_a_subagent_tiers_tail_this_reader_cannot_reduce_is_refused_by_name(
 
 
 def test_the_committed_sidecar_hosts_the_subagent_tier_it_ships() -> None:
-    """A fixture-only reader could be right about nothing real. The count is loose, since a
-    second subagent pick should extend this set rather than fail here."""
+    """The reader finds the tier the sidecar ships, which the fixtures above cannot show. The set
+    is asserted loosely, since a second subagent pick should extend it rather than fail here."""
     found = hosted(REPO_ROOT)
     assert {tier.named for tier in found} >= {"CORTEX_MODEL_FILE_SUBAGENT_GPU"}
     assert all(tier.command for tier in found)
 
 
 def test_the_committed_tier_really_carries_the_flags_its_placement_used_to_be_trusted_for() -> None:
-    """Read here rather than asserted as a rule: the rule lives in `flagcheck.REQUIREMENTS` and
-    this is only the evidence that the reader reaches the flags at all."""
+    """The flags are read here rather than asserted as a rule: the rule lives in
+    `flagcheck.REQUIREMENTS`, and this shows only that the reader reaches the flags."""
     command = hosted(REPO_ROOT)[0].command
     assert "--jinja" in command
     assert command[-len(REASONING_OFF) :] == REASONING_OFF

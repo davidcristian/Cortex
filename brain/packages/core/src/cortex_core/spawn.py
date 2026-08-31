@@ -9,8 +9,8 @@ spawning turn's taint (the ``tainted`` bit of the dispatcher's ``TurnStamp`` on 
 ADR-0018/0027), which the runner's resolution needs; enforcement itself lives in
 ``SubagentRoster.resolve``, not here.
 
-The advertised spec (what the cortex is *told*, including the ADR-0018 model knob and the ADR-0010
-batch cap) lives in ``spawn_spec.py``; this module owns *running* one batch. A delegating turn also
+The advertised spec (what the cortex is told, including the ADR-0018 model knob and the ADR-0010
+batch cap) lives in ``spawn_spec.py``; this module owns running one batch. A delegating turn also
 surfaces progress (ADR-0010 progress addendum): the batch's scale as a ``StatusUpdate`` and each
 subagent's audited tool steps as ``ToolActivity``, off the stream's ``ProgressSink`` carried on the
 call ``TurnStamp`` (``None`` for an overlay-less caller, e.g. the ticker), so the one shared tool
@@ -56,8 +56,9 @@ def _uuid4_task_id() -> str:
 _ERR_INSTRUCTION = (
     "each instruction must be a non-empty string or an object with a non-empty 'instruction'"
 )
-# Refused, never truncated: silently dropping subtasks would hand the cortex an aggregate that
-# looks complete. An error the model can act on, so it re-delegates in batches that fit.
+# Refused rather than truncated: dropping subtasks without saying so would hand the cortex an
+# aggregate that looks complete. An error the model can act on, so it re-delegates in batches
+# that fit.
 _ERR_BATCH = (
     f"spawn_subagents takes at most {MAX_SPAWN_BATCH} subtasks per call; delegate fewer at once"
 )
@@ -79,11 +80,11 @@ def _stringified_object_item(item: str) -> Mapping[str, object] | None:
     """An object item the model JSON-encoded into the string slot, or None (ADR-0018 addendum).
 
     Live gemma-4-12B emits `"{\\"instruction\\": ..., \\"model\\": ...}"` (the object form as a
-    JSON string inside the array), which would otherwise run as a *literal instruction* on the
-    default model, silently dropping the pick. Only a string that parses to an object carrying
-    an ``instruction`` key is diverted; anything else stays a plain instruction. Model-tolerance
-    only. The diverted item goes through the same validation, and ADR-0017 enforcement is the
-    runner's either way.
+    JSON string inside the array), which would otherwise run as a literal instruction on the
+    default model and drop the pick with nothing reporting it. Only a string that parses to an
+    object carrying an ``instruction`` key is diverted; anything else stays a plain instruction.
+    Model-tolerance only. The diverted item goes through the same validation, and ADR-0017
+    enforcement is the runner's either way.
     """
     if not item.lstrip().startswith("{"):
         return None
@@ -176,13 +177,12 @@ class SpawnSubagentsTool:
         was made for (its chat, its turn id, and the scheduled item whose fire made it, each
         ``""`` when this caller has none: a turn names no item, the ticker names no turn), all
         five read from the dispatcher's stamp on ``call``, so the runner resolves it safely and
-        audits it honestly from the store alone (ADR-0018, ADR-0009 named-work and fired-work
+        audits it accurately from the store alone (ADR-0018, ADR-0009 named-work and fired-work
         addenda). The same stamp carries the turn's dispatch budget, which every spawned run
         shares, and the stream's ``progress`` sink (``None`` off an overlay-less caller, e.g. the
         ticker), which the batch's scale and each subagent's tool steps surface onto (ADR-0010
-        progress
-        addendum). The sink rides the stamp per call rather than an instance field, so this one
-        shared tool serves every stream without a per-stream slot to leak across turns.
+        progress addendum). The sink rides the stamp per call rather than an instance field, so
+        this one shared tool serves every stream without a per-stream slot to leak across turns.
         The aggregate is UNTRUSTED iff any subagent consumed untrusted content, so a subagent
         that read a malicious file taints the cortex turn through the normal result path
         (ADR-0013); a bad-arguments error is our own message and stays trusted.

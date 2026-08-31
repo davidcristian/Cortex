@@ -20,8 +20,8 @@ const msg = (over: Partial<MessageModel>): MessageModel => ({
 
 const grow = (): void => undefined;
 
-// The clock is its own tested module; here the frames are swallowed so a live bubble holds its
-// breath and what is under test is the DOM the component lays for the clock to drive.
+// The clock is a separately tested module, so its frames are discarded here and a live bubble
+// stays at its first pose, leaving the DOM this component builds as what is under test.
 beforeEach(() => {
   vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
   vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);

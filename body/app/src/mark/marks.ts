@@ -7,9 +7,10 @@
 // The labels are movements of thought: the mark is the overlay's thinking signal, so the picker
 // asks "how does it think?" and each label answers with how that style moves (ADR-0031 addendum).
 // `name` is the storage key, the value the preference record holds, and every key matches its
-// label again: the keys were healed once the maintainer confirmed nothing beyond the dev machine holds a
-// stored value (keys freeze when someone else depends on them, and nobody does yet). A pick made
-// under an old key still lands, because `resolveMark` carries the shipped names as aliases.
+// label again: the keys were healed once the maintainer confirmed nothing beyond the dev machine
+// holds a stored value (keys freeze when someone else depends on them, and nobody does yet). A
+// pick made under an old key still lands, because `resolveMark` carries the shipped names as
+// aliases.
 
 import type { Envelope, Harmonic, Lobe, Orbit } from "./bubble";
 
@@ -115,8 +116,8 @@ export const HUNCH: MarkStyle = {
  *  The two small ones are the only lobes in the registry that swing: each carries a real `orbit`
  *  around the big lobe's centre, side thoughts on arcs that never leave the main one, which is
  *  what the label names. This style shipped as Foam and wore that storage key under the Tangent
- *  label for a while; the key was healed to match once the maintainer confirmed the project is still
- *  private, and "foam" lives on only as a resolver alias. */
+ *  label for a while; the key was healed to match once the maintainer confirmed the project is
+ *  still private, and "foam" lives on only as a resolver alias. */
 export const TANGENT: MarkStyle = {
   name: "tangent",
   label: "Tangent",

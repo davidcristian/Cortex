@@ -6,12 +6,12 @@ coroutine that releases it.
 
 Delegation is disabled by default (CI and the no-GPU dev loop run subagent-free). With
 `CORTEX_SUBAGENTS_BACKEND=llamacpp` the cortex gets the `spawn_subagents` tool over a
-`SubagentRunner` that resolves each spawn against the **roster** built here (ADR-0018): the
+`SubagentRunner` that resolves each spawn against the roster built here (ADR-0018): the
 default entry from the flat env, the injection-robust ADR-0004 pick every untrusted-content
 spawn is pinned to (ADR-0017), plus one alternate per `CORTEX_SUBAGENTS_ROSTER__<name>`. Each
 entry gets its own backend pair (GPU + CPU `llama-server` endpoints behind one shared HTTP
 client) and its own `PlacementRequest`; the `ResourceBudgetScheduler` and the `SubagentPlacer`
-are ONE object across entries, meaning one CPU/RAM budget, one VRAM ledger, whatever the mix
+are one object across entries, meaning one CPU/RAM budget and one VRAM ledger whatever the mix
 (ADR-0012 unchanged). A subagent runs the shared tool loop with the MCP tool subset (no
 delegation, so depth-1), stripped of gated tools by `UngatedToolRegistry` (ADR-0013
 subagent-exclusion addendum), as a stateless function over the Redis `TaskStore`. The
@@ -95,7 +95,7 @@ async def build_subagents(
     (`-ngl 0`); the shared `ResourceBudgetScheduler` admits it under one soft CPU/RAM budget.
     `tools` is the subagents' dispatcher, pre-assembled by `build_subagent_tools` at the
     composition root so the user's `CORTEX_TOOLS_GATED` backstop reaches it without a
-    seventh builder argument (ADR-0022). `config.constrain_output` (default on) rides onto the
+    seventh builder argument (ADR-0022). `config.constrain_output` (default on) is passed to the
     runner, so a tool-less subagent's reply is decoded into the fixed envelope (ADR-0028). The
     returned closer releases the shared backend client and the task store; the shared MCP
     session is released by `build_tool_registry`, not here.
@@ -110,14 +110,14 @@ async def build_subagents(
     Every entry shares one client, so `config.stall_timeout_s` is the ceiling on a silent CPU
     stream for the whole pool (ADR-0005 stall-ceiling addendum). It is the loose one of the two
     the repo ships: a subagent tier decodes at a fraction of the cortex's rate, and a stall here
-    holds an admission the queued peers are waiting on, which is what makes the unbounded
-    version the pool's hazard rather than a nicety.
+    holds an admission the queued peers are waiting on, which is why leaving it unbounded is a
+    hazard for the whole pool rather than a missing convenience.
 
     `config.attempt_bounds` is the other half of the same hazard, the one a stall detector cannot
     see (ADR-0005 total-cap addendum): a subagent in a repetition loop is never silent, so the
-    ceiling above never fires and it holds that admission exactly as a wedged stream used to. It
-    rides the runner rather than the client, both because a token cap is a request-side value the
-    port already carries and because the deadline has to cover the tool dispatches between one
+    ceiling above never fires and it holds that admission exactly as a wedged stream used to. It is
+    carried by the runner rather than the client, both because a token cap is a request-side value
+    the port already carries and because the deadline has to cover the tool dispatches between one
     run's completions, which no HTTP client can see.
     """
     if config.backend == "none":
@@ -158,11 +158,12 @@ def build_subagent_tools(
 ) -> ToolDispatcher | None:
     """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013).
 
-    A subagent is never *handed* an outbound/gated tool (subagent-exclusion addendum):
-    `UngatedToolRegistry` strips gated specs from advertisement and refuses invoking them, so
-    a gated tool added to the shared registry later simply does not exist for a subagent. There is
-    nothing dangerous to call, not merely denied at the fail-closed gate (its dispatcher also
-    keeps the `confirmer=None` default). The spawn tool is likewise absent (depth-1, ADR-0010).
+    A subagent is never handed an outbound or gated tool (subagent-exclusion addendum):
+    `UngatedToolRegistry` strips gated specs from the advertisement and raises when one is
+    invoked, so a gated tool added to the shared registry later does not exist for a subagent.
+    There is nothing dangerous for it to call, rather than a dangerous call denied at the
+    fail-closed gate (its dispatcher also keeps the `confirmer=None` default). The spawn tool is
+    likewise absent (depth-1, ADR-0010).
     The policy's `gated_names` is the authoritative gate backstop (ADR-0022): should the skip-mode
     advertisement window ever let a stripped-then-recovered gated name through, the dispatcher
     still treats it as gated, and with `confirmer=None` that is a hard deny. The composition
@@ -172,8 +173,8 @@ def build_subagent_tools(
     user priced is priced in delegated work as well, which is where it matters most, since
     fan-out is exactly what multiplies a cheap-looking call. Its `salience` reaches subagents the
     same way, and the per-loop scoping means a subagent's repeats are counted against its own
-    rounds, never against a sibling's, which is the point (ADR-0009 salience addendum): siblings
-    hold different message lists, so a read one of them already made is new to the others.
+    rounds and never against a sibling's (ADR-0009 salience addendum): siblings hold different
+    message lists, so a read one of them already made is new to the others.
     """
     if tool_registry is None:
         return None

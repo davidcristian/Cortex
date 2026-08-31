@@ -1,8 +1,8 @@
 """The handoff record and escalation slot: pure value behavior (ADR-0030 decision 2).
 
-The store-facing round trip lives in the session package's contract suite; here the value
-semantics are pinned: what a snapshot captures (and from where), what it refuses, and that
-the reconstructed ledger is exact and detached from the record.
+The store-facing round trip lives in the session package's contract suite. These tests cover the
+value semantics: what a snapshot captures and from where, what it refuses, and that the
+reconstructed ledger is exact and detached from the record.
 """
 
 from datetime import UTC, datetime
@@ -164,25 +164,29 @@ def test_taint_ledger_reconstruction_is_exact_and_detached() -> None:
 
 
 def test_a_snapshot_refuses_a_loop_tail_carrying_pixels() -> None:
-    """The same rule the session stores enforce (ADR-0029). A handoff record is durable and its
-    schema has no field for an image, so accepting one would drop the picture in silence and
-    hand the deep model a caption with nothing attached. ``SwapConductor._prepare`` refuses an
-    opaque turn before it can reach here; this is the structural backstop."""
+    """A loop tail carrying an image is refused, under the same rule the session stores enforce
+    (ADR-0029).
+
+    A handoff record is durable and its schema has no field for an image, so accepting one would
+    drop the picture silently and hand the deep model a caption with nothing attached.
+    ``SwapConductor._prepare`` refuses an opaque turn before it can reach here, and this is the
+    structural backstop."""
     slot = _slot(_pixel_working(), budget=DispatchBudget(8), base_len=1)
     with pytest.raises(ValueError, match="never persists images"):
         slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
 
 
 def test_a_snapshot_carries_the_opaque_bit_off_the_live_ledger() -> None:
-    """The bit the pixels leave behind rides the record, and the rebuilt ledger says so.
+    """The opaque bit is copied off the live ledger onto the record, and the rebuilt ledger
+    carries it back.
 
-    Defence in depth rather than a live path, and worth naming as such: the conductor refuses
-    an opaque turn before it ever snapshots one, so this record is a shape the running system
-    does not produce. The reason to carry the bit anyway is that its two consumers both OPEN on
-    a ``False`` (the default URL guardrail stops escalating to strict redaction, and the
-    durable-memory drop stops applying), so a rebuilt ledger that invented ``False`` would be
-    indistinguishable from an honest one. Here the ledger is marked the only way production
-    marks it, through ``observe`` on an image-bearing untrusted result.
+    This is defence in depth rather than a live path: the conductor rejects an opaque turn before
+    it ever snapshots one, so this record is a shape the running system does not produce. The
+    reason to carry the bit anyway is that both its consumers relax on a ``False`` (the default
+    URL guardrail stops escalating to strict redaction, and the durable-memory drop stops
+    applying), so a rebuilt ledger that invented ``False`` would be indistinguishable from an
+    accurate one. Here the ledger is marked the only way production marks it, through ``observe``
+    on an image-bearing untrusted result.
     """
     ledger = _ledger()
     ledger.observe(

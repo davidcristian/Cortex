@@ -3,7 +3,7 @@
 **Purpose.** The llama.cpp adapter for the core's `Embedder` port (ADR-0005, ADR-0008). A
 thin HTTP translator: it POSTs one text to a CPU `llama-server`'s OpenAI-compatible
 `/v1/embeddings` endpoint and returns the embedding vector. No orchestration, no state (the
-one hard rule). The core keeps talking only to `Embedder`. Unlike the inference adapter it
+one hard rule). The core still depends only on `Embedder`. Unlike the inference adapter it
 is **not** routed through the `ModelManager`: embeddings run on their own CPU server
 (`-ngl 0`), separate from the GPU cortex (ADR-0004 addendum says the GPU budget is the
 cortex's).
@@ -28,7 +28,7 @@ cause chained:
   re-raised (fail-loud, never a silent empty vector).
 
 **Shared contract.** `tests/embedder_contract.py` holds the four checks every `Embedder`
-implementation owes and `tests/test_embedder_contract.py` drives them over both: the core's
+implementation must pass and `tests/test_embedder_contract.py` drives them over both: the core's
 `HashEmbedder` and this adapter over a `MockTransport` whose stand-in server answers the digest
 bytes of the text it was given, as JSON integers. The checks are that an embedding is a non-empty
 sequence of real floats, that every text embeds at one width, that one text always embeds to one

@@ -1,10 +1,9 @@
 //! The size policy of a screen capture (ADR-0029): how far to downscale, what to encode, and
 //! how many bytes may cross the seam.
 //!
-//! Split from the port in [`screen`](super::screen) by responsibility. That module answers
-//! "what does a backend implement"; this one answers "what is allowed to reach the brain",
-//! which is the half a security review reads. The pixel arithmetic both rest on is in
-//! `screen_image`.
+//! Split from the port in [`screen`](super::screen) by responsibility. That module declares
+//! what a backend implements; this one decides what is allowed to reach the brain. The pixel
+//! arithmetic both rest on is in `screen_image`.
 
 use crate::os::screen::CaptureError;
 use crate::os::screen_image::{Rgb, downscale};
@@ -15,36 +14,35 @@ pub use crate::os::screen_image::encode_png;
 /// The longest edge, in physical pixels, a capture is downscaled to when the caller asks for
 /// no particular size (a proto3 `max_edge` of zero).
 ///
-/// 1600 is chosen from measurement, not taste: the cortex's projector charges the same 266
-/// prompt tokens for 1280x720 and for 3840x2160, so past roughly 1280 on the long edge a
-/// bigger picture buys context legibility at the price of bytes only. 1600 keeps a little
-/// more text readable than 1280 while a worst-case incompressible screen still encodes
-/// inside [`MAX_CAPTURE_BYTES`] without the ladder firing.
+/// 1600 is chosen from measurement: the cortex's projector charges the same 266 prompt tokens for
+/// 1280x720 and for 3840x2160, so past roughly 1280 on the long edge a bigger picture costs
+/// bytes without buying context legibility. 1600 keeps a little more text readable than 1280
+/// while a worst-case incompressible screen still encodes inside [`MAX_CAPTURE_BYTES`]
+/// without the ladder firing.
 ///
-/// `tests/capture_bytes.rs` prints every screen's cost at this edge beside the cost at the one the
-/// brain asks for, and takes it from here rather than spelling it again: the baseline is not that
-/// suite's to pick, and a copy retuned here alone would leave every row of that measurement
-/// comparing against a capture nothing takes any more. Its neighbour `BRAIN_EDGE` cannot be
-/// imported the same way, being the brain's, and is held by `scripts/crosscheck.py` instead.
+/// `tests/capture_bytes.rs` prints every screen's cost at this edge beside the cost at the one
+/// the brain asks for, and imports this constant rather than spelling the number again, so
+/// retuning it here cannot leave that measurement comparing against an edge nothing captures
+/// at. Its neighbour `BRAIN_EDGE` belongs to the brain and cannot be imported the same way, so
+/// `scripts/crosscheck.py` holds it instead.
 pub const DEFAULT_MAX_EDGE: u32 = 1600;
 
-/// The largest long edge a caller may ask for. A request above this is clamped, not refused:
-/// the brain is asking for detail, and silently giving it the most this seam will carry is
-/// friendlier than an error it cannot act on.
+/// The largest long edge a caller may ask for. A request above this is clamped rather than
+/// refused, because the caller is asking for detail and the most this seam will carry is a
+/// more useful answer than an error the caller cannot act on.
 pub const MAX_EDGE_CEILING: u32 = 4096;
 
 /// The hard byte ceiling on one encoded capture, 6 MiB.
 ///
-/// **One ceiling, two enforcers.** The brain's `CORTEX_BODY_MAX_IMAGE_BYTES` defaults to this
-/// same number, and the two must agree: a body ceiling looser than the brain's domain bound
-/// would let a capture pass here and be refused there, and a ceiling tighter than the
-/// measured worst case (a synthetic-noise screen encodes to 4.33 MB at 1600x900) would trip
-/// the halving ladder on any photographic screen and silently drop the user to an 800 px
-/// view. 6 MiB clears that worst case with headroom, so the ladder fires only on genuinely
-/// pathological input. Neither toolchain can import the other's constant, so a repo gate ties
-/// them instead (`scripts/crosscheck.py`): it reads both declarations and fails when they
-/// disagree, while each stays pinned to the same literal in its own suite. Editing this value
-/// means editing the brain's too.
+/// The brain's `CORTEX_BODY_MAX_IMAGE_BYTES` defaults to this same number and the two must
+/// agree. A body ceiling looser than the brain's domain bound would let a capture pass here
+/// and be refused there, and a ceiling tighter than the measured worst case (a
+/// synthetic-noise screen encodes to 4.33 MB at 1600x900) would trip the halving ladder on
+/// any photographic screen and silently drop the user to an 800 px view. 6 MiB clears that
+/// worst case with headroom, so the ladder fires only on pathological input. Neither
+/// toolchain can import the other's constant, so `scripts/crosscheck.py` reads both
+/// declarations and fails when they disagree, while each stays pinned to the same literal in
+/// its own suite. Editing this value means editing the brain's too.
 pub const MAX_CAPTURE_BYTES: usize = 6 * 1024 * 1024;
 
 /// How many times [`Capture::from_bgra`] may halve the edge and re-encode before giving up.
@@ -95,12 +93,11 @@ impl CaptureRequest {
     /// [`VolumeChange::new`](super::VolumeChange::new) clamps here: no OS backend should ever
     /// receive a constraint the wire could not enforce.
     ///
-    /// The byte ceiling rides the request rather than being baked into the ladder because it
-    /// is one number shared with the brain, whose own image budget is an env var: letting the
-    /// caller name it is what makes "one ceiling, two enforcers" a mechanism instead of a
-    /// comment. It is also what makes the give-up arm of the ladder reachable at all, since at
-    /// [`MAX_CAPTURE_BYTES`] with a [`MAX_EDGE_CEILING`] edge the arithmetic guarantees the
-    /// third rung fits, and a branch nothing can take is a gate that cannot fail.
+    /// The byte ceiling is carried on the request rather than fixed inside the ladder because
+    /// it is one number shared with the brain, whose own image budget is an env var, so the
+    /// caller names the ceiling it will accept. It is also what makes the give-up arm of the
+    /// ladder reachable from a test: at [`MAX_CAPTURE_BYTES`] with a [`MAX_EDGE_CEILING`]
+    /// edge, the arithmetic guarantees the third rung fits.
     ///
     /// `target` needs no resolution of its own: the wire's unknown-value case is decided by the
     /// adapter that reads the enum off the wire, and by the time it arrives here it is one of
@@ -139,9 +136,9 @@ impl CaptureRequest {
         self.max_bytes
     }
 
-    /// What the backend is to point at. Unlike the two size hints this one is not a hint the
-    /// core re-applies afterwards: only the OS can resolve it, so the backend's answer is the
-    /// whole of it, and what core does with that answer is crop.
+    /// What the backend is to point at. Unlike the two size hints, the core does not re-apply
+    /// this one: only the OS can resolve it, so the backend's answer settles it and the core
+    /// only crops to the region that answer names.
     #[must_use]
     pub const fn target(&self) -> CaptureTarget {
         self.target
@@ -151,9 +148,9 @@ impl CaptureRequest {
 /// An encoded capture, bounded and ready for the wire.
 ///
 /// Constructed only through [`Capture::from_bgra`], so an existing value is always inside
-/// [`MAX_CAPTURE_BYTES`] and always [`CAPTURE_MIME`]. It remembers the **display's** own size so
-/// the brain can tell the model it is looking at a shrunk view, and whether the picture is that
-/// whole display or one window of it, which is what picks the receipt the user sees.
+/// [`MAX_CAPTURE_BYTES`] and always [`CAPTURE_MIME`]. It carries the display's own size, so the
+/// brain can tell the model it is looking at a shrunk view, and whether the picture is that
+/// whole display or one window of it, which picks the receipt the user sees.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Capture {
     data: Vec<u8>,
@@ -167,20 +164,21 @@ pub struct Capture {
 impl Capture {
     /// Crops, downscales, encodes, and bounds one captured frame.
     ///
-    /// The crop comes first and is free of the ladder: the region the backend resolved is the
-    /// only part of the frame that is ever read, so a window already inside the capture edge
-    /// crosses the seam **pixel for pixel** (the identity arm of `downscale`), where the same
-    /// desktop as a whole would spend the same image tokens on a resampled screen.
+    /// The crop comes first and runs outside the ladder: the region the backend resolved is
+    /// the only part of the frame that is ever read, so a window already inside the capture
+    /// edge crosses the seam pixel for pixel through the identity arm of `downscale`, where
+    /// the same desktop captured whole would spend the same image tokens on a resampled
+    /// screen.
     ///
-    /// The ladder then: shrink so the long edge is at most `request.max_edge()`, PNG-encode,
+    /// The ladder follows: shrink so the long edge is at most `request.max_edge()`, PNG-encode,
     /// and while the result is over `request.max_bytes()` halve the edge and try again, up to
-    /// [`MAX_SHRINK_ATTEMPTS`] times. Verifying the size *after* encoding is the only honest
-    /// order, because how many bytes a screen costs depends on what is on it: a flat desktop
-    /// is kilobytes at 1600x900 and a photograph is megabytes.
+    /// [`MAX_SHRINK_ATTEMPTS`] times. The size is checked after encoding rather than predicted
+    /// before it, because how many bytes a screen costs depends on what is on it: a flat
+    /// desktop is kilobytes at 1600x900 and a photograph is megabytes.
     ///
-    /// Each rung halves the edge the previous rung actually *reached*, not the edge it asked
-    /// for, so every rung is strictly smaller than the last even when the region was already
-    /// inside the requested bound and the first rung did nothing.
+    /// Each rung halves the edge the previous rung reached rather than the edge it asked for,
+    /// so every rung is strictly smaller than the last even when the region was already inside
+    /// the requested bound and the first rung did nothing.
     ///
     /// # Errors
     ///
@@ -209,12 +207,12 @@ impl Capture {
 
     /// Assembles the value once a rung of the ladder has come in under the ceiling.
     ///
-    /// The source size is the **display's**, never the region's, and that is the whole point of
-    /// taking a [`CapturedFrame`] here rather than a pre-cropped frame. Three consumers read it
-    /// as the size of the screen: `ImageBlob.source_*` on the wire, `ScreenCapture.downscaled`
-    /// in the brain's own pure core, and the "downscaled from `WxH`" clause the tool shows the
-    /// model. A cropped frame flowing through here would silently make all three report the
-    /// window as though it were the screen.
+    /// The source size is the display's rather than the region's, which is why this takes a
+    /// [`CapturedFrame`] instead of a pre-cropped frame. Three consumers read it as the size
+    /// of the screen: `ImageBlob.source_*` on the wire, `ScreenCapture.downscaled` in the
+    /// brain's own pure core, and the "downscaled from `WxH`" clause the tool shows the model.
+    /// A cropped frame flowing through here would make all three report the window as though
+    /// it were the screen.
     fn encoded(data: Vec<u8>, image: &Rgb, captured: &CapturedFrame, region: Region) -> Self {
         let frame = captured.frame();
         Self {
@@ -265,28 +263,27 @@ impl Capture {
 
     /// Whether this picture is the whole display rather than one window of it.
     ///
-    /// The only consumer is the body's own receipt, which needs to say which of the two things
-    /// happened. It reads what was encoded rather than what was asked for, so a window that
-    /// covers the entire display truthfully reports a screen capture, and a backend that
-    /// answered a whole frame to a targeted request cannot make the notice claim otherwise.
+    /// The only consumer is the body's own receipt, which has to say which of the two things
+    /// happened. It reports what was encoded rather than what was asked for, so a window
+    /// covering the entire display reports a screen capture, and a backend that answered a
+    /// whole frame to a targeted request cannot make the notice say otherwise.
     #[must_use]
     pub const fn covers_display(&self) -> bool {
         self.covers_display
     }
 }
 
-/// Encodes one rung of the ladder, or nothing at all if the encoder somehow refuses it.
+/// Encodes one rung of the ladder, returning no bytes if the encoder rejects the image.
 ///
 /// [`encode_png`] rejects exactly two things, a zero dimension and a buffer that is not
 /// `width * height * 3` bytes, and `downscale` can produce neither, so the `Err` arm of that
-/// call is unreachable from here. It needs no coverage escape: the unreachable arm lives inside
-/// `Result::unwrap_or_default`, which is std's line and not a region of this function, and
-/// `encode_png`'s own rejects stay gated where a caller can provoke them.
+/// call is unreachable from here. It needs no coverage escape, because the unreachable arm
+/// lives inside `Result::unwrap_or_default`, which is std's line rather than a region of this
+/// function, and `encode_png`'s own rejects stay gated where a caller can provoke them.
 ///
-/// Answering with no bytes rather than an error keeps the ladder free of a branch nothing can
-/// take, and it does not swallow the impossible case: an empty blob is refused by the brain's
-/// own image validation with a message the model can read, so the failure would surface at the
-/// next gate instead of becoming a picture of nothing.
+/// Returning no bytes rather than an error keeps a branch no test can take out of the ladder.
+/// The impossible case is still not silent: the brain's own image validation rejects an empty
+/// blob with a message the model can read.
 fn encode_rung(image: &Rgb) -> Vec<u8> {
     encode_png(image.width(), image.height(), image.pixels()).unwrap_or_default()
 }

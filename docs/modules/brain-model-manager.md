@@ -11,8 +11,8 @@ one; they run in **different containers** and never import each other:
 - the **adapter** (`HttpModelHost`) runs in the CPU-only brain container and speaks the daemon's
   HTTP control API. It holds no process knowledge at all.
 
-Killing a child loses nothing by construction, which is ADR-0005 decision 3 made literal and the
-one hard rule's whole premise: every model instance is stateless and disposable.
+Killing a child loses nothing, because every model instance is stateless and disposable, which is
+ADR-0005 decision 3 made literal and the premise the one hard rule rests on.
 
 ## Public contract
 
@@ -34,23 +34,24 @@ Everything importable from `cortex_model_manager` (`__all__` is the API).
   stop_grace_s, reap_timeout_s)`, or `None` when any one of the three is missing, is not a
   number, is a bool, or is negative. Read once at wiring time by the brain's composition root,
   never inside a swap: these are the sidecar's env and cannot change under a running container.
-  A partial answer is no answer, because a sum missing a term would clear a deadline the whole
-  rule fails (ADR-0030's deadline-pairing addendum). It is read a second time, off the same route,
+  A partial answer is discarded, because a sum missing one term can clear a deadline that the
+  complete sum does not (ADR-0030's deadline-pairing addendum). It is read a second time, off the
+  same route,
   when a swap finds the daemon replaced: a restart is the only event that can change either side
   of that pairing under a brain that never restarted.
 - `boot_id()` GETs the same `/health` once more and returns the value the daemon names its own
   boot with, or `None` when the body carries none, an empty one, or something that is not a
   string. Read at the boot publish and once per handoff before anything is evicted, and compared
-  for equality only: a different value means every belief the brain holds about what is resident
-  was formed against a supervisor process that no longer exists (ADR-0030's host-generation
-  addendum).
+  for equality only: a different value means everything the brain has recorded about what is
+  resident was recorded against a supervisor process that no longer exists (ADR-0030's
+  host-generation addendum).
 - Every failure crosses as `ModelHostError` with its cause chained, and **nothing is retried
   here**: a transport failure, a 503, a body that will not decode, and a state word this
-  version does not know all mean "the model host did not answer the question", which is for the
-  swap to interpret (`residency_moves` catches exactly `ModelHostError`).
+  version does not recognize all mean "the model host did not answer the question", which is for
+  the swap to interpret (`residency_moves` catches exactly `ModelHostError`).
 - One failure crosses more narrowly, because the daemon already draws the line: a **404 on a
   per-model route** is the supervisor's `UnknownModelError`, so it raises `ModelNotHostedError`,
-  the port's subclass meaning this host carries no such id and never will while it lives
+  the port's subclass meaning this host carries no such id and will not while this daemon runs
   (ADR-0030's unrostered-tier addendum). It is carried only where the sidecar makes the
   distinction: `GET /health` names no model, so a 404 there says the endpoint is wrong rather than
   the roster short, and a 503 stays broad because a process that would not start or stop may
@@ -68,19 +69,19 @@ answers that this daemon has none. Four routes and no more:
 
 | Route | Meaning |
 |---|---|
-| `GET /health` | the daemon is up, which boot of it this is, the roster it serves, the three bounds one control call may spend, and how much of the card is free (`{"status": "ok", "boot_id": "0f9c...", "models": [...], "probe_timeout_s": 5.0, "stop_grace_s": 10.0, "reap_timeout_s": 30.0, "device_free_mib": 22484, "device_total_mib": 24463}`). An operator's first question, and the only way to read what a running daemon actually got. All three timing terms, because the brain reads them here at wiring time and refuses to serve when its own `CORTEX_MODELHOST_TIMEOUT_S` does not clear their sum (ADR-0030's deadline-pairing addendum), and because a reader given two of them can tune to a compliant-looking sum the third carries past that deadline. `boot_id` is the one field a restart changes: everything else on this body is identical across one, so it is what tells a brain that its beliefs about the GPU were formed against a daemon that is gone (ADR-0030's host-generation addendum). The two device figures are `null` on a daemon that can see no card, and they are what the brain's fit check compares against (ADR-0030's fit-check addendum). |
+| `GET /health` | the daemon is up, which boot of it this is, the roster it serves, the three bounds one control call may spend, and how much of the card is free (`{"status": "ok", "boot_id": "0f9c...", "models": [...], "probe_timeout_s": 5.0, "stop_grace_s": 10.0, "reap_timeout_s": 30.0, "device_free_mib": 22484, "device_total_mib": 24463}`). An operator's first question, and the only way to read what a running daemon actually got. All three timing terms, because the brain reads them here at wiring time and fails to start when its own `CORTEX_MODELHOST_TIMEOUT_S` does not clear their sum (ADR-0030's deadline-pairing addendum), and because a reader given two of them can tune to a compliant-looking sum the third carries past that deadline. `boot_id` is the one field a restart changes: everything else on this body is identical across one, so it is what tells a brain that what it recorded about the GPU was recorded against a daemon that is gone (ADR-0030's host-generation addendum). The two device figures are `null` on a daemon that can see no card, and they are what the brain's fit check compares against (ADR-0030's fit-check addendum). |
 | `GET /models/{id}` | `{"model", "state", "detail"}`, `state` being `stopped`/`loading`/`ready`/`failed`. |
 | `POST /models/{id}/start` | begin loading it (idempotent), answering the state it left behind. |
 | `POST /models/{id}/stop` | end it, returning once the child is reaped (idempotent). |
 
 An id outside the roster is **404**; a supervisor failure is **503**. Both are `ModelHostError` on
-the brain's side, the 404 as the narrower `ModelNotHostedError`, and the runbook sends them to
-different halves of itself. **The log level follows the code**, so both refusals share the one
+the brain's side, the 404 as the narrower `ModelNotHostedError`, and the runbook handles each in a
+different section. **The log level follows the code**, so both refusals share the one
 greppable sentence `a model-host request failed` and the 5xx arrives at `ERROR` while the 4xx
 arrives at `WARNING`. The refusal's own words ride the `error` field, which is why the supervisor
 raises them and does not also print them: the API's line and the shutdown sweep's traceback are
-both the whole sentence, and a line at the raise printed one event twice. The level does not
-rest on who else is reading, and it never did: it follows what the two codes mean. On six of the
+both the whole sentence, and a line at the raise printed one event twice. The level is chosen from
+what the two codes mean, and never from what else happens to log the same sentence. On six of the
 seven brain-side callers of these routes the sentence reaches the brain's own log as well, by a
 traceback (the swap back, the peer restart, boot recovery) or in an `error` field (the unrostered
 preflight, the peer sweep, the regain pass), per ADR-0030's refusal-reach addendum. The seventh,
@@ -97,17 +98,18 @@ from `CORTEX_MODELHOST_NVIDIA_SMI` and the bound from `CORTEX_MODELHOST_PROBE_TI
 control-plane reads a swap step waits on. **Every way it can go wrong is "no reading", never an
 exception**: a missing binary (the normal case where no GPU is reserved, since the container
 toolkit injects it alongside the driver), a non-zero exit, a body that will not parse, and **more
-than one visible GPU**, because nothing downstream knows which card a model would land on, so this
-declines to pick a row.
+than one visible GPU**, where nothing downstream can determine which card a model would land on,
+so the probe returns no reading rather than picking a row.
 
 **The supervisor.** `ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s,
 probe_timeout_s)` over the two seams `ChildProcesses` (`spawn(argv) -> ChildProcess`) and
 `HealthProbe` (`serving(url) -> bool`), with `AsyncioChildProcesses` and `HttpHealthProbe` as the
 real adapters and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutdown
 sweep, `boot_id` is a `uuid4().hex` minted per instance and therefore per daemon process, which
-`GET /health` publishes and nothing in this process reads back (it certifies the child table this
-object holds: random rather than counted, since a counter in a process that restarted begins again
-at the number a reader compares to notice the restart), and `control_bounds` is the core
+`GET /health` publishes and nothing in this process reads back (it identifies the child table this
+object holds, and is random rather than counted, since a counter in a restarted process would
+begin again at the very number a reader compares against to detect the restart), and
+`control_bounds` is the core
 `ControlBounds(probe_timeout_s, stop_grace_s, reap_timeout_s)` it was wired with, which the same
 route reports. It is handed the probe's deadline
 although it spends none of it: that bound belongs to the client behind `probe`, and a `status`
@@ -140,14 +142,14 @@ paired with the brain's own `CORTEX_BODY_CAPTURE_MAX_EDGE=2048`: half the pair b
 reading. One knob for two flags is deliberate
 and measured: a picture is decoded as one non-causal chunk, llama.cpp asserts the micro-batch
 covers it, and a raised budget without the micro-batch aborts `llama-server` with SIGSEGV on the
-first oversized picture rather than answering an error. It hangs off the projector for the same
-reason the projector hangs off its file: a text-only tier has no pictures, so it must not pay the
-micro-batch's VRAM. What the default costs, how to refund it, and the failure boundary it still
+first oversized picture rather than answering an error. It is conditioned on the projector for the
+same reason the projector is conditioned on its file: a text-only tier has no pictures, so it must
+not pay the micro-batch's VRAM. What the default costs, how to refund it, and the failure boundary it still
 leaves are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
 `CORTEX_REASONING_BUDGET` (and `CORTEX_REASONING_BUDGET_BRAIN` for the deep tier) adds
 llama.cpp's `--reasoning-budget N`, which is how long a think may be rather than whether one
 happens: the engine closes the thought at the count and lets the completion answer normally, so it
-is the middle of a dial whose ends are the per-request `thinking` bound the brain already sends.
+is an intermediate setting between the two ends the per-request `thinking` bound already offers.
 `-1`, the default, is the engine's own word for unrestricted and emits **no flag at all**, so an
 unasked deployment's argv is the one it always had; `0` is a real setting (thinking ends at once)
 and reaches the argv, which is why the sentinel cannot be the falsy value the image budget uses.
@@ -160,7 +162,8 @@ is ignored in both directions, measured. The GPU-placed subagent tier has no suc
 does carry the flag, at a fixed `0` inside `_REASONING_OFF` beside the template kwarg (ADR-0005
 thinking-lever addendum). The kwarg alone was measured not to stop the trace on a request carrying
 a `response_format`, which is every reply a tool-less subagent decodes into the fixed envelope, and
-a narrow subtask wants no thought rather than a short one, so the zero is fixed here and a
+a narrow subtask is better served by no deliberation than by a shortened one, so the zero is fixed
+here and a
 deployment lengthening the cortex's trace cannot lengthen a subagent's with it. That zero is
 `_NO_REASONING_BUDGET`, named beside the tuple rather than written inside it so
 `scripts/crosscheck.py` can read it: the two compose subagent servers spell the same pair, and the
@@ -180,15 +183,16 @@ root, and `main()` serves it (`python -m cortex_model_manager`).
   host-root, where a child-process supervisor's blast radius is its own container.
 - **The roster is fixed at boot, and a tier with no artifact file is not in it.** No deep-model
   pick exists yet (ADR-0004) and the GPU-placed subagent is opt-in, so a stock host answers 404 for
-  them rather than spawning a doomed process. Two tiers sharing a port is refused at boot.
+  them rather than spawning a process that cannot run. Two tiers sharing a port fails at boot.
 - **`start` and `stop` are idempotent**, because a swap re-issues either without checking first.
   A start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; it also
   removes nothing, so a tier whose child had already died goes on reporting that child's exit code
   (`FAILED`) rather than being erased by the replacement that could not start. The spawn failure
-  itself is what the `start` answers with, and the next successful start replaces the corpse.
+  itself is what the `start` answers with, and the next successful start replaces the dead child's
+  record.
 - **`start` returns long before the model is ready.** It is a spawn and nothing more; the swap's
-  health gate (`await_model_ready`) is the only thing that decides readiness. Blocking would put a
-  minutes-long load at the mercy of an HTTP client's timeout instead of the plan's bound.
+  health gate (`await_model_ready`) is the only thing that decides readiness. Blocking would bound
+  a minutes-long load by an HTTP client's timeout instead of by the plan's own bound.
 - **`stop` does not return until the child is dead and reaped.** `swap_in` stops the cortex and
   starts the deep model with nothing in between, so a still-dying cortex holding ~11 GB would
   CUDA-OOM the load. SIGTERM, then SIGKILL after `stop_grace_s`, then a bounded wait for the reap;
@@ -196,21 +200,23 @@ root, and `main()` serves it (`python -m cortex_model_manager`).
   process still holding VRAM must not be reported as gone. That failure is raised and not also
   logged: both callers of `stop` log what they catch, so the only line this module writes on the
   way there is the escalation to SIGKILL, which is a different event.
-- **`status` reads the process before it trusts the probe.** Measured: a child that fails to bind
+- **`status` reads the process before it reads the probe.** Measured: a child that fails to bind
   dies in ~0.24 s with exit code 1 while the *previous* model keeps answering 200 on that port, so
-  a status that proxied `/health` alone would call the dead model READY and leave the old weights
-  resident, silently defeating the swap. A child that exited unasked is `FAILED` (with its code in
+  a status that proxied `/health` alone would report the dead model READY and leave the old weights
+  resident, defeating the swap without any error. A child that exited unasked is `FAILED` (with its
+  code in
   `detail`) until the next `start`, which replaces it.
 - **One lock per logical model** serializes its three verbs, because a stop racing a start is what
   produces that bind failure. It is also why the probe's deadline is a term of a stop's worst case:
   a `status` holds that lock while it probes, and the compose healthcheck asks for one every 30 s
   on exactly the tier a handoff evicts first.
-- **The daemon states its own worst case, and the brain refuses a deadline that cannot clear it.**
+- **The daemon states its own worst case, and the brain fails to start on a deadline that cannot
+  clear it.**
   `probe_timeout_s + stop_grace_s + reap_timeout_s` must sit strictly under the brain's
   `CORTEX_MODELHOST_TIMEOUT_S` (the shipped 5 + 10 + 30 under 60), or a control call times out on
   an eviction that was still working. The two sides are separate containers' env, so the rule is
   checked where they meet: `GET /health` reports all three, and the brain's composition root reads
-  them once at boot and refuses to serve when the sum does not clear (ADR-0030's deadline-pairing
+  them once at boot and fails the boot when the sum does not clear (ADR-0030's deadline-pairing
   addendum, `docs/runbooks/model-swap.md`).
 - **The daemon configures the root logger, and every line names its subject.** `uvicorn.run`
   configures uvicorn's own loggers and leaves root alone, so `main` calls
@@ -290,9 +296,10 @@ which is the whole point of decision 3. The consequences worth knowing before ch
   unasked, and what the card reports), so each fixture supplies them as knobs: that is the honest
   widening of the contract, since "`start` only begins loading" is unobservable in an
   implementation where nothing can be mid-load, and neither implementation may invent a GPU. A
-  fourth is not a knob but a wiring fact, `unhosted`, an id the host does not carry: a roster is
-  read once from env, so nothing a caller does can add to it, and the supervisor fixture arranges
-  it by leaving the id out while the twin is told.
+  fourth condition, `unhosted`, is a wiring fact rather than a knob: it is an id the host does not
+  carry, and a roster is read once from env, so nothing a caller does can add to it. The supervisor
+  fixture arranges it by leaving the id out of the roster, and the twin by being told which id is
+  absent.
 - 100% line + branch, with no process spawned and no socket opened. Every distrust-green mutation
   is recorded with its **measured** package-wide failure count in the suites' own docstrings.
 - `integration`-marked live tests (`tests/test_model_host_live.py`, excluded from CI and the
@@ -300,13 +307,14 @@ which is the whole point of decision 3. The consequences worth knowing before ch
   processes (a `sleep`, and one that traps SIGTERM), and the whole mechanism against a running
   sidecar at `CORTEX_MODELHOST_ENDPOINT`. **The mechanism is validated**, agent-side in Docker on
   the dev GPU with two small artifacts standing in for the tiers: real processes started,
-  health-gated, evicted, swapped, killed under the daemon, and restarted over their own corpses,
+  health-gated, evicted, swapped, killed under the daemon, and restarted in the slot of a child
+  that had died,
   with the exact commands, timings and VRAM readings in
   [runbooks/model-swap.md](../runbooks/model-swap.md). The fit check has its own two live cases,
   added 2026-08-07 and run on the 24 GB card: that a real sidecar reports a card at all (which no
-  gated test can reach, the brain container having none), and that one call refuses a megabyte more
-  than the card has free while the same call for exactly what is free goes through and really
-  loads. **Tier scale was validated 2026-08-07** on that card and is written up in the same
+  gated test can reach, the brain container having none), and that one call is rejected for asking
+  a megabyte more than the card has free while the same call for exactly what is free goes through
+  and really loads. **Tier scale was validated 2026-08-07** on that card and is written up in the same
   runbook; the earlier mechanism runs were on an 8 GB dev GPU that could not hold the real cortex
   beside a deep model.
 

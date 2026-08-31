@@ -19,8 +19,8 @@ with thinking off entirely, which says only that the cortex pick does not need i
 The absence is everything the trace is actually for: the questions the deep tier was chosen over
 faster candidates to reach an answer on ([ADR-0004](../../adr/ADR-0004-model-lineup.md)).
 
-What would close it is a graded arm rather than a timed one: a set of questions hard enough that
-the shipped model gets some of them wrong, run across unbounded, a few positive budgets and zero,
-scored by something better than a reading of the replies. That is a corpus and a judge, which is
-why it did not ride the landing; the landing's own advice, to start at 512 on a tier a user reads
-and treat anything lower as a trade, is the honest placeholder until this exists.
+What would close it is a graded arm rather than a timed one: a set of questions hard enough that the
+shipped model gets some of them wrong, run across unbounded, a few positive budgets and zero, scored
+by something better than a reading of the replies. That is a corpus and a judge, which is why it did
+not ride the landing; the landing's own advice, to start at 512 on a tier a user reads and treat
+anything lower as a trade, is the placeholder until this exists.

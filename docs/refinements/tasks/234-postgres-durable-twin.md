@@ -10,10 +10,10 @@ tier this ships with).
 
 **Declined, on four findings from the tree rather than from the text.**
 
-**Its only named consumer has no consumer either.** This entry's own Trail says it reopens
-together with the occurrence-history table, and nothing in the tree reads a fired occurrence, which
-is the ground that settled that one ([242](242-occurrence-history.md)). Two files waiting on one
-absent reader is one file too many.
+**Its only named consumer has no consumer either.** This entry's own Trail says it reopens together
+with the occurrence-history table, and nothing in the tree reads a fired occurrence, which is the
+ground that settled that one ([242](242-occurrence-history.md)). Both task files wait on the same
+absent reader, so this one records nothing the other does not.
 
 **Both of its stated triggers are structurally absent, not merely unfired.** Nothing anywhere
 queries a schedule by provenance: the only listing reads are `list_active()`, for the creation cap
@@ -40,8 +40,8 @@ would ship with weaker evidence than the adapter it duplicates, for a reader tha
 
 ## Trail
 
-- 2026-07-16: Named by the occurrence-history closure as the store a real durable history wants,
-  since such a history wants queries and retention rather than the Redis it would grow unbounded,
+- 2026-07-16: Named by the occurrence-history closure as the store a real durable history needs,
+  since such a history needs queries and retention rather than the Redis it would grow unbounded,
   so the two reopen together.
 - 2026-08-09: A trigger sweep of the fix-when-it-bites bucket this entry sits in ran against
   the tree and fired nothing.

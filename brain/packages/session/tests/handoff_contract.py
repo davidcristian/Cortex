@@ -2,7 +2,7 @@
 
 Driven by the parametrized contract test (in-memory fake + fakeredis-backed Redis adapter).
 The two must be observably interchangeable behind the port (ports-before-adapters, ADR-0030).
-The load-bearing check is the tainted-ledger round trip: a ledger built through the REAL
+The central check is the tainted-ledger round trip: a ledger built through the REAL
 ``TaintLedger`` API (an observed untrusted result with a claimed sender, plus ingested
 untrusted content naming a URI and a memory) must come back from the store bit-, order-, and
 set-exact, or taint would fail open across the model swap. Its companion is the ``opaque``
@@ -71,7 +71,7 @@ def opaque_ledger() -> TaintLedger:
 
     ``TaintLedger.observe`` sets ``opaque`` when an UNTRUSTED result carries images (ADR-0029),
     so this goes through that API rather than assigning the field: a bit set by hand would
-    round-trip just as happily while proving nothing about the value a turn actually produces.
+    round-trip just as well while saying nothing about the value a turn actually produces.
     """
     ledger = tainted_ledger()
     ledger.observe(
@@ -95,7 +95,7 @@ def make_record(
 ) -> HandoffRecord:
     """One full-shape record, snapshotted off a live slot exactly as the conductor will.
 
-    ``opaque`` swaps in the image-marked ledger. The conductor never snapshots one (it refuses
+    ``opaque`` swaps in the image-marked ledger. The conductor never snapshots one (it rejects
     an opaque turn first), so that record is a value the store must carry rather than a state
     the running system reaches; the check below says so in full.
     """
@@ -156,11 +156,12 @@ async def check_record_round_trips_field_for_field(store: HandoffStore) -> None:
 
 
 async def check_tainted_ledger_round_trips_exactly(store: HandoffStore) -> None:
-    """THE pinned round trip (ADR-0030 decision 2): bit, sources order, kinds, URL set.
+    """The pinned round trip (ADR-0030 decision 2): the taint bit, the source order, the kinds,
+    and the URL set.
 
-    A reconstructed ledger equal to the live one is what makes taint persistence across the
-    swap real: the claimed sources stay claimed (inert quotations), the attested stay
-    attested, in the order the turn read them, and every laundering-evidence URL survives.
+    A reconstructed ledger equal to the live one is what taint persistence across the swap
+    depends on: the claimed sources stay claimed (inert quotations), the attested stay attested,
+    in the order the turn read them, and every laundering-evidence URL survives.
     """
     ledger = tainted_ledger()
     record = make_record(_handoff_id())
@@ -186,9 +187,9 @@ async def check_tainted_ledger_round_trips_exactly(store: HandoffStore) -> None:
 async def check_the_opaque_bit_round_trips_both_ways(store: HandoffStore) -> None:
     """The unfenceable-content bit survives the store, set and unset (ADR-0029/0030 decision 2).
 
-    Defence in depth, and said plainly: no opaque turn reaches a record today, because
-    ``SwapConductor._prepare`` refuses one before it snapshots, so a record with the bit set is
-    a value this store must carry rather than a state the running system produces. What the
+    No opaque turn reaches a record today, because ``SwapConductor._prepare`` refuses one before
+    it snapshots, so a record with the bit set is a value this store must carry rather than a
+    state the running system produces. This check is defence in depth for that. What the
     store must never do is manufacture the ``False``, because both of the bit's consumers open
     on it in the deep phase (the default URL guardrail stops escalating to strict, and an opaque
     turn stops being kept out of durable memory), and a bit that decayed in transit would look
@@ -288,7 +289,7 @@ async def check_a_reasonless_transition_leaves_no_reason_behind(store: HandoffSt
     The other half of one read-modify-write: state and reason move together, so a record that
     was settled failed and is then written again does not keep a sentence about a state it is
     no longer in. Nothing in the conductor does this today (a terminal record is never
-    transitioned again), which is why it is pinned here rather than left to a caller's manners.
+    transitioned again), which is why it is pinned here rather than left to the caller.
     """
     record = make_record(_handoff_id())
     await store.put(record)
@@ -312,7 +313,8 @@ async def check_delete_removes_and_releases(store: HandoffStore) -> None:
 
 
 async def check_a_terminal_put_is_never_active(store: HandoffStore) -> None:
-    """Persisting an already-terminal record (boot recovery's write) claims nothing."""
+    """Persisting an already-terminal record (boot recovery's write) leaves the active slot
+    empty."""
     record = make_record(_handoff_id(), state=HandoffState.FAILED)
     await store.put(record)
     assert await store.active() is None

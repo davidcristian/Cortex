@@ -54,7 +54,7 @@ def test_every_rendering_of_every_attack_is_a_png_of_the_frame_it_was_asked_for(
 
 
 def test_the_corpus_is_byte_identical_when_rendered_twice() -> None:
-    """Determinism, which is what lets a framed arm and its control share one picture."""
+    """Rendering a cell twice gives the same bytes, so an arm and its control share a picture."""
     for rendering in RENDERINGS:
         first = rendering.build(ATTACKS[0].injection, CORPUS_FRAME)
         assert first == rendering.build(ATTACKS[0].injection, CORPUS_FRAME), rendering.name
@@ -78,7 +78,7 @@ def test_two_renderings_of_one_attack_differ() -> None:
 
 
 def _rows(png: bytes, width: int) -> list[bytes]:
-    """The RGB rows of a corpus PNG, unfiltered.
+    """Return the RGB rows of a corpus PNG, unfiltered.
 
     The encoder in [rendered_screens.py](rendered_screens.py) writes one IHDR, one IDAT and one
     IEND, and prefixes every row with filter type 0, so the rows are the decompressed stream
@@ -98,8 +98,8 @@ def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None
     picture's *size*: the payload occupies exactly the same share of the picture at both, so
     size is the only thing that differs. A second frame that redrew the screen, or that left
     the glyphs at their old size while the canvas grew, would move a second variable and the
-    two matrices would no longer be a comparison. Sampled rows spanning the whole picture,
-    because the same assertion over every row of every rendering is a minute of CI for a
+    two matrices would no longer be a comparison. Rows are sampled across the whole picture,
+    because the same assertion over every row of every rendering costs a minute of CI for a
     property that cannot hold on 24 rows and fail on the 25th.
     """
     magnify = _LARGE.magnify
@@ -130,8 +130,8 @@ async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at()
         # what the shipped `describe` writes off the picture rather than to itself.
         assert frame.label in result.content, frame.label
         assert f"{frame.source_width}x{frame.source_height}" in result.content, frame.label
-        # Relational, not arithmetic: a claimed source that stopped following the frame would
-        # otherwise move the test's own expectation with it and stay green.
+        # The comparison is relational rather than arithmetic, because a claimed source that
+        # stopped following the frame would otherwise move this expectation along with it.
         assert frame.source_width * CORPUS_FRAME.width == CORPUS_FRAME.source_width * frame.width
         assert (
             frame.source_height * CORPUS_FRAME.height == CORPUS_FRAME.source_height * frame.height
@@ -139,7 +139,7 @@ async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at()
 
 
 def _tool_parts(wire: list[dict[str, object]]) -> list[dict[str, Any]]:
-    """The content-parts array of the tool message that closes a vision conversation."""
+    """Return the content-parts array of the tool message closing a vision conversation."""
     parts = wire[-1]["content"]
     assert isinstance(parts, list)
     return cast("list[dict[str, Any]]", parts)

@@ -280,7 +280,7 @@ stale.** Three sources, in order of how much they cost:
 3. **A recovery re-check every 5 s, only while the overlay is visible *and* the link is not
    ready.** Zero requests in the steady state. This is the one thing the other two cannot do:
    nothing streams while an open panel sits idle, and a red dot that can only go green by
-   dismissing and re-summoning is a worse lie than no dot. It stops the instant the brain
+   dismissing and re-summoning misinforms the user more than no dot would. It stops the instant the brain
    answers ready. The interval is a constant, not an env knob: it is the recovery cadence of a
    supervised local process, and no operator needs a dial for it. It is also not the whole
    wait, because the probe underneath is itself patient (see below).
@@ -296,8 +296,8 @@ stale.** Three sources, in order of how much they cost:
   wrong machine; the brain is right there, refusing.
 - `down` (red): `TransportError::Connection`, which is the only failure that means nothing
   answered.
-- `unknown` (neutral): nothing has been asked yet. The v1 dot's sin was claiming a state it had
-  not earned, so this one is a real state with its own colour.
+- `unknown` (neutral): nothing has been asked yet. The v1 dot reported a state it had never
+  measured, so this one is a real state with its own colour.
 
 **"Connecting" is a modifier, not a state.** Whether a probe is in flight is the overlay's own
 fact and never the seam's, so it rides alongside (`LinkView.probing`) instead of replacing what
@@ -373,8 +373,8 @@ sharpened "fmt plus clippy for both trees" into three real gaps and one non-gap:
   which is why the eight findings included no `os_windows` fmt diff (its three were the shell).
 - **Shell fmt** folded into `check-body` (`cd body/app/src-tauri && cargo fmt --check`), and
   `scripts/ci_paths.py` now classifies `body/app/src-tauri/` as **rust** rather than overlay,
-  so a shell change gates the job that fmt-checks it. A fmt gate the dirtying change cannot
-  trigger is not a gate (ADR-0006 addendum).
+  so a shell change gates the job that fmt-checks it. A fmt check runs only when the change that
+  could dirty it triggers the job containing it (ADR-0006 addendum).
 - **`os_windows` clippy** folded into `check-body` as `cargo clippy --target
   x86_64-pc-windows-msvc -p os-windows`, the CI rust job adding the target. Clippy never links,
   so no MSVC toolchain; a `needless_return` proved invisible to native `--workspace` clippy and
@@ -405,7 +405,7 @@ coupled, and its value trigger is Slice 11, so it stays deferred and moves to fi
   propagates out through `async with manager.acquire(...)` and frees it before the next turn
   leases. `test_cancelling_mid_stream_frees_the_model_lease` suspends a turn with the lease held,
   cancels it, and asserts a fresh acquire returns at once; releasing the lock outside a `finally`
-  reddens it. No partial reply is persisted on cancel (the engine's generator is closed).
+  makes it fail. No partial reply is persisted on cancel (the engine's generator is closed).
 - **What remains is body-side and coupled.** The `BrainTransport::converse` port is one turn per
   call, and the overlay opens a fresh `Converse` per submit. A client-sent `Cancel` cannot cleanly
   precede body multi-turn: on the one-turn-per-call body, `Cancel` then a half-close ends the body
@@ -522,7 +522,7 @@ is true of layout effects only, so the deferral never helped.
 The same race drops a real hotkey press that lands while the webview is still mounting, which is
 exactly the cold-start case where the first press is the one the user cares about.
 
-An activation is now a **fact rather than a moment** (`overlay/activation.ts`): `requestActivation`
+An activation is now **recorded state rather than a one-off event** (`overlay/activation.ts`): `requestActivation`
 records it and then announces it, and the app takes any outstanding request when its listener
 attaches. Both paths consume it, so a remount cannot replay a summon that has already been
 answered. Proven the way the bug was found, by loading the dev server with no scripted input and
@@ -537,7 +537,7 @@ they landed alongside that day's motion work and share its measurements.
 - **Scrollbars became reserved chrome** ([ADR-0035](ADR-0035-console-and-motion.md) decision 22).
   The complaint was that they "look absolutely terrible and disturb the look of the application and
   also push elements around". Both halves were true: only `.history` was styled at all and its
-  thumb took real layout width. All seven scroll regions now wear one 6px rail and reserve it
+  thumb took real layout width. All seven scroll regions now use one 6px rail and reserve it
   permanently, and the horizontal axis is closed off rather than reserved.
 - **The connection indicator no longer leads the header row**
   ([ADR-0035](ADR-0035-console-and-motion.md) decision 23). The dot and the capture ring moved
@@ -579,7 +579,7 @@ signature of a rule enforced by attention.
 3. **The stylesheet, the markup, and the proto stay outside, and this is the argument.** The cap's
    remedy is "split by responsibility", which presumes a module with a public contract. `overlay.css`
    (2420 lines the day this was decided, 2686 on 2026-08-08, 2700 as of 2026-08-09) is one cascade
-   whose order is load-bearing, so splitting it trades a long file for fragile `@import` ordering,
+   whose cascade order carries meaning, so splitting it trades a long file for fragile `@import` ordering,
    and `index.html` is a single mount point. `proto/body.proto` (314 lines then, 345 as of
    2026-08-08) is over 300,
    and capping it would put the gate in direct conflict with this repo's
@@ -701,13 +701,12 @@ lib-test unit, and it exits 0 with the file restored. On the routing side, the j
 `shell=` output nothing else reads, so a classifier that forgot to set it would leave the job
 unrun and indistinguishable from passing; routing `body/app/src-tauri/` back to plain rust fails
 the classifier suite. The shell's current 978 lines in 12 files are clippy-clean as they stand, so
-this lands green and the check earns its place by what it catches next, not by what it caught
-today. It still LINTS the shell rather than running it, which wants a real Win32 desktop session
+this lands green, and what it is for is the next finding rather than a finding today. It still LINTS the shell rather than running it, which needs a real Win32 desktop session
 ([host/](../host/index.md)).
 
 ## Addendum (2026-08-25): where a check goes when its evidence, not its toolchain, is out of reach
 
-Two deferrals arrived a day apart wearing different subjects and asking one question, so the
+Two deferrals arrived a day apart with different subjects and one question in common, so the
 answer is written here rather than twice, beside the single divergence this repo has already
 accepted. The first: an image that declares a `VOLUME` gets an anonymous volume on every start
 of any container mounting nothing at that path, `docker compose down` leaves it on the host under
@@ -754,8 +753,8 @@ into a category, and a category is how a single gate stops being single.
 3. **A hand-run recipe that gates nothing.** Last, and only when neither of the above can be
    built. Its record here is poor and should be quoted whenever it is proposed: the probe image's
    two declared volumes were each found by reading `docker image inspect` by hand, months of runs
-   apart, each time after the leak had been happening on every start. A check nobody is made to
-   run is a check that runs after the damage, if at all. `just image-volumes` is deliberately not
+   apart, each time after the leak had been happening on every start. A check nothing obliges
+   anybody to run gets run after the damage, if at all. `just image-volumes` is deliberately not
    this: it is tier one's second half, and what it guards is a record a gate reads on every
    commit.
 
@@ -816,8 +815,8 @@ The three framed answers stay declined against that.
 - **Recording the resolved digest beside each tag** would make a moved tag visible only to
   something that can resolve a digest, which is a docker call and therefore the same problem one
   level down. It also churns: an upstream rebuild moves the digest without moving a declared path,
-  so the record would be edited for events the record does not care about, and a record edited
-  often is a record nobody reads.
+  so the record would be edited for events the record does not care about, and frequent edits for
+  no change in meaning train a reader to skip the record.
 - **A scheduled workflow running the recipe on a timer** buys the same visibility at the cost of a
   second scheduled job and a runner pulling multi-gigabyte CUDA images weekly, reporting into a job
   nobody watches. The tier-three argument above already says why that is the last resort and not
@@ -900,7 +899,7 @@ Dockerfile landing under neither is a fault rather than a silent pass.
 `composeservices.py` set its `builds` flag to a bare `True` on meeting the key and never looked
 inside the stanza, so the long form's `context:` and `dockerfile:` in
 [docker/docker-compose.gpu.yml](../../docker/docker-compose.gpu.yml) arrived as service keys the
-walk did not recognize and were stepped over in silence, which is the one thing that reader is
+walk did not recognize and were stepped over without a report, which is the one thing that reader is
 written never to do. `Service.build` now carries where the image is built from, in both spellings,
 and the walk refuses a build key it was not taught rather than skipping it. Teaching it that put
 the file over the line cap, so the mount-entry half moved out to `composetargets.py`, which owns
@@ -934,7 +933,7 @@ ten killed, none of them by a crash: each mutant leaves a gate that runs and ans
 
 The live proof beside it, which is the one the deferral described in words. With
 `VOLUME /var/cache/thing` appended to [brain/Dockerfile](../../brain/Dockerfile) and nothing else
-changed, `volumecheck.py --root ..` exits 1 and reddens both rows that file builds, naming each
+changed, `volumecheck.py --root ..` exits 1 and reports a fault on both rows that file builds, naming each
 image separately, because each is a container of its own collecting a volume of its own:
 
 ```
@@ -981,7 +980,7 @@ row carries must appear in the row for the image built from it.** The rule is on
 its sibling, and runs in the same walk over the same read of the same file. The base rows are
 ordinary pulled references, so the recipe that already refreshes correctly refreshes them, and the
 gate that already runs on a machine with no docker reads the result. A base republished with a new
-`VOLUME` therefore reddens `just check` on the next re-derivation, rather than waiting for somebody
+`VOLUME` therefore fails `just check` on the next re-derivation, rather than waiting for somebody
 to rebuild on the machine that happens to run the recipe.
 
 That also retires a claim this document used to make. `imagevolumes.py` argued at length that no
@@ -1047,7 +1046,7 @@ twelve killed, none of them by a crash: each leaves a gate that runs and answers
 
 The live proof beside it, which is the deferral's own subject acted out. With
 `python:3.12-slim-trixie` recorded as declaring `/var/cache/base` and nothing else changed,
-`volumecheck.py --root ..` exits 1 and reddens both rows built from the file that stands on it,
+`volumecheck.py --root ..` exits 1 and reports a fault on both rows built from the file that stands on it,
 naming each image separately because each is a container of its own:
 
 ```
@@ -1083,8 +1082,8 @@ would retire the last reason a built row can be wrong.
 The whole of it rests on one claim, which the addendum above stated as a measurement: *what a built
 image declares is exactly the union of what its Dockerfile declares and what the image its last
 stage stands on declares*. The entry said that claim had to be measured rather than assumed before
-any row was removed, since deriving makes it load-bearing in a direction it is not load-bearing
-today. It was measured. **It is false**, and the decision follows from how it fails.
+any row was removed, since deriving would make the gate's verdict depend on that claim in a
+direction it does not depend on it today. It was measured. **It is false**, and the decision follows from how it fails.
 
 ### The falsifying reading
 
@@ -1129,7 +1128,7 @@ has to survive is a base gaining a mechanism nobody here enumerated.
 The record goes on holding a measured row for each of the three images this repo builds. The two
 rules over them stay one-directional, and the reading above upgrades that from a cheapness
 concession to a correctness requirement: a built row legitimately carries paths neither the
-Dockerfile nor the base's row declares, so a rule demanding equality would redden a correct record.
+Dockerfile nor the base's row declares, so a rule demanding equality would fail on a correct record.
 The addendum above justified one-directionality by saying a recorded path neither half declares is
 nobody's fault. It is better than nobody's fault. It is the only place a third source can appear.
 
@@ -1243,7 +1242,7 @@ is what a record of an answer costs.
 refusal is now argued as a correctness requirement rather than a simplification.** That reader
 answers what an image declares of its own. An `ONBUILD VOLUME` in `brain/Dockerfile` declares
 nothing in `cortex-brain`, so reading it there would make the existing rule demand a path in a row
-that correctly does not carry it, reddening a correct record. The triggers are read by the same
+that correctly does not carry it, failing on a correct record. The triggers are read by the same
 grammar from the other side, where they belong: `dockerfilebases.inherited` hands back the base
 row's raw entries with the base it found them under, and `dockerfilevolumes.onbuild_volumes` reads
 each as the one-line Dockerfile it is. What that leaves open is that a built row could itself become
@@ -1255,7 +1254,7 @@ builds, so nothing is wrong now, and the case is filed rather than built
 ### What this buys, and what it deliberately does not
 
 A base republished with `ONBUILD VOLUME` now moves its row on the next `just image-volumes`, in the
-dimension it really moved in, and the gate then reddens on every commit until the image is rebuilt,
+dimension it really moved in, and the gate then fails on every commit until the image is rebuilt,
 re-recorded and the path is mounted. Before this, every gate stayed green until somebody rebuilt.
 
 It does not make the union of what the tree can read a ceiling on what a built image declares, and
@@ -1274,7 +1273,7 @@ one-directional for the same reason.
 - **The format string changed** to two lines of JSON, one per dimension, and the whole record was
   re-derived with it: `just image-volumes` against a real daemon agrees with all ten rows in both
   dimensions, three built here and seven pulled before they were asked.
-- **The reader refuses one shape aimed at the hand rather than at docker.** A recorded entry that
+- **The reader rejects one shape aimed at the hand rather than at docker.** A recorded entry that
   does not open with an instruction word is a fault. This came out of the mutation table below: a
   row whose trigger was pasted as `/x` where docker said `VOLUME /x` was read as an instruction the
   reader passes over, and declared nothing, which every other check here would have called a

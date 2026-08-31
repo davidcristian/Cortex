@@ -36,10 +36,10 @@ const NOTHING_CHOSEN: Appearance = { theme: null, mark: null, window: null };
 /**
  * Hydrate the appearance from the brain once, and persist every later change.
  *
- * Two properties earn their code here. **The write is optimistic**: the choice applies to this
+ * Two properties earn their code here. The write is optimistic: the choice applies to this
  * render and the seam call rides along unawaited, so a slow or unreachable brain can never make
  * picking a theme feel stuck; all a failed write costs is durability, and the choice still holds
- * for the session. **Hydration never overwrites a choice already made**: the record arrives a
+ * for the session. And hydration never overwrites a choice already made: the record arrives a
  * round trip after mount, and a user who picks a mark inside that window would otherwise watch
  * it revert to the stored one. The `chosen` latch (per key, not per hook) keeps the later, more
  * deliberate choice, and also absorbs StrictMode's double-fired mount effect.

@@ -3,8 +3,8 @@
 These live here, importing no ports, so ``ports.py`` can depend on them without a cycle exactly
 as ``subagents.py`` and ``tools.py`` do. A ``SubagentPlacer`` fit-tests one ``PlacementRequest``
 against the VRAM soft cap and returns a ``Placement``, the whole model on GPU (``-ngl 99``) when it
-fits, else CPU-only (``-ngl 0``), never a partial straddle. The core only *decides* the target and
-*accounts* the VRAM; the host half starts the ``llama-server`` with the matching ``-ngl`` flag.
+fits, else CPU-only (``-ngl 0``), never a partial straddle. The core decides the target and
+accounts for the VRAM; the host half starts the ``llama-server`` with the matching ``-ngl`` flag.
 """
 
 from dataclasses import dataclass
@@ -37,7 +37,7 @@ class PlacementRequest:
     ``vram_gb`` is the estimated whole-model GPU footprint (weights + KV at the subagent context)
     the placer fit-tests against headroom; ``cpus``/``memory_gb`` are the per-container ``--cpus``/
     ``--memory`` charge the scheduler sums into its soft budget. All must be positive. A
-    non-positive resource ask is a wiring error, caught here rather than mis-placing silently.
+    non-positive resource ask is a wiring error, raised here rather than mis-placing the spawn.
     """
 
     model: str
@@ -53,7 +53,7 @@ class PlacementRequest:
 
 @dataclass(frozen=True, slots=True)
 class Placement:
-    """A ``SubagentPlacer``'s verdict for one spawn: where it runs and how much VRAM it reserved.
+    """A ``SubagentPlacer``'s decision for one spawn: where it runs and the VRAM it reserved.
 
     ``target`` is the routing key (the runner picks the GPU or CPU backend). ``reserved_gb`` is the
     VRAM debited from the ledger (the request's ``vram_gb`` on GPU, ``0.0`` on CPU), so ``release``

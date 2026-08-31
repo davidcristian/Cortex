@@ -105,19 +105,20 @@ def _configs(monkeypatch: pytest.MonkeyPatch, mode: str) -> tuple[InferenceConfi
 async def test_auto_builds_a_live_probe_over_the_configured_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The mode that discovers: bounds for the tool, and a probe the registry re-asks."""
+    """In `auto` mode the builder returns capture bounds for the tool and a live probe the
+    registry asks again on every call."""
     inference, body_config = _configs(monkeypatch, "auto")
     bounds, probe, close = build_vision(inference, body_config, InMemoryBodyGateway())
 
     assert bounds == CaptureBounds(max_edge=1280, max_bytes=4_000_000)
     assert isinstance(probe, PropsVisionProbe)
-    # Nothing listens there, so the answer is the fail-closed one and the client is real.
+    # Nothing listens at that endpoint, so the probe answers False over a real HTTP client.
     assert await probe.can_see() is False
     await close()
 
 
 async def test_on_fixes_the_answer_without_a_probe(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The owner's switch: the tool is registered and no server is ever consulted."""
+    """In `on` mode the tool is registered with no probe, so no server is consulted."""
     inference, body_config = _configs(monkeypatch, "on")
     bounds, probe, close = build_vision(inference, body_config, InMemoryBodyGateway())
 
@@ -137,7 +138,8 @@ async def test_off_registers_no_capture_tool_at_all(monkeypatch: pytest.MonkeyPa
 async def test_without_a_body_there_is_nothing_to_probe_for(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No body, no picture, so a model server has nothing to be asked about."""
+    """Without a body gateway there is no capture to take, so the builder returns neither bounds
+    nor a probe."""
     inference, body_config = _configs(monkeypatch, "auto")
     bounds, probe, close = build_vision(inference, body_config, None)
 
@@ -146,7 +148,8 @@ async def test_without_a_body_there_is_nothing_to_probe_for(
 
 
 def test_the_probes_leash_is_short_enough_to_sit_inside_a_turn() -> None:
-    """It runs per advertisement and per call now, so it may not hold a turn open for long.
+    """The probe runs once per advertisement and once per call, so its timeout has to be short
+    enough not to hold a turn open.
 
     Measured on the real stack 2026-08-06: /props answers in 1.5 ms idle and 1.7 ms with a
     generation in flight, worst of 40 samples 2.5 ms.

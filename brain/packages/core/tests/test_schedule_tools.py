@@ -109,7 +109,8 @@ def test_spec_carries_the_current_utc_time() -> None:
 
 
 class SteppingClock:
-    """now() advances one minute per call. Proves the spec is REBUILT, not cached."""
+    """``now()`` advances one minute per call, which is what shows the spec is rebuilt rather
+    than cached."""
 
     def __init__(self) -> None:
         self._minute = 0
@@ -234,7 +235,8 @@ async def test_a_tainted_turn_cannot_schedule_a_task() -> None:
 
 
 async def test_the_dispatcher_taint_stamp_drives_the_refusal() -> None:
-    """End to end: the dispatcher's stamp (not the model's forged flag) hits the refusal."""
+    """End to end: the refusal reads the dispatcher's stamp rather than the model's forged
+    flag."""
     tool, _ = _tool()
     sink = RecordingAuditSink()
     dispatcher = ToolDispatcher(CompositeToolRegistry([tool]), sink, FixedClock())

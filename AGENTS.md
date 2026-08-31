@@ -101,79 +101,98 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    no `unwrap()`/`expect()` on fallible paths (`Result` + `thiserror`); `unsafe` requires
    an ADR. Both: structured logging, no secrets in logs, **no secrets in the repo**,
    config via env only.
-6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
+6. **`just check` is the single gate.** It runs ruff, pyright, pytest with coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and **the cross-tree scans**, eleven of them: `linecap.py`, the line cap, which
-   reaches all three
-   toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
-   (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
-   whether the far side declares it, orders itself against it, carries it among the several it
-   accepts, or merely spends it inside a string, a stylesheet or a bare literal, down to the
-   name a stylesheet spends it under and the second spelling a far side's own syntax forces
-   (ADR-0029 cross-language-constant addendum); `bindcheck.py`, which holds every compose bind
-   mount to resolving outside the repo, onto a path git tracks, or onto one git ignores, so
-   no `docker compose up`
-   materializes a container-written directory the index would take (ADR-0026 bind addendum);
-   `defaultcheck.py`, which holds one variable spelled in several compose files to one default
-   in all of them, compared as a value rather than as text so the one re-spelling docker's own
-   syntax forces stays green (ADR-0026 defaults addendum); `volumecheck.py`, which holds every
-   volume an image declares to a mount or a tmpfs in each compose service that runs it, so no
-   container collects an anonymous volume `down` then leaves on the host, and which reads a
-   recorded answer because a running docker is exactly what the gate cannot have (ADR-0011
-   out-of-reach-evidence addendum, and `just image-volumes` re-derives that record), and which
-   holds that same record to every `VOLUME` a Dockerfile here declares, following each build to
-   its file through the compose stanza that names it, so the record cannot move under the gate
-   from inside the tree either, and to every `ONBUILD VOLUME` a base's row carries, which is the
-   declaration a base makes in its children rather than in itself and which its own
-   `Config.Volumes` never shows (ADR-0011 addendum on what a base declares for its children);
-   `stubcheck.py`, which holds the committed Rust seam stub to the comments
-   [proto/body.proto](proto/body.proto) carries, the one half of a skipped regeneration no
-   compiler would notice, as a text comparison running no codegen (ADR-0003 stub-fidelity
-   addendum); `samplecheck.py`, which holds every log line a runbook prints back to an operator to
-   the call site that writes it, its level, its logger, its message and the fields it carries in
-   the order the formatter renders them, so a field a call stopped or started attaching cannot
-   leave a documented sample printing what nothing emits, and which holds field names and never
-   field values, a captured value being a dated reading (ADR-0009 sample-membership addendum), and
-   which reads a message handed to its call by name as readily as one written out there, both
-   spellings printing the same line, and refuses a module that spells one logger name or one
-   message twice, a declaration beside a literal of the same string being two words where the
-   documents restating it are tied to one (ADR-0009 one-name and one-message addenda);
-   `rostercheck.py`, which holds every roster a document keeps to the set it really describes, the
-   ignored checks in the body's live seam suite, the modules in `scripts/` and the two halves the
-   contract sorts them into, that same set again in the repo map below, the tuples the constant
-   registry is joined from, so a member added and a sentence left alone is a red rather than a
-   reader misled, and which holds membership and naming only, the sentence beside each name being
-   what a roster is for and any tally beside it being the half that drifts first (ADR-0003
-   live-roster addendum, and the ADR-0029 addenda on roster membership and on holding that listing
-   in halves);
-   `flagcheck.py`, which holds every subagent server this repo starts to the flags its tier
-   requires, the reasoning-off pair and the tool-capable chat template, and which DERIVES that
-   set from the stack's own wiring and argv rather than reading a list, a service being one of
-   these servers when the brain's subagent config dials its address or when its own command names
-   a subagent model file, and the model host's own hosted tier being one when the setting naming
-   its artifact says so, so a server or a tier added anywhere in this tree is held the day it is
-   written and not the day somebody remembers to register it, and which holds the naming that
-   membership is read out of, every model artifact this tree names being named under a
-   `CORTEX_MODEL_FILE_` variable, found structurally rather than by that prefix, since a rule whose
-   domain was the family could not fail for the misspelling it exists to catch (ADR-0029 addenda on
-   deriving the set a rule runs over, on covering both placements of one tier with one rule, and on
-   holding the convention a derived set is read out of);
-   and `backlogcheck.py`, which holds each backlog index to the task files it describes and
-   every link in them to resolving, so a status can be written in exactly one place, and holds
-   every `#fragment` written anywhere in the repo to naming a heading the document it aims at
-   really offers, a backlog index answering out of the rendering the gate is about to require
-   and every other document out of the file on disk
-   (ADR-0039). Each of them runs unconditionally, in CI too, and this list is itself held to the
-   recipes that run them (ADR-0003 scan-roster addendum). Pre-commit mirrors it. Run it
-   before declaring anything done. **One recipe is deliberately outside it**, `check-shell`
-   (clippy on the Tauri shell), which CI schedules and `just check` does not run: it is the only
-   check needing system libraries, the Linux GTK/webkit/dbus dev packages a clean dev box need
-   not have, and requiring them would make the single gate unrunnable rather than strict. The
-   divergence is argued in the ADR-0011 shell-clippy addendum; nothing else may join it. A check
-   whose *evidence* is out of reach rather than its toolchain (what an image declares, what a
-   codegen run produces) does not become a second exception either: it records the far answer in
-   the tree, gates the record, and re-derives it with a hand-run recipe, per the ADR-0011
-   out-of-reach-evidence addendum.
+   Vitest coverage, and **the cross-tree scans**, eleven of them:
+
+   - `linecap.py`: the 300-line cap, across all three toolchains.
+   - `dashcheck.py`: no dash used as punctuation in any text file (ADR-0026).
+   - `crosscheck.py`: every value this repo spells in more than one place still agrees, whether
+     the far side declares it, orders itself against it, accepts it among several, or spends it
+     inside a string, a stylesheet or a bare literal (ADR-0029 cross-language-constant addendum).
+   - `bindcheck.py`: every compose bind mount resolves outside the repo, onto a path git tracks,
+     or onto one git ignores, so `docker compose up` cannot create a directory the index would
+     take (ADR-0026 bind addendum).
+   - `defaultcheck.py`: one variable spelled in several compose files has one default in all of
+     them, compared as a value so docker's own syntax may re-spell it (ADR-0026 defaults
+     addendum).
+   - `volumecheck.py`: every volume an image declares is covered by a mount or a tmpfs in each
+     service that runs it, so no container leaves an anonymous volume on the host. It reads a
+     recorded answer, because the gate cannot run docker, and holds that record to every `VOLUME`
+     and `ONBUILD VOLUME` the Dockerfiles here declare (ADR-0011 out-of-reach-evidence addendum
+     and the addendum on what a base declares for its children; `just image-volumes` re-derives
+     the record).
+   - `stubcheck.py`: the committed Rust seam stub still carries every comment
+     [proto/body.proto](proto/body.proto) does, which catches a skipped regeneration no compiler
+     would (ADR-0003 stub-fidelity addendum).
+   - `samplecheck.py`: every log line a runbook shows an operator matches the call site that
+     writes it, on level, logger, message, and field names in render order. Field names only,
+     because a captured value is a dated reading. A module may not spell one logger name or one
+     message twice (ADR-0009 sample-membership, one-name and one-message addenda).
+   - `rostercheck.py`: every roster a document keeps names the set it really describes. It
+     compares membership and naming only, since the sentence beside each name is what the roster
+     is for (ADR-0003 live-roster addendum, ADR-0029 roster addenda).
+   - `flagcheck.py`: every subagent server the stack starts carries the flags its tier requires,
+     the reasoning-off pair and the tool-capable chat template. The set is derived from the
+     stack's own wiring and argv rather than read from a list, so a server added anywhere is
+     covered the day it is written, and every model artifact is named under a
+     `CORTEX_MODEL_FILE_` variable found structurally rather than by prefix (ADR-0029 addenda on
+     deriving the set a rule runs over, on covering both placements of one tier, and on holding
+     the convention it is read out of).
+   - `backlogcheck.py`: each backlog index matches the task files it describes and every link in
+     them resolves, so a status is written in exactly one place; and every `#fragment` in the repo
+     names a heading its target really offers (ADR-0039).
+
+   Each of them runs unconditionally, in CI too, and this list is itself held to the recipes that
+   run them (ADR-0003 scan-roster addendum). Pre-commit mirrors it. Run it before declaring
+   anything done.
+
+   **One recipe is deliberately outside it**: `check-shell` (clippy on the Tauri shell), which CI
+   schedules and `just check` does not run. It is the only check needing system libraries, the
+   Linux GTK/webkit/dbus dev packages a clean dev box need not have, and requiring them would make
+   the single gate unrunnable rather than strict (ADR-0011 shell-clippy addendum). Nothing else
+   may join it. A check whose *evidence* is out of reach, rather than its toolchain, is not a
+   second exception: it records the far answer in the tree, gates the record, and re-derives it
+   with a hand-run recipe (ADR-0011 out-of-reach-evidence addendum).
+
+## Prose
+
+Code, comments, documentation, and commit messages are written to be understood on one
+reading. Clarity is the target, not brevity: a sentence cut until it needs a second
+reading has failed this rule twice.
+
+- **Comment only what the code cannot say.** A comment earns its place by explaining a
+  non-obvious why: a workaround, a spec citation, an ordering constraint, a measured
+  number, a rejected alternative. Comments that restate the code are deleted, and a clear
+  name or a smaller function is always preferred to a comment explaining an unclear one.
+- **Docstrings are short.** One line saying what the module or function does, plus
+  arguments and return values where those are not obvious. Design reasoning belongs in
+  `docs/modules/` or in the ADR that decided it, not in a docstring the reader scrolls
+  past to reach the code. Ten lines is the practical ceiling; beyond that it is a document
+  living in the wrong file.
+- **Name the subject and say what it does.** Every sentence states plainly what it is
+  about. Do not withhold the subject for effect, and do not open a module with a riddle.
+- **Code has no intentions.** A gate does not know, notice, want, refuse, or believe. It
+  passes, fails, reads, writes, returns, or raises. Write "the check fails when the tail
+  carries no marker", not "the check refuses a tail it has no word for".
+- **No metaphor outside a designed name.** Metaphor is allowed in exactly one place: a
+  naming family built under the naming rule below, whose entries are labels and whose
+  structure carries real meaning. Most such families are user-facing (the mark's styles,
+  the window's edges), and an internal one qualifies on the same terms when it is defined
+  where it is introduced, as `RankBasis` is. A metaphor may be a label. It may never be
+  the explanation of a mechanism. Write "an unrecognized chat-template format", not "a
+  third family's spelling".
+- **No aphorisms.** State the consequence instead of coining a maxim about it. Not "a
+  reducer that guesses is a gate that agrees with itself", but "unknown forms are refused,
+  because a guessed reduction would report two values as equal that were never compared".
+- **Define jargon once, then use it.** A precise term introduced where it is first used is
+  welcome (`site` and `mention` in `scripts/couplings.py`). A figurative term standing in
+  for a technical one is not.
+- **No AI-isms.** Machine-written prose has recognizable tics and every one of them costs
+  clarity: runs of short parallel fragments, the "not X, but Y" reversal, throat-clearing
+  openers ("it is worth noting that"), inflated stakes ("critically", "fundamentally",
+  "load-bearing"), stock intensifiers ("seamlessly", "robust", "comprehensive"), and
+  closing sentences that restate the paragraph above them. Write the specific fact instead.
 
 ## Commits
 
@@ -181,6 +200,19 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
 commit-msg hooks (conventional-pre-commit validates the type/format; `scripts/commitlint.py`
 the subject style). Imperative mood is the one convention no machine checks:
 
+- **The subject says what changed; the body says why it was needed.** A subject leads with
+  a verb of change (`add`, `fix`, `remove`, `split`, `rename`, `reject`, `document`), names
+  what changed, and reads correctly to someone who has not seen the diff. It does not
+  describe a relation between two artifacts as though the relation were the action. The
+  body states the problem that prompted the change, then what the change does about it,
+  and follows the prose rules above.
+- **Most bodies are one or two short paragraphs, under about 120 words.** Say why and what,
+  then stop. Only three things earn more room: a measurement recorded nowhere else, an
+  alternative that was tried and rejected, and a failure mode a future reader would
+  otherwise recreate. Design reasoning belongs in `docs/`, and a message that needs it
+  should point there instead of restating it. A commit is not the place to argue a
+  decision, and a reader looking for what changed should not have to mine a page of prose
+  to find it.
 - Format: `type(scope)?: subject`, in imperative mood, lowercase subject, no trailing
   period, subject ≤ 72 chars. The body explains what and why, wrapped at 72, which
   `scripts/commitlint.py` now checks: a line past 72 that could have been wrapped fails, and one
@@ -216,17 +248,18 @@ the subject style). Imperative mood is the one convention no machine checks:
   small, green, and documented. No big-bang scaffolding of empty layers.
 - **Scope grows freely; design stays extensible.** More capability is welcome. Feature
   richness is a goal and feature creep is not a concern. But every addition is built
-  for extension: behind a port, contract-tested, swappable, documented. Cutting scope
-  is never the answer to a design problem; designing the seam is.
+  for extension: behind a port, contract-tested, swappable, documented. When a design is
+  hard, design the seam rather than cutting scope to avoid it.
 - **Interfaces before implementations.** Port → contract test + fake → real adapter.
 - **Decisions are written down.** Any non-obvious choice becomes an ADR in `docs/adr/`.
   Underspecified requirement? Record your interpretation as an ADR and proceed. Don't
   block, and flag the riskiest assumptions in your summary.
 - **Names are designed, never defaulted.** Anything pickable or family-shaped (a registry
   of styles, themes, modes) gets a naming scheme built with the same craft as its visuals:
-  one word per entry, one metaphor per family, the family's structure carrying real meaning,
-  sibling families speaking sibling languages (the mark thinks: Mull, Muse, Hunch, Tangent;
-  the window dreams: Still, Lucid, Reverie, Trance), and no collisions with any existing
+  one word per entry, one metaphor per family, and the family's structure carrying real
+  meaning. Sibling families draw on related vocabularies: the mark's labels are movements
+  of thought (Mull, Muse, Hunch, Tangent) and the window's are depths of sleep (Still,
+  Lucid, Reverie, Trance). No collisions with any existing
   family or token. Propose a recommended set with honest alternates before landing one.
   Storage keys freeze once anything beyond the host machine depends on them; until then a
   rename is cheap (a resolver alias over the old name), so name the key right on day one and
@@ -235,7 +268,7 @@ the subject style). Imperative mood is the one convention no machine checks:
   (`docs/adr/`).
 - **Claims carry evidence.** Never report a gate green without having run it in this
   session; show the command and result. Unverified statements are labeled assumptions.
-- **Distrust green.** A gate that cannot fail is a defect: after wiring or changing one,
+- **Prove a gate can fail.** A gate that cannot fail is a defect: after wiring or changing one,
   prove it fails on a violation before trusting it. A mutation table is that proof written
   down, so **it names the suite its counts are over**: a commit's own diff hands the next
   reader the file and the edit, and says nothing about the collection a number counts. No
@@ -244,7 +277,8 @@ the subject style). Imperative mood is the one convention no machine checks:
 - **Read before you write.** Open the file and its call sites before editing; never edit
   from memory of its contents or invent an API. Check the signature.
 - **Report faithfully.** Failing tests are reported with their output; skipped steps are
-  named. A wrong "done" costs more than an honest "not yet".
+  named. Report a task as done only when it is: an inaccurate "done" costs more to undo
+  than an accurate "not yet" costs to finish.
 - **Stop when surprised.** When output contradicts your model of the system, re-derive
   from evidence. Don't pattern-match to the nearest familiar failure and push through.
 - Keep this file and all docs pointer-heavy and current; context bloat is a defect.
@@ -279,105 +313,75 @@ body/             Rust/Tauri workspace, host-native
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt- and clippy-checked in CI, running it is host-only) named
                   cortex-body, own workspace
-scripts/          repo gates, plus the four modules here that gate nothing, contrast.py (the
-                  interval a live measurement reports) and trailwidth.py (the width the recall
-                  trail's widest field really renders at, read off captured lines, both
-                  ADR-0038) and envelopefloor.py (what an envelope measurement's arms did, and the
-                  floor its control arm is published against, ADR-0028) and switchtail.py (what a
-                  tier's template rendered for the thinking switch, read on the tail and held to
-                  the constrained cell the same run drew, ADR-0005) + switchsamples.py (the
-                  format that probe writes, the reader's half of it):
-                  linecap.py (300-line cap), dashcheck.py (no dash as
-                  punctuation), crosscheck.py (one value, spelled in several places, still
-                  agreeing) + couplings.py (the vocabulary its registry is written in) +
-                  registry.py (the only module naming the parts that registry is written in) +
-                  seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
-                  capturecouplings.py, boundscouplings.py, subagentcouplings.py,
-                  modelhostcouplings.py, emailcouplings.py, fixturecouplings.py,
-                  overlaycouplings.py, logcouplings.py and trailcouplings.py (the registry
-                  itself, in the twelve parts it is written in, nine split off by the line cap
-                  and three added as subjects: another tree's code, the address each side answers
-                  on, the brain's own shipped
-                  defaults, one capture's own numbers, the bounds one delegated run stands
-                  between, the subagent tier's budgets, the model
-                  host's tiers, the email
-                  sidecar's shipped answers, a measurement fixture against the suite that
-                  measures it, the overlay's own
-                  stylesheet, the name each work identity rides
-                  under, and the words one line of either per-line trail is found by, the recall
-                  trail's logger, the message it opens with, the field it is
-                  measured on, the tool audit's own logger and message and the identifier
-                  a self-named sink declares its logger under) +
-                  values.py (what a value
-                  reduces to and the spelling a mention writes one in) + readings.py (how a
-                  constant's readings must then stand) + needles.py (how a rendered needle is
-                  looked for, and which of its literals a file that lacks one is told stopped
-                  matching),
-                  bindcheck.py (no compose bind
-                  default lands unignored in the tree) + composemounts.py (its mount
-                  reader), defaultcheck.py (one variable, one default in every compose file
-                  that spells it) + composedefaults.py (its substitution reader),
-                  volumecheck.py (every volume an image declares is covered by a mount or a
-                  tmpfs in each service that runs it, and every VOLUME a Dockerfile here declares
-                  appears in the row for the image built from it) + composeservices.py (its reader
-                  of what a service runs, covers and is built from) + composetargets.py (the
-                  container path one mount entry names, in all four spellings) +
-                  imagevolumes.py (the recorded answer it reads, in the two dimensions one row
-                  has, because a running docker is what the gate cannot have) +
-                  imagedrift.py (the call that asks a real docker for both and the report of
-                  every row that has since moved, run by `just image-volumes`) +
-                  dockerfilevolumes.py (the tree's own side of that
-                  record, read from the Dockerfile each build stanza points at, and the reader of
-                  the triggers a base's row carries) +
-                  dockerfilebases.py (the other side of a built row, the image that file's last
-                  stage stands on, whose own row is pulled because a built row never is, and the
-                  line joining both readers work over),
-                  stubcheck.py (every comment the proto carries still
-                  appears in the committed Rust stub) + protocomments.py (what a comment is on
-                  each side and how the two spellings are made comparable),
-                  samplecheck.py (every log line a runbook prints back to an operator still says
-                  what the call site writing it would print) + logsamples.py (what a documented
-                  sample claims, read off the page) + logcalls.py (what the call really attaches,
-                  parsed out of the module, in either spelling its message is written in, and the
-                  one message a module may not spell twice) + loggernames.py (which module owns
-                  the logger a line is written under, and the one logger name a module may not
-                  spell twice),
-                  rostercheck.py (every roster a document keeps still names the set it
-                  describes, membership and naming only) + rosters.py (which rosters this repo
-                  has written down, and where each one's real set is read from) +
-                  rosternames.py (what a page's roster names, in the three shapes one is written
-                  in, and the two phrases bounding the passage it occupies) + rostermembers.py
-                  (what the tree really holds, this block included) + scanrecipes.py (the one
-                  such set that is no listing at all, which scans the gate and CI both run,
-                  read from the two files that run them),
-                  flagcheck.py (every subagent server this repo starts still carries the flags
-                  its tier requires) + subagentservers.py (which of them a composed stack starts,
-                  derived from the wiring that dials them and the argv that names their model, so
-                  a new one needs no registering) + composestarts.py (what a compose service is
-                  started with and what environment it is given, the two keys the volume gate's
-                  reader steps over) + hostedtiers.py (the placement no compose file holds, the
-                  model host's own subagent tier, read off the sidecar's declaration so one rule
-                  covers both) + moduleconstants.py (what a Python module's own top level binds,
-                  read without importing it, that reader's syntax side) + artifactnames.py (what
-                  both those sets rest on, every model artifact this tree names and the variable
-                  each is named under, found by llama.cpp's own flag, by the settings field a
-                  tier reads its path from and by the field whose own name says it holds a file,
-                  which is the one the projector rides, so the family the membership is decided
-                  from is held rather than assumed),
-                  composefiles.py (which files all four compose gates walk, answered once so
-                  they cannot drift apart), backlogcheck.py (each backlog index still matches
-                  its task files,
-                  ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the
-                  index renders), backloganchors.py (the anchors a document offers and
-                  every pointer in the repo aimed at one) and headingshapes.py (what a
-                  heading may look like for that question to have an answer, and the six
-                  shapes the slug rule refuses rather than guesses at), coverage_gate.py (Rust
-                  branches), ci_paths.py (CI path
-                  classifier), commitlint.py (commit-message style), gitenv.py (the environment
-                  every git call here runs with, so a hook's own GIT_DIR cannot outrank the
-                  repository a gate names), skippeddirs.py (the directory components every walk
-                  here prunes, deliberately not .gitignore: two of its ten names are trees git
-                  ignores nowhere or almost nowhere)
+scripts/          repo gates and their readers. Eleven scans run in `just check`; the rest are
+                  modules those scans read. Each gate is listed with the helpers it uses.
+
+                  linecap.py        the 300-line cap
+                  dashcheck.py      no dash used as punctuation
+                  crosscheck.py     one value spelled in several places still agrees
+                    couplings.py    the vocabulary the registry is written in
+                    registry.py     names the parts the registry is joined from
+                    values.py       what a value reduces to, and how a mention spells it
+                    readings.py     how a constant's readings must stand
+                    needles.py      how a rendered needle is searched for, and what a miss reports
+                    seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
+                    capturecouplings.py, boundscouplings.py, subagentcouplings.py,
+                    modelhostcouplings.py, emailcouplings.py, fixturecouplings.py,
+                    overlaycouplings.py, logcouplings.py, trailcouplings.py
+                                    the registry itself, in twelve parts (nine split off at the
+                                    line cap, three added as subjects): the other tree's code,
+                                    the address each side answers on, the brain's shipped
+                                    defaults, one capture's numbers, a delegated run's bounds,
+                                    the subagent tier's budgets, the model host's tiers, the
+                                    email sidecar's answers, a measurement fixture, the overlay
+                                    stylesheet, work-identity names, and the per-line trails
+                  bindcheck.py      no compose bind default lands unignored in the tree
+                    composemounts.py    reads mounts out of a compose file
+                  defaultcheck.py   one variable, one default, in every compose file spelling it
+                    composedefaults.py  reads shell substitutions
+                  volumecheck.py    every declared image volume is covered by a mount or a tmpfs
+                    composeservices.py  what a service runs, covers, and is built from
+                    composetargets.py   the container path a mount names, in all four spellings
+                    imagevolumes.py     the recorded answer, since the gate cannot run docker
+                    imagedrift.py       asks a real docker and reports moved rows (just image-volumes)
+                    dockerfilevolumes.py  VOLUME and ONBUILD VOLUME as the tree declares them
+                    dockerfilebases.py    the base image a built row stands on
+                  stubcheck.py      the committed Rust stub still carries every proto comment
+                    protocomments.py    a comment in both spellings, made comparable
+                  samplecheck.py    a documented log line still matches the call site writing it
+                    logsamples.py       what a documented sample claims
+                    logcalls.py         what the call attaches, and the message it may not repeat
+                    loggernames.py      which module owns a logger name
+                  rostercheck.py    a document's roster still names the set it describes
+                    rosters.py          which rosters exist and where each real set is read from
+                    rosternames.py      what a page names, in three shapes, within two bounds
+                    rostermembers.py    what the tree really holds, this block included
+                    scanrecipes.py      which scans the gate and CI both run
+                  flagcheck.py      every subagent server carries the flags its tier requires
+                    subagentservers.py  which servers a composed stack starts, derived from wiring
+                    hostedtiers.py      the model host's own subagent tier
+                    composestarts.py    a service's command and environment
+                    moduleconstants.py  what a module's top level binds, read without importing
+                    artifactnames.py    every model artifact and the variable naming it
+                  backlogcheck.py   a backlog index matches its task files, and anchors resolve
+                    backlog.py          task-file grammar
+                    backlogindex.py     what the index renders
+                    backloganchors.py   anchors offered, and every pointer aimed at one
+                    headingshapes.py    what a heading may look like for a slug to be derivable
+
+                  Shared by several of the above: composefiles.py (which compose files the four
+                  compose gates walk), gitenv.py (the environment every git call runs with),
+                  skippeddirs.py (the directory names every walk here prunes, deliberately not
+                  .gitignore). Standalone: coverage_gate.py (Rust branch coverage), ci_paths.py
+                  (the CI path classifier), commitlint.py (commit-message style).
+
+                  Five modules gate nothing and report a measurement: contrast.py (the interval a
+                  live measurement reports) and trailwidth.py (the width the recall trail's widest
+                  field renders at, ADR-0038); envelopefloor.py (an envelope measurement's arms
+                  and the floor its control arm is published against, ADR-0028); switchtail.py
+                  (what a tier's template rendered for the thinking switch, held to the
+                  constrained cell the same run drew, ADR-0005) with switchsamples.py (the sample
+                  format it reads).
 .github/          GPU-less CI running the same `just` recipes as local dev: ci.yml is the gate
                   mirror, shuffle.yml the weekly test-order sweep that gates nothing (ADR-0002)
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,

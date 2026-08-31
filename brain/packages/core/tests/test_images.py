@@ -3,7 +3,7 @@ the ``data_uri`` rendering, and the two bounds pinned against their literals.
 
 The bounds are pinned to numbers rather than to each other because they are half of a ceiling
 the body enforces in another language: a test that only asserted ``MAX_IMAGE_BYTES ==
-MAX_IMAGE_BYTES`` would stay green while the two halves of the seam drifted apart. This pin
+MAX_IMAGE_BYTES`` would keep passing while the two halves of the seam drifted apart. This pin
 catches an edit to the constant alone; an edit to the constant *and* this literal is what
 ``scripts/crosscheck.py`` catches, since no suite here can read the body's Rust.
 """

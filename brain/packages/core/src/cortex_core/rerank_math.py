@@ -1,10 +1,8 @@
-"""The scoring machinery the heuristic recall policies share (ADR-0008, ADR-0038).
+"""Scoring helpers shared by the heuristic recall policies (ADR-0008, ADR-0038).
 
-Split out of ``rerank_policies.py`` at the 300-line cap when ``select`` began returning a
-``Ranking``. Pure functions over pure data: a cosine, the similarity-and-recency blend, a hit's
-redundancy against a kept set, and the greedy maximal-marginal-relevance walk. Keeping them here
-means each policy is only its own axis plus a basis, and that no policy has to reimplement another's
-maths to compose with it.
+Pure functions over pure data: a cosine, the similarity-and-recency blend, a hit's redundancy
+against an already-kept set, and the greedy maximal-marginal-relevance walk. Each policy in
+``rerank_policies.py`` is then only its own axis plus a basis.
 """
 
 from collections.abc import Callable, Sequence
@@ -61,9 +59,9 @@ def greedy_mmr(
     the store's similarity order and only a strict improvement displaces the incumbent, so a tie
     keeps that order (e.g. the all-zero redundancy of the first pick keeps the most-similar hit).
 
-    Each pick keeps the marginal score it was chosen on as its rank key (ADR-0038). That key is
-    what the ``SPREAD``/``SWEEP`` bases are declared incomparable across: it was measured against
-    whatever was already kept, so a later pick's key is on a harder scale than an earlier one's.
+    Each pick keeps the marginal score it was chosen on as its rank key (ADR-0038). Keys are not
+    comparable between picks, which is why the ``SPREAD``/``SWEEP`` bases declare them so: a key was
+    measured against whatever was already kept, so a later pick's key is on a harder scale.
     """
     remaining = list(hits)
     kept: list[ScoredMemory] = []

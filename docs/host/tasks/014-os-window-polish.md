@@ -62,7 +62,7 @@ right order.
 
 1. **A transparent window** so only the panel floats over the desktop.
 2. **Click-through on the empty margins.** Inseparable from 1: a transparent window without it is
-   an invisible rectangle that swallows clicks meant for whatever is behind it. The recorded
+   an invisible rectangle that takes clicks meant for whatever is behind it. The recorded
    history is that a first pass "bled through the panel and left a window border", which is what
    doing 1 without 2 looks like.
 3. **The morph to a true screen corner.** Today's orb sits at the window's own corner because the
@@ -80,7 +80,7 @@ right order.
 - The minimized orb sits in a real screen corner and the morph animation still plays.
 - Hide-on-blur does not fight the hotkey toggle, and does not hide the window while a confirm card
   is open. That last one is a correctness constraint, not taste: a card that vanishes on blur is a
-  gated action silently timing out.
+  gated action timing out where nobody sees it.
 - `just check` still passes. The overlay tree is gated at 100%, and the shell is fmt-checked in CI;
   the polish must not push logic out of the gated core into the ungated shell to get done.
 

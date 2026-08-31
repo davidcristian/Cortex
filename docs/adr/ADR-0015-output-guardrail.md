@@ -36,7 +36,7 @@ appending a link, plus any future model swap silently re-opening the gap.
    the user pasting a link and getting it quoted back is not laundering. Identity is
    `extract_urls`-normalized on both sides (scheme+authority lowercased, trailing prose
    punctuation dropped, path/query case kept): laundering is *verbatim reproduction*, so
-   exact-but-case-normalized matching kills it without redacting the model's own legitimate
+   exact-but-case-normalized matching stops it without redacting the model's own legitimate
    links (docs it cites from its own knowledge stay intact, unlike a redact-all-URLs mode).
 4. **Streaming-safe by construction.** The filter carries the only ambiguous suffix of the
    stream (a URL match touching the buffer end, or a trailing prefix of `http(s)://`) until a
@@ -50,7 +50,7 @@ appending a link, plus any future model swap silently re-opening the gap.
    through `feed` (an emptied delta emits no event), the flush tail is emitted last, and
    `full_text` (the `TurnCompleted` payload and the persisted assistant message) is the
    sanitized text: the reply on record is the reply that was shown, so a later history replay
-   cannot resurrect the link. Applied at the cortex turn only: it is the one user-facing seam
+   cannot restore the link. Applied at the cortex turn only: it is the one user-facing seam
    (subagent output is taint-contained upstream, and scrubbing it there would hide evidence the
    cortex may legitimately describe).
 6. **On by default, one knob.** `CORTEX_OUTPUT_GUARDRAIL=redact|off` (default `redact`, built by
@@ -87,7 +87,7 @@ appending a link, plus any future model swap silently re-opening the gap.
   in part by the 2026-07-06 addendum below: `mailto:` is now in scope; bare addresses/domains and
   other schemes remain out.)*
 - **Over-redaction on legitimate quoting** (above). Deliberate: a missing link degrades a
-  reply; a delivered phishing link ends a user.
+  reply, while a delivered phishing link can cost the user their credentials or their money.
 
 ## Deferred (behind the unchanged `OutputGuardrail`/`TaintLedger` seams)
 
@@ -130,8 +130,8 @@ exfil/phishing-substitution class is real enough and the false-positive cost low
 now rather than wait (maintainer-sanctioned, 2026-07-06). Identity is fully case-folded for a `mailto:`
 (no `://` authority to split on), so verbatim
 laundering still compares equal on both sides, and the extra case-insensitivity only widens a
-security redaction, never a legitimate pass-through. The streaming hold-back learned the
-`mailto:` prefix so a scheme split across deltas is still carried, not leaked.
+security redaction, never a legitimate pass-through. The streaming hold-back covers the
+`mailto:` prefix too, so a scheme split across deltas is carried rather than emitted unscrubbed.
 
 ### Strict mode (`CORTEX_OUTPUT_GUARDRAIL=strict`)
 
@@ -139,7 +139,7 @@ security redaction, never a legitimate pass-through. The streaming hold-back lea
 message, not just those collected verbatim. It is the answer to the exact-match risk above: a
 model told to *transform* a URL (or to construct one from a non-URL description in the untrusted
 content) never reproduces a collected string, so redact mode misses it; strict mode does not,
-because on a turn that has read untrusted content it distrusts every link the user did not
+because on a turn that has read untrusted content it redacts every link the user did not
 themselves supply. Redact mode stays the default (its false-positive surface is tiny, covering only
 verbatim untrusted links); strict is the opt-in for higher-assurance settings, accepting that a
 tainted turn can no longer surface the model's own legitimately-recalled links.
@@ -178,8 +178,8 @@ a URL*. A **defanged** link (the security-community convention for writing a URL
 clickable) is not recognized: `hxxp://evil[.]com` matches neither the old `https?://…` opener
 (wrong scheme word) nor its body (the `]` in `[.]` is an excluded closer, so the match dies at the
 bracket). So a defanged link laundered out of untrusted content escaped **both** modes: redact
-never collected it (so a verbatim reproduction sailed through) and strict never matched it in the
-reply (so even distrust-every-link missed it). Refanging is a routine, deterministic operation a
+never collected it (so a verbatim reproduction passed through unredacted) and strict never matched
+it in the reply (so even redact-every-link missed it). Refanging is a routine, deterministic operation a
 weak model can be talked into ("write the link defanged so it isn't flagged"), and a user's mail
 client or a copy-paste can refang it back, so this is a real residual, not a hypothetical.
 
@@ -205,8 +205,9 @@ their real separators, defanged dots→`.`) so a defanged URL and its plain twin
   `http://evil.com`, not only byte-verbatim reproduction. The ADR risk's "transforms the URL on
   instruction" is now partly covered for the defang transform specifically.
 - **Strict mode now matches defanged links**, closing the escape above on any tainted turn.
-- The streaming hold-back (`_SCHEME_PREFIXES`) learned every defanged opening, so a defanged scheme
-  split across deltas (`…hxx` | `p://…`, `http[` | `:]//…`) is carried, not leaked.
+- The streaming hold-back (`_SCHEME_PREFIXES`) now covers every defanged opening, so a defanged
+  scheme split across deltas (`…hxx` | `p://…`, `http[` | `:]//…`) is carried rather than emitted
+  unscrubbed.
 
 ### Scope held deliberately narrow
 
@@ -386,7 +387,7 @@ shape (a `/`-bearing token) or the `,`/`;` that begins the data. Prose has neith
 never matches while `data:text/html;base64,...` and the minimal `data:,payload` do. Its separator may be
 defanged (`data[:]`) like the other opaque schemes, and identity folds it whole (no `://` authority to
 split, so the base64 payload lowercases symmetrically, harmless for identity comparison). The streaming
-hold-back learned the `data:`/`data[:]` openings, so a `data:` split across deltas is carried, not leaked;
+hold-back covers the `data:`/`data[:]` openings, so a `data:` split across deltas is carried, not leaked;
 the cost is the same one-delta carry the other schemes already pay on a matching prefix (the common word
 "data" ending a delta is released on the next feed).
 
@@ -495,7 +496,7 @@ existing decode fixpoint then resolves whichever encoding it actually was. No ta
 appears in the anchor, nothing is decoded pre-match, and the span is preserved. The reasoning the
 sixth addendum recorded was sound about its two options and wrong that they were the only two.
 
-The escape marker is **load bearing, not decoration**. An unconstrained chunk in that position
+The escape marker is **required rather than decorative**. An unconstrained chunk in that position
 matches ordinary prose such as `http(s)-only` and `use http(s) or ftp(s)`, which strict mode would
 then redact out of this repo's own documentation. Requiring `&`/`%` is what makes the widening
 honest, and it is a shape constraint in the anchor, which the sixth addendum did rule out in
@@ -517,7 +518,7 @@ The fourth and sixth addenda bundled **IDN/punycode** together with the full UTS
 as "need a dependency". Half of that is wrong: `str.encode("ascii").decode("idna")` is stdlib.
 `_decode_punycode` decodes each `xn--` label back to the Unicode it renders as, which then feeds the
 **existing** curated confusable table, so a *registered* homoglyph domain (`xn--e1awd7f.com`, which
-resolves and renders as Cyrillic `epic`) folds to the ASCII it imitates instead of sailing past a
+resolves and renders as Cyrillic `epic`) folds to the ASCII it imitates instead of passing a
 table that only ever saw the pre-encoded form. Decoding is **per label** so one malformed label
 cannot cost the rest theirs, and a label the codec rejects is left verbatim (still symmetric on both
 sides). The **full UTS-39 set** genuinely does still need a dependency and stays deferred.
@@ -539,7 +540,7 @@ that cannot hold a bracket, so the matcher stays **linear**; the widening is **s
 sides of the defense; a chunk that decodes to no separator stays verbatim in the identity, so
 redaction only ever covers a fuller span, never a spurious collision; and the whole guardrail is
 `off`-able. The other three changes are pure identity widening. Each fix was **mutation-proven**:
-reverting it individually turns the new tests red (8, 2, 4, and 4 failures respectively), so none of
+reverting it individually fails the new tests (8, 2, 4, and 4 failures respectively), so none of
 them is a test that cannot fail.
 
 `urls.py` reached the 300-line cap as this landed and split by responsibility: `urls.py` keeps the
@@ -563,7 +564,7 @@ mis-instructed.
 
 The final deferral above, a `Converse` status event alongside the inline marker, closes
 **declined**, read against the shipped path rather than the deferral's own guess. The premise was
-that the overlay might want a redaction surfaced as something richer than the inline marker (a badge,
+that the overlay might need a redaction surfaced as something richer than the inline marker (a badge,
 a count, a distinct style). Reading the path end to end, the inline marker already meets that need,
 and meets it more durably than the proposed event could. This is a docs-only outcome; no code
 changed.
@@ -666,8 +667,8 @@ above and deserves its own measurement rather than a ride on this one. The brack
 separator is the nearest to actionable of them and is the natural next pass, since the seventh
 addendum's shape-constraint reasoning extends to it directly.
 
-Ten new behaviour tests, each mutation-proven: dropping the label-dot fold reddens four, and
-shrinking the colon and solidus tables back to their ASCII entries reddens six.
+Ten new behaviour tests, each mutation-proven: dropping the label-dot fold fails four, and
+shrinking the colon and solidus tables back to their ASCII entries fails six.
 
 ## Addendum (2026-08-08): the scheme separator spelled as a bracketless HTML character reference
 
@@ -767,7 +768,7 @@ this to pass a unit test and fail in production. A reference is variable-length 
 enumerated into `_SCHEME_PREFIXES`, the same problem the seventh addendum's bracket chunk had, so
 `_OPEN_SEP_RE` grows a second branch: a scheme word, then any run of complete separator spellings,
 then an optionally unfinished reference (`https&`, `https&#5`, `https&#58;&#4`). The leading `&` is
-load bearing in the same way the earlier escape marker is, since without it the branch would hold
+required in the same way the earlier escape marker is, since without it the branch would hold
 back every scheme word followed by letters (`database`). Verified by feeding every one of the
 spellings above **at every two-way split point** (840 splits over the nineteen probes the
 measurement ran, the leftovers included, plus the one-character-at-a-time feed every row of the
@@ -800,10 +801,10 @@ different measurement" to "a different layer".
 
 Eleven new behaviour tests, each mutation-proven against the final code, with `__pycache__` cleared
 between runs and each mutation verified to have applied: dropping the entity forms from the anchor
-reddens ten; keeping only the plain decimal reference reddens three; reverting `_OPEN_SEP_RE` to its
-bracket-only form reddens the two streaming tests and nothing else; unscoping the named form's case
-and dropping the digit-run guard redden one each. The first fixture written for that last mutation
-did **not** redden it (a semicolon-less reference followed by digits cannot reach an authority
+fails ten; keeping only the plain decimal reference fails three; reverting `_OPEN_SEP_RE` to its
+bracket-only form fails the two streaming tests and nothing else; unscoping the named form's case
+and dropping the digit-run guard fail one each. The first fixture written for that last mutation
+did **not** fail (a semicolon-less reference followed by digits cannot reach an authority
 scheme's slashes anyway), so the test was replaced with the opaque-scheme form
 (`mailto&#58123@evil.example`) that does. `urls.py` is 252 lines, inside the cap.
 
@@ -908,7 +909,7 @@ anchor. Two consequences were taken deliberately rather than discovered later:
 `SPECIAL_SCHEMES` lives in `url_identity.py`, where the fold that reads it lives, and `urls.py`
 builds `_AUTHORITY_WORDS` on top of it by adding the defanged `hxxp` twins, so the two tables
 cannot drift. The fullwidth reverse solidus U+FF3C stays **out** of the matcher on the same
-measurement that put the backslash in: a parser refuses it, so unlike U+FF0F it has no reading to
+measurement that put the backslash in: a parser rejects it, so unlike U+FF0F it has no reading to
 inherit. Its identity would fold anyway if some other anchor ever admitted it, since NFKC runs
 before pass 8.
 
@@ -924,7 +925,7 @@ before pass 8.
   backslash-escapes any ASCII punctuation and an autolinking renderer would then make `evil\.example`
   live. There is none here, and that is the trigger: if the overlay ever renders Markdown, this row
   reopens as a family (every CommonMark backslash escape), not as one spelling.
-- **`%u002e`** is not a percent-escape at all (a non-standard IE-era form), and the parser refuses
+- **`%u002e`** is not a percent-escape at all (a non-standard IE-era form), and the parser rejects
   the URL outright.
 - **A bracketless percent-encoded separator or scheme** (`https%3A//…`, `https%3A%2F%2F…`) is
   unchanged from the ninth addendum and now confirmed by the parser: percent-decoding runs only
@@ -951,10 +952,10 @@ and `&BSOL;`, which HTML does not resolve. The guardrail also remains `off`-able
 
 Eleven new behaviour tests, each mutation-proven against the final code with `__pycache__` cleared
 between runs and each mutation verified to have applied: dropping the backslash from the solidus
-table reddens nine, dropping the identity fold reddens nine (a different nine, since strict mode
-catches an anchored match whatever its identity), leaving the authority slash run verbatim reddens
-eight, generating references for the first glyph only reddens two, dropping the `bsol` name reddens
-the same two, and unscoping the fold so an opaque scheme loses its backslashes reddens the negative
+table fails nine, dropping the identity fold fails nine (a different nine, since strict mode
+catches an anchored match whatever its identity), leaving the authority slash run verbatim fails
+eight, generating references for the first glyph only fails two, dropping the `bsol` name fails
+the same two, and unscoping the fold so an opaque scheme loses its backslashes fails the negative
 that says `mailto:a\b@evil.example` keeps them. The streaming behaviour was verified at every
 two-way split point of six probes under both policies (540 splits), each agreeing with the
 whole-string feed.
@@ -1073,7 +1074,7 @@ carrying a colon**, and nothing else here counts as one.
   where prose lives and it costs no exfil vector: a bare label is registrable under no public
   suffix, so `https:evilhost` names nothing an attacker can own, while `https:scheme` and
   `http:foo` are how this repo's own documentation talks about a scheme. `https:evil./pay` is the
-  same decline wearing a root dot: the label after the separator is empty.
+  same decline with a root dot in it: the label after the separator is empty.
 
 The separator itself is composed rather than listed, and composed out of the family that already
 existed for it: **the slashless authority separator is the opaque separator, plus at most one
@@ -1097,7 +1098,7 @@ A slashless authority is the first opening whose *host* decides whether there is
 a buffer ending at `https:evil.` is not a match, is not a prefix of any separator, and would have
 been released one delta before the dot got its label. `_OPEN_SEP_RE` gained a branch for it: a
 scheme word, an opaque separator spelling, at most one solidus, and the authority characters so
-far. The colon in front is load bearing in the same way the `&` is in the unfinished-entity
+far. The colon in front is required in the same way the `&` is in the unfinished-entity
 branch, since without it the branch would hold back `database`. Verified at every two-way split
 point of nine probes under both policies (702 splits) and at one character at a time, each agreeing
 with the whole-string feed.
@@ -1126,7 +1127,7 @@ single slash (`https:／evil.example`) is a **parse error** to a real parser, ye
 because the position spends the shared solidus table rather than a second one. That is the eighth
 addendum's existing over-admission (`https：//evil.example` is a parse error too) reaching one more
 combination, it only ever widens a redaction, and holding the table in one place is worth more than
-pruning the combination that the parser happens to refuse.
+pruning the combination that the parser happens to reject.
 
 ### The split, and why it is in this commit
 
@@ -1140,14 +1141,14 @@ the work arrives rather than in a later cleanup pass.
 
 ### Tests, each mutation-proven
 
-Thirteen new behaviour tests, each proven to redden against the final code with `__pycache__`
+Thirteen new behaviour tests, each proven able to fail against the final code with `__pycache__`
 cleared between runs and each mutation verified to have applied: dropping the slashless branch from
-the separator reddens ten, reverting the identity's slash run to `+` reddens seven, dropping the
-hold-back's arriving-host branch reddens two, letting the anchor take any non-space run reddens
+the separator fails ten, reverting the identity's slash run to `+` fails seven, dropping the
+hold-back's arriving-host branch fails two, letting the anchor take any non-space run fails
 three (two of them the false-positive negatives, one of them the eighth addendum's own fullwidth
 prose test, which is the protection this pass most had to keep), narrowing the anchor's dot to
-ASCII reddens two, dropping the percent reading reddens one, dropping the bracketed literal reddens
-one, and narrowing the slashless separator to the plain colon reddens the defanged one, in the
+ASCII fails two, dropping the percent reading fails one, dropping the bracketed literal fails
+one, and narrowing the slashless separator to the plain colon fails the defanged one, in the
 matcher and in the hold-back alike.
 
 ### What stays open
@@ -1266,7 +1267,7 @@ OGHAM SPACE MARK, which draws a visible stroke rather than a blank. None of thos
 label breaks, so the rule "a gap is a blank, and a newline is where a wrapped sentence breaks" is
 now derived from the database instead of asserted. A test regenerates the fifteen from
 `unicodedata` and asserts the table is exactly that set, so a later Unicode version adding a space
-character reddens rather than quietly opening a gap.
+character fails that test rather than quietly opening a gap.
 
 ### The unanchored form is declined, and not on the same grounds
 
@@ -1292,7 +1293,7 @@ The hold-back needed a branch, since a gap that has opened but not closed is nei
 prefix of any scheme, and `hxxp://evil dot ` would have been released one delta before the gap
 closed. The branch carries the grammar's own constraint rather than merely looking for trailing
 whitespace, and that distinction is the whole of its cost: **holding on any trailing space held
-every URL in every reply**, which reddened 28 existing tests before the dotless requirement went
+every URL in every reply**, which failed 28 existing tests before the dotless requirement went
 in. With it, `https://evil.example/report ` is released exactly as before, and only a dotless host
 waits. The gap's partial forms are generated per token by nesting one optional group per character,
 so `d`, `do` and `dot` cannot drift from `dot`, and its whitespace is the same fifteen-plus-two
@@ -1333,15 +1334,15 @@ is left is a bare path fragment naming nowhere.
 
 ### Tests, each mutation-proven
 
-Sixteen new behaviour tests, each proven to redden against the final code with `__pycache__`
+Sixteen new behaviour tests, each proven able to fail against the final code with `__pycache__`
 cleared between runs and each mutation verified to have applied: dropping the split-host branch
-reddens ten, dropping its trailing body so a split link loses its path reddens ten, letting a split
-label carry a dot reddens eight, dropping the identity's gap fold reddens eight, dropping the
-hold-back's arriving-gap branch reddens two, letting a gap cross a newline reddens two, dropping
-the refanger's bracketed token from the gap reddens two, dropping the dot table from the gap
-reddens two, holding back only a whole token rather than a prefix of one reddens two, removing one
-codepoint from the space table reddens two, narrowing the gap to the ASCII space and tab reddens
-one, and giving every scheme a host to split rather than only an authority scheme reddens one. The
+fails ten, dropping its trailing body so a split link loses its path fails ten, letting a split
+label carry a dot fails eight, dropping the identity's gap fold fails eight, dropping the
+hold-back's arriving-gap branch fails two, letting a gap cross a newline fails two, dropping
+the refanger's bracketed token from the gap fails two, dropping the dot table from the gap
+fails two, holding back only a whole token rather than a prefix of one fails two, removing one
+codepoint from the space table fails two, narrowing the gap to the ASCII space and tab fails
+one, and giving every scheme a host to split rather than only an authority scheme fails one. The
 streaming behaviour was verified at every two-way split point of seven probes under both policies
 (528 splits) and at one character at a time, each agreeing with the whole-string feed.
 
@@ -1391,7 +1392,7 @@ none is an invention). Half worse, because the remainder is not a curation job a
 "small curated widening" of the sort the deferral imagines does not exist: Cyrillic alone adds 23
 entries, Cyrillic and Greek together 59 entries covering 175 of the 635, and Cyrillic, Greek and
 Latin together 116 entries covering 249, which is 39%. Full coverage is 483 table entries, which is
-a **data file wearing a source file's clothes**.
+a **data file kept as source**.
 
 ### The question, asked of a confusable, answers no
 
@@ -1585,7 +1586,7 @@ that names its class, which is the direction the family should move:
   internationalized domain is nobody's lookalike.
 - `mimic`. Shorter and more evocative, rejected because as a mode name it reads as something the
   guardrail *does* rather than something it catches.
-- `guise`. The most precise English for a host wearing another's face, and the most designed
+- `guise`. The most precise English for a host presenting itself as another, and the most designed
   feeling of the set. Rejected because an operator config value should not need a dictionary, and
   because this family speaks plainly while the aesthetic families (Still, Lucid, Reverie, Trance)
   are where the repo spends its evocative words.
@@ -1630,8 +1631,9 @@ links falling inside one match in a module doc. Neither is text this filter ever
 The cost lands only on a **tainted** turn, which is where the threat model lives: a turn that has
 read nothing hostile shows every link it has, internationalized or not. Weighed against the
 standing trade this ADR was founded on, that a missing link degrades a reply while a delivered
-phishing link ends a user, one popular host in seven hundred losing its link on turns that read
-untrusted content is a price worth paying for a class no table can close. It is a price this
+phishing link can cost the user their credentials or their money, one popular host in seven
+hundred losing its link on turns that read untrusted content is a price worth paying for a class
+no table can close. It is a price this
 deployment can also decline, `redact` still being the default.
 
 ### What the ground catches, measured against UTS-39
@@ -1679,7 +1681,7 @@ policies (a clean turn is byte-identical, the user's own URL survives, an opaque
 every link, an opaque bit without taint changes nothing). Every break below was applied to the
 shipped code, the core and orchestrator suites run, and the break restored:
 
-| break | tests reddened |
+| break | tests failed |
 |---|---|
 | the lookalike policy drops its own ground | 7 |
 | the host is read **through** the confusable fold (the table-shaped hole) | 2 |
@@ -1909,7 +1911,7 @@ Eleven tests, in `packages/core/tests/test_guardrail.py`. Each break was applied
 source with `__pycache__` cleared and verified applied before the run, and restored after; the arm
 is `packages/core/tests`, 1,462 tests, green before and after:
 
-| the break | tests reddened |
+| the break | tests failed |
 |---|---|
 | the tab is not admitted in the body (the widening removed) | 10 |
 | the fold never runs (the identity keeps the tab) | 9 |
@@ -1977,7 +1979,7 @@ Prices the last deferral this ADR carries, "footer/boilerplate heuristics (scree
 territory)", and **declines it**. Nothing in the tree changes. What changes is that the deferral
 stops being a note and becomes a decision, with the reason written where a future reader will find
 it. The finding is not that the work is hard: it is that **the fragment names two different
-questions wearing one word, and neither belongs to this guardrail**.
+questions under one word, and neither belongs to this guardrail**.
 
 ### What it was, re-derived rather than remembered
 
@@ -2019,9 +2021,9 @@ signature delimiter, dropped **the one sentence the user would actually have ask
 meeting that moved) and left a ledger holding **nothing at all**, because the attacker chose where
 to put the delimiter. The other cheap rule, a keyword list, kept the real content and dropped the
 payload line, and it did so only because this attacker happened to write the word `Confidential`;
-one who omits it pays nothing. A heuristic over hostile input does not draw the boundary, it hands
-the attacker the pen. That is the same reasoning the fence rests on, where the
-nonce exists exactly so that the attacker cannot write the delimiter.
+one who omits it pays nothing. A heuristic over hostile input does not draw the boundary, because
+the attacker writes the input the rule reads. That is the same reasoning the fence rests on, where
+the nonce exists exactly so that the attacker cannot write the delimiter.
 
 ### The cost half is real and it is the email tool's, not this seam's
 
@@ -2035,7 +2037,7 @@ narrows the evidence and the model's view together, which is coherent; anything 
 **after** leaves the model reading text the ledger never saw, which is a hole. A reducer that ever
 lands in `cortex_email` therefore has one invariant to honour, and it is worth writing down here
 even though this ADR declines to build one: **the ledger must observe exactly the text the model
-receives**. The other cost is the one a stripper cannot avoid: a heuristic that silently eats a
+receives**. The other cost is the one a stripper cannot avoid: a heuristic that silently drops a
 real sentence is worse than one that never runs, and the user asking what the end of the email said
 is a perfectly ordinary request.
 
@@ -2151,7 +2153,7 @@ Eleven new behaviour tests in `packages/core/tests/test_guardrail.py`, each brea
 production source with `__pycache__` cleared and verified applied before the run, and restored
 after; the arm is `packages/core/tests`, green before and after:
 
-| the break | tests reddened |
+| the break | tests failed |
 |---|---|
 | the split host is not a host shape (the widening removed) | 7 |
 | the anchor's gap needs no dot token, any blank will do | 8 |
@@ -2164,7 +2166,7 @@ exactly the widening the entry feared, and the suite that was already here says 
 is why the dot token rather than the blank is what the anchor reads.
 
 A fourth break was tried and is **not** claimed: replacing the finished authority with the arriving
-one inside `URL_RE` reddens nothing, because in that position the split host it is followed by
+one inside `URL_RE` fails no test at all, because in that position the split host it is followed by
 already requires the blank the loose anchor asks for, so the two are equivalent there and the
 mutation is a no-op rather than an untested gap.
 
@@ -2257,7 +2259,7 @@ Eleven new behaviour tests in `packages/core/tests/test_guardrail.py`, each brea
 production source with `__pycache__` cleared and verified applied before the run, and restored
 after; the arm is `packages/core/tests`, green before and after:
 
-| the break | tests reddened |
+| the break | tests failed |
 |---|---|
 | the helper returns the literal (nothing is permeable) | 10 |
 | the scheme words stay impermeable in the matcher | 7 |
@@ -2269,8 +2271,8 @@ after; the arm is `packages/core/tests`, green before and after:
 | the removal reaches inside a named reference | 1 |
 
 The last two are the decline being held rather than the close being proven, which is why they are
-in the table: a rule that only ever widens is a rule nothing can hold, and the ninth addendum's
-"one rendering pass" line is what says where this one stops. The streaming behaviour needed one
+in the table: a rule that only ever widens has no failing case to test against, and the ninth
+addendum's "one rendering pass" line is what says where this one stops. The streaming behaviour needed one
 change and no new branch: the tail comparison drops removals before it looks, and its window is
 counted in the characters that survive that drop, so a run of them cannot push an opening out of
 reach of the scan. Verified at every two-way split point of nine probes under all three policies

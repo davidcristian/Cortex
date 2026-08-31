@@ -9,13 +9,13 @@ anchor half of the backlog link check and drew its boundary at the target: a fra
 when it aims at `docs/refinements/index.md` or `docs/host/index.md`, and ignored when it aims at
 anything else. That was the right scope for that task, and it leaves this.
 
-**The population is small and it is not clean.** The repo holds 260 fragments. 251 aim at one of
-the two indexes and are now gated. The other nine were counted by hand while that gate was being
+**The population is small and it is not clean.** The repo holds 260 fragments. 251 aim at one of the
+two indexes and are now gated. The other nine were counted by hand while that gate was being
 written: eight are `README.md` linking its own sections, all of them true, and the ninth was
 `docs/host/index.md` pointing at `ADR-0030-brain-handoff.md#risks-flagged-for-user-review` while
-that heading reads **Risks flagged for maintainer review**. One rot in nine, sitting in the tree,
-found by a person running a one-off script rather than by any gate. It was corrected in the same
-pass, so the count of known-bad fragments is zero and the count of gated ones is still 251.
+that heading reads **Risks flagged for maintainer review**. One broken pointer in nine, sitting in
+the tree, found by a person running a one-off script rather than by any gate. It was corrected in
+the same pass, so the count of known-bad fragments is zero and the count of gated ones is still 251.
 
 **What would close it.** `backloganchors.py` already has every part except the input.
 `anchors(text)` answers for any markdown document rather than only for an index, and `check`
@@ -58,12 +58,12 @@ account survived every gate. One question is left unasked rather than failed ope
 name is not markdown, since `body.proto#L42` is a line anchor and has no headings to be wrong
 about.
 
-**Proved able to fail before being trusted**, on the real tree in both new shapes. Renaming
-`## Risks flagged for maintainer review` in `ADR-0030-brain-handoff.md`, which is the rot this
-whole line of work started from, was reported at `docs/host/index.md:602`; pointing a `README.md`
-fragment at a file that is not there was reported at `README.md:34`. Both were restored and the
-gate returned to green over all 262 pointers. A problem now names the line it is written on, which
-two documents did not need and 389 do.
+**Proved able to fail before being trusted**, on the real tree in both new shapes. Renaming `##
+Risks flagged for maintainer review` in `ADR-0030-brain-handoff.md`, which is the broken pointer
+this whole line of work started from, was reported at `docs/host/index.md:602`; pointing a
+`README.md` fragment at a file that is not there was reported at `README.md:34`. Both were restored
+and the gate passed again over all 262 pointers. A problem now names the line it is written on,
+which two documents did not need and 389 do.
 
 ## Trail
 

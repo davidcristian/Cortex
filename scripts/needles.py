@@ -1,92 +1,25 @@
-"""How a rendered needle is looked for in a file, and what a file that lacks one is told.
+"""How a rendered needle is looked for in a file, and what a fault says when one is not found.
 
 Split out of `crosscheck.py`, which finds the declarations and reports the constants that do not
-tie; this is the other half of a mention, what it means for a file to spend a rendered needle and
-what to say when it does not. Nothing here reads a file or knows what a value is: it is handed the
-needle, the text, and the spelling the value was rendered in.
+tie. Nothing here reads a file or knows what a value is: it is handed the needle, the text, and the
+spelling the value was rendered in.
 
-**A needle is bounded at whichever edge is a word.** Bare containment had two passing violations
-to prove it, a value that is a prefix of the one written down (`5005` inside `50051`) and a
-published `host:container` pair whose host half alone carried the needle, so a rendered needle has
-to appear as a token of its own and not merely somewhere inside a longer one.
+A needle must appear as a token of its own rather than inside a longer one, bare containment having
+passed two real violations: a value that is a prefix of the one written down (`5005` inside
+`50051`), and a published `host:container` pair whose host half alone carried the needle. A digit
+edge takes a second guard against a decimal point, so `2048.` closing a sentence still matches
+while `2048.5` does not (ADR-0029 bounded-matching addendum).
 
-**A point flanked by digits is inside a number**, which is the one thing a word edge cannot see.
-A point is not a word character, so `10` used to be found in `10.09` and in `0.10` alike: the word
-guard saw a space on one side and a point on the other, and both passed. The rule that tells those
-from a number ending at a sentence's full stop reads the far side of the point rather than the
-point itself, and it is one sentence read from both ends, so a digit edge takes a second guard
-beside the word one. `2048.` closing a sentence still matches, the character past the point being
-a space; `2048.5` does not. An edge that is a word but not a digit takes no such guard, `grpc.`
-before a needle opening with a letter being attribute access and not a decimal.
-
-**A needle is a value plus shape, and the shape is other people's text.** A template carries
-enough neighbouring text to be a claim about the right sentence, and some of that text is another
-constant's value: the compose publish's ``"{value}:{value}"`` opens with the host-side interface,
-and most of the documents stating the seam port spell the address the body dials it at. Move one
-of those neighbours and this needle is unfound, which used to be reported as the seam port not
-being tied, sending a reader to a declaration that had not moved. The reader then had to diff the
-needle against the file by hand to see which of its literals stopped matching, and a fault that
-points at the wrong thing is worse than a thin one, because the reader trusts it (ADR-0023
-bind-host addendum, which measured that misattribution).
-
-So an unfound needle now says two things it can read rather than guess.
-
-**Whether the value is still there, and where it read one.** If the file goes on spelling this
-constant's value as a token of its own, then whatever stopped matching is shape, and the entry the
-fault names is probably not the entry to change. That is the misattribution said out loud. It is a
-reading and not a proof: a file may spell the same digits under two meanings, which is the same
-reason a survey by number cannot be trusted, so the sentence says what was read and calls the
-conclusion a maybe. A mention that renders only a name spells no value at all, and is told so
-instead.
-
-A maybe a reader cannot check is a grep, which is the work this reading exists to save, so the
-yes carries the line it was read on and the words around it. Three things are said, and each is
-chosen rather than cheapest:
-
-- **Which occurrence**, when the file spells the value more than once: the one nearest where the
-  run below stops. The two readings a fault carries are about the same divergence, so aiming them
-  at one place makes the message one sentence instead of two, and it is the only choice that
-  spends what the run already computed. A needle opening with its own value degenerates to the
-  first occurrence, the run then starting where the value does, and that is honest rather than a
-  failure: there is no shape in front of the value to be nearer to. A file carrying no part of the
-  needle has no run at all, and the first occurrence is what the message then names.
-- **The line, and the words on it.** A line number alone turns the grep into a jump, which is
-  worth having and is not enough in a log nobody can jump from: the reading that dismissed the
-  case that opened this (`~11 GB` in a paragraph about VRAM) is the sentence and not the number.
-  Nor could proximity have dismissed it. That homonym is seventy one lines from the needle's own
-  line and sits one line above a sentence that does name the constant, which is why the nearest
-  occurrence is only a tie break between matches and the words are the verdict. So the line's own
-  text comes with it, windowed around the match, because a runbook table row is several hundred
-  characters and a fault is one sentence.
-- **How many places spell it.** "Spelled in eleven places" is itself the answer that the reading
-  proves nothing, and it costs one number.
-
-**Where the file stops carrying the needle**, as the longest opening run of it the file contains.
-That run pinpoints the divergence when the needle's shape is unique to it, and it is deliberately
-measured over the whole file rather than one line, because the mention names a file and not a
-line. A prefix satisfied on some other line therefore makes the run longer than the divergence in
-the line the reader means: the compose publish's own interface moving still leaves `"127.0.0.1:`
-carried, by the redis publish two dozen lines below. That is why the run is worded as the most of
-the needle the file carries anywhere, which is exactly what it is, and why it is the second half
-of the message rather than the first.
-
-**The run is told the same three things the value is**, and by one rule rather than two. A run
-quoted as text alone left a reader with the one thing the message was for: the *distance* between
-where the file stopped agreeing and where the value still sits. A value on the line the run stops
-on is the strong form of "what moved is shape"; a value seventy lines away, which is the case this
-reading was written on, is the weak form, and nothing but opening the file told them apart. So the
-run now names its line and, where it is carried more than once, how many places carry it.
-
-Which occurrence it names falls out of the value reading rather than being a second choice. The
-two readings are the two ends of one distance, so the pair is picked once, and each half names the
-other's: the value is the spelling nearest where the run stops, and the run is the stop nearest
-that spelling. Where one of them is missing there is nothing to be nearest to, and both fall back
-the same way, to the first occurrence, said in the message so a reader is never left guessing
-which rule produced the line. The distance itself is deliberately **not** computed for the reader.
-Two line numbers side by side are the comparison, subtracting them is arithmetic a reader can do,
-and a stated gap would be a second metric: the pair is chosen by distance in characters, which is
-what orders two matches on one line correctly, and a gap in lines would occasionally disagree with
-the choice that produced it.
+A needle is a value plus shape, and some of that shape is another constant's value, so a neighbour
+moving leaves the needle unfound and the fault names a constant that did not move (ADR-0023
+bind-host addendum, which measured that misattribution). An unfound needle therefore carries two
+readings: whether the file still spells this constant's value as a token of its own, with the line
+number and the words on that line, and how much of the needle the file carries anywhere, with the
+line where that run stops. The two are picked together as the ends of one distance, measured in
+characters so that two matches on one line order the way a reader would, and both fall back to the
+first occurrence when there is nothing to be nearest to. The message says which rule produced each
+line. The distance itself is not stated: two line numbers are the comparison, and a gap in lines
+would sometimes disagree with the pick, which was made in characters.
 """
 
 import re
@@ -97,10 +30,9 @@ from couplings import PLACEHOLDER, Mention
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
 WORD_CHARACTER = re.compile(r"\w")
 
-# The narrower edge, and the only one a point can continue: a digit. The point is read from the
-# needle outwards, so each guard asks for a digit on the FAR side of it, the near side being the
-# needle's own edge. That is what keeps `2048.` at a full stop found and `2048.5` unfound, and it
-# is why the two guards below are the same rule written twice rather than two rules.
+# The narrower edge, and the only one a point can continue: a digit. Each guard asks for a digit on
+# the far side of the point, the near side being the needle's own edge, which is what keeps `2048.`
+# at a full stop found and `2048.5` unfound.
 DIGIT = re.compile(r"\d")
 
 # The lookarounds each edge may take, in the order they are applied: the word guard both kinds of
@@ -108,7 +40,7 @@ DIGIT = re.compile(r"\d")
 LEAD_GUARDS = (r"(?<!\w)", r"(?<!\d\.)")
 TRAIL_GUARDS = (r"(?!\w)", r"(?!\.\d)")
 
-# How many characters of the line a still-spelled value sits on are quoted back with it. Wide
+# How many characters of the line a still-written value sits on are quoted back with it. Wide
 # enough to carry the sentence the value is spent in, which is what tells a homonym from the real
 # thing, and bounded because the widest line this gate reads is over a thousand characters of
 # runbook table row and a fault is one sentence.
@@ -141,10 +73,9 @@ def bounded(needle: str) -> re.Pattern[str]:
 def carried(needle: str, text: str) -> str:
     """The longest opening run of ``needle`` that ``text`` contains, which may be all of it.
 
-    Plain containment rather than the bounded match above, deliberately: the question here is how
-    far into the needle the file goes on agreeing, and a run that stops in the middle of a token is
-    exactly the answer that question wants. Containment is monotone over a prefix, a shorter one
-    sitting inside every longer one, so growing the run a character at a time finds the longest.
+    Plain containment rather than the bounded match above, since a run that stops in the middle of
+    a token is the answer wanted here. Containment is monotone over a prefix, so growing the run
+    one character at a time finds the longest.
     """
     length = 0
     while length < len(needle) and needle[: length + 1] in text:
@@ -155,9 +86,8 @@ def carried(needle: str, text: str) -> str:
 def anchors(text: str, run: str) -> list[int]:
     """Every offset ``text`` stops carrying ``run`` at, and none at all when it carries none.
 
-    The stop rather than the start, because that is what both readings are about: the run stops
-    where the file stopped agreeing with the needle, and the value nearest it is the one the fault
-    means. Measuring from the start put the whole length of the run into every distance.
+    The stop rather than the start, because the run stops where the file stops agreeing with the
+    needle. Measuring from the start put the whole length of the run into every distance.
     """
     return [found.end() for found in re.finditer(re.escape(run), text)] if run else []
 
@@ -165,12 +95,9 @@ def anchors(text: str, run: str) -> list[int]:
 def nearest(ends: list[int], matches: list[re.Match[str]]) -> tuple[re.Match[str], int | None]:
     """The closest value and run stop, or the first value and no stop when there is no run.
 
-    Distance is in characters rather than in lines, which needs no line index and orders two
-    matches on one line the way a reader would. Every occurrence of the run is an anchor, because
-    a run is a prefix and a file may satisfy it on a line the reader does not mean; the nearest
-    value to any of them is still the best guess this fault can make about which line diverged.
-    The pair is chosen once and both halves of it are reported, so the two lines the message names
-    are the two ends of one distance rather than two picks that may not be about the same place.
+    Every occurrence of the run is an anchor, a run being a prefix that a file may satisfy on a
+    line the reader does not mean. The pair is chosen once and both halves are reported, so the
+    two lines the message names are the ends of one distance rather than two independent picks.
     """
     if not ends:
         return matches[0], None
@@ -215,9 +142,8 @@ def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> st
 def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
     """How much of the needle ``text`` carries, and where the occurrence meant stops.
 
-    ``at`` is the stop the value reading was measured against, when there is a value reading.
-    Without one there is nothing for a run to be nearest to, so the first is named and said to be
-    the first, which is the same fallback the value reading makes when there is no run.
+    ``at`` is the stop the value reading was measured against, when there is one. Without it the
+    first stop is named and said to be the first, the same fallback the value reading makes.
     """
     if not run:
         return "carrying no part of it"
@@ -232,9 +158,9 @@ def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     """Why ``text`` does not spend ``needle``, said as what of it the file does still carry.
 
-    ``spelled`` is the value as it was rendered into the needle, which is the one part of that
-    needle this constant answers for. Finding it still spelled as a token of its own is the
-    evidence that what moved is shape and the fault is aimed at the wrong entry.
+    ``spelled`` is the value as it was rendered into the needle, the one part of that needle this
+    constant answers for. Finding it still written as a token of its own is the evidence that what
+    moved is shape and that the fault names the wrong entry.
     """
     run = carried(needle, text)
     stem = f"{mention.path} does not spell {needle!r} as a token of its own"

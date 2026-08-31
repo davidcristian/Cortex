@@ -1,26 +1,26 @@
 """What a probe is told about the GPU, and what boot publishes before the first one arrives.
 
 Split from ``residency.py`` along the seam that module's docstring already draws between owning
-the GPU and being honest about it: ``residency_board.py`` owns the bookkeeping a swap publishes
-into, ``residency_moves.py`` owns what the host is asked to do, and this owns **the answer a
-reader gets**, which is a different thing from the record because it is composed rather than
-stored. ``SwappingModelManager`` mixes it in, the way ``BrainService`` mixes in its session RPCs,
-so the two concerns keep one object and separate files.
+the GPU and reporting what it holds: ``residency_board.py`` owns the bookkeeping a swap publishes
+into, ``residency_moves.py`` owns what the host is asked to do, and this owns the answer a reader
+gets, which is a different thing from the record because it is composed rather than stored.
+``SwappingModelManager`` mixes it in, the way ``BrainService`` mixes in its session RPCs, so the
+two concerns keep one object and separate files.
 
-**Everything a human reads is composed at read time, and that is load-bearing.** The published
-record holds the swap's own verdict and nothing else, because the background pass republishes the
-bare ``RESIDENCY_SERVING`` constant whenever it finds the cortex back (``residency_regain.py``):
-a detail written into the record would survive exactly until the next pass noticed things were
-fine. So each fact that can outlive a residency transition keeps its own record and annotates the
-report as it is read. There are two, and they are deliberately independent:
+Everything a human reads is composed at read time. The published record holds the swap's own
+report and nothing else, because the background pass republishes the bare ``RESIDENCY_SERVING``
+constant whenever it finds the cortex back (``residency_regain.py``): a detail written into the
+record would survive exactly until the next pass found the cortex back. So each fact that can
+outlive a residency transition keeps its own record and annotates the report as it is read. There
+are two, and they are deliberately independent:
 
-- **which peers of the standing residency are missing** (``residency_tiers.py``), a fact about
-  now, written by a restart that was refused and healed by a sweep that finds the tier serving;
-- **how the last handoff ran** (``residency_pace.py``), a fact about a handoff that has ended,
+- which peers of the standing residency are missing (``residency_tiers.py``), a fact about now,
+  written by a restart that failed and healed by a sweep that finds the tier serving;
+- how the last handoff ran (``residency_pace.py``), a fact about a handoff that has ended,
   written by the deep phase through a port and standing only as long as it still describes now.
 
-Both may be true at once and both are then said, joined by ``residency_state.with_note`` in the
-order this module composes them: the standing condition first, the last handoff second. Neither
+Both may be true at once and both are then included, joined by ``residency_state.with_note`` in
+the order this module composes them: the standing condition first, the last handoff second. Neither
 may annotate a report that is not serving, since mid handoff the seam is already saying what the
 swap is doing and a second sentence there would describe one swap twice.
 """
@@ -37,7 +37,7 @@ from cortex_core.residency_watch import BootWatch
 
 
 class ResidencyProbeMixin:
-    """The honesty surface of ``SwappingModelManager``: what it publishes, and what it answers.
+    """The reporting surface of ``SwappingModelManager``: what it publishes, and what it answers.
 
     Reads the four collaborators the manager constructs (`_board`, `_boot`, `_tiers`, `_pace`),
     each declared as a required attribute so any host class must provide them; it holds no state
@@ -53,11 +53,11 @@ class ResidencyProbeMixin:
         """Replace the constructor's seed with what boot recovery actually observed.
 
         Called once by the composition root, before the seam serves, so the first probe of the
-        process answers an observation. Deliberately the one writer that touches the report
-        **alone** and leaves ``_resident`` where it is: recovery failing to confirm the cortex is
-        not the same as knowing it is gone (an unreachable host says nothing about the process it
+        process answers an observation. Deliberately the one writer that touches the report on its
+        own and leaves ``_resident`` where it is: recovery failing to confirm the cortex is not
+        the same as observing it gone (an unreachable host says nothing about the process it
         supervises, and a load that outran its bound may still finish), so clearing the resident
-        would refuse every turn on a machine that may well be serving. The report is display
+        would fail every turn on a machine that may well be serving. The report is display
         only; the lease keeps the forgiving posture boot recovery has always had.
 
         It is also where the boot watch is seeded, because this is the moment the observation
@@ -72,7 +72,7 @@ class ResidencyProbeMixin:
     def standing_tiers(self) -> StandingTiers:
         """The peers the standing residency is missing, for boot recovery to write from outside.
 
-        The one belief of this manager's that something other than a swap observes: convergence
+        The one piece of this manager's state that something other than a swap writes: convergence
         runs before the seam serves and again whenever the daemon is replaced, and both times a
         peer that would not start is a fact about the pool rather than about the cortex. Handing
         the record out keeps the swap back and those two convergences writing one record, which is
@@ -98,7 +98,7 @@ class ResidencyProbeMixin:
         reads it on every probe and the overlay re-probes every few seconds precisely while a
         swap is in flight. Waiting on the lease would hang the indicator for the whole load
         (bounded by ``plan.load_timeout_s``, minutes at tier scale), which is exactly when the
-        honest answer is the point; waiting on the residency condition would queue the probe
+        answer matters; waiting on the residency condition would queue the probe
         behind whatever the scope's end wakes. A plain read is a consistent snapshot: every
         writer publishes the report and the resident together (``residency_board.py``).
 

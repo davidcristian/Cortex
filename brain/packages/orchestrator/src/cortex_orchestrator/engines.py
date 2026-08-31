@@ -2,17 +2,17 @@
 
 Its own module for the reason ``stores.py`` is: ``wiring.py`` is the one file in the brain that
 legitimately grows with every capability, and it had reached the 300-line cap carrying three
-nested closures over fourteen local names. Those closures were never a composition step. They
-are a **per-stream factory**, run once per Converse stream rather than once per process, so they
-are an object taking those names once and the root is back to reading as the list of steps it is.
+nested closures over fourteen local names. Those closures are a per-stream factory rather than a
+composition step, run once per Converse stream instead of once per process, so they are now an
+object that takes those names once, and the root reads as the list of steps it is.
 
 Nothing here reads the environment, opens a resource, or picks an adapter: every part arrives
 already built, and the two dataclasses below are frozen records of what the root decided. What
 varies per stream is the ``Confirmer`` a gated tool call prompts through (ADR-0022) and the
-``ProgressSink`` a delegated run surfaces onto (ADR-0010); what varies per **turn** is the
-escalation slot (ADR-0030). Everything else is the shared adapters, and building an engine per
-stream and an inner engine per turn costs nothing because an engine is a stateless function over
-the session store (AGENTS.md's one hard rule), never a thing that remembers a conversation.
+``ProgressSink`` a delegated run surfaces onto (ADR-0010); what varies per turn is the escalation
+slot (ADR-0030). Everything else is the shared adapters, and building an engine per stream and an
+inner engine per turn costs nothing because an engine is a stateless function over the session
+store (AGENTS.md's one hard rule) rather than something that remembers a conversation.
 """
 
 from collections.abc import Sequence
@@ -99,12 +99,12 @@ class StreamEngines:
     def for_stream(self, confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
         """Build the engine one Converse stream's turns run through.
 
-        A deployment without the handoff wired gets the plain engine, so nothing below the
-        edge changes shape for it. With it wired, the escalating wrapper (ADR-0030 decision 5)
-        builds a fresh slot and inner engine per turn over a conductor bound to **this**
-        stream's dispatcher, so the deep model's phase runs the same audited tools the cortex
-        phase did, minus the screen (ADR-0029). The deep phase carries no slot either: it
-        cannot escalate to itself.
+        A deployment without the handoff wired gets the plain engine, so nothing below the edge
+        changes shape for it. With it wired, the escalating wrapper (ADR-0030 decision 5) builds a
+        fresh slot and inner engine per turn over a conductor bound to this stream's own
+        dispatcher, so the deep model's phase runs the same audited tools the cortex phase did,
+        minus the screen (ADR-0029). The deep phase carries no slot either: it cannot escalate to
+        itself.
         """
         caps = self._capabilities(confirmer, progress)
         deep = self.deep

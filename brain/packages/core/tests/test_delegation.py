@@ -1,8 +1,8 @@
 """End-to-end delegation over the fakes: a cortex turn spawns subagents (ADR-0010/0018).
 
-Ties the increments together. The CompositeToolRegistry advertises the built-in spawn tool, the
-shared tool loop dispatches it (audited), the SpawnSubagentsTool runs subagents, and their
-aggregated results feed back into the cortex's next inference step. The last test proves the
+These tests tie the increments together. The CompositeToolRegistry advertises the built-in spawn
+tool, the shared tool loop dispatches it (audited), the SpawnSubagentsTool runs subagents, and
+their aggregated results feed back into the cortex's next inference step. The last test proves the
 whole ADR-0017 chain: untrusted read → taint ledger → dispatcher stamp → task record → the
 runner's forced-robust resolution.
 """
@@ -129,7 +129,7 @@ def _single_roster(backend: InferenceBackend) -> SubagentRoster:
 
 async def test_cortex_turn_delegates_and_consumes_the_results() -> None:
     task_store = InMemoryTaskStore()
-    # A subagent tier with no tools of its own. The delegation-free subset keeps fan-out depth-1.
+    # A subagent tier with no tools of its own, so the fan-out stays one level deep.
     runner = SubagentRunner(task_store, _single_roster(EchoInferenceBackend()), FixedClock())
     spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
     # The cortex's tools: the built-in spawn tool only (no remote MCP registry in this test).
@@ -164,7 +164,7 @@ async def test_cortex_turn_delegates_and_consumes_the_results() -> None:
     tool_msg = second_step[-1]
     assert tool_msg.role is Role.TOOL
     assert tool_msg.tool_call_id == "c1"
-    # Clean subagents (no untrusted reads) -> the aggregate is trusted, so it is not fenced.
+    # The subagents read nothing untrusted, so the aggregate is trusted and is not fenced.
     assert tool_msg.text == "[subagent 1] reply 1: task A\n\n[subagent 2] reply 1: task B"
 
 
@@ -449,7 +449,7 @@ async def test_a_fires_delegate_names_the_item_that_fired_it() -> None:
     assert task is not None
     assert task.item_id == "r-1"
     # So one grep over the trail reaches the fire and the work it caused, and neither line
-    # borrows an identity it does not have: the fire is still turn-less, its delegate too.
+    # borrows an identity it does not have: the fire is still turn-less, and so is its delegate.
     (fire_line,) = fire_sink.records
     (read_line,) = sub_sink.records
     assert (fire_line.name, fire_line.item_id, fire_line.turn_id) == (

@@ -1,5 +1,6 @@
-"""The ScheduleTicker: fires, pushes, re-arms, releases, and survives its own passes
-(ADR-0025 decision 4). No wall-clock waits. The clock is fixed and `run` is paced to 0."""
+"""The ScheduleTicker fires items, pushes notifications, re-arms recurrences, releases claims,
+and keeps running after a failed pass (ADR-0025 decision 4). Nothing here waits on a wall clock:
+the clock is fixed and `run` is paced to 0."""
 
 import asyncio
 import logging
@@ -326,7 +327,8 @@ async def test_task_outcome_is_pushed_as_a_notification_and_acked() -> None:
 
 
 async def test_task_outcome_stays_deliverable_when_the_push_fails() -> None:
-    """A body-down fire is recovered by pull, not lost: the outcome waits in the store."""
+    """A fire whose push fails is recovered by the pull path rather than lost, since the outcome
+    waits in the store."""
     store = InMemoryScheduleStore()
     body = InMemoryBodyGateway(fail=BodyGatewayError("unreachable"))
     spawn = FakeSpawnTool(content="[subagent 1] done")

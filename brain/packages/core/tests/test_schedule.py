@@ -219,7 +219,8 @@ def test_next_due_on_an_exact_interval_boundary_is_strictly_after_now() -> None:
 
 
 def test_next_due_past_datetime_max_ends_the_recurrence() -> None:
-    # Terminal beats a fire that can never persist its re-arm and lease-cycles forever.
+    # Ending the recurrence is better than a fire that can never persist its re-arm and would
+    # cycle its lease forever.
     near_max = datetime(9999, 12, 31, tzinfo=UTC)
     assert next_due(near_max, timedelta(days=365), near_max) is None
 
@@ -252,7 +253,7 @@ def test_next_occurrence_is_terminal_for_a_one_shot() -> None:
 
 
 def test_a_snoozed_calendar_item_gets_no_anchor_and_returns_to_its_rule() -> None:
-    """The rule IS the grid, so the series recovers without the interval anchor machinery."""
+    """The rule is the grid, so the series recovers without the interval anchor machinery."""
     item = _item(rule=CalendarRule(hour=9, minute=0))
     snoozed = apply_snooze(item, _NOW + timedelta(minutes=15))
     assert snoozed.anchor is None

@@ -43,7 +43,7 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
 
 1. **The panel has views, and morphs between them.** `chat`, `shortcuts` and `settings` are three
    views of one window rather than a window with covers over it. Only the active view is in the
-   layout flow, so it alone decides the height the panel is easing to. The settings view is now
+   layout flow, so it alone determines the height the panel is easing to. The settings view is now
    198px tall and the shortcuts view 391px, against 546px for the chat that opened them.
 
 2. **A view change re-centres; growth inside a view goes upward.** These are the same measurement
@@ -71,14 +71,15 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
 5. **A child animating the panel's height claims it, and hands it back** (`overlay/morph.ts` holds
    both halves of the contract). While `data-morphing` is set on any descendant, the panel leaves
    the height alone. When it clears, the section dispatches a bubbling `cortex:morphend`, which is
-   the panel's only word that anything happened: a section rolling *open* changes no React state,
-   so no render follows it and the panel would never learn it had grown. Without that event a
-   switcher opened on a tall chat sat 39px from the top of the screen with 177px of space below it,
-   having sailed past the ceiling of decision 3 unnoticed. Measured, not reasoned about.
+   the only signal the panel gets that anything happened: a section rolling *open* changes no React
+   state, so no render follows it and nothing else would tell the panel it had grown. Without that
+   event a switcher opened on a tall chat sat 39px from the top of the screen with 177px of space
+   below it, having grown past the ceiling of decision 3 without the panel re-measuring. Measured,
+   not reasoned about.
 
    On that first placement after a roll, what is on screen is already the new height (the panel
    followed the roll frame by frame), so the geometry to animate *from* is that height at the old
-   bottom edge, not the height the panel last remembered. Remembering the mid-roll height instead
+   bottom edge, not the height the panel had last recorded. Animating from that stored height
    snapped the switcher back open for one frame; that frame was visible in a 60Hz trace before it
    was understood. What is left to animate is the slide off the ceiling, if there is one.
 
@@ -104,9 +105,10 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
    titled list: what it is on the left, what it can be on the right, hairlines between, and one way
    back. The two views differ only in what the right-hand side holds, which is why a keycap and a
    theme picker sit at the same rhythm. Colour stays reserved for working affordances, so nothing
-   here is accented. Two richer directions (theme choices as thumbnails of the panel wearing them;
-   one tabbed console instead of two destinations) were pitched to the user as a live artifact and
-   were open, and either is inner markup on this same plumbing. The maintainer picked **both**, and
+   here is accented. Two richer directions (theme choices as thumbnails of the panel rendered in
+   each theme; one tabbed console instead of two destinations) were pitched to the user as a live
+   artifact and were open, and either is inner markup over the same hook and layout. The maintainer
+   picked **both**, and
    [ADR-0035](ADR-0035-console-and-motion.md) decision 1 is what was built: this decision's two
    views are one console now, and its rows are the shortcut tab's rows.
 
@@ -119,14 +121,14 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
   the overlay that deliberately animates layout-affecting properties. It is bounded: one element,
   one animation, at most one per render.
 - A single reminder leaving the stack still vanishes in one frame rather than rolling up, since
-  `Collapse` wraps the stack and not each row. The history absorbs the slack (decision 6), so what
-  is left is one row's worth of instant. Recorded in `docs/refinements/index.md#body-overlay`.
+  `Collapse` wraps the stack and not each row. The history absorbs the slack (decision 6), so the
+  remaining jump is one row tall. Recorded in `docs/refinements/index.md#body-overlay`.
   **Closed 2026-08-03** ([ADR-0035 addendum](ADR-0035-console-and-motion.md)), and this bullet was
   out of date within a day: the stack wrapped each row from 2026-07-20 and the roll was already
   right. What that first version actually cost was the ack, which it delayed behind a 300ms timer
   an unmount could cancel. `overlay/usePresence.ts` holds the removed ROW instead, until that row's
-  own `Collapse` reports its roll over, and the ack leaves in the frame the check is pressed. The
-  switcher's rows are the same shape of exit and are not wired to the hook yet, which is the
+  own `Collapse` reports the roll finished, and the ack leaves in the frame the check is pressed.
+  The switcher's rows are the same shape of exit and are not wired to the hook yet, which is the
   deferral that replaces this one in the same area doc.
 - Two views' worth of chrome collapsed into `components/PanelView.tsx`, and `Panel` became a router
   over `components/ChatView.tsx` and the two views, which is what kept every file under the cap.
@@ -148,8 +150,8 @@ original motion in full.
 ## Addendum (2026-07-21, later): which edge a view resizes from, and where the console arrives
 
 The standing edge above answered where the console *opens*; living with it surfaced the other
-half of the question, which is what happens once you are in it. Two rules now, and one principle
-under them: **the edge nearest the hand is the edge that holds still.**
+half of the question, which is what happens once you are in it. There are two rules now, and one
+principle under them: **the edge nearest the hand is the edge that holds still.**
 
 - **A resize inside any view but the chat holds that view's TOP edge**, so the growth happens at
   the bottom. The console's chrome is its back button and its tab strip, both at the top, and a
@@ -160,9 +162,9 @@ under them: **the edge nearest the hand is the edge that holds still.**
   publishes how far the tab on screen falls short of its tallest (`TAB_SLACK_ATTRIBUTE`, written
   by `ConsoleView` from the two pane heights it already measures for `TAB_SPREAD_PX`) and the
   placement hangs the arriving shape from that top. Without it the strip sat at two heights
-  depending on which button opened the console, since the hint strip's sliders lands on the taller
-  tab and its `?` on the shorter one, and the maintainer caught it: "the window position is lower when
-  opening the shortcuts view vs the settings view".
+  depending on which button opened the console, since the hint strip's sliders icon lands on the
+  taller tab and its `?` on the shorter one, and the maintainer caught it: "the window position is
+  lower when opening the shortcuts view vs the settings view".
 
 The arrival is computed in full rather than as an adjustment to the edge, because the tallest
 shape may not fit above that edge at all, in which case its top is the clear space kept at the

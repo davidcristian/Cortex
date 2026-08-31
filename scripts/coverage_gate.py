@@ -6,15 +6,15 @@ cargo-llvm-cov has no ``--fail-under-branches`` flag, so branches were always ju
 they exit 1 without printing anything once ``--json --output-path`` diverts the report to a
 file, which pre-empted this gate with a mute failure. So this parses the export written by
 ``cargo llvm-cov --json --summary-only`` and checks ``data[0].totals`` itself. Each metric
-passes only when ``covered == count`` -- the producer-computed ``percent`` is never trusted.
+passes only when ``covered == count``; the producer-computed ``percent`` is never read.
 A metric whose ``count`` is 0 has nothing to cover and is treated as satisfied, with a
 printed note.
 
 The verdict also names the toolchain that produced the numbers, because the coverage step
 runs on an unpinned nightly and an unpinned cargo-llvm-cov (ADR-0002), so a red run has to
 be readable against the versions that measured it. Two sources, both required. The export
-records its own writer in ``cargo_llvm_cov.version``: a report that will not say what wrote it
-is refused. The compiler is nowhere in the export, so the step relays what it probed through
+records its own writer in ``cargo_llvm_cov.version``, and a report that does not carry that
+record is refused. The compiler is nowhere in the export, so the step relays what it probed through
 ``--rustc``, and relays ``--llvm-cov`` too, where it is checked against the export's own
 record rather than merely echoed. Disagreement means the numbers being judged are not the
 ones this run measured.

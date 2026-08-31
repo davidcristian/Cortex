@@ -9,11 +9,10 @@ delegation on. Neither number has moved since it was declared.
 
 `check_tool_call_deadline` refuses a **deployment** whose delegated dispatch does not fit under its
 run bound. It reads two `pydantic-settings` classes, so what it holds is whatever env this process
-was given, and it holds nothing about the numbers this repo ships:
-`DEFAULT_TOOL_CALL_TIMEOUT_S = 60.0` in `cortex_core/tool_deadline.py` and
-`DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0` in `cortex_core/subagents.py` could be retuned into an
-inverted pair, and every suite would stay green because the check runs only with both capabilities
-enabled, which CI never does.
+was given, and it holds nothing about the numbers this repo ships: `DEFAULT_TOOL_CALL_TIMEOUT_S =
+60.0` in `cortex_core/tool_deadline.py` and `DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0` in
+`cortex_core/subagents.py` could be retuned into an inverted pair, and every suite would keep
+passing because the check runs only with both capabilities enabled, which CI never does.
 
 Note that the relation the scan would hold is not quite the one the check makes. The check
 compares the run bound against a **multiple** of the call bound, `delegated_call_bounds`, since one

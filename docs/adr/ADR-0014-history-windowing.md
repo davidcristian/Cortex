@@ -31,9 +31,9 @@ current session only.
    newest turn backward, and stops at the first turn that would overflow the budget:
    - **turns are kept or dropped whole**, so the model never sees an assistant reply without
      the user message it answered;
-   - **the kept slice is a contiguous tail** because the walk stops at the first overflow rather
-     than sieving old small turns past a big one, because a gap mid-history confuses the
-     model more than honest truncation;
+   - **the kept slice is a contiguous tail**: the walk stops at the first overflow instead of
+     skipping an oversized turn and continuing to collect smaller older ones, because a gap in
+     the middle of the history degrades the reply more than dropping the oldest turns does;
    - **the newest turn is always kept**, oversized or not, because the current user message must
      reach the model (the window never returns an empty slice for a non-empty history).
 3. **Characters stand in for tokens.** The budget is counted in characters of message text
@@ -42,8 +42,9 @@ current session only.
    the model context.
 4. **Config: `CORTEX_HISTORY_CHAR_BUDGET`, default `48000`, `0` disables.** Read by
    `BrainRuntimeConfig` and wired by `build_history_window` at the composition root. It is
-   **on by default**: the deferral is a correctness gap under long sessions, and a knob
-   nobody sets fixes nothing. 48K chars ≈ 12K tokens of history against the 16K-token
+   **on by default**: the deferral is a correctness gap under long sessions, and a knob that
+   defaults to off leaves that gap open in every deployment that does not set it.
+   48K chars ≈ 12K tokens of history against the 16K-token
    cortex context, leaving ~4K tokens of headroom for the security preamble (ADR-0013),
    recalled memories (ADR-0008), tool schemas and in-turn tool steps (ADR-0009), and the
    reply itself.
@@ -64,8 +65,8 @@ current session only.
 
 ## Consequences
 
-- Long sessions stop growing toward the context wall; what the model loses is the oldest
-  turns, wholesale and predictably, while the stored history (and Slice 5 memory) keeps
+- Long sessions no longer grow past the model's context size; what the model loses is the oldest
+  turns, whole turns at a time and predictably, while the stored history (and Slice 5 memory) keeps
   everything, so recall can still surface dropped context.
 - A single oversized newest turn is sent whole and can still overflow the model context because
   the window bounds history, not one turn's size (a per-turn input cap would be a UX
@@ -73,7 +74,7 @@ current session only.
 - The `EchoInferenceBackend` reply counter counts user messages in the *windowed* history,
   so the `"reply {n}"` script diverges from the stored count only past the budget, which is
   unreachable in CI-sized tests, irrelevant on the real backend.
-- The seam invites exactly the follow-ons planned: summarization, or a tokenizer-backed
+- The planned follow-ons fit the seam as written: summarization, or a tokenizer-backed
   exact window, each a drop-in `HistoryWindow` with no engine change.
 
 ## Addendum (2026-07-16): summarization audited, the async widening priced and the lease hazard re-derived
@@ -87,17 +88,18 @@ one design problem with the **model-based reranker** ([ADR-0008 reranker-audit
 addendum](ADR-0008-memory-v1.md)): both wait on the same sync-to-async `select` change and the same
 lease discipline.
 
-**The async widening is clean and contained, not a call-chain migration.** `HistoryWindow.select`
+**The async widening is contained to one call site.** `HistoryWindow.select`
 has exactly one production caller, `TurnEngine._inference_messages` (`engine.py`), which is already
 an `async` method awaited by `handle_turn`. Widening `select` to `async` therefore adds one `await`
-at that call site and propagates no async colour upward to any synchronous boundary; the only
+at that call site and propagates no async requirement upward to any synchronous boundary; the only
 implementer is `CharBudgetHistoryWindow`. An `async def select` whose body stays synchronous is
 gate-clean here, because the `unused-async` lint (`RUF029`) is a preview-only rule and this repo runs
 ruff without preview, so every existing heuristic selector satisfies the async port by wrapping its
 body unchanged. The port change is real work (the protocol, the implementer, the fake, and the
 selection tests all move to `async`), but it is bounded and mechanical.
 
-**The lease hazard is navigable, not structural.** `SingleResidentModelManager` guards a
+**The lease hazard is a sequencing requirement rather than a structural block.**
+`SingleResidentModelManager` guards a
 non-reentrant `asyncio.Lock` (`model.py`) that the inference adapter holds across the whole stream
 generator (`backend.py`, the `async with acquire(...)` wraps the entire SSE read). But selection runs
 inside `_inference_messages`, which `handle_turn` awaits to completion **before** it opens the reply
@@ -112,7 +114,7 @@ already holding the lease.
 **What binds, and what unblocks it.** A summarizing window is a model pass, and it cannot be
 behavior-validated on the 8 GB dev GPU, where the cortex tier (gemma-12B) does not fit; the
 cache-versus-recompute-per-turn question the entry named is also unresolved and is a design choice,
-not a wrapper. So the honest slice waits for the model manager's real GPU lifecycle to give user-tier
+not a wrapper. So the slice waits for the model manager's real GPU lifecycle to give user-tier
 hardware, and lands the async widening together with the summarizer rather than the widening alone as
 an empty async layer. Recorded at
 [docs/refinements/index.md#session-history](../refinements/index.md#session-history).
@@ -120,7 +122,7 @@ an empty async layer. Recorded at
 ## Addendum (2026-07-19): summarization is blocked by an undecided design, not by the dev GPU
 
 The addendum above says a summarizing window "cannot be behavior-validated on the 8 GB dev GPU,
-where the cortex tier (gemma-12B) does not fit". The card holds the cortex.
+where the cortex tier (gemma-12B) does not fit". That card does hold the cortex.
 [ADR-0029](ADR-0029-vision-screen-capture.md) measured it resident there on 2026-07-17 at
 `-ngl 99 --ctx-size 4096 --parallel 1` beside its vision projector, which is the
 heavier configuration, and ran a real vision turn through the shipped adapter on 2026-07-18;
@@ -128,8 +130,8 @@ heavier configuration, and ran a real vision turn through the shipped adapter on
 8188 MiB. What that card cannot serve is the 16K production context this ADR names for the deployed cortex, and
 whether a summary keeps what the next turn needs can be judged well below 16K.
 
-**What this changes.** The blocker, not the decision. What actually holds the slice is stated in
-the same addendum and stands on its own: the cache-versus-recompute-per-turn question is undecided,
+**What this changes is the blocker; the decision stands.** What actually holds the slice is stated
+in the same addendum: the cache-versus-recompute-per-turn question is undecided,
 and `HistoryWindow.select` should widen together with the summarizer rather than land as an empty
 async layer. So this reopens on that design work. Corrected the same day in
 [docs/refinements/index.md#session-history](../refinements/index.md#session-history) and its
@@ -153,10 +155,10 @@ one full cortex generation on every turn, serialized ahead of the reply and so s
 time-to-first-token, against one per boundary move. It survives a swap by construction, being text
 in the store.
 
-**The lease discipline is a helper rather than a habit.** `drain_text` (`drain.py`) runs one model
+**The lease discipline now lives in a helper.** `drain_text` (`drain.py`) runs one model
 call and leaves the adapter's acquire block in a `finally`; `generate_title` moved onto it in the
 same change, so the "sequential acquire" this ADR's audit addendum described as the title
-generator's practice is now stated in one place a future selector can simply use.
+generator's practice is now implemented in one place a future selector can call.
 
 **What is still deferred, and it is implementation only:** the `SessionStore` summary verbs (port,
 fake, Redis adapter, contract test), a `SummarizingHistoryWindow`, the `async` widening of
@@ -185,9 +187,9 @@ summarizer safe to run on the turn's critical path, since every one of its failu
 the char-budget selection this ADR shipped, byte for byte.
 
 The `async` widening cost one `await` at one caller, as this ADR's audit predicted, plus the
-`session_id` the audit did not: a recap cached per session has to know which session it is
-windowing. `CORTEX_HISTORY_SUMMARY` is the knob and it is off by default, against a shipped window that
-could not answer a question the recap could. The cost first read as 11 s per boundary move; the
+`session_id` the audit did not: a recap cached per session is keyed by the session it is
+windowing. `CORTEX_HISTORY_SUMMARY` is the knob and it is off by default, even though the shipped
+char-budget window drops context the recap would keep. The cost first read as 11 s per boundary move; the
 re-run behind the fence found 14.5 s to 30.8 s typically and 224.5 s at worst, with the fact
 surviving five compounding folds 2 times in 3, which is why the default did not move
 ([ADR-0038](ADR-0038-ranked-recall.md) re-measured-behind-the-fence addendum).
@@ -212,17 +214,17 @@ cap and the thinking switch one decision are in
 
 ## Addendum (2026-08-08): the summarizing window's lease sequencing is measured, not argued
 
-Everything this ADR and its addenda say about the fold letting go of the GPU before the reply asks
-for it was a **sequencing argument**, re-derived from the call graph three times and never once
+Everything this ADR and its addenda say about the fold releasing the GPU lease before the reply
+acquires it was a **sequencing argument**, re-derived from the call graph three times and never once
 run against more than one stream. It has now been measured, in
 [ADR-0038's fold-under-load addendum](ADR-0038-ranked-recall.md), by
 `packages/orchestrator/tests/test_fold_under_load_live.py`: three `Converse` streams folding at
 once over the real cortex, with every acquisition of the lease timestamped at request, grant and
-release, and the run refusing to report anything unless the streams provably contended.
+release, and the run reporting nothing unless the streams provably contended.
 
 The argument held. No hold overlapped another, every stream's fold released before that stream's
 reply acquired, and no answer carried another session's facts. What the run adds to this ADR is
-the price, which the argument never claimed to know: a fold is one more thing every other stream's
+the price, which the argument did not predict: a fold is one more thing every other stream's
 reply queues behind, so time to first token went from 4.6 s alone to 10.3 s, 12.0 s and 17.5 s
 across three overlapping streams, and one reply waited 5.41 s behind two folds that were not its
 own. The seam's `select` contract is unchanged by any of it.

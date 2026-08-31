@@ -1,8 +1,7 @@
-"""Public core names for remembering and recalling, with the ranking that chooses what comes back.
+"""Public core names for remembering and recalling, and the ranking that selects what returns.
 
-One of the area sub-barrels the ``cortex_core`` barrel re-exports wholesale, so the
-import path for every name below stays ``cortex_core``. ``__all__`` is what that
-wildcard re-exports, and it is this file's contract.
+Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
+stays ``cortex_core``. ``__all__`` is this file's contract.
 """
 
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory

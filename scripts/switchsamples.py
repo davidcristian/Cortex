@@ -7,14 +7,14 @@ tier and judges nothing, for the reason the envelope harness's driver computes n
 a measurement publishes belongs in a gated file and not in an integration-marked driver no gate
 ever runs. `switchtail.py` is that file and this is what it reads with.
 
-**The strictness is the point, and it stands in for a suite that cannot exist.** Nothing red-greens
-the driver: it is integration-marked, so neither CI nor the coverage gate runs a line of it, and a
-field it quietly stopped writing would leave the rule next door reading a default and publishing a
-verdict about nothing. So every field is required by name, and a sample missing one, or spelling
-one differently, or carrying a count as a string, is a refusal naming the file and the key rather
-than a report with a hole in it.
+Every field is required by name, which stands in for a suite that cannot exist. Nothing runs the
+driver under a gate: it is integration-marked, so neither CI nor the coverage gate reads a line of
+it, and a field it stopped writing would leave `switchtail.py` reading a default and publishing
+a verdict about nothing. A sample missing a field, or naming one differently, or carrying a count
+as a string, therefore raises naming the file and the key rather than producing a report with a
+hole in it.
 
-**What a sample holds.** The `model` and `endpoint` the run was pointed at and the `ask` it really
+A sample holds the `model` and `endpoint` the run was pointed at and the `ask` it really
 sent, which is what a tail is found after; `renderings`, one prompt with the switch and one
 without; and `cells`, each one request shape drawn some number of times, carrying how many of those
 draws deliberated. Which cell is which is read off the sample's own `constrained` and `switch`
@@ -53,9 +53,8 @@ class Cell(NamedTuple):
         """The one line a cell is reported as, which is a different sentence per arm.
 
         Only the arm that sent the switch has a verdict about it. The other arm is the control,
-        whose whole job is to have deliberated, and printing "the switch does nothing" beside a
-        request that sent no switch would be this report's own contribution to the confusion it
-        exists to end.
+        whose job is to have deliberated, and printing "the switch does nothing" beside a request
+        that sent no switch would say something the run never measured.
         """
         sent = "switch" if self.switch else "no switch"
         if self.switch:
@@ -95,21 +94,21 @@ def _require(condition: bool, message: str) -> None:  # noqa: FBT001 -- a bare p
 
 
 def _text(source: dict[str, object], key: str, where: Path) -> str:
-    """One string field of a sample, or a refusal naming the file and the key."""
+    """One string field of a sample; raises naming the file and the key when it is absent."""
     value = source.get(key)
     _require(isinstance(value, str), f"{where}: {key} is missing or is not a string")
     return cast("str", value)
 
 
 def _flag(source: dict[str, object], key: str, where: Path) -> bool:
-    """One boolean field of a sample, or a refusal naming the file and the key."""
+    """One boolean field of a sample; raises naming the file and the key when it is absent."""
     value = source.get(key)
     _require(isinstance(value, bool), f"{where}: {key} is missing or is not a boolean")
     return cast("bool", value)
 
 
 def _count(source: dict[str, object], key: str, where: Path) -> int:
-    """One count field of a sample, or a refusal naming the file and the key."""
+    """One count field of a sample; raises naming the file and the key when it is absent."""
     value = source.get(key)
     _require(
         isinstance(value, int) and not isinstance(value, bool) and value >= 0,
@@ -119,7 +118,7 @@ def _count(source: dict[str, object], key: str, where: Path) -> int:
 
 
 def _rows(sample: dict[str, object], key: str, where: Path) -> list[dict[str, object]]:
-    """One non-empty list of objects out of a sample, or a refusal naming the file and the key."""
+    """One non-empty list of objects out of a sample; raises naming the file and the key."""
     rows = sample.get(key)
     _require(isinstance(rows, list), f"{where}: {key} is missing or is not a list")
     entries = cast("list[object]", rows)
@@ -130,7 +129,7 @@ def _rows(sample: dict[str, object], key: str, where: Path) -> list[dict[str, ob
 
 
 def load(path: Path) -> Probe:
-    """Read one tier's sample file, refusing anything it cannot read as a run of the probe."""
+    """Read one tier's sample file, raising on anything it cannot read as a run of the probe."""
     try:
         parsed: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as err:

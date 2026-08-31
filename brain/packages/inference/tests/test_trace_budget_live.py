@@ -1,4 +1,4 @@
-"""Integration: does this deployment's engine read a per-request trace budget, and does it hold?
+"""Integration: measure whether this engine reads a per-request trace budget, and whether it holds.
 
 `GenerationBounds(trace_tokens=N)` renders as llama.cpp's `reasoning_budget_tokens` and is the
 half of the thinking lever that a request shape cannot overrule (ADR-0005 request-lever addendum).
@@ -42,7 +42,7 @@ pick: those draws spent the whole cap on a trace nobody reads and returned nothi
 the repair. The middle row's own 4 draws in 25 that held are the reason this file asserts nothing
 about it.
 
-**The leak, which is the last row's own residue.** Forcing the end of a thought lands after its
+**The leak the last row leaves behind.** Forcing the end of a thought lands after its
 start sequence, so what the model had written of the tag can survive into the answer. One draw of
 the last row returned `{"reply": "thought"}`: a whole, valid envelope whose entire answer is the
 channel name the forcing landed inside of. Across every budgeted draw of that session it is **1
@@ -86,7 +86,7 @@ _MODEL = os.environ.get("CORTEX_TRACE_MODEL", "cortex")
 # all, and a cap tight enough to cut one leaves every cell looking the same.
 _CAP = int(os.environ.get("CORTEX_TRACE_MAX_TOKENS", "256"))
 # How many draws the budgeted cell is. One by default so the command above answers in a coffee
-# break; anything quoted as a tier's behaviour is drawn five or more, and the leak count wants
+# break; anything quoted as a tier's behaviour is drawn five or more, and the leak count needs
 # twenty, being a rate rather than a verdict.
 _REPEATS = int(os.environ.get("CORTEX_TRACE_REPEATS", "1"))
 
@@ -153,7 +153,7 @@ class _Draw:
 
 
 async def _draw(backend: LlamaCppBackend, bounds: GenerationBounds) -> _Draw:
-    """One constrained completion through the shipped adapter, both halves counted."""
+    """Run one constrained completion through the shipped adapter, counting both halves."""
     drawn = _Draw()
     messages = [Message(role=Role.USER, text=_ASK, at=datetime.now(UTC), turn_id="t-trace")]
     started = time.monotonic()
@@ -172,13 +172,13 @@ async def _draw(backend: LlamaCppBackend, bounds: GenerationBounds) -> _Draw:
 
 
 async def _arm(backend: LlamaCppBackend, label: str, bounds: GenerationBounds) -> list[_Draw]:
-    """One cell, drawn ``_REPEATS`` times, printed as it goes."""
+    """Draw one cell ``_REPEATS`` times, printing each draw as it lands."""
     print(f"{label}, {_REPEATS} draws:")  # noqa: T201
     return [await _draw(backend, bounds) for _ in range(_REPEATS)]
 
 
 def _verdict(label: str, draws: list[_Draw]) -> None:
-    """What a cell did, in the two counts this file exists to report."""
+    """Print what a cell did, in the two counts this file exists to report."""
     thought = sum(1 for drawn in draws if drawn.deliberated)
     leaked = sum(1 for drawn in draws if drawn.leaked)
     print(  # noqa: T201
@@ -188,7 +188,7 @@ def _verdict(label: str, draws: list[_Draw]) -> None:
 
 
 async def test_a_per_request_trace_budget_reaches_the_shape_the_switch_loses() -> None:
-    """The capability read, then three cells of one request shape, through the shipped adapter.
+    """Read the capability, then draw three cells of one request shape through the adapter.
 
     **Only the first cell is asserted, and it is the one that must fire.** A request carrying
     neither lever has to deliberate on every draw, or this prompt invites no thought on this tier
@@ -199,7 +199,7 @@ async def test_a_per_request_trace_budget_reaches_the_shape_the_switch_loses() -
     The middle cell is the defect and **it is not asserted on purpose**, which the first version
     of this file got wrong by treating it as the control: the switch is a coin toss on the pick
     this was written against, holding on 3 draws in 20, so a run that demanded it fail every time
-    would fail on the tier it was measuring. What a coin toss owes a reader is a rate.
+    would fail on the tier it was measuring. The cell is therefore reported as a rate.
     """
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         lever = await reads_a_trace_budget(_ENDPOINT, _MODEL, client)

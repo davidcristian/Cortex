@@ -1,11 +1,11 @@
-"""Read the bind mounts a compose file declares, refusing every entry it cannot classify.
+"""Read the bind mounts a compose file declares, raising on every entry it cannot classify.
 
-Split out of `bindcheck.py`, which owns the rule; this module owns only the reading. It is a
-line reader rather than a YAML parse, because these gates are stdlib-only (`pyproject.toml`
-in this directory), and it stays honest about that by refusing anything outside the shapes it
-knows: an inline `volumes: [...]`, a mount with no `type`, a type it has never heard of, a
-short-syntax entry carrying an expansion. Each is raised, never skipped, because a reader that
-quietly walks past the one mount a new override adds is a gate that cannot fail.
+Split out of `bindcheck.py`, which owns the rule; this module owns only the reading. It is a line
+reader rather than a YAML parse, because these gates are stdlib-only (`pyproject.toml` in this
+directory), and it raises on anything outside the shapes it was taught: an inline
+`volumes: [...]`, a mount with no `type`, an unlisted type, and a short-syntax entry carrying an
+expansion. Each raises rather than being skipped, because a reader that walked past the one mount a
+new override adds would leave the gate unable to fail.
 
 The one YAML rule it leans on is that a mapping needs a space after its colon. That is exactly
 what tells `type: bind` (a mapping, so the long syntax) from `redis-data:/data` (a scalar, so
@@ -40,7 +40,7 @@ _MAPPING = re.compile(r"^(?P<key>[A-Za-z_][\w.-]*):(?:[ \t]+(?P<value>.*))?$")
 
 
 class ComposeReadError(Exception):
-    """A compose file carries a mount entry this reader will not guess at."""
+    """A compose file carries a mount entry this reader cannot classify."""
 
 
 class Mount(NamedTuple):
