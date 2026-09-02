@@ -124,7 +124,10 @@ def _judged(probe: Probe, plain: str, lines: list[str]) -> Cell | None:
 
 def read(probe: Probe) -> tuple[list[str], int]:
     """One tier's report and exit code: the rendering, the cells, then the rule over both."""
-    lines = [f"{probe.path}: {probe.model} at {probe.endpoint}"]
+    lines = [
+        f"{probe.path}: {probe.model} at {probe.endpoint}",
+        f"  served on {probe.build_info} from {probe.model_path}",
+    ]
     found = _tails(probe, lines)
     if found is None:
         return lines, 1

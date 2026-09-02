@@ -46,6 +46,8 @@ class Probe(NamedTuple):
     path: Path
     model: str
     endpoint: str
+    build_info: str
+    model_path: str
     ask: str
     plain: str
     switched: str
@@ -124,6 +126,8 @@ def load(path: Path) -> Probe:
         path=path,
         model=_text(sample, "model", path),
         endpoint=_text(sample, "endpoint", path),
+        build_info=_text(sample, "build_info", path),
+        model_path=_text(sample, "model_path", path),
         ask=_text(sample, "ask", path),
         plain=rendered[False],
         switched=rendered[True],

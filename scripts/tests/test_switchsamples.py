@@ -10,6 +10,9 @@ from switchsamples import Cell, ProbeError, load
 # The ask a run records sending, shortened here. What matters to this reader is that the same
 # string appears in both renderings, since the tail is what follows the last of it.
 ASK = "What does each of them pay?"
+# What the server this format was validated against reported of itself on `GET /props`.
+BUILD = "b10680-d7bd3bfca"
+MODEL_PATH = "/models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf"
 # The two chat-template families in ADR-0004's lineup, as they rendered on `b10666-4e97ac86e`.
 NATIVE_OPEN = f"<|im_start|>user\n{ASK}<|im_end|>\n<|im_start|>assistant\n<think>\n"
 NATIVE_SHUT = f"<|im_start|>user\n{ASK}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
@@ -25,6 +28,8 @@ def sample(
     written: dict[str, object] = {
         "model": "cortex",
         "endpoint": "http://127.0.0.1:8080",
+        "build_info": BUILD,
+        "model_path": MODEL_PATH,
         "cap": 256,
         "ask": ASK,
         "renderings": [
@@ -55,6 +60,7 @@ def rewrite(path: Path, key: str, value: object) -> Path:
 def test_a_sample_is_read_as_the_run_that_wrote_it(tmp_path: Path) -> None:
     probe = load(sample(tmp_path / "switch-cortex.json"))
     assert (probe.model, probe.endpoint, probe.ask) == ("cortex", "http://127.0.0.1:8080", ASK)
+    assert (probe.build_info, probe.model_path) == (BUILD, MODEL_PATH)
     assert probe.prompt(switch=False) == NATIVE_OPEN
     assert probe.prompt(switch=True) == NATIVE_SHUT
     assert [cell.shape for cell in probe.cells] == ["plain", "plain"]
@@ -144,7 +150,7 @@ def test_a_sample_that_is_not_an_object_is_refused(tmp_path: Path) -> None:
         load(path)
 
 
-@pytest.mark.parametrize("key", ["model", "endpoint", "ask"])
+@pytest.mark.parametrize("key", ["model", "endpoint", "build_info", "model_path", "ask"])
 def test_a_missing_string_field_is_refused_by_its_own_name(tmp_path: Path, key: str) -> None:
     """A field that is missing or is not a string raises under its own name. The driver that writes
     these samples has no suite of its own, so a field it stopped writing has to fail here rather

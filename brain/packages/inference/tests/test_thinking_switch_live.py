@@ -125,6 +125,32 @@ async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, swi
     return prompt
 
 
+@dataclass(frozen=True)
+class _Server:
+    """What the server said of itself on ``GET /props``: the engine build and the file it loaded."""
+
+    build_info: str
+    model_path: str
+
+
+async def _served(client: httpx.AsyncClient) -> _Server:
+    """Read which engine build and which model file are answering, once, before anything runs."""
+    response = await client.get(f"{_ENDPOINT}/props")
+    response.raise_for_status()
+    props: dict[str, object] = response.json()
+    build_info, model_path = props.get("build_info"), props.get("model_path")
+    assert isinstance(build_info, str), (
+        f"GET /props at {_ENDPOINT} names no build_info, so this run cannot say which engine "
+        f"build served it: {sorted(props)}"
+    )
+    assert isinstance(model_path, str), (
+        f"GET /props at {_ENDPOINT} names no model_path, so this run cannot say which file "
+        f"served it: {sorted(props)}"
+    )
+    print(f"server    {build_info} serving {model_path}")  # noqa: T201
+    return _Server(build_info, model_path)
+
+
 async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
     """Read what the template makes of the four request shapes, before any token is decoded."""
     for switch in (False, True):
@@ -147,13 +173,17 @@ async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
     return {False: plain, True: switched}
 
 
-def _write(prompts: dict[bool, str], draws: dict[tuple[str, bool], list[_Cell]]) -> Path:
-    """Record this run as one sample: what was rendered, and what each cell then did."""
+def _write(
+    server: _Server, prompts: dict[bool, str], draws: dict[tuple[str, bool], list[_Cell]]
+) -> Path:
+    """Record this run as one sample: what served it, what was rendered, and what each cell did."""
     _OUT.mkdir(parents=True, exist_ok=True)
     path = _OUT / f"switch-{_MODEL}{_TAG}.json"
     sample = {
         "model": _MODEL,
         "endpoint": _ENDPOINT,
+        "build_info": server.build_info,
+        "model_path": server.model_path,
         "cap": _CAP,
         "ask": _ASK,
         "renderings": [{"switch": switch, "prompt": prompt} for switch, prompt in prompts.items()],
@@ -180,6 +210,7 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
     )
     draws: dict[tuple[str, bool], list[_Cell]] = {}
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
+        server = await _served(client)
         prompts = await _read_prompts(client)
         for shape, schema in _SHAPES:
             for switch in (False, True):
@@ -189,7 +220,7 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
     # Written before the assertions below, so a run that trips one still leaves the sample it
     # measured. Resolved rather than as written: `_OUT` is read relative to `brain/` and the line
     # below is pasted into a shell that is somewhere else.
-    written = _write(prompts, draws).resolve()
+    written = _write(server, prompts, draws).resolve()
     print(  # noqa: T201 -- the report IS the measurement
         f"\nwrote one sample: {written}\n"
         "  the rendering above predicts the constrained cell, and nothing here checks it:\n"
