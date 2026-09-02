@@ -21,7 +21,10 @@ source of audited, model-callable tools.
     it rides beside the content blocks, so the model-facing text is untouched, and the core's
     `claimed_source` is the trust gate, admitting only a sanitized, claimed SENDER/URI and dropping
     an attested kind a hostile sidecar might forge (ADR-0027 sidecar addendum). The key is a
-    cross-deployable wire contract with the standalone email sidecar, which writes the same shape.
+    cross-deployable wire contract with the standalone email sidecar, which writes the same shape,
+    and `crosscheck.py` holds the two bindings equal, each module's spend of the key to its own
+    binding, and this contract's quotation of it (`scripts/emailcouplings.py`, ADR-0029
+    declared-source-key addendum).
 - `streamable_http_session(url)` is an `@asynccontextmanager` opening a **structured, same-task**
   streamable-http MCP session (`streamable_http_client` + `ClientSession` + `initialize`), yielded
   for the scope of one `async with`. Replaces the old `connect` classmethod, which held the

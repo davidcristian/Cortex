@@ -31,7 +31,9 @@ to the order the tuple reads them in:
 - `subagentcouplings` ties the subagent tier's admission budgets to the container limits that are
   their hard twins.
 - `modelhostcouplings` ties the model-host sidecar's tier settings to the override that ships them.
-- `emailcouplings` ties the email sidecar's shipped answers to the override that spells them again.
+- `emailcouplings` ties the email sidecar's shipped answers to the override that spells them again,
+  and what the sidecar writes for the brain, its four own texts and the key it declares a sender
+  under, to the brain package that restates or reads it.
 - `fixturecouplings` ties a stack built to be measured against to the suite that measures it, the
   only part whose subject the repo does not ship.
 - `overlaycouplings` ties the overlay's TypeScript to the stylesheet that spends what it declares.

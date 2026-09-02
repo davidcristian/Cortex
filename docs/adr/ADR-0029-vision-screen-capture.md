@@ -7210,3 +7210,63 @@ the space-joined run passes it, because both of that entry's sites are runs and 
 joiner defect is visible only to the reducer's suite and never to the registry, which is why that
 suite carries the table rather than the gate's own run. The registry grew by four entries, six
 sites and six mentions.
+
+## Addendum (2026-09-02): the declared-source key is held between two brain packages, and the kind word beside it is not
+
+The addendum above made the source key
+[R-531](../refinements/tasks/531-the-source-declaration-key-is-spelled-twice-unheld.md) describes
+registrable, and this records registering it. Re-derived first, every claim in the entry held:
+`_SOURCE_META_KEY = "cortex/source"` is bound at column 0 in `cortex_tools/registry.py` and again
+in `cortex_email/server.py`, each under a comment calling it a wire contract; nothing under
+`scripts/` named either binding; `_declared_source` returns `None` for an absent key;
+`TaintLedger.note_source` records nothing for `None`; and no consumer of the claimed `SENDER` kind
+exists outside `provenance.py`. The cost the entry named was right too: a rename on one side would
+have every `read_email` arrive without its sender and nothing fail.
+
+**One entry in `emailcouplings.py`, two sites, four mentions.** The part is the one whose subject
+the own-text build already widened to what the sidecar writes for the brain, and the entry's
+reason names the sidecar's own tool, so it files there rather than under `seamcouplings.py`, whose
+subject is the language boundary. The two bindings are the sites, on two seam sides under the rule
+above (`tools` and `email`). Each module's one spend of the key is a mention rendering the name,
+`meta.get(_SOURCE_META_KEY)` in the registry and `{_SOURCE_META_KEY: {` in the server, held for
+the reason the log part holds a call to its binding: a read or a write rewritten around the
+binding leaves both sites agreeing on a key neither module uses, and only the spend sees it. The
+two module contracts quote the binding and the key together in one shape, the name in a code span
+followed by the quoted key, and are held to it. Neither suite's pin of the literal is registered
+(`test_registry.py`, `test_own_text_contract.py`, `test_email_server.py`): a pin fails on its own
+under a one-sided rename, and a rename that carries its pin along is what the two sites catch, so a
+mention there would be a third reading of a fact two already settle.
+
+**The kind word is a second unheld wire value, and it has no site.** `_sender_source` writes
+`"kind": "sender"` as a bare literal, and the brain admits it through `_DECLARABLE_KINDS`, which
+is built from `SourceKind`'s own members, so the brain's only spelling of `sender` is the enum
+member `SENDER = "sender"`, indented inside the class. The Python declaration syntax is anchored
+at column 0 so a name bound inside a function is never read as a second declaration, and that
+anchor cannot capture an enum member; a `Constant` needs a declaring site, and neither side has
+one. A renamed enum value alone would have `claimed_source` return `None` for every `read_email`,
+the same silence the key's entry named, so it is filed rather than left, as
+[R-534](../refinements/tasks/534-the-declared-kind-word-has-no-site-to-hold-it.md), with the two
+roads named there: a module-level binding in the server as the site with a mention on the enum
+member, or an indented class-level form in the declaration syntax.
+
+**The riskiest assumption is that the two spend needles pin shape the formatter will keep.** Each
+carries the characters around the name, `meta.get(` and `: {`, so a reformat of `_sender_source`'s
+return across several lines would leave the server needle unfound and fail the gate on a change
+that moved no value. That is the cost every shape-carrying mention here already pays, and the
+fault the gate prints says the needle renders no value, so the whole of it is shape, which points
+the reader at the registry rather than at the key.
+
+**Proved able to fail, on the tree.** Five mutations, each restored from a saved copy: (1) the
+server's value re-spelled `cortex/src`; (2) the registry's binding renamed together with its use;
+(3) the registry reading the literal with its binding left in place; (4) the server writing the
+literal with its binding left in place; (5) the tools contract quoting `cortex/src`. The live gate
+over the real tree (84 entries, 97 sites, 276 mentions, 24 counted) fails on each: (1) naming both
+files with both readings, (2) naming the registry as declaring no such binding, (3) and (4) naming
+the module whose spend no longer renders and the line its run stops on, (5) naming the contract
+and reporting that it no longer spells the key as a token of its own. Scripts suite
+(`test_values.py` and `test_crosscheck.py`, 280 tests): 7 red on (1), (3), (4) and (5), the tests
+that read the real tree; 10 red on (2), the same seven plus the three form-coverage cases that
+read every registered site. Five mutations, five red in both. The registry grew by one entry, two
+sites and four mentions. The module contract's sentence saying the suite refused an entry whose
+places were "all one language" was corrected to the language-and-package rule, this entry being
+the second to rest on it.

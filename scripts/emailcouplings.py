@@ -1,4 +1,4 @@
-"""The couplings around the email sidecar's shipped answers: two hatches, a switch, four texts.
+"""The couplings around the email sidecar's answers: two hatches, a switch, four texts and a key.
 
 One of the data files `crosscheck.py` reads as a single registry, added the way `registry.py` was
 built to take one: a data file plus one line there, with nothing in the scan naming the registry's
@@ -9,6 +9,17 @@ a message, which the brain restates in `cortex_orchestrator/own_texts.py` and re
 on byte equality. The sidecar cannot import the core and the brain does not import the sidecar,
 so the restatement is held here the way a cross-language constant is: a rewording on either side
 alone fails this gate rather than silently landing that answer on the tainting side.
+
+The key `read_email` declares a message's sender under is held here on the same argument. The
+sidecar writes `_meta["cortex/source"]` and the brain's tool registry reads it, each binding the
+key as `_SOURCE_META_KEY` under a comment calling it a wire contract, and a rename on either side
+alone would have every message arrive without its sender while nothing failed, since an absent
+key reads as no declaration by design. The entry holds the two bindings equal, holds each module's
+one spend of the key to its own binding, so a read or a write that stops going through the
+binding is caught with the binding still in place, and holds the two module contracts that quote
+the binding and the key together. Neither suite's pin of the literal is registered: a pin fails
+on its own under a one-sided rename, and a rename that carries its pin along is what the two
+sites catch (ADR-0029 declared-source-key addendum).
 
 Each of the three is off for a safety reason rather than a tuning one: two are the TLS escape
 hatches that accept a self-signed certificate on loopback, and the third is the write capability
@@ -27,9 +38,16 @@ from couplings import Constant, Mention, Site, Spelling
 EMAIL_COMPOSE = "docker/docker-compose.email.yml"
 EMAIL_CONFIG = "brain/packages/email/src/cortex_email/config.py"
 EMAIL_ERRORS = "brain/packages/email/src/cortex_email/errors.py"
+EMAIL_MODULE = "docs/modules/brain-email.md"
 EMAIL_SERVER = "brain/packages/email/src/cortex_email/server.py"
 EMAIL_VALUES = "brain/packages/email/src/cortex_email/values.py"
 OWN_TEXTS = "brain/packages/orchestrator/src/cortex_orchestrator/own_texts.py"
+TOOLS_MODULE = "docs/modules/brain-tools.md"
+TOOLS_REGISTRY = "brain/packages/tools/src/cortex_tools/registry.py"
+
+# The binding both modules declare the declared-source key under, spelled once because the entry
+# names it at both sites and at each module's spend of its own binding.
+SOURCE_KEY = "_SOURCE_META_KEY"
 
 # The shape both refusals are rendered in, the sentence followed by the repr of the argument the
 # brain sent, pinned where the sidecar composes it and where the brain renders its expectation. A
@@ -90,6 +108,28 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
         ),
         sites=(Site(OWN_TEXTS, "NOT_FOUND"),),
         mentions=(Mention(EMAIL_SERVER, '_one_text(f"{value}")'),),
+    ),
+    Constant(
+        label="the key a sidecar declares a content source under",
+        why=(
+            "read_email declares the message sender under this result _meta key and the brain's "
+            "tool registry reads the same key into the turn's provenance, each binding it as a "
+            "wire contract because the sidecar cannot import the core, so a rename on either side "
+            "alone would have every message arrive without its sender and nothing fail, an absent "
+            "key reading as no declaration by design (ADR-0027 sidecar addendum)"
+        ),
+        sites=(Site(TOOLS_REGISTRY, SOURCE_KEY), Site(EMAIL_SERVER, SOURCE_KEY)),
+        mentions=(
+            # Each module's one spend of the key, held to its own binding: a read or a write that
+            # stopped going through the binding would leave both sites agreeing on a key neither
+            # module used. The second template is a plain string, so its doubled brace is the
+            # dict's own brace followed by the name placeholder.
+            Mention(TOOLS_REGISTRY, "meta.get({name})", name=SOURCE_KEY),
+            Mention(EMAIL_SERVER, "{{name}: {", name=SOURCE_KEY),
+            # Both module contracts quote the binding and the key together, in this one shape.
+            Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
+            Mention(EMAIL_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
+        ),
     ),
     Constant(
         label="whether the TLS escape hatches ship open",

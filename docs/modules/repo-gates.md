@@ -142,7 +142,9 @@ held in one place for the same reason.
   needle whose value is the budget's count and whose shape is the two flag names around it; the model-host tier settings
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells
-  each again; a stack built to be measured against and the suite that measures it, the one subject
+  each again, with the four texts it composes without reading a message and the `_meta` key it
+  declares a sender under, each held to the brain package that restates or reads it; a stack
+  built to be measured against and the suite that measures it, the one subject
   the repo does not ship; the overlay's TypeScript against its own stylesheet; the brain's log
   vocabulary, the one name each work identity is written under, against every line that spells it
   and every runbook that tells an operator to grep it, the first of the two parts whose subject
@@ -1288,10 +1290,14 @@ held in one place for the same reason.
   together rather than off any naming, a message having no `_LOGGER_NAME` to be found under
   (ADR-0009 held-call addendum). Registering a constant in a language
   `DECLARATIONS` does not know, or a mention whose template renders nothing the registry fills, or
-  one whose name and whose `{name}` do not both appear, or an entry whose places are all one
-  language, is refused by that suite too. It used to refuse an entry
+  one whose name and whose `{name}` do not both appear, or an entry whose places are all on one
+  side of a seam, a side being a language together with the brain package under
+  `brain/packages/<name>/`, is refused by that suite too. It used to refuse an entry
   confined to one top-level tree; the overlay and its stylesheet are one tree and two languages,
-  so suffix replaced tree when mentions landed. Two more invariants guard the widening itself: the
+  so suffix replaced tree when mentions landed; then the email sidecar's own texts and its
+  declared-source key, each held between two brain packages that cannot import each other, put
+  the package beside the suffix (ADR-0029 run addendum). Two more invariants guard the widening
+  itself: the
   registry must exercise every `Relation` member and both kinds of place, since a comparator no
   entry uses is a gate that cannot fail. `test_the_registry_pins_at_least_one_occurrence_count`
   and `test_the_registry_spends_at_least_one_rendered_name` hold the two newest fields to the same

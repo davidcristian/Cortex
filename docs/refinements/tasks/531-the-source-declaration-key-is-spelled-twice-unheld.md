@@ -1,6 +1,6 @@
 # The source declaration key is spelled in two trees and no gate holds them equal
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -25,3 +25,9 @@ whichever the reducer reads a string binding as. Then the mutation: rename one s
 
 - 2026-09-02: opened by the close of [319](319-a-refusal-taints-the-turn.md), whose addendum
   cites this key as the restatement pattern the own-text build follows and found it unheld.
+- 2026-09-02: landed as one entry in `scripts/emailcouplings.py`, recorded in the ADR-0029
+  declared-source-key addendum. Every claim above held on re-derivation. The two bindings are
+  the sites, each module's one spend of its own binding and the two module contracts that quote
+  the key are the mentions, and the live gate fails naming both files when either side is
+  re-spelled. The kind word `sender` beside the key has no declaring site on either side and is
+  filed as [534](534-the-declared-kind-word-has-no-site-to-hold-it.md).

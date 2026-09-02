@@ -173,7 +173,11 @@ denied outright.
   `_meta` rides beside the text, so the model-facing content is unchanged; the brain's tool
   registry reads the key and decides trust (a claimed, sanitized source, never a label). This is
   the producer half of the sidecar declaration channel (ADR-0027 sidecar addendum), a
-  cross-deployable wire contract with `cortex_tools` that this standalone sidecar cannot import.
+  cross-deployable wire contract with `cortex_tools` that this standalone sidecar cannot import;
+  `crosscheck.py` holds this module's binding of the key equal to `cortex_tools`'s, each module's
+  spend of the key to its own binding, and both contracts' quotation of it
+  (`scripts/emailcouplings.py`). The kind word `sender` beside the key is not held, since neither
+  side declares it at module level (R-534).
   Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
   builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
   the server over streamable-http (`python -m cortex_email`).
