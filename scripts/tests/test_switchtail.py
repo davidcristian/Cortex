@@ -270,7 +270,8 @@ def test_a_sample_with_no_constrained_pair_publishes_nothing(tmp_path: Path) -> 
 
 def test_a_control_that_did_not_deliberate_publishes_nothing(tmp_path: Path) -> None:
     """With nothing for the switch to stop, a tier that honours it and one that ignores it look
-    the same, so the verdict is not published."""
+    the same, so the verdict is not published. The unswitched tail here opens the thought, so the
+    prompt is what the refusal names, and the switched tail, which closes it, is not consulted."""
     printed, code = report(
         sample(
             tmp_path / "s.json",
@@ -281,6 +282,57 @@ def test_a_control_that_did_not_deliberate_publishes_nothing(tmp_path: Path) -> 
         )
     )
     assert "the control deliberated on 4 of 5 draws" in printed
+    assert "invites no thought here" in printed
+    assert "renders the thought closed" not in printed
+    assert code == 1
+
+
+def test_a_control_under_a_tail_the_template_closed_names_the_template(tmp_path: Path) -> None:
+    """A template that renders the thought closed with the key left alone leaves the control no
+    thought to deliberate in. The tail says so in a marker this reader lists, so the refusal names
+    the template rather than blaming the prompt."""
+    printed, code = report(
+        sample(
+            tmp_path / "s.json",
+            plain=NATIVE_SHUT,
+            switched=NATIVE_SHUT,
+            cells=[
+                cell(constrained=True, switch=False),
+                cell(constrained=True, switch=True),
+            ],
+        )
+    )
+    assert "the control deliberated on 0 of 5 draws" in printed
+    assert "renders the thought closed with the key left alone" in printed
+    assert "invites no thought" not in printed
+    assert code == 1
+
+
+@pytest.mark.parametrize(
+    ("plain", "switched"), [(THIRD_SHUT, THIRD_SHUT), (GEMMA_OPEN, GEMMA_SWITCHED)]
+)
+def test_a_control_under_an_unmarked_tail_names_both_readings(
+    tmp_path: Path, plain: str, switched: str
+) -> None:
+    """An unmarked tail the key left alone is two templates: the failing pick's, which opens the
+    thought with a system turn at the front, and one closing its thought with a marker this reader
+    does not list, rendered the same both ways so the tail comparison passes it. The refusal names
+    both, since the tail alone cannot separate them, and it is the only line that can."""
+    printed, code = report(
+        sample(
+            tmp_path / "s.json",
+            plain=plain,
+            switched=switched,
+            cells=[
+                cell(constrained=True, switch=False),
+                cell(constrained=True, switch=True),
+            ],
+        )
+    )
+    assert "unrecognized format" not in printed
+    assert "the control deliberated on 0 of 5 draws" in printed
+    assert "a marker this reader does not list" in printed
+    assert "invites no thought on this tier" in printed
     assert code == 1
 
 

@@ -3356,3 +3356,116 @@ tests/test_switchtail.py tests/test_switchsamples.py`):
 The two rows sharing 3 failed are not a revert loop: both break the failing pick, so both fail the
 same three gemma tests, the front-of-prompt trap, the tail read as open, and the open tail refused
 beside a cell that held.
+
+## Quiet-control addendum (2026-09-02): a control that did not fire is read off the unswitched tail
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md](../refinements/tasks/517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md),
+opened by the third-spelling addendum above. Opens
+[R-524](../refinements/tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md).
+It changes one covered module and one assertion message in the integration-marked probe, no
+shipped code and no pick.
+
+### Re-derived first, and the entry is right about the case and short by one place
+
+The entry says a template that renders one identical tail both ways and closes its thought with a
+marker `scripts/switchtail.py` does not list is read as an open thought, and that the run then
+refuses on the control arm in the wrong words. Both halves hold on the file. `_tails` passes an
+unmarked switched tail that equals the unswitched one, `closes` answers `-1 > -1` on a tail with no
+listed marker, the report prints `leaves the thought OPEN`, and the control that had no open
+thought to fill fails its floor, at which point `_judged` printed "this prompt invites no thought
+here and the switch stopped nothing".
+
+Where the entry is short is the count of places. The probe asserts the same control before the
+reader is ever run (`assert not quiet` in `test_thinking_switch_live.py`), in the same words, and
+because the sample is written before that assertion, an operator meets the wrong sentence on the
+red run first and then again on `just switch-tail`. And there is a wider case the entry did not
+name, which the reader could see outright and did not say: a template that renders the thought
+closed in a **listed** marker with the key left alone. There `closes` on the unswitched tail
+answers true, the report prints `closes the thought` on the no-switch line, and the refusal one
+line later still blamed the prompt. That is a verdict withheld, where the entry's case is a hint
+missing, and the same change supplies both.
+
+### What the mount says
+
+Read 2026-09-02 by the agent off the GGUF headers at `/mnt/ai/Models`, a struct walk over each
+file's key-value block for `tokenizer.chat_template`, with no server started. Every ADR-0004 chat
+entry is on the mount, plus two Qwen3.8 entries that are not in the lineup; the five nomic
+embedder files carry no template and are not counted.
+
+| family | files | markers the template writes | switch keys it reads | tail with the key absent |
+| --- | --- | --- | --- | --- |
+| gemma-4: 12B, 31B, 26B-A4B, E2B, E4B | 5 | `<\|channel>thought`, `<channel\|>`, `<\|think\|>` | `enable_thinking`, `thinking` | no marker, thought open |
+| Qwen3.5: 0.8B (two quants), 2B, 4B, 9B (two quants); Qwen3.6: 27B, 35B-A3B (two quants) | 9 | `<think>`, `</think>` | `enable_thinking` | `<think>\n`, thought open |
+| Qwen3.8: 27B (two quants), Flash-Next, outside the lineup | 3 | `<think>`, `</think>` | `enable_thinking`, `reasoning_effort`, `thinking` | `<think>\n`, thought open |
+
+Seventeen chat model files, two marker pairs, and every one of them leaves the thought open when
+the key is absent; the Qwen templates append `<think>\n\n</think>\n\n` only when `enable_thinking`
+is defined and false, the Qwen3.8 ones under the same branch with two more keys around it. So no
+pick in the lineup, and no file the next pick would be drawn from, has this entry's shape, and the
+first close the entry named, a third pair in `MARKERS`, has nothing to be drawn from. A marker
+typed against no template would be the guess the entry's parent warned against.
+
+### Decision
+
+1. **The control refusal is worded off the unswitched tail.** `unfired` reads the tail rendered
+   with the key left alone, which `_tails` already reads and prints on every run, and returns one
+   of three sentences. A tail closed in a listed marker names the template: it renders the thought
+   closed with the key left alone, so this run says nothing about the switch on this tier, which is
+   a verdict. A tail open in a listed marker keeps the old sentence, the prompt invites no thought
+   here, now earned, since the thought stood open and no draw used it. An unmarked tail names both
+   readings the tail alone cannot separate, the prompt inviting no thought and a thought closed
+   with a marker this reader does not list, because the failing pick's answer to the key is a
+   system turn at the front and a third format's closing marker at the tail read the same from
+   there.
+2. **The unmarked side is a hint and is worded as one.** On the failing pick a control that does
+   not fire now prints the third-format possibility beside the prompt reading, with the tail on
+   the page above it, and a reader spends the same ten seconds and finds no closing marker there.
+   Nothing is published either way; the refusal is about which sentence stands beside the exit.
+3. **The probe's own assertion points at the reader.** The `assert not quiet` message no longer
+   says the prompt invites no thought. It says the run measures nothing about the switch, names
+   both readings, and prints the `just switch-tail` line for the sample it has already written,
+   which is where the vocabulary lives and stays (decision 3 of the rendered-tail addendum). The
+   message was not raised against a server; pyright holds its one name, `written`, to the binding
+   above the loop that raises it, and no gate runs the file.
+4. **`_tails` returns the two tails rather than a verdict**, and `read` derives `closes` on the
+   switched one and hands the unswitched one to `_judged`. That is the whole structural change,
+   and it is what lets the refusal read a tail without rendering the prompt a second time.
+5. **No third pair is added, and no server was started.** The mount answers the lineup question
+   without a rendering, and the rendering column stands on `/apply-template` as before; nothing
+   here moves a row of it.
+
+### What this does not do, and where that is recorded
+
+- **The vocabulary is still two pairs typed by hand, held to nothing.** The templates that write
+  them are readable off the model files without a server, which is how the table above was taken,
+  so `MARKERS` could be a recorded answer re-derived by a hand-run recipe, the shape
+  `imagevolumes.py` takes.
+  [R-524](../refinements/tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md).
+- **A third format rendered identically both ways whose control fires anyway is still read as
+  open** and refused as a broken prediction in the record's words, the control refusal never being
+  reached. That needs the model to open a thought of its own after the prompt closed one, and it
+  needs the pair; it is named in R-524 as the second residue the pair would close.
+- **Nine rows of the rendering column are still hand readings**, untouched by this addendum.
+  [R-510](../refinements/tasks/510-nine-rows-of-the-rendering-column-are-hand-read.md).
+
+### Distrust green
+
+Mutations of `scripts/switchtail.py`, each restored from a saved copy, run against
+**`scripts/tests/test_switchtail.py` and `scripts/tests/test_switchsamples.py` together, the
+54-test suite that covers the module and its format half** (`cd scripts && uv run pytest
+tests/test_switchtail.py tests/test_switchsamples.py`):
+
+| mutation | result |
+| --- | --- |
+| the unmarked reading dropped, an unmarked tail worded as a marked one | 2 failed, 52 passed |
+| the closed reading dropped, a tail the template closed worded as the prompt's doing | 1 failed, 53 passed |
+| the two marked readings swapped | 2 failed, 52 passed |
+| the switched tail handed to the refusal in place of the unswitched one | 1 failed, 53 passed |
+| the refusal reverted to one fixed sentence for every tail | 3 failed, 51 passed |
+| none, restored | 54 passed |
+
+The fourth row is the one that needed a test of its own. Every new case renders the same tail both
+ways, so a refusal reading the switched tail would have passed all of them; what catches it is the
+existing control test, whose unswitched tail opens the thought and whose switched tail closes it,
+and which now asserts which of the two the refusal was worded off.

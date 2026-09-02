@@ -382,7 +382,11 @@ renderings differing. Exit 0 published the agreement; exit 1 is either a refusal
 control arm that never deliberated, a cell drawn too few times, or a switched tail that carries
 neither of the two markers this reader recognises and is also not the tail rendered with the key
 left alone, which is an unrecognized chat-template format) or the prediction breaking on this
-tier, which is news about the record above rather than about your deployment: the rule is a set of
+tier, which is news about the record above rather than about your deployment. The first of those
+refusals says which of three things the unswitched tail shows: a template that renders the thought
+closed whatever the key says, a prompt that invites no thought on this tier, or a tail carrying no
+marker this reader lists, where a thought closed in a third format is possible and is named as a
+possibility beside the prompt reading, since the tail alone cannot separate the two. The rule is a set of
 readings of one engine build's handlers, and a handler that started gating its reasoning rule on
 `enable_thinking` would break it. Nothing in the stack reads the answer, so a red here is a
 document to fix, not a deployment to stop. If either verdict says the switch does nothing, the repair is this

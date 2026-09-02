@@ -1241,9 +1241,13 @@ held in one place for the same reason.
   on**: a closing tail is refuted by one deliberating draw, an open one only by a whole cell that
   never deliberated. Nothing is published from a constrained cell drawn under five times, the
   probe's own rule (that cell splits 4 to 1 on a shipped pick), nor from one whose control arm, the
-  same request with no switch, failed to deliberate on every draw. Which cell is constrained and
-  which sent the switch are the sample's own flags, so no shape's name has to agree across the two
-  trees. Exit 0 printing the report; exit 1 printing it with a `refused:` line (a rendering it
+  same request with no switch, failed to deliberate on every draw. **That last refusal is worded
+  off the tail rendered with the key left alone**, which the report has already printed: a tail
+  closing the thought with a listed marker names the template as what left the control nothing to
+  deliberate in, an open one names the prompt, and an unmarked one names the two readings the tail
+  alone cannot separate, a prompt inviting no thought and a closing marker this reader does not
+  list (ADR-0005 quiet-control addendum). Which cell is constrained and which sent the switch are
+  the sample's own flags, so no shape's name has to agree across the two trees. Exit 0 printing the report; exit 1 printing it with a `refused:` line (a rendering it
   cannot place, a tail in a spelling it cannot read, a cell too thin to read, a control that did
   not fire, or a prediction the measurement broke); exit 2 printing one `switchtail: PROBLEM` line;
   argparse exit 2 on usage.

@@ -1,9 +1,7 @@
 # A third family that appends nothing either way still reads as open
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** inference
-**Trigger:** a pick entering the lineup whose template renders one identical tail with the thinking
-key and without it, and closes its thought with a marker `scripts/switchtail.py` does not list.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-30 by the close of
@@ -43,3 +41,17 @@ and needs the pick.
 - 2026-08-30: opened by the close of
   [R-509](509-a-third-familys-closed-thought-reads-as-an-open-one.md), recorded as the ADR-0005
   third-spelling addendum.
+
+- 2026-09-02: closed, the cheap close built and the honest one found to have no pick to draw
+  from. Re-derived first: the case reads exactly as described, and the wrong words stand in two
+  places rather than one, since the probe's own control assertion says "invites no thought" before
+  the reader is ever run. Every chat model file on the mount was read for its template's markers,
+  17 files across every ADR-0004 pick and the two Qwen3.8 entries outside the lineup, and all of
+  them write one of the two listed pairs and leave the thought open with the key absent, so no
+  third pair exists to add. The control refusal in `scripts/switchtail.py` is now worded off the unswitched
+  tail, which was already computed and printed: a tail closed in a listed marker names the template,
+  an open one names the prompt, and an unmarked one names both readings it cannot separate, the
+  hint this entry proposed. The probe's assertion points at `just switch-tail` for the same
+  reading. Opened
+  [R-524](524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md),
+  the vocabulary itself. Recorded as the ADR-0005 quiet-control addendum.

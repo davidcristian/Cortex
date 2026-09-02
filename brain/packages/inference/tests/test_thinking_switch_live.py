@@ -296,10 +296,11 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
 
     Each cell is drawn ``CORTEX_THINKING_REPEATS`` times. What comes out is a verdict per shape,
     plus the control that makes it a measurement rather than an anecdote: a request that sent no
-    switch must have deliberated, or this prompt invites no thought on this tier and nothing here
-    is about the switch. Every draw of that arm has to deliberate, because a cell is a set of
-    samples from a sampling model, and accepting one convenient draw is how the reading before
-    this one went wrong.
+    switch must have deliberated, or nothing here is about the switch, whether because this prompt
+    invites no thought on this tier or because its template renders the thought closed whatever
+    the key says, which `scripts/switchtail.py` reads off the sample. Every draw of that arm has
+    to deliberate, because a cell is a set of samples from a sampling model, and accepting one
+    convenient draw is how the reading before this one went wrong.
 
     The verdicts are printed and not asserted, because both answers are real deployments and this
     file cannot know which one it is pointed at. What it asserts besides the control is that every
@@ -332,8 +333,9 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
         quiet = [cell for cell in control if cell.reasoning_chars == 0]
         assert not quiet, (
             f"{len(quiet)} of {_REPEATS} {shape} draws deliberated not at all with the switch left "
-            f"alone, so this prompt invites no thought on {_MODEL} and this run says nothing "
-            f"about the switch"
+            f"alone, so this run says nothing about the switch: either this prompt invites no "
+            f"thought on {_MODEL} or its template renders the thought closed whatever the key "
+            f"says, and `just switch-tail {written}` reads the rendering to say which"
         )
         thought = sum(1 for cell in switched if cell.reasoning_chars > 0)
         verdict = (
