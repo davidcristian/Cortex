@@ -320,18 +320,22 @@ Reading 4 above holds for the cortex pick and is **not a property of the switch*
 off per request asks the deployment's chat template to skip the deliberation, and whether the model
 then does was measured to depend on the pick and on the shape of the request carrying it: on the
 shipped cortex it holds plain and under a `response_format` alike, 5 draws of 5 each, and on the
-shipped subagent pick it holds plain and is a coin toss under a `response_format`, 4 draws in 5
-deliberating through it and spending the whole of a paired cap on the trace (ADR-0005
-switch-is-advisory addendum). The cause is the pick's own chat template rather than the model: with
-thinking off the cortex's opens and closes an empty thought in the prompt and the subagent's simply
-drops a marker, while the grammar llama.cpp builds for a `response_format` leaves the thought open
-either way. So the first thing to look at on a new pick is what its template renders when it is
-told not to think, which is the line the probe below prints before its cells.
+shipped subagent pick it holds plain and fails under a `response_format`, deliberating through it
+on 4 draws in 5 the first time that cell was drawn and on 5 of 5 on each of two builds since, 14 of
+15 across the three, spending the whole of a paired cap on the trace (ADR-0005 switch-is-advisory
+addendum, and its lineup-tails addendum for the rate). The cause is the pick's own chat template
+rather than the model: with thinking off the cortex's opens and closes an empty thought in the
+prompt and the subagent's simply drops a marker, while the grammar llama.cpp builds for a
+`response_format` leaves the thought open either way. So the first thing to look at on a new pick
+is what its template renders when it is told not to think, which is the line the probe below
+prints before its cells.
 
 **That last sentence is a rule now rather than a hunch**, every chat entry of ADR-0004's lineup
-having been asked at five draws a cell (that addendum's lineup section). Two things came of it
-for a deployment choosing a pick. **Every entry holds on a plain request**, so a cap paired with the
-switch and no schema shortens a reply on any of them rather than deleting it. And the constrained
+having been asked at five draws a cell and every row's rendering since read back through
+`just switch-tail` on one build (that addendum's lineup section, and its lineup-tails addendum).
+Two things came of it for a deployment choosing a pick. **Every entry holds on a plain request**,
+so a cap paired with the switch and no schema shortens a reply on any of them rather than deleting
+it. And the constrained
 split is a property of the template rather than of the model family or the handler: on every entry measured, one
 that renders a thought already closed holds under a schema and one that drops the block and adds
 nothing does not, which puts the two gemma-4-E entries alone on the failing side and the Qwen
@@ -366,8 +370,9 @@ cd brain && CORTEX_THINKING_ENDPOINT=http://127.0.0.1:8080 \
 ```
 
 It prints a verdict per request shape. Keep `CORTEX_THINKING_REPEATS=5` before acting on one: the
-cell that carries this finding splits 4 to 1 on the subagent pick, so a single draw of it can say
-either thing, and the reader below publishes nothing from a cell drawn fewer than five times.
+cell that carries this finding split 4 to 1 on the subagent pick the first time it was drawn and
+has read 5 of 5 on two builds since, so it is a rate, a single draw of it can say either thing,
+and the reader below publishes nothing from a cell drawn fewer than five times.
 
 **Then publish the reading rather than eyeballing it.** The run writes one sample per tier and
 prints the line to paste:

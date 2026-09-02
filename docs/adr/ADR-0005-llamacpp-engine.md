@@ -1692,19 +1692,19 @@ that deliberated **with the switch sent**, so `0/5` is a switch that held every 
 send no switch deliberated on 5 of 5 everywhere, which is the probe's asserted control and is what
 makes the rest of the table mean anything.
 
-| entry | placement | chat format | its template's answer to "do not think" | plain | envelope |
+| entry | placement | chat format | switched tail, after the ask, as `just switch-tail` read it on `b10680` | plain | envelope |
 | --- | --- | --- | --- | --- | --- |
-| gemma-4-12B QAT q4_0 (cortex pick) | `-ngl 99 -c 16384` | `peg-gemma4` | closes an empty thought | 0/5 | 0/5 |
-| gemma-4-31B QAT q4_0 (deep pick) | `-ngl 99 -c 8192` | `peg-gemma4` | closes an empty thought | 0/5 | 0/5 |
-| gemma-4-26B-A4B QAT q4_0 | `-ngl 99 -c 8192` | `peg-gemma4` | closes an empty thought | 0/5 | 0/5 |
-| gemma-4-E4B QAT q4_0 (subagent pick) | `-ngl 0 -c 8192` | `peg-gemma4` | drops the block, adds nothing | 0/5 | **4/5** |
-| gemma-4-E2B QAT q4_0 | `-ngl 0 -c 8192` | `peg-gemma4` | drops the block, adds nothing | 0/5 | **5/5** |
-| Qwen3.5-0.8B Q8_0 | `-ngl 99 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
-| Qwen3.5-2B Q4_K_M (roster alternate) | `-ngl 0 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
-| Qwen3.5-4B Q4_K_M | `-ngl 0 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
-| Qwen3.5-9B UD-Q4_K_XL | `-ngl 99 -c 16384` | `peg-native` | closes an empty think | 0/5 | 0/5 |
-| Qwen3.6-27B Q4_K_M | `-ngl 99 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
-| Qwen3.6-35B-A3B UD-Q3_K_XL | `-ngl 99 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
+| gemma-4-12B QAT q4_0 (cortex pick) | `-ngl 99 -c 16384` | `peg-gemma4` | `<turn\|>\n<\|turn>model\n<\|channel>thought\n<channel\|>` | 0/5 | 0/5 |
+| gemma-4-31B QAT q4_0 (deep pick) | `-ngl 99 -c 8192` | `peg-gemma4` | `<turn\|>\n<\|turn>model\n<\|channel>thought\n<channel\|>` | 0/5 | 0/5 |
+| gemma-4-26B-A4B QAT q4_0 | `-ngl 99 -c 8192` | `peg-gemma4` | `<turn\|>\n<\|turn>model\n<\|channel>thought\n<channel\|>` | 0/5 | 0/5 |
+| gemma-4-E4B QAT q4_0 (subagent pick) | `-ngl 0 -c 8192` | `peg-gemma4` | `<turn\|>\n<\|turn>model\n` | 0/5 | **4/5**, then 5/5 twice: 14 of 15 across three builds |
+| gemma-4-E2B QAT q4_0 | `-ngl 0 -c 8192` | `peg-gemma4` | `<turn\|>\n<\|turn>model\n` | 0/5 | **5/5** |
+| Qwen3.5-0.8B Q8_0 | `-ngl 99 -c 8192` | `peg-native` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | 0/5 | 0/5 |
+| Qwen3.5-2B Q4_K_M (roster alternate) | `-ngl 0 -c 8192` | `peg-native` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | 0/5 | 0/5 |
+| Qwen3.5-4B Q4_K_M | `-ngl 0 -c 8192` | `peg-native` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | 0/5 | 0/5 |
+| Qwen3.5-9B UD-Q4_K_XL | `-ngl 99 -c 16384` | `peg-native` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | 0/5 | 0/5 |
+| Qwen3.6-27B Q4_K_M | `-ngl 99 -c 8192` | `peg-native` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | 0/5 | 0/5 |
+| Qwen3.6-35B-A3B UD-Q3_K_XL | `-ngl 99 -c 8192` | `peg-native` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | 0/5 | 0/5 |
 
 The cortex row and the E4B row are the readings above, carried in so there is one place to read the
 lineup from. Two entries are measured at a quant this ADR does not name, the machine carrying
@@ -1715,6 +1715,16 @@ about the prompt or the grammar, and both of its values appear on both sides of 
 Qwen3.5-2B holding on `-ngl 0` where the E2B fails on the same flag. One entry was run both ways
 as the control for that, the Qwen3.5-4B, and its four cells read the same on the card as on the
 CPU.
+
+**The tail column was rewritten on 2026-09-02** from the samples the lineup-tails addendum below
+publishes: each tail is what `scripts/switchtail.py` read after the ask on `b10680-d7bd3bfca`,
+where this sweep's own column was three words a row, read by hand off `/apply-template` on
+`b10644` and never written down. The cells are still this sweep's draws. The same 44 cells
+re-drawn on `b10680` read the same on every row and the reader's verdict agreed with every hand
+reading, so the paragraph below on what decides the constrained column stands on published
+samples rather than on summaries. The E4B's constrained cell is written as a rate because that is
+what three builds have measured, 4 of 5 and then 5 of 5 twice; the rule's verdict for that row is
+unchanged, since an open tail predicts the switch does nothing on at least one draw.
 
 **No entry in the lineup ignores the switch on a plain request.** That is the reading with something
 at stake and the one this entry called worth acting on, and it says nothing is owed:
@@ -3650,3 +3660,161 @@ what changed the verdict. The **CPU image** answers the entry's own objection th
 draw was on the card. The **four bodies** are two more than the marker addendum drew, and the
 narrations fall on all four. And the injection arm's **own published cell**, re-drawn in the same
 sitting at 0 of 10, is what says the harness and the hand run were reading the same thing.
+
+## Lineup-tails addendum (2026-09-02): every row of the rendering column is read back, and the split cell is a rate
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/510-nine-rows-of-the-rendering-column-are-hand-read.md](../refinements/tasks/510-nine-rows-of-the-rendering-column-are-hand-read.md),
+which the rendered-tail addendum above opened. Opens
+[R-528](../refinements/tasks/528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md)
+and
+[R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md).
+It changes no code, no flag, no gate and no pick. What it changes is the lineup section's rendering
+column, rewritten in place from the samples published here, and the three documents that quoted
+the split cell as a constant.
+
+### Re-derived first, and the entry is right about the record and wrong about where a sample is kept
+
+The entry says nine of the lineup's eleven rows are three-word summaries read by hand off
+`POST /apply-template` on `b10644-d7a207411`, that the rendering behind each was never written
+down, and that only Qwen3.5-0.8B and gemma-4-E4B have been through `just switch-tail`. All of that
+holds on the file: the lineup section's column read `closes an empty thought`, `drops the block,
+adds nothing` and `closes an empty think`, and the rendered-tail addendum's table is two rows
+long. Its count of the split cell holds too: the E4B's constrained arm read 4 of 5 in the lineup
+section, 5 of 5 in the template-probe addendum on `b10666-4e97ac86e`, and 5 of 5 in the
+rendered-tail addendum on `b10680-d7bd3bfca`.
+
+Where the entry is wrong is the instruction to record a quant substitution "where the sample is
+kept". No sample is kept. `measurements/` is gitignored, and the comment on that rule says why: a
+sample is evidence of one run on one machine, the numbers it supports belong in an ADR addendum,
+and the file does not belong in the tree. The two samples published on 2026-08-30 are not on disk
+any more either. So the place a substitution is recorded is this addendum, whose artifact column
+names the file each row was measured from, and the sample's own name, which is whatever the
+operator set `CORTEX_THINKING_MODEL` to. That the name is the operator's to choose, and that a
+sample carries no build either, is
+[R-528](../refinements/tasks/528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md):
+the same server reports both on `GET /props`, as `build_info` and `model_path`, and the sitting
+below fetched them in a separate call.
+
+### What a real server said
+
+Measured 2026-09-02 by the agent, one llama-server per pick, each started, waited on at `/health`,
+probed and stopped in turn by a shell loop, on `ghcr.io/ggml-org/llama.cpp:server-cuda` at
+`sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, whose `/props` reports
+`b10680-d7bd3bfca` on every row, the build the two published rows were read on from the CPU image.
+Every server ran `--jinja --parallel 1` with **neither** reasoning flag, `-ngl 99` and the context
+the lineup section gives its row, at a cap of 256, five draws a cell, through the committed probe
+with `CORTEX_THINKING_MODEL` naming the pick and its quant, and every sample went through
+`just switch-tail`. Every artifact was confirmed on the mount before its server was started, and
+all nine were there.
+
+| entry | artifact under the mount | placement | switched tail, after the ask | reading | plain | envelope | published |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-12B QAT q4_0 (cortex pick) | `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` | `-ngl 99 -c 16384` | `<turn\|>\n<\|turn>model\n<\|channel>thought\n<channel\|>` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| gemma-4-31B QAT q4_0 (deep pick) | `google/gemma-4-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf` | `-ngl 99 -c 8192` | `<turn\|>\n<\|turn>model\n<\|channel>thought\n<channel\|>` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| gemma-4-26B-A4B QAT q4_0 | `google/gemma-4-26B-A4B-it-qat-q4_0-gguf/gemma-4-26B_q4_0-it.gguf` | `-ngl 99 -c 8192` | `<turn\|>\n<\|turn>model\n<\|channel>thought\n<channel\|>` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| gemma-4-E2B QAT q4_0 | `google/gemma-4-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf` | `-ngl 99 -c 8192` | `<turn\|>\n<\|turn>model\n` | leaves open | 0/5 | **5/5** | agreed, exit 0 |
+| Qwen3.5-2B Q4_K_M (roster alternate) | `unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf` | `-ngl 99 -c 8192` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| Qwen3.5-4B Q4_K_M | `unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf` | `-ngl 99 -c 8192` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| Qwen3.5-9B UD-Q4_K_XL, where ADR-0004 names Q4_K_M | `unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf` | `-ngl 99 -c 16384` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| Qwen3.6-27B Q4_K_M | `unsloth/Qwen3.6-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf` | `-ngl 99 -c 8192` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| Qwen3.6-35B-A3B UD-Q3_K_XL, where ADR-0004 names UD-Q3_K_M | `unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf` | `-ngl 99 -c 8192` | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | closes | 0/5 | 0/5 | agreed, exit 0 |
+
+**Nine rows, nine agreements, exit 0 on every one**, and every control arm deliberated on 5 of 5,
+so every verdict is a measurement. Three tails cover the lineup. The dense gemma-4 entries render
+`<turn|>\n<|turn>model\n` with the key left alone and append `<|channel>thought\n<channel|>` when
+it is sent, 194 characters against 190; the two gemma-4-E entries render that same open tail both
+ways and answer the key by dropping a `<|think|>` system turn at the front, 194 against 162; and
+all six Qwen entries render `<think>\n` with the key left alone and `<think>\n\n</think>\n\n` with
+it sent, 187 against 198, the 0.8B's row of 2026-08-30 among them. Those are the quiet-control
+addendum's mount readings met by a server: each family renders the tail its GGUF header says it
+will.
+
+**The verdict matched the hand reading on every row.** The eight rows the lineup section read as
+closing a thought were read closing here and held on 0 of 5 under the envelope; the E2B, which the
+lineup section read as adding nothing, was read leaving the thought open and deliberated through
+the switch on 5 of 5. With the two rows published on 2026-08-30, the column's claim, that the
+rendering predicts the constrained verdict on all eleven, stands on eleven samples read by one
+module rather than on eleven summaries.
+
+**The three CPU-placed rows were read on the card, and that is a substitution recorded rather than
+hidden.** The lineup section placed the E2B, the 2B and the 4B at `-ngl 0`, as were the two rows
+the rendered-tail addendum published. This sitting started the E2B on the CPU image the subagents
+override ships, `ghcr.io/ggml-org/llama.cpp:server` at
+`sha256:db057ec90de0a423255a218b9612420993237ff33db68b3155dc3bba9b994a20`, the same build, and
+measured it decoding at 1.86 to 1.87 tokens a second, 534 to 537 ms a token at 2499% CPU across 24
+threads, first with the weights mmapped off the mount and again with `--no-mmap`, so the mount was
+not the cause. At that rate one row's twenty draws take about 45 minutes and the three rows take
+the whole budget the entry set for the sweep. The same image finished 76 draws at a cap of 1024 in
+the budget-alone addendum's sitting earlier the same night, so the rate is this sitting's and is
+not diagnosed here. The three rows were re-started on the card, where they loaded in 37, 24 and 40
+seconds and drew in about half a minute each. The record already holds placement to be not a
+variable, on the Qwen3.5-4B run both ways with identical cells; what stands on `b10644` alone is
+those three rows' `-ngl 0` cells, and
+[R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md)
+names them.
+
+**The split cell, as a rate.** The E4B's constrained arm with the switch sent has deliberated on 4
+of 5, 5 of 5 and 5 of 5 across three builds, 14 draws of 15. The lineup table now writes it so, and
+the two documents that quoted 4 in 5 as the pick's behaviour, the GPU runbook and the inference
+module doc, quote the rate. Nothing in the reader moves: a closing tail predicts the switch holds on
+every draw, so one deliberating draw refutes it, and an open tail predicts it does nothing on at
+least one, so this rate can sit anywhere above zero without moving the verdict. `DRAWS` and the
+refusal quoting "splits 4 to 1 on a shipped pick" stand, since the first draw of that cell is why
+the floor exists.
+
+**What the sitting cost.** Load to READY off the mount: 9B 49 s, 12B 58 s, 26B-A4B 110 s, 27B 129
+s, 35B-A3B 176 s, 31B 223 s, E2B 37 s, 2B 24 s, 4B 40 s. The probe took 41 to 164 s a row on the
+card. The six large rows took 22 minutes end to end and the three small ones three and a half, 26
+minutes of measurement for nine rows, against 38 minutes spent on the CPU image for no row.
+
+### Decision
+
+1. **The lineup table's rendering column is the tail, as the reader read it.** Each cell is the
+   string `scripts/switchtail.py` printed after the ask on `b10680-d7bd3bfca`, escaped as written,
+   in place of the three-word summary; the summaries survive in the prose beneath the table, where
+   they name the mechanism. The cells beside the tails are still the `b10644` draws that table
+   records, and the note under it says the same 44 cells re-drawn here read the same on every row.
+2. **The E4B's constrained cell is a rate**, 14 of 15 across three builds, written that way in the
+   table and in the two documents that quoted the constant. It is watched rather than averaged: the
+   next build's reading is one more numerator over one more five, and the reader's verdict for that
+   row does not depend on where the rate sits above zero.
+3. **A quant substitution is recorded here and in the sample's name.** The artifact column above
+   names the file each row was measured from; two of them are quants ADR-0004 does not name, and
+   those samples were named with the quant so that `just switch-tail` publishes the row under it.
+   A sample records nothing else about what it measured, which is R-528.
+4. **The reader, the probe and the gates are untouched.** No line of `scripts/switchtail.py`,
+   `scripts/switchsamples.py` or the probe changed, so there is no mutation table here; the
+   module's own tables are in the rendered-tail and quiet-control addenda above.
+5. **The chat format column was not re-read.** The handler name is logged only under `--verbose`,
+   and no server here ran with it; the column stands on the `b10644` sweep, and the tails rendered
+   here are the ones those handlers were read beside.
+
+### What this does not do, and where that is recorded
+
+- **A sample names the model the operator typed and no engine build.**
+  [R-528](../refinements/tasks/528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md).
+- **An engine bump reopens all eleven rows, and the loop that read them is a scratch file.**
+  [R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md),
+  which also holds the three rows' `-ngl 0` placement not re-drawn here.
+- **The samples are not in the tree**, by the `.gitignore` rule quoted above. The tails and the
+  cells are here, and the runbook's two commands point the reader at a fresh sample.
+- **The CPU image's rate is a reading and not a diagnosis.** One pick, one night, two mmap
+  settings. Whether it is the image, the box or the night is not settled here, and the re-sweep
+  R-529 names, on the CPU placement, is where it would be.
+
+### Distrust green
+
+No rule, branch or gate is added, so there is no mutation table, and this section says what the
+measurement's own controls were. **Every control fired**, 5 of 5 on both shapes of all nine rows,
+which is the floor the reader refuses under. **The prediction could have failed in either direction
+and did not**: the eight rows on the closing side, where one deliberating draw refutes, drew 40
+constrained draws with the switch and none deliberated; the one row on the open side drew five and
+all five did. **The reader's refusal was exercised for real before a byte was measured**: the
+loop's first pass ran pytest with a flag that made its own randomization option unrecognized,
+wrote no sample, and `just switch-tail` refused each of six missing samples with exit 2 naming the
+file, which is the exit the rendered-tail addendum drew by hand and this sitting drew by accident.
+That pass was thrown away and re-run. And **the E2B row is the weak-side agreement the
+rendered-tail addendum warned about**: an open tail predicts at least one deliberating draw, five
+are evidence and not proof, and the same cell has now read 5 of 5 on two builds, which with the
+E4B's 14 of 15 is what makes the gemma-4-E side of the column a rate.

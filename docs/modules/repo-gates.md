@@ -1225,8 +1225,10 @@ held in one place for the same reason.
   answering for that format, and it holds one rule two documents carry: **a tier whose chat
   template answers the thinking switch by rendering a thought already closed holds that switch
   under a `response_format`, and one whose answer leaves the thought open does not.** The rule is
-  eleven readings of one engine build's handlers rather than a theorem, so the report names and
-  measures a tier that breaks it instead of the live run going red on the reading that found it.
+  eleven readings of one engine build's handlers rather than a theorem, each of the eleven now
+  published through this reader on `b10680-d7bd3bfca` (ADR-0005 lineup-tails addendum), so the
+  report names and measures a tier that breaks it instead of the live run going red on the reading
+  that found it.
   **The reading is on the tail**, taken after the last of the ask the driver recorded sending,
   because the failing pick's two prompts differ by a whole system turn at the front and end byte
   identically: comparing renderings for difference sorts nothing. A closed thought is `</think>` on

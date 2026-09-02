@@ -183,7 +183,7 @@ with the cause chained:
   and without it, and reports per request shape rather than per tier because that is how the answer
   came out: run over every chat entry of the lineup, all of them honour it plain and the two
   gemma-4-E entries deliberate straight through it under a `response_format`, the shipped E4B pick
-  on 4 draws in 5 and the E2B on 5. It requires a server started with
+  on 14 of 15 draws across three builds and the E2B on 10 of 10. It requires a server started with
   **neither** `--chat-template-kwargs` nor `--reasoning-budget`, since either flag is the
   deployment answering for the model, and it **asserts its control**: the arms that send no switch
   must deliberate, or the prompt invited no thought and the run is discarded rather than read. That
