@@ -429,3 +429,124 @@ rendering a measured rate into them. `docs/runbooks/subagents-cpu.md` keeps the 
 operator meets the override and gains the conditions they are a reading under, so the number that
 does exist says what would make it stale. The module docs record the decision beside
 `SubagentProfile`.
+
+## Addendum (2026-09-02): the artifact answering at an entry is the server's to report and the operator's to read, and the brain is not told
+
+**Status:** Accepted. Declines
+[R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md), which the
+addendum above opened jointly with [ADR-0028](ADR-0028-grammar-constrained-subagents.md)'s of the
+same date, and opens
+[R-527](../refinements/tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md).
+It changes no code and adds no port. What it changes is `docs/runbooks/subagents-cpu.md`, which now
+says how the row of its override table a running stack is on is read off the server, the comment on
+the hosted subagent tier in `docker/docker-compose.gpu.yml`, and the module doc beside
+`SubagentProfile`.
+
+### Re-derived first
+
+Every claim the entry makes about the wiring held. `SubagentProfile` is keyed by roster name
+(`cortex_core.roster`); `_entry_profile` in `cortex_orchestrator.subagent_builders` builds one
+`SingleResidentModelManager(name, endpoint)` per placement target and a `PlacementRequest(name, ...)`
+whose `model` is that same name, so `acquire` compares the name with itself and dials the endpoint;
+the weights are named in the `command:` of `docker/docker-compose.subagents.yml` and its roster
+sibling, under `CORTEX_MODEL_FILE_SUBAGENT` and `CORTEX_MODEL_FILE_SUBAGENT_QWEN`, and no brain
+module reads either; and `cortex_orchestrator.vision` reads `GET /props` per advertisement and fails
+closed. The one live claim was taken again rather than trusted, in the next section.
+
+Two claims did not hold. **The brain's log carries no endpoint for an artifact to sit beside.**
+`build_subagents` logs nothing and `subagent_builders.py` imports no logger, so "the same place an
+operator already reads the endpoint" names a line that does not exist. **Identity alone would reopen
+neither decline.** The addendum above gave three reasons for declining a rate and only the first is
+the identity; the other two, that a rate is a reading under four conditions no profile records and
+that the chooser was measured picking explicitly on one batch in fifteen and seeing no descriptions
+at all under the shipped tools overrides, stand whatever the entry carries about its artifact.
+ADR-0028's decline of the wording has the same shape: no second wording is measured, and the field
+would ship empty on both shipped picks. The entry's "what it would unblock" therefore overstates it:
+identity is necessary for reopening either and sufficient for neither.
+
+One piece of the entry's surroundings has moved since it was written.
+[R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) was
+declined on 2026-09-02 by the ADR-0005 budget-alone addendum: the budget alone measured worse than
+the pair on the gemma pick and inert on the Qwen pick, so there is no per-family flag set for a gate
+to express and no gate that needs to read a family. This entry stands on its own, with no consumer
+waiting behind it.
+
+### What a real server said
+
+Read 2026-09-02 by the agent on the one CPU server `docker/docker-compose.subagents.yml` starts,
+under that file's own argv, on `ghcr.io/ggml-org/llama.cpp:server` at
+`sha256:db057ec90de0a423255a218b9612420993237ff33db68b3155dc3bba9b994a20`, build
+`b10680-d7bd3bfca`, serving the shipped default pick:
+
+| route | field | value |
+| --- | --- | --- |
+| `GET /props` | `model_path` | `/models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf` |
+| `GET /props` | `model_alias` | the same string |
+| `GET /v1/models` | `data[0].id`, `models[0].name` | the same string |
+| `GET /v1/models` | `models[0].digest` | `""` |
+
+Three readings. The path is `/models` joined onto the compose default of
+`CORTEX_MODEL_FILE_SUBAGENT`, character for character, so what the server reports is the operator's
+own variable read back through two containers. The alias repeats the path because the compose command
+passes no `--alias`. And the one field named for an identity is empty on this build, so the server
+offers nothing better than the path; `model_ftype` in `/props` and `meta.size` beside the empty
+digest would be a weak identity at best. The entry's fourth point stands as written.
+
+### Why it is declined
+
+1. **The brain speaks logical ids by decision, and this would carry a path into it against that
+   decision, for nothing that acts on it.** [ADR-0004](ADR-0004-model-lineup.md) decision 2 says
+   file paths never enter the core, and the `ModelHost` port says artifact paths, ports and `-ngl`
+   never cross it, so that a deployment re-points a tier by changing the sidecar's env and nothing
+   on the brain's side changes with it. Nothing in the brain branches on which weights answer: the
+   runner resolves by name, the placer charges the entry's ask, the reasoning-off flags are the
+   server's, and [ADR-0017](ADR-0017-subagent-model-safety.md)'s boundary is a config-level logical
+   id. A log line would be the whole consumer, and the brain has no roster line for it to join.
+2. **The repo's own rule for where a `/props` read lives makes this one per call, and per call buys
+   nothing here.** `cortex_inference.lever` states the rule: a property of the binary is asked once
+   at wiring, a property of the argv is re-asked forever, which is why the vision probe runs per
+   advertisement. An artifact is an argv property. Once at wiring describes the container that was
+   running then, and `docker compose up -d llama-subagent` with a changed variable replaces that
+   container and nothing else, which is exactly the redeployment the vision probe was moved to
+   catch: a server replaced under a brain that never restarts. Per advertisement is an HTTP call on
+   every spawn spec for a value nothing acts on.
+3. **A path is not an identity**, the entry's fourth point, and the server confirms it: a
+   requantized file at the same path, a renamed file and a re-pointed mount all read the same, and
+   the server's own `digest` is empty. What a probe could honestly report is which row of the
+   runbook's override table the operator chose, which the operator typed.
+4. **There is no expectation to hold the answer to, and declaring one is declined for the entry's
+   own reason**: a per-entry artifact field would be typed by the hand that typed the compose
+   `command:` and drift from it with nothing reporting the drift. The one expectation that needs no
+   knob is the residue below.
+5. **The reader who can act on the answer is at the server.** Both subagent servers publish on
+   loopback for host-side reads, and one `GET /props` there answers against the running stack rather
+   than against a compose default, which is the operator-facing half of what the entry asked for.
+   That command and how to read its answer are now in the runbook beside the override table.
+
+### The residue, and why it is filed rather than built
+
+`CORTEX_MODEL_FILE_SUBAGENT` names the weights the CPU server loads and
+`CORTEX_MODEL_FILE_SUBAGENT_GPU` names the weights the hosted tier loads, and the brain treats those
+two servers as the two placement targets of one roster entry, `subagent`. Nothing holds the two
+variables to one file: the hosted tier's defaults to empty because the tier is opt-in, and
+`docs/runbooks/subagents-cpu.md` section 2c sets them equal by hand. A deployment that overrides one
+and not the other makes which weights answer a spawn, a tainted spawn pinned to the robust default
+included, depend on the placer's headroom verdict, which
+[ADR-0012](ADR-0012-resource-governance.md) designed as a decision about resources and nothing else.
+That is the one thing a `/props` read could be held to without a config knob, because the
+expectation is derivable from the wiring: an entry's two targets agree. It is not built here because
+the hosted tier is not necessarily running when the brain boots (the daemon starts the cortex and
+nothing else; the tier sweep starts it later, under escalation), so a boot-time comparison would
+answer for one side, and a comparison per spawn or per sweep is a design of its own. The compose
+comment and the runbook now say the two must name one file, and the check is
+[R-527](../refinements/tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md).
+
+### Distrust green
+
+No rule, gate or branch is added, so there is no mutation table. What stands in for one: the live
+read was taken on the pick and the image the compose file ships rather than on the 0.8B the entry
+read, so the field names are confirmed on the artifact the runbook's table calls the default; the
+claim about the boot log was settled by reading `subagent_builders.py` for a logger rather than by
+running the brain, and there is none; and the split-entry residue was read off the builder that
+makes it possible, `_entry_profile` giving one entry two `SingleResidentModelManager`s over two
+endpoints, rather than inferred from the compose comments.

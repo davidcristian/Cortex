@@ -519,8 +519,12 @@ Roster domain (Slice 8.6, ADR-0018; in `roster.py`):
   declined on 2026-08-30 for one reason (ADR-0018's description addendum and ADR-0028's per-entry
   wording addendum): an entry is a name over an endpoint, the artifact answering there is a compose
   `command:` the brain never reads, so a measured per-entry value would be filed under a key that
-  does not determine it. The identity that would change this is
-  [R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md).
+  does not determine it. That identity is deliberately not the brain's to read, either: the
+  artifact is named in the server's argv, `GET /props` on the server reports it to an operator, and
+  carrying it into the brain was declined on 2026-09-02 (ADR-0018's artifact addendum, closing
+  [R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md)), because no
+  decision in the brain reads which weights answer, a path is not an identity, and a reading taken
+  at wiring describes the container that was running then.
 - `SubagentRoster` is a frozen dataclass: `entries: Mapping[str, SubagentProfile]`, `default: str`
   (must be an entry; empty rosters rejected with `ValueError` at construction). `resolve(requested,
   *, tainted, tools_enabled) -> str | None` is where ADR-0017 executes: `tainted or tools_enabled`
