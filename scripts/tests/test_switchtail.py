@@ -9,6 +9,9 @@ from switchtail import closes, main, marked, publish, read, tail
 
 # The ask a run records sending; the tail is whatever a template appended after the last of it.
 ASK = "What does each of them pay?"
+# What the server reported of itself on `GET /props`, which the report's second line repeats.
+BUILD = "b10680-d7bd3bfca"
+MODEL_PATH = "/models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf"
 # The four renderings this reader was written against, taken off real servers on llama.cpp
 # `b10666-4e97ac86e`: Qwen3.5-0.8B Q8_0 and gemma-4-E4B QAT q4_0, the two families of the lineup on
 # opposite sides of the split. The gemma pair is the hard case: its two prompts differ by a whole
@@ -51,6 +54,8 @@ def sample(
     written = {
         "model": "cortex",
         "endpoint": "http://127.0.0.1:8080",
+        "build_info": BUILD,
+        "model_path": MODEL_PATH,
         "cap": 256,
         "ask": ask,
         "renderings": [
@@ -177,6 +182,16 @@ def test_the_failing_picks_unmarked_tail_is_read_rather_than_refused(tmp_path: P
     assert "unrecognized format" not in printed
     assert "leaves the thought OPEN" in printed
     assert code == 0
+
+
+def test_the_report_names_the_build_and_the_file_the_server_reported(tmp_path: Path) -> None:
+    """A row copied off the report names the engine build and the model file the server said it
+    was serving, on the line under the name the operator typed, so a quant the lineup does not
+    name is visible on the page rather than only in a name the operator chose."""
+    printed, _ = report(sample(tmp_path / "s.json"))
+    first, second = printed.splitlines()[:2]
+    assert first.endswith("cortex at http://127.0.0.1:8080")
+    assert second == f"  served on {BUILD} from {MODEL_PATH}"
 
 
 def test_a_closing_tail_beside_a_cell_that_held_is_published(tmp_path: Path) -> None:

@@ -199,8 +199,12 @@ with the cause chained:
   whose template drops the block and puts nothing in its place does not
   (ADR-0005 switch-is-advisory addendum, mechanism and lineup sections). Both renderings are now
   **recorded with the cells**, in one JSON sample per tier (`CORTEX_THINKING_OUT`,
-  `CORTEX_THINKING_TAG`), and `just switch-tail` compares the prediction against the
-  measurement and fails instead of publishing a run where the two disagree. The probe itself
+  `CORTEX_THINKING_TAG`), beside the engine build and the model file the server reported of
+  itself on `GET /props` (`build_info` and `model_path`, read once before anything is decoded, so
+  a row quoted from the report names the build and the quant it was measured at rather than the
+  name the operator typed, ADR-0005 served-by addendum), and `just switch-tail` compares the
+  prediction against the measurement and fails instead of publishing a run where the two
+  disagree. The probe itself
   asserts nothing about them, for the reason the envelope harness computes no rates: an
   integration-marked file is code no gate runs, so a rule asserted in one is a rule nothing
   enforces (ADR-0005 rendered-tail addendum). The prediction is read off the prompt's **tail**

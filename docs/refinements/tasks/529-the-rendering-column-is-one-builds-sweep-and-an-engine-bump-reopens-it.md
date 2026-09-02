@@ -43,3 +43,9 @@ opened this read them on the card.
 - 2026-09-02: opened by the close of
   [R-510](510-nine-rows-of-the-rendering-column-are-hand-read.md), whose ADR-0005 lineup-tails
   addendum records the sweep and the build it read.
+
+- 2026-09-02: the sample the sweep publishes now names the engine build and the model file the
+  server reported on `GET /props`, by the close of
+  [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), so the
+  next sweep copies the record's artifact and build columns off each report rather than off the
+  loop's notes.

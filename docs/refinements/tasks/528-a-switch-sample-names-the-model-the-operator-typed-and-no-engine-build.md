@@ -1,6 +1,6 @@
 # A switch sample names the model the operator typed and no engine build
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -36,3 +36,15 @@ name, and a row measured at a quant the lineup does not name is visible in the r
 - 2026-09-02: opened by the close of
   [R-510](510-nine-rows-of-the-rendering-column-are-hand-read.md), whose ADR-0005 lineup-tails
   addendum records the nine rows and the build each was read on.
+
+- 2026-09-02: landed. Re-derived first, and every claim held: the sample carried `model` and
+  `endpoint` and nothing the server said of itself, the reader required each field by name, no
+  sample was kept, and the probe, the reader and the format had not moved since the quiet-control
+  addendum. `GET /props` was read live off one CPU server and reports `build_info` and `model_path`
+  beside `model_alias`, `model_ftype` and a context size. The probe now reads that route once,
+  before anything is decoded, and writes `build_info` and `model_path` into the sample under the
+  server's own names; `switchsamples.py` requires both; `switchtail.py` prints them on the report's
+  second line, under the name the operator typed. Validated on a live Qwen3.5-0.8B server on the CPU
+  image, five draws a cell, published at exit 0. Opened
+  [R-535](535-a-switch-sample-names-no-context-size-or-placement.md), the placement column a row is
+  still typed under. Recorded as the ADR-0005 served-by addendum.

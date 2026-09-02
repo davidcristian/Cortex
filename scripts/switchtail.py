@@ -10,10 +10,11 @@ drew.
 
 Exit 0 published the comparison, 1 refused to, 2 could not read a sample.
 
-ADR-0005 argues the four choices behind this: why the reading is on the prompt tail rather than
+ADR-0005 argues the five choices behind this: why the reading is on the prompt tail rather than
 the whole rendering, why an unmarked tail needs the unswitched one to tell two tiers apart, why a
-control that did not fire is explained off that unswitched tail, and why the check lives here
-rather than in the integration-marked probe that no gate runs.
+control that did not fire is explained off that unswitched tail, why the report names the engine
+build and the model file the server reported beside the name the operator typed, and why the
+check lives here rather than in the integration-marked probe that no gate runs.
 """
 
 import argparse
@@ -145,7 +146,10 @@ def _judged(probe: Probe, plain: str, lines: list[str]) -> Cell | None:
 
 def read(probe: Probe) -> tuple[list[str], int]:
     """One tier's report and exit code: the rendering, the cells, then the rule over both."""
-    lines = [f"{probe.path}: {probe.model} at {probe.endpoint}"]
+    lines = [
+        f"{probe.path}: {probe.model} at {probe.endpoint}",
+        f"  served on {probe.build_info} from {probe.model_path}",
+    ]
     found = _tails(probe, lines)
     if found is None:
         return lines, 1

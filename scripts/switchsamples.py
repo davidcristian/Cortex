@@ -14,12 +14,14 @@ a verdict about nothing. A sample missing a field, or naming one differently, or
 as a string, therefore raises naming the file and the key rather than producing a report with a
 hole in it.
 
-A sample holds the `model` and `endpoint` the run was pointed at and the `ask` it really
-sent, which is what a tail is found after; `renderings`, one prompt with the switch and one
-without; and `cells`, each one request shape drawn some number of times, carrying how many of those
-draws deliberated. Which cell is which is read off the sample's own `constrained` and `switch`
-flags rather than off a shape's name, so the two trees have to agree about the flags and never
-about the word `envelope`.
+A sample holds the `model` and `endpoint` the run was pointed at; the `build_info` and
+`model_path` the server reported of itself on `GET /props`, under the names that route gives
+them, so a row quoted from the report names the engine build and the file that served it rather
+than the name the operator typed; the `ask` it really sent, which is what a tail is found after;
+`renderings`, one prompt with the switch and one without; and `cells`, each one request shape
+drawn some number of times, carrying how many of those draws deliberated. Which cell is which is
+read off the sample's own `constrained` and `switch` flags rather than off a shape's name, so the
+two trees have to agree about the flags and never about the word `envelope`.
 """
 
 import json
@@ -73,6 +75,8 @@ class Probe(NamedTuple):
     path: Path
     model: str
     endpoint: str
+    build_info: str
+    model_path: str
     ask: str
     plain: str
     switched: str
@@ -151,6 +155,8 @@ def load(path: Path) -> Probe:
         path=path,
         model=_text(sample, "model", path),
         endpoint=_text(sample, "endpoint", path),
+        build_info=_text(sample, "build_info", path),
+        model_path=_text(sample, "model_path", path),
         ask=_text(sample, "ask", path),
         plain=rendered[False],
         switched=rendered[True],

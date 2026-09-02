@@ -3818,3 +3818,136 @@ That pass was thrown away and re-run. And **the E2B row is the weak-side agreeme
 rendered-tail addendum warned about**: an open tail predicts at least one deliberating draw, five
 are evidence and not proof, and the same cell has now read 5 of 5 on two builds, which with the
 E4B's 14 of 15 is what makes the gemma-4-E side of the column a rate.
+
+## Served-by addendum (2026-09-02): a sample names the engine build and the model file that served it
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md](../refinements/tasks/528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md),
+which the lineup-tails addendum above opened. Opens
+[R-535](../refinements/tasks/535-a-switch-sample-names-no-context-size-or-placement.md). It
+changes the probe, the sample format and the reader, and no flag, gate or pick.
+
+### Re-derived first, and every claim held
+
+The entry says the sample carries `model`, which is `CORTEX_THINKING_MODEL` as typed, and
+`endpoint`, and nothing about which engine build or which file served the run; that
+`scripts/switchsamples.py` requires every field by name, so a field added is a change to the
+format; that no sample is kept; and that the same server reports both on `GET /props`. All four
+hold. The probe's `_write` wrote `model`, `endpoint`, `cap`, `ask`, `renderings` and `cells` and
+nothing else; `load` reads each string field through `_text`, which raises naming the file and the
+key; `measurements/` is in `.gitignore` under the comment the lineup-tails addendum quotes; and none
+of the three files had moved since the quiet-control addendum, whose commit is the last one touching
+any of them. What the entry could not have known is what else `/props` reports, which the sitting
+below read.
+
+### What a real server said
+
+Read 2026-09-02 by the agent on one llama-server started by hand from the subagents override's CPU
+image, `ghcr.io/ggml-org/llama.cpp:server` at
+`sha256:db057ec90de0a423255a218b9612420993237ff33db68b3155dc3bba9b994a20`, serving Qwen3.5-0.8B
+Q8_0 off the mount with `--jinja --parallel 1 -ngl 0 -c 8192`, `--alias Qwen3.5-0.8B-Q8_0` and
+neither reasoning flag:
+
+| route | field | value |
+| --- | --- | --- |
+| `GET /props` | `build_info` | `b10680-d7bd3bfca` |
+| `GET /props` | `model_path` | `/models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf` |
+| `GET /props` | `model_alias` | `Qwen3.5-0.8B-Q8_0`, the `--alias` given; the path again when none is |
+| `GET /props` | `model_ftype` | `Q8_0` |
+| `GET /props` | `default_generation_settings.n_ctx` | `8192` |
+
+Nineteen top-level keys in all, `chat_template` among them at 7,816 characters, and none naming the
+GPU layer count.
+
+The probe, as changed below, was then run against that server at five draws a cell
+(`CORTEX_THINKING_MODEL=Qwen3.5-0.8B-Q8_0`, cap 256) and its sample published through
+`just switch-tail`. The probe printed
+`server    b10680-d7bd3bfca serving /models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf`
+ahead of the renderings; every control fired, 5 of 5 on both shapes; the switch held on 0 of 5 on
+both; and the reader published at exit 0, its first two lines reading:
+
+```
+measurements/switch-Qwen3.5-0.8B-Q8_0.json: Qwen3.5-0.8B-Q8_0 at http://127.0.0.1:8082
+  served on b10680-d7bd3bfca from /models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf
+```
+
+That is the rendered-tail addendum's row for this pick, `<think>\n\n</think>\n\n` closing and 0 of
+5, read a third time on a third sitting. The one-draw form of the same run was refused on the draw
+floor with those two lines printed above the refusal, so what the server said is on the page whether
+or not a verdict is. Each cell took 6.3 to 7.8 s for 256 tokens on the CPU image, 140 s for the
+twenty draws.
+
+### Decision
+
+1. **The probe reads `GET /props` once, before the renderings, and the run fails when either field
+   is absent.** A run that cannot say which build or which file served it publishes nothing, on the
+   reasoning that refuses a control that did not fire: what it would publish is a row nobody can
+   place. Writing an empty string or `unknown` and letting the reader print it was rejected, because
+   the reader requires every field by name so that no verdict is published about nothing, and a
+   placeholder is a field that passes that rule while carrying nothing.
+2. **The fields keep the server's names.** The sample writes `build_info` and `model_path`, the two
+   keys `/props` answers under, rather than names of the probe's own. Every other field of the
+   sample is the probe's vocabulary, and these two are the exception because they are copied: a
+   reader holding a sample and the runbook's `curl` sees the same word in both, and a build that
+   renames a key fails the probe by that key's name. `model_alias` is not copied. It is either the
+   `--alias` the operator gave or the path again, and the sample already carries what the operator
+   typed as `model`.
+3. **Both are required, and no sample written before them survives.** `switchsamples.py` reads
+   them through `_text` like every other string field, so a sample missing either raises naming the
+   file and the key. The entry called this a decision about old samples, and there are none:
+   `measurements/` is gitignored, and neither the two samples of 2026-08-30 nor the nine of the
+   lineup-tails sitting are on disk. Had any been kept the choice would have been the same, since a
+   sample without a build is the thing this addendum exists to stop publishing.
+4. **The reader prints them on the report's second line, under the operator's line.** The first
+   line names what the operator pointed the probe at, `model` and `endpoint`, both chosen; the
+   second names what the server said of itself, both reported. A row copied into a record is copied
+   off the second, and a sample whose operator-chosen name disagrees with its path shows the
+   disagreement on two adjacent lines rather than inside one.
+5. **Once a run is the cadence here, and it agrees with the rule the brain declined under.** The
+   ADR-0018 addendum of 2026-09-02 declined carrying `model_path` into the brain, on the rule that
+   an argv property is re-asked forever and on nothing in the brain acting on the answer. Neither
+   reason reaches a measurement driver: a run is one server's lifetime, so once per run is per
+   call, and the answer is acted on by the reader, which publishes it, and by the record, which
+   copies it.
+
+### What this does not do, and where that is recorded
+
+- **The lineup-tails addendum's rows stand as typed.** Its artifact and build columns were copied
+  off `/props` by hand for nine picks, and nothing here re-sweeps them. The next sweep, which
+  [R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md)
+  waits for, copies both off each report, and its Trail now says so.
+- **The placement column is still typed by hand.** `/props` reports the context size and the quant
+  type and no GPU layer count, so a sample naming half a placement would need a way to say the other
+  half is unrecorded rather than zero.
+  [R-535](../refinements/tasks/535-a-switch-sample-names-no-context-size-or-placement.md).
+- **The sample's name is still the operator's.** `switch-<model><tag>.json` is
+  `CORTEX_THINKING_MODEL` and `CORTEX_THINKING_TAG` as set. The report's second line is what makes
+  the name matter less, and renaming the file after the path would move into a filename a fact the
+  sample now carries as a field.
+- **The CPU image's rate on this pick is one more reading beside the lineup-tails addendum's, and
+  still not a diagnosis.** 6.3 to 7.8 s for 256 tokens on the 0.8B Q8_0, against 534 to 537 ms a
+  token on the E2B from the same image, which says that reading was the pick's or the sitting's
+  rather than the image's, and says nothing more.
+
+### Distrust green
+
+Mutations of the two modules, each reverted from a file copy with bytecode purged, run against
+**`scripts/tests/test_switchtail.py` and `scripts/tests/test_switchsamples.py` together, the
+57-test suite that covers them** (`cd scripts && uv run pytest tests/test_switchtail.py
+tests/test_switchsamples.py`; 54 before this addendum, three added here, two parameters of the
+missing-field case and one test of the served-on line):
+
+| mutation | result |
+| --- | --- |
+| a missing `build_info` read as an empty string | 1 failed, 56 passed |
+| a missing `model_path` read as an empty string | 1 failed, 56 passed |
+| the build read from the `model_path` key and the path from `build_info` | 2 failed, 55 passed |
+| the served-on line dropped from the report | 1 failed, 56 passed |
+| the build and the path swapped on the served-on line | 1 failed, 56 passed |
+| none, restored | 57 passed |
+
+The swapped-keys row fails two tests where the swapped-line row fails one, and the difference is
+the point: the reader's test asserts the whole second line, so a swap anywhere upstream of it fails
+there too, while the format's own test is what catches the swap at the sample. The probe's half has
+no suite, for the reason the format is held by name in the first place, and was run against the
+real server instead, twice, once refused on the draw floor and once published, both quoted above.

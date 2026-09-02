@@ -383,7 +383,10 @@ just switch-tail measurements/switch-<model>.json
 
 That reads the rendered prompt back against the cells the same run drew and says whether this
 tier's template still predicts its own constrained verdict, on the **tail** and not on the two
-renderings differing. Exit 0 published the agreement; exit 1 is either a refusal to publish (a
+renderings differing. Its second line names the engine build and the model file the server
+reported on `GET /props`, which is where a row quoted in a record is copied from, so a quant the
+lineup does not name shows on the page whatever the sample was called. Exit 0 published the
+agreement; exit 1 is either a refusal to publish (a
 control arm that never deliberated, a cell drawn too few times, or a switched tail that carries
 neither of the two markers this reader recognises and is also not the tail rendered with the key
 left alone, which is an unrecognized chat-template format) or the prediction breaking on this
