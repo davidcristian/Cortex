@@ -27,7 +27,22 @@ Swapping a working lever for an untested one on the same day the working one was
 have put an unmeasured flag in the place of the measured one, which is the shape of the defect this
 whole run exists to fix.
 
-**What would close it.** One probe per lineup family against a server started with `--reasoning off`
-alone, on the constrained request shape, reading whether the trace is gone. If it is, the pair
-becomes one flag in all three files; if it is not, the record says which flag each family needs and
-why both stay.
+**The probe was drawn, and the pair does not collapse.** Measured 2026-09-02 on `b10680-d7bd3bfca`
+(ADR-0005 budget-alone addendum): `--reasoning off` alone renders the prompt exactly as the kwarg
+does on both families, the E4B prompt without its `<|think|>` and the Qwen prompt with its thought
+closed, and on the E4B pick it was identical to the shipped pair to the character on 40 of 40
+seed-paired constrained draws, traces and marker fragments included; on the Qwen pick it delivered
+19 of 20. It is the kwarg's own behaviour under a new spelling and not a third lever. The other
+half of the pair cannot stand alone either: the budget by itself loses more answers than the pair
+on the E4B pick and does nothing on the Qwen pick, which is why the pair stays.
+
+**What would close it.** The trigger firing. When the kwarg stops parsing, the change is a spelling
+swap, `--reasoning off` in place of the kwarg on both compose servers and in the hosted tier's
+`_REASONING_OFF`, with the budget kept beside it and `scripts/flagcheck.py`'s requirement re-spelled
+the same way; the rendering column above says the behaviour follows the spelling.
+
+## Trail
+
+- 2026-09-02: the per-family probe this entry asked for was drawn by the close of
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) and is recorded above. The
+  trigger is unchanged.

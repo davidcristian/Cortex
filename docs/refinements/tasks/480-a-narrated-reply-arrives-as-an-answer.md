@@ -57,3 +57,10 @@ work, not anything about the reply.
   quiet pass is the ordinary failure and not a rarity, which is closer to firing this entry than
   anything measured before it, and the argument for leaving it undetected is unchanged, being about
   what a detector over prose can do rather than about a rate.
+- 2026-09-02: the close of
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) measured a flag arm on
+  which this failure is the ordinary one. `--reasoning-budget 0` without the kwarg, on the E4B pick,
+  lost 11 of 40 seed-paired constrained draws with no reasoning character: 9 arrived `ok=True` as a
+  narration or a plan and 2 were a thinking process written into `reply` and cut at the cap, against
+  0 of 40 on the shipped pair. That arm does not ship and the pair stays, so the trigger has not
+  fired; the reading says what the quiet failure looks like when a flag rather than a pick moves it.

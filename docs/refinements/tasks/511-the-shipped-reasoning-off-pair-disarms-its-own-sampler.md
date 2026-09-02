@@ -1,9 +1,7 @@
 # The shipped reasoning-off pair contains a flag that disarms the other
 
-**Status:** open, actionable
+**Status:** declined 2026-09-02
 **Area:** inference
-**Trigger:** any delegated run on the gemma family that comes back with an empty reply cut at the
-cap, and any change to which flags a subagent server is started with.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-30 by the close of
@@ -44,3 +42,18 @@ the kwarg is actually going away.
   [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), whose ADR-0005 marker addendum
   attributed the garbled channel marker to the kwarg and measured the budget alone stopping the
   trace outright on two builds.
+- 2026-09-02: **declined**, by the ADR-0005 budget-alone addendum, which took the cheap first step
+  and found the premise wrong about what it measured. The budget alone was re-drawn seed-paired at
+  40 draws over all four report bodies on the GPU and again on the CPU image the override ships:
+  it wrote no reasoning character and lost 11 of 40 answers to the reply itself, 9 arriving as a
+  narration or a plan and 2 as a thinking process written into `reply` and cut at the cap, where
+  the pair lost 3 of 40 to the channel; on the plain request shape it wrote the thinking process as
+  the reply on 33 of 40; and on the Qwen pick it deliberated to the cap on 40 of 40 across both
+  shapes, that template opening the thought inside the prompt where the sampler sees no start. So
+  the second flag disarms the first and the first alone is worse, on both families. The pair stays
+  on every subagent server, `scripts/flagcheck.py` is unchanged, and the roster question does not
+  arise. The deprecation's successor `--reasoning off` matched the pair to the character on 40 of
+  40 seeds, which is recorded on
+  [R-461](461-the-tiers-thinking-flag-is-deprecated.md). Opened
+  [R-525](525-the-injection-harness-sends-a-request-key-and-never-the-tiers-argv.md) and
+  [R-526](526-the-pairs-budget-half-is-inert-beside-the-kwarg.md).

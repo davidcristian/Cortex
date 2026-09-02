@@ -48,3 +48,10 @@ server will not do.
 - 2026-08-30: opened by the close of
   [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), whose ADR-0005 marker addendum
   drew six arms by hand off `build_payload` and named the three readings no committed probe takes.
+- 2026-09-02: a third hand run, by the close of
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md), which drew 320 arms off
+  `build_payload` and the injection harness's corpus from two scratch files. It adds a fourth
+  reading to the three above, the one the marker addendum's budget arm lacked and the one that
+  decided that close: what the **reply** holds. A thought the channel no longer shows can arrive
+  inside `reply` as a narration or a plan, so a committed probe has to read the reply beside
+  `reasoning_chars` and not only what the trace opens with.
