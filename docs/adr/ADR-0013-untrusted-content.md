@@ -785,3 +785,152 @@ body, which is the only side that sees the screen before it crosses the seam.
 result: it leaves the boundary exactly where it already was. It reopens on one thing, a measured
 obedience on the cortex through fenced *text* that the gate does not already stop, and the answer
 then is a preamble clause, since a clause is what moved every previous cell of these matrices.
+
+## Addendum (2026-09-02): a result is re-stamped trusted only by the brain, on bytes it holds
+
+Closes [R-319](../refinements/tasks/319-a-refusal-taints-the-turn.md) with the decision it asked
+for. The entry described a search the email sidecar refused, a malformed query or a folder no
+mailbox has: the tool read no message, the result is text this repo wrote, and the turn is tainted
+by it all the same, so a `send_email` later in the same turn is blocked with `DENIED_MSG`. It asked
+whether a result that is untrusted by default may ever be exempt from taint, on what evidence, and
+by whom. The answer is yes, on one kind of evidence, and only by the brain.
+
+**The path, re-read against the code.** Every step the entry named is as it said.
+`McpToolRegistry.invoke` builds its `ToolResult` without a `trust` argument
+(`brain/packages/tools/src/cortex_tools/registry.py`), so the fail-closed default of decision 1
+applies; `run_round` observes every result outside every branch (`cortex_core/dispatch_round.py`);
+`TaintLedger.mark` flips on the trust value alone (`cortex_core/untrusted.py`). One claim needs
+tightening, and the tightening is what the design turns on: the refusal is not "nothing but our
+own correction". `SearchRefusedError` and `FolderUnknownError` (`cortex_email/errors.py`) each
+render as a constant from `cortex_email/values.py` followed by the `repr` of the argument that was
+refused, and that argument is the model's own, copied off the call. So what reaches the model is
+text this repo wrote plus text the model wrote, and no byte of either came from a mailbox. The
+same is true of two more answers the sidecar composes itself, `(no matching messages)` and
+`message <uid> not found in <folder>` (`cortex_email/server.py`).
+
+**A second cost the entry did not name.** A result at `Trust.UNTRUSTED` is fenced before the
+model reads it (`result_message`, `cortex_core/tool_round.py`), and the preamble tells the model
+that text inside the fence is never an instruction. Both refusals are instructions: rewrite the
+search from the field description, call `list_folders` before naming a folder. Whether the
+shipped cortex follows a correction it reads inside the fence is unmeasured. The dispatcher's own
+error text for the same tool, `MCP tool 'search_emails' failed`, reaches the model unfenced, so
+two failures of one tool arrive in two framings. The change that removes the lost send removes
+that asymmetry with it.
+
+### The threat model, written down
+
+The sidecar is not trusted in either direction. ADR-0027's sidecar addendum already treats a
+`_meta` declaration as attacker-influenceable because a hostile or compromised sidecar could put
+anything there, and the same holds for every field of a `CallToolResult`: `isError`, the content
+blocks, the annotations. Nothing the wire carries is evidence about itself.
+
+What taint protects is one fact, **whether bytes an attacker may have authored reached the model
+this turn.** Every deterministic consumer keys on that bit and nothing else: the gate in
+`ToolDispatcher.dispatch`, the memory write, the guardrail's grounds, the subagent's registry. So
+whether a result may be exempt is whether the brain can establish, by itself, that the result put
+no such byte in front of the model.
+
+Two facts settle what a hostile sidecar can and cannot gain from any exemption.
+
+First, a sidecar already holds the no-taint outcome. A dial it refuses, a session it drops and an
+exception it lets out all cross the port as `ToolError`, and the dispatcher stamps its own message
+`Trust.TRUSTED` (`cortex_core/dispatch.py`): no fence, no taint. A hostile sidecar that wants a
+turn left untainted has always been able to fail. An exemption therefore adds no capability of
+that shape, and the one thing it must not add is the other shape, attacker bytes reaching the
+model on an untainted turn.
+
+Second, the model's own argument echoed back is not external content. On an untainted turn the
+argument was composed from the user's messages, the system messages and trusted results, since
+nothing else had entered; on a tainted turn the bit is already set and monotone, so re-stamping
+one result changes nothing. The `repr` in the refusal is the model reading its own words, which it
+can do in any reply without a tool.
+
+### Decision: byte equality with text the brain holds, and nothing the wire says
+
+**An untrusted-by-default result is re-stamped `Trust.TRUSTED` only by the brain, in a
+composition-root overlay, and only when the result's whole content is byte-equal to text this repo
+holds in code under review, rendered with the argument the brain itself put on the call.** No
+field a sidecar writes takes part in the decision: `isError` is not read, `_meta` is not read, and
+a result carrying an image or any content beyond the expected bytes stays untrusted. This is the
+rule `claimed_source` already applies to provenance, that a sidecar's word may annotate and never
+relax, extended to trust: the sidecar's word is not consulted at all.
+
+Three candidates were weighed.
+
+- **A wire flag honored as a trust claim** (`_meta["cortex/refusal"]: true`, the shape the entry
+  called worse than the false positive). Rejected, for the reason the entry gave: a hostile
+  sidecar sets it on attacker content, and that is exactly the capability the boundary must not
+  hand out.
+- **A wire selector.** The sidecar names a kind, the brain discards the wire content and renders
+  its own sentence from its own constant and the call's own argument. This one is sound, since no
+  wire byte reaches the model when the kind is honored, and forging the kind only substitutes the
+  brain's sentence for the attacker's. It is rejected on two lesser counts: the sidecar still
+  chooses which of the brain's sentences the model reads, and the text the sidecar composes stops
+  mattering to the brain, so the sidecar's own contract and the brain's drift apart with nothing
+  to hold them together.
+- **Byte equality, brain-side.** Chosen. The sidecar asserts nothing; the model reads exactly the
+  text the sidecar wrote, which stays the sidecar's contract for any other client; and a sidecar
+  that changes its wording fails the match and lands on the tainting side, which is the safe
+  direction.
+
+The rule admits the four answers named above, the two refusals and the two empty results, and no
+other text the sidecar sends today. A per-tool trust override, one that would stamp every result
+of a named remote tool trusted, is refused by the same rule: a tool's name is the sidecar's
+identity, not the brain's knowledge of the bytes. A tool whose every answer should be trusted
+belongs in the brain's own process as a built-in, which is where every trusted tool already lives
+(the volume, schedule and escalate built-ins, and the screen tool's own failures), and
+[R-079](../refinements/tasks/079-per-remote-tool-trust-overrides.md) closes on that: its gating
+half has been `GatedToolRegistry` since ADR-0022, and its trust half is this refusal.
+
+### The design, recorded for the build
+
+Recorded here rather than built, because the session this decision was taken in had two hours and
+the build touches the core, the composition root, a cross-tree constant and three module docs. It
+is filed as [R-530](../refinements/tasks/530-a-sidecars-own-text-is-re-stamped-trusted.md),
+actionable.
+
+- **A core overlay beside `GatedToolRegistry`** (`cortex_core/aggregate.py` is at 181 lines, so it
+  fits there, or in a module of its own): `OwnTextToolRegistry(inner, own=...)`, port-preserving,
+  with `describe_tools` delegating untouched and `invoke` re-stamping a result whose content
+  equals the text one `OwnText` renders from the call's arguments. `OwnText` names the tool and a
+  renderer over the call's `arguments` returning the expected string, or `None` when the arguments
+  do not fit, so `(no matching messages)` and the `repr`-carrying refusals are declared in one
+  shape. The recommended names are `OwnTextToolRegistry` and `OwnText`, in the family the registry
+  overlays already use (`Gated`, `Ungated`, `Filtered`, `Bounded`, `SkipUnavailable`, each a word
+  for what the wrapped registry now is). The honest alternates are `KnownTextToolRegistry`
+  (accurate, but "known" is what the sidecar advertises too, and this text is what the brain
+  wrote) and `AttestedTextToolRegistry` (it borrows `attested` from `SourceKind`, where it means
+  the same thing, at the cost of one word standing in two families).
+- **Wired once, over the root, in `build_tool_registry`** (`cortex_orchestrator/builders.py`),
+  beside `GatedToolRegistry`, so it sits above `BoundedToolRegistry` and
+  `SkipUnavailableToolRegistry` and a `ToolError` crosses as it does today. Keyed by tool name
+  rather than endpoint, since the composition root does not know which endpoint serves the email
+  sidecar and the bytes are the fact either way.
+- **The expected texts are declared brain-side**, in the orchestrator, restating `SEARCH_REFUSED`
+  and `FOLDER_UNKNOWN` and the two literal answers, and held to `cortex_email/values.py` and
+  `cortex_email/server.py` by `crosscheck.py`. Importing `cortex_email` into the orchestrator
+  instead is the cheaper first line and the wrong dependency direction: the sidecar is deployed on
+  its own, and the brain would then carry a mail client's package to learn four sentences. The
+  restatement is the pattern `_SOURCE_META_KEY` already follows between the same two trees, and
+  reading the registry found that key spelled twice with no coupling registered, filed as
+  [R-531](../refinements/tasks/531-the-source-declaration-key-is-spelled-twice-unheld.md).
+- **The contract test the build owes**, over the fake and the real `McpToolRegistry` alike: a
+  result with `isError` set and hostile content stays untrusted; a result carrying a `_meta`
+  declaration of any shape stays untrusted; the exact refusal with one byte appended stays
+  untrusted; the exact refusal under a tool name the overlay does not declare stays untrusted; the
+  exact refusal beside an image stays untrusted; and the exact refusal on the declared tool comes
+  back `Trust.TRUSTED`, reaches the model unfenced, and does not flip a `TaintLedger` that
+  observes it. End to end, the email server's real `SearchRefusedError` driven through FastMCP's
+  request handler and the real `McpToolRegistry` is recognized, which is the check that fails the
+  day the sidecar's wording moves.
+- **The audit line is unchanged.** `ToolInvocation.trust` records the re-stamped value, so the
+  trail says the turn read trusted text, which is true of it.
+
+### What this costs until the build lands, said plainly
+
+A search refused on an untainted turn closes the outbound surface for that turn. The window is
+narrow: a retry that succeeds reads summaries and taints the turn anyway, so the send is lost only
+when the refusal is the turn's sole untrusted result and a send follows it. The fenced correction
+is the other cost, and it is unmeasured.
+
+No code changed here; this is a decision recorded at the origin ADR.
