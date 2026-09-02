@@ -2272,6 +2272,18 @@ Use-case:
   outbound/irreversible in brain-side code/config (`CORTEX_TOOLS_GATED`), never trusting sidecar
   metadata. `describe_tools` stamps; `invoke` delegates untouched (the dispatcher enforces).
   An empty name set is rejected; a name that never appears is harmless (fail-closed default).
+- `OwnTextToolRegistry(inner, *, own)` (`own_text.py`, ADR-0013 own-text addendum) is a
+  `ToolRegistry` that re-stamps a result `Trust.TRUSTED` exactly when its whole `content` is
+  byte-equal to the string one declared `OwnText(tool, render)` renders from the call's own
+  `arguments` and the result carries no image; `render` returns the expected text or `None`
+  when the arguments do not fit, so a literal answer and a refusal quoting the argument's `repr`
+  are one shape. `describe_tools` delegates untouched. Nothing the result says about itself
+  takes part: `is_error` and `source` are not read and ride along unchanged, a result carrying
+  an image is left alone before any text is compared, and an undeclared tool name matches
+  nothing. It is the composition-root trust overlay beside `GatedToolRegistry`, and the only
+  place a remote result is ever trusted: the root declares the email sidecar's four own answers
+  over the shared registry (`cortex_orchestrator/own_texts.py`). An empty declaration set is
+  rejected.
 - `BoundedToolRegistry(inner, *, timeout_s=DEFAULT_TOOL_CALL_TIMEOUT_S)` (`tool_deadline.py`,
   ADR-0009 bound addendum) is a `ToolRegistry` whose every call gives up after `timeout_s`. Both
   verbs are bounded by the one number, and an overrun raises `ToolError` naming the tool (or the

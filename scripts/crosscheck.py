@@ -28,7 +28,10 @@ MIN_PLACES = 2
 MIN_OCCURRENCES = 1
 
 DECLARATIONS = {
-    ".py": r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[^\n]*)$",
+    ".py": (
+        r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[ \t]*\([ \t]*(?:#[^\n]*)?\n"
+        r"(?:(?![ \t]*\))[^\n]*\n)*[ \t]*\)[^\n]*|[^\n]*)$"
+    ),
     ".rs": (
         r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?(?:const|static)[ \t]+{name}"
         r"[ \t]*:[^=\n]*=(?P<value>[^;\n]*);"

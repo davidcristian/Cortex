@@ -1,8 +1,4 @@
-"""Public core names for the tool registry, its dispatch loop, and the built-in tools.
-
-Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
-stays ``cortex_core``. ``__all__`` is this file's contract.
-"""
+"""Public core names for the tool registry, its dispatch loop, and the built-in tools."""
 
 from cortex_core.aggregate import (
     AggregateToolRegistry,
@@ -21,6 +17,7 @@ from cortex_core.dispatch import (
     DispatchRefusal,
     ToolDispatcher,
 )
+from cortex_core.own_text import OwnText, OwnTextRenderer, OwnTextToolRegistry
 from cortex_core.screen_tool import CAPTURE_SCREEN_TOOL_NAME, CaptureBounds, CaptureScreenTool
 from cortex_core.sighted import BLIND_MSG, SightedToolRegistry, VisionProbe
 from cortex_core.tool_budget import (
@@ -100,6 +97,9 @@ __all__ = [
     "FilteredToolRegistry",
     "GatedToolRegistry",
     "GetVolumeTool",
+    "OwnText",
+    "OwnTextRenderer",
+    "OwnTextToolRegistry",
     "RepeatSalience",
     "RoundPlan",
     "SaliencePolicy",

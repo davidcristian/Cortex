@@ -5,53 +5,41 @@ from typing import NamedTuple
 
 from couplings import PLACEHOLDER, Constant, Spelling
 
-# The only comment marker a declaration's right-hand side may carry. Rust and TypeScript need
-# none: their value is captured up to the terminating semicolon, so a trailing `//` never
-# arrives here.
 COMMENT_MARKER = "#"
 
-# A product of integer literals, which may open with a minus. The sign belongs to the whole
-# expression and never to a factor, since `2 * -3` appears nowhere here. A leading `+` is refused
-# because `str(1)` is `1`, so a mention would render a needle the site's own `+1` does not contain.
+# A leading `+` is refused because `str(1)` is `1`, so a mention would render a search text the
+# site's own `+1` does not contain.
 INTEGER_PRODUCT = re.compile(r"^-?\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
 
-# The two words a boolean may be declared with. They are Python's casing because Python declares
-# every registered boolean; another language's casing is reached by `Spelling.LOWERED` at a
-# mention rather than accepted at a site.
 BOOLEANS = ("True", "False")
 
 COLLECTION_PREFIX = "frozenset("
 COLLECTION = re.compile(r"^frozenset\(\{(?P<members>.+)\}\)$")
+
+BLOCK_OPEN = "("
+BLOCK_CLOSE = ")"
 
 DECIMAL_POINT = "."
 DECIMAL = re.compile(r"^\d+(?:_\d+)*\.\d+(?:_\d+)*$")
 
 
 class Digits(NamedTuple):
-    """A decimal literal, held as the digits it is written with rather than as a number.
-
-    Its own type rather than a bare ``str``, so a decimal never compares equal to a string literal
-    with the same characters.
-    """
+    """A decimal literal, kept as the digits it is written with rather than as a number."""
 
     written: str
 
     def __repr__(self) -> str:
-        """Render as the digits themselves, which is what a needle and a fault are built from."""
+        """Render as the digits themselves, which a search text and a fault are built from."""
         return self.written
 
 
 class Truth(NamedTuple):
-    """A boolean literal, held as the word it is written with rather than as a truth value.
-
-    Its own type for the reason ``Digits`` is, and because a Python `bool` is an `int`: a bare
-    `False` would compare equal to a site declaring `0` and would sort under an ordering.
-    """
+    """A boolean literal, kept as the word it is written with rather than as a truth value."""
 
     written: str
 
     def __repr__(self) -> str:
-        """Render as the word itself, which is what a needle and a fault are built from."""
+        """Render as the word itself, which a search text and a fault are built from."""
         return self.written
 
 
@@ -108,6 +96,19 @@ def _decimal_value(text: str) -> Digits:
     return Digits(expression.replace("_", ""))
 
 
+def _block_value(text: str) -> str:
+    """Join a parenthesized run of double-quoted literals, one per line, as Python joins them."""
+    lines = text.splitlines()
+    if _expression(lines[0]) != BLOCK_OPEN or _expression(lines[-1]) != BLOCK_CLOSE:
+        msg = f"{text!r} is not a parenthesized run of string literals, one per line"
+        raise CrossCheckError(msg)
+    members = [line.strip() for line in lines[1:-1] if _expression(line)]
+    if not members:
+        msg = f"{text!r} is a parenthesized run with no literal in it"
+        raise CrossCheckError(msg)
+    return "".join(_string_value(member) for member in members)
+
+
 def _collection_value(text: str) -> frozenset[str]:
     """Reduce a frozenset of string literals to its members, which a membership is decided on."""
     expression = _expression(text)
@@ -123,6 +124,8 @@ def parse_value(text: str) -> Value:
     stripped = text.strip()
     if stripped.startswith('"'):
         return _string_value(stripped)
+    if stripped.startswith(BLOCK_OPEN):
+        return _block_value(stripped)
     if stripped.startswith(COLLECTION_PREFIX):
         return _collection_value(stripped)
     expression = _expression(stripped)
@@ -134,7 +137,7 @@ def parse_value(text: str) -> Value:
 
 
 def whole_spelling(value: Value) -> str:
-    """A number with no fractional part, for a far side whose syntax carries none."""
+    """A number with no fractional part, for a far side whose syntax has none."""
     if isinstance(value, int):
         return str(value)
     if not isinstance(value, Digits):
@@ -151,11 +154,7 @@ def whole_spelling(value: Value) -> str:
 
 
 def _lowered_spelling(value: Value) -> str:
-    """A boolean in the lower case the other language writes the same answer in.
-
-    Only a boolean, because only a boolean's casing is one language's own spelling of an answer
-    both languages hold. Folding a string would tie two literals differing in case alone.
-    """
+    """A boolean in the lower case the other language writes the same answer in."""
     if not isinstance(value, Truth):
         msg = f"a lowered spelling needs a boolean, and this constant declares {value!r}"
         raise CrossCheckError(msg)
@@ -163,7 +162,7 @@ def _lowered_spelling(value: Value) -> str:
 
 
 def spell(value: Value, spelling: Spelling) -> str:
-    """The text a mention writes ``value`` as, in the spelling that mention asks for."""
+    """The text a mention writes ``value`` as, in the form that mention asks for."""
     if spelling is Spelling.WHOLE:
         return whole_spelling(value)
     if spelling is Spelling.LOWERED:
@@ -172,7 +171,7 @@ def spell(value: Value, spelling: Spelling) -> str:
 
 
 def spelling_fault(constant: Constant) -> str | None:
-    """The complaint about a lossy re-spelling with no faithful reading beside it, or None."""
+    """What is wrong when a value is rewritten in a lossy form with no exact one beside it."""
     if not any(mention.spelling.lossy for mention in constant.mentions):
         return None
     faithful = (

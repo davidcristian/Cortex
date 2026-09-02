@@ -347,13 +347,16 @@ held in one place for the same reason.
   editing either side alone fails and a deliberate change is a change to all of them.
   `proto/body.proto` is not the source: protobuf has no constant, so a value could only sit
   there as a comment, which is one more uncoupled copy. Values are compared after reduction,
-  so `6291456` and `6 * 1024 * 1024` tie; the five forms that reduce are a product of integer
+  so `6291456` and `6 * 1024 * 1024` tie; the six forms that reduce are a product of integer
   literals, which may open with a minus (the sign is the expression's and never a factor's, and a
   leading plus is refused, `str(1)` rendering a needle `+1` does not spell), a plain double-quoted
-  string, a one-line `frozenset` of those strings, which is
-  how this repo spells an allow-list and is what a membership is decided against (a set literal
-  is mutable and a multi-line spelling never reaches the reducer, a declaration being captured one
-  line at a time), a decimal literal, and a boolean.
+  string, a parenthesized run of double-quoted literals across several lines, which reduces to
+  the one string Python joins them into and is the one multi-line shape the Python declaration
+  syntax captures (how this repo writes a sentence too long for one line, held first for the
+  email sidecar's own texts, ADR-0029 run addendum), a one-line `frozenset` of those strings,
+  which is how this repo spells an allow-list and is what a membership is decided against (a set
+  literal is mutable, and a multi-line collection never reaches the reducer, every other
+  declaration being captured one line at a time), a decimal literal, and a boolean.
   **A decimal reduces to its digits rather than to a number** (ADR-0029 decimal addendum), which is
   the one place the reducer stops short of arithmetic: `5` and `5.0` are one number and two
   spellings, and the spelling is what a mention needs, a needle rendered as `5` finding nothing in

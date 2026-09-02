@@ -1,6 +1,6 @@
 # A sidecar's own text is re-stamped trusted by the brain, on bytes it holds
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
 
@@ -56,3 +56,16 @@ refusals. The rule admits all four; the entry that opened this was about the ref
 
 - 2026-09-02: opened by the close of [319](319-a-refusal-taints-the-turn.md), which recorded the
   decision at ADR-0013 and stopped short of the build for want of a sitting.
+- 2026-09-02: landed, as the ADR-0013 build addendum records. `OwnTextToolRegistry` and `OwnText`
+  in `cortex_core/own_text.py`, wired outermost over the shared root in `build_tool_registry`
+  over `EMAIL_OWN_TEXTS` (`cortex_orchestrator/own_texts.py`), which declares all four answers in
+  the first cut. The contract runs over the fake and the real `McpToolRegistry`, and the
+  end-to-end check drives the real sidecar through `FastMCP.call_tool` into the real adapter.
+  Two of the entry's premises did not hold: `crosscheck.py` could not read either refusal
+  sentence, which is a parenthesized run of literals, so the reducer gained that form (ADR-0029
+  run addendum), and its suite's rule that every entry span two languages had to learn that two
+  brain packages which cannot import each other are a seam too. Through the real adapter an
+  image block is dropped before the overlay sees the result, filed as
+  [532](532-an-mcp-image-block-is-dropped-rather-than-carried.md); whether the shipped cortex
+  follows the now-unfenced correction, and the same path against a real Bridge, are filed as
+  [533](533-the-unfenced-correction-is-unmeasured-on-the-cortex.md).

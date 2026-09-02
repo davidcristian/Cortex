@@ -18,6 +18,7 @@ from cortex_core import (
     LookalikeUrlRedactingGuardrail,
     ModelManager,
     OutputGuardrail,
+    OwnTextToolRegistry,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     StrictUrlRedactingGuardrail,
@@ -34,6 +35,7 @@ from cortex_orchestrator.config import InferenceConfig, OutputGuardrailName
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.dispatch_builders import build_builtin_tools, build_cortex_tools
+from cortex_orchestrator.own_texts import EMAIL_OWN_TEXTS
 from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
 
 __all__ = [
@@ -49,14 +51,15 @@ __all__ = [
     "resolve_trace_lever",
 ]
 
-# Connect, write and pool time out fast on a dead server, one knob for every tier, because a dead
-# server fails to connect at the same speed everywhere. The read phase is the factory's argument
-# rather than this constant.
+# Connect, write and pool, which time out fast on a dead server whatever the tier. The read
+# phase is the caller's argument instead, since the worst legitimate silence differs per tier.
 LLAMACPP_CONNECT_TIMEOUT_S = 10.0
 
 
 def build_generation_client(stall_timeout_s: float) -> httpx.AsyncClient:
-    """The client a llama-server generation stream rides (ADR-0005 stall-ceiling addendum)."""
+    """The client a llama-server generation stream is read over."""
+    # ``stall_timeout_s`` is httpx's read timeout, which bounds one socket read and never the
+    # whole request, so a stream whose chunks keep arriving may run as long as the model takes.
     return httpx.AsyncClient(
         timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=stall_timeout_s)
     )
@@ -79,7 +82,7 @@ async def noop_aclose() -> None:
 
 
 async def resolve_trace_lever(config: InferenceConfig, cortex_model: str) -> bool:
-    """Whether a request to this deployment may carry its own trace budget (ADR-0005)."""
+    """Whether a request to this deployment may include its own trace budget."""
     if config.trace_lever == "off":
         return False
     if config.trace_lever == "on":
@@ -107,7 +110,7 @@ async def build_inference_backend(
 def build_tool_registry(
     config: ToolsConfig,
 ) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
-    """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None (ADR-0009)."""
+    """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None."""
     if config.backend != "mcp":
         return None, noop_aclose
     registries: list[ToolRegistry] = []
@@ -125,11 +128,11 @@ def build_tool_registry(
     root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
     if config.gated:
         root = GatedToolRegistry(root, gated=config.gated)
-    return root, noop_aclose
+    return OwnTextToolRegistry(root, own=EMAIL_OWN_TEXTS), noop_aclose
 
 
 def build_output_guardrail(mode: OutputGuardrailName) -> OutputGuardrail | None:
-    """The turn's output guardrail, or None when disabled (ADR-0015)."""
+    """The turn's output guardrail, or None when disabled."""
     if mode == "strict":
         return StrictUrlRedactingGuardrail()
     if mode == "lookalike":
@@ -140,8 +143,7 @@ def build_output_guardrail(mode: OutputGuardrailName) -> OutputGuardrail | None:
 async def build_body_gateway(
     config: BodyConfig, *, token: str
 ) -> tuple[BodyGateway | None, Callable[[], Awaitable[None]]]:
-    """Pick the body gateway from config; return it with the coroutine that releases it (ADR-0023).
-    """
+    """Pick the body gateway from config; return it with the coroutine that releases it."""
     if config.backend != "grpc":
         return None, noop_aclose
     return await GrpcBodyGateway.connect(
