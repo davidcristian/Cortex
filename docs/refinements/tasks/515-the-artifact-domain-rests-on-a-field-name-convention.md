@@ -1,6 +1,6 @@
 # The artifact domain rests on a field name convention nothing holds
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -49,3 +49,20 @@ say so where the reader is. Candidates, and they differ in what they rest on:
   [ADR-0029 addendum on the projector joining the
   family](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-30-the-projector-joins-the-family-and-a-field-is-read-for-its-own-name),
   whose reader finds the projector by the field name this entry is about.
+- 2026-09-02: landed as the first candidate on the compose side and a derivation the entry did not
+  list on the hosted side, recorded in the [ADR-0029 addendum on the artifact domain being the
+  resolver](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-09-02-the-artifact-domain-is-the-resolver-and-the-compose-flag-set-widens).
+  Both hazards were run against the committed gate first and both passed it silently, the renamed
+  projector field at OK over six artifacts. The call the entry asked to revisit produces
+  `("--mmproj", path, ...)` with `path` bound one statement earlier from `self._path(...)`, so
+  the flag is readable structurally through a local-name hop, and the resolver is what is read
+  instead: a settings field is an artifact when the module hands it to `_path`, the one method
+  that joins a file onto `models_root`, whatever the field is named and whichever flag or keyword
+  spends the path. The `_file` suffix reading retired with `ARTIFACT_SUFFIX`. Two refusals came
+  with it, a settings method other than the resolver reading the mount, and a resolver handed no
+  field at all. The compose side widened `ARTIFACT_FLAGS` to `--model` and `--mmproj`, that
+  language having no resolver to read. What this close opened:
+  [R-520](520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md), the compose
+  flag list the engine can outgrow, and
+  [R-521](521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md), the
+  refusal's cost on a read of the mount that joins nothing.

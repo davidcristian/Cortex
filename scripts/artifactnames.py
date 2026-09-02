@@ -17,9 +17,11 @@ membership reading above it decidable.
 The artifacts are found structurally, never by the prefix. A rule whose domain was the
 variables that already begin `CORTEX_MODEL_FILE_` would be a rule about the very convention it
 checks: the misspelling it exists to catch is outside that domain by construction, so it could
-not fail for the one fault it was built for. A compose artifact is therefore the item after
-llama.cpp's own `--model`, and a hosted one is the settings field a tier reads its `model_path`
-from, which is the reading `hostedtiers.py` already makes with its subagent filter turned off.
+not fail for the one fault it was built for. Each language is read for the mechanism that carries
+a file to the engine in that language. A compose artifact is the item after one of llama.cpp's
+own file flags, `ARTIFACT_FLAGS`, and a hosted one is a settings field the sidecar hands to its
+resolver, the one method that joins a file onto the read-only mount, whichever keyword or flag
+then spends the path it returns.
 
 The short spelling of the model flag is deliberately not read. llama.cpp accepts `-m`, and
 this tree starts an MCP sidecar with `python -m <module>`: a reader taking the item after every
@@ -28,14 +30,21 @@ remedy would be to teach the gate, which costs more than the miss it would close
 started here spells the flag in full, and a server that did not would still be found by the
 wiring that dials it.
 
-A settings field is read for what its own name says it holds as well as for where it is spent. A
-tier's `model_path` is one keyword of several that carry an artifact into an argv, and the
-multimodal projector reaches the cortex tier through its `extra` instead, assembled by a call the
-tier reader does not approximate. So the hosted side is read a second way, off the field names
-the settings class declares: a field whose own name ends `ARTIFACT_SUFFIX` names an artifact
-whichever keyword spends it, and one found both ways is one artifact rather than two. That domain
-is the sidecar's own Python-side convention and not the variable under test, so an artifact
-misspelled in the environment is still inside it, which is the property the whole reading needs.
+The resolver is read rather than the flags the sidecar writes, and rather than the field names.
+The projector reaches the cortex tier's argv through its `extra`, assembled by a call the tier
+reader does not approximate, and the flag in front of it is written on a local name bound one
+statement earlier; the resolver call is handed the field directly, on the same line, in every
+place an artifact is spent. A field name is a label its author chose (`cortex_mmproj_file` was
+found by its suffix until 2026-09-02, and `cortex_mmproj_path` would have been found by nothing),
+where a resolution is what the module does with the value. The domain is still the Python side
+and never the variable under test, so an artifact misspelled in the environment is inside it.
+
+Two shapes are refused rather than read around, each by name. A settings method other than the
+resolver that reads the mount root would be a second resolver this reader does not read, so a path
+joined onto the mount by hand is reported rather than missed. And a resolver handed no field at
+all is a reading that would answer emptily forever: a renamed resolver takes every call with it,
+and without this floor the tier reading would go on finding three artifacts while the projector
+dropped out in silence.
 
 An item that spends no variable names nothing this rule can hold. A model path written out in
 full carries no name to misspell, and the membership readers already have their own answer for
@@ -46,19 +55,13 @@ declaration rather than from the passthrough that feeds it.
 A server that serves no chat still names an artifact this rule holds. The CPU embedder runs
 from the same llama.cpp image as the subagent servers, and what it serves is `subagentservers.py`'s
 question rather than this one: that reader keeps it out of the subagent set on its own, by the
-variable its argv spends and by a wiring that never dials it. This reader asks the question
-underneath, whether an artifact is spelled so such an answer is decidable at all, and an argv
-declaring `--embeddings` is spelled no differently from any other. So there is no embedding
-exclusion here, and the one that used to sit here excused the single artifact in this tree spelled
-outside the family, in the very block a new non-chat model server would be copied from
-(ADR-0029's addendum on a non-chat artifact naming itself in the family).
-
-No floor of its own is asserted, because one is asserted underneath. `hostedtiers.py` raises on a
-sidecar declaring no tier and on a tier naming no artifact, so a tree this reader can read at all
-names at least one artifact, and a reading that answered emptily forever is already impossible.
+variable its argv spends and by a wiring that never dials it. An argv declaring `--embeddings` is
+spelled no differently from any other, so there is no embedding exclusion here (ADR-0029's
+addendum on a non-chat artifact naming itself in the family).
 """
 
 import ast
+from collections.abc import Mapping
 from pathlib import Path
 from typing import NamedTuple
 
@@ -67,33 +70,40 @@ from composefiles import compose_files
 from composestarts import ComposeStartError, Started, read_starts
 from hostedtiers import (
     MODEL_MANAGER,
+    SELF,
     SETTINGS_CLASS,
     TIER_MODULE,
+    HostedTierError,
     aliases,
     declared,
     parse_module,
     tier_artifacts,
 )
-from moduleconstants import bound
 
-# llama.cpp's own flag naming the artifact a server serves, in the long spelling every server
-# started here writes and the only one this reader takes.
-MODEL_FLAG = "--model"
+# llama.cpp's own flags naming the files a server loads, in the long spelling every server started
+# here writes and the only one this reader takes: the model, and the multimodal projector loaded
+# beside it. The engine has further file flags (a draft model, a LoRA adapter, a control vector),
+# and a compose service spending a variable after one of those is unread until it is added here.
+ARTIFACT_FLAGS = ("--model", "--mmproj")
 
-# What a settings field's own name says about what it holds. Every artifact field the sidecar
-# declares spells it, the projector's included, and nothing else there does: a binary and a mount
-# root are paths without being artifacts. It is deliberately the Python name and not the
-# environment one, that being the spelling under test.
-ARTIFACT_SUFFIX = "_file"
+# The sidecar's resolver, the one method that joins a file onto the read-only mount, and the field
+# naming that mount. A settings field names an artifact when the module hands it to the resolver,
+# and the mount may be read nowhere else, so a path joined by hand is refused rather than missed.
+RESOLVER = "_path"
+MOUNT_ROOT = "models_root"
+
+# A resolver handed no field is a reading that would answer emptily forever.
+MIN_RESOLVED = 1
 
 
 class Artifact(NamedTuple):
     """One model artifact this tree names, and the variable a deployment names it under.
 
-    ``where`` is the compose service whose argv names it, or the settings field a hosted tier
-    reads its path from, which is the word an author would search the file for. ``line`` is where
-    that declaration opens rather than where the name itself is written, the service or the tier,
-    which is the line the substitution reader is handed for its own refusals.
+    ``where`` is the compose service whose argv names it, or the settings field the sidecar
+    resolves it from, which is the word an author would search the file for. ``line`` is where
+    the artifact is spent rather than where its name is declared: the service, the tier, or the
+    call that resolves the field, which is the line the substitution reader is handed for its own
+    refusals.
     """
 
     file: str
@@ -109,7 +119,7 @@ def spends(started: Started) -> tuple[str, ...]:
         return tuple(
             spend.name
             for index, item in enumerate(command)
-            if item == MODEL_FLAG and index + 1 < len(command)
+            if item in ARTIFACT_FLAGS and index + 1 < len(command)
             for spend in read_line(started.line, command[index + 1])
         )
     except SubstitutionReadError as err:
@@ -141,27 +151,79 @@ def composed(root: Path) -> tuple[Artifact, ...]:
     )
 
 
-def files(module: ast.Module) -> tuple[tuple[str, str, int], ...]:
-    """Every settings field whose own name says it holds an artifact, with its line.
-
-    The alias walk underneath decides what a field is named in the environment and raises on a
-    settings class that names nothing; this adds only the two things that walk drops, which field a
-    name belongs to and where it is written.
-    """
-    named = aliases(module)
-    return tuple(
-        (field, named[field], statement.lineno)
-        for node in module.body
-        if isinstance(node, ast.ClassDef) and node.name == SETTINGS_CLASS
-        for statement in node.body
-        if (declaration := bound(statement)) is not None
-        and (field := declaration[0]) in named
-        and field.endswith(ARTIFACT_SUFFIX)
+def _reads(node: ast.AST, attribute: str) -> bool:
+    """Whether ``node`` is ``self.<attribute>``, the one spelling a method reads a field in."""
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == SELF
+        and node.attr == attribute
     )
 
 
+def _methods(module: ast.Module) -> list[ast.FunctionDef]:
+    """Every method of the settings class, in the order it writes them."""
+    return [
+        statement
+        for node in module.body
+        if isinstance(node, ast.ClassDef) and node.name == SETTINGS_CLASS
+        for statement in node.body
+        if isinstance(statement, ast.FunctionDef)
+    ]
+
+
+def _handed(call: ast.Call, named: Mapping[str, str]) -> list[str]:
+    """Every settings field one resolver call is handed, however the expression wraps it."""
+    return [
+        node.attr
+        for expression in (*call.args, *(keyword.value for keyword in call.keywords))
+        for node in ast.walk(expression)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == SELF
+        and node.attr in named
+    ]
+
+
+def resolved(module: ast.Module) -> tuple[tuple[str, str, int], ...]:
+    """Every settings field the sidecar hands to its resolver, with the line it does so on.
+
+    A field resolved twice is one artifact, reported where it is first resolved. The alias walk
+    underneath decides what a field is named in the environment and raises on a settings class
+    that names nothing.
+    """
+    named = aliases(module)
+    found: dict[str, tuple[str, int]] = {}
+    for method in _methods(module):
+        if method.name != RESOLVER and any(_reads(node, MOUNT_ROOT) for node in ast.walk(method)):
+            msg = (
+                f"{TIER_MODULE} reads {MOUNT_ROOT} in {method.name} rather than in {RESOLVER}, so "
+                "this reader cannot say which fields are resolved under the mount; join a path "
+                f"onto the mount in {RESOLVER} only, or teach {Path(__file__).name} the shape"
+            )
+            raise HostedTierError(msg)
+        calls = sorted(
+            (
+                node
+                for node in ast.walk(method)
+                if isinstance(node, ast.Call) and _reads(node.func, RESOLVER)
+            ),
+            key=lambda call: (call.lineno, call.col_offset),
+        )
+        for call in calls:
+            for field in _handed(call, named):
+                found.setdefault(field, (named[field], call.lineno))
+    if len(found) < MIN_RESOLVED:
+        msg = (
+            f"{TIER_MODULE} hands no {SETTINGS_CLASS} field to {RESOLVER}, so no artifact could "
+            "be found by where it is resolved and a reading of it could not fail"
+        )
+        raise HostedTierError(msg)
+    return tuple((field, variable, line) for field, (variable, line) in found.items())
+
+
 def tiered(root: Path) -> tuple[Artifact, ...]:
-    """Every artifact the model host names, by the tiers that spend one and by the fields.
+    """Every artifact the model host names, by the tiers that spend one and by the resolver.
 
     The tier walk first, so an artifact a tier reads its path from is reported at the tier that
     reads it; a field found both ways is one artifact and is not repeated.
@@ -179,7 +241,7 @@ def tiered(root: Path) -> tuple[Artifact, ...]:
         *spent,
         *(
             Artifact(file=shown, where=field, line=line, variable=variable)
-            for field, variable, line in files(module)
+            for field, variable, line in resolved(module)
             if field not in fields
         ),
     )

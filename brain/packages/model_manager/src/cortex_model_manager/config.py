@@ -130,9 +130,11 @@ class ModelHostConfig(BaseSettings):
     # capability from the running server's /props rather than from a second flag here.
     # Renamed from CORTEX_MMPROJ_FILE_CORTEX on 2026-08-30 (ADR-0029 projector-naming addendum):
     # a projector is a model file, so it is spelled in the one family every model artifact this
-    # tree names is spelled in, with the tier still the word after the prefix. The field name
-    # ending `_file` is what `scripts/artifactnames.py` finds it by, this being the artifact
-    # that reaches an argv through `extra` rather than through a tier's model_path.
+    # tree names is spelled in, with the tier still the word after the prefix.
+    # `scripts/artifactnames.py` finds it by the `_path` call in `_vision` below, this being the
+    # artifact that reaches an argv through `extra` rather than through a tier's model_path: every
+    # artifact path goes through `_path`, and the gate refuses one joined onto `models_root` by
+    # hand (ADR-0029 addendum on the artifact domain being the resolver).
     cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX_MMPROJ")
     # How many tokens one picture may occupy, and with it how much of a 4K screen survives the
     # downscale. Zero hands the budget back to the model, which declares 266 tokens on the cortex

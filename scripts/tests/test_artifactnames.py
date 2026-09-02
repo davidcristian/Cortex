@@ -15,8 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from artifactnames import composed, files, named, spends, tiered
+from artifactnames import composed, named, resolved, spends, tiered
 from composestarts import ComposeStartError, Started, read_starts
+from hostedtiers import HostedTierError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -28,6 +29,18 @@ services:
       - "--model"
       - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-vendor/small.gguf}"
       - "--jinja"
+"""
+
+# A projector loaded beside a model, which is the second of llama.cpp's file flags this reader
+# takes: a compose service spending one names two artifacts.
+SIGHTED = """\
+services:
+  llama-subagent:
+    command:
+      - "--model"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-vendor/small.gguf}"
+      - "--mmproj"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT_MMPROJ:-vendor/mmproj.gguf}"
 """
 
 WRITTEN_OUT = """\
@@ -80,6 +93,16 @@ def _one(text: str) -> Started:
 
 def test_the_variable_after_the_model_flag_is_the_artifact_that_argv_names() -> None:
     assert spends(_one(SUBAGENT)) == ("CORTEX_MODEL_FILE_SUBAGENT",)
+
+
+def test_the_variable_after_the_projector_flag_is_an_artifact_that_argv_names_too() -> None:
+    """A projector is weights under the same mount loaded by the same engine, and llama.cpp names
+    it with its own flag, so the item after `--mmproj` is read exactly as the one after `--model`
+    and a service spending a projector variable is held to the family like any other."""
+    assert spends(_one(SIGHTED)) == (
+        "CORTEX_MODEL_FILE_SUBAGENT",
+        "CORTEX_MODEL_FILE_SUBAGENT_MMPROJ",
+    )
 
 
 def test_a_model_path_written_out_in_full_names_no_variable_to_hold() -> None:
@@ -156,48 +179,117 @@ def test_a_compose_file_that_cannot_be_read_is_named(tmp_path: Path) -> None:
         composed(tmp_path)
 
 
-# ── what a settings field's own name says it holds ─────────────────────────────
+# ── what the sidecar resolves under the mount ──────────────────────────────────
 
-SETTINGS = '''\
+# Three artifacts under three field names, none of which this reader is told: one a tier reads
+# its `model_path` from, one handed by keyword, and one resolved into a local that a flag then
+# spends, which is the projector's own shape. The names are deliberately outside the `_file`
+# spelling the committed sidecar happens to use, since a name is what an author picks and a
+# resolution is what the module does. The resolver is kept apart so a test can take it away.
+DECLARED = '''\
 class Elsewhere:
-    """A field of the same name outside the settings class names nothing here."""
+    """A field resolved in some other class names nothing here."""
 
     stray_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_STRAY")
+
+    def tiers(self):
+        return (self._path(self.stray_file),)
 
 
 class ModelHostConfig(BaseSettings):
     """A class docstring binds nothing."""
 
     llama_bin: str = "/app/llama-server"
+    models_root: str = "/models"
     cortex_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX")
-    cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX_MMPROJ")
+    cortex_mmproj_path: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX_MMPROJ")
+    brain_weights: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN")
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
 
-    def tiers(self) -> tuple[str, ...]:
-        return ()
+    def tiers(self):
+        return (
+            TierArgs(model_path=self._path(self.cortex_file), ngl=self.cortex_ngl),
+            TierArgs(model_path=self._path(file=self.brain_weights), extra=self._vision()),
+        )
+
+    def roster(self):
+        return tuple(tier.model_path for tier in self.tiers())
+
+    def _vision(self):
+        path = self._path(self.cortex_mmproj_path)
+        return ("--mmproj", path) if path else ()
+
 '''
 
+RESOLVER_METHOD = """\
+    def _path(self, file):
+        return f"{self.models_root.rstrip('/')}/{file}" if file else ""
+"""
 
-def test_a_settings_field_naming_a_file_is_an_artifact_whichever_keyword_spends_it() -> None:
-    """This is the projector's shape: it reaches an argv through a tier's `extra` rather than
-    through its `model_path`, so the field's own name is what says it holds a file."""
-    assert files(ast.parse(SETTINGS)) == (
-        ("cortex_file", "CORTEX_MODEL_FILE_CORTEX", 11),
-        ("cortex_mmproj_file", "CORTEX_MODEL_FILE_CORTEX_MMPROJ", 12),
+SETTINGS = DECLARED + RESOLVER_METHOD
+
+
+def _line(text: str, needle: str) -> int:
+    """The one-based line of ``text`` carrying ``needle``, asserted to be exactly one line."""
+    lines = [number for number, line in enumerate(text.splitlines(), 1) if needle in line]
+    assert len(lines) == 1, (needle, lines)
+    return lines[0]
+
+
+def test_a_field_the_sidecar_resolves_is_an_artifact_whatever_it_is_named_and_wherever_spent() -> (
+    None
+):
+    """The domain is what the module hands to its resolver. `cortex_mmproj_path` is the projector
+    under a name the old suffix reading would have missed, resolved into a local that `--mmproj`
+    then spends; `brain_weights` is handed by keyword; each is reported where it is resolved."""
+    at_tier = _line(SETTINGS, "self._path(self.cortex_file)")
+    by_keyword = _line(SETTINGS, "file=self.brain_weights")
+    into_local = _line(SETTINGS, "self._path(self.cortex_mmproj_path)")
+    assert resolved(ast.parse(SETTINGS)) == (
+        ("cortex_file", "CORTEX_MODEL_FILE_CORTEX", at_tier),
+        ("brain_weights", "CORTEX_MODEL_FILE_BRAIN", by_keyword),
+        ("cortex_mmproj_path", "CORTEX_MODEL_FILE_CORTEX_MMPROJ", into_local),
     )
 
 
-def test_a_field_that_names_no_file_and_one_outside_the_settings_class_are_both_passed_over() -> (
-    None
-):
-    """Three shapes are passed over, each of which would be a fault of its own if it were read: a
-    setting that is no artifact (`cortex_ngl`), a path that is no artifact (`llama_bin`, which
-    names no variable), and a field of the right shape in some other class, which is not this
-    sidecar's declaration."""
-    found = [field for field, _, _ in files(ast.parse(SETTINGS))]
+def test_a_field_never_resolved_and_one_resolved_in_another_class_are_both_passed_over() -> None:
+    """Four shapes are passed over, each of which would be a fault of its own if it were read: a
+    setting that is no artifact (`cortex_ngl`, handed to a tier but never resolved), two paths
+    that are no artifact (`llama_bin` and the mount root itself, which name no variable), and a
+    field resolved in some other class, which is not this sidecar's declaration."""
+    found = [field for field, _, _ in resolved(ast.parse(SETTINGS))]
     assert "cortex_ngl" not in found
     assert "llama_bin" not in found
+    assert "models_root" not in found
     assert "stray_file" not in found
+
+
+def test_a_field_resolved_twice_is_one_artifact_reported_where_it_is_first_resolved() -> None:
+    again = "    def again(self):\n        return self._path(self.cortex_file)\n\n"
+    twice = SETTINGS.replace("    def roster(self):\n", again + "    def roster(self):\n")
+    found = [(field, line) for field, _, line in resolved(ast.parse(twice))]
+    assert found.count(("cortex_file", _line(SETTINGS, "self._path(self.cortex_file)"))) == 1
+    assert [field for field, _ in found].count("cortex_file") == 1
+
+
+def test_a_path_joined_onto_the_mount_outside_the_resolver_is_refused_by_name() -> None:
+    """A second place reading the mount is a second resolver this reader does not read, and an
+    artifact joined there would be missed in silence, so the shape is reported with its remedy."""
+    by_hand = SETTINGS.replace(
+        "self._path(file=self.brain_weights)", 'f"{self.models_root}/{self.brain_weights}"'
+    )
+    with pytest.raises(HostedTierError, match="reads models_root in tiers rather than in _path"):
+        resolved(ast.parse(by_hand))
+
+
+def test_a_settings_class_handing_no_field_to_the_resolver_is_refused() -> None:
+    """The fixture shape every sidecar test in this suite writes, with its calls renamed: no
+    method reads the mount, so the refusal above stays quiet, and the floor is what reports a
+    reader that would otherwise go on finding every tier's artifact while the projector dropped."""
+    renamed = SETTINGS.replace("self._path(", "self._under(").replace(RESOLVER_METHOD, "")
+    assert "models_root.rstrip" not in renamed
+    with pytest.raises(HostedTierError, match="hands no ModelHostConfig field to _path"):
+        resolved(ast.parse(renamed))
 
 
 # ── the same reader, against the tree it is written for ────────────────────────
@@ -206,8 +298,8 @@ def test_a_field_that_names_no_file_and_one_outside_the_settings_class_are_both_
 def test_the_committed_sidecar_names_every_tiers_artifact_and_not_only_the_subagents() -> None:
     """This is the half the membership reader filters away. The sidecar's three tiers name three
     artifacts, and the two that serve no subagent are held to the naming convention exactly as the
-    one that does. The projector is the fourth, found by its field rather than by a tier's
-    `model_path`."""
+    one that does. The projector is the fourth, found by the resolver it is handed to rather than
+    by a tier's `model_path`."""
     found = {artifact.where: artifact.variable for artifact in tiered(REPO_ROOT)}
     assert found == {
         "cortex_file": "CORTEX_MODEL_FILE_CORTEX",
@@ -219,14 +311,15 @@ def test_the_committed_sidecar_names_every_tiers_artifact_and_not_only_the_subag
 
 def test_an_artifact_a_tier_spends_is_reported_once_and_at_the_tier_that_spends_it() -> None:
     """Both readings find `cortex_file`, and it is reported once: a reader is sent to the tier's
-    line, and the field walk adds only what no tier's `model_path` named."""
+    line, and the resolver walk adds only what no tier's `model_path` named, at the line the
+    sidecar resolves it on."""
     walked = tiered(REPO_ROOT)
     found = [artifact for artifact in walked if artifact.where == "cortex_file"]
     projector = [artifact for artifact in walked if artifact.where == "cortex_mmproj_file"]
     assert len(found) == 1, found
     assert len(projector) == 1, projector
     source = (REPO_ROOT / found[0].file).read_text(encoding="utf-8").splitlines()
-    assert "cortex_mmproj_file" in source[projector[0].line - 1]
+    assert "self._path(self.cortex_mmproj_file)" in source[projector[0].line - 1]
     assert "TierArgs(" in source[found[0].line - 1]
 
 

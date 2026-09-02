@@ -912,16 +912,26 @@ held in one place for the same reason.
 - `artifactnames.py` is what those two readings rest on and has no CLI. `named(root)` returns every
   model artifact the tree names, with the file, the service or settings field, the line and the
   variable, and `flagcheck.py` holds each to the family prefix. **The artifacts are found
-  structurally, in both languages**: a compose one is the item after llama.cpp's own `--model`,
-  and a hosted one is the settings field a tier reads its `model_path` from, or, since the
-  projector, any settings field whose own name ends `_file`. `files(module)` is that second
-  reading, and it exists because `model_path` is one keyword of several that carry an artifact
-  into an argv: the multimodal projector rides the cortex tier's `extra`, assembled by a call the
-  tier reader refuses to approximate, so the field's own name is what says it holds one. The
-  domain is the Python name and never the environment one, that being the spelling under test,
-  and a field found both ways is one artifact reported at the tier that spends it. Reading only the
-  variables that already begin `CORTEX_MODEL_FILE_` would have been a rule whose domain is the
-  convention it checks, unable to fail for the misspelling it exists to catch. Two exclusions
+  structurally, in both languages, each read for the mechanism that carries a file to the engine
+  in that language**: a compose one is the item after one of llama.cpp's own file flags,
+  `ARTIFACT_FLAGS`, which are `--model` and `--mmproj`; a hosted one is the settings field a tier
+  reads its `model_path` from, or any settings field the sidecar hands to its resolver, `_path`,
+  the one method that joins a file onto `models_root`. `resolved(module)` is that second reading,
+  and it exists because `model_path` is one keyword of several that carry an artifact into an
+  argv: the multimodal projector rides the cortex tier's `extra`, assembled by a call the tier
+  reader refuses to approximate, and the flag in front of it is written on a local bound one
+  statement earlier, where the resolver call is handed the field directly. Until 2026-09-02 that
+  reading was the field's own name ending `_file`, which found the projector and would have found
+  nothing under `cortex_mmproj_path`; a name is what an author picks and a resolution is what the
+  module does (ADR-0029's addendum on the artifact domain being the resolver). The domain is the
+  Python side and never the environment variable, that being the spelling under test, and a field
+  found both ways is one artifact reported at the tier that spends it. Reading only the variables
+  that already begin `CORTEX_MODEL_FILE_` would have been a rule whose domain is the convention it
+  checks, unable to fail for the misspelling it exists to catch. Two shapes are **refused** by
+  name rather than read around: a settings method other than the resolver reading `models_root`,
+  which would be a second resolver joining a path by hand, and a resolver handed no field at all,
+  which is the floor, since a renamed resolver takes every call with it and the tier reading would
+  otherwise go on finding three artifacts while the projector dropped in silence. Two exclusions
   are deliberate and each is what a fault would otherwise be wrong about: the **short** spelling
   of the model flag is not read, this tree starting an MCP sidecar with `python -m <module>` and a
   reader of `-m` calling that module an artifact; and an item spending **no variable** carries no
@@ -929,8 +939,10 @@ held in one place for the same reason.
   CPU embedder was renamed into the family: an argv declaring `--embeddings` serves no chat, which
   is the membership reader's question and not this one, so what a server serves no longer excuses
   an artifact from being spelled findably (ADR-0029's addendum on a non-chat artifact naming
-  itself in the family). No floor is asserted here because `hostedtiers.py` asserts one underneath,
-  refusing a sidecar with no tier and a tier with no artifact.
+  itself in the family). The engine has file flags beyond the two read here (a draft model, a LoRA
+  adapter), and a compose service spending a variable after one of those is unread until the flag
+  is added; `hostedtiers.py` asserts its own floors underneath, refusing a sidecar with no tier and
+  a tier with no artifact.
 - `moduleconstants.py` is that reader's syntax side and has no CLI. `constants(module)` returns
   every top-level string and run of strings a parsed module binds, `parse`, `text`, `items` and
   `bound` being the pieces it is built from. Parsed with `ast` and never imported, for the reason

@@ -7022,3 +7022,149 @@ which closes as landed, its opening
 [modules/brain-inference.md](../modules/brain-inference.md),
 [modules/repo-gates.md](../modules/repo-gates.md) and [AGENTS.md](../../AGENTS.md), whose
 descriptions of the reader now name its third reading, and this addendum.
+
+## Addendum (2026-09-02): the artifact domain is the resolver, and the compose flag set widens
+
+The projector addendum above left its own reading resting on a convention: a settings field named
+a model artifact when its name ended `_file`, recorded as
+[R-515](../refinements/tasks/515-the-artifact-domain-rests-on-a-field-name-convention.md). The
+field the reader found the projector by was the field its author happened to name that way, so a
+projector field named `cortex_mmproj_path` was outside the domain and held by nothing, which is the
+state the projector itself had been in the day before. The compose side had the narrower form of the
+same gap, reading the item after `--model` alone. Both close here. A hosted artifact is now every
+settings field the sidecar hands to its resolver, `_path`, the one method that joins a file onto
+`models_root`, and a compose artifact is the item after either of llama.cpp's own file flags,
+`--model` or `--mmproj`.
+
+### Re-derived first, and the entry was exact
+
+Every claim held at HEAD, and both hazards were run rather than read. `artifactnames.files` took a
+field only when its name ended `_file` (`ARTIFACT_SUFFIX`), and `artifactnames.spends` took the
+item after `MODEL_FLAG`, which was `--model` alone. The four fields the sidecar declares all spelled
+the suffix, and no compose service in the tree spent a projector. Against a copy of the tree with the
+projector field renamed `cortex_mmproj_path` and its alias respelled into the sibling family,
+`CORTEX_MMPROJ_FILE_CORTEX`, the committed gate printed OK over **six** artifacts and exited 0: the
+projector had dropped out and nothing said so. Against a copy whose subagent service spent
+`CORTEX_MMPROJ_FILE_SUBAGENT` after `--mmproj`, it printed OK over seven and exited 0, the projector
+unread. The entry described the tree as it was.
+
+### What the call really produces, and why the resolver is read rather than the flag
+
+The projector addendum refused to read a tier's `extra` because it is assembled by a call, and the
+entry asked that decision to be revisited rather than routed around. The call is `_vision()` in
+`config.py`, and what it produces is `("--mmproj", path, *self._image_budget())`, where `path` is a
+local bound one statement earlier as `self._path(self.cortex_mmproj_file)`. So the flag is
+readable structurally after all: a string constant in a tuple literal, its neighbour a name that
+resolves within the function. It is not what this reading takes, for two reasons that hold
+independently.
+
+The first is which fact the flag states. Reading `--mmproj` beside `--model` names two of the
+engine's file flags and says nothing about the third, and llama.cpp has more: a draft model, a LoRA
+adapter, a control vector. A hosted reading built on the flags is a list the engine can outgrow, and
+a hosted artifact added under a flag outside the list is missed in silence, the same shape as the
+suffix, one file over. The resolver is one method. Every artifact path the sidecar builds goes
+through it, `cortex_file`, `brain_file` and `subagent_gpu_file` through a tier's `model_path` and
+the projector through `_vision`, and a field handed to it is an artifact whatever it is named and
+whichever flag or keyword then spends the path it returns.
+
+The second is what each reading costs to read. The flag reading needs the local-name hop, `path` to
+its assignment, which is the kind of approximation `hostedtiers.py` refuses for the tail in general.
+The resolver call is handed the field directly, on the same line, in every place an artifact is
+spent, so it is read the way `tier_artifacts` already reads `model_path`: walk the expression for
+`self.<field>` where the field names an environment variable.
+
+The domain is still the Python side and never the variable under test. A field aliased to a
+misspelled variable is still handed to the resolver and still reported, which is the
+non-circularity the projector addendum required of the suffix and the compose side has always had.
+
+### The compose side takes the flag, because that language has no resolver
+
+A compose command writes the mount inline, `/models/${VAR:-default}`, and no method resolves
+anything. The structural fact available in that language is the flag, so `ARTIFACT_FLAGS` names
+`--model` and `--mmproj` and `spends` reads the item after either. Reading the mount instead was
+weighed: an argv item under the service's models mount would catch every file flag at once and make
+the `-m` refusal moot, since `python -m <module>` carries no mount prefix. It is not taken because
+picking out *which* mount is the models mount needs a name, the target `/models` or the source
+variable `CORTEX_MODELS_DIR`, and a reading that rests on that name has the same shape as one
+resting on a flag list, with more machinery under it. The two halves are still one question asked
+in two languages: each reads the mechanism that carries a file to the engine in that language.
+
+### The suffix reading retires
+
+`files(module)` is gone and `ARTIFACT_SUFFIX` with it, rather than kept beside the resolver
+reading. What the suffix could find that the resolver cannot is a `_file` field joined onto the
+mount without the resolver, and that shape is now refused rather than found, below. A `_file` field
+never resolved at all reaches no argv and serves nothing this gate holds. Keeping a convention in
+the reader once nothing needs it would leave the module carrying two arguments for one domain, and
+the comment in `config.py` that said the field's suffix was what found it now says the resolver
+call is.
+
+### Two refusals, each a shape that would otherwise be a silent miss
+
+**A settings method other than the resolver that reads `models_root` is refused by name.** A
+second place joining a path onto the mount is a second resolver this reader does not read, and an
+artifact joined there would be missed exactly as the projector was. The message names the method,
+the resolver, and the remedy: join a path onto the mount in `_path` only, or teach the reader the
+shape. This is the one taste risk here, flagged rather than buried. It is a house rule on
+`config.py`: a method that needs the mount root for something that is not a path, reporting it on
+`GET /health` say, is refused too, and the remedy then is to narrow the refusal to reads that join
+the root onto another value. Nothing in the tree reads the mount outside the resolver today, and
+[R-521](../refinements/tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md)
+holds the narrowing with its trigger.
+
+**A resolver handed no field at all is refused as this reader's floor.** A renamed resolver takes
+every call with it, and without the floor the tier reading would go on finding three artifacts
+through `model_path` while the projector dropped out in silence, which is the pair row in the table
+below. `MIN_RESOLVED` is one, in the register of `hostedtiers.MIN_TIERS`. The resolver's *name*
+is a constant rather than derived from the mount, because every sidecar fixture in the two suites
+calls `self._path` without defining it, and a reader deriving the resolver as the method that reads
+`models_root` would refuse every one of them for reading it nowhere; naming it lets those fixtures
+stand and keeps the refusal above aimed at a real second reader.
+
+### Proved able to fail, nine mutants over the scripts suite
+
+Each mutation was applied alone, or in the one stated pair, to the real tree or the reader, with
+`cd scripts && uv run python flagcheck.py --root ..` run and `cd scripts && uv run pytest -q
+--no-cov` re-run over the **1591 checks of that suite**. The tree was restored from saved copies
+and `__pycache__` purged between rows, and the restored run is green at 0 failed.
+
+| mutation | flagcheck | checks it fails |
+| --- | --- | --- |
+| TREE: the projector field renamed `cortex_mmproj_path`, alias in the sibling family | exit 1, `cortex_mmproj_path` | 19 |
+| TREE: a compose service spends a sibling-family projector after `--mmproj` | exit 1, `llama-subagent` | 17 |
+| TREE: `brain_file` joined onto `models_root` by hand in `tiers()` | exit 2, refused by name | 20 |
+| GATE: the resolver reading is dropped, tiers only | OK over 6 | 3 |
+| PAIR: that gate mutation, with the renamed projector present | **OK over 6, exit 0** | 3 |
+| GATE: `--mmproj` leaves `ARTIFACT_FLAGS` | OK over 7 | 1 |
+| GATE: the domain is every field a method reads, not what the resolver is handed | exit 1 over `cortex_model` | 21 |
+| GATE: the refusal of a mount read outside the resolver is dropped | OK over 7 | 1 |
+| GATE: the floor on a resolver handed nothing is dropped | OK over 7 | 1 |
+
+The first row is the deliverable: the field the entry named as the miss is a fault at the moment it
+is written, and the same mutation against the committed gate was the silent OK over six recorded
+above. The pair row is the state the floor and the resolver reading exist to end. The seventh row is
+the resolver earning its place as the domain: without it the reading swallows every field a method
+touches and the rule fails over `cortex_model`, a logical id and no artifact.
+
+### What is still not held
+
+`ARTIFACT_FLAGS` is a list of two, and the engine's file flags number more. A compose service
+spending a variable after `--model-draft`, `--lora` or a control vector flag names an artifact the
+compose reading does not read, and nothing in the tree does so today. That is the residue this
+close leaves on the compose side, recorded as
+[R-520](../refinements/tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md)
+with the trigger that would make it worth reading the flag set off the engine itself. The hosted
+refusal's cost on a legitimate second reader of the mount is R-521 above.
+
+### Records
+
+The record is the task file
+[R-515](../refinements/tasks/515-the-artifact-domain-rests-on-a-field-name-convention.md), which
+closes as landed, its openings R-520 and R-521,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+`scripts/artifactnames.py`, which carries the resolver reading, the widened flag set, both refusals
+and the argument for the domain, `scripts/tests/test_artifactnames.py`, whose fixture names its
+three artifacts outside the retired suffix on purpose,
+`brain/packages/model_manager/src/cortex_model_manager/config.py`, whose projector comment now
+names the resolver call as what finds it, [modules/repo-gates.md](../modules/repo-gates.md), whose
+description of the reader now states the domain and both refusals, and this addendum.
