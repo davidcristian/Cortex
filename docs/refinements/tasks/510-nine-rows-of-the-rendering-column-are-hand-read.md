@@ -1,10 +1,7 @@
 # Nine rows of the rendering column are still hand readings
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** inference
-**Trigger:** any engine bump, since the column is a property of one build's handlers and the whole
-point of the reader is that a handler which started gating its reasoning rule on the key would
-break it with nothing reporting the break.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-30 by the close of
@@ -42,3 +39,20 @@ open tail's prediction coming true.
 - 2026-08-30: opened by the close of
   [R-499](499-the-rendering-predictor-is-asserted-nowhere.md), whose ADR-0005 rendered-tail
   addendum published two rows of this column through the new reader and left nine hand read.
+
+- 2026-09-02: landed. Re-derived first: the nine rows stood exactly as described, three words a row
+  read by hand on `b10644`, and the one thing the entry had wrong was where a sample is kept, since
+  `measurements/` is gitignored by design and the place a row is recorded is the ADR itself. All
+  nine picks were on the mount. Each was served alone on `b10680-d7bd3bfca` with neither reasoning
+  flag, drawn five times a cell through the committed probe and published through
+  `just switch-tail`: nine agreed at exit 0, every control on 5 of 5, every verdict the hand
+  reading's. The lineup table's column now carries the tail each verdict was read off, the E4B's
+  constrained arm is written as a rate, 14 of 15 across three builds, and the two quant
+  substitutions are recorded in the addendum's artifact column and in the samples' names. The three
+  `-ngl 0` rows were read on the card after the CPU image decoded the E2B at under two tokens a
+  second on the night, which is recorded rather than hidden. Opened
+  [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), the
+  sample naming no build, and
+  [R-529](529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md), the
+  engine bump that reopens every row and the loop that is a scratch file. Recorded as the ADR-0005
+  lineup-tails addendum.
