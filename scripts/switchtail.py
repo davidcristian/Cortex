@@ -45,11 +45,27 @@ def closes(rendered: str) -> bool:
     return shut > opened
 
 
-def _tails(probe: Probe, lines: list[str]) -> bool | None:
-    """Report both renderings, and answer whether the switched one closes the thought.
+def unfired(plain: str) -> str:
+    """Why a control that did not fire measures nothing, read off the tail the key left alone."""
+    if not marked(plain):
+        return (
+            "the switch stopped nothing; the tail rendered with the key left alone carries no"
+            " marker of either format here, so either this prompt invites no thought on this tier"
+            " or the template closed the thought with a marker this reader does not list"
+        )
+    if closes(plain):
+        return (
+            "the switch stopped nothing: the template renders the thought closed with the key"
+            " left alone, and this run says nothing about the switch on this tier"
+        )
+    return "this prompt invites no thought here and the switch stopped nothing"
 
-    ``None`` when the rendering cannot be placed: it lacks the ask the sample recorded, or its tail
-    carries no marker either family writes and the switch changed it.
+
+def _tails(probe: Probe, lines: list[str]) -> dict[bool, str] | None:
+    """Report both renderings, and return their tails keyed by whether the switch was sent.
+
+    ``None`` when a rendering cannot be placed: it lacks the ask the sample recorded, or the
+    switched tail carries no marker either family writes and the switch changed it.
     """
     lines.append("  the rendering, taken after the ask itself:")
     found: dict[bool, str] = {}
@@ -74,11 +90,14 @@ def _tails(probe: Probe, lines: list[str]) -> bool | None:
             " unrecognized format and this reader cannot say whether that thought is closed"
         )
         return None
-    return closes(found[True])
+    return found
 
 
-def _judged(probe: Probe, lines: list[str]) -> Cell | None:
-    """The constrained cell the prediction is held against, or ``None`` if it may not be read."""
+def _judged(probe: Probe, plain: str, lines: list[str]) -> Cell | None:
+    """The constrained cell the prediction is held against, or ``None`` if it may not be read.
+
+    ``plain`` is the tail rendered with the key left alone, which words the control refusal.
+    """
     control, cell = probe.cell(switch=False), probe.cell(switch=True)
     if control is None or cell is None:
         lines.append(
@@ -89,7 +108,7 @@ def _judged(probe: Probe, lines: list[str]) -> Cell | None:
     if control.deliberated < control.draws:
         lines.append(
             f"  refused: the control deliberated on {control.deliberated} of {control.draws}"
-            " draws, so this prompt invites no thought here and the switch stopped nothing"
+            f" draws, so {unfired(plain)}"
         )
         return None
     drawn = min(control.draws, cell.draws)
@@ -106,12 +125,13 @@ def _judged(probe: Probe, lines: list[str]) -> Cell | None:
 def read(probe: Probe) -> tuple[list[str], int]:
     """One tier's report and exit code: the rendering, the cells, then the rule over both."""
     lines = [f"{probe.path}: {probe.model} at {probe.endpoint}"]
-    shut = _tails(probe, lines)
-    if shut is None:
+    found = _tails(probe, lines)
+    if found is None:
         return lines, 1
+    shut = closes(found[True])
     lines.append("  the cells, as the probe drew them:")
     lines.extend(f"    {cell.rendered()}" for cell in probe.cells)
-    cell = _judged(probe, lines)
+    cell = _judged(probe, found[False], lines)
     if cell is None:
         return lines, 1
     predicted = "holds" if shut else "does nothing"
