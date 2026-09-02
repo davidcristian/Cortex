@@ -54,9 +54,15 @@ MIN_OCCURRENCES = 1
 # substituted with the escaped identifier. An unknown suffix is a fault rather than a skip. The
 # TypeScript form is anchored at column 0 like the Python one, so a `const` inside a function is a
 # local and not a second declaration of the module's constant; its type annotation is optional
-# because TypeScript infers one, where Rust requires it.
+# because TypeScript infers one, where Rust requires it. The Python form captures either the rest
+# of the declaration's line or, when that line ends in an opening parenthesis, the whole run down
+# to the line that closes it, which is the shape `values.py` reduces as a block; a run that never
+# closes falls back to the one-line capture and is refused there.
 DECLARATIONS = {
-    ".py": r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[^\n]*)$",
+    ".py": (
+        r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[ \t]*\([ \t]*(?:#[^\n]*)?\n"
+        r"(?:(?![ \t]*\))[^\n]*\n)*[ \t]*\)[^\n]*|[^\n]*)$"
+    ),
     ".rs": (
         r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?(?:const|static)[ \t]+{name}"
         r"[ \t]*:[^=\n]*=(?P<value>[^;\n]*);"

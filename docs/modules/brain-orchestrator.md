@@ -747,7 +747,12 @@ The service:
     `BoundedToolRegistry` carrying `config.call_timeout_s` (ADR-0009 bound addendum, so the bound
     covers the dial and the call and reaches no built-in), then in a `FilteredToolRegistry` where an
     allowlist is set, in a `SkipUnavailableToolRegistry` reporting through a structured warning when
-    `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several. No session
+    `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several. Outermost,
+    an `OwnTextToolRegistry` over `EMAIL_OWN_TEXTS` (`own_texts.py`, ADR-0013 own-text addendum):
+    the email sidecar's two refusals and two empty answers, restated brain-side and held to the
+    sidecar's own declarations by `crosscheck.py`, are re-stamped trusted on byte equality with
+    the text rendered from the call's own argument, so a refused search no longer taints the turn
+    or reaches the model fenced; a rule about bytes rather than a knob, so always on. No session
     is held between calls, so `build_tool_registry` is synchronous and its closer is a no-op).
   - **subagents**
     (`build_subagents(config, tools, redis_url, clock, *, placer, task_store_factory)`,

@@ -21,6 +21,7 @@ from cortex_core.dispatch import (
     DispatchRefusal,
     ToolDispatcher,
 )
+from cortex_core.own_text import OwnText, OwnTextRenderer, OwnTextToolRegistry
 from cortex_core.screen_tool import CAPTURE_SCREEN_TOOL_NAME, CaptureBounds, CaptureScreenTool
 from cortex_core.sighted import BLIND_MSG, SightedToolRegistry, VisionProbe
 from cortex_core.tool_budget import (
@@ -100,6 +101,9 @@ __all__ = [
     "FilteredToolRegistry",
     "GatedToolRegistry",
     "GetVolumeTool",
+    "OwnText",
+    "OwnTextRenderer",
+    "OwnTextToolRegistry",
     "RepeatSalience",
     "RoundPlan",
     "SaliencePolicy",

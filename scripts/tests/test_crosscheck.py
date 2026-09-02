@@ -1694,19 +1694,35 @@ def test_every_registered_site_is_in_a_language_the_scan_knows() -> None:
     assert suffixes <= set(crosscheck.DECLARATIONS)
 
 
-def test_every_registered_constant_spans_more_than_one_language() -> None:
-    """An entry whose places were all one language would prove nothing about a seam.
+def _seam_side(place: str) -> tuple[str, str]:
+    """Which side of a seam one registered place is on: its language, and its brain package.
+
+    A place under `brain/packages/<name>/` is on that package's side and every other place is on
+    the side its language alone names, so two brain packages are two sides and one package is
+    one.
+    """
+    parts = Path(place).parts
+    package = parts[2] if parts[:2] == ("brain", "packages") and len(parts) > 2 else ""
+    return Path(place).suffix, package
+
+
+def test_every_registered_constant_spans_more_than_one_seam_side() -> None:
+    """An entry whose places were all on one side of a seam would prove nothing about one.
 
     This used to demand more than one top-level TREE, which was right while every registered
-    coupling crossed the body/brain seam. Mentions moved the line: the overlay's TypeScript and
-    the stylesheet that spends what it publishes live in one tree and are two languages, and
-    the rename that breaks them is exactly what this scan is for, so the comparison is over
-    suffixes.
+    coupling crossed the body/brain seam. Mentions moved the line once: the overlay's TypeScript
+    and the stylesheet that spends what it publishes live in one tree and are two languages, and
+    the rename that breaks them is exactly what this scan is for. The email sidecar's own texts
+    moved it again: the sidecar is deployed on its own and cannot import the core, the brain
+    does not import the sidecar, and both are Python, so a sentence both compose is a seam
+    between two brain packages rather than between two languages. The comparison is therefore
+    over language and brain package together, and a coupling whose places all sit inside one
+    package in one language stays refused.
     """
     for constant in crosscheck.CONSTANTS:
         places = [site.path for site in constant.sites]
         places.extend(mention.path for mention in constant.mentions)
-        assert len({Path(place).suffix for place in places}) > 1, constant.label
+        assert len({_seam_side(place) for place in places}) > 1, constant.label
 
 
 def test_every_registered_mention_renders_something_the_registry_fills() -> None:
@@ -2019,3 +2035,73 @@ def test_main_defaults_to_the_current_directory(
     monkeypatch.chdir(REPO_ROOT)
     assert crosscheck.main([]) == 0
     assert "crosscheck OK" in capsys.readouterr().out
+
+
+# ── a Python run of literals, captured whole and read as one string ───────────
+
+
+_RUN = '(\n    "The refused "\n    "query was "\n)'
+
+
+def test_read_value_reads_a_python_run_of_literals_as_one_string(tmp_path: Path) -> None:
+    """A sentence too long for one line is declared as a parenthesized run, and reduces whole."""
+    (tmp_path / "decl.py").write_text(
+        f"# preamble\nSENTENCE = {_RUN}\nafter = 1\n", encoding="utf-8"
+    )
+    assert crosscheck.read_value(tmp_path, crosscheck.Site("decl.py", "SENTENCE")) == (
+        "The refused query was "
+    )
+
+
+def test_a_run_may_open_with_a_comment_and_carry_comment_lines(tmp_path: Path) -> None:
+    text = 'SENTENCE = (  # why\n    "a "  # noqa\n    # a note\n\n    "b"\n)\nafter = 1\n'
+    (tmp_path / "decl.py").write_text(text, encoding="utf-8")
+    assert crosscheck.read_value(tmp_path, crosscheck.Site("decl.py", "SENTENCE")) == "a b"
+
+
+def test_a_run_ties_to_a_one_line_site_and_to_a_run_broken_elsewhere(tmp_path: Path) -> None:
+    """Where the lines break is the writer's; the joined string is what two sites agree on."""
+    (tmp_path / "one.py").write_text('SENTENCE = "The refused query was "\n', encoding="utf-8")
+    (tmp_path / "two.py").write_text(f"SENTENCE = {_RUN}\n", encoding="utf-8")
+    (tmp_path / "three.py").write_text(
+        'SENTENCE = (\n    "The "\n    "refused query "\n    "was "\n)\n', encoding="utf-8"
+    )
+    entry = crosscheck.Constant(
+        label="a sentence",
+        why="nothing",
+        sites=tuple(crosscheck.Site(f"{n}.py", "SENTENCE") for n in ("one", "two", "three")),
+    )
+    assert crosscheck.check_constant(tmp_path, entry) == []
+
+
+def test_one_word_moved_inside_a_run_is_a_fault_naming_both_readings(tmp_path: Path) -> None:
+    (tmp_path / "one.py").write_text('SENTENCE = "The refused query was "\n', encoding="utf-8")
+    (tmp_path / "two.py").write_text(
+        'SENTENCE = (\n    "The rejected "\n    "query was "\n)\n', encoding="utf-8"
+    )
+    entry = crosscheck.Constant(
+        label="a sentence",
+        why="nothing",
+        sites=(crosscheck.Site("one.py", "SENTENCE"), crosscheck.Site("two.py", "SENTENCE")),
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, entry)
+    assert "refused" in fault.detail
+    assert "rejected" in fault.detail
+
+
+def test_a_run_that_never_closes_falls_back_to_the_line_and_is_refused(tmp_path: Path) -> None:
+    """The capture finds no closing line, hands over the parenthesis alone, and the reducer
+    refuses it rather than reading an empty value."""
+    (tmp_path / "decl.py").write_text('SENTENCE = (\n    "a "\nafter = 1\n', encoding="utf-8")
+    with pytest.raises(crosscheck.CrossCheckError, match="parenthesized run"):
+        crosscheck.read_value(tmp_path, crosscheck.Site("decl.py", "SENTENCE"))
+
+
+def test_a_run_ends_at_the_first_line_that_closes_it(tmp_path: Path) -> None:
+    """A second declaration after the run is neither swallowed into it nor read as a repeat."""
+    text = f'SENTENCE = {_RUN}\nOTHER = (\n    "x"\n)\n'
+    (tmp_path / "decl.py").write_text(text, encoding="utf-8")
+    assert crosscheck.read_value(tmp_path, crosscheck.Site("decl.py", "OTHER")) == "x"
+    assert crosscheck.read_value(tmp_path, crosscheck.Site("decl.py", "SENTENCE")) == (
+        "The refused query was "
+    )

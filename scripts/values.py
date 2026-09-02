@@ -4,13 +4,14 @@
 says what each one reduces to and what text a mention writes it as. It reads no files.
 `defaultcheck.py` calls `whole_spelling` too, `8.0` beside `8` being the same question there.
 
-Five forms reduce: a product of integer literals, a double-quoted string, a one-line `frozenset` of
-those strings, a decimal, and a boolean. Anything else raises `CrossCheckError`, because a guessed
-reduction would report two values as equal that were never compared. A decimal reduces to its
-digits and a boolean to its word rather than to a number or a truth value, since the comparison is
-textual. The ADR-0029 cross-language-constant addendum argues that, and the rule that a lossy
-re-spelling needs a faithful reading beside it. How a set of readings must then stand is
-`readings.py`.
+Six forms reduce: a product of integer literals, a double-quoted string, a parenthesized run of
+those strings across several lines, which reduces to the one string Python joins them into, a
+one-line `frozenset` of those strings, a decimal, and a boolean. Anything else raises
+`CrossCheckError`, because a guessed reduction would report two values as equal that were never
+compared. A decimal reduces to its digits and a boolean to its word rather than to a number or a
+truth value, since the comparison is textual. The ADR-0029 cross-language-constant addendum argues
+that, and the rule that a lossy re-spelling needs a faithful reading beside it. How a set of
+readings must then stand is `readings.py`.
 """
 
 import re
@@ -40,6 +41,18 @@ BOOLEANS = ("True", "False")
 # raises.
 COLLECTION_PREFIX = "frozenset("
 COLLECTION = re.compile(r"^frozenset\(\{(?P<members>.+)\}\)$")
+
+# The one multi-line form that reduces, and the prefix that dispatches to it: a parenthesized run
+# of double-quoted literals, one per line, which is how Python writes a sentence too long for one
+# line and how the formatter leaves it. It reduces to the one string Python joins the run into, so
+# a site written on three lines ties to a site written on four. The opening line carries the
+# parenthesis and the closing line the other, each with at most a trailing comment; a line between
+# them that is blank or only a comment is skipped, and every other one is read by the string form,
+# so an f-string, a name or a single-quoted literal inside the run raises rather than being
+# guessed at. Only the Python declaration syntax captures a run (`crosscheck.DECLARATIONS`); the
+# other two capture a single line, up to its semicolon.
+BLOCK_OPEN = "("
+BLOCK_CLOSE = ")"
 
 # The mark that dispatches to the decimal form, and the shape one may take: digits, one point,
 # digits, with underscores grouping either run the way they group a product of integers. A leading
@@ -130,6 +143,19 @@ def _decimal_value(text: str) -> Digits:
     return Digits(expression.replace("_", ""))
 
 
+def _block_value(text: str) -> str:
+    """Join a parenthesized run of double-quoted literals, one per line, as Python joins them."""
+    lines = text.splitlines()
+    if _expression(lines[0]) != BLOCK_OPEN or _expression(lines[-1]) != BLOCK_CLOSE:
+        msg = f"{text!r} is not a parenthesized run of string literals, one per line"
+        raise CrossCheckError(msg)
+    members = [line.strip() for line in lines[1:-1] if _expression(line)]
+    if not members:
+        msg = f"{text!r} is a parenthesized run with no literal in it"
+        raise CrossCheckError(msg)
+    return "".join(_string_value(member) for member in members)
+
+
 def _collection_value(text: str) -> frozenset[str]:
     """Reduce a frozenset of string literals to its members, which a membership is decided on."""
     expression = _expression(text)
@@ -145,6 +171,8 @@ def parse_value(text: str) -> Value:
     stripped = text.strip()
     if stripped.startswith('"'):
         return _string_value(stripped)
+    if stripped.startswith(BLOCK_OPEN):
+        return _block_value(stripped)
     if stripped.startswith(COLLECTION_PREFIX):
         return _collection_value(stripped)
     expression = _expression(stripped)

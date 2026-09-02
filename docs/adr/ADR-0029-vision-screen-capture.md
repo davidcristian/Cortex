@@ -7168,3 +7168,45 @@ three artifacts outside the retired suffix on purpose,
 `brain/packages/model_manager/src/cortex_model_manager/config.py`, whose projector comment now
 names the resolver call as what finds it, [modules/repo-gates.md](../modules/repo-gates.md), whose
 description of the reader now states the domain and both refusals, and this addendum.
+
+## Addendum (2026-09-02): the reducer reads a run of literals, and a brain package is a side of a seam
+
+The own-text build (ADR-0013 build addendum) registers the email sidecar's two refusal sentences
+against the brain's restatement of them, and both are declared as Python declares a sentence too
+long for one line: a parenthesized run of double-quoted literals, one per line, which the
+formatter leaves as written. The reducer read a string as one literal on one line, and the Python
+declaration syntax captured one line, so the run reduced to `(` and the entry could not be
+registered. Two changes close that, and one rule in the suite moved with them.
+
+**A sixth form reduces: the run.** `values._block_value` joins the literals of a parenthesized run
+into the one string Python joins them into, so a site written over three lines ties to one written
+over four and to a one-line site spelling the same text. The opening line carries the parenthesis
+and the closing line the other, each with at most a trailing comment; a blank or comment-only line
+inside is skipped; every other line is read by the string form, so an f-string, a name, a
+single-quoted literal or two literals on one line raises rather than being guessed at, which is
+the rule every other form here already follows. The Python capture in `crosscheck.DECLARATIONS`
+takes the run when the declaration's line ends in an opening parenthesis and closes on a line of
+its own; a run that never closes falls back to the one-line capture and is refused there. Rust and
+TypeScript are untouched, their capture running to a semicolon, and a one-line tuple opening with
+a parenthesis is refused as it was.
+
+**A brain package is a side of a seam.** The suite refused any entry whose places were all one
+language, on the argument that such an entry proves nothing about a seam. The sidecar and the
+brain are both Python, and they cannot import each other by design (the sidecar is deployed on its
+own, and the brain does not carry a mail client to learn four sentences), so a sentence both
+compose is exactly the coupling this scan exists for. The rule is now over language and brain
+package together: a place under `brain/packages/<name>/` is on that package's side, and an entry
+whose places all sit in one package in one language stays refused. Every previously registered
+entry passes unchanged, and the source key
+[R-531](../refinements/tasks/531-the-source-declaration-key-is-spelled-twice-unheld.md) describes,
+spelled once in `cortex_tools` and once in `cortex_email`, becomes registrable.
+
+**What the live gate can and cannot see, measured.** Scripts suite (`test_values.py` and
+`test_crosscheck.py`, 280 tests): the run joined with a space instead of nothing, 17 red; the
+one-line capture restored, 15 red; both sites of a refusal moved inside the sidecar package, 11
+red. Three mutations, three red. The live gate over the real tree (83 entries, 95 sites, 272
+mentions): the restored one-line capture fails it, naming the first refusal sentence as not a run;
+the space-joined run passes it, because both of that entry's sites are runs and join alike, so a
+joiner defect is visible only to the reducer's suite and never to the registry, which is why that
+suite carries the table rather than the gate's own run. The registry grew by four entries, six
+sites and six mentions.

@@ -129,6 +129,16 @@ one past `VALUE_CHARS`, so an id can fill a field and never add one. It used to 
 copy of the same fields inside the message, which is what the trail needed back when the shipped
 handler printed no field at all; see [local-dev-wsl.md](local-dev-wsl.md) for how a line reads
 now and what it withholds.
+
+One kind of line reads `trust=trusted` beside `ok=False`, and it is not a contradiction. The
+email sidecar composes four answers without reading a message, a search the server refused, a
+folder no mailbox has, an empty search and a uid that is not there, and the brain re-stamps each
+trusted when its bytes equal the text it holds for it (`OwnTextToolRegistry` over
+`cortex_orchestrator/own_texts.py`, ADR-0013 own-text addendum); the first two of those arrive
+marked failed, so the line records a failed call whose text was the brain's own. Such a turn
+stays untainted, so a `send_email` after a mistyped search reaches the confirmation card rather
+than `DENIED_MSG`. One byte of drift in the sidecar's wording puts the answer back on the
+untrusted side at runtime, and `just check-crosscheck` fails on that drift before it ships.
 A real model that emits tool calls also needs the GPU compose up (`--jinja` is baked into its
 command). Validated 2026-07-03: with both up, a `Converse` turn asking for a file's contents made
 the resident gemma-4-12B natively emit `read_text_file` through the audited loop and answer with

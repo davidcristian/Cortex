@@ -1,9 +1,14 @@
-"""The couplings around the email sidecar's shipped answers: the two hatches and the switch.
+"""The couplings around the email sidecar's shipped answers: two hatches, a switch, four texts.
 
 One of the data files `crosscheck.py` reads as a single registry, added the way `registry.py` was
 built to take one: a data file plus one line there, with nothing in the scan naming the registry's
 parts. The subject is the one env surface no other part holds, the read-only IMAP sidecar's own,
-and the three variables in it whose default is an answer rather than a number.
+and the three variables in it whose default is an answer rather than a number; since the own-text
+overlay (ADR-0013 own-text addendum), also the four answers the sidecar composes without reading
+a message, which the brain restates in `cortex_orchestrator/own_texts.py` and re-stamps trusted
+on byte equality. The sidecar cannot import the core and the brain does not import the sidecar,
+so the restatement is held here the way a cross-language constant is: a rewording on either side
+alone fails this gate rather than silently landing that answer on the tainting side.
 
 Each of the three is off for a safety reason rather than a tuning one: two are the TLS escape
 hatches that accept a self-signed certificate on loopback, and the third is the write capability
@@ -21,8 +26,71 @@ from couplings import Constant, Mention, Site, Spelling
 
 EMAIL_COMPOSE = "docker/docker-compose.email.yml"
 EMAIL_CONFIG = "brain/packages/email/src/cortex_email/config.py"
+EMAIL_ERRORS = "brain/packages/email/src/cortex_email/errors.py"
+EMAIL_SERVER = "brain/packages/email/src/cortex_email/server.py"
+EMAIL_VALUES = "brain/packages/email/src/cortex_email/values.py"
+OWN_TEXTS = "brain/packages/orchestrator/src/cortex_orchestrator/own_texts.py"
+
+# The shape both refusals are rendered in, the sentence followed by the repr of the argument the
+# brain sent, pinned where the sidecar composes it and where the brain renders its expectation. A
+# refusal that stopped quoting its argument, or quoted it without the repr, would no longer be the
+# bytes the brain expects, and this is what says so.
+_REFUSAL_SHAPE = 'f"{{name}}{{argument}!r}"'
+
+
+def _refusal(sentence: str, argument: str) -> tuple[Mention, ...]:
+    """The two spends of one refusal sentence, each rendering it followed by ``argument``'s repr."""
+    template = _REFUSAL_SHAPE.replace("{argument}", argument)
+    return (
+        Mention(EMAIL_ERRORS, template, name=sentence),
+        Mention(OWN_TEXTS, template, name=sentence),
+    )
+
 
 EMAIL_COUPLINGS: tuple[Constant, ...] = (
+    Constant(
+        label="the sentence a refused search answers with",
+        why=(
+            "the brain re-stamps a search_emails result trusted only when its bytes are this "
+            "sentence followed by the repr of the query the brain sent, and the sidecar composes "
+            "that answer from its own copy, so a rewording on either side alone would land every "
+            "refusal on the tainting side with nothing failing (ADR-0013 own-text addendum)"
+        ),
+        sites=(Site(EMAIL_VALUES, "SEARCH_REFUSED"), Site(OWN_TEXTS, "SEARCH_REFUSED")),
+        mentions=_refusal("SEARCH_REFUSED", "query"),
+    ),
+    Constant(
+        label="the sentence an unknown folder answers with",
+        why=(
+            "both folder-taking tools answer a guessed folder with this sentence followed by the "
+            "repr of the folder the brain sent, and the brain re-stamps that answer trusted on "
+            "those bytes alone, so a rewording on either side alone would taint every such turn "
+            "with nothing failing (ADR-0013 own-text addendum)"
+        ),
+        sites=(Site(EMAIL_VALUES, "FOLDER_UNKNOWN"), Site(OWN_TEXTS, "FOLDER_UNKNOWN")),
+        mentions=_refusal("FOLDER_UNKNOWN", "folder"),
+    ),
+    Constant(
+        label="the answer to a search that matched nothing",
+        why=(
+            "the sidecar writes this answer as a bare literal and the brain declares it to "
+            "re-stamp an empty search trusted, so a rewording of the literal alone would taint "
+            "every empty search with nothing failing (ADR-0013 own-text addendum)"
+        ),
+        sites=(Site(OWN_TEXTS, "NO_MATCHES"),),
+        mentions=(Mention(EMAIL_SERVER, '_one_text("{value}")'),),
+    ),
+    Constant(
+        label="the answer to reading a uid that is not there",
+        why=(
+            "the sidecar writes this answer as an f-string over its own parameter names and the "
+            "brain declares the same text as a format over the call's arguments, so a reworded "
+            "answer or a renamed parameter alone would taint every such read with nothing "
+            "failing (ADR-0013 own-text addendum)"
+        ),
+        sites=(Site(OWN_TEXTS, "NOT_FOUND"),),
+        mentions=(Mention(EMAIL_SERVER, '_one_text(f"{value}")'),),
+    ),
     Constant(
         label="whether the TLS escape hatches ship open",
         why=(

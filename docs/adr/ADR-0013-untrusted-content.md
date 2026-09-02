@@ -934,3 +934,66 @@ when the refusal is the turn's sole untrusted result and a send follows it. The 
 is the other cost, and it is unmeasured.
 
 No code changed here; this is a decision recorded at the origin ADR.
+
+## Addendum (2026-09-02): the own-text overlay is built, and what the build found
+
+Closes [R-530](../refinements/tasks/530-a-sidecars-own-text-is-re-stamped-trusted.md) with the
+build the addendum above recorded. `OwnTextToolRegistry` and `OwnText` live in
+`cortex_core/own_text.py`, a module of their own beside `aggregate.py`, because the rule they apply
+is a trust decision rather than routing and its module docstring is where that rule is stated.
+`build_tool_registry` wraps the shared root in one, outermost, over `EMAIL_OWN_TEXTS` from
+`cortex_orchestrator/own_texts.py`, which restates the sidecar's four answers and renders each from
+the call's own arguments; all four are declared in the first cut, since the rule admits them and
+the two empty answers cost the same lost send as the refusals. The contract runs over the fake and
+the real `McpToolRegistry` (`brain/packages/tools/tests/test_own_text_contract.py`), and the
+end-to-end check drives the real `cortex_email` server through `FastMCP.call_tool`, the entry the
+sidecar's own suite drives, into the real adapter and the overlay
+(`brain/packages/orchestrator/tests/test_own_texts.py`): each of the four answers comes back
+`Trust.TRUSTED` with its text unchanged, a message the sidecar read stays untrusted with its
+declared source, and a folder listing stays untrusted.
+
+### Three things the build found that the decision had not
+
+**The restatement needed a reducer the gate did not have.** `crosscheck.py` read a string site as
+one double-quoted literal on one line, and both refusal sentences are parenthesized runs of
+literals over four lines, so the coupling the decision rests on could not be registered as the
+scan stood. The reducer now reads a run (ADR-0029 run addendum), and the four entries sit in
+`scripts/emailcouplings.py`, the two refusals also pinning the `{query!r}` and `{folder!r}`
+rendering shape at both ends. The suite's rule that every entry span more than one language was in
+the way too, and its premise was wrong for this seam: the sidecar and the brain are both Python
+and cannot import each other by design, so the rule now counts a brain package as a side of a
+seam. The key [R-531](../refinements/tasks/531-the-source-declaration-key-is-spelled-twice-unheld.md)
+describes is registrable under the same rule.
+
+**The image case splits by arm.** The overlay leaves a result carrying an image alone before
+comparing any text, and the core arm proves it. Through the real adapter the case cannot arise:
+`McpToolRegistry.invoke` joins text blocks and carries no image, so an image block beside the
+exact text is dropped before the overlay sees the result and the text alone is re-stamped. That
+is sound under the threat model above, the dropped block reaching neither the model nor the audit
+log, and it is asserted in the contract rather than left implicit. Carrying MCP image blocks into
+`ToolResult.images` is filed as
+[R-532](../refinements/tasks/532-an-mcp-image-block-is-dropped-rather-than-carried.md).
+
+**A `_meta` declaration rides along unread.** A claimed source on the sidecar's own text takes no
+part and is not stripped either: the re-stamped result keeps it, and `TaintLedger.observe` notes
+neither source on a trusted result, which the core test asserts. The audit line therefore says
+what happened, `ok=False` beside `trust=trusted` for a refusal, described in the tools runbook.
+
+### What is not measured here
+
+Whether the shipped cortex follows the correction it now reads unfenced, and the same path against
+a real Bridge, are
+[R-533](../refinements/tasks/533-the-unfenced-correction-is-unmeasured-on-the-cortex.md). The
+session's budget went to the reducer the coupling needed, and a model-behaviour measurement is a
+sitting of its own.
+
+### Mutation table
+
+Brain suite, the three own-text files (46 tests): the image guard removed, 2 red; content
+compared stripped, 4 red; the tool name ignored, 3 red; `is_error` alone re-stamping, 11 red; the
+`repr` dropped from the brain's refusal rendering, 3 red; the overlay left unwired, 3 red; one
+word of the sidecar's `SEARCH_REFUSED` reworded, 1 red, the end-to-end refused-search case, which
+is the check this build owed. Seven mutations, seven red. The live gate over the real tree
+(`check-crosscheck`, 83 entries, 95 sites, 272 mentions) also fails on the dropped `repr` and on
+the reworded sentence, naming both files each time. The scripts-side mutations are tabled at
+ADR-0029.

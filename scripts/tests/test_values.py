@@ -22,6 +22,13 @@ import values
         ),
         ('  frozenset({ "image/png" , "image/jpeg" })  ', frozenset({"image/png", "image/jpeg"})),
         ('frozenset({"image/png"})  # what the brain decodes', frozenset({"image/png"})),
+        ('(\n    "The refused "\n    "query was "\n)', "The refused query was "),
+        ('(\n    "one line"\n)', "one line"),
+        (
+            '(  # why the run exists\n    "a "  # noqa: E501\n\n    # a note\n    "b"\n)',
+            "a b",
+        ),
+        ('  (\n"a"\n"b"\n)  ', "ab"),  # indentation is the writer's, as it is inside a collection
         ("10.0", values.Digits("10.0")),
         ("  5.0  ", values.Digits("5.0")),
         ("5.0  # the short deadline", values.Digits("5.0")),
@@ -72,6 +79,16 @@ def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> No
         "frozenset({1, 2})",  # members that are not strings
         'frozenset({"a", b})',  # one member that is not
         "frozenset({'a'})",  # single quotes, which the string form does not read
+        "(1, 2)",  # a parenthesis that opens a tuple on one line, not a run of literals
+        "(",  # a run that never closes
+        '(\n    "a"\n',  # a run whose closing line the capture never found
+        "(\n)",  # a run with no literal in it
+        "(  # only a comment\n    # and another\n)",  # a run whose every line is a comment
+        '(\n    f"a {b}"\n)',  # an f-string inside the run, which is not a literal
+        "(\n    NAME\n)",  # a name inside the run
+        "(\n    'a'\n)",  # single quotes inside the run
+        '(\n    "a" "b"\n)',  # two literals on one line of the run
+        '(\n    "a" +\n    "b"\n)',  # a concatenation operator, which the run does not carry
     ],
 )
 def test_parse_value_refuses_what_it_cannot_reduce(text: str) -> None:

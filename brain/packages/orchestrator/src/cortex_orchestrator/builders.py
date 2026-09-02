@@ -17,8 +17,9 @@ releases it, so the root's shutdown path is uniform whatever was picked:
 - Tools -> the MCP `ToolRegistry` when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009), else None:
   one lazy `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at
   startup, hence boot-tolerant), bounded (bound addendum), allowlist-filtered, optionally
-  skip-unavailable (degraded-mode + boot-tolerance addenda), and aggregated as configured.
-  Shared by the cortex (via the composite) and its subagents.
+  skip-unavailable (degraded-mode + boot-tolerance addenda), aggregated as configured, and
+  overlaid with the brain's own trust rule (`OwnTextToolRegistry` over `own_texts.py`,
+  ADR-0013 own-text addendum). Shared by the cortex (via the composite) and its subagents.
 - Subagents -> `subagent_builders.py` (split for the 300-line cap when the ADR-0018 roster
   arrived): the `spawn_subagents` tool over a roster-resolving `SubagentRunner`.
 - History window -> `window_builders.py` (split for the 300-line cap when the summarizing
@@ -55,6 +56,7 @@ from cortex_core import (
     LookalikeUrlRedactingGuardrail,
     ModelManager,
     OutputGuardrail,
+    OwnTextToolRegistry,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     StrictUrlRedactingGuardrail,
@@ -71,6 +73,7 @@ from cortex_orchestrator.config import InferenceConfig, OutputGuardrailName
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.dispatch_builders import build_builtin_tools, build_cortex_tools
+from cortex_orchestrator.own_texts import EMAIL_OWN_TEXTS
 from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
 
 __all__ = [
@@ -203,9 +206,13 @@ def build_tool_registry(
     around instead of failing the whole tool set. `CORTEX_TOOLS_GATED` names stamp the shared root
     via `GatedToolRegistry`
     (ADR-0022): gating is declared here in brain-side config, never by a sidecar's own metadata,
-    and the subagent wiring's `UngatedToolRegistry` then strips the stamped tools. No session is
-    held between calls, so the closer is a no-op; the registry is left un-audited. The cortex
-    and each subagent wrap it in their own `ToolDispatcher`.
+    and the subagent wiring's `UngatedToolRegistry` then strips the stamped tools. Outermost, an
+    `OwnTextToolRegistry` over `EMAIL_OWN_TEXTS` re-stamps trusted the four answers the email
+    sidecar composes without reading a message, on byte equality with the brain's own restatement
+    and nothing the wire says (ADR-0013 own-text addendum); it is a rule about bytes rather than a
+    knob, so it is always on. No session is held between calls, so the closer is a no-op; the
+    registry is left un-audited. The cortex and each subagent wrap it in their own
+    `ToolDispatcher`.
     """
     if config.backend != "mcp":
         return None, noop_aclose
@@ -224,7 +231,7 @@ def build_tool_registry(
     root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
     if config.gated:
         root = GatedToolRegistry(root, gated=config.gated)
-    return root, noop_aclose
+    return OwnTextToolRegistry(root, own=EMAIL_OWN_TEXTS), noop_aclose
 
 
 def build_output_guardrail(mode: OutputGuardrailName) -> OutputGuardrail | None:
