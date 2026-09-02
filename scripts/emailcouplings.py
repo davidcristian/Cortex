@@ -1,13 +1,20 @@
-"""The couplings around the email sidecar's shipped answers: two hatches, a switch, four texts."""
+"""The couplings around the email sidecar's answers: two hatches, a switch, four texts and a key."""
 
 from couplings import Constant, Mention, Site, Spelling
 
 EMAIL_COMPOSE = "docker/docker-compose.email.yml"
 EMAIL_CONFIG = "brain/packages/email/src/cortex_email/config.py"
 EMAIL_ERRORS = "brain/packages/email/src/cortex_email/errors.py"
+EMAIL_MODULE = "docs/modules/brain-email.md"
 EMAIL_SERVER = "brain/packages/email/src/cortex_email/server.py"
 EMAIL_VALUES = "brain/packages/email/src/cortex_email/values.py"
 OWN_TEXTS = "brain/packages/orchestrator/src/cortex_orchestrator/own_texts.py"
+TOOLS_MODULE = "docs/modules/brain-tools.md"
+TOOLS_REGISTRY = "brain/packages/tools/src/cortex_tools/registry.py"
+
+# The binding both modules declare the declared-source key under, spelled once because the entry
+# names it at both sites and at each module's spend of its own binding.
+SOURCE_KEY = "_SOURCE_META_KEY"
 
 _REFUSAL_SHAPE = 'f"{{name}}{{argument}!r}"'
 
@@ -64,6 +71,24 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
         ),
         sites=(Site(OWN_TEXTS, "NOT_FOUND"),),
         mentions=(Mention(EMAIL_SERVER, '_one_text(f"{value}")'),),
+    ),
+    Constant(
+        label="the key a sidecar declares a content source under",
+        why=(
+            "read_email declares the message sender under this result _meta key and the brain's "
+            "tool registry reads the same key into the turn's provenance, each binding it as a "
+            "wire contract because the sidecar cannot import the core, so a rename on either side "
+            "alone would have every message arrive without its sender and nothing fail, an absent "
+            "key reading as no declaration by design (ADR-0027 sidecar addendum)"
+        ),
+        sites=(Site(TOOLS_REGISTRY, SOURCE_KEY), Site(EMAIL_SERVER, SOURCE_KEY)),
+        mentions=(
+            Mention(TOOLS_REGISTRY, "meta.get({name})", name=SOURCE_KEY),
+            Mention(EMAIL_SERVER, "{{name}: {", name=SOURCE_KEY),
+            # Both module contracts quote the binding and the key together, in this one shape.
+            Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
+            Mention(EMAIL_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
+        ),
     ),
     Constant(
         label="whether the TLS escape hatches ship open",
