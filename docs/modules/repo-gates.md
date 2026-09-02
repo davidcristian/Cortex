@@ -142,8 +142,9 @@ held in one place for the same reason.
   needle whose value is the budget's count and whose shape is the two flag names around it; the model-host tier settings
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells
-  each again, with the four texts it composes without reading a message and the `_meta` key it
-  declares a sender under, each held to the brain package that restates or reads it; a stack
+  each again, with the four texts it composes without reading a message, the `_meta` key it
+  declares a sender under and the kind word that declaration carries, each held to the brain
+  package that restates or reads it; a stack
   built to be measured against and the suite that measures it, the one subject
   the repo does not ship; the overlay's TypeScript against its own stylesheet; the brain's log
   vocabulary, the one name each work identity is written under, against every line that spells it

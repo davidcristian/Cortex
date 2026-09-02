@@ -1,4 +1,4 @@
-"""The couplings around the email sidecar's answers: two hatches, a switch, four texts and a key.
+"""The email sidecar's couplings: two hatches, a switch, four texts, a key and its kind word.
 
 One of the data files `crosscheck.py` reads as a single registry, added the way `registry.py` was
 built to take one: a data file plus one line there, with nothing in the scan naming the registry's
@@ -21,6 +21,15 @@ the binding and the key together. Neither suite's pin of the literal is register
 on its own under a one-sided rename, and a rename that carries its pin along is what the two
 sites catch (ADR-0029 declared-source-key addendum).
 
+The kind word that declaration carries, `sender`, is held on the same argument. The brain admits a
+declaration only when its kind is the value of a claimed `SourceKind` member, and that member is
+indented inside its class, where the Python declaration syntax, anchored at column 0, reads no
+site. So the sidecar binds the word once at module level as `_SENDER_KIND`, the entry's one site,
+and the enum member is a mention rendering both its name and the value, the form the registry has
+for a far side the scan cannot read a declaration out of. The server's one spend of the word is
+held to its binding, and the module contract's quotation of the declaration's shape is held with
+the word in it (ADR-0029 declared-kind-word addendum).
+
 Each of the three is off for a safety reason rather than a tuning one: two are the TLS escape
 hatches that accept a self-signed certificate on loopback, and the third is the write capability
 that turns a read-only server into one that can send mail. A default flipping open in the compose
@@ -35,6 +44,7 @@ answers folding to two words rather than to one (ADR-0029's boolean addendum).
 
 from couplings import Constant, Mention, Site, Spelling
 
+CORE_PROVENANCE = "brain/packages/core/src/cortex_core/provenance.py"
 EMAIL_COMPOSE = "docker/docker-compose.email.yml"
 EMAIL_CONFIG = "brain/packages/email/src/cortex_email/config.py"
 EMAIL_ERRORS = "brain/packages/email/src/cortex_email/errors.py"
@@ -48,6 +58,12 @@ TOOLS_REGISTRY = "brain/packages/tools/src/cortex_tools/registry.py"
 # The binding both modules declare the declared-source key under, spelled once because the entry
 # names it at both sites and at each module's spend of its own binding.
 SOURCE_KEY = "_SOURCE_META_KEY"
+
+# The binding the server declares the kind word under, and the enum member the core admits it as.
+# The member is spelled here rather than read, since the scan has no declaration syntax for a
+# name bound inside a class body; it is the name half of a mention that renders both halves.
+SENDER_KIND = "_SENDER_KIND"
+SENDER_MEMBER = "SENDER"
 
 # The shape both refusals are rendered in, the sentence followed by the repr of the argument the
 # brain sent, pinned where the sidecar composes it and where the brain renders its expectation. A
@@ -129,6 +145,29 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             # Both module contracts quote the binding and the key together, in this one shape.
             Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
             Mention(EMAIL_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
+        ),
+    ),
+    Constant(
+        label="the kind word a sidecar declares a sender under",
+        why=(
+            "read_email declares its sender under this kind word and the brain admits a "
+            "declaration only when the word is the value of a claimed SourceKind member, the "
+            "sidecar binding it as _SENDER_KIND because it cannot import the core, so a renamed "
+            "enum value alone would have claimed_source drop every declared sender and nothing "
+            "fail, an unrecognized kind reading as no declaration by design (ADR-0027 sidecar "
+            "addendum)"
+        ),
+        sites=(Site(EMAIL_SERVER, SENDER_KIND),),
+        mentions=(
+            # The enum member, rendered name and value together because the scan cannot read a
+            # binding inside a class body as a site: the needle is built from the server's value
+            # and looked for in the core, so either side moving alone leaves it unfound.
+            Mention(CORE_PROVENANCE, '{name} = "{value}"', name=SENDER_MEMBER),
+            # The server's one spend of the word, held to its own binding for the reason the key's
+            # spend is above.
+            Mention(EMAIL_SERVER, '"kind": {name},', name=SENDER_KIND),
+            # The module contract quotes the declaration's shape with the word in it.
+            Mention(EMAIL_MODULE, '{"kind": "{value}", "value": <From>}'),
         ),
     ),
     Constant(

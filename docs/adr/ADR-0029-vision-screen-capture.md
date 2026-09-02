@@ -7270,3 +7270,71 @@ read every registered site. Five mutations, five red in both. The registry grew 
 sites and four mentions. The module contract's sentence saying the suite refused an entry whose
 places were "all one language" was corrected to the language-and-package rule, this entry being
 the second to rest on it.
+
+## Addendum (2026-09-02): the kind word is bound at the producer, and the enum member that admits it is a mention
+
+The addendum above filed
+[R-534](../refinements/tasks/534-the-declared-kind-word-has-no-site-to-hold-it.md) for the word
+beside the key, and this records holding it. Re-derived first, every claim in the entry held:
+`_sender_source` writes `"kind": "sender"` as a bare literal; `claimed_source` admits a kind only
+as a key of `_DECLARABLE_KINDS`, which is built from `SourceKind`'s members, so the brain's one
+spelling of the word is the member `SENDER = "sender"`, four spaces inside its class; the Python
+form in `crosscheck.DECLARATIONS` opens with `^` under `re.MULTILINE` and takes the name at column
+0, so `read_value` reports the file as declaring no such name; `registry_fault` refuses an entry
+with no site; and `URI` has no producer under `brain/packages/*/src`. The cost held too: after a
+rename of the value alone, `_DECLARABLE_KINDS.get("sender")` is `None` and `claimed_source` returns
+`None` for it, the silence the key's addendum named, with the sidecar still writing the old word.
+
+**The narrow road.** The server binds the word once at module level, `_SENDER_KIND = "sender"`,
+beside the key it rides under and for the same reason, and `_sender_source` spends the binding.
+That binding is the entry's one site. The enum member is a mention rendering both the name and the
+value, `SENDER = "sender"`, the form the registry already has for a far side the scan has no
+declaration syntax for: it pays the name it renders, so the entry carries no dead name, and it
+fails when either side moves alone, since the needle is rendered from the server's value and
+looked for in the core. The server's spend is held to its binding as the key's is, and the module
+contract's quotation of the declaration's shape is held with the word in it. One entry in
+`emailcouplings.py` beside the key: one site, three mentions.
+
+**Why not the wide road.** Teaching `DECLARATIONS` an indented Python form asks a pattern found by
+`findall` to know which block a binding sits in, and the two blocks it must tell apart look the
+same on their own line: `SENDER = "sender"` four spaces in is an enum member under `class` and a
+local under `def`. A reader that walks lines with an indentation stack is a new module with its
+own suite and its own faults (a member spelled in two classes of one file, a class nested in a
+function, a member whose right-hand side is a call), for a form exactly one entry would use today:
+no registered entry has an enum member as a side, and the one other claimed kind, `URI`, has no
+producer. It is filed as
+[R-536](../refinements/tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md)
+with the trigger that changes the arithmetic: a second producer binding a `SourceKind` value at
+module level because the member cannot be a site, which the `uri` twin's producer would be.
+
+**The riskiest assumption is that declaring from the sidecar's end reads right in a fault.** The
+brain is the authority on the word, since it decides trust, and the entry reads the value out of
+the sidecar and looks for it in the core. The gate compares places with each other and never
+against a master (the cross-language-constant addendum), so the verdict is the same either way,
+but a fault after a brain-side rename names the core as not spelling what the sidecar declares, and
+a reader could take that as the core being wrong. The `why` names both ends and says which admits
+the word. A second cost showed in the first mutation: `sender` is an ordinary word, so the
+unfound-needle reading found it spelled as a token of its own seven times in the core's prose and
+hedged that what moved was likely shape, when what moved was the value; the run reading beside it,
+stopping at `SENDER = "` on the member's own line, is the half that is right. Filed as
+[R-538](../refinements/tasks/538-an-unfound-needle-over-an-ordinary-word-reads-prose-as-the-value.md).
+
+**A third pair beside these two is not held.** The declaration's two field names, `kind` and
+`value`, are bare literals on both sides: `_sender_source` writes them and `_declared_source` reads
+them with `fields.get("kind")` and `fields.get("value")`. A field renamed on one side alone hands
+`claimed_source` a `None` and reads as no declaration, the same silence a third time. Filed as
+[R-537](../refinements/tasks/537-the-declaration-field-names-are-bare-literals-on-both-sides.md).
+
+**Proved able to fail, on the tree.** Five mutations, each restored from a saved copy: (1) the enum
+value renamed alone, `SENDER = "from"`; (2) the server's binding re-spelled alone; (3) the server
+writing the literal with its binding left in place; (4) the module contract quoting `"from"`; (5)
+the binding renamed together with its use. The live gate over the real tree (85 entries, 98 sites,
+279 mentions, 24 counted) fails on each: (1) naming `provenance.py` as not spelling
+`SENDER = "sender"` and the line its run stops on, (2) naming `provenance.py` and the module
+contract, each as not spelling the re-spelled word, (3) naming the server's spend as rendering no
+value, so the whole of it is shape, (4) naming the contract, (5) naming the server as declaring no
+`_SENDER_KIND`. Scripts suite (`test_values.py` and `test_crosscheck.py`, 280 tests): 7 red on (1)
+through (4), the tests that read the real tree; 10 red on (5), the same seven plus the three
+form-coverage cases that read every registered site. Five mutations, five red in both. The brain's
+email suite (110 tests, 100% line and branch) stays green on the change, its pin of the `_meta`
+shape reading the same bytes. The registry grew by one entry, one site and three mentions.

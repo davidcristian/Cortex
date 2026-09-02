@@ -1,6 +1,6 @@
 # The kind word a declared source rides under is spelled twice and has no declaring site
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -31,3 +31,13 @@ alone and watch `check-crosscheck` fail naming both files.
 
 - 2026-09-02: opened by the close of
   [531](531-the-source-declaration-key-is-spelled-twice-unheld.md).
+- 2026-09-02: landed by the narrow road, recorded in the ADR-0029 declared-kind-word addendum.
+  Every claim above held on re-derivation. `cortex_email/server.py` binds the word as
+  `_SENDER_KIND` and spends it in `_sender_source`; one entry in `scripts/emailcouplings.py` has
+  that binding as its site and, as mentions, the enum member rendered name and value, the server's
+  spend and the module contract's quotation, and the live gate fails on a rename of either side
+  alone. The wide road is filed as
+  [536](536-the-python-declaration-syntax-reads-no-class-level-binding.md), the declaration's two
+  field names as [537](537-the-declaration-field-names-are-bare-literals-on-both-sides.md), and
+  the unfound-needle hedge over an ordinary word as
+  [538](538-an-unfound-needle-over-an-ordinary-word-reads-prose-as-the-value.md).
