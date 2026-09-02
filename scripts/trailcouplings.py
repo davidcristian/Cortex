@@ -92,12 +92,12 @@ registered rather than left implicit. `getLogger(_LOGGER_NAME)` and
 `_logger.info(_MESSAGE, ...)` say nothing about the string they carry, so a sink binding one name
 and passing a different literal is two names rather than one spelled twice, which is the shape the
 rule against a word written twice, in `loggernames.py` for a logger and in `logcalls.py` for a
-message, sees and lets through. That state is not green, which was measured
-rather than assumed: the gate suite carries a guard on the sinks' own declarations, and each sink's
-package suite asserts a whole rendered line, so a renamed call or a renamed message is a dozen reds
-beside it. All of them were holding it by accident, none saying so. So the audit message carries a
-mention on the assertion its own suite makes, which turns a property held by an accident into one
-the scan names (ADR-0009 declared-name addendum).
+message, sees and lets through. The audit message is held at the call: its entry carries a mention
+of the emitting call rendering the identifier, so a call handed another word, or the word written
+out again, leaves that needle unfound, and the gate suite requires such a mention of every
+registered binding a brain log call is handed (ADR-0009 held-call addendum). The same entry carries
+a mention on the assertion the sink's own suite makes, which restates the value in the one place
+that also proves the call wrote it (ADR-0009 declared-name addendum).
 
 The sixth entry is what the two loggers carry instead, and it is one entry rather than one
 apiece. That guard used to look each of these two names up by hand, so each logger was tied to
@@ -257,10 +257,10 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "message nothing writes and the suite passing on both its spellings at once, having "
             "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
             "in for this one, a line whose fields are built by condition being one no runbook may "
-            "print as a rendered sample; the fourth place is the sink's own suite, which restates "
-            "nothing and asserts the rendered line this sink emits, and so is the only thing "
-            "holding this declaration to the call handed it, the logger guard reaching a "
-            "logger name and no further (ADR-0009 declared-name addendum)"
+            "print as a rendered sample; the fourth place is the sink's own suite, which asserts "
+            "the rendered line (ADR-0009 declared-name addendum), and the fifth is the emitting "
+            "call, spending the binding by name, so a call handed another word fails here "
+            "(ADR-0009 held-call addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
         mentions=(
@@ -268,6 +268,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
             Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
             Mention(AUDIT_SUITE, ASSERTED_MESSAGE),
+            Mention(AUDIT_SINK, "_logger.info({name},", name="_MESSAGE"),
         ),
     ),
     Constant(

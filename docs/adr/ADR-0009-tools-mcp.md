@@ -3995,3 +3995,156 @@ cause.
 - A field list composed above its call cannot be quoted, which is what keeps the spill warning and
   the tool audit's own line out of the runbooks
   ([R-516](../refinements/tasks/516-a-field-list-composed-above-its-call-cannot-be-quoted.md)).
+
+## Held-call addendum (2026-09-02): the call a registered message is handed is a place the registry reads
+
+The handed-message addendum above ends with the residue it could not close. The tool audit binds
+`_MESSAGE` and hands it to `_logger.info`, the registry ties four places to that binding, and a call
+handed some other word leaves all four restating a word the brain does not write, with every scan
+green; one package suite held it, named by hand. The entry asking for this weighed two paths, a
+mention of the emitting call rendering the identifier, and a field in the registry saying which of
+its values is a log message
+([R-504](../refinements/tasks/504-a-declared-message-and-a-different-word-in-the-call.md)). The
+first is built here, with the guard the entry said it would need, and the second is declined on a
+ground already recorded.
+
+### Re-derived first, and one claim had been overtaken
+
+Every claim about the sink held. `brain/packages/tools/src/cortex_tools/audit.py` binds
+`_MESSAGE = "tool.invocation"` at line 30 and hands it to `_logger.info` at line 89; the entry in
+`trailcouplings.py` ties the tools runbook, two spellings in the process entry's suite and the
+sink's own suite to that binding; that suite asserts four whole rendered lines; and the derivation
+that closed the logger half reads a set the modules bind under `_LOGGER_NAME`, which a message has
+no counterpart of. The measurement behind that last point was repeated: the brain binds 22
+top-level strings whose names say `MESSAGE` or `MSG`, and five of them are log messages,
+`_MESSAGE`, `ABANDONED_MESSAGE` and the three in `cortex_core/brain_phase.py`. The state the entry
+describes was measured as well as read. The sink handing its call `"tool.dispatch"`, or handing it
+`_LOGGER_NAME`, is green in the gate suite, green under `check-crosscheck` and
+`check-samplecheck`, and five reds in the tools package alone.
+
+One claim had been overtaken on the day it was written. The entry counts two of the four other
+declared messages as held by their suites, `ABANDONED_MESSAGE` by `test_abandon.py` and the spill
+warning by `test_brain_phase.py`, each importing the constant and asserting the emitted record
+against it. That is still true, and a third is held as well: the quotable-line addendum printed
+the no-reading line in `docs/runbooks/model-swap.md`, so that call handing another word fails
+`check-samplecheck` as a message the module no longer writes, which the last row below measures.
+Only the decode reading's message is held by nothing, and it is restated by nothing either. The
+spill warning turned out to be restated after all, in the same runbook's prose, as a wrapped prefix
+of the sentence in italics, which nothing ties and which the registry as written cannot tie; that
+is filed rather than fixed here.
+
+### Decision 1: the emitting call is a mention of the message's own entry
+
+The registry already has the form this needs. A mention renders `{name}` where a far side names a
+value rather than restating it, which is how `var(--roll)` is held beside the declaration paying
+it, and `_logger.info(_MESSAGE,` names the value in exactly that sense. So the entry gains
+`Mention(AUDIT_SINK, "_logger.info({name},", name="_MESSAGE")`. A call handed another literal, or
+another binding, leaves that needle unfound and `check-crosscheck` fails naming the entry. A
+renamed value leaves it found, which is right: the call goes on handing the binding whatever the
+binding says, and the four mentions rendering the value are what a renamed value has to move.
+
+The one cost the entry priced is paid the cheaper way. `spend_fault` refused a name pinned as a
+spend that no mention of the same entry renders the value under, and here the value is paid by the
+entry's own `Site`. A site pays the name it declares: reading `_MESSAGE = "tool.invocation"` is
+reading the value under that name, which is the act `{name}: {value}ms;` performs on a stylesheet
+the scan has no declaration syntax for. The rule now reads the sites as well as the mentions. The
+alternative, a second mention re-reading the declaration line so that a mention pays the name, was
+rejected as a place written for the rule's sake that would spell the declaration twice in the
+registry.
+
+### Decision 2: the set a call mention is required over is the registry against the tree
+
+The entry was right that the logger's derivation does not transfer, and the marker field it
+weighed as the other path is declined on the ground the declared-name addendum gave for a logger
+marker: it puts a subject inside data whose every other entry is a value and the places that spell
+it. What the entry did not say is that the set here needs no naming at all. The set is not "which
+bindings are log messages", which this brain cannot say. It is "which registry sites a log call in
+that module is handed", and both halves of that are readable: the registry says which bindings
+documents restate, and `logcalls.handed` says which bindings a module's calls are handed by name. A
+site in both is one whose call mention can be forgotten, and there is one today.
+
+The guard, `test_every_registered_binding_a_brain_log_call_is_handed_is_held_at_that_call` in
+`scripts/tests/test_crosscheck.py`, requires of every such site a mention on the sink rendering
+that name whose needle lands on the line handing it. The line is what keeps a mention aimed at the
+declaration from satisfying it: `{name} = "` renders the same identifier and holds nothing about
+the call. The guard sits with the registry's other claims about the real trees rather than beside
+the logger guard, because the claim is about the registry's completeness against the brain, where
+the logger guard compares two readings of the brain and needed no registry.
+
+A call handed a binding writes that binding's value, so nothing is wrong on the day a site is
+registered; the guard fires then, when the mention is missing, and the mention holds from then on.
+A site whose call hands a literal from the day it is registered is outside the set, since nothing
+says that site is a message, and it is held by the sink's own suite where one exists. The entry
+measured that no convention can derive that case, and nothing here changes it.
+
+### What was written down, and what was not gated
+
+The convention doing most of the work outside the registry is now stated: a package suite imports
+the message constant and asserts `getMessage()` against it, as `test_abandon.py` and
+`test_brain_phase.py` do. It is not gated. A binding no document restates has no far side to drift
+from, so a call handed another word there leaves an unused binding and nothing false, and a guard
+over it would detect a hazard with no consequence.
+
+### Distrust green
+
+Eight mutations and a control, each applied alone to the working tree and restored, measured over
+the **gate suite** (`scripts/tests/`), 1,572 checks before this change and 1,587 after, with
+`check-crosscheck` and `check-samplecheck` run beside it. The tools package
+(`brain/packages/tools/tests/test_audit.py`, 13 checks) was run for the second row as well, since
+the sink's own suite is what held it before: five reds, before and after.
+
+| Mutation | before | after | `check-crosscheck` | `check-samplecheck` |
+| --- | --- | --- | --- | --- |
+| CONTROL: nothing edited | 0 | 0 | passes | passes |
+| the audit sink hands its call another literal | 0 | **13** | **fails** | passes |
+| the audit sink hands its call the logger's binding | 0 | **13** | **fails** | passes |
+| a second registered binding is handed to a call, with no call mention | n/a | **1** | passes | passes |
+| GATE: the call mention is dropped from the entry | n/a | **2** | passes | passes |
+| GATE: the call mention is aimed at the declaration | n/a | **2** | passes | passes |
+| GATE: a site stops paying the name it declares | n/a | **16** | **fails** | passes |
+| GATE: the guard stops checking the line | n/a | **2** | passes | passes |
+| the no-reading call in `brain_phase.py` hands another word | 2 | 2 | passes | **fails** |
+
+Rows two and three are the entry measured. Both were green everywhere but the tools package, and
+both are now a failing scan naming the entry whose call moved, plus thirteen reds: the tests that
+run the scan over the repo, every doctored-tree test that copies the audit sink and expects the
+unedited copy to pass, and the guard itself through its non-emptiness floor, since a tree in which
+no registered binding is handed to any call is one its fixtures describe and the brain does not.
+Row four is what the guard buys, and the whole of it: a binding registered tomorrow and handed to
+its call with the mention forgotten is one red naming the site, the line and the mention to add,
+where before this change it was green.
+
+Rows five to eight are the needles. Five and six are the mention removed and the mention
+retargeted, each caught by the guard and by the doctored-tree test that hands the sink another
+word; six is the row the line check exists for, a mention of the same identifier over the
+declaration holding nothing about the call. Seven is the registry rule: with a site no longer
+paying its name, the audit entry is refused as written, the scan fails on a clean tree, and sixteen
+tests go red, the four written for the relaxation among them. Eight removes the line check and is
+caught by the two fixture tests written for it, the real-tree guard staying green because the one
+registered call mention does land on its call.
+
+Row nine is the correction to the entry, run as a mutation: the no-reading message is held by the
+sample gate before and after this change, identically, because the quotable-line addendum printed
+that line and `logged` resolves the name. This change did nothing to it and claims nothing about it
+beyond having measured it.
+
+### Consequences
+
+- The tool audit's message is held to its call by the registry, and any registered binding a brain
+  log call is handed will be, from the day it is registered.
+- The constant registry stands at 79 entries over 89 declaring sites and 266 mentions, in twelve
+  parts. One mention is on the same file as its entry's site, which is new: the call and the
+  declaration are one module, and the scan reads them as two places.
+- A rename of the identifier `_MESSAGE` is two registry edits, the site and the mention's name,
+  where it was one. A rename that moves only the site fails the scan naming the entry.
+- The doctored-tree test that renames the value now expects every value-rendering mention to fault
+  and the call mention to hold, and says why.
+
+### Deferred by this addendum
+
+- A registered binding handed at a call the formatter wraps has its name on the line after the
+  call, so the template the guard's failure message suggests does not land there
+  ([R-518](../refinements/tasks/518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md)).
+- The swap runbook restates the spill warning's message in italics, as a prefix wrapped over two
+  lines, and no needle can render a prefix or cross a wrap
+  ([R-519](../refinements/tasks/519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md)).

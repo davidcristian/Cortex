@@ -8,6 +8,7 @@ import pytest
 
 import couplings
 import crosscheck
+import logcalls
 import needles
 import registry
 import values
@@ -859,7 +860,60 @@ def test_a_spent_name_no_mention_pays_the_value_under_is_refused(tmp_path: Path)
         mentions=(crosscheck.Mention("overlay.css", "var({name})", name="--roll"),)
     )
     (fault,) = crosscheck.check_constant(tmp_path, unpaid)
-    assert "no mention renders the value under that name" in fault.detail
+    assert "no site declares that name and no mention renders the value under it" in fault.detail
+
+
+# The tool audit's shape: the declaration is the site, and the emitting call spends the binding by
+# name. A renamed value faults the runbook and leaves the call found, which is right, the call
+# going on handing the binding whatever it says; a call handed another word faults the call alone.
+HANDED = crosscheck.Constant(
+    label="a handed message",
+    why="the runbook restates the word, and the call spends the binding by name",
+    sites=(crosscheck.Site("sink.py", "_MESSAGE"),),
+    mentions=(
+        crosscheck.Mention("runbook.md", "a bare `{value}` message"),
+        crosscheck.Mention("sink.py", "_logger.info({name},", name="_MESSAGE"),
+    ),
+)
+
+
+def _hand(root: Path, call: str) -> None:
+    """Write a sink binding its message above one call, and a runbook restating the word."""
+    (root / "sink.py").write_text(f'_MESSAGE = "tool.invocation"\n{call}\n', encoding="utf-8")
+    (root / "runbook.md").write_text("a bare `tool.invocation` message\n", encoding="utf-8")
+
+
+def test_a_spend_of_the_name_a_site_declares_is_paid_by_that_site(tmp_path: Path) -> None:
+    """Reading the declaration is reading the value under that name, so no second mention has to
+    re-read the declaration line for the spend to count as paid."""
+    _hand(tmp_path, "_logger.info(_MESSAGE, extra=fields)")
+    assert crosscheck.check_constant(tmp_path, HANDED) == []
+
+
+def test_a_call_handed_another_word_leaves_the_call_mention_unfound(tmp_path: Path) -> None:
+    """The fault the call mention exists for: the declaration still reads `tool.invocation`, the
+    runbook restating it still agrees, and the call writes some other word."""
+    _hand(tmp_path, '_logger.info("tool.dispatch", extra=fields)')
+    (fault,) = crosscheck.check_constant(tmp_path, HANDED)
+    assert "sink.py does not spell '_logger.info(_MESSAGE,' as a token of its own" in fault.detail
+    assert "the whole of it is shape" in fault.detail
+
+
+def test_a_call_handed_another_binding_is_the_same_fault(tmp_path: Path) -> None:
+    _hand(tmp_path, "_logger.info(_LOGGER_NAME, extra=fields)")
+    (fault,) = crosscheck.check_constant(tmp_path, HANDED)
+    assert "does not spell '_logger.info(_MESSAGE,'" in fault.detail
+
+
+def test_a_renamed_value_faults_the_restatement_and_leaves_the_call_found(tmp_path: Path) -> None:
+    """The call mention renders the name and never the value, so it is the one place a renamed
+    value does not fault; the fault lands on the runbook, which is the place that has to move."""
+    _hand(tmp_path, "_logger.info(_MESSAGE, extra=fields)")
+    (tmp_path / "sink.py").write_text(
+        '_MESSAGE = "tool.dispatch"\n_logger.info(_MESSAGE, extra=fields)\n', encoding="utf-8"
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, HANDED)
+    assert fault.detail.startswith("runbook.md does not spell")
 
 
 # ── decimals, where the digits ARE the value ───────────────────────────────────
@@ -1166,6 +1220,7 @@ AUDIT_SINK = "brain/packages/tools/src/cortex_tools/audit.py"
 LEVEL_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 
 SINK_WORD = '_MESSAGE = "tool.invocation"'
+HANDED_CALL = "_logger.info(_MESSAGE,"
 ASSERTED_LINE = "INFO:cortex.tools.audit:tool.invocation tool=read"
 
 # The far side that restates nothing: the audit sink's own suite, which asserts the whole rendered
@@ -1407,14 +1462,27 @@ def test_renaming_the_audit_message_in_the_sink_alone_fails_every_place_restatin
     off such a call, so no runbook may print one of these lines. That leaves the word restated by
     the runbook sentence telling a reader what to look for and by the suite that proves the
     shipped level, with nothing holding either to the sink.
+
+    The call mention is the one place a renamed value does not fault: it renders the name and
+    never the value, so the call goes on handing the binding whatever the binding says, which is
+    what a rename of the value wants (ADR-0009 held-call addendum).
     """
     constant = registered(AUDIT_MESSAGE)
     copied(tmp_path, constant, {AUDIT_SINK: (SINK_WORD, '_MESSAGE = "tool.dispatch"')})
     faults = crosscheck.check_constant(tmp_path, constant)
     assert {fault.label for fault in faults} == {AUDIT_MESSAGE}
     assert {fault.detail.split()[0] for fault in faults} == {
-        mention.path for mention in constant.mentions
+        mention.path for mention in constant.mentions if crosscheck.PLACEHOLDER in mention.template
     }
+
+
+def test_the_audit_sink_handing_another_word_fails_at_the_call(tmp_path: Path) -> None:
+    """The other direction of the same entry: the declaration and every restatement agree and the
+    call writes another word, which only the sink's own suite used to see."""
+    constant = registered(AUDIT_MESSAGE)
+    copied(tmp_path, constant, {AUDIT_SINK: (HANDED_CALL, HANDED_CALL.replace("_MESSAGE", '"x"'))})
+    (fault,) = crosscheck.check_constant(tmp_path, constant)
+    assert fault.detail.startswith(f"{AUDIT_SINK} does not spell {HANDED_CALL!r}")
 
 
 def test_the_suites_asserted_line_is_reported_against_the_word_that_moved(
@@ -1503,11 +1571,12 @@ def test_a_contract_naming_a_binding_its_sink_does_not_make_is_a_fault(tmp_path:
 def test_an_audit_suite_asserting_another_word_before_its_fields_is_a_fault(
     tmp_path: Path,
 ) -> None:
-    """The message half, whose guard is the sink's own suite rather than the reader's.
+    """The message half, held by the sink's own suite as well as by the call mention.
 
     The log readers reject a word this module writes twice, once for a logger name and once
-    for a message, and neither matches a call carrying some other word, so the four rendered lines
-    this suite asserts are the only thing standing between `_MESSAGE` and a call passing one.
+    for a message, and neither matches a call carrying some other word. The call mention on this
+    entry holds that now; the four rendered lines this suite asserts are what hold the suite's
+    own expectation to the declared value, and this test is about that needle.
 
     Two things ride along with the one mutation. One rendered line carries both of this trail's
     registered words, so the message moving has to land on the message's entry and leave the
@@ -1659,6 +1728,139 @@ def test_the_registry_spends_at_least_one_rendered_name() -> None:
     ]
     assert named
     assert any(crosscheck.PLACEHOLDER not in mention.template for mention in named)
+
+
+# ── a registered binding a brain log call is handed, held at that call ─────────
+#
+# The registry says which bindings documents restate, and `logcalls.handed` says which bindings a
+# module's log calls are handed by name. A site in both sets is one whose call mention can be
+# forgotten, and that set is read off the two readings together rather than off any naming: a
+# message has no `_LOGGER_NAME` to be found under, the brain binding some twenty top-level strings
+# whose names say MESSAGE or MSG of which five are log messages (ADR-0009 held-call addendum).
+
+BRAIN_SOURCE = logcalls.BRAIN_PACKAGES.as_posix() + "/"
+
+SINK = "brain/packages/tools/src/cortex_tools/audit.py"
+
+HELD_AT_CALL = crosscheck.Constant(
+    label="a message handed to its call",
+    why="the runbook restates the word, and the call spends the binding by name",
+    sites=(crosscheck.Site(SINK, "_MESSAGE"),),
+    mentions=(
+        crosscheck.Mention("docs/runbooks/tools.md", "a bare `{value}` message"),
+        crosscheck.Mention(SINK, "_logger.info({name},", name="_MESSAGE"),
+    ),
+)
+
+
+def handed_sites(
+    root: Path, constants: tuple[couplings.Constant, ...]
+) -> list[tuple[couplings.Constant, couplings.Site, list[int]]]:
+    """Every registry site a brain log call is handed as its message, with the lines handing it."""
+    found: list[tuple[couplings.Constant, couplings.Site, list[int]]] = []
+    for constant in constants:
+        for site in constant.sites:
+            if Path(site.path).suffix != ".py" or not site.path.startswith(BRAIN_SOURCE):
+                continue
+            tree = logcalls.parsed(logcalls.read(root / site.path, site.path), site.path)
+            lines = [line for line, name in logcalls.handed(tree) if name == site.name]
+            if lines:
+                found.append((constant, site, lines))
+    return found
+
+
+def landed(root: Path, constant: couplings.Constant, site: couplings.Site) -> set[int]:
+    """Every line a mention of ``site``'s own name, on the file declaring it, lands on."""
+    text = (root / site.path).read_text(encoding="utf-8")
+    value = crosscheck.read_value(root, site)
+    lines: set[int] = set()
+    for mention in constant.mentions:
+        if mention.path != site.path or mention.name != site.name:
+            continue
+        for match in needles.bounded(crosscheck.rendered(mention, value)).finditer(text):
+            first = needles.line_of(text, match.start())
+            last = needles.line_of(text, match.end() - 1)
+            lines.update(range(first, last + 1))
+    return lines
+
+
+def _sink(root: Path, call: str) -> None:
+    """Write a miniature tool audit binding its message above one call, on the call's fifth line."""
+    path = root / SINK
+    path.parent.mkdir(parents=True)
+    path.write_text(f'_MESSAGE = "tool.invocation"\n\n\ndef note() -> None:\n    {call}\n', "utf-8")
+
+
+def test_a_registered_binding_a_call_is_handed_is_read_with_the_line_handing_it(
+    tmp_path: Path,
+) -> None:
+    _sink(tmp_path, "_logger.info(_MESSAGE, extra={})")
+    (site,) = HELD_AT_CALL.sites
+    assert handed_sites(tmp_path, (HELD_AT_CALL,)) == [(HELD_AT_CALL, site, [5])]
+
+
+def test_a_registered_binding_no_call_is_handed_is_outside_the_set(tmp_path: Path) -> None:
+    """Nothing says such a site is a message, which is the reading this brain cannot make; what
+    holds it is the sink's own suite, where one exists."""
+    _sink(tmp_path, '_logger.info("tool.dispatch", extra={})')
+    assert handed_sites(tmp_path, (HELD_AT_CALL,)) == []
+
+
+def test_a_site_outside_the_brains_python_is_not_read(tmp_path: Path) -> None:
+    """A Rust site and a gate module's own constant are passed over without being opened: neither
+    is a module whose log calls this reader could be asked about, and the tree here holds
+    neither."""
+    elsewhere = crosscheck.Constant(
+        label="elsewhere",
+        why="two sides",
+        sites=(
+            crosscheck.Site("body/crates/core/src/lib.rs", "MAX"),
+            crosscheck.Site("scripts/trailwidth.py", "TRAIL_MESSAGE"),
+        ),
+    )
+    assert handed_sites(tmp_path, (elsewhere,)) == []
+
+
+def test_a_call_mention_lands_on_the_line_handing_the_name(tmp_path: Path) -> None:
+    _sink(tmp_path, "_logger.info(_MESSAGE, extra={})")
+    assert landed(tmp_path, HELD_AT_CALL, HELD_AT_CALL.sites[0]) == {5}
+
+
+def test_a_mention_aimed_at_the_declaration_lands_there_and_not_on_the_call(
+    tmp_path: Path,
+) -> None:
+    """The line check is what keeps this from satisfying the guard: a mention of the name that
+    re-reads the binding holds nothing about the call."""
+    _sink(tmp_path, "_logger.info(_MESSAGE, extra={})")
+    aimed = HELD_AT_CALL._replace(
+        mentions=(crosscheck.Mention(SINK, '{name} = "', name="_MESSAGE"),)
+    )
+    assert landed(tmp_path, aimed, aimed.sites[0]) == {1}
+
+
+def test_every_registered_binding_a_brain_log_call_is_handed_is_held_at_that_call() -> None:
+    """The one place a registered message meets the call handed it, over whatever the tree holds.
+
+    A call handed a binding writes that binding's value, so nothing is wrong on the day the site
+    is registered; what can go wrong later is the call being handed another word while the
+    documents stay tied to the binding, and what catches that is a mention of the name on the
+    sink, which the registry holds from then on. This guard is what makes that mention something
+    an author cannot forget: every site in the set above has to carry one, landing on the line
+    that hands the name, so a mention aimed at the declaration instead satisfies nothing.
+
+    The non-emptiness beside it keeps the walk from passing on an empty set, and guards the
+    fixtures above: a registry no brain log call is handed a site of would make them fiction.
+    """
+    held = handed_sites(REPO_ROOT, crosscheck.CONSTANTS)
+    assert held, "no registered binding is handed to a brain log call, so the fixtures are fiction"
+    for constant, site, lines in held:
+        missing = sorted(set(lines) - landed(REPO_ROOT, constant, site))
+        assert not missing, (
+            f"{site.path} hands {site.name} to a log call on line(s) {missing} and the entry "
+            f"{constant.label!r} carries no mention landing there; add "
+            f"Mention({site.path!r}, '<the call>({{name}},', name={site.name!r}) beside its "
+            f"other mentions, so a call handed another word fails check-crosscheck"
+        )
 
 
 # Two forms plus a widening of a third, all unexercised in the same way: the reducer rejected a

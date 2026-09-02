@@ -20,7 +20,9 @@ is now resolved against the module's own top level and nothing wider, by `module
 which is the reading `loggernames.py` makes of a logger claimed the same way. A name from anywhere
 else stays unmatched rather than being followed, since following one would make this reader an
 importer of the brain, and a message built at the call out of pieces is not a message a page could
-quote at all.
+quote at all. `handed` answers the other question about that spelling, which bindings a module's
+calls are handed by name, for the guard holding a registered binding to the call handed it
+(ADR-0009 held-call addendum).
 
 A module may not write one message twice, which is the one-name rule one word over. The constant
 registry ties the documents restating a message to the binding, so a literal of the same string in
@@ -197,6 +199,25 @@ def carried(tree: ast.Module, shown: str) -> list[tuple[ast.Call, str, str]]:
         message = _written(call.args[0], strings, shown, call.lineno)
         if message is not None:
             found.append((call, level, message))
+    return found
+
+
+def handed(tree: ast.Module) -> list[tuple[int, str]]:
+    """Every logging call whose message is a bare name: the line the name is on, and the name.
+
+    The identifier rather than the string it resolves to, which is what a guard holding a
+    registered binding to the call handed it compares against a mention of that name. The line is
+    the name's own rather than the call's, so a call the formatter wraps is reported where the
+    name sits.
+    """
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        levelled = _levelled(node)
+        if levelled is None:
+            continue
+        first = levelled[0].args[0]
+        if isinstance(first, ast.Name):
+            found.append((first.lineno, first.id))
     return found
 
 

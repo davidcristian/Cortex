@@ -149,23 +149,29 @@ def registry_fault(constant: Constant) -> str | None:
         return "names fewer than two places, so it compares nothing"
     if constant.relation is not Relation.EQUAL and constant.mentions:
         return f"is {constant.relation.value}, so it has no one value a mention could spell"
-    return spelling_fault(constant) or spend_fault(constant.mentions)
+    return spelling_fault(constant) or spend_fault(constant)
 
 
-def spend_fault(mentions: tuple[Mention, ...]) -> str | None:
-    """The complaint about a name pinned as a spend that nothing pays the value under."""
-    paid = {mention.name for mention in mentions if PLACEHOLDER in mention.template}
-    spent = [
+def spend_fault(constant: Constant) -> str | None:
+    """The complaint about a name pinned as a spend that nothing pays the value under.
+
+    A site pays the name it declares: reading the declaration is reading the value under that
+    name, which is what a mention rendering both placeholders does on a far side the scan has no
+    declaration syntax for. So a spend is paid by either kind of place.
+    """
+    paid = {site.name for site in constant.sites}
+    paid |= {
         mention.name
-        for mention in mentions
-        if mention.name is not None and PLACEHOLDER not in mention.template
-    ]
-    for name in spent:
-        if name not in paid:
-            return (
-                f"spends {name!r} where no mention renders the value under that name, so the "
-                "spend is held and the declaration it pays is not"
-            )
+        for mention in constant.mentions
+        if mention.name is not None and PLACEHOLDER in mention.template
+    }
+    for mention in constant.mentions:
+        if mention.name is None or PLACEHOLDER in mention.template or mention.name in paid:
+            continue
+        return (
+            f"spends {mention.name!r} where no site declares that name and no mention renders "
+            "the value under it, so the spend is held and the declaration it pays is not"
+        )
     return None
 
 

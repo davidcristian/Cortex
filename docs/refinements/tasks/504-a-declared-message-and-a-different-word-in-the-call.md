@@ -1,6 +1,6 @@
 # A declared message and a different word in the call
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -59,3 +59,21 @@ this: a convention nobody named is doing most of the work.
   [R-503](503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md), whose
   mutation table measures the doubled spelling going from green to three reds and says nothing
   about a call carrying a different word.
+- 2026-09-02: **landed** as the cheaper path with the guard it needed (ADR-0009 held-call
+  addendum). Re-derivation held every claim about the sink and overtook one: the no-reading
+  message is held by `check-samplecheck` since the quotable-line addendum printed it, so three of
+  the four other declared messages are held rather than two, and only the decode reading's is held
+  by nothing. The registry's rule that a spent name must be paid now reads the sites as paying the
+  names they declare; the tool audit's entry carries a mention of the emitting call,
+  `_logger.info({name},`; and
+  `test_every_registered_binding_a_brain_log_call_is_handed_is_held_at_that_call` requires such a
+  mention, landing on the call's line, of every registry site a brain log call is handed, a set
+  read off the registry and `logcalls.handed` together rather than off any naming, which is why
+  the marker field weighed here was declined again on the declared-name addendum's ground. The
+  suite convention holding the other messages is written down and not gated, a binding no document
+  restates having no far side to drift from. Opened
+  [R-518](518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md) for a
+  binding handed at a call the formatter wraps, and
+  [R-519](519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md) for the
+  spill warning's message, which the swap runbook turned out to restate as a wrapped prefix nothing
+  ties.

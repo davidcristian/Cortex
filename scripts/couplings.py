@@ -22,8 +22,11 @@ Where the far side NAMES the value rather than restating it, the mention carries
 template renders it: a stylesheet declaring `--roll: 300ms` and paying it as `var(--roll)` writes
 the number once and the name three times, and only the first is reachable by a rendered value. The
 pair is written as two mentions of one entry, `{name}: {value}ms;` for the declaration and
-`var({name})` for the spends, and the registry rejects a name pinned as a spend that no mention of
-the same entry pays a value under, which would hold the name and drop the value.
+`var({name})` for the spends, and the registry rejects a name pinned as a spend that neither a
+site of the same entry declares nor a mention of it pays a value under, which would hold the name
+and drop the value. A site pays the name it declares, reading the declaration being reading the
+value under that name, so a Python call handing a registered binding by name is a spend of that
+site: `_logger.info({name},` over the file whose `Site` reads the binding.
 
 A mention is a presence check by default: one bounded occurrence satisfies it however many times
 the file spends the value, so a half applied rename that updates one of two identical comparisons

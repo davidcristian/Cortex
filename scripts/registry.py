@@ -40,10 +40,10 @@ to the order the tuple reads them in:
 - `trailcouplings` ties the words one line of either per-line trail is found by, which are the
   recall trail's logger, the message it opens with, the field it is measured on, and the tool
   audit's own logger and message, to the sinks that write them, the reader outside the brain that
-  measures them, the documents that state them, and the assertion that holds a value a sink passes
-  by identifier to the call it was handed to. Its last entry is of another kind: the identifier a
-  self-named sink declares its logger under, which is how the guard holding those lines to their
-  calls reads its set of sinks.
+  measures them, the documents that state them, the call the tool audit hands its message to by
+  name, and the assertion its suite makes on the rendered line. Its last entry is of another
+  kind: the identifier a self-named sink declares its logger under, which is how the guard
+  holding those lines to their calls reads its set of sinks.
 
 Counting the registry lives here too, beside the tuple the parts are joined into, because the size
 of a collection is a fact about the collection rather than about any scan over it. `shape` is what

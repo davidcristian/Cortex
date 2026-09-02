@@ -186,6 +186,31 @@ def test_a_literal_message_beside_a_binding_of_some_other_string_is_left_alone()
     assert logcalls.logged(text, "tool.invocation", "audit.py").level == "INFO"
 
 
+# ── the name a call is handed ──────────────────────────────────────────────────
+
+
+def test_a_call_handed_its_message_by_name_reports_the_name_and_the_line_it_is_on() -> None:
+    """The identifier rather than the string, for the guard holding a registered binding to the
+    call handed it."""
+    assert logcalls.handed(logcalls.parsed(AUDIT, "audit.py")) == [(8, "_MESSAGE")]
+
+
+def test_a_wrapped_call_reports_the_line_the_name_sits_on() -> None:
+    """The name's own line rather than the call's, which differ once the formatter wraps the
+    call; a mention has to land where the name is."""
+    text = 'ABANDONED = "gone"\n_log.warning(\n    ABANDONED,\n    extra={},\n)\n'
+    assert logcalls.handed(logcalls.parsed(text, "m.py")) == [(3, "ABANDONED")]
+
+
+def test_a_call_writing_its_message_out_hands_no_name() -> None:
+    assert logcalls.handed(logcalls.parsed(SETTLE, "settle.py")) == []
+
+
+def test_a_call_that_is_not_a_log_call_hands_no_name() -> None:
+    shapes = "warn(_MESSAGE)\nreport.render(_MESSAGE)\n_log.info()\n_log.info(404)\n"
+    assert logcalls.handed(logcalls.parsed(shapes, "m.py")) == []
+
+
 # ── what is not a log call ─────────────────────────────────────────────────────
 
 
