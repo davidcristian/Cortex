@@ -31,6 +31,12 @@ from cortex_core import Provenance, ToolCall, ToolError, ToolResult, ToolSpec, c
 # SENDER/URI and sanitizes its value.
 _SOURCE_META_KEY = "cortex/source"
 
+# The two field names a declaration is written under, the kind word and the value. Bound here and
+# again in the email sidecar for the reason the key is: a field renamed on one side alone would
+# read as no declaration, and `crosscheck.py` holds each pair of bindings equal.
+_KIND_FIELD = "kind"
+_VALUE_FIELD = "value"
+
 # McpError covers protocol-level failures; OSError covers socket-level transport failures.
 # Both cross the ToolRegistry port as ToolError with the cause chained.
 _WRAPPED = (McpError, OSError)
@@ -54,7 +60,7 @@ def _declared_source(result: CallToolResult) -> Provenance | None:
     if not isinstance(declaration, Mapping):
         return None
     fields = cast("Mapping[str, object]", declaration)
-    return claimed_source(fields.get("kind"), fields.get("value"))
+    return claimed_source(fields.get(_KIND_FIELD), fields.get(_VALUE_FIELD))
 
 
 class McpSession(Protocol):

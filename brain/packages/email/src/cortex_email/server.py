@@ -53,6 +53,12 @@ _SOURCE_META_KEY = "cortex/source"
 # declaration and an enum member as none.
 _SENDER_KIND = "sender"
 
+# The two field names that declaration is written under, bound here and again in `cortex_tools`,
+# which reads them, for the reason the key is: a field renamed on one side alone would read as no
+# declaration, and the same scan holds each pair of bindings equal.
+_KIND_FIELD = "kind"
+_VALUE_FIELD = "value"
+
 
 def _one_text(text: str, *, failed: bool = False) -> CallToolResult:
     """One readable text block as the whole tool result, ``isError`` when it reports a failure.
@@ -72,7 +78,9 @@ def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
     A message with no ``From`` header declares nothing rather than an empty sender; the brain drops
     an empty value anyway, so this keeps the wire clean.
     """
-    return {_SOURCE_META_KEY: {"kind": _SENDER_KIND, "value": sender}} if sender else None
+    if not sender:
+        return None
+    return {_SOURCE_META_KEY: {_KIND_FIELD: _SENDER_KIND, _VALUE_FIELD: sender}}
 
 
 def build_server(reader: EmailReader, sender: EmailSender | None = None) -> FastMCP:

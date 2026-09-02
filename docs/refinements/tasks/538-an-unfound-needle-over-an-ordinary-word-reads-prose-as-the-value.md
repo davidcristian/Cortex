@@ -37,3 +37,8 @@ concluding which moved, and leave the conclusion to the reader. Either way the s
 - 2026-09-02: opened by the close of
   [534](534-the-declared-kind-word-has-no-site-to-hold-it.md), recorded in its ADR-0029
   declared-kind-word addendum.
+- 2026-09-02: a second instance, in the close of
+  [537](537-the-declaration-field-names-are-bare-literals-on-both-sides.md). With the value
+  field's two bindings re-spelled `from` and both contracts left alone, the hedge found `from`
+  thirteen times in the tools contract's prose and concluded that what moved was likely shape,
+  when the value had (ADR-0029 declaration-fields addendum).

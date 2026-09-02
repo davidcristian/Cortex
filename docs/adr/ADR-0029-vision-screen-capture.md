@@ -7338,3 +7338,73 @@ through (4), the tests that read the real tree; 10 red on (5), the same seven pl
 form-coverage cases that read every registered site. Five mutations, five red in both. The brain's
 email suite (110 tests, 100% line and branch) stays green on the change, its pin of the `_meta`
 shape reading the same bytes. The registry grew by one entry, one site and three mentions.
+
+## Addendum (2026-09-02): the declaration's two field names are bound at both ends, in the key's shape
+
+The addendum above filed
+[R-537](../refinements/tasks/537-the-declaration-field-names-are-bare-literals-on-both-sides.md)
+for the two field names, and this records holding them. Re-derived first, the entry's claims held
+with one correction. `_sender_source` wrote `{"kind": _SENDER_KIND, "value": sender}` and
+`_declared_source` read `fields.get("kind")` and `fields.get("value")`, both as bare literals;
+`claimed_source` returns `None` for a non-string kind or value, so a field renamed on one side
+hands it a `None` in that position and the declaration reads as none. The correction is that
+`scripts/` did spell one of the two: the kind-word entry's server spend, `"kind": {name},`, carried
+the field name as shape, so a rename of the `kind` field on the server alone already failed the
+gate, under the kind word's label and with the message that the whole needle is shape, which sends
+the reader to the wrong constant. The other three one-sided renames, the server's `value` and the
+registry's either, passed the gate and failed only the renaming side's own suite, whose pin the
+rename would carry along; that is the qualification the key's addendum made, and it holds here
+unchanged.
+
+**Two entries, in the key's shape.** Each module binds both names beside the key,
+`_KIND_FIELD = "kind"` and `_VALUE_FIELD = "value"`, under a comment giving the key's reason, and
+spends its binding: the registry reads `fields.get(_KIND_FIELD)` and `fields.get(_VALUE_FIELD)`,
+and the server writes `{_KIND_FIELD: _SENDER_KIND, _VALUE_FIELD: sender}` on a line of its own,
+an early return having replaced the conditional expression that would otherwise have reached the
+formatter's column. Each field is one entry in `emailcouplings.py` with the two bindings as sites,
+each module's spend as a mention rendering the name, and both module contracts' quotation of the
+binding and the field together, in the shape the key's contracts already use. The tools contract
+had not spelled the declaration's fields at all; it now says the declaration is a mapping of two
+fields and names each. The kind-word entry's server spend is re-shaped to `_KIND_FIELD: {name},`,
+rendered from the registry's own spelling of the field binding, so the word is held to the field
+it is written under rather than to a literal the server no longer carries.
+
+**Why two sites rather than one site and a literal mention.** The mention form exists so a bare
+literal need not be promoted to a binding, and one binding per field on either side would have
+held the value. Two sites were taken because they are the stronger reading: two declarations are
+compared with each other, so a fault names both files with both values, where a mention is a
+presence check that names the far file and the shape it does not carry. The key was already bound
+at both ends for the wire-contract reason, and a reader of either module now finds every word the
+wire carries bound beside the key under the same comment. The cost is four bindings for two words.
+
+**The riskiest assumption is that four needles over one line of the server stay found.**
+`_sender_source`'s return now carries the key's spend, the kind field's, the kind word's and the
+value field's, each pinning the characters around a name, so a reformat of that line that moved no
+value would fail four entries at once. The line is eighty characters and the formatter leaves it;
+the key's addendum named the same cost for one needle. A second cost showed in mutation (5)
+below: the kind word's spend carries the field binding's name as shape, so renaming that binding
+on the server, name and use together, faults the kind-field entry rightly and the kind-word entry
+with the message that the whole of its needle is shape, the misattribution the ADR-0023 bind-host
+addendum measured. A template renders one name, and the registry has no way to say that the shape
+of one entry's needle is another entry's name. Filed as
+[R-539](../refinements/tasks/539-a-spend-beside-another-entrys-binding-carries-that-name-as-shape.md).
+
+**Proved able to fail, on the tree.** Seven mutations, each restored from a saved copy: (1) the
+server's `_KIND_FIELD` re-spelled `type` alone; (2) the registry's `_VALUE_FIELD` re-spelled
+`from` alone; (3) the registry reading the literal `"kind"` with its binding in place; (4) the
+server writing the literal `"value"` with its binding in place; (5) the server's `_KIND_FIELD`
+renamed `_KIND_NAME` together with its use; (6) the tools contract quoting `"type"`; (7) both
+bindings of the value field re-spelled `from` together, with both contracts left as they were. The
+live gate over the real tree (87 entries, 102 sites, 287 mentions, 24 counted) fails on each: (1)
+and (2) naming both files with both readings; (3) and (4) naming the module whose spend no longer
+renders and the line its run stops on; (5) naming the server as declaring no `_KIND_FIELD`, and
+the kind-word entry beside it; (6) naming the contract; (7) naming both contracts as not spelling
+the re-spelled field. Scripts suite (`test_values.py` and `test_crosscheck.py`, 280 tests): 7 red
+on (1) through (4), (6) and (7), the tests that read the real tree; 10 red on (5), the same seven
+plus the three form-coverage cases that read every registered site. Seven mutations, seven red in
+both. The two brain suites the change touches (email, 110 tests; tools, 67 tests; 100% line and
+branch on both modules) stay green, their pins of the `_meta` shape reading the same bytes. The
+registry grew by two entries, four sites and eight mentions. Mutation (7) also showed the
+unfound-needle hedge over an ordinary word a second time: `from` is spelled thirteen times in the
+tools contract's prose, and the hedge concluded that what moved was likely shape when the value
+had; recorded on R-538's trail.

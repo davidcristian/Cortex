@@ -1,6 +1,6 @@
 # The two field names a declared source is written under are bare literals on both sides
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -28,3 +28,12 @@ unregistered for the reason the key's addendum gives.
 
 - 2026-09-02: opened by the close of
   [534](534-the-declared-kind-word-has-no-site-to-hold-it.md).
+- 2026-09-02: landed as proposed, recorded in the ADR-0029 declaration-fields addendum. Every
+  claim above held on re-derivation but one: `scripts/` did spell the `kind` field, as shape in
+  the kind-word entry's server spend, so a rename of that field on the server alone already failed
+  the gate under the wrong label. Both modules now bind `_KIND_FIELD` and `_VALUE_FIELD` beside
+  the key and spend the bindings; two entries in `scripts/emailcouplings.py` hold each pair of
+  bindings equal, each module's spend, and both contracts' quotation of the name and its field,
+  and the live gate fails naming both files when either side is re-spelled alone. The shape cost
+  the fifth mutation showed, one entry's needle carrying another entry's binding name, is filed as
+  [539](539-a-spend-beside-another-entrys-binding-carries-that-name-as-shape.md).
