@@ -1,6 +1,6 @@
 # A roster entry names an endpoint, and nothing says which model answers there
 
-**Status:** open, actionable
+**Status:** declined 2026-09-02
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 
@@ -68,3 +68,18 @@ default, which is the table both closes chose as the home for the row's measured
   flag it was circling without needing this entry. The budget alone measured worse than the pair on
   the gemma pick and inert on the Qwen pick, so there is no per-family flag set to express and the
   flag gate's one rule stands. The identity question here is untouched.
+- 2026-09-02: **declined**, by the ADR-0018 artifact addendum. Re-derived: every claim about the
+  wiring held, `/props` was read again on the shipped default pick at the image digest above and
+  reports the compose variable joined under `/models` in both fields, and `/v1/models` reports the
+  same string as the model's `id` beside an empty `digest`. Two claims did not hold: the brain's
+  boot log carries no roster line for an artifact to sit beside (`build_subagents` logs nothing),
+  and neither decline above would reopen on identity alone, each having given two further reasons
+  that stand whatever an entry carries. Declined because the brain speaks logical ids by decision
+  and no decision in it reads which weights answer; because a path is not an identity, which the
+  server's own empty `digest` confirms; and because the one placement the repo's own rule allows,
+  per call, buys a value nothing acts on, while once at wiring goes stale under exactly the
+  redeployment that changes it. The runbook's override table now says how the row a running stack
+  is on is read off the server. Opened
+  [R-527](527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md), the one
+  expectation a `/props` read could be held to without a knob: an entry's two placement targets
+  naming one artifact.

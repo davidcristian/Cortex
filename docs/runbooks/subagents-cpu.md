@@ -53,6 +53,25 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   entry is serving (ADR-0018 addendum of 2026-08-30, and ADR-0028's of the same date for the sibling
   decline about the sentence).
 
+  **Which row a running stack is on is read off the server, never off this file or the brain.** Each
+  subagent server publishes on loopback for host-side reads, and `GET /props` names the artifact it
+  was started on, in `model_path` and again in `model_alias`; `GET /v1/models` reports the same
+  string as the model's `id`. Read on 2026-09-02 against the shipped default pick under the subagents
+  compose file's own argv, on `ghcr.io/ggml-org/llama.cpp:server` at
+  `sha256:db057ec90de0a423255a218b9612420993237ff33db68b3155dc3bba9b994a20` (build `b10680-d7bd3bfca`):
+
+  ```bash
+  curl -s http://127.0.0.1:8082/props   # the default entry; :8083 is the roster alternate of 2b
+  # -> ... "model_path":"/models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf" ...
+  ```
+
+  What that path names is `CORTEX_MODEL_FILE_SUBAGENT` joined under `/models`, so it says which row
+  you chose and nothing more: a requantized file at the same path reads the same, and the server's
+  own `digest` field in `/v1/models` is empty on this build. The brain never reads it. An entry names
+  an endpoint, the artifact answering there is the server's to report and the operator's to know, and
+  carrying it into the brain was declined (ADR-0018 addendum of 2026-09-02, closing
+  [R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md)).
+
 ## 1. Bring up the subagent server
 
 ```bash
@@ -361,6 +380,11 @@ curl -s http://127.0.0.1:9300/models/subagent-gpu   # poll until "state":"ready"
 The loopback override is what makes this runnable from the host at all: the sidecar's tiers are
 deliberately unpublished, and it maps the tier's `:8083` to `127.0.0.1:9083` (`:8083` on the host
 belongs to the roster override's second CPU server). Take it down with `just down-gpu`.
+
+The file named on the first line is the CPU server's own default on purpose: the brain treats the
+hosted tier and the CPU server as the two placement targets of one roster entry, so the two
+variables have to name one artifact, and nothing checks that they do
+([R-527](../refinements/tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md)).
 
 Then the two arms, which select themselves from the budget in the environment and skip otherwise:
 
