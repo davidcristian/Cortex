@@ -1,6 +1,6 @@
 # A tool result that carried no external content still taints the turn
 
-**Status:** open, a seam or port change comes first
+**Status:** landed 2026-09-02
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
 
@@ -37,3 +37,16 @@ the code says the case was considered.
 - 2026-08-19: Opened by the close of [312](312-search-refusal-is-untyped.md), which gave the email
   sidecar a refusal in its own words and found that reading it costs the turn its outbound surface
   exactly as reading a message would.
+- 2026-09-02: Landed as the decision, recorded in the ADR-0013 own-text addendum. A result that
+  is untrusted by default is re-stamped trusted only by the brain, in a composition-root overlay,
+  and only when its whole content is byte-equal to text this repo holds in code, rendered with the
+  argument the brain put on the call; nothing the wire carries takes part, `isError` and `_meta`
+  included. The deciding fact is that a sidecar can already leave a turn untainted by failing, so
+  the only capability an exemption must withhold is attacker bytes reaching the model untainted,
+  which byte equality withholds. Two claims here were tightened against the code: the refusal
+  carries the model's own argument as well as this repo's text, and it reaches the model fenced,
+  so the correction it states sits inside a region the preamble says never to obey. The build is
+  [530](530-a-sidecars-own-text-is-re-stamped-trusted.md); the restatement pattern it follows
+  turned out to be unheld for the source key, filed as
+  [531](531-the-source-declaration-key-is-spelled-twice-unheld.md); and the same rule closed
+  [079](079-per-remote-tool-trust-overrides.md).

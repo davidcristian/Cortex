@@ -136,7 +136,11 @@ what `AggregateToolRegistry` does before it routes.
 - Untrusted by default (ADR-0013): `invoke` leaves `ToolResult.trust` at its fail-closed
   `UNTRUSTED` default, so every remote MCP result (file contents, email bodies) is framed as
   data and taints the turn. The adapter needs no per-tool trust annotation; the core's default
-  carries it. (A genuinely trusted remote tool, if one ever exists, is a composition-root overlay.)
+  carries it. A remote result is re-stamped trusted only by the brain, in a composition-root
+  overlay, and only when its whole content is byte-equal to text the brain holds in code,
+  rendered with the call's own argument; nothing the sidecar writes, `isError` and `_meta`
+  included, is read for it (ADR-0013 own-text addendum, the overlay filed as a refinement). A
+  tool whose every answer should be trusted is a built-in, never a remote overlay.
 - Stateless per call: no tool state outlives a call (the one hard rule); the adapter holds
   only the injected session.
 - Adapter-only: real MCP/network I/O lives here, never in the core (AGENTS.md gate 3).
