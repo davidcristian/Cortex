@@ -176,8 +176,11 @@ denied outright.
   cross-deployable wire contract with `cortex_tools` that this standalone sidecar cannot import;
   `crosscheck.py` holds this module's binding of the key equal to `cortex_tools`'s, each module's
   spend of the key to its own binding, and both contracts' quotation of it
-  (`scripts/emailcouplings.py`). The kind word `sender` beside the key is not held, since neither
-  side declares it at module level (R-534).
+  (`scripts/emailcouplings.py`). The kind word beside the key is bound here as `_SENDER_KIND`,
+  because the brain's one spelling of it is the enum member `SourceKind.SENDER`, which the scan
+  cannot read as a declaration; the same scan holds that binding to the enum member, to this
+  module's spend of it, and to this contract's quotation of the declaration's shape above
+  (ADR-0029 declared-kind-word addendum).
   Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
   builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
   the server over streamable-http (`python -m cortex_email`).

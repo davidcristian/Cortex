@@ -224,7 +224,11 @@ on it):
   source untrusted content came from. `SourceKind.attested` is `True` for `TOOL`/`MEMORY`, whose
   values the brain authored (a registry-advertised tool name, an id we minted), and `False` for
   `SENDER`/`URI`, which are the content's own claim: a consumer renders an attested value as a
-  label and a claimed one as a quotation.
+  label and a claimed one as a quotation. `SENDER`'s value is also the kind word the email sidecar
+  writes on a `read_email` result, bound there as `_SENDER_KIND` because the sidecar cannot import
+  this package; `crosscheck.py` holds that binding to this member (`scripts/emailcouplings.py`),
+  so a rename of the value on one side alone fails the gate instead of silently dropping every
+  declared sender.
 - `Provenance` is a frozen dataclass: `kind: SourceKind`, `value: str`. One source, matched
   exactly on both fields (so eviction by sender cannot sweep a URI spelling the same string).
   **`value` is sanitized and bounded in `__post_init__`**, since a source string can be

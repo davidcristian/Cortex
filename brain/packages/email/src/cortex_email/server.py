@@ -31,6 +31,8 @@ _DEFAULT_SEARCH_LIMIT = 20
 
 _SOURCE_META_KEY = "cortex/source"
 
+_SENDER_KIND = "sender"
+
 
 def _one_text(text: str, *, failed: bool = False) -> CallToolResult:
     """One readable text block as the whole tool result, ``isError`` when it reports a failure."""
@@ -43,7 +45,7 @@ def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
     A message with no ``From`` header declares nothing rather than an empty sender; the brain drops
     an empty value anyway, so this keeps the wire clean.
     """
-    return {_SOURCE_META_KEY: {"kind": "sender", "value": sender}} if sender else None
+    return {_SOURCE_META_KEY: {"kind": _SENDER_KIND, "value": sender}} if sender else None
 
 
 def build_server(reader: EmailReader, sender: EmailSender | None = None) -> FastMCP:
