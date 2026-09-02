@@ -204,6 +204,16 @@ marker is present. So "the budget does work" is true of the budget on its own, w
 pair the kwarg disables the mechanism the budget depends on, and what to do about that is
 [R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).
 
+**And what to do about it is decided: nothing, because the budget alone is worse (2026-09-02,
+ADR-0005 budget-alone addendum).** Re-drawn seed-paired at 40 draws over all four report bodies on
+the same build, the budget alone wrote no reasoning character and lost 11 answers to the reply
+itself, narrations and a thinking process written into `reply`, where the pair lost 3 to the
+channel; on a plain request it wrote the thinking process as the reply on 33 of 40; and on the Qwen
+pick it deliberated to the cap on 40 of 40, both shapes, that template opening the thought inside
+the prompt where the sampler sees no start. The pair stays on every subagent server, the gate is
+unchanged, and the deprecation's `--reasoning off` is the kwarg under a new spelling, identical to
+the pair on 40 of 40 seeds.
+
 **And the Qwen half of that sentence is measured 2026-08-28** (ADR-0005 switch-is-advisory
 addendum, lineup section), where before it rested on the same `17 + 25` this addendum's own reading
 above used. Asked on a prompt that does invite deliberation, at five draws a cell, against a server

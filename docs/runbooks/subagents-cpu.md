@@ -204,10 +204,16 @@ delegation time (ADR-0012 admission-wall addendum).
 > `--reasoning-budget 0` and **not** the kwarg wrote no reasoning character on 30 draws of the same
 > request, and a server carrying the kwarg alone was identical to one carrying both on 20 of 20
 > matched seeds. The fragments are this family's own closing marker `<channel|>` written with a
-> slash in it. Dropping the kwarg from a gemma tier is not a supported change yet, since the gate
-> requires both flags and the Qwen half of the roster is what the kwarg is there for
+> slash in it. Dropping the kwarg from a gemma tier is not a repair, for the reason the next
+> paragraph measures
 > ([R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md)), but
 > a tier being debugged by hand can be started without it to confirm the diagnosis in one run.
+> **And the diagnosis is not a repair (2026-09-02, ADR-0005 budget-alone addendum).** A server
+> started with the budget and not the kwarg empties the channel and loses the answer to the reply
+> instead: 11 of 40 seed-paired draws over the four bodies came back as a narration or a thinking
+> process inside `reply`, against 3 of 40 lost to the channel on the pair, and on a plain request
+> 33 of 40 replies were the thinking process itself. So a trace in the channel on this pick is a
+> correctly flagged server behaving as measured, and the argv to compare against is still the pair.
 > A plan arriving in `reply` as an `ok=True` answer is rarer but still possible and still silent,
 > which is [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md).
 > **Every number in this note is the default pick's**, and the pick is one env var away from being a
@@ -292,7 +298,10 @@ delegation time (ADR-0012 admission-wall addendum).
 > decoded in. The Qwen-2B override honours it on **both** shapes, on all five draws of each, so
 > there the budget only repeats a defence the kwarg already provides. Keep both flags on both servers anyway: the
 > difference is a property of the pick's own chat template, and the argv outlives the pick a
-> deployment happens to name.
+> deployment happens to name. Measured from the other side too (2026-09-02, ADR-0005 budget-alone
+> addendum): on the Qwen-2B override the budget alone does nothing, 40 deliberations of 40, so the
+> kwarg is the flag that carries it, and on the E4B pick the budget alone loses more answers than
+> the pair, so neither server can drop either flag.
 
 ## 2. Validate the delegation machinery (no GPU cortex needed)
 

@@ -63,3 +63,8 @@ instrument that fails on its own subject is not an instrument.
 - 2026-08-30: opened by the close of
   [R-484](484-the-control-arm-is-held-to-no-floor.md), which built the floor on the failures a
   reader can name without knowing the subtask and left the judging that names the rest by hand.
+- 2026-09-02: the close of
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) judged 320 replies by hand
+  for exactly the reading this entry names, a narration or a plan standing where an answer belongs,
+  because the flag arm it decided against loses answers that way and no other way: 11 of 40 with
+  no reasoning character. The floor would have counted 9 of those 11 as standing.

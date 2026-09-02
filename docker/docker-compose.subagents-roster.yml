@@ -61,6 +61,10 @@ services:
       # switch-is-advisory addendum, lineup section). The budget stays anyway. It costs nothing on a
       # tier that wants no thought, it is what the flag rule reads on every subagent server here,
       # and the argv outlives whichever GGUF CORTEX_MODEL_FILE_SUBAGENT_QWEN happens to name.
+      # And the budget alone does nothing on this pick (ADR-0005 budget-alone addendum): this
+      # template opens the thought inside the prompt, where a sampler watching generated tokens
+      # never sees a start, and a server carrying only --reasoning-budget 0 deliberated to the cap
+      # on 40 draws of 40 across both request shapes. The kwarg is the flag that carries this entry.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--reasoning-budget"

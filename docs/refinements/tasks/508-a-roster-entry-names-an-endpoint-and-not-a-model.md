@@ -63,3 +63,8 @@ default, which is the table both closes chose as the home for the row's measured
   [R-482](482-the-sentence-is-one-wording-for-every-entry.md) and
   [R-485](485-a-roster-description-never-says-whether-the-entry-answers.md), which found the same
   missing identity under two different per-entry values.
+- 2026-09-02: the close of
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) declined the per-entry
+  flag it was circling without needing this entry. The budget alone measured worse than the pair on
+  the gemma pick and inert on the Qwen pick, so there is no per-family flag set to express and the
+  flag gate's one rule stands. The identity question here is untouched.

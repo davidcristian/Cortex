@@ -3175,6 +3175,10 @@ Five readings, and the second is the one that decides the entry.
    reasoning character on any of them, at the request shape and the subtask wording that the
    firm-prompt arm found the pair failing on. The flag this tier already carries works; it works
    when it is the only flag there.
+   **Corrected 2026-09-02 by the budget-alone addendum below.** This reading is of the channel and
+   of nothing else. Read beside the reply, the same arm loses 11 answers in 40 to the reply itself,
+   narrations and a thinking process written into `reply`, where the pair loses 3 to the channel,
+   and on the Qwen pick the budget alone is inert on 40 draws of 40. It is not the fix.
 2. **The kwarg alone reproduces the failure exactly, and adding the budget to it changes
    nothing.** The two arms are identical on **20 of 20 matched seeds**, to the character, in both
    the reply and the trace. So on the shipped pair the budget is inert: whatever the kwarg has done
@@ -3234,6 +3238,8 @@ part it does: no repair depends on it.
    measured injection robustness was taken with thinking off. Deciding it needs the roster in front
    of it and a gate that can express "this flag, on this family",
    [R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).
+   **Decided 2026-09-02**: the pair stays and the gate is unchanged, because the flag change this
+   implies was measured worse on both families (the budget-alone addendum below).
 4. **No committed probe ships here either.** Every arm above was drawn by hand off `build_payload`,
    which is exactly the gap the entry's probe half named and exactly the gap the firm-prompt
    addendum left,
@@ -3469,3 +3475,178 @@ The fourth row is the one that needed a test of its own. Every new case renders 
 ways, so a refusal reading the switched tail would have passed all of them; what catches it is the
 existing control test, whose unswitched tail opens the thought and whose switched tail closes it,
 and which now asserts which of the two the refusal was worded off.
+
+## Budget-alone addendum (2026-09-02): the budget alone empties the channel and loses the answer to the reply, so the pair stays
+
+**Status:** Accepted. Declines
+[docs/refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md),
+corrects the marker addendum above in place, answers the probe
+[R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md) asked for, and opens
+[R-525](../refinements/tasks/525-the-injection-harness-sends-a-request-key-and-never-the-tiers-argv.md)
+and
+[R-526](../refinements/tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md). It changes
+no shipped code, no flag and no gate; what it changes is the account in the compose command
+blocks, [ADR-0010](ADR-0010-subagents.md), the subagent runbook, and one comment in
+`subagent_attempt.py` that named the wrong half of the pair as the one the attempt depends on.
+
+### Re-derived first, and the entry is right about the tree and wrong about its measurement
+
+Read off the tree before any server was started. Every subagent server this repo starts does carry
+both flags, `docker/docker-compose.subagents.yml` and its roster sibling as four list items and
+the model host's `_REASONING_OFF` as a four-string tuple, and `scripts/flagcheck.py` holds all three
+placements to the pair as one requirement. The marker addendum's 30-draw reading stands as written.
+What the entry inherits from it, and what nobody had asked, is what that arm's **replies** held. The
+marker addendum counted characters in the reasoning channel and read the reply for emptiness, and
+the answer addendum above had already measured that on this pick a thought the model is told not to
+have goes into `reply` as a plan. The two readings were never taken on one arm. The entry's second
+premise, that the budget carries the Qwen half of the roster on its own, was never measured at all;
+the lineup section measured the kwarg on that family and the row addendum measured the pair.
+
+The roster-shaped decision the entry deferred also rests on a family the gate can read, and
+[R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md) records why
+it cannot: the compose default names an artifact a deployment overrides, and the hosted tier names
+none. That question turns out not to need answering.
+
+### What a real server said
+
+Measured 2026-09-02 by the agent on one llama.cpp build, `b10680-d7bd3bfca`, from two images:
+`ghcr.io/ggml-org/llama.cpp:server-cuda` at
+`sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7` on the 24 GB card, and
+`ghcr.io/ggml-org/llama.cpp:server` at
+`sha256:db057ec90de0a423255a218b9612420993237ff33db68b3155dc3bba9b994a20`, the CPU image the
+subagents override pulls, which is the image every draw behind the entry lacked. Every server ran
+`--ctx-size 8192 --jinja --parallel 2`, the override's own argv apart from the flags under test,
+`-ngl 99` on the card and `-ngl 0` on the CPU. The request is the shipped delegated one, built by
+`task_messages` and `build_payload` at `GenerationBounds(max_tokens=1024)` over the envelope
+harness's four report bodies, with a `seed` so that arms pair; the plain shape is the same two
+messages with no `response_format` and no appended sentence.
+
+**The rendering, off `POST /apply-template`, is the same on both images:**
+
+| flags on the server | gemma-4-E4B prompt | Qwen3.5-2B prompt |
+| --- | --- | --- |
+| both, the shipped pair | no `<\|think\|>` | thought rendered closed, `<think>` then `</think>` |
+| `--reasoning-budget 0` alone | carries `<\|think\|>` | ends in an open `<think>` |
+| `--reasoning off` alone | no `<\|think\|>`, identical to the pair | closed, identical to the pair |
+
+**The draws, on the card, seed-paired over all four bodies.** A reply is *delivered* when it is a
+summary of the body, judged by hand the way the ADR-0028 tables are judged; a *narration or plan*
+is a well-formed reply that describes the task, opens with a plan, or is the thinking process
+itself.
+
+| pick | flags | shape | draws | wrote to the channel | opened with a marker fragment | empty at the cap | narration or plan in `reply` | delivered |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-E4B | the pair | constrained | 40 | 5 | 3 | 3 | 0 | **37** |
+| gemma-4-E4B | `--reasoning off` alone | constrained | 40 | 5 | 3 | 3 | 0 | 37, **identical to the pair on 40 of 40** |
+| gemma-4-E4B | budget alone | constrained | 40 | **0** | 0 | 2, a thinking process inside `reply` | **9** | **29** |
+| gemma-4-E4B | budget alone | plain | 40 | 0 | 0 | 27 cut at the cap | **38** opened with the thinking process or a narration | 2 |
+| Qwen3.5-2B | budget alone | constrained | 20 | **20** | 0 | 20 | 0 | 0 |
+| Qwen3.5-2B | budget alone | plain | 20 | **20** | 0 | 20 | 0 | 0 |
+| Qwen3.5-2B | `--reasoning off` alone | constrained | 20 | 0 | 0 | 0 | 0 | 19, one malformed `{"reply":"{"}` |
+
+**The same arms on the CPU image the override ships**, cut at the size a sitting allowed (the card
+finished 240 draws in the time the CPU finished 76):
+
+| pick | flags | draws | wrote to the channel | opened with a marker fragment | empty at the cap | narration or plan in `reply` | delivered |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-E4B | the pair | 19 | 4 | 3 | 2 | 0 | 17 |
+| gemma-4-E4B | budget alone | 25 | **0** | 0 | 0 | **5** | 20 |
+| Qwen3.5-2B | the pair | 20 | 0 | 0 | 3, the numeric runaway of the row addendum | 0 | 17 |
+| Qwen3.5-2B | budget alone | 12 | **12** | 0 | 12 | 0 | 0 |
+
+**The injection arm the entry said was owed**, the committed harness's own corpus and detectors
+drawn by hand against three servers of the pick on the card, three repeats each:
+
+| flags on the server | request key | framed obeyed | unframed control obeyed |
+| --- | --- | --- | --- |
+| the pair | none, as the stack sends | 0 of 10, 0 of 10, 0 of 10 | 2, 2, 2 |
+| budget alone | none | 0 of 10, 0 of 10, 0 of 10 | 1, 2, 1 |
+| none | `enable_thinking: false`, the harness's own cell | 0 of 10, 0 of 10, 0 of 10 | 2, 2, 2 |
+
+Five readings, and the first two decide the entry.
+
+1. **The budget alone does not repair the gemma pick. It moves the loss.** The channel is empty on
+   every draw, as the marker addendum found, and the thought the channel no longer shows arrives
+   inside `reply`: "The user wants a summary of the provided network operations report", "Here's
+   the plan:", "Self-correction: ensure the entire response is the summary", and twice the whole
+   thinking process written into the field and cut at the cap as malformed JSON. Eleven of 40
+   against the pair's 3 on the same seeds, and 5 of 25 against 2 of 19 on the CPU image. Nine of
+   the eleven arrive `ok=True`, which is the quiet failure the reply sentence was added to remove;
+   the pair's losses are cap refusals, which the runner reports. On the plain shape the thought is
+   the reply on 38 draws of 40: the prompt carries `<\|think\|>`, the sampler closes the thought the
+   moment it opens, and the model writes what it meant to think as what it says.
+2. **The budget alone does nothing on the Qwen pick, on either shape.** Forty deliberations of 40
+   to the cap, on the card and on the CPU alike. The rendering says why: this template opens the
+   thought inside the prompt, so the start the sampler watches for is never generated, and a sampler
+   that forces an end after a start it never saw forces nothing. The kwarg is what carries this
+   family, by rendering the thought already closed, as the lineup section measured.
+3. **`--reasoning off` is the kwarg under a new spelling.** It renders what the kwarg renders on
+   both families, and on the gemma pick it is identical to the pair to the character on 40 of 40
+   seed-paired draws, content, trace, marker fragments and token counts alike. It is therefore not
+   the third lever [R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md) hoped
+   might collapse the pair, and it inherits the kwarg's failure on this pick exactly.
+4. **The two flags stay because each family needs a different one, and neither can be dropped
+   anywhere.** The kwarg is the flag that renders the thought away on the gemma pick, inertly
+   beside the budget on this build, and the flag that closes it on the Qwen pick; the budget alone
+   is worse on the first family and inert on the second. There is no per-family flag set that is
+   better than the pair, so the roster-shaped decision the entry deferred has nothing to decide.
+5. **The injection robustness does not move with the flags.** Framed obedience is 0 of 10 on all
+   three servers across all nine repeats, the harness's own published cell re-drawn in the same
+   sitting among them, so the arm the entry said was owed if the kwarg went away says nothing would
+   have changed. What it did show is that the harness measures the request key and cannot send the
+   tier's argv, which is
+   [R-525](../refinements/tasks/525-the-injection-harness-sends-a-request-key-and-never-the-tiers-argv.md).
+
+### Decision
+
+1. **The pair stays on every subagent server, and the entry is declined.** The compose command
+   blocks, [ADR-0010](ADR-0010-subagents.md) and the subagent runbook now say the budget alone was
+   measured and what it does, beside the sentence that said the kwarg disarms it.
+2. **`scripts/flagcheck.py` is unchanged.** Its one rule over both placements is the right shape,
+   because no family is better off under a different flag set and there is nothing per-family to
+   express. The reading that the budget is inert beside the kwarg on both families is recorded as
+   [R-526](../refinements/tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md), with the
+   two events that would make it worth acting on.
+3. **The marker addendum's first reading is corrected where it stands.** "The budget alone is the
+   fix" was a reading of the channel, and the channel was not the thing to read. Its attribution,
+   that the kwarg produces the garbled marker, survives untouched, and so does its rendering column.
+4. **The deprecation task is answered rather than closed.** When the kwarg stops parsing, the
+   change is a spelling swap to `--reasoning off` on both compose servers and the hosted tier, with
+   the budget kept beside it; the rendering and the 40 identical draws say the behaviour follows the
+   spelling. Its trigger is unchanged.
+5. **The comment in `subagent_attempt.py` names the pair rather than the budget** as what the
+   attempt depends on. It said the second flag was the one, and on this build the second flag is
+   the inert one.
+
+### What this does not do, and where that is recorded
+
+- **The CPU arms are 25, 19, 20 and 12 draws, and only together reach the 76 the entry asked for
+  of the budget arm alone.** They were cut when
+  the card's 40-draw arms had decided the question in kind, and the reading the 76 was sized for, a
+  rate in the channel, is not the reading that decided it. Every CPU row agrees with its GPU row in
+  what it shows and is labelled confirmation.
+- **Delivered is judged by hand**, as every rate in the ADR-0028 tables is, and the floor could
+  have counted 9 of the 11 losses as standing.
+  [R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md).
+- **No committed probe took any of this**, and the reading it now needs is one more than the three
+  the marker addendum named: what the reply holds.
+  [R-512](../refinements/tasks/512-no-committed-probe-splits-the-reasoning-off-pair.md).
+- **The Qwen mechanism is inferred from the rendering and the behaviour**, not read from the
+  sampler: a thought opened by the template is one the sampler never sees start. Nothing here read
+  the handler.
+- **One build.** Every number is `b10680-d7bd3bfca`, on two images of it. The marker addendum's
+  second build, `b10666`, was not re-drawn, since what changed here is the reading and not the
+  engine.
+
+### Distrust green
+
+No rule, gate or branch is added, so there is no mutation table and this section says instead what
+the measurement's own controls were. The **seed pairing** is what makes reading 1 a comparison
+rather than two rates: the pair and the budget alone saw the same 40 seeds over the same four
+bodies, and the `--reasoning off` arm being identical to the pair on every one of them is what
+makes "the kwarg under a new spelling" a measurement rather than a reading of a deprecation notice.
+The **reply read beside the channel** is the control the marker addendum lacked and the whole of
+what changed the verdict. The **CPU image** answers the entry's own objection that every earlier
+draw was on the card. The **four bodies** are two more than the marker addendum drew, and the
+narrations fall on all four. And the injection arm's **own published cell**, re-drawn in the same
+sitting at 0 of 10, is what says the harness and the hand run were reading the same thing.

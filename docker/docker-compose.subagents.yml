@@ -164,10 +164,17 @@ services:
       # reasoning character on 30 draws of the shipped delegated request, while the kwarg alone
       # reproduced the trace, the garbled markers and the empty reply and was identical to the pair
       # on 20 of 20 matched seeds. So the sentence above about the budget reaching that shape is
-      # true of the budget on its own: beside the kwarg it reaches nothing. Both flags stay here for
-      # now, the kwarg being what the Qwen family's template reads and scripts/flagcheck.py holding
-      # every subagent server to the pair; making it a per family flag is the entry on the disarmed
-      # sampler in docs/refinements/.
+      # true of the budget on its own: beside the kwarg it reaches nothing.
+      #
+      # BOTH FLAGS STAY, AND THAT IS DECIDED (ADR-0005 budget-alone addendum). The budget alone
+      # empties the channel and loses the answer to the reply instead: seed-paired at 40 draws over
+      # the four report bodies, 11 came back as a narration or a thinking process inside `reply`,
+      # against 3 lost to the channel on the pair, and on a plain request it wrote the thinking
+      # process as the reply on 33 of 40. On the Qwen pick it does nothing at all, 40 deliberations
+      # of 40, because that template opens the thought inside the prompt where the sampler never
+      # sees a start. The deprecation's successor, --reasoning off, renders exactly what the kwarg
+      # renders and matched the pair to the character on 40 of 40 seeds, so it is this flag under a
+      # new spelling and not a third lever.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--reasoning-budget"

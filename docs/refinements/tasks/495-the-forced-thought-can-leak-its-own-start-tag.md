@@ -69,3 +69,8 @@ since a sampler that emits half a tag into content is a bug wherever it is fixed
   and this one, the tag arriving inside the reply, is still the forced close and is still this
   entry's own. What survives of the link is the reading instrument, since a probe that counts leaks
   and one that reads what a trace opens with need the same column.
+- 2026-09-02: the close of
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) drew 80 GPU draws of
+  `--reasoning-budget 0` alone on the E4B pick across both request shapes, the arm on which the
+  forced close fires on every draw, and no reply began with a leaked tag or was the channel name
+  alone; nor did any of the pair's 40. The rate stays under one in a hundred and the entry stands.

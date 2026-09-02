@@ -116,8 +116,10 @@ class PlacedAttempt:
         # with thinking left ON deletes the reply rather than shortening it) is kept by the tier
         # rather than by this request: every subagent server this repo ships starts with both
         # ``--chat-template-kwargs '{"enable_thinking": false}'`` and ``--reasoning-budget 0``
-        # (ADR-0010), and it is the second of those that this attempt depends on. Its own requests
-        # carry a ``response_format`` whenever the run holds no dispatcher, and the key was measured
+        # (ADR-0010), and it is the pair together that this attempt depends on: the kwarg renders
+        # the thought away, and the budget alone moves it into the reply instead (ADR-0005
+        # budget-alone addendum). Its own requests carry a ``response_format`` whenever the run
+        # holds no dispatcher, and the key was measured
         # doing nothing on that shape (ADR-0005 switch-is-advisory addendum), so sending it here
         # would buy nothing while changing the request for a deployment whose template spells the
         # flag differently.
