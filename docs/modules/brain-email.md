@@ -180,7 +180,10 @@ denied outright.
   because the brain's one spelling of it is the enum member `SourceKind.SENDER`, which the scan
   cannot read as a declaration; the same scan holds that binding to the enum member, to this
   module's spend of it, and to this contract's quotation of the declaration's shape above
-  (ADR-0029 declared-kind-word addendum).
+  (ADR-0029 declared-kind-word addendum). The declaration's two field names are bound here too,
+  as (`_KIND_FIELD`, `"kind"`) and (`_VALUE_FIELD`, `"value"`), and again in `cortex_tools`,
+  which reads them; the scan holds each pair of bindings equal, each module's spend of its own
+  binding, and both contracts' quotation of the two names (ADR-0029 declaration-fields addendum).
   Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
   builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
   the server over streamable-http (`python -m cortex_email`).

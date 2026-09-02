@@ -1,4 +1,5 @@
-"""The email sidecar's couplings: two hatches, a switch, four texts, a key and its kind word."""
+"""The email sidecar's couplings: two hatches, a switch, four texts, and a declaration's four words.
+"""
 
 from couplings import Constant, Mention, Site, Spelling
 
@@ -22,6 +23,11 @@ SOURCE_KEY = "_SOURCE_META_KEY"
 # name bound inside a class body; it is the name half of a mention that renders both halves.
 SENDER_KIND = "_SENDER_KIND"
 SENDER_MEMBER = "SENDER"
+
+# The bindings both modules declare the declaration's two field names under, spelled once each
+# because an entry names its field at both sites and at each module's spend of its own binding.
+KIND_FIELD = "_KIND_FIELD"
+VALUE_FIELD = "_VALUE_FIELD"
 
 _REFUSAL_SHAPE = 'f"{{name}}{{argument}!r}"'
 
@@ -114,10 +120,52 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             # and looked for in the core, so either side moving alone leaves it unfound.
             Mention(CORE_PROVENANCE, '{name} = "{value}"', name=SENDER_MEMBER),
             # The server's one spend of the word, held to its own binding for the reason the key's
-            # spend is above.
-            Mention(EMAIL_SERVER, '"kind": {name},', name=SENDER_KIND),
+            # spend is above. The field it is written under is a binding of its own, held by the
+            # kind-field entry below, so its name is this needle's shape.
+            Mention(EMAIL_SERVER, f"{KIND_FIELD}: {{name}},", name=SENDER_KIND),
             # The module contract quotes the declaration's shape with the word in it.
             Mention(EMAIL_MODULE, '{"kind": "{value}", "value": <From>}'),
+        ),
+    ),
+    Constant(
+        label="the field a declared source's kind is written under",
+        why=(
+            "read_email writes its declaration's kind word under this field and the brain's tool "
+            "registry reads the same field before admitting the declaration, each binding it as "
+            "a wire contract because the sidecar cannot import the core, so a field renamed on "
+            "either side alone would hand claimed_source a None, drop every declared sender and "
+            "fail nothing, an unreadable declaration reading as none by design (ADR-0027 sidecar "
+            "addendum)"
+        ),
+        sites=(Site(TOOLS_REGISTRY, KIND_FIELD), Site(EMAIL_SERVER, KIND_FIELD)),
+        mentions=(
+            # Each module's one spend of the field, held to its own binding as the key's is: the
+            # registry's read, and the server's write as the inner mapping's first key.
+            Mention(TOOLS_REGISTRY, "fields.get({name})", name=KIND_FIELD),
+            Mention(EMAIL_SERVER, "{{name}: ", name=KIND_FIELD),
+            # Both module contracts quote the binding and the field together, in the key's shape.
+            Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=KIND_FIELD),
+            Mention(EMAIL_MODULE, '`{name}`, `"{value}"`)', name=KIND_FIELD),
+        ),
+    ),
+    Constant(
+        label="the field a declared source's value is written under",
+        why=(
+            "read_email writes the message sender under this field of its declaration and the "
+            "brain's tool registry reads the same field into the turn's provenance, each binding "
+            "it as a wire contract because the sidecar cannot import the core, so a field renamed "
+            "on either side alone would hand claimed_source a None, drop every declared sender "
+            "and fail nothing, an unreadable declaration reading as none by design (ADR-0027 "
+            "sidecar addendum)"
+        ),
+        sites=(Site(TOOLS_REGISTRY, VALUE_FIELD), Site(EMAIL_SERVER, VALUE_FIELD)),
+        mentions=(
+            # The same two spends: the registry's read, and the server's write as the inner
+            # mapping's second key, after the separator.
+            Mention(TOOLS_REGISTRY, "fields.get({name})", name=VALUE_FIELD),
+            Mention(EMAIL_SERVER, ", {name}: ", name=VALUE_FIELD),
+            Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=VALUE_FIELD),
+            Mention(EMAIL_MODULE, '`{name}`, `"{value}"`)', name=VALUE_FIELD),
         ),
     ),
     Constant(

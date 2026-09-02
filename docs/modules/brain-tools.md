@@ -18,13 +18,14 @@ source of audited, model-callable tools.
     into `ToolResult.content` (non-text blocks skipped) and setting `is_error` from the
     server's `isError`. A source a sidecar declared in the result's MCP `_meta` (under
     `_SOURCE_META_KEY`, `"cortex/source"`) is read into `ToolResult.source` (`_declared_source`):
-    it rides beside the content blocks, so the model-facing text is untouched, and the core's
-    `claimed_source` is the trust gate, admitting only a sanitized, claimed SENDER/URI and dropping
-    an attested kind a hostile sidecar might forge (ADR-0027 sidecar addendum). The key is a
-    cross-deployable wire contract with the standalone email sidecar, which writes the same shape,
-    and `crosscheck.py` holds the two bindings equal, each module's spend of the key to its own
-    binding, and this contract's quotation of it (`scripts/emailcouplings.py`, ADR-0029
-    declared-source-key addendum).
+    the declaration is a mapping of two fields, the kind word (`_KIND_FIELD`, `"kind"`) and the
+    value (`_VALUE_FIELD`, `"value"`), and it rides beside the content blocks, so the model-facing
+    text is untouched; the core's `claimed_source` is the trust gate, admitting only a sanitized,
+    claimed SENDER/URI and dropping an attested kind a hostile sidecar might forge (ADR-0027
+    sidecar addendum). The key and both field names are a cross-deployable wire contract with the
+    standalone email sidecar, which writes the same shape, and `crosscheck.py` holds each pair of
+    bindings equal, each module's spend of its own binding, and this contract's quotation of each
+    (`scripts/emailcouplings.py`, ADR-0029 declared-source-key and declaration-fields addenda).
 - `streamable_http_session(url)` is an `@asynccontextmanager` opening a **structured, same-task**
   streamable-http MCP session (`streamable_http_client` + `ClientSession` + `initialize`), yielded
   for the scope of one `async with`. Replaces the old `connect` classmethod, which held the
