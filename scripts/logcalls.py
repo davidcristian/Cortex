@@ -146,6 +146,19 @@ def carried(tree: ast.Module, shown: str) -> list[tuple[ast.Call, str, str]]:
     return found
 
 
+def handed(tree: ast.Module) -> list[tuple[int, str]]:
+    """Every logging call whose message is a bare name: the line the name is on, and the name."""
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        levelled = _levelled(node)
+        if levelled is None:
+            continue
+        first = levelled[0].args[0]
+        if isinstance(first, ast.Name):
+            found.append((first.lineno, first.id))
+    return found
+
+
 def _dynamic_call(node: ast.AST, message: str) -> ast.Call | None:
     """``node`` when it logs ``message`` at a level chosen while the program runs."""
     if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):

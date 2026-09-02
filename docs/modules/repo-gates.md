@@ -221,9 +221,13 @@ held in one place for the same reason.
   `{name}` renders it, which makes the pair two mentions of one entry, `{name}: {value}ms;` over
   the declaration and `var({name})` over the spends. A mention carries a name exactly when its
   template renders one (either half alone is dead data and a fault), and the registry rejects a
-  name pinned as a spend that no mention of the same entry renders a value under, which would hold
-  the name while quietly dropping the value. Two properties live in this shape, `--roll` and
-  `--ease`, being the two the overlay's TypeScript declares the value of rather than the name.
+  name pinned as a spend that no site of the same entry declares and no mention of it renders a
+  value under, which would hold the name while quietly dropping the value. A site pays the name it
+  declares, reading the declaration being reading the value under that name, so a Python call
+  handing a registered binding by name is a spend of that site (ADR-0009 held-call addendum). Two
+  properties live in this shape, `--roll` and `--ease`, being the two the overlay's TypeScript
+  declares the value of rather than the name, and one message, the tool audit's, whose entry
+  carries `_logger.info({name},` over the sink that declares the binding.
   **Bounded, and written to cover the whole of what it pins.** Bare containment passed on two real
   violations: a value that is a prefix of the one written down (`5005` inside `50051`), which the
   bound now refuses, and a published `host:container` port pair whose host half alone carried the
@@ -374,8 +378,8 @@ held in one place for the same reason.
   that is absent, one declared twice, a value it cannot reduce, a mention whose rendered needle is
   absent or found a different number of times than it pins or whose template renders neither
   `{value}` nor `{name}` or renders a name it does not carry or carries one it renders nowhere
-  or pins a count below 1, a name pinned as a spend that no mention pays a value under, and a
-  registry entry naming no declaring site or
+  or pins a count below 1, a name pinned as a spend that no site declares and no mention pays a
+  value under, and a registry entry naming no declaring site or
   fewer than `MIN_PLACES` (2) places are each a fault, never a skip. Exit 0 with a summary; exit 1
   printing `label: detail` per fault; exit 2 if `--root` is not a directory. **The summary states
   the registry's own shape**, `registry.shape` counting entries, declaring sites, mentions and
@@ -1237,7 +1241,13 @@ held in one place for the same reason.
   cancelled run still names the order it was drawing.
 - `crosscheck.py`'s registry is checked against the real trees by its own suite
   (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when
-  `check-crosscheck` is not the recipe that runs. Registering a constant in a language
+  `check-crosscheck` is not the recipe that runs. The same suite reads the registry against the
+  brain's log calls:
+  `test_every_registered_binding_a_brain_log_call_is_handed_is_held_at_that_call` requires, of
+  every registry site a brain log call is handed as its message, a mention on that sink rendering
+  the name and landing on the call's line, a set read off the registry and `logcalls.handed`
+  together rather than off any naming, a message having no `_LOGGER_NAME` to be found under
+  (ADR-0009 held-call addendum). Registering a constant in a language
   `DECLARATIONS` does not know, or a mention whose template renders nothing the registry fills, or
   one whose name and whose `{name}` do not both appear, or an entry whose places are all one
   language, is refused by that suite too. It used to refuse an entry

@@ -129,10 +129,10 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "message nothing writes and the suite passing on both its spellings at once, having "
             "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
             "in for this one, a line whose fields are built by condition being one no runbook may "
-            "print as a rendered sample; the fourth place is the sink's own suite, which restates "
-            "nothing and asserts the rendered line this sink emits, and so is the only thing "
-            "holding this declaration to the call handed it, the logger guard reaching a "
-            "logger name and no further (ADR-0009 declared-name addendum)"
+            "print as a rendered sample; the fourth place is the sink's own suite, which asserts "
+            "the rendered line (ADR-0009 declared-name addendum), and the fifth is the emitting "
+            "call, spending the binding by name, so a call handed another word fails here "
+            "(ADR-0009 held-call addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
         mentions=(
@@ -140,6 +140,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
             Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
             Mention(AUDIT_SUITE, ASSERTED_MESSAGE),
+            Mention(AUDIT_SINK, "_logger.info({name},", name="_MESSAGE"),
         ),
     ),
     Constant(

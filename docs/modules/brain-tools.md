@@ -66,8 +66,10 @@ source of audited, model-callable tools.
   The word the line opens with is declared beside it as `_MESSAGE` and handed to the
   emitting call, for the same reason and against the same three restatements, the runbook sentence
   that tells a reader what to look for and that suite's two spellings (ADR-0009 audit-message
-  addendum). The sample gate cannot stand in for either: this sink builds its `extra=` by
-  condition, so no runbook may print one of these lines as a rendered sample and have it hold.
+  addendum). The call itself is a fifth place the registry reads, `_logger.info({name},` over
+  this module, so a call handed another word fails the gate (ADR-0009 held-call addendum). The
+  sample gate cannot stand in for either: this sink builds its `extra=` by condition, so no
+  runbook may print one of these lines as a rendered sample and have it hold.
   A line also names the work it was for: `session_id`, `turn_id`,
   `task_id` and `item_id`, taken off the dispatch's stamp and written under the field names the
   rest of the brain's log lines use.
