@@ -23,7 +23,7 @@ brain workspace member (ADR-0002).
 `just envelope-floor` and `switchtail.py` from `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, forty six modules, most split out under the line cap and
+**The rest have no CLI of their own**, forty seven modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -46,8 +46,9 @@ each named for what it holds. Grouped by the gate that reads them:
 - `stubcheck.py` reads `protocomments.py` for what a proto comment is and how it normalizes into
   the Rust stub's form.
 - `samplecheck.py` reads `logsamples.py` for what a documented log line claims to print,
-  `logcalls.py` for what the call writing it really attaches, and `loggernames.py` for which
-  module owns the logger that line is written under.
+  `logcalls.py` for what the call writing it really attaches, with `logfields.py` split off it
+  for the field list read off the call or off the binding above it, and `loggernames.py` for
+  which module owns the logger that line is written under.
 - `rostercheck.py` reads `rosters.py` for every roster this repo has written down,
   `rosternames.py` for what a page's roster names, and `rostermembers.py` for the set it
   describes. `scanrecipes.py` answers the one such set that is no listing at all, which scans the
@@ -746,16 +747,33 @@ held in one place for the same reason.
   it is written rather than the day a runbook quotes that line. Only each package's `src/` is
   walked, a package's tests sitting beside it. Fields come back sorted, which is not this reader
   rearranging an answer but restating `render_fields`, whose sort is what makes the printed order
-  a function of the key set. A message no call logs, a message logged twice, an `extra=` that is
-  not a literal mapping and a key that is not a plain string are each reported rather than shrugged
-  at, a shrug being how a gate hands itself an empty answer and calls the document right. The
-  mapping rule is also what decides which lines a runbook may print: a call whose fields are
-  composed above it, meaning the spill watch's two number-carrying lines and the tool audit's own
-  trail, is a line the runbooks describe in prose and cannot quote, and the code is not rewritten
-  to become quotable (ADR-0009 quotable-line addendum). One shape
+  a function of the key set. The field list itself is read by `logfields.py`, described next. A
+  message no call logs, a message logged twice, an `extra=` that reader cannot follow to a
+  mapping written out and a key that is not a plain string are each reported rather than
+  shrugged at, a shrug being how a gate hands itself an empty answer and calls the document
+  right. One shape
   is refused **by name**: `logger.log(level, message, ...)` takes its level from a variable, which
   the model host's request failure does, so there is no level a sample could be held to, and saying
   that beats reporting a message the module visibly writes as one it does not.
+- `logfields.py` is the field half of that reader and has no CLI, split off `logcalls.py` at the
+  line cap. It answers which field names one call attaches, read off the call's `extra=` in
+  three spellings: a mapping written out at the call, a bare name, and that name unioned with a
+  mapping written out at the call (`extra | {"shortfall": ...}`), which are the spellings the
+  brain writes. A name is followed inside the function the call is written in and no wider, to
+  one binding at the top of that function's body above the call, and only when nothing else in
+  the function names the binding: not a call on it, not a key set on it, not a rebinding in a
+  branch, not a `global` or `nonlocal` declaration, and not a hand-over to any call that is not
+  a log call. Under those conditions the mapping reaching the call is the one written out, so
+  the keys read off the binding, plus those of the unioned literal, are the fields the line
+  prints. Every other spelling is refused with a fault naming the line, because a field list
+  read off a mapping something else may have changed would hold a document to a line nothing
+  prints, which is worse than holding it to nothing (ADR-0009 composed-fields addendum). The
+  tool audit's trail is the refused case in the tree: its mapping is bound, grown by `update`
+  and by a key set under a condition, and only then handed over, so no one sample could print
+  what it attaches, and it stays a line the tools runbook describes in prose. The rule for
+  which calls are log calls is handed in by `logcalls.py` rather than read here, so this module
+  carries no level table. Keys come back sorted and deduplicated, a key both halves of a
+  union carry being one key on the record.
 - `loggernames.py` is the other half of that reader and has no CLI. It answers which module owns a
   logger name, standing on `logcalls.py`'s walk of the brain's source, and it split off that
   module when teaching the message side its second spelling brought the file to the line cap, along

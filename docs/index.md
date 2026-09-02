@@ -518,7 +518,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
       stage stands on.
     - `stubcheck.py`, the committed Rust stub against the proto, with its `protocomments` reader.
     - `samplecheck.py`, documented log lines against their call sites, with the `logsamples`
-      reading of what a runbook's line claims and the `logcalls` reading of what the call attaches.
+      reading of what a runbook's line claims, the `logcalls` reading of what the call attaches,
+      and the `logfields` reading of a field list bound above the call.
     - `rostercheck.py`, a document's roster against the real set, with the `rosters` registry of
       which lists a document keeps, the `rosternames` reading of what a page names, the
       `rostermembers` reading of what the tree holds, and the `scanrecipes` reading of which scans

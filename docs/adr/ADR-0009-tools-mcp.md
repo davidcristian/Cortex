@@ -4148,3 +4148,169 @@ beyond having measured it.
 - The swap runbook restates the spill warning's message in italics, as a prefix wrapped over two
   lines, and no needle can render a prefix or cross a wrap
   ([R-519](../refinements/tasks/519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md)).
+
+## Composed-fields addendum (2026-09-02): a field list bound above its call is read, and the spill watch is printed
+
+The quotable-line addendum above left its residue on the reader's side: `logcalls._keys` read a
+field list off `extra=` only when that keyword's value was a mapping written out at the call, so the
+spill warning and the decode reading in `cortex_core/brain_phase.py`, whose one `extra` is built
+above both calls and handed over bare and unioned, and the tool audit's trail, whose `fields` grows
+across statements, were lines the runbooks described and could not print. The entry it deferred
+proposed a tractable middle, a bare name bound to a mapping in the same function and that name
+unioned with a mapping at the call, and argued that the audit should stay unquotable rather than
+guessed ([R-516](../refinements/tasks/516-a-field-list-composed-above-its-call-cannot-be-quoted.md)).
+That middle is built here, with the conditions that make it a reading rather than a guess, and the
+three lines of the spill watch are printed in the swap runbook. Printing the warning also closes the
+entry the held-call addendum filed about that runbook's italic restatement of it
+([R-519](../refinements/tasks/519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md)),
+by removing the restatement rather than tying it.
+
+### Re-derived: every claim held, and only the line numbers had moved
+
+`_keys` raised on anything but an `ast.Dict` at `scripts/logcalls.py:149`. `_report_cadence` binds
+`extra` at `brain_phase.py:199` and hands it over at 210, unioned with `{"shortfall": ...}`, and at
+212, bare; `LoggingAuditSink.record` binds `fields` at `audit.py:65`, grows it by `update` at 72 and
+by a key set under a condition at 86 and 88, and hands it over at 89. Asked for each of the four
+messages on the committed tree, `logged` refused three:
+
+```
+brain_phase.py, the spill warning   REFUSED at 210: extra= is not a mapping written out at the call
+brain_phase.py, the decode reading  REFUSED at 212: extra= is not a mapping written out at the call
+brain_phase.py, no reading          line=190 level=INFO fields=(model, session_id, turn_id)
+audit.py, the tool trail            REFUSED at 89: extra= is not a mapping written out at the call
+```
+
+The quotable-line addendum recorded the same three refusals at 242, 244 and 100; the modules were
+shortened by the plain-language pass since, and nothing else about them changed. The swap runbook's
+warning bullet named all nine fields in printed order, as that addendum left it, and quoted the
+warning's first clause in italics over two lines, as the held-call addendum found it. No commit
+since 2026-08-25 touched the field reading.
+
+### Decision 1: three spellings are read, under four conditions, and the rest are refused
+
+`scripts/logfields.py` reads a call's `extra=` in three spellings: a mapping written out at the
+call, a bare name, and that name unioned with a mapping written out at the call. A name is followed
+under four conditions, each of which is what stands between a reading and a guess:
+
+1. **Inside the function the call is written in, and no wider.** The innermost function holding
+   the call is the scope, a module-level binding is not followed from inside one, and a call at the
+   module's top level has no scope to follow a name in. A mapping bound at a module's top level
+   could be grown by any function in it.
+2. **Bound by one statement at the top of that function's body, above the call.** A binding inside
+   a branch is the mapping of the runs that took the branch, and nothing in the source says which
+   those are; a binding below the call is not the call's. A statement at the body's top level and
+   above the call runs on every path that reaches the call.
+3. **Bound to a mapping written out**, with plain string keys. `dict(...)`, a call, and a spread
+   are each refused as they were.
+4. **Named nowhere else in the function** except as the `extra=` of a log call, bare or as the
+   left half of a union. A call on the name, a key set on it, a rebinding in a branch, a `global`
+   or `nonlocal` declaration, and a hand-over to any call that is not a log call are each a use
+   after which the mapping reaching the call may not be the one written out. Which calls are log
+   calls is handed in by `logcalls.py`, so the field reader carries no level table.
+
+Under those four, the mapping reaching the call is the one written out, and the fields are its keys
+plus the unioned literal's, sorted and deduplicated, since a key both halves carry is one key on the
+record. Everything else is refused with a fault naming the line and the reason, in three shapes:
+`extra= names extra, which the enclosing function does not bind above the call to a mapping written
+out`; `binds more than once above the call (lines 2, 3)`; and `bound at line 2 and used again at
+line 3, so the mapping reaching the call is not the one written out`. The entry weighed exactly
+this: a field list read from a branch that does not run would hold a document to a line nothing
+prints, which is worse than raising, and refusal is the cheaper side of that trade to be wrong on.
+
+### Decision 2: the tool audit stays unquotable, on purpose
+
+`audit.py` is the fourth condition's case. Its mapping is bound, then grown by `update` with the
+identities the dispatch carried, then given `result_chars` or `error` by whether the call succeeded,
+and only then handed over. No one sample could print what it attaches, because what it attaches is
+a set that varies by condition; a reader that followed the growth would have to choose a branch,
+which is the guess the entry declined. The reader refuses it at the first use after the binding,
+`bound at line 65 and used again at line 72`, and the line stays one the tools runbook describes in
+prose. That prose is held by nothing, which is the same shape this addendum closes for the spill
+warning, and it is filed rather than fixed.
+
+### Decision 3: the spill watch's three lines are printed, and the prose stops restating them
+
+With both number-carrying calls readable, the swap runbook prints all three lines of the spill watch
+in one fence, the warning, the decode reading and the no-reading line, every value a placeholder.
+The quotable-line addendum's standard was that a sample earns its space by showing what the prose
+cannot, and the warning does: nine fields in the order they print, with `shortfall` among them, on
+the one line the runbook exists to explain. The decode reading is printed beside it rather than
+described as "the same fields except `shortfall`", because a description relative to a held sample
+is still prose held by nothing, and it is the line an operator reads the next floor off.
+
+The bullets above the fence no longer enumerate field names or quote the message. The warning's
+bullet named nine fields in printed order and quoted the sentence's first clause in italics, wrapped
+over two lines, which no registry needle could render or cross; the entry filed about that weighed
+quoting the whole sentence on one line of prose, splitting the constant, and teaching the registry
+to fold whitespace and render a prefix. None of the three is taken. The restatement is removed, and
+the message is held by the sample gate, which compares the fenced line's message to the binding's
+value whole. Row D below is that hazard run as a mutation: the constant reworded leaves the brain's
+own suite green, since it imports the constant, and fails the sample gate.
+
+### The split, and what the reader is handed
+
+`logcalls.py` stood at 280 lines and the reading needed about a hundred, so the field half moved
+out as `scripts/logfields.py` and `logcalls.py` translates its fault into a `LogCallError`. The one
+question the new module cannot answer alone is which calls are log calls, since a name handed to a
+log call as `extra=` is a use it accounts for and a name handed to a helper is not. That rule is
+passed in as a predicate rather than read from a level table copied across, so `logcalls.py` keeps
+the one table.
+
+### Distrust green
+
+Eleven mutations and a control, each applied alone to the working tree and restored from a copy,
+measured over the **gate suite** (`scripts/tests/`, 1,591 checks before this change and 1,621
+after), with `check-samplecheck` beside it, now over seven samples where it was over five. The brain
+package's `test_brain_phase.py` (30 checks) was run for row D, since that suite is what held the
+warning's message before. The first attempt at this table restored the runbook with `git checkout`,
+which discarded the uncommitted samples on the first row and left the gate green over five samples
+for every row after; it was thrown away, and the table below was measured with every file restored
+from a copy.
+
+| Mutation | gate suite | `check-samplecheck` |
+| --- | --- | --- |
+| CONTROL: nothing edited | 0 | passes, 7 samples |
+| A: the bound mapping renames `samples` to `completions` | **3** | **fails**: two samples, each attaching `completions` where the runbook prints `samples` |
+| B: the warning stops unioning `shortfall` at the call | **4** | **fails**: prints `shortfall` where `brain_phase.py:210` attaches eight fields |
+| C: a key is set on the mapping between its binding and the calls | **4** | **fails**: `bound at line 199 and used again at line 209`, both samples |
+| D: `SPILLED_LOG_MSG` is reworded | **2** (brain suite: 0) | **fails**: `logs no message` |
+| E: the printed warning renames `shortfall` to `deficit` | **2** | **fails**: prints `deficit` where the call attaches `shortfall` |
+| F: the printed warning rewords its first clause | **2** | **fails**: `logs no message` |
+| G: GATE the reader stops refusing a name used again | **6** | passes |
+| H: GATE the reader stops requiring the binding above the call | **1** | passes |
+| I: GATE the reader reads a binding anywhere in the function | **2** | passes |
+| J: GATE the outermost function wins instead of the innermost | **2** | passes |
+| K: GATE the handed set is built from the wrong node | **8** | **fails**: both samples, `used again at line 210` |
+
+Rows A to C are the code moving under a printed sample, which is what the entry asked to be caught,
+and each is red in two places: the real-tree tests in `test_logfields.py` and the gate itself. Row D
+is the runbook's restatement hazard measured: the brain suite imports the constant and stays at 30
+green, and the sample gate reports the message the module no longer writes. Rows E and F are the
+document moving under the code. Rows G to K are the reader's conditions and its bookkeeping, each
+disabled alone; G is the one that matters most, since without it the tool audit's line would be read
+off its first literal and reported as five fields where it prints up to eleven, and six tests name
+that.
+
+### Consequences
+
+- A runbook may print a rendered sample of a line whose message the module binds or writes and
+  whose fields are a mapping written out at the call, or bound to one above the call under the four
+  conditions. All five of the brain's handed lines pass the first test and four pass both; the tool
+  audit's is the one that does not.
+- The runbooks print seven rendered samples where they printed five, and the swap runbook's spill
+  watch restates none of its three lines in prose.
+- `scripts/` gains `logfields.py`, and the module contract, the repo map and the docs index name it.
+- The reader accepts the two composed spellings the brain writes and no other; a third spelling
+  arriving is a refusal naming its line rather than a five-field answer.
+
+### Deferred by this addendum
+
+- A union spelled as a `**` spread of the bound name, `{**extra, "shortfall": ...}`, is still
+  refused as a spread, though it prints the same line as `extra | {...}` does
+  ([R-522](../refinements/tasks/522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md)).
+- The tool audit's line is described in the tools runbook in prose because its field set varies by
+  condition, and that prose is held by nothing
+  ([R-523](../refinements/tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md)).
+- The registered-binding needle for a call the formatter wraps is unchanged
+  ([R-518](../refinements/tasks/518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md)):
+  this addendum reads fields, and the needle it names belongs to the registry.

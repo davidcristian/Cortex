@@ -315,12 +315,9 @@ tokens per second you measured for that tier on this card. Set it from a **cold*
 alone, and set it as a floor rather than a target: a rate a healthy tier clears comfortably, not
 the number it peaks at.
 
-- Under the floor, once per handoff, at WARNING: *the deep model decoded below the rate this
-  deployment measured for it, which is what an overcommitted card looks like*, carrying
-  `floor_tokens_per_second`, `judged`, `model`, `samples`, `session_id`, `shortfall`, `tokens`,
-  `tokens_per_second` and `turn_id`, in that order, name order being what the formatter prints
-  whatever order the call site wrote (ADR-0038 rendered-fields addendum). That is your signal, and
-  it is the only one there is.
+- Under the floor, once per handoff, at WARNING. That is your signal, and it is the only one
+  there is; `shortfall` on it is the floor minus the best rate the tier managed, so it is the
+  number to read first.
 - At or above it, at INFO, with the same fields except `shortfall`: there is no shortfall to
   state. Worth having: the healthy figure is what makes a later warning readable, and it is what
   you would set the next floor from.
@@ -329,17 +326,20 @@ the number it peaks at.
 - No reading at all also logs at INFO and **is not a pass**: a completion under 32 decoded tokens
   is not judged, and a phase that failed before decoding anything reports nothing.
 
-That last one, the line written when there was no reading, is the one of the three carrying no
-numbers at all, which is how to tell it from the other two at a glance on a stream somebody is
-waiting on:
+Rendered, those are three lines, printed here with every value a placeholder. Fields print in
+name order whatever order the call site wrote (ADR-0038 rendered-fields addendum); `samples` is
+how many completions reported a rate and `judged` how many were long enough to count; and the
+no-reading line is the one of the three carrying no numbers at all, which is how to tell it from
+the other two at a glance on a stream somebody is waiting on:
 
 ```
+WARNING:cortex_core.brain_phase:the deep model decoded below the rate this deployment measured for it, which is what an overcommitted card looks like: the load was not refused, it was paged to host memory floor_tokens_per_second=<the floor you set> judged=<completions long enough to count> model=<the deep model> samples=<completions that reported a rate> session_id=<chat id> shortfall=<floor minus rate> tokens=<tokens in the best completion> tokens_per_second=<the best rate> turn_id=<turn id>
+INFO:cortex_core.brain_phase:the deep model's decode rate for this handoff floor_tokens_per_second=<the floor, 0 when none is set> judged=<completions long enough to count> model=<the deep model> samples=<completions that reported a rate> session_id=<chat id> tokens=<tokens in the best completion> tokens_per_second=<the best rate> turn_id=<turn id>
 INFO:cortex_core.brain_phase:no decode rate was reported for this handoff, so nothing was checked; a completion too short to judge, a failed phase, or a backend whose engine reports no timings all read alike model=<the deep model> session_id=<chat id> turn_id=<turn id>
 ```
 
-The other two carry those same three fields and the numbers besides. All three name the turn that
-escalated, so `grep turn_id=` on an id you already have returns the decode reading beside
-everything else that turn wrote (ADR-0009 sixth-name addendum).
+All three name the turn that escalated, so `grep turn_id=` on an id you already have returns the
+decode reading beside everything else that turn wrote (ADR-0009 sixth-name addendum).
 
 **Since 2026-08-19 the verdict also reaches the overlay**, because the log is no use to an
 operator who is not tailing a container ([ADR-0030](../adr/ADR-0030-brain-handoff.md) spill-note

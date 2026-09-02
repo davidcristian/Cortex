@@ -244,8 +244,8 @@ def test_a_keyword_beside_extra_is_passed_over() -> None:
 
 
 def test_an_extra_that_is_not_written_out_at_the_call_is_a_fault() -> None:
-    """A dict built elsewhere holds field names this reader cannot see, so the call raises rather
-    than reporting none."""
+    """A bare name at the module's top level has no function to be followed in, so the call
+    raises rather than reporting none; `test_logfields.py` holds the shapes that are followed."""
     with pytest.raises(logcalls.LogCallError, match="not a mapping written out"):
         logcalls.logged('_log.info("done", extra=fields)\n', "done", "m.py")
 
