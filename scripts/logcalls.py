@@ -5,6 +5,7 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import NamedTuple
 
+from logfields import FieldError, attached
 from moduleconstants import constants, text
 from skippeddirs import SKIPPED_DIRS
 
@@ -13,9 +14,6 @@ from skippeddirs import SKIPPED_DIRS
 # test declares is not a logger the deployment writes under.
 BRAIN_PACKAGES = Path("brain/packages")
 SOURCE_DIR = "src"
-
-# The keyword a call attaches its fields under, which is the stdlib's own name for them.
-EXTRA = "extra"
 
 # The one logging method whose level is an argument rather than its own name, and where its
 # message sits when it is. The model host switches between a warning and an error that way, and a
@@ -90,24 +88,6 @@ def parsed(source: str, shown: str) -> ast.Module:
         raise LogCallError(msg) from err
 
 
-def _keys(call: ast.Call, shown: str) -> tuple[str, ...]:
-    """The field names one call attaches, in the order the formatter will print them."""
-    for keyword in call.keywords:
-        if keyword.arg != EXTRA:
-            continue
-        if not isinstance(keyword.value, ast.Dict):
-            msg = f"{shown}:{call.lineno}: extra= is not a mapping written out at the call"
-            raise LogCallError(msg)
-        names: list[str] = []
-        for key in keyword.value.keys:
-            if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
-                msg = f"{shown}:{call.lineno}: a field name here is not a plain string"
-                raise LogCallError(msg)
-            names.append(key.value)
-        return tuple(sorted(names))
-    return ()
-
-
 def _written(first: ast.expr, strings: Mapping[str, str], shown: str, at: int) -> str | None:
     """The message one call carries, in either spelling, or None where this reader cannot say."""
     message = text(first, strings)
@@ -129,6 +109,11 @@ def _levelled(node: ast.AST) -> tuple[ast.Call, str] | None:
         return None
     level = LEVELS.get(node.func.attr)
     return (node, level) if level is not None and node.args else None
+
+
+def _logs(node: ast.AST) -> bool:
+    """Whether ``node`` is such a call, which is the rule the field reader is handed."""
+    return _levelled(node) is not None
 
 
 def carried(tree: ast.Module, shown: str) -> list[tuple[ast.Call, str, str]]:
@@ -194,7 +179,11 @@ def logged(source: str, message: str, shown: str) -> LogCall:
         msg = f"{shown} logs {message!r} in {len(found)} places (lines {lines})"
         raise LogCallError(msg)
     call, level = found[0]
-    return LogCall(line=call.lineno, level=level, fields=_keys(call, shown))
+    try:
+        fields = attached(call, tree, shown, is_log_call=_logs)
+    except FieldError as err:
+        raise LogCallError(str(err)) from err
+    return LogCall(line=call.lineno, level=level, fields=fields)
 
 
 def messages(root: Path) -> dict[str, tuple[str, ...]]:

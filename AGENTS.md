@@ -351,6 +351,7 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                   samplecheck.py    a documented log line still matches the call site writing it
                     logsamples.py       what a documented sample claims
                     logcalls.py         what the call attaches, and the message it may not repeat
+                    logfields.py        the field list, off the call or off the binding above it
                     loggernames.py      which module owns a logger name
                   rostercheck.py    a document's roster still names the set it describes
                     rosters.py          which rosters exist and where each real set is read from

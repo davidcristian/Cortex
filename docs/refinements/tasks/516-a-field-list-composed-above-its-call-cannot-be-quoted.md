@@ -1,6 +1,6 @@
 # A field list composed above its call cannot be quoted
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -42,3 +42,17 @@ the other. The code does not bend to the gate's reader (ADR-0009 quotable-line a
   [R-505](505-the-spill-line-a-runbook-describes-and-never-prints.md), whose re-derivation measured
   three of five lines refused for their fields after all five had been made findable by their
   message.
+- 2026-09-02: **landed** as the tractable middle with four conditions on it (ADR-0009
+  composed-fields addendum). Re-derivation held every claim; only the line numbers had moved,
+  the three refusals standing at 210, 212 and 89. `scripts/logfields.py`, split off
+  `logcalls.py` at the line cap, follows a bare name and a name unioned with a literal to one
+  binding at the top of the enclosing function's body above the call, and only when nothing
+  else in the function names it, so the tool audit's line is refused at its first `update`
+  rather than guessed, as this entry argued. The swap runbook now prints all three lines of the
+  spill watch as fenced samples and restates none of them in prose, which closed
+  [R-519](519-a-runbook-restates-a-declared-message-as-a-wrapped-prefix-nothing-ties.md) as
+  well. Opened
+  [R-522](522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md) for the `**`
+  spread spelling of the union, which stays refused, and
+  [R-523](523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md)
+  for the tool audit's field prose, held by nothing.

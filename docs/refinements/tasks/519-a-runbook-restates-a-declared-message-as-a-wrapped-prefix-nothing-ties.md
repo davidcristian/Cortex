@@ -1,6 +1,6 @@
 # A runbook restates a declared message as a wrapped prefix nothing ties
 
-**Status:** open, actionable
+**Status:** landed 2026-09-02
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -37,3 +37,12 @@ the call side.
   [R-504](504-a-declared-message-and-a-different-word-in-the-call.md), which measured the spill
   warning as held to its call by its suite and found the restatement while checking which of the
   five handed messages any document quotes.
+- 2026-09-02: **landed** by removal rather than by any of the three ways weighed (ADR-0009
+  composed-fields addendum). The close of
+  [R-516](516-a-field-list-composed-above-its-call-cannot-be-quoted.md) made the warning's
+  fields readable, so the swap runbook prints the warning as a fenced sample and the italic
+  prefix is gone; the message is held whole by `check-samplecheck`, which the addendum's table
+  measures as the constant reworded leaving `test_brain_phase.py` green and the gate red. The
+  registry spelling that folds whitespace was not built, and
+  [R-518](518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md) still
+  names it from the call side.
