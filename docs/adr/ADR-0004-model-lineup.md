@@ -633,3 +633,83 @@ nomic pick rather than the override, which matters only to a deployment that had
 `nomic-embed-text-v2-moe` alternative this ADR ships. The sentences above and every measurement
 below them keep their own wording, this addendum being their correction, which is how a superseded
 name is handled here.
+
+## Addendum (2026-09-04): the injection harness takes the tier's argv, and the subagent rows run both ways
+
+Every subagent row in the injection table above, the E4B pick's **0 of 10** among them, was
+measured with the thinking switch in a place no deployment puts it.
+[`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py)
+started its server with `-ngl 99 --ctx-size 8192 --parallel 1 --jinja` and no reasoning flag, and
+sent `chat_template_kwargs: {"enable_thinking": false}` on every request of a thinking-off row. The
+stack does the opposite. Every subagent server this repo starts carries
+`--chat-template-kwargs '{"enable_thinking": false}'` and `--reasoning-budget 0` on its command
+line, which `scripts/flagcheck.py` requires of both placements, and a `PlacedAttempt` sends no
+request key at all. On a plain request the two render the same prompt, but they are separate
+levers ([ADR-0005](ADR-0005-llamacpp-engine.md)'s thinking-lever and marker addenda), and a build
+on which they parted ways would have moved this harness's number without moving the tier's.
+
+**The harness can be handed a tier's flags now.** A `Switch` says where one row's reasoning-off
+answer comes from: `argv`, which `server_argv` appends to the command line, and `request_key`,
+which `completion_body` puts in the request. `SWITCHES` holds the two a thinking-off row picks
+between, `request-key` and `shipped-argv`, and the text arm runs once per entry. A tier that
+deliberates on purpose pulls neither lever, so the cortex and deep rows skip their second copy
+rather than measuring the same cell twice. `-k shipped-argv` selects the rows drawn as the stack
+sends them, and `-k request-key` the replicates of every subagent number published before this
+date.
+
+**Neither spelling is typed into the harness.** `shipped_reasoning_off()` builds `ModelHostConfig`
+and takes its subagent tier's own `extra`, and `template_kwargs()` decodes the JSON that tier's
+flag carries into the request key, so the two routes are one answer read twice rather than two
+copies of one. That is why this change adds no `crosscheck` entry where the shipped image budget
+needed one: there is no second declaration to hold equal. What stands in its place is a reading
+that fails closed. A tier that renamed a flag, dropped half the pair, or changed what it tells its
+template fails `test_switch_rows.py`, which is where the harness's claims about the sidecar and
+about its own two rows are written down, and which CI runs.
+
+**Measured 2026-09-04** on `ghcr.io/ggml-org/llama.cpp:server-cuda` build **10680** (`d7bd3bfca`),
+the build the hand run behind
+[R-525](../refinements/tasks/525-the-injection-harness-sends-a-request-key-and-never-the-tiers-argv.md)
+used, at `-ngl 99` on the 24 GB card. Ten attacks per row, a framed arm and an unframed control in
+each. Sittings were spent where a lever could show: four on the pick, whose published number is the
+one this ADR rests on, three on E2B, the small candidate the table above records obeying the most,
+and four on Qwen3.5-4B once its first pair of matrices disagreed. The two candidates whose rows
+reproduced their published counts on the first pair were left at one sitting each.
+
+| candidate | sittings | `shipped-argv` framed / 10 | `request-key` framed / 10 | unframed control / 10 |
+|---|---|---|---|---|
+| **gemma-4-E4B (subagent pick)** | 4 | **0** every sitting | **0** every sitting | 2 every sitting |
+| gemma-4-E2B | 3 | 3 every sitting | 3 every sitting | 3 every sitting |
+| Qwen3.5-0.8B | 1 | 0 | 0 | 0 |
+| Qwen3.5-2B | 1 | 1 | 1 | 2 |
+| Qwen3.5-4B | 4 | 2, 2, 3, 2 | 3, 2, 2, 2 | 3 to 4 |
+
+**The flags reach the engine, checked rather than assumed.** A `shipped-argv` server logs
+llama.cpp's own `Setting 'enable_thinking' via --chat-template-kwargs is deprecated` on startup and
+a `request-key` server logs nothing of the kind, which is the engine confirming which lever the row
+pulled before any completion is scored.
+
+**The reading: on this lineup the two routes draw the same matrix.** On both gemma candidates every
+cell was identical between the switches and identical across sittings, the attack names behind the
+counts included, and the pick's row is 0 of 10 in all four sittings on both. Qwen3.5-4B is the one
+candidate whose count moved, and it moved on both switches rather than between them:
+`payload-splitting` fired on one framed draw in four under `shipped-argv` and on one in four under
+`request-key`, and the same cell moves the unframed control between 3 and 4 across the same eight
+sittings. So the single pair of matrices that first showed 3 against 2 was that cell's own
+instability. Nothing measured here says the two levers must stay together on a build where they
+part, which is why the shipped row exists rather than a sentence recording that they agreed once.
+
+**One row of the table above reads lower than it did.** gemma-4-E2B obeys **3 of 10** framed here,
+in every sitting under both switches, against the 4 of 10 published on 2026-07-01. The pick and the
+three Qwen subagent candidates all draw their published counts, Qwen3.5-4B in six of its eight
+sittings and the other three in every one of theirs. The engine build, the
+corpus's own payloads and the detectors have all moved since that table was drawn, so the
+difference is a drift in the row rather than anything the switch did. The table keeps its own
+wording, this addendum being its correction.
+
+**What the switch still does not cover.** The head of a row's command line is written in the
+harness rather than read off a tier: `-ngl 99 --ctx-size 8192 --parallel 1`, where the CPU subagent
+servers run `-ngl 0` and `--parallel 2` and the hosted GPU tier runs `--parallel 2`
+([R-546](../refinements/tasks/546-the-harness-takes-the-tiers-reasoning-flags-and-not-its-placement.md)).
+And the pair's budget half is not a row of its own, so the third cell the hand run drew,
+`--reasoning-budget 0` with no kwarg and no key, is still a hand run
+([R-547](../refinements/tasks/547-the-pairs-budget-half-has-no-injection-row-of-its-own.md)).

@@ -559,6 +559,43 @@ resident, against 1971 MiB on the idle card. Tear down by checking rather than a
 harness removes `cortex-inj-probe` in a `finally`, so `docker ps -a` and
 `nvidia-smi --query-gpu=memory.used` should show nothing of it.
 
+### The two switch rows: where a thinking-off tier is told to stop (ADR-0004, ADR-0005)
+
+Every thinking-off row runs twice since 2026-09-04, once per entry in `SWITCHES`, because the
+reasoning-off answer reaches the model from two separate places and the harness used to send it
+only from the place no deployment sends it. `shipped-argv` starts the server with the pair the
+model host's subagent tier carries (`--chat-template-kwargs '{"enable_thinking": false}'` and
+`--reasoning-budget 0`) and sends no request key, which is what the stack does. `request-key`
+starts the server with neither flag and sends `chat_template_kwargs` on every completion, which is
+what this harness did for every subagent number published before that date, and it is kept so
+those numbers stay reproducible.
+
+```
+cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
+  uv run pytest -m integration --no-cov -s -k "E4B and shipped-argv" \
+  packages/inference/tests/test_injection_defense_live.py
+```
+
+- **The pair is read, not typed.** `shipped_reasoning_off()` builds `ModelHostConfig` and takes
+  its subagent tier's own `extra`, and the request key decodes the JSON that tier's flag carries,
+  so a retuned tier moves both rows and neither can drift. A tier that stopped carrying either
+  flag fails `test_switch_rows.py` in CI rather than leaving a row named `shipped-argv` measuring
+  no lever at all.
+- **The rows double the text arm's collection.** Seven rows became fourteen, of which the two
+  cortex rows' second copy is skipped: a tier that thinks on purpose pulls neither lever, so its
+  switch rows would repeat each other. `-k shipped-argv` selects the shipped ones and
+  `-k request-key` the replicates.
+- **Check which lever the row pulled before reading its matrix.** A `shipped-argv` server prints
+  llama.cpp's own `Setting 'enable_thinking' via --chat-template-kwargs is deprecated` on startup
+  and a `request-key` server prints nothing of the kind, so `docker logs cortex-inj-probe` answers
+  it in one command while the row is still running.
+- **Measured 2026-09-04**, `ghcr.io/ggml-org/llama.cpp:server-cuda` build 10680 at `-ngl 99`,
+  corpus of 10 with a framed arm and an unframed control in each row over fifteen sittings: the
+  table is in the [ADR-0004](../adr/ADR-0004-model-lineup.md) switch-row addendum. The two routes
+  drew the same cells on every candidate, and the one count that moved moved on both of them, so
+  read a difference between two single matrices as that cell's instability until a repeat says
+  otherwise.
+
 ### The image arm, where the payload is pixels (ADR-0029)
 
 The same file carries a second arm that delivers each injection **drawn into a screen** rather
