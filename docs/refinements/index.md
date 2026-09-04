@@ -61,8 +61,9 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-### Actionable now (8)
+### Actionable now (9)
 
+- **[R-523](tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md)** The tool audit line is described in prose because its fields vary by condition (repo-gates).
 - **[R-540](tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md)** The judged rate and the hand column are compared on a probe and no sweep (subagents).
 - **[R-542](tasks/542-the-shipped-budgets-rate-row-has-one-sitting.md)** The shipped budget's rate row has one sitting and the budget it is compared against has two (vision).
 - **[R-543](tasks/543-the-description-confound-grows-with-the-image-budget.md)** The detector cannot tell a description from obedience, and the budget makes descriptions likelier (vision).
@@ -82,7 +83,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)** A turn that goes quiet for an hour is indistinguishable from a brain that died (seam-transport).
 - **[R-466](tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md)** Nothing holds a cap sized on the answer to a tier whose trace is bounded (inference).
 
-### Fix when it bites (109)
+### Fix when it bites (108)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-gates). Reopens when: An edit landing in the wrong cascade position, or a second stylesheet appearing.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot hold (repo-gates). Reopens when: The shell entering CI, a third status-table caller, or a third capture-target value.
@@ -184,7 +185,6 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-520](tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md)** The compose artifact flag set names two of the engine's file flags (repo-gates). Reopens when: a compose service in this tree spends a variable after a llama.cpp file flag outside `ARTIFACT_FLAGS`, a draft model under `--model-draft`, a LoRA adapter under `--lora` or a control vector, which no service here does today. That is countable by reading the command of every service the compose files start and listing the flags it spells
 - **[R-521](tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md)** A settings method reading the mount for anything but a path is refused (repo-gates). Reopens when: a `ModelHostConfig` method other than `_path` needs `models_root` for something that is not an artifact path, reporting the mount on `GET /health` or checking that it exists at startup, which nothing in the sidecar does today. That is countable by reading every method of `ModelHostConfig` and asking which of them name `self.models_root`
 - **[R-522](tasks/522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md)** A union spelled as a spread of the bound name is still refused (repo-gates). Reopens when: a brain log call spelling its union as `{**extra, "shortfall": ...}` over a name bound above it, rather than as `extra | {...}`, which is the spelling the deep phase writes today. That is countable by reading the `extra=` of every log call in the brain's source and sorting them by the shape of the expression: the trigger fires when a mapping written out at a call carries a `**` entry.
-- **[R-523](tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md)** The tool audit line is described in prose because its fields vary by condition (repo-gates). Reopens when: the tools runbook's description of the audit line found to disagree with the sink, or a second brain line whose field set varies by condition arriving with a runbook that describes it.
 - **[R-524](tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md)** The reader's thought vocabulary is a hand list held to nothing the model files say (inference). Reopens when: a pick entering the lineup whose chat template writes a thought marker `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes the marker it writes.
 - **[R-526](tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md)** The pair's budget half is inert beside the kwarg, on both families and both builds measured (inference). Reopens when: a llama.cpp build on which a subagent server carrying the kwarg alone writes into the reasoning channel where the pair does not, which is the reading the budget was added on; or the kwarg's deprecation biting, when the argv is being rewritten anyway.
 - **[R-527](tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md)** One roster entry's two placement targets are named by two artifact variables nothing holds together (subagents). Reopens when: a deployment that names different files in `CORTEX_MODEL_FILE_SUBAGENT` and `CORTEX_MODEL_FILE_SUBAGENT_GPU`, whether found by a GPU-placed and an overflowed spawn of the default entry answering differently or by reading the two variables side by side; or the hosted subagent tier gaining a second pick, at which point the pairing has to be written down anyway.
@@ -601,7 +601,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - [R-520](tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md) The compose artifact flag set names two of the engine's file flags. open, fix when it bites.
 - [R-521](tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md) A settings method reading the mount for anything but a path is refused. open, fix when it bites.
 - [R-522](tasks/522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md) A union spelled as a spread of the bound name is still refused. open, fix when it bites.
-- [R-523](tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md) The tool audit line is described in prose because its fields vary by condition. open, fix when it bites.
+- [R-523](tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md) The tool audit line is described in prose because its fields vary by condition. open, actionable.
 - [R-531](tasks/531-the-source-declaration-key-is-spelled-twice-unheld.md) The source declaration key is spelled in two trees and no gate holds them equal. landed 2026-09-02.
 - [R-534](tasks/534-the-declared-kind-word-has-no-site-to-hold-it.md) The kind word a declared source rides under is spelled twice and has no declaring site. landed 2026-09-02.
 - [R-536](tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md) The Python declaration syntax reads no binding inside a class body. open, dead until a consumer.
