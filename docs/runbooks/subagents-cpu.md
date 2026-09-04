@@ -254,7 +254,13 @@ delegation time (ADR-0012 admission-wall addendum).
 > all** when a cell of it is proven below nine tenths of its own runs, since a difference read
 > against a control that failed the subtask prices the pick and not the envelope. A withheld
 > comparison is not a broken run: the samples are still on disk, and what they price is the
-> override you chose.
+> override you chose. **Since 2026-09-04 it publishes two rates a cell** (ADR-0028 judged-delivery
+> addendum): what a run stood, which is the runner's acceptance and a reply that is neither empty
+> nor the ask handed back, and what a reply delivered, judged against the subtask by the judge
+> declared for that shape. The three shapes in this table have one; a subtask you type yourself
+> through `CORTEX_ENVELOPE_INSTRUCTION` has none, and its cells then publish the first rate alone
+> and say so. Both are held to the floor, and the flags that pick a reading (`--comma`,
+> `--refusal`, `--naming`) move the columns you are shown rather than the verdict.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to

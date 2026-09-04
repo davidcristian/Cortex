@@ -540,7 +540,11 @@ recall-width blocks="2" passes="3" turns="8":
 # arithmetic belongs in a covered file. This is that file, and it also holds the arm every rate is
 # read against to nine tenths of its own runs, refusing to print a comparison when a control cell
 # is proven below it, since a difference read against a control that failed the subtask prices the
-# pick and not the envelope. Unlike every other recipe here it runs the tree from where it is
+# pick and not the envelope. It holds that control arm on two rates, what a run stood and what a
+# reply delivered, the second judged per subtask shape (ADR-0028 judged-delivery addendum); the
+# three readings a delivered rate can be taken under are `--comma`, `--refusal` and `--naming`,
+# which move the columns printed and never a verdict. Unlike every other recipe here it runs the
+# tree from where it is
 # rather than from inside it, `--project` instead of a `cd`, so the sample paths are the driver's
 # own: that run writes them relative to `brain/` and prints them resolved, and a reader pasting
 # either that line or a path of their own gets the file they named. Gates nothing and needs no

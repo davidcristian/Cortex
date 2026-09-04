@@ -81,10 +81,13 @@ change the constant and re-run rather than to type a longer instruction here.
 (ADR-0028 control-arm addendum). It returned 96 of 96 on three picks and then 93 and 92 on two
 more, both times because the pick failed the subtask rather than because the envelope took an
 answer away, so the arm every number here is divided by is a measurement and not a constant. This
-file records what each run did, including the instruction the arm really sent and whether the arm is
-the control, and `scripts/envelopefloor.py` turns those records into rates with the interval the
-addenda publish and refuses to publish a comparison at all when a control cell is proven below
-nine tenths of its own runs. The arithmetic is over there rather than here for the reason
+file records what each run did, including the instruction the arm really sent, the report body it
+was given and whether the arm is the control, and `scripts/envelopefloor.py` turns those records
+into rates with the interval the addenda publish and refuses to publish a comparison at all when a
+control cell is proven below nine tenths of its own runs. It publishes two rates per cell, what a
+run stood and what a reply delivered, the second judged per subtask shape against the body this
+file records (ADR-0028 judged-delivery addendum). The arithmetic is over there rather than here
+for the reason
 `contrast.py` holds the turn-cost interval: a published number's arithmetic belongs in a file the
 gate covers, and nothing covers this one.
 """
@@ -153,9 +156,9 @@ _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
 # How much of each half is kept verbatim. A count says the tokens went somewhere other than
 # the reply and cannot say where, and where is the whole of what a retune would rest on.
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
-# The fields the sample keeps whole and the per-run line drops: both are long and one of them is
-# the same string on every run of an arm, so printing either buries the numbers a reader watches.
-_UNPRINTED = frozenset({"instruction", "output"})
+# The fields the sample keeps whole and the per-run line drops: all three are long and two of them
+# are the same string on every run of an arm, so printing any buries the numbers a reader watches.
+_UNPRINTED = frozenset({"instruction", "context", "output"})
 
 # The shipped envelope with one sentence added, and the only difference between the `constrained`
 # arm and the `described` one. It says what the field is for and nothing about how to fill it: a
@@ -431,12 +434,15 @@ async def _one(
         "output_chars": len(result.output),
         "stream_text_chars": len(recorder.text),
         "reasoning_chars": len(recorder.reasoning),
-        # The two fields the sample keeps whole and the printed line drops, being long and being
+        # The three fields the sample keeps whole and the printed line drops, being long and being
         # the same on every run of an arm. A length says a reply happened; whether it answered the
         # instruction or described answering it is in the words, and that reading is what this
         # harness was extended to support. The instruction beside it is what the floor reader
-        # groups a shape by and judges an echoed reply against.
+        # groups a shape by and judges an echoed reply against, and the body beside that is what
+        # the shape's own judge reads the reply against: a number recall or a reporting period is
+        # a claim about this report and about no other (ADR-0028 judged-delivery addendum).
         "instruction": recorder.instruction,
+        "context": body,
         "output": result.output,
         "stream_head": recorder.text[:_HEAD],
         "reasoning_head": recorder.reasoning[:_HEAD],

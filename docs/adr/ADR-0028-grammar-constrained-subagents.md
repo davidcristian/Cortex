@@ -1010,3 +1010,179 @@ decline at [ADR-0018](ADR-0018-heterogeneous-subagents.md) is about.
 No code. `REPLY_INSTRUCTION`, `instruct_reply`, `task_messages` and `SubagentProfile` are untouched.
 The runbook's override table gains the conditions its numbers are a reading under, and the module
 doc's pointer at this question stops describing a port change that is coming.
+
+## Judged-delivery addendum (2026-09-04): the rate these tables quote, computed rather than judged by hand
+
+**Status:** Accepted. Closes
+[R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md), which the
+control-arm addendum opened by putting a floor under the arm every rate is divided by and building
+it on the failures a reader can name without knowing the subtask. Opens
+[R-540](../refinements/tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md)
+and
+[R-541](../refinements/tasks/541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md).
+It adds two covered modules, three flags and one recorded field, and changes no shipped code and no
+pick.
+
+### Re-derived first
+
+The entry's claim was checked against the tree before anything was built and all of it held.
+`scripts/envelopefloor.py` read three things off a run, the runner's verdict, whether the reply was
+empty and whether it equalled the ask, and no line of it read a report body or a number. The rates
+in the tables above are hand judged, which the control-arm addendum says in as many words. Nothing
+else in the tree computed the second rate: the phrase `number recall` occurred in exactly one file,
+that module's own docstring, where it names what the module does **not** do. One thing the entry
+did not say was found on the way and decides the shape below: the driver recorded the instruction
+an arm sent but not the report body it sent it about, so nothing a reader could reach knew what a
+reply was supposed to recall.
+
+### What was decided, and what was rejected on the way
+
+**The judge is declared per subtask shape, beside the instruction it belongs to.**
+`scripts/envelopejudges.py` holds the three shapes this arc sweeps and the judge each was judged
+by, a number-recall proxy for the summarization and the extraction and the body's own reporting
+period for the lookup. A run belongs to a declared shape when its instruction **opens** with that
+shape's, since the constrained path appends its sentence last, so one declaration covers the arm
+that carries the sentence and the arm that does not. A shape nobody declared a judge for, which is
+what a hand-typed `CORTEX_ENVELOPE_INSTRUCTION` produces, is judged by nothing: the cell publishes
+`stood` alone and the line says `no judge is declared for this shape` beside the instruction it
+could not read. That is what keeps the harness's own knob working, and it is also how a driver that
+changed the instruction it ships is reported.
+
+**The body each run was given is now recorded.** Both judges read a reply against the report it was
+asked about, so a rate computed over the wrong body measures something else entirely. The
+driver writes `context` per turn beside the `instruction` it already wrote, and
+`envelopesamples.py` refuses a sample without it by name, the same way it refuses one that stopped
+recording the ask. The printed per-run line drops it, being the same long string on every run of a
+body.
+
+**The three arbitrations are stated columns rather than defaults.** Each was a reading these
+addenda took and published as a column, so each is a field of `Reading`, a flag on the reader
+(`--comma`, `--refusal`, `--naming`), and a line at the top of every report naming which reading
+produced the rates below it. The defaults are the column the tables above are in: a comma read the
+better of its two ways, a refused run counted a non-delivery whatever its text held, and a
+reporting period wanted as the body writes it.
+
+**`delivered` carries a floor of its own, and the argument against it is answered rather than
+dismissed.** Against a floor: the delivered rate is the quantity under measurement, an instrument
+that fails on its own subject reports nothing, and the judge is a proxy where the three lapses
+behind `stood` are structural. For a floor: the floor applies to the control arm alone, whose
+delivery is not the quantity under measurement but the condition every other rate rests on; the
+nine tenths was argued over delivered rates in the first place, since the 66 and 70 of 96 it was
+set against are hand-judged numbers; and the case that opened this entry is a control cell that
+stood 4 of 4 and answered 1 of 4, which a printed number leaves sitting beside a published
+comparison. What answers the objection about a proxy is where the verdict is taken: **a refusal is
+computed under the tabled reading whatever columns the flags print**, so no flag moves a verdict,
+and a cell whose shape has no declared judge is held on `stood` alone and claims nothing new. Read
+against the record, this floor refuses none of the five swept picks: their control cells run 32 of
+32 down to the 4B's extraction at 28 of 32, whose interval is 0.72 to 0.95.
+
+**On these three shapes `stood` still bounds `delivered` from above, and that is a property of the
+shapes rather than of the rule.** A refused run is a non-delivery under the tabled reading, an
+empty reply recalls nothing, and each of these three instructions carries neither the body's
+numbers nor its period, so an echoed ask fails its own judge. An instruction that quoted the answer
+would break the bound, and the report's two rates are printed separately for that reason.
+
+**The judges are written in this repo rather than recovered from the scratchpad.** No record says
+how the hand judging read any particular reply, so the two columns are one reading only as far as a
+run measures both, which is
+[R-540](../refinements/tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md).
+
+**Rejected: a judge per run.** A verdict recorded run by run would be the scratchpad again, in the
+tree, with nothing holding it to the reply it describes.
+
+**Rejected: another completion as the judge.** The instruction addendum's decision 5 argues why a
+detector over prose cannot be structural, and a judge that calls a model is a second measurement
+with its own failure rate sitting inside the first.
+
+**Rejected: matching a shape by equality.** The constrained arm's instruction is the shape plus the
+appended sentence, so an equality match would declare a judge for the control arm and none for the
+arm being priced against it.
+
+### What 72 live runs say
+
+Run on the shipped default subagent pick, gemma-4-E4B QAT q4_0, under the subagent compose file's
+own flags (`--jinja`, `--chat-template-kwargs '{"enable_thinking": false}'`, `--reasoning-budget
+0`, `--ctx-size 8192`, `--parallel 2`, `n_ctx_slot = 4096`) at the shipped 1024-token cap, on
+`ghcr.io/ggml-org/llama.cpp@sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`
+with `-ngl 99`, the same substitution the addenda above argue. **This is a probe and not a sweep**:
+no rate here is quoted as a reading about the pick, and no row of the tables above moves.
+
+The first run is the three swept shapes over all four bodies at two draws, `raw` against
+`constrained`, 48 runs. The control arm stood 24 of 24 and delivered 24 of 24, eight of eight on
+each shape. The constrained arm stood 23 of 24 and delivered 23 of 24, its one loss a run cut at
+the cap with an empty reply.
+
+The second run is the summarization shape over the same four bodies at three draws, `raw` against
+`bare`, 24 runs, and it is the one that shows the gap this entry is about. **The bare arm stood 12
+of 12 and delivered 6 of 12.** Every one of the six non-deliveries came back `ok=True`, non-empty
+and not the ask handed back: three are a plan in the first person (`I will summarize the provided
+site report, ensuring every detail is retained.`), two restate the request (`The user wants a
+summary of the provided site report for the north warehouse, Week 34`), and one is the body's own
+title line and nothing else. The floor reads that arm at 12 of 12 and the judge reads it at 6 of
+12, which is the whole of what this addendum adds.
+
+Both columns were then compared by hand across all 72 runs, reading each reply's opening beside
+its recall count or the period it named, and reading in full the 24 replies of the second run:
+**72 of 72 agree**. One reply is
+worth naming because a stricter reader would part from the proxy on it, the clinic summarization of
+the bare arm's third draw, which opens by planning the answer (`Strategy: I need to structure the
+summary`) and then enumerates every one of the body's 19 numbers inside the plan. The proxy counts
+it delivered because it carries the answer, which is the rule the tables above are written under.
+
+### Distrust green
+
+**The proxy could have been ranking rather than separating, on this tree's own implementation of
+it.** It separates: across the 56 runs of the two number shapes, recall lands at 0.0 to 0.062 on
+every non-delivery and at 0.591 to 1.0 on every delivery, and the band from 0.07 to 0.53 that held
+0 of 384 replies in the row addendum holds 0 of 56 here. The 0.591 is one constrained extraction
+that listed `1, 842` as two numbers.
+
+**The arbitrations could have been ceremony.** One run of the 72 changes verdict with a reading,
+the raw fleet extraction of the first draw, which answers with a bare comma-joined list carrying
+`38,900` and `30,000`: read with a comma as a separator it recalls under half the body and reads as
+a non-delivery. That moves its cell from 8 of 8 to 7 of 8 and no cell's verdict, which is the same
+scale of effect the lineup addendum found by hand, one cell of twenty four moving by one draw.
+
+**The rule is new, so it was made to fail before it was trusted.** Mutations of
+`scripts/envelopejudges.py`, `scripts/envelopesamples.py` and `scripts/envelopefloor.py`, each run
+against **the 53-test suite over the three modules**, `scripts/tests/test_envelopejudges.py`,
+`scripts/tests/test_envelopesamples.py` and `scripts/tests/test_envelopefloor.py`
+(`cd scripts && uv run pytest tests/test_envelopejudges.py tests/test_envelopesamples.py
+tests/test_envelopefloor.py`):
+
+| mutation | result |
+| --- | --- |
+| the recall threshold set to nothing (`THRESHOLD = 0.0`) | 7 failed, 46 passed |
+| the recall threshold set to every number (`THRESHOLD = 1.0`) | 7 failed, 46 passed |
+| the comma column ignored, a reply always read with its digit groups joined | 2 failed, 51 passed |
+| the refusal column ignored, a refused run judged on its text | 1 failed, 52 passed |
+| the naming column ignored, a period always wanted as the body writes it | 2 failed, 51 passed |
+| a shape matched by equality rather than by its opening | 2 failed, 51 passed |
+| one shape declared under a wording no sweep asks | 3 failed, 50 passed |
+| a body stating no number counted a delivery rather than left unjudged | 2 failed, 51 passed |
+| the charitable naming's unit dropped, so any word beside the number passes | 1 failed, 52 passed |
+| a turn with no recorded body accepted | 1 failed, 52 passed |
+| the delivered floor dropped | 3 failed, 50 passed |
+| the delivered verdict taken under the columns asked for | 2 failed, 51 passed |
+| delivered counted over every run rather than the runs a judge could read | 2 failed, 51 passed |
+| none, restored | 53 passed |
+
+**The half that no suite can hold is named rather than left implied.** The driver's own change,
+recording the body, is in an integration-marked file that neither CI nor the coverage gate runs. It
+is held the way the instruction field is: a sample that stopped carrying it is refused by name,
+which is one of the mutations above, and the live runs here are the other half of that evidence.
+
+**What these 72 runs do not say.** They are one pick, at one placement, on a machine with a card
+free enough that these 72 runs decoded at 65.1 to 149.9 tokens a second, and the shapes they cover
+are the three with judges. A pick whose failures are quiet in a different way, which the row
+addendum shows the Qwen entries are, is where a proxy would part from a reader, and that comparison
+is [R-540](../refinements/tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md).
+
+### What moves
+
+`scripts/envelopejudges.py` and `scripts/envelopesamples.py` arrive with their suites,
+`scripts/envelopefloor.py` publishes two rates a cell and holds both to the floor, `just
+envelope-floor` gains three flags that move columns and never a verdict, and the driver records the
+body each run was given. Nothing about the grammar, the sentence, the unwrap or any pick moves, and
+no table above changes. What changes is what the next sweep has to do by hand, which is now the
+reading of the replies rather than the counting of them.

@@ -7,8 +7,8 @@ comment check, the documented-log-sample check, the document-roster check, the s
 flag check, the backlog gate, the Rust coverage threshold, the CI path classifier and the
 commit-message style hook. Four more modules gate nothing and report a measurement, added from
 2026-08-09: the interval a live measurement reports, the width its widest logged field renders at,
-the floor an envelope measurement's control arm is published against, and the rendered prompt a
-tier's constrained verdict is predicted by.
+the two rates an envelope measurement's control arm is published against a floor on, and the
+rendered prompt a tier's constrained verdict is predicted by.
 
 Not all of them are gates. What every module here shares is being pure Python that belongs to
 neither the brain nor the body, gated exactly like both. A standalone uv project rather than a
@@ -23,7 +23,7 @@ brain workspace member (ADR-0002).
 `just envelope-floor` and `switchtail.py` from `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, forty seven modules, most split out under the line cap and
+**The rest have no CLI of their own**, forty nine modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -65,6 +65,9 @@ each named for what it holds. Grouped by the gate that reads them:
   have an answer.
 - `switchtail.py` reads `switchsamples.py`, the format one run of the thinking-switch probe
   writes.
+- `envelopefloor.py` reads `envelopesamples.py`, the format one arm of the envelope harness
+  writes, and `envelopejudges.py`, the judge declared for each subtask shape and the three
+  readings a delivered rate is taken under.
 
 Three are shared rather than owned. `composefiles.py` is which files the four compose gates walk,
 answered once so they cannot drift apart. `gitenv.py` is the environment every git call in this
@@ -1202,12 +1205,20 @@ held in one place for the same reason.
   carrying no grammar and no appended sentence, and a comparison read against a control that failed
   the subtask prices the pick and not the envelope.** That arm answered 96 of 96 on three picks of
   the subagent row and then 93 and 92 on two more, so it is a reading and not the constant the
-  record had begun quoting. What a run **stood** means here is deliberately weaker than the
-  `delivered` the addenda judge by hand: the runner accepted it, the reply is not empty, and it is
-  not the instruction handed back, which are the three failures visible without knowing the
-  subtask. `stood` therefore bounds `delivered` from above, so a cell refused here is under the
-  floor there too, while a cell that clears the floor has cleared only what a machine can see; a
-  narration and a wrong answer are invisible and stay a reading. The floor is **nine tenths of a
+  record had begun quoting. **Two rates describe one run and both are published.** What a run
+  **stood** is the weaker of them: the runner accepted it, the reply is not empty, and it is not
+  the instruction handed back, which are the three failures visible without knowing the subtask.
+  What a reply **delivered** is judged against the subtask by `envelopejudges.py`, which is where
+  the judging the ADR-0028 addenda did by hand now lives (ADR-0028 judged-delivery addendum): a
+  judge is declared **per subtask shape**, beside the instruction it belongs to, and a run belongs
+  to a declared shape when its instruction opens with that shape's, since the constrained path
+  appends its sentence last. A shape no judge is declared for, which is what a hand-typed
+  `CORTEX_ENVELOPE_INSTRUCTION` produces, publishes `stood` alone and says so by name rather than
+  being guessed at. Under the tabled reading below, `stood` still bounds `delivered` from above.
+  **The three arbitrations are stated columns rather than defaults**, `--comma`, `--refusal` and
+  `--naming`, each printed in the report beside the rates it produced: how a comma between digits
+  reads, whether a refused run is a non-delivery whatever its text held, and whether a garbled
+  naming of a reporting period counts. The floor is **nine tenths of a
   cell's own runs**, argued rather than measured (this row's envelope arms have gone as low as 66
   of 96, so a control under nine tenths is doing no better than the arms it exists to explain), and
   it is held **per subtask shape**, a shape being the instruction a run was given, since a pick
@@ -1217,12 +1228,16 @@ held in one place for the same reason.
   pooled, and a four-run probe only once half of it has failed. That interval is the same arithmetic the ADR-0028 tables
   publish beside every rate, and ten of those published intervals are reproduced by the suite here.
   There is deliberately **no `--floor`**: a floor with a knob beside it is a suggestion, and the
-  one reader who would reach for it is the one whose control arm just failed. Which arm is the
+  one reader who would reach for it is the one whose control arm just failed. **Both rates are
+  held to that floor and both verdicts are taken under the tabled reading**, the column the
+  ADR-0028 rows are in, whatever columns the three flags asked to be shown, so a flag moves what a
+  reader is shown and never what the tool publishes; `delivered` is held only where a judge is
+  declared, and where none is the cell is still held on `stood`. Which arm is the
   control is read off the sample's own `control` field rather than off an arm's name, so no name
   has to agree across the two trees, and every other drift in that format is loud: a renamed or
   dropped key is a refusal naming the key, and a run whose arms all say they are not the control
   is refused as no comparison at all. Exit 0 printing the report; exit 1 printing it with a
-  `refused:` line (no control arm in the samples, or a cell proven under the floor); exit 2
+  `refused:` line (no control arm in the samples, or a cell proven under a floor); exit 2
   printing one `envelopefloor: PROBLEM` line; argparse exit 2 on usage.
 
 - `switchtail.py SAMPLE [SAMPLE ...]` is the fourth module here that gates nothing, and it is here

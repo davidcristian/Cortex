@@ -376,10 +376,13 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                   .gitignore). Standalone: coverage_gate.py (Rust branch coverage), ci_paths.py
                   (the CI path classifier), commitlint.py (commit-message style).
 
-                  Five modules gate nothing and report a measurement: contrast.py (the interval a
+                  Seven modules gate nothing and report a measurement: contrast.py (the interval a
                   live measurement reports) and trailwidth.py (the width the recall trail's widest
                   field renders at, ADR-0038); envelopefloor.py (an envelope measurement's arms
-                  and the floor its control arm is published against, ADR-0028); switchtail.py
+                  and the floors its control arm is published against, ADR-0028) with
+                  envelopesamples.py (the sample format it reads) and envelopejudges.py (the judge
+                  declared per subtask shape, and the readings a delivered rate is taken under);
+                  switchtail.py
                   (what a tier's template rendered for the thinking switch, held to the
                   constrained cell the same run drew, ADR-0005) with switchsamples.py (the sample
                   format it reads).

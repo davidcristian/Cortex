@@ -1,6 +1,6 @@
 # The floor sees only the failures a machine can name
 
-**Status:** open, actionable
+**Status:** landed 2026-09-04
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 
@@ -68,3 +68,34 @@ instrument that fails on its own subject is not an instrument.
   for exactly the reading this entry names, a narration or a plan standing where an answer belongs,
   because the flag arm it decided against loses answers that way and no other way: 11 of 40 with
   no reasoning character. The floor would have counted 9 of those 11 as standing.
+- 2026-09-04: Landed. The premise was re-derived first and held whole: `envelopefloor.py` read only
+  the runner's verdict, an empty reply and an echoed ask, the tables' `delivered` is hand judged in
+  a scratchpad, and the phrase `number recall` appeared in exactly one file in the tree, that
+  module's docstring, saying what it does not do. One thing the entry did not say decided the
+  shape: the driver recorded the instruction an arm sent and not the report body, so nothing a
+  reader could reach knew what a reply was supposed to recall. What landed is the shape this entry
+  named. `scripts/envelopejudges.py` declares a judge **per subtask shape** beside the instruction
+  it belongs to, matched on a run's opening so one declaration covers the arm carrying the appended
+  sentence and the arm that does not, and a shape nobody declared one for publishes `stood` alone
+  and names itself. The two arbitrations plus the lookup's own are **stated columns**, `--comma`,
+  `--refusal` and `--naming`, printed at the top of every report. `scripts/envelopesamples.py`
+  answers for the sample format and refuses a run with no body by name; the driver records it.
+  **`delivered` carries its own floor**, decided rather than left open: it applies to the control
+  arm alone, whose delivery is the condition every other rate rests on rather than the quantity
+  under measurement, and the nine tenths was argued over delivered rates in the first place. The
+  objection that a proxy's readings would become a floor knob is answered by taking every verdict
+  under the tabled reading whatever columns the flags print. Held against the record, the new floor
+  refuses none of the five swept picks. Measured live on the shipped default pick at 72 runs, and
+  the second run demonstrates the gap: its bare arm **stood 12 of 12 and delivered 6 of 12**, every
+  non-delivery `ok=True` and not an echo. Both columns were compared by hand across all 72 runs and
+  agree 72 of 72, and the recall band from 0.07 to 0.53 that held 0 of 384 replies in the row
+  addendum holds 0 of 56 here. Thirteen mutations of the three modules each failed against their
+  53-test suite; the table is in the
+  [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) judged-delivery addendum, with
+  the tool's contract in [repo-gates](../../modules/repo-gates.md) and the operator half in the
+  subagent runbook. **No sweep was re-run and no rate in the record moved.** Opened by it:
+  [R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md), the
+  full sweep that would compare the machine column against a hand column on a pick whose failures
+  are quiet, and
+  [R-541](541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md), the
+  instruction now spelled in the driver and in the judge with no scan holding the two together.
