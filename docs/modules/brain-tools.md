@@ -15,8 +15,9 @@ source of audited, model-callable tools.
     must never self-declare policy; gating for remote tools is stamped brain-side by the
     composition root's `GatedToolRegistry` overlay (`CORTEX_TOOLS_GATED`, ADR-0022).
   - `invoke(call)` → `call_tool(name, arguments)`, joining the result's text content blocks
-    into `ToolResult.content` (non-text blocks skipped) and setting `is_error` from the
-    server's `isError`. A source a sidecar declared in the result's MCP `_meta` (under
+    into `ToolResult.content` and setting `is_error` from the server's `isError`. Image blocks
+    are read into `ToolResult.images` by `blocks.result_images` (below), beside the text rather
+    than inside it. A source a sidecar declared in the result's MCP `_meta` (under
     `_SOURCE_META_KEY`, `"cortex/source"`) is read into `ToolResult.source` (`_declared_source`):
     the declaration is a mapping of two fields, the kind word (`_KIND_FIELD`, `"kind"`) and the
     value (`_VALUE_FIELD`, `"value"`), and it rides beside the content blocks, so the model-facing
@@ -26,6 +27,15 @@ source of audited, model-callable tools.
     standalone email sidecar, which writes the same shape, and `crosscheck.py` holds each pair of
     bindings equal, each module's spend of its own binding, and this contract's quotation of each
     (`scripts/emailcouplings.py`, ADR-0029 declared-source-key and declaration-fields addenda).
+- `blocks.result_images(result)` reads every `ImageContent` block of a `CallToolResult` into an
+  `ImagePart`, in wire order (ADR-0009 image-carry addendum). An MCP image block states no
+  dimensions and `ImagePart` requires them, so the width and height come from the PNG header: a
+  signature comparison and a fixed-offset read of bytes 16 to 24, which is not a decode and reaches
+  no pixel. PNG is the only format sized, so a JPEG or WebP block is refused rather than carried at
+  a guessed size. Bad base64, a non-PNG, a header too short to hold a size, a size past
+  `MAX_IMAGE_EDGE` and a mime type outside `ALLOWED_MIME_TYPES` all raise `ImageError`, which
+  `invoke` crosses the port as `ToolError` with the cause chained. Not exported from
+  `cortex_tools`: the adapter is its only caller.
 - `streamable_http_session(url)` is an `@asynccontextmanager` opening a **structured, same-task**
   streamable-http MCP session (`streamable_http_client` + `ClientSession` + `initialize`), yielded
   for the scope of one `async with`. Replaces the old `connect` classmethod, which held the
@@ -145,11 +155,9 @@ what `AggregateToolRegistry` does before it routes.
   in code (`cortex_orchestrator/own_texts.py`), rendered with the call's own argument; nothing
   the sidecar writes, `isError` and `_meta` included, is read for it (ADR-0013 own-text
   addendum). That overlay's contract runs over this adapter and the fake alike
-  (`test_own_text_contract.py`), and one consequence of this adapter is recorded there: `invoke`
-  joins the text blocks and carries no image, so an image block beside the exact text is dropped
-  before the overlay sees the result and the text alone is re-stamped, which is sound because the
-  dropped block reaches neither the model nor the audit log. A tool whose every answer should be
-  trusted is a built-in, never a remote overlay.
+  (`test_own_text_contract.py`), the image case over both arms: a result carrying a picture is
+  never the brain's own text, so the exact text beside an image stays untrusted through the real
+  adapter. A tool whose every answer should be trusted is a built-in, never a remote overlay.
 - Stateless per call: no tool state outlives a call (the one hard rule); the adapter holds
   only the injected session.
 - Adapter-only: real MCP/network I/O lives here, never in the core (AGENTS.md gate 3).
@@ -162,9 +170,9 @@ what `AggregateToolRegistry` does before it routes.
 - Pinned to the MCP SDK v1.x (`mcp>=1.23,<2`); v2 is pre-release. A v2 migration is an
   adapter-only change behind the unchanged `ToolRegistry` port.
 
-**Dependencies.** cortex-core (the `ToolRegistry`/`ToolAuditSink` ports, the tool values, and
-typed errors), mcp (the client SDK), httpx (the streamable-http transport, whose connect errors
-the open path maps). The composition root (`cortex_orchestrator.wiring`, via `build_tool_registry`)
+**Dependencies.** cortex-core (the `ToolRegistry`/`ToolAuditSink` ports, the tool values,
+`ImagePart`/`ImageError`, and typed errors), mcp (the client SDK), httpx (the streamable-http
+transport, whose connect errors the open path maps). The composition root (`cortex_orchestrator.wiring`, via `build_tool_registry`)
 builds one `ReconnectingMcpToolRegistry(partial(streamable_http_session, url))` per configured
 endpoint (no dial at startup), optionally composing the core's
 `FilteredToolRegistry`/`AggregateToolRegistry`/`SkipUnavailableToolRegistry` around them (ADR-0009

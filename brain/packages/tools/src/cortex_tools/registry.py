@@ -1,7 +1,8 @@
 """McpToolRegistry: the core's ToolRegistry port over an MCP server (ADR-0009).
 
 A thin translator between the core's tool values and the MCP client SDK: `describe_tools`
-lists the server's tools, `invoke` calls one and renders its text content back. It holds no
+lists the server's tools, `invoke` calls one and renders its text and image content back
+(`blocks.result_images` reads the images). It holds no
 state (the one hard rule) beyond the injected `McpSession`. Every transport or protocol
 failure crosses the port as `ToolError` with the cause chained; a tool that ran but reported
 an error comes back as an ``is_error`` `ToolResult`.
@@ -23,6 +24,8 @@ from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, ListToolsResult, TextContent
 
 from cortex_core import Provenance, ToolCall, ToolError, ToolResult, ToolSpec, claimed_source
+from cortex_core.images import ImageError
+from cortex_tools.blocks import result_images
 
 # The MCP result `_meta` key a sidecar declares a content source under (ADR-0027/0009). It rides
 # beside the readable content blocks, so a declaration never disturbs the string the model consumes
@@ -110,10 +113,12 @@ class McpToolRegistry:
         ]
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Call one MCP tool; return its rendered text content, ``is_error`` set on failure.
+        """Call one MCP tool; return its text content and images, ``is_error`` set on failure.
 
         A source the sidecar declared in the result's ``_meta`` (``_declared_source``) rides in as
         ``ToolResult.source``, read from beside the content blocks so it never touches the text.
+        Image blocks ride in as ``ToolResult.images`` (`result_images`), beside the text for the
+        same reason; an unreadable one fails the call, the shape every other adapter failure takes.
         """
         try:
             result = await self._session.call_tool(call.name, dict(call.arguments))
@@ -121,11 +126,17 @@ class McpToolRegistry:
             msg = f"MCP tool {call.name!r} failed"
             raise ToolError(msg) from err
         text = "".join(block.text for block in result.content if isinstance(block, TextContent))
+        try:
+            images = result_images(result)
+        except ImageError as err:
+            msg = f"MCP tool {call.name!r} returned an image the adapter cannot read"
+            raise ToolError(msg) from err
         return ToolResult(
             call_id=call.id,
             content=text,
             is_error=bool(result.isError),
             source=_declared_source(result),
+            images=images,
         )
 
 

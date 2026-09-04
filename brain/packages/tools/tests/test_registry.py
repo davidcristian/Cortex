@@ -19,9 +19,11 @@ from mcp.types import (
     TextContent,
     Tool,
 )
+from pngs import PNG_BASE64, PNG_BYTES
 
 import cortex_tools.registry as registry_module
 from cortex_core import Provenance, SourceKind, ToolCall, ToolError, ToolResult
+from cortex_core.images import ImageError, ImagePart
 from cortex_tools import (
     McpSession,
     McpToolRegistry,
@@ -73,11 +75,13 @@ async def test_describe_tools_maps_server_tools_to_specs() -> None:
     assert specs[0].parameters == {"type": "object"}
 
 
-async def test_invoke_renders_text_content_and_skips_non_text() -> None:
+async def test_invoke_renders_text_content_and_carries_an_image_block() -> None:
+    # The text blocks join into `content` and the image block rides beside them on `images`,
+    # sized from its own PNG header (ADR-0009 image-carry addendum).
     result = CallToolResult(
         content=[
             TextContent(type="text", text="line1\n"),
-            ImageContent(type="image", data="ignored", mimeType="image/png"),
+            ImageContent(type="image", data=PNG_BASE64, mimeType="image/png"),
             TextContent(type="text", text="line2"),
         ],
         isError=False,
@@ -86,8 +90,26 @@ async def test_invoke_renders_text_content_and_skips_non_text() -> None:
     out = await McpToolRegistry(session).invoke(
         ToolCall(id="c1", name="read", arguments={"path": "/etc/hosts"})
     )
-    assert out == ToolResult(call_id="c1", content="line1\nline2", is_error=False)
+    image = ImagePart(data=PNG_BYTES, mime_type="image/png", width=2, height=3)
+    assert out == ToolResult(call_id="c1", content="line1\nline2", is_error=False, images=(image,))
     assert session.calls == [("read", {"path": "/etc/hosts"})]
+
+
+async def test_invoke_fails_the_call_when_an_image_block_cannot_be_read() -> None:
+    # Fail closed rather than deliver the text of a result whose picture was dropped: the model
+    # would otherwise read a description of something it was never shown.
+    result = CallToolResult(
+        content=[
+            TextContent(type="text", text="here is the chart"),
+            ImageContent(type="image", data="not base64", mimeType="image/png"),
+        ],
+        isError=False,
+    )
+    with pytest.raises(ToolError, match="MCP tool 'read' returned an image") as excinfo:
+        await McpToolRegistry(FakeSession(result=result)).invoke(
+            ToolCall(id="c1", name="read", arguments={})
+        )
+    assert isinstance(excinfo.value.__cause__, ImageError)
 
 
 async def test_invoke_reads_a_sidecar_declared_sender_from_result_meta() -> None:

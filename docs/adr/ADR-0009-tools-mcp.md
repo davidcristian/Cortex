@@ -4398,3 +4398,95 @@ way the declared-name addendum ties the message to the assertion that prints it.
 now open and actionable with a dated trail entry, [docs/runbooks/tools-mcp.md](../runbooks/tools-mcp.md),
 whose enumeration gains the timestamp, [docs/refinements/index.md](../refinements/index.md), which is
 regenerated from the task file, and this addendum.
+
+## Image-carry addendum (2026-09-04): an MCP image block is read into the result rather than dropped
+
+`McpToolRegistry.invoke` joined the `TextContent` blocks of a `CallToolResult` and built a
+`ToolResult` with no `images`, so an `ImageContent` block a sidecar answered with was discarded
+before anything saw it. `ToolResult.images` was a field only the built-in `CaptureScreenTool`
+filled. Nothing was wrong while no sidecar this repo composes returns an image, and the cost the
+day one does is two-fold: the model reads a description of a picture it was never shown, and
+`TaintLedger.opaque` (ADR-0029), which marks a turn as carrying pixels no fence can bracket, does
+not fire for a picture the adapter threw away.
+
+The block states no dimensions and `ImagePart` requires a width and a height. Three ways to supply
+them were considered. Admitting unknown dimensions on `ImagePart` widens a validated invariant
+across every construction site and both readers of it (`screen_tool.py`'s size line and
+`body.py`'s downscale comparison), for a case only this adapter has. Reading them from a
+sidecar-declared `_meta` key, the channel `cortex/source` already uses, leaves a plain sidecar's
+image dropped, which is the bite itself. What landed is the third: read the size out of the PNG
+header.
+
+### Decision 1: the size comes from the PNG header, and PNG is the only format read
+
+`cortex_tools/blocks.py` compares the 8 byte signature and reads bytes 16 to 24, the width and
+height PNG requires the IHDR chunk to state first. It is a fixed-offset read of two big-endian
+integers. Nothing follows a length the bytes state and nothing reaches a pixel, so the posture
+`cortex_core/images.py` sets out, that no attacker-controlled bytes reach a decoder inside the
+process holding the durable memory store, still holds with this reader in it. A JPEG states its
+size in a segment a reader has to walk to find, and WebP in one of three container shapes, so
+neither is read: both are refused rather than carried at a guessed size.
+
+### Decision 2: an unreadable image fails the call
+
+Bad base64, a non-PNG, a truncated header, a size past `MAX_IMAGE_EDGE`, and a mime type outside
+`ALLOWED_MIME_TYPES` all raise `ImageError`, which `invoke` crosses the port as `ToolError` with
+the cause chained, the shape every other adapter failure takes. Delivering the text of a result
+whose picture could not be read would reproduce the defect this addendum closes, one error message
+later.
+
+The mime type stays the sidecar's declaration, checked against the core's allow-list rather than
+against the bytes, which is the standing the body's declared type already has. A declaration
+disagreeing with the bytes is refused anyway, since only a PNG has a size to read here.
+
+### What this changes downstream
+
+`tool_round.py` already copies `result.images` onto the `Role.TOOL` message, and
+`cortex_inference/request.py` already renders a message's images as content parts, so a carried
+picture reaches the model with no further wiring. `untrusted.py` sets `TaintLedger.opaque` on an
+untrusted result carrying images, so the pixel boundary now fires for a sidecar's image. The audit
+sink logs `content` only, so no image reaches the log.
+
+The own-text contract changes with it. `test_own_text_contract.py` ran its image case over the
+core's fake alone and asserted the adapter's drop beside it; the image check now runs over both
+arms, and the standalone test asserts that the picture arrives on the result and the exact text
+beside it stays untrusted.
+
+### Distrust green
+
+The suite is `brain/packages/tools`, 78 tests and 2 deselected. Four mutations, each made and
+reverted by hand:
+
+- `invoke` built without `images`: 3 failed, the carry assertion in `test_registry.py`, the one in
+  `test_own_text_contract.py`, and the mcp arm of the image check the overlay contract now runs
+  over both arms.
+- the PNG signature comparison always passing: 1 failed,
+  `test_a_block_that_is_not_a_png_is_refused`.
+- the header-length check dropped: 1 failed, `test_a_png_too_short_to_hold_a_header_is_refused`,
+  which raised `struct.error` instead of `ImageError`.
+- `b64decode` called without `validate=True`: **survived** the first table. The one refusal test
+  passed a string that fails either way, `"not base64"` being the wrong length once its space is
+  discarded, so nothing held the validating half of that call.
+  `test_a_block_carrying_a_character_outside_the_base64_alphabet_is_refused` was added, passing the
+  PNG's own base64 with a `!` appended, which a non-validating decoder discards and reads as the
+  PNG. The replayed mutation fails it.
+
+### Consequences
+
+A sidecar answering with a PNG now hands the model a picture and taints the turn opaque. A sidecar
+answering with a JPEG or a WebP gets its call failed rather than silently stripped, which is
+louder than today and is the point: the failure names a format the reader does not read, and the
+next agent adding one has a test file to add it to.
+
+### Deferred by this addendum
+
+[R-549](../refinements/tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md): the
+reader sizes PNG alone, so a sidecar answering with either other listed mime type fails its call.
+
+### Records
+
+[R-532](../refinements/tasks/532-an-mcp-image-block-is-dropped-rather-than-carried.md), now
+landed, `brain/packages/tools/src/cortex_tools/blocks.py` and `registry.py`,
+`brain/packages/tools/tests/` (`test_blocks.py`, `pngs.py`, `test_registry.py`,
+`test_own_text_contract.py`), [docs/modules/brain-tools.md](../modules/brain-tools.md), and this
+addendum.
