@@ -7862,3 +7862,37 @@ names how it is counted.
 The two task files above, both of which stay open with a dated trail entry,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
 addendum.
+
+## Addendum (2026-09-04): the two artifact-reader deferrals re-derived, and neither trigger has fired
+
+The addendum making the artifact domain the resolver deferred two refinements, one on each half of
+`scripts/artifactnames.py`, and both were re-derived against the tree as it stands. Both stay open,
+with the reading that fires them written down so the next author starts from a count.
+
+**The compose flag set**
+([R-520](../refinements/tasks/520-the-compose-artifact-flag-set-names-two-of-the-engines-file-flags.md)).
+Reading the command of every service the compose files start lists thirteen distinct flags, and no
+file flag outside `ARTIFACT_FLAGS` is among them. `--model` is spelled by three services,
+`llama-embed`, `llama-subagent` and `llama-subagent-qwen`, which are exactly the three artifacts
+`artifactnames.composed` returns; `--model-draft`, `--lora` and the control-vector flags appear
+nowhere in the tree. `--mmproj` is spelled by no compose command either, the cortex tier's projector
+pair being written by the sidecar's own argv in `cortex_model_manager/config.py`, so the compose
+half rests on one of its two flags today. The two short flags a command does spell are the shapes
+the reader declines by name and neither names a model: `python -m cortex_email` starts the email
+sidecar, and `sh -c` carries the filesystem sidecar's install line.
+
+**The refusal wider than its shape**
+([R-521](../refinements/tasks/521-a-settings-method-reading-the-mount-for-anything-but-a-path-is-refused.md)).
+`ModelHostConfig` declares six methods, `tiers`, `roster`, `_vision`, `_reasoning`, `_image_budget`
+and `_path`, and reading each for `self.models_root` finds it in `_path` alone. `tiers` reaches
+every one of its three model paths through `self._path`, so the hand-joined path this refusal was
+written for is gone from the class and the refusal has nothing to report. `artifactnames.resolved`
+answers with four fields, `cortex_file`, `brain_file`, `subagent_gpu_file` and `cortex_mmproj_file`,
+each found by the resolver call it is handed to, so narrowing the refusal to a read that joins the
+root onto another value would change no answer the reader gives today.
+
+### Records
+
+The two task files above, both of which stay open with a dated trail entry and a trigger that now
+says how it is counted, [docs/refinements/index.md](../refinements/index.md), which is regenerated
+from them, and this addendum.

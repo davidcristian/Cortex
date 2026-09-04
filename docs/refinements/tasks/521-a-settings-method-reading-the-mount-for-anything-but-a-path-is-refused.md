@@ -4,7 +4,8 @@
 **Area:** repo-gates
 **Trigger:** a `ModelHostConfig` method other than `_path` needs `models_root` for something that
 is not an artifact path, reporting the mount on `GET /health` or checking that it exists at
-startup, which nothing in the sidecar does today
+startup, which nothing in the sidecar does today. That is countable by reading every method of
+`ModelHostConfig` and asking which of them name `self.models_root`
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Opened 2026-09-02 by the close of
@@ -37,3 +38,11 @@ it.
   addendum on the artifact domain being the
   resolver](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-09-02-the-artifact-domain-is-the-resolver-and-the-compose-flag-set-widens),
   under the refusal that names this as its taste risk.
+- 2026-09-04: checked and left open. The trigger has not fired. `ModelHostConfig` declares six
+  methods, `tiers`, `roster`, `_vision`, `_reasoning`, `_image_budget` and `_path`, and reading
+  each for `self.models_root` finds it in `_path` alone, on the one line that joins a file onto the
+  mount. `tiers` no longer carries the hand-joined path this refusal was written for, so the
+  refusal has nothing to report and nothing to over-report either. `artifactnames.resolved` returns
+  four fields today, `cortex_file`, `brain_file`, `subagent_gpu_file` and `cortex_mmproj_file`,
+  each found by the resolver call it is handed to rather than by its name, so narrowing the refusal
+  would change no answer the reader gives now.

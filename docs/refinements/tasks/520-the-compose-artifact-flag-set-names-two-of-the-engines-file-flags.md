@@ -4,7 +4,8 @@
 **Area:** repo-gates
 **Trigger:** a compose service in this tree spends a variable after a llama.cpp file flag outside
 `ARTIFACT_FLAGS`, a draft model under `--model-draft`, a LoRA adapter under `--lora` or a control
-vector, which no service here does today
+vector, which no service here does today. That is countable by reading the command of every
+service the compose files start and listing the flags it spells
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Opened 2026-09-02 by the close of
@@ -47,3 +48,13 @@ language offers.
   addendum on the artifact domain being the
   resolver](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-09-02-the-artifact-domain-is-the-resolver-and-the-compose-flag-set-widens),
   whose compose half widened the list by one flag and names this as the residue of a list.
+- 2026-09-04: checked and left open. The trigger has not fired. Reading the command of every
+  service the compose files start turns up thirteen distinct flags and no file flag outside
+  `ARTIFACT_FLAGS`: `--model` in three services, `llama-embed`, `llama-subagent` and
+  `llama-subagent-qwen`, which are the three artifacts `artifactnames.composed` finds, and nothing
+  named `--model-draft`, `--lora` or a control vector anywhere in the tree. `--mmproj` is spelled
+  by no compose command either; the cortex tier's projector pair is written by the sidecar's own
+  argv in `cortex_model_manager/config.py`, so the compose half of the reader rests on one flag
+  today rather than two. The two short flags a command does spell are the shapes the reader
+  declines by name: `python -m cortex_email` starts the email sidecar, and `sh -c` carries the
+  filesystem sidecar's install line.
