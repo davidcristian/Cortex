@@ -5,7 +5,10 @@
 **Trigger:** a deployment that names different files in `CORTEX_MODEL_FILE_SUBAGENT` and
 `CORTEX_MODEL_FILE_SUBAGENT_GPU`, whether found by a GPU-placed and an overflowed spawn of the
 default entry answering differently or by reading the two variables side by side; or the hosted
-subagent tier gaining a second pick, at which point the pairing has to be written down anyway.
+subagent tier gaining a second pick, at which point the pairing has to be written down anyway. Both
+halves are countable inside the repo: list every place the tree names either variable with a file
+and compare the strings, and count the tiers `ModelHostConfig.tiers()` declares whose artifact
+field is aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 
 Opened 2026-09-02 by the close of
@@ -51,3 +54,15 @@ catch.
 - 2026-09-02: opened by the close of
   [R-508](508-a-roster-entry-names-an-endpoint-and-not-a-model.md), whose decline found this to be
   the one expectation a `/props` read could be held to without a config knob.
+
+- 2026-09-04: re-derived and still open. Neither half of the trigger has fired. The tree names
+  either variable with a file in three places and all three spell
+  `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`: the substitution default in
+  `docker/docker-compose.subagents.yml`, the `docker compose up` line of
+  `docs/runbooks/subagents-cpu.md` section 2c, and the VRAM-ask procedure in
+  `docs/runbooks/llamacpp-gpu.md`. There is no `.env` in the checkout, and `subagent_gpu_file`
+  still defaults to the empty string, so the shipped wiring leaves the hosted tier off rather than
+  naming a second file. `ModelHostConfig.tiers()` declares three tiers and one subagent tier, so
+  the second pick is not here either. The premise holds unchanged: `_entry_profile` still builds
+  one entry two backends over two endpoints, and nothing in `scripts/` compares the three
+  spellings. The ADR-0018 addendum of the same date records the count.
