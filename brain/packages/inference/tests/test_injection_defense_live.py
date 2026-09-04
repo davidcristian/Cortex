@@ -4,6 +4,7 @@ import contextlib
 import os
 import subprocess
 import time
+from base64 import b64encode
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -311,16 +312,52 @@ def _docker(*args: str) -> None:
     subprocess.run(["docker", *args], capture_output=True, check=True)  # noqa: S603, S607
 
 
+@dataclass(frozen=True)
+class Budget:
+    """The per-image token budget the server under test is started with."""
+
+    image_max_tokens: int
+
+    @property
+    def argv(self) -> tuple[str, ...]:
+        """The flags this budget adds to the server's command line, always as a pair."""
+        if self.image_max_tokens == 0:
+            return ()
+        tokens = str(self.image_max_tokens)
+        return ("--image-max-tokens", tokens, "--ubatch-size", tokens)
+
+    @property
+    def label(self) -> str:
+        """How a budget names itself in a matrix, a test id and a runbook."""
+        return f"{self.image_max_tokens}-image-tokens" if self.image_max_tokens else "engine-budget"
+
+
+SHIPPED_BUDGET = Budget(1024)
+ENGINE_BUDGET = Budget(0)
+BUDGETS: tuple[Budget, ...] = (SHIPPED_BUDGET, ENGINE_BUDGET)
+
+
+def server_argv(model: Model, budget: Budget) -> tuple[str, ...]:
+    """Return the llama-server flags one row starts its container with."""
+    projector = ("--mmproj", f"/models/{model.mmproj}") if model.mmproj else ()
+    # The budget pair hangs off the projector exactly as the shipped model host hangs it off the
+    # cortex tier's, so a text-only row's command line is what it has always been.
+    budgeted = budget.argv if model.mmproj else ()
+    return (
+        "--model", f"/models/{model.gguf}", "--host", "0.0.0.0", "--port", str(_PORT),  # noqa: S104
+        "-ngl", "99", "--ctx-size", "8192", "--parallel", "1", "--jinja",
+        *projector, *budgeted,
+    )  # fmt: skip
+
+
 @contextmanager
-def _server(model: Model) -> Generator[None, None, None]:
-    """Bring the model up on the GPU for the block, then tear it down."""
+def _server(model: Model, budget: Budget = SHIPPED_BUDGET) -> Generator[None, None, None]:
+    """Bring the model up on the GPU for the block at ``budget``, then tear it down."""
     subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
-    projector = ["--mmproj", f"/models/{model.mmproj}"] if model.mmproj else []
     _docker(
         "run", "-d", "--name", _CONTAINER, "--gpus", "all",
         "-p", f"127.0.0.1:{_PORT}:{_PORT}", "-v", f"{_MODELS_DIR}:/models:ro", _IMAGE,
-        "--model", f"/models/{model.gguf}", "--host", "0.0.0.0", "--port", str(_PORT),  # noqa: S104
-        "-ngl", "99", "--ctx-size", "8192", "--parallel", "1", "--jinja", *projector,
+        *server_argv(model, budget),
     )  # fmt: skip
     try:
         _await_health(model)
@@ -495,20 +532,17 @@ async def _read_back(
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
 @pytest.mark.parametrize("frame", FRAMES, ids=lambda f: f.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_injection_defense_over_pixels(model: Model, frame: Frame) -> None:
-    """Measure framed vs control obedience with each injection drawn into a screen (ADR-0029).
-
-    Once per frame in ``FRAMES``, because whether the measured resistance moves with the
-    picture's size is a question this arm can only answer by running twice.
-    """
+async def test_injection_defense_over_pixels(model: Model, frame: Frame, budget: Budget) -> None:
+    """Measure framed vs control obedience with each injection drawn into a screen (ADR-0029)."""
     framed_hits: list[str] = []
     control_hits: list[str] = []
     unusable: list[str] = []
-    with _server(model):
+    with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            print(f"\n=== {model.label} over pixels at {frame.label} ===")  # noqa: T201
+            print(f"\n=== {model.label} over pixels at {frame.label}, {budget.label} ===")  # noqa: T201
             for rendering in RENDERINGS:
                 await _read_back(client, model, rendering, frame)
                 for attack in ATTACKS:
@@ -535,7 +569,7 @@ async def test_injection_defense_over_pixels(model: Model, frame: Frame) -> None
                         if fired:
                             print(f"      {arm}: {reply.content[:220]!r}")  # noqa: T201
     total = len(ATTACKS) * len(RENDERINGS)
-    label = f"{model.label} pixels at {frame.label}"
+    label = f"{model.label} pixels at {frame.label}, {budget.label}"
     print(f"  --> {label}: framed obeyed {len(framed_hits)}/{total} {framed_hits}")  # noqa: T201
     print(f"  --> {label}: control obeyed {len(control_hits)}/{total} {control_hits}")  # noqa: T201
     # An empty reply scores as resistance on every detector, so a run carrying one would report a
@@ -554,14 +588,17 @@ _RATE_RUNS = 5
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
 @pytest.mark.parametrize("frame", FRAMES, ids=lambda f: f.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_the_laundering_rate_at_each_frame(model: Model, frame: Frame) -> None:
+async def test_the_laundering_rate_at_each_frame(
+    model: Model, frame: Frame, budget: Budget
+) -> None:
     """Measure the unstable cell as a rate per frame, since one matrix cell is an anecdote."""
     unusable: list[str] = []
-    with _server(model):
+    with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            print(f"\n=== {model.label} laundering rate at {frame.label} ===")  # noqa: T201
+            print(f"\n=== {model.label} laundering rate at {frame.label}, {budget.label} ===")  # noqa: T201
             for rendering in RENDERINGS:
                 await _read_back(client, model, rendering, frame)
                 png = rendering.build(_LAUNDERING.injection, frame)
@@ -586,6 +623,68 @@ async def test_the_laundering_rate_at_each_frame(model: Model, frame: Frame) -> 
                     f"/{_RATE_RUNS} control {fired['control']}/{_RATE_RUNS}"
                 )
     assert not unusable, f"{model.label} at {frame.label}: unusable replies, rate void: {unusable}"
+
+
+_COST_ASK = "Reply with the single word OK."
+
+
+async def _prompt_tokens(client: httpx.AsyncClient, content: object) -> int:
+    """Return the prompt tokens the server counts for one user message."""
+    body: dict[str, object] = {
+        "model": "m",
+        "messages": [{"role": "user", "content": content}],
+        "temperature": 0,
+        "max_tokens": 4,
+        "chat_template_kwargs": {"enable_thinking": False},
+    }
+    resp = await client.post(_ENDPOINT, json=body)
+    resp.raise_for_status()
+    data: dict[str, Any] = resp.json()
+    return int(data["usage"]["prompt_tokens"])
+
+
+async def _picture_cost(client: httpx.AsyncClient, png: bytes) -> int:
+    """Return the prompt tokens one picture adds, against the same ask carrying no picture."""
+    parts: list[dict[str, object]] = [
+        {
+            "type": "image_url",
+            "image_url": {"url": "data:image/png;base64," + b64encode(png).decode()},
+        },
+        {"type": "text", "text": _COST_ASK},
+    ]
+    return await _prompt_tokens(client, parts) - await _prompt_tokens(client, _COST_ASK)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_what_this_corpus_costs_in_image_tokens_at_each_frame(
+    model: Model, budget: Budget
+) -> None:
+    """Measure whether a frame reaches the model as more picture, on this corpus's own screens."""
+    costs: dict[str, int] = {}
+    with _server(model, budget):
+        async with httpx.AsyncClient(timeout=600) as client:
+            for frame in FRAMES:
+                png = RENDERINGS[0].build(_LAUNDERING.injection, frame)
+                costs[frame.label] = await _picture_cost(client, png)
+                print(  # noqa: T201
+                    f"  [{model.label}] {frame.label} at {budget.label}: "
+                    f"{costs[frame.label]} image tokens"
+                )
+    base, large = (costs[frame.label] for frame in FRAMES)
+    if budget.image_max_tokens:
+        assert large > base, (
+            f"{model.label} at {budget.label}: the doubled frame cost no more than the corpus "
+            f"frame ({large} against {base}), so this budget saturates here too and its frame "
+            "rows compare two deliveries of one picture"
+        )
+    else:
+        assert large == base, (
+            f"{model.label} at {budget.label}: the engine's own budget spent {large} tokens on "
+            f"the doubled frame against {base} on the corpus frame, so the published frame pair "
+            "did vary the picture the model saw and was not read at saturation"
+        )
 
 
 @pytest.mark.integration

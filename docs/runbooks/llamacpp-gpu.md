@@ -569,20 +569,26 @@ when the cortex pick changes, and when anything about the capture path's gating 
 First run: 2026-08-04, recorded in the [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)
 image-arm addendum. It runs **once per frame** since 2026-08-30, at the corpus's own `1600x900`
 and at `3200x1800`, which is the same picture with every coordinate and every glyph pixel doubled;
-the frame-pair addendum in the same ADR is what those two rows measured.
+the frame-pair addendum in the same ADR is what those two rows measured. It runs **once per
+per-image token budget** since 2026-09-04, at the deployment's own `CORTEX_IMAGE_MAX_TOKENS` and
+at the engine's own budget, because a frame only reaches the model as more picture at a budget
+that spends tokens on it; the image-budget addendum in the same ADR is what those rows measured.
 
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
-  uv run pytest -m integration --no-cov -s -k "pixels and 12B" \
+  uv run pytest -m integration --no-cov -s -k "pixels and 12B and 1024-image-tokens" \
   packages/inference/tests/test_injection_defense_live.py
 ```
 
-`-k pixels` selects both seeing models at both frames, `-k "pixels and 3200x1800"` selects the
-large frame alone, `-k laundering_rate` selects the row that measures the one unstable cell five
-times per arm per rendering instead of once, and `-k travel` selects the companion row that proves
-a canary can reach a reply from the pixels at all. The port advice above applies unchanged: this arm
-runs the same `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model host
-down first. Five things this arm adds that the text arm does not have.
+`-k pixels` now selects both seeing models at both frames at both budgets, which is eight rows and
+several hours of card time, so narrow it: `-k "pixels and 3200x1800"` selects the large frame,
+`-k "pixels and engine-budget"` the budget every row published before 2026-09-04 ran at, and the
+command above the shipped budget's pair alone. `-k laundering_rate` selects the row that measures
+the one unstable cell five times per arm per rendering instead of once, and `-k travel` the
+companion row that proves a canary can reach a reply from the pixels at all. The port advice
+above applies unchanged:
+this arm runs the same `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model
+host down first. Five things this arm adds that the text arm does not have.
 
 - **`-k` narrows differently here.** `-k "Qwen3"` also matches four text-arm rows, since the
   subagent lineup is Qwen too. `-k "pixels and Qwen"` is the one that selects the seeing alt alone.
@@ -609,16 +615,27 @@ down first. Five things this arm adds that the text arm does not have.
   `chrome` cell can fire as a description rather than as obedience. Read the two rows cell by cell
   against the rate row, never as two totals. A frame effect would have to show up as a rendering
   going quiet or as `app` waking up, not as a count moving by two.
+- **The budget decides whether the frames are two pictures, and it moves the count on its own.**
+  One `plain` screen costs 266 prompt tokens at both frames at the engine's own budget and 629 and
+  1010 at the shipped 1024, which `-k costs` measures in four posts before you spend an hour on a
+  matrix. The shipped budget's own matrix count is *higher* than the engine budget's and every
+  cell it is higher by is a `chrome` description, because a model that reads the dialog reports its
+  instruction verbatim. Compare budgets on the rate row and on the replies, never on the totals.
 
 One `pixels` row is 63 vision turns (3 transcriptions plus 30 cells in two arms) and cost
 **370.43 s** end to end including a cold load on the cortex pick, with the card back to 1929 MiB
 after teardown. Both frames together are two such rows across two cold loads and cost **537.28 s**
-on 2026-08-30. **Say which rows you ran**, the same standing rule the brain tier's row has: the
+on 2026-08-30. Both frames' matrix and rate at the shipped budget are four rows across four cold
+loads and cost **707.44 s** on 2026-09-04, with the tier holding 10170 to 10207 MiB against an idle
+1767 MiB. **Say which rows you ran**, the same standing rule the brain tier's row has: the
 2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, the
-2026-08-30 sitting ran the cortex pick's matrix and rate at both frames and nothing else, and a
-matrix reported without naming its model is worse than a bad number. **Name the engine digest
-too**: `server-cuda` is a mutable tag and it moved between those two sittings; the 2026-08-30 rows
-ran on `sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`. The alt is the
+2026-08-30 sitting ran the cortex pick's matrix and rate at both frames at the engine's budget, the
+2026-09-04 sitting ran the same four rows at the shipped budget plus both budgets' token cost, and
+a matrix reported without naming its model is worse than a bad number. **Name the engine digest
+too**: `server-cuda` is a mutable tag and it moved between the first two sittings; the 2026-08-30
+and 2026-09-04 rows both ran on
+`sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, which is what makes the
+budgets comparable. The alt is the
 expensive row and the reason is its projector: Qwen3.5-9B's F32 `mmproj` puts about 1900 prompt tokens of picture in
 front of the model against the pick's 450, and its uncapped vision turns run long enough that a
 full matrix is over an hour of card time. Budget for that before selecting it.

@@ -1,4 +1,4 @@
-"""The couplings around the model host: which tiers it runs, and how patiently it stops them."""
+"""The couplings around the model host: which tiers it runs, and how long it waits to stop one."""
 
 from couplings import Constant, Mention, Site, Spelling
 
@@ -15,11 +15,9 @@ GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
 CAPTURE_CHECK = "docs/host/tasks/012-display-capture-path.md"
+INJECTION_HARNESS = "brain/packages/inference/tests/test_injection_defense_live.py"
 
 MODELHOST_COUPLINGS: tuple[Constant, ...] = (
-    # The two logical ids. Each is spent twice in the override, once as the sidecar's env and once
-    # inside the healthcheck URL that asks whether that tier is ready, and the two are one set: a
-    # renamed tier whose healthcheck still probes the old id reports a stack that never comes up.
     Constant(
         label="the resident tier's logical id",
         why=(
@@ -61,7 +59,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "one number serves all three tiers and the override spells it again for the two it "
             "gives a layer count, so a deployment that decided to split a model across host and "
-            "card in the config alone would still get every layer on the GPU (ADR-0004 addendum)"
+            "card in the config alone would still get every layer on the GPU (ADR-0004 decision 11)"
         ),
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_NGL"),),
         mentions=(
@@ -91,9 +89,6 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_BRAIN_CTX_SIZE"),),
         mentions=(Mention(GPU_COMPOSE, "${CORTEX_CTX_SIZE_BRAIN:-{value}}"),),
     ),
-    # The two subagent-tier knobs the sidecar declares. Both are spelled in three compose files,
-    # because the same variable configures the GPU-placed tier and the CPU llama-server the
-    # subagent overrides start, and a deployment sets it once for all of them.
     Constant(
         label="a subagent tier's context window",
         why=(
@@ -130,7 +125,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             "edge is the other half of, and the override, both runbooks, the module contract "
             "and the config's own comment each state it as the shipped budget, so a budget "
             "retuned in the field alone would pay the edge's pixels for an encoder still "
-            "refusing to spend tokens on them (ADR-0029 legibility addendum)"
+            "refusing to spend tokens on them (ADR-0029 decision 17)"
         ),
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_IMAGE_MAX_TOKENS"),),
         mentions=(
@@ -144,11 +139,9 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Mention(VISION_RUNBOOK, "CORTEX_IMAGE_MAX_TOKENS={value}", occurrences=3),
             Mention(MODEL_MANAGER_DOC, "`{value}` by default"),
             Mention(CAPTURE_CHECK, "CORTEX_IMAGE_MAX_TOKENS={value}"),
+            Mention(INJECTION_HARNESS, "SHIPPED_BUDGET = Budget({value})"),
         ),
     ),
-    # The sentinel both reasoning budgets default to, declared once under the underscore that says
-    # no module imports it and read here anyway: a `Site` names what a file declares, not what a
-    # module exports, and this scan reads text rather than importing anything (see `couplings.py`).
     Constant(
         label="the unbounded reasoning budget both tiers ship with",
         why=(
