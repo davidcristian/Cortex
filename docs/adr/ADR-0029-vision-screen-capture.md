@@ -7826,3 +7826,39 @@ from it, `scripts/needles.py`, which carries the two verdicts and the rule choos
 `scripts/tests/test_crosscheck.py`, which holds both forms to a word-valued entry,
 [docs/modules/repo-gates.md](../modules/repo-gates.md), which a reader of a fault goes to, and this
 addendum.
+
+## Addendum (2026-09-04): two registry deferrals re-derived, and both triggers are still unfired
+
+The kind-word and declaration-fields addenda left two entries deferred beside the one closed above,
+and both were re-derived against the registry as it stands rather than taken on their own word. The
+result is that both stay open, with the evidence written down so the next reader starts from a
+count rather than from a rebuild.
+
+**A spend carrying another entry's binding name as shape**
+([R-539](../refinements/tasks/539-a-spend-beside-another-entrys-binding-carries-that-name-as-shape.md)).
+Rendering all 288 mentions and searching each needle's literal shape for the site names the
+registry declares finds exactly one: `_KIND_FIELD: _SENDER_KIND,`, the kind word's spend on the
+server's declaration line. The compose default and the vision runbook row also carry the characters
+`MAX_IMAGE_BYTES`, and neither is an instance: both spell them inside the env var name
+`CORTEX_BODY_MAX_IMAGE_BYTES`, which renaming that constant would not move. The one mention added
+since the entry was opened, `SHIPPED_BUDGET = Budget({value})` in the injection harness, spells its
+own file's binding and no other entry's. The entry's trigger asked for "a third entry", a number no
+reading of the registry produces, so it is restated as a second and given the derivation that
+counts it.
+
+**A class-level declaration syntax**
+([R-536](../refinements/tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md)).
+`cortex_email/server.py` is still the only module outside the core writing a `cortex/source`
+declaration, and the `URI` member still has no producer, so there is no second module-level twin to
+make the parser worth writing. Locating every needle in its far file and reading the line it lands
+on turns up one binding inside a class body, `SENDER = "sender"` under `class SourceKind`, which is
+the entry's own subject. `Flag("--reasoning-budget", "0")` in `scripts/flagcheck.py` reads like a
+second and is not one: it sits in a module-level tuple, and its entry declares the value at
+`_NO_REASONING_BUDGET` in the model host's config. The trigger is unchanged in substance and now
+names how it is counted.
+
+### Records
+
+The two task files above, both of which stay open with a dated trail entry,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum.

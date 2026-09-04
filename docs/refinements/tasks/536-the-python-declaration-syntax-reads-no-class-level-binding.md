@@ -4,7 +4,9 @@
 **Area:** repo-gates
 **Trigger:** a second producer binding a `SourceKind` value at module level because the enum
 member it restates cannot be a site, which the `uri` twin's producer would be, or any other
-registry entry whose one spelling on a side is a member of a class body.
+registry entry whose one spelling on a side is a member of a class body, which is countable by
+locating every mention's needle in its far file and reading whether the line it lands on binds a
+name inside a `class`.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Opened 2026-09-02 by the close of
@@ -42,3 +44,12 @@ mention, since two sites are compared with each other while a mention is a prese
 - 2026-09-02: opened by the close of
   [534](534-the-declared-kind-word-has-no-site-to-hold-it.md), whose ADR-0029 declared-kind-word
   addendum records why the narrow road was taken.
+- 2026-09-04: checked and left open. Neither clause has fired. `SourceKind` still has one
+  producer: `cortex_email/server.py` is the only module outside the core that writes a
+  `cortex/source` declaration, and the `URI` member has none, so no second module-level twin
+  exists. Locating every one of the registry's 288 needles in its far file and reading the line it
+  lands on turns up one binding inside a class body, `SENDER = "sender"` under `class SourceKind`,
+  which is this entry's own subject. The other indented matches are calls, `extra=` mappings and
+  prose, none of them the one spelling of a value on a side. `Flag("--reasoning-budget", "0")` in
+  `scripts/flagcheck.py` reads like a near miss and is not one: it sits in a module-level tuple,
+  and that entry declares its value at `_NO_REASONING_BUDGET` in the model host's config.

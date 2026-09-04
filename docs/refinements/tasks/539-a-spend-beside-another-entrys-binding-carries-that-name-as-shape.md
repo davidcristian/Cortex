@@ -3,8 +3,9 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Trigger:** a `crosscheck` fault over the kind word after a rename of a field binding sending a
-reader to the wrong constant, or a third entry whose spend is written on a line beside another
-entry's binding.
+reader to the wrong constant, or a second registry entry whose needle spells another entry's site
+name in its literal shape, which is countable by rendering every mention and searching its shape
+for the site names the registry declares.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Opened 2026-09-02 by the close of
@@ -40,3 +41,13 @@ gate fault the field entry alone.
 - 2026-09-02: opened by the close of
   [537](537-the-declaration-field-names-are-bare-literals-on-both-sides.md), recorded in its
   ADR-0029 declaration-fields addendum.
+- 2026-09-04: checked and left open. The trigger as first written counted "a third entry", which
+  no reading of the registry produces, so it is restated as a second entry and made countable.
+  Rendering all 288 mentions and searching each needle's literal shape for the site names the
+  registry declares finds exactly one: the kind word's spend, `_KIND_FIELD: _SENDER_KIND,`. Two
+  other hits are substring coincidences rather than instances, the compose default and the vision
+  runbook row both carrying `MAX_IMAGE_BYTES` inside the env var name
+  `CORTEX_BODY_MAX_IMAGE_BYTES`, which renaming that binding would not move. Nothing landed since
+  the entry was opened changes the count: the one mention added in the meantime,
+  `SHIPPED_BUDGET = Budget({value})` in the injection harness, spells the far file's own binding
+  and no other entry's.
