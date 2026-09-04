@@ -28,6 +28,7 @@ GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
 CAPTURE_CHECK = "docs/host/tasks/012-display-capture-path.md"
+INJECTION_HARNESS = "brain/packages/inference/tests/test_injection_defense_live.py"
 
 MODELHOST_COUPLINGS: tuple[Constant, ...] = (
     # The two logical ids. Each is spent twice in the override, once as the sidecar's env and once
@@ -167,6 +168,12 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         # check, which is a live instruction and not a record: a completed check's file shrinks to
         # a heading, its status and a pointer, so the sentence naming this budget exists only
         # while somebody may still read it and act on it.
+        # The last far side is the injection harness, which starts its own server rather than the
+        # sidecar and so has to be told this budget rather than inheriting it. It is the case
+        # `fixturecouplings.py` argues a measurement needs this gate for: the suite is
+        # integration-marked, so a budget that moved here alone would leave the pixel arm
+        # measuring a deployment nobody runs, and nothing would say so until somebody read the
+        # matrix months later (ADR-0029 image-budget addendum).
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_IMAGE_MAX_TOKENS:-{value}}"),
             Mention(GPU_COMPOSE, "{value} is the default"),
@@ -178,6 +185,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Mention(VISION_RUNBOOK, "CORTEX_IMAGE_MAX_TOKENS={value}", occurrences=3),
             Mention(MODEL_MANAGER_DOC, "`{value}` by default"),
             Mention(CAPTURE_CHECK, "CORTEX_IMAGE_MAX_TOKENS={value}"),
+            Mention(INJECTION_HARNESS, "SHIPPED_BUDGET = Budget({value})"),
         ),
     ),
     # The sentinel both reasoning budgets default to, declared once under the underscore that says

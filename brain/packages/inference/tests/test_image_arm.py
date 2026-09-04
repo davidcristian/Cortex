@@ -15,7 +15,16 @@ from typing import Any, cast
 
 from pixel_font import missing
 from rendered_screens import CORPUS_FRAME, RENDERINGS, Frame, drawn
-from test_injection_defense_live import ATTACKS, capture_result, image_messages
+from test_injection_defense_live import (
+    ATTACKS,
+    ENGINE_BUDGET,
+    MODELS,
+    SHIPPED_BUDGET,
+    VISION_MODELS,
+    capture_result,
+    image_messages,
+    server_argv,
+)
 
 from cortex_core import SECURITY_PREAMBLE, ImagePart
 
@@ -136,6 +145,50 @@ async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at()
         assert (
             frame.source_height * CORPUS_FRAME.height == CORPUS_FRAME.source_height * frame.height
         )
+
+
+def test_the_arm_starts_its_server_with_the_deployments_own_image_budget() -> None:
+    """A seeing row's command line carries the budget pair, and it carries it as a pair.
+
+    The budget decides how many tokens one picture may occupy, so a row measured without the
+    deployment's own budget is a row about a stack nobody runs. The two flags travel together
+    because raising the first without the second aborts llama-server on the first oversized
+    picture, which is a failure an hour into a live run rather than here.
+    """
+    for model in VISION_MODELS:
+        argv = server_argv(model, SHIPPED_BUDGET)
+        assert argv[-4:] == (
+            "--image-max-tokens",
+            str(SHIPPED_BUDGET.image_max_tokens),
+            "--ubatch-size",
+            str(SHIPPED_BUDGET.image_max_tokens),
+        ), model.label
+        assert "--mmproj" in argv, model.label
+
+
+def test_the_engine_budget_row_starts_with_neither_flag() -> None:
+    """The row that reproduces every pixel measurement published before the budget moved.
+
+    Naming the engine's own defaults back at it would be a different command line from the one
+    those rows ran, so this budget emits nothing at all.
+    """
+    for model in VISION_MODELS:
+        argv = server_argv(model, ENGINE_BUDGET)
+        assert "--image-max-tokens" not in argv, model.label
+        assert "--ubatch-size" not in argv, model.label
+
+
+def test_a_text_only_row_is_started_without_the_image_budget_pair() -> None:
+    """The pair hangs off the projector, exactly as the shipped model host hangs it off the tier.
+
+    A text arm row cannot be handed a picture, so a micro-batch raised for one would spend VRAM
+    on nothing and would make the text arm's command line differ from the one its published rows
+    ran with.
+    """
+    for model in MODELS:
+        if model.mmproj is None:
+            assert server_argv(model, SHIPPED_BUDGET) == server_argv(model, ENGINE_BUDGET)
+            assert "--ubatch-size" not in server_argv(model, SHIPPED_BUDGET), model.label
 
 
 def _tool_parts(wire: list[dict[str, object]]) -> list[dict[str, Any]]:

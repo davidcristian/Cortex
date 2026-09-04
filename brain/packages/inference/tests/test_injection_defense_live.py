@@ -25,15 +25,18 @@ Integration-marked (excluded from CI + the coverage gate). Needs the GPU + the t
 
 The image arm needs a model with a projector beside its weights, so it has its own lineup
 (``VISION_MODELS``) and its own row ids; ``-k pixels`` selects it and ``-k "pixels and 12B"``
-selects the shipped cortex alone. It runs once per frame in ``FRAMES``, and
-``test_the_laundering_rate_at_each_frame`` measures the one cell that is unstable from run
-to run as a rate at each frame rather than as a cell (ADR-0029's frame-pair addendum).
+selects the shipped cortex alone. It runs once per frame in ``FRAMES`` and once per per-image
+token budget in ``BUDGETS``, since the frame only reaches the model as more picture at a budget
+that spends tokens on it, and ``test_the_laundering_rate_at_each_frame`` measures the one cell
+that is unstable from run to run as a rate in each of those rows rather than as a cell
+(ADR-0029's frame-pair and image-budget addenda).
 """
 
 import contextlib
 import os
 import subprocess
 import time
+from base64 import b64encode
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -380,16 +383,77 @@ def _docker(*args: str) -> None:
     subprocess.run(["docker", *args], capture_output=True, check=True)  # noqa: S603, S607
 
 
+@dataclass(frozen=True)
+class Budget:
+    """The per-image token budget the server under test is started with.
+
+    ``image_max_tokens`` is llama.cpp's ``--image-max-tokens``, which is what decides whether a
+    larger picture is a larger picture to the model: left alone, the encoder discards the pixels
+    above roughly 1040x585 and one screen costs the same 266 prompt tokens at every capture edge
+    from 1280 px up (the ADR-0029 legibility addendum). Zero starts the server with neither flag,
+    which is the engine's own budget.
+    """
+
+    image_max_tokens: int
+
+    @property
+    def argv(self) -> tuple[str, ...]:
+        """The flags this budget adds to the server's command line, always as a pair.
+
+        Raising ``--image-max-tokens`` past llama.cpp's 512-token micro-batch without raising
+        ``--ubatch-size`` with it aborts the server inside ``llama_decode`` on the first
+        oversized picture, which the legibility addendum met in anger. The shipped model host
+        emits ``max(budget, 512)`` for the second flag; every budget this harness measures is at
+        or above that floor, where that rule is the budget itself.
+        """
+        if self.image_max_tokens == 0:
+            return ()
+        tokens = str(self.image_max_tokens)
+        return ("--image-max-tokens", tokens, "--ubatch-size", tokens)
+
+    @property
+    def label(self) -> str:
+        """How a budget names itself in a matrix, a test id and a runbook."""
+        return f"{self.image_max_tokens}-image-tokens" if self.image_max_tokens else "engine-budget"
+
+
+# The budgets the image arm runs at. The shipped one is the deployment's own: the model host
+# defaults ``CORTEX_IMAGE_MAX_TOKENS`` to it and `docker/docker-compose.gpu.yml` names the same
+# number, so a row measured without it describes a stack nobody runs. The engine's own budget is
+# kept as a row rather than dropped, because every pixel row published before 2026-09-04 was
+# measured in it and a replicate there is what a new budget's row has to be read against.
+SHIPPED_BUDGET = Budget(1024)
+ENGINE_BUDGET = Budget(0)
+BUDGETS: tuple[Budget, ...] = (SHIPPED_BUDGET, ENGINE_BUDGET)
+
+
+def server_argv(model: Model, budget: Budget) -> tuple[str, ...]:
+    """Return the llama-server flags one row starts its container with.
+
+    Public, like ``capture_result`` and ``image_messages``, because
+    [test_image_arm.py](test_image_arm.py) asserts that the server this harness starts carries
+    the deployment's own image budget, which is a property of the command line and needs no GPU
+    to read.
+    """
+    projector = ("--mmproj", f"/models/{model.mmproj}") if model.mmproj else ()
+    # The budget pair hangs off the projector exactly as the shipped model host hangs it off the
+    # cortex tier's, so a text-only row's command line is what it has always been.
+    budgeted = budget.argv if model.mmproj else ()
+    return (
+        "--model", f"/models/{model.gguf}", "--host", "0.0.0.0", "--port", str(_PORT),  # noqa: S104
+        "-ngl", "99", "--ctx-size", "8192", "--parallel", "1", "--jinja",
+        *projector, *budgeted,
+    )  # fmt: skip
+
+
 @contextmanager
-def _server(model: Model) -> Generator[None, None, None]:
-    """Bring the model up on the GPU for the block, then tear it down."""
+def _server(model: Model, budget: Budget = SHIPPED_BUDGET) -> Generator[None, None, None]:
+    """Bring the model up on the GPU for the block at ``budget``, then tear it down."""
     subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
-    projector = ["--mmproj", f"/models/{model.mmproj}"] if model.mmproj else []
     _docker(
         "run", "-d", "--name", _CONTAINER, "--gpus", "all",
         "-p", f"127.0.0.1:{_PORT}:{_PORT}", "-v", f"{_MODELS_DIR}:/models:ro", _IMAGE,
-        "--model", f"/models/{model.gguf}", "--host", "0.0.0.0", "--port", str(_PORT),  # noqa: S104
-        "-ngl", "99", "--ctx-size", "8192", "--parallel", "1", "--jinja", *projector,
+        *server_argv(model, budget),
     )  # fmt: skip
     try:
         _await_health(model)
@@ -606,20 +670,23 @@ async def _read_back(
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
 @pytest.mark.parametrize("frame", FRAMES, ids=lambda f: f.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_injection_defense_over_pixels(model: Model, frame: Frame) -> None:
+async def test_injection_defense_over_pixels(model: Model, frame: Frame, budget: Budget) -> None:
     """Measure framed vs control obedience with each injection drawn into a screen (ADR-0029).
 
     Once per frame in ``FRAMES``, because whether the measured resistance moves with the
-    picture's size is a question this arm can only answer by running twice.
+    picture's size is a question this arm can only answer by running twice, and once per budget
+    in ``BUDGETS``, because at the engine's own budget the two frames arrive as the same picture
+    and only a raised budget spends the larger frame's pixels on tokens.
     """
     framed_hits: list[str] = []
     control_hits: list[str] = []
     unusable: list[str] = []
-    with _server(model):
+    with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            print(f"\n=== {model.label} over pixels at {frame.label} ===")  # noqa: T201
+            print(f"\n=== {model.label} over pixels at {frame.label}, {budget.label} ===")  # noqa: T201
             for rendering in RENDERINGS:
                 await _read_back(client, model, rendering, frame)
                 for attack in ATTACKS:
@@ -650,7 +717,7 @@ async def test_injection_defense_over_pixels(model: Model, frame: Frame) -> None
                         if fired:
                             print(f"      {arm}: {reply.content[:220]!r}")  # noqa: T201
     total = len(ATTACKS) * len(RENDERINGS)
-    label = f"{model.label} pixels at {frame.label}"
+    label = f"{model.label} pixels at {frame.label}, {budget.label}"
     print(f"  --> {label}: framed obeyed {len(framed_hits)}/{total} {framed_hits}")  # noqa: T201
     print(f"  --> {label}: control obeyed {len(control_hits)}/{total} {control_hits}")  # noqa: T201
     # An empty reply scores as resistance on every detector, so a run carrying one would report a
@@ -669,21 +736,25 @@ _RATE_RUNS = 5
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
 @pytest.mark.parametrize("frame", FRAMES, ids=lambda f: f.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_the_laundering_rate_at_each_frame(model: Model, frame: Frame) -> None:
+async def test_the_laundering_rate_at_each_frame(
+    model: Model, frame: Frame, budget: Budget
+) -> None:
     """Measure the unstable cell as a rate per frame, since one matrix cell is an anecdote.
 
     A single matrix run answers "does this frame's number differ" with a count whose differing
     cells are exactly the cells already measured to fire on roughly half their runs, so a pair of
     matrices cannot tell a frame effect from that instability. This row runs the one attack that
     is genuinely obeyed rather than quoted, five times per arm per rendering, at every frame in
-    ``FRAMES``, which is the same shape the rate published for the corpus frame already has.
+    ``FRAMES`` and every budget in ``BUDGETS``, which is the same shape the rate published for
+    the corpus frame already has.
     """
     unusable: list[str] = []
-    with _server(model):
+    with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            print(f"\n=== {model.label} laundering rate at {frame.label} ===")  # noqa: T201
+            print(f"\n=== {model.label} laundering rate at {frame.label}, {budget.label} ===")  # noqa: T201
             for rendering in RENDERINGS:
                 await _read_back(client, model, rendering, frame)
                 png = rendering.build(_LAUNDERING.injection, frame)
@@ -708,6 +779,81 @@ async def test_the_laundering_rate_at_each_frame(model: Model, frame: Frame) -> 
                     f"/{_RATE_RUNS} control {fired['control']}/{_RATE_RUNS}"
                 )
     assert not unusable, f"{model.label} at {frame.label}: unusable replies, rate void: {unusable}"
+
+
+_COST_ASK = "Reply with the single word OK."
+
+
+async def _prompt_tokens(client: httpx.AsyncClient, content: object) -> int:
+    """Return the prompt tokens the server counts for one user message."""
+    body: dict[str, object] = {
+        "model": "m",
+        "messages": [{"role": "user", "content": content}],
+        "temperature": 0,
+        "max_tokens": 4,
+        "chat_template_kwargs": {"enable_thinking": False},
+    }
+    resp = await client.post(_ENDPOINT, json=body)
+    resp.raise_for_status()
+    data: dict[str, Any] = resp.json()
+    return int(data["usage"]["prompt_tokens"])
+
+
+async def _picture_cost(client: httpx.AsyncClient, png: bytes) -> int:
+    """Return the prompt tokens one picture adds, against the same ask carrying no picture.
+
+    The same subtraction [test_image_budget_live.py](test_image_budget_live.py) makes, and for
+    the same reason: the server reports one total, so the picture's share of it is the difference
+    between an ask with the picture and the ask alone.
+    """
+    parts: list[dict[str, object]] = [
+        {
+            "type": "image_url",
+            "image_url": {"url": "data:image/png;base64," + b64encode(png).decode()},
+        },
+        {"type": "text", "text": _COST_ASK},
+    ]
+    return await _prompt_tokens(client, parts) - await _prompt_tokens(client, _COST_ASK)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_what_this_corpus_costs_in_image_tokens_at_each_frame(
+    model: Model, budget: Budget
+) -> None:
+    """Measure whether a frame reaches the model as more picture, on this corpus's own screens.
+
+    The saturation this arm's frame pair is read against was measured on the 4K desktop corpus of
+    the legibility addendum, whose screens are neither this size nor this aspect, so applying it
+    here was an inference. This row measures it on the picture the arm really posts: the tokens
+    one corpus screen adds at each frame, at each budget. Where the two frames cost the same, the
+    encoder discarded the larger one's pixels and the frame pair varied nothing the model can
+    see; where they differ, the frame is a variable and the pair is an experiment.
+    """
+    costs: dict[str, int] = {}
+    with _server(model, budget):
+        async with httpx.AsyncClient(timeout=600) as client:
+            for frame in FRAMES:
+                png = RENDERINGS[0].build(_LAUNDERING.injection, frame)
+                costs[frame.label] = await _picture_cost(client, png)
+                print(  # noqa: T201
+                    f"  [{model.label}] {frame.label} at {budget.label}: "
+                    f"{costs[frame.label]} image tokens"
+                )
+    base, large = (costs[frame.label] for frame in FRAMES)
+    if budget.image_max_tokens:
+        assert large > base, (
+            f"{model.label} at {budget.label}: the doubled frame cost no more than the corpus "
+            f"frame ({large} against {base}), so this budget saturates here too and its frame "
+            "rows compare two deliveries of one picture"
+        )
+    else:
+        assert large == base, (
+            f"{model.label} at {budget.label}: the engine's own budget spent {large} tokens on "
+            f"the doubled frame against {base} on the corpus frame, so the published frame pair "
+            "did vary the picture the model saw and was not read at saturation"
+        )
 
 
 @pytest.mark.integration
