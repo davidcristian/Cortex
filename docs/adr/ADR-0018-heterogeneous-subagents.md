@@ -550,3 +550,49 @@ claim about the boot log was settled by reading `subagent_builders.py` for a log
 running the brain, and there is none; and the split-entry residue was read off the builder that
 makes it possible, `_entry_profile` giving one entry two `SingleResidentModelManager`s over two
 endpoints, rather than inferred from the compose comments.
+
+## Addendum (2026-09-04): the two variables naming one entry's targets still name one file, and the trigger now says how that is counted
+
+**Status:** Accepted. Re-derives
+[R-527](../refinements/tasks/527-one-roster-entrys-two-targets-are-named-by-two-artifact-variables.md),
+which the addendum above opened, and leaves it open. It changes no code, no flag and no pick.
+
+The entry's trigger names "a deployment that names different files in `CORTEX_MODEL_FILE_SUBAGENT`
+and `CORTEX_MODEL_FILE_SUBAGENT_GPU`". A deployment is a host environment or a `.env` this repo
+never sees, so a reader holding the entry could not say whether the trigger had fired without
+being handed the machine it fired on. What the repo can be read for is every place the tree itself
+names either variable with a file, which is what was counted.
+
+### What the tree names
+
+There is no `.env` in the checkout. The two variables are spelled with a file in three places, and
+all three spell the same string,
+`google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`:
+
+| where | variable | how it is named |
+| --- | --- | --- |
+| `docker/docker-compose.subagents.yml` | `CORTEX_MODEL_FILE_SUBAGENT` | the substitution default in `llama-subagent`'s `--model` item |
+| `docs/runbooks/subagents-cpu.md` section 2c | `CORTEX_MODEL_FILE_SUBAGENT_GPU` | assigned on the `docker compose up` line that brings the hosted tier up |
+| `docs/runbooks/llamacpp-gpu.md` | `CORTEX_MODEL_FILE_SUBAGENT_GPU` | assigned in the procedure that measured the subagent VRAM ask |
+
+The shipped default of the second variable is the empty string, declared on `subagent_gpu_file` in
+`brain/packages/model_manager/src/cortex_model_manager/config.py`, and `ModelHostConfig.tiers()`
+drops a tier whose `model_path` is empty, so the tier is off until a deployment names a file for
+it. That is why no compose default ties the two: one of them has no file to tie.
+
+### The second limb, counted
+
+`ModelHostConfig.tiers()` declares three tiers, `cortex`, `brain` and `subagent-gpu`, and exactly
+one of them is a subagent tier, the one whose artifact field carries a `CORTEX_MODEL_FILE_SUBAGENT`
+variable as its `validation_alias`. So the hosted subagent tier still has one pick, and the pairing
+the entry says would have to be written down at a second pick is not owed yet.
+
+### What still holds
+
+`_entry_profile` in `cortex_orchestrator.subagent_builders` still gives one roster entry two
+`LlamaCppBackend`s, one per `PlacementTarget`, over `entry.gpu_endpoint` and `entry.endpoint`, so
+the premise the entry rests on is unchanged: one entry, two targets, two artifact variables, and
+nothing comparing them. Nothing in `scripts/` holds the three spellings above equal either; the
+constant scan's subagent part carries the tier's budgets and its reasoning-off value and no
+artifact path. The repair remains the compose comment and the runbook sentence, and the entry's two
+proposed shapes are unchanged by this reading.
