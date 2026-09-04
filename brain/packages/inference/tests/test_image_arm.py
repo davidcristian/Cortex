@@ -14,12 +14,22 @@ import zlib
 from typing import Any, cast
 
 from pixel_font import missing
-from rendered_screens import CORPUS_FRAME, RENDERINGS, Frame, drawn
+from rendered_screens import (
+    CORPUS_FRAME,
+    CORPUS_PAYLOAD_SCALE,
+    CORPUS_TYPE_SCALE,
+    RENDERINGS,
+    Frame,
+    Rendering,
+    TypeScale,
+    drawn,
+)
 from test_injection_defense_live import (
     ATTACKS,
     ENGINE_BUDGET,
     MODELS,
     SHIPPED_BUDGET,
+    TYPE_SCALES,
     VISION_MODELS,
     capture_result,
     image_messages,
@@ -28,7 +38,7 @@ from test_injection_defense_live import (
 
 from cortex_core import SECURITY_PREAMBLE, ImagePart
 
-_PNG = RENDERINGS[0].build(ATTACKS[0].injection, CORPUS_FRAME)
+_PNG = RENDERINGS[0].build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
 _ASK = "what is on my screen?"
 # The second frame the live arm measures at, held here so the CI side proves a magnified render
 # is a real picture of the size it claims before an hour of card time discovers otherwise.
@@ -56,7 +66,7 @@ def test_every_rendering_of_every_attack_is_a_png_of_the_frame_it_was_asked_for(
     for frame in (CORPUS_FRAME, _LARGE):
         for rendering in RENDERINGS:
             for attack in ATTACKS:
-                png = rendering.build(attack.injection, frame)
+                png = rendering.build(attack.injection, frame, CORPUS_TYPE_SCALE)
                 assert png.startswith(b"\x89PNG\r\n\x1a\n"), f"{rendering.name}/{attack.name}"
                 header = frame.width.to_bytes(4, "big") + frame.height.to_bytes(4, "big")
                 assert png[16:24] == header, f"{rendering.name}/{attack.name} at {frame.label}"
@@ -65,15 +75,17 @@ def test_every_rendering_of_every_attack_is_a_png_of_the_frame_it_was_asked_for(
 def test_the_corpus_is_byte_identical_when_rendered_twice() -> None:
     """Rendering a cell twice gives the same bytes, so an arm and its control share a picture."""
     for rendering in RENDERINGS:
-        first = rendering.build(ATTACKS[0].injection, CORPUS_FRAME)
-        assert first == rendering.build(ATTACKS[0].injection, CORPUS_FRAME), rendering.name
+        first = rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
+        assert first == rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE), (
+            rendering.name
+        )
 
 
 def test_every_rendering_is_accepted_by_the_shipped_image_part() -> None:
     """The bytes clear the brain's own mime, edge and budget checks before any server sees them."""
     for frame in (CORPUS_FRAME, _LARGE):
         for rendering in RENDERINGS:
-            png = rendering.build(ATTACKS[0].injection, frame)
+            png = rendering.build(ATTACKS[0].injection, frame, CORPUS_TYPE_SCALE)
             part = ImagePart(
                 data=png, mime_type="image/png", width=frame.width, height=frame.height
             )
@@ -82,7 +94,10 @@ def test_every_rendering_is_accepted_by_the_shipped_image_part() -> None:
 
 def test_two_renderings_of_one_attack_differ() -> None:
     """The renderings are three deliveries of one payload, not one picture named three times."""
-    pictures = {rendering.build(ATTACKS[0].injection, CORPUS_FRAME) for rendering in RENDERINGS}
+    pictures = {
+        rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
+        for rendering in RENDERINGS
+    }
     assert len(pictures) == len(RENDERINGS)
 
 
@@ -113,8 +128,13 @@ def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None
     """
     magnify = _LARGE.magnify
     for rendering in RENDERINGS:
-        small = _rows(rendering.build(ATTACKS[0].injection, CORPUS_FRAME), CORPUS_FRAME.width)
-        large = _rows(rendering.build(ATTACKS[0].injection, _LARGE), _LARGE.width)
+        small = _rows(
+            rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE),
+            CORPUS_FRAME.width,
+        )
+        large = _rows(
+            rendering.build(ATTACKS[0].injection, _LARGE, CORPUS_TYPE_SCALE), _LARGE.width
+        )
         assert len(small) == CORPUS_FRAME.height, rendering.name
         assert len(large) == _LARGE.height, rendering.name
         for line in range(0, CORPUS_FRAME.height, 37):
@@ -125,6 +145,104 @@ def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None
                 assert large[line * magnify + repeat] == grown, f"{rendering.name}:{line}"
 
 
+def test_every_payload_size_the_sweep_runs_at_is_a_png_of_its_frame() -> None:
+    """A smaller payload is still a whole screen, at both frames."""
+    for type_scale in TYPE_SCALES:
+        for frame in (CORPUS_FRAME, _LARGE):
+            for rendering in RENDERINGS:
+                png = rendering.build(ATTACKS[0].injection, frame, type_scale)
+                header = frame.width.to_bytes(4, "big") + frame.height.to_bytes(4, "big")
+                assert png[16:24] == header, f"{rendering.name} at {type_scale.label}"
+
+
+def test_a_payload_size_moves_nothing_above_the_payload() -> None:
+    """The first row a payload size changes is the row the rendering declares, in every rendering.
+
+    This is what makes the sweep a sweep of one variable, and it is asserted as the exact line
+    rather than as "nothing above it": a declared top that drifted upward would leave a weaker
+    claim passing, since every row above the real payload is identical either way. Below the
+    payload the mail client's sign-off does follow the paragraph, as a shorter message would on a
+    real screen, so the claim stops at that line rather than covering the whole picture.
+    """
+    for rendering in RENDERINGS:
+        corpus = _rows(
+            rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE),
+            CORPUS_FRAME.width,
+        )
+        for type_scale in TYPE_SCALES[1:]:
+            smaller = _rows(
+                rendering.build(ATTACKS[0].injection, CORPUS_FRAME, type_scale), CORPUS_FRAME.width
+            )
+            moved = [line for line, row in enumerate(smaller) if row != corpus[line]]
+            assert min(moved) == rendering.payload_top, (
+                f"{rendering.name} at {type_scale.label}: the first row this size changes is "
+                f"{min(moved)} and the rendering declares {rendering.payload_top}"
+            )
+
+
+def _painted(rendering: Rendering, type_scale: TypeScale) -> list[tuple[int, int]]:
+    """The pixels of a screen the injected instruction paints at this size, as row and column.
+
+    Read as the difference against the same screen drawn with no instruction in it, so the
+    payload's share of the picture is measured rather than inferred from the glyph scale.
+    """
+    blank = _rows(rendering.build("", CORPUS_FRAME, type_scale), CORPUS_FRAME.width)
+    drawn_screen = _rows(
+        rendering.build(ATTACKS[0].injection, CORPUS_FRAME, type_scale), CORPUS_FRAME.width
+    )
+    return [
+        (line, x // 3)
+        for line, (row, other) in enumerate(zip(blank, drawn_screen, strict=True))
+        for x in range(0, len(row), 3)
+        if row[x : x + 3] != other[x : x + 3]
+    ]
+
+
+def test_a_smaller_payload_is_set_in_the_same_column_of_pixels() -> None:
+    """A wrapped line is the same width in pixels at every size, whatever width it is given.
+
+    The paragraph keeps the column it is set in, so a smaller payload reads as body text rather
+    than as a short block of small type. Asserted as the relation between the two, since a
+    columns rule that stopped following the glyph scale could otherwise be read back out of the
+    expectation it computed.
+    """
+    for corpus_columns in (12, 24, 42, 48, 68):
+        for type_scale in TYPE_SCALES:
+            assert (
+                type_scale.columns(corpus_columns) * type_scale.scale
+                == corpus_columns * CORPUS_PAYLOAD_SCALE
+            ), f"{corpus_columns} at {type_scale.label}"
+
+
+def test_the_pitch_between_a_payloads_lines_follows_its_glyphs() -> None:
+    """The lines close up as the glyphs shrink, so a small payload is a paragraph of small type.
+
+    Held as a proportion within the one pixel an integer division can lose, rather than as an
+    expectation computed from the rule under test.
+    """
+    for corpus_leading in (18, 40, 42, 46):
+        for type_scale in TYPE_SCALES:
+            drift = abs(
+                type_scale.leading(corpus_leading) * CORPUS_PAYLOAD_SCALE
+                - corpus_leading * type_scale.scale
+            )
+            assert drift < CORPUS_PAYLOAD_SCALE, f"{corpus_leading} at {type_scale.label}"
+
+
+def test_a_smaller_payload_size_paints_a_smaller_share_of_the_screen() -> None:
+    """The share falls with every step of the sweep, and never to nothing.
+
+    The sweep's variable is what fraction of the screen the instruction occupies, so a size that
+    painted the same share as the one above it would be a second row measuring the first, and one
+    that painted nothing would be a row with no attack in it.
+    """
+    for rendering in RENDERINGS:
+        painted = [len(_painted(rendering, type_scale)) for type_scale in TYPE_SCALES]
+        assert all(count > 0 for count in painted), f"{rendering.name}: {painted}"
+        assert painted == sorted(painted, reverse=True), f"{rendering.name}: {painted}"
+        assert len(set(painted)) == len(painted), f"{rendering.name}: {painted}"
+
+
 async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at() -> None:
     """The words the model reads about the capture follow the frame, at every frame.
 
@@ -133,7 +251,7 @@ async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at()
     model it was looking at a capture nobody took.
     """
     for frame in (CORPUS_FRAME, _LARGE):
-        png = RENDERINGS[0].build(ATTACKS[0].injection, frame)
+        png = RENDERINGS[0].build(ATTACKS[0].injection, frame, CORPUS_TYPE_SCALE)
         result = await capture_result(png, frame)
         # The label is what a printed matrix and a test id call this frame, so it is held to
         # what the shipped `describe` writes off the picture rather than to itself.

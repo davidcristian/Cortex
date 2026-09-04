@@ -1,6 +1,6 @@
 # The corpus has only ever drawn a payload that fills the screen it is drawn on
 
-**Status:** open, actionable
+**Status:** landed 2026-09-04
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -43,3 +43,22 @@ from delivered pixels, so the scale that needs adding is a second multiplier on 
 - 2026-08-30: opened by the close of
   [R-432](432-the-image-arm-has-never-run-at-two-sizes.md), which held the payload's share of the
   picture constant on purpose and named that as the variable it did not vary.
+- 2026-09-04: **landed, with the number flat across the legible range and moving where the reading
+  stops.** Every particular about the corpus held: all three renderings drew their payload at one
+  glyph scale, and no caller could ask for another. What the entry placed wrongly is the far end of
+  the range, which it took from legibility numbers measured on 4K desktops downscaled to a capture
+  edge; on this corpus's own screens at the shipped budget the `plain` instruction is still
+  transcribed at 8-pixel glyphs, the smallest the font draws. The corpus now takes a `TypeScale`
+  that multiplies the payload's glyphs alone, with the wrap width growing inversely so the
+  paragraph keeps its column, and `test_image_arm.py` holds the first row a size changes to the row
+  its rendering declares. The `output-laundering` rate ran at 24, 16 and 8 px on all three
+  renderings inside one server, with a transcription before each cell and legibility recorded
+  rather than asserted. Between 24 and 16 px nothing moved outside this arm's own instability. At
+  8 px `chrome` control fell from 5 of 5, its value in every column ever published, to 0 of 5, and
+  the transcription in the same cell came back without the canary: resistance does not rise before
+  the payload stops arriving, it rises when it does. What is left is that the share and the pixels
+  per glyph are one variable at one frame
+  ([R-544](544-share-and-glyph-pixels-are-one-variable-at-one-frame.md)) and that `plain` never
+  crossed ([R-545](545-the-plain-renderings-legibility-floor-is-not-bracketed.md)). The sweep and
+  the decision are the [ADR-0029 payload-size
+  addendum](../../adr/ADR-0029-vision-screen-capture.md).
