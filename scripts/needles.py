@@ -24,6 +24,16 @@ QUOTED_WIDTH = 100
 # a sentence the file does not have.
 TRIMMED = "..."
 
+MET = (
+    "so what moved is likely shape this needle carries rather than this value, and the constant "
+    "to change may not be the one named here"
+)
+APART = (
+    "and no run stops on that line, so what moved is not settled here: a file is free to spell "
+    "these characters under another meaning, which is what its own prose does with a value that "
+    "is an ordinary word"
+)
+
 
 def _guard(edge: str, guards: tuple[str, str]) -> str:
     """The lookaround one edge of a needle needs: none, the word one, or that and the decimal."""
@@ -119,6 +129,13 @@ def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
     return f"{held}, which stops in {len(ends)} places, {which} on line {line}"
 
 
+def verdict(text: str, match: re.Match[str], at: int | None) -> str:
+    """What the two readings conclude: the strong form only where they name one line."""
+    if at is None or line_of(text, at - 1) != line_of(text, match.start()):
+        return APART
+    return MET
+
+
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     """Why ``text`` does not spend ``needle``, said as what of it the file does still carry."""
     run = carried(needle, text)
@@ -136,7 +153,6 @@ def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     match, at = nearest(ends, matches)
     return (
         f"{stem}, {stops(text, run, ends, at)}; the file does still spell {spelled!r} as a token "
-        f"of its own{where(text, match, len(matches), anchored=bool(ends))}, so what moved is "
-        "likely shape this needle carries rather than this value, and the constant to change may "
-        "not be the one named here"
+        f"of its own{where(text, match, len(matches), anchored=bool(ends))}, "
+        f"{verdict(text, match, at)}"
     )

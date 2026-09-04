@@ -493,6 +493,8 @@ def test_a_yes_reads_back_the_line_it_read_the_value_on(tmp_path: Path) -> None:
     assert "which stops on line 1" in fault.detail
     assert "the file does still spell '11' as a token of its own, once on line 3" in fault.detail
     assert "which reads 'the cortex still holds ~11 GB of it while it dies'" in fault.detail
+    assert "and no run stops on that line, so what moved is not settled here" in fault.detail
+    assert "likely shape" not in fault.detail
 
 
 def test_a_last_line_with_no_newline_is_still_read_back_whole(tmp_path: Path) -> None:
@@ -545,7 +547,11 @@ def test_a_run_carried_in_several_places_names_the_stop_nearest_the_spelling(
 
 
 def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_path: Path) -> None:
-    """No run means no place to be nearest to, so the first spelling is the one named."""
+    """No run means no place to be nearest to, so the first spelling is the one named.
+
+    It also means no stop for the spelling to share a line with, so the verdict is withheld: a
+    file carrying no part of the needle has shown nothing about which half of it moved.
+    """
     (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
     (tmp_path / "overlay.css").write_text(
         ".panel { height: --ceiling; }\n.rail { width: --ceiling; }\n", encoding="utf-8"
@@ -554,6 +560,47 @@ def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_p
     assert "carrying no part of it" in fault.detail
     assert "in 2 places, the first on line 1" in fault.detail
     assert "which reads '.panel { height: --ceiling; }'" in fault.detail
+    assert "and no run stops on that line, so what moved is not settled here" in fault.detail
+    assert "likely shape" not in fault.detail
+
+
+_KINDED = crosscheck.Constant(
+    label="the kind word a sidecar declares a sender under",
+    why="the brain admits a declaration only when its kind is a claimed member's value",
+    sites=(crosscheck.Site("server.py", "_SENDER_KIND"),),
+    mentions=(crosscheck.Mention("provenance.py", '{name} = "{value}"', name="SENDER"),),
+)
+
+
+def test_a_word_still_written_in_prose_settles_nothing_about_what_moved(tmp_path: Path) -> None:
+    """The mutation that opened this, in miniature: the enum member's value renamed alone."""
+    (tmp_path / "server.py").write_text('_SENDER_KIND = "sender"\n', encoding="utf-8")
+    (tmp_path / "provenance.py").write_text(
+        '"""Eviction by sender must not sweep a URI."""\n\n\nSENDER = "from"\n', encoding="utf-8"
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, _KINDED)
+    assert "carrying no more of it than 'SENDER = \"', which stops on line 4" in fault.detail
+    assert "does still spell 'sender' as a token of its own, once on line 1" in fault.detail
+    assert "and no run stops on that line, so what moved is not settled here" in fault.detail
+    assert "likely shape" not in fault.detail
+
+
+def test_a_word_written_where_the_run_stops_is_read_as_the_shape_moving(tmp_path: Path) -> None:
+    """The same entry the other way round: the member's name moved and its value did not.
+
+    The word is still on the line the run stops on, which is the reading the verdict is for, so
+    the fault names the shape as the likely mover even though the prose above spells the word too.
+    """
+    (tmp_path / "server.py").write_text('_SENDER_KIND = "sender"\n', encoding="utf-8")
+    (tmp_path / "provenance.py").write_text(
+        '"""Eviction by sender must not sweep a URI."""\n\n\nSENDERS = "sender"\n', encoding="utf-8"
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, _KINDED)
+    assert "does still spell 'sender' as a token of its own, in 2 places" in fault.detail
+    assert "the nearest to that run on line 4" in fault.detail
+    assert (
+        "so what moved is likely shape this needle carries rather than this value" in fault.detail
+    )
 
 
 def _row(before: int, after: int) -> tuple[str, int, int]:

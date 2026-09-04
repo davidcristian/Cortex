@@ -281,6 +281,16 @@ held in one place for the same reason.
   back to the first occurrence and the message says which rule it used. The distance itself is
   deliberately not computed: two line numbers are the comparison, and a gap in lines would
   sometimes disagree with a pair chosen by distance in characters.
+  **Only the strong form draws a verdict** (ADR-0029 word-valued-verdict addendum). `needles.MET`
+  is the sentence naming the shape as the likely mover and the entry named as probably not the one
+  to change; `needles.APART` reports both readings and names neither, and `needles.verdict` picks
+  between them on whether the value's line is the line the run stops on. The weak form used to
+  draw the strong form's conclusion, which is wrong wherever the value is an ordinary word: with
+  `SourceKind.SENDER`'s value renamed alone the gate found `sender` in seven places of the core's
+  own docstrings and said the shape had moved, and with the declared-source value field re-spelled
+  `from` it found that word thirteen times in the tools contract's prose and said the same. Both
+  readings still print, so a reader who wants the hunt has the line numbers; what is withheld is
+  the sentence sending them to a neighbouring constant.
   **Re-spelled where the far side's syntax cannot take the value as written** (ADR-0029 spelling
   addendum). `Mention.spelling` is `Spelling.WRITTEN` by default, which is the site's own text;
   `Spelling.WHOLE` renders the same number with no fractional part, for a syntax that carries none

@@ -1,10 +1,7 @@
 # An unfound needle whose value is an ordinary word reads prose as the value still spelled
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-04
 **Area:** repo-gates
-**Trigger:** a reader of a `crosscheck` fault over a word-valued entry following its second
-reading to a line of prose and changing the wrong constant, or a second registered entry whose
-value is a word the far file's own docstrings use.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Opened 2026-09-02 by the close of
@@ -42,3 +39,11 @@ concluding which moved, and leave the conclusion to the reader. Either way the s
   field's two bindings re-spelled `from` and both contracts left alone, the hedge found `from`
   thirteen times in the tools contract's prose and concluded that what moved was likely shape,
   when the value had (ADR-0029 declaration-fields addendum).
+- 2026-09-04: landed. The trigger had fired: the two field entries hold the values `kind` and
+  `value`, and every value-rendering mention of them sits over a module contract whose prose
+  spells the same word away from the needle. Across the whole registry, 65 of 288 mentions render
+  a value made of letters and underscores into a file that spells it away from the needle, 31 of
+  them a single word. `needles.verdict` now states the strong form only where the value's line is
+  the line the run stops on, and reports both readings without naming a mover otherwise; both
+  recorded misreadings were replayed in a copy of the tree before and after (ADR-0029
+  word-valued-verdict addendum).
