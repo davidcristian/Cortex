@@ -49,3 +49,12 @@ opened this read them on the card.
   [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), so the
   next sweep copies the record's artifact and build columns off each report rather than off the
   loop's notes.
+
+- 2026-09-04: re-derived and still open. The trigger has not fired here: both cached engine images
+  report `build 10680, commit d7bd3bfca` on `llama-server --version`, the build every row of the
+  column was read on. Nothing in the tree pins a digest, though, and both tags have already moved
+  past those images, `server-cuda` from `sha256:952424b09abc` to `sha256:8557e3d273aa` and `server`
+  from `sha256:db057ec90de0` to `sha256:3d05996b4956`, read from the registry without pulling. With
+  no `pull_policy` set anywhere, compose keeps the cached images here and a machine holding none
+  already starts a different build. The ADR-0005 engine-tag addendum records the comparison and the
+  two commands that redo it.

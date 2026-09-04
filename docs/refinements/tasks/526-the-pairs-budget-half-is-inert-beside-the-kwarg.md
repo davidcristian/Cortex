@@ -37,3 +37,12 @@ inert.
 - 2026-09-02: opened by the close of
   [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md), whose measurement made
   the budget's inertness beside the kwarg a reading on both families rather than on one.
+
+- 2026-09-04: re-derived and still open, and the entry's own reading about pinning was confirmed
+  exactly. No `@sha256` appears in `docker/` or in either Dockerfile: three compose files name
+  `ghcr.io/ggml-org/llama.cpp:server` and `brain/Dockerfile.modelhost` builds both stages `FROM
+  ghcr.io/ggml-org/llama.cpp:server-cuda`, all mutable tags, and no service sets a `pull_policy`.
+  The trigger has not fired, since it asks for a build on which the kwarg alone behaves differently
+  from the pair and no build past 10680 was measured. Both engine tags have moved past the cached
+  images, which is the occasion to re-measure the pair rather than evidence about it; the ADR-0005
+  engine-tag addendum records the digests.
