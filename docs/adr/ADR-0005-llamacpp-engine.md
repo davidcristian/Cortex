@@ -4015,3 +4015,53 @@ was not read, because reading it means pulling the moved tag, which is the bump 
 [R-526](../refinements/tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md), each still
 open with a dated trail entry, [docs/refinements/index.md](../refinements/index.md), which is
 regenerated from the task files, and this addendum.
+
+## Mount-walk addendum (2026-09-04): every chat template on the mount still writes one of the two listed pairs
+
+**Status:** Accepted. Re-derives
+[R-524](../refinements/tasks/524-the-readers-thought-vocabulary-is-a-hand-list-held-to-nothing-the-model-files-say.md),
+which the quiet-control addendum above opened, and leaves it open. It changes no code, no flag and
+no pick.
+
+The entry says `MARKERS` in `scripts/switchtail.py` is two pairs typed by hand and held to nothing
+the model files say, and asks for a recorded answer plus a hand-run recipe in the shape
+`imagevolumes.py` takes. Its trigger names a pick whose template writes an unlisted marker, or a
+listed family's file whose template changes the marker it writes. Both are read by the same struct
+walk over each GGUF header's `tokenizer.chat_template` that the quiet-control addendum took, and it
+was taken again below. No server was started.
+
+### What the mount says today
+
+Read 2026-09-04 by the agent over every `*.gguf` under `/mnt/ai/Models`: 68 files, of which 34
+carry a chat template and 34 write markers drawn from the two pairs already listed.
+
+| family | files | the pair the template writes |
+| --- | --- | --- |
+| gemma-4 (5 lineup files, 3 uncensored repackages under `llmfan46/`) | 8 | `<\|channel>thought`, `<channel\|>` |
+| Qwen3.5, Qwen3.6 and Qwen3.8 (12 lineup and near-lineup files, 14 repackages and MTP variants) | 26 | `<think>`, `</think>` |
+
+That is 17 files above the quiet-control table's 17, and every one of the additions is a repackage
+of a family already listed there: three gemma-4 uncensored builds, ten Qwen uncensored builds, and
+four MTP repackages of Qwen files the table already counted. Whether they arrived on the mount
+since 2026-09-02 or simply fell outside a table scoped to the lineup is not settled by anything in
+this repo, and it does not change the answer either way, since all 34 are of the two families.
+
+### The one marker a walk turns up that `MARKERS` does not list
+
+Every gemma-4 template also writes `<|think|>`, which the quiet-control table records and `MARKERS`
+does not carry. It is written at the top of the first system turn under `enable_thinking`, and the
+generation prompt at the end writes `<|turn>model` or, after a tool response, `<|channel>thought`.
+`switchtail.tail` reads whatever follows the last occurrence of the recorded ask, so `<|think|>`
+falls in front of the ask and never in the tail this reader judges. A future reader running the
+same walk will see three gemma markers and two listed ones, and the third is out of scope by
+position rather than by omission.
+
+### The comparison the second limb needs, and how far it reaches today
+
+A template that changed the marker it writes is caught by comparing a file's template against a
+recorded reading of the same file, and one such reading exists in this repo: the served-by
+addendum above records `chat_template` at 7,816 characters for
+`unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf`, read off `GET /props`. The same file's header
+gives 7,816 characters today, so that file's template has not moved. The other 33 have no recorded
+reading to be compared against, which is the record the entry asks for, stated as a count: one file
+of 34 is comparable today.

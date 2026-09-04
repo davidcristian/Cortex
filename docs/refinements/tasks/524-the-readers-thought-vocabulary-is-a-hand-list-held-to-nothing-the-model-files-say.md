@@ -5,7 +5,9 @@
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 **Trigger:** a pick entering the lineup whose chat template writes a thought marker
 `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes
-the marker it writes.
+the marker it writes. Both are countable by the struct walk over each GGUF header's
+`tokenizer.chat_template` that opened this entry: count the chat templates on the mount and the
+markers they write, and compare a file's template against a recorded reading of that same file.
 
 Opened 2026-09-02 by the close of
 [R-517](517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md), which read
@@ -37,3 +39,15 @@ one line; the record and the recipe are what make that line checked rather than 
 - 2026-09-02: opened by the close of
   [R-517](517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md), whose
   ADR-0005 quiet-control addendum records the 17 chat model files read and the two pairs found.
+
+- 2026-09-04: re-derived and still open. Neither half of the trigger has fired. Walking every
+  `*.gguf` on `/mnt/ai/Models` reads 68 files, 34 with a chat template, and all 34 write a pair
+  `MARKERS` already lists: 8 gemma-4 files write `<|channel>thought` and `<channel|>`, and 26 Qwen
+  files write `<think>` and `</think>`. The 17 files above the quiet-control table's 17 are
+  uncensored repackages and MTP variants of families already listed there. The walk also turns up
+  `<|think|>` on every gemma-4 template, which `MARKERS` does not carry: it is written at the top
+  of the first system turn and never in the tail `switchtail.tail` reads, so it is out of scope by
+  position. For the second half, the tree holds one recorded template reading, the 7,816 characters
+  the served-by addendum records for `unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf`, and the
+  header gives 7,816 today; the other 33 files have nothing to be compared against, which is the
+  record this entry asks for. The ADR-0005 mount-walk addendum of the same date carries the table.
