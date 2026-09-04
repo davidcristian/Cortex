@@ -7738,3 +7738,91 @@ for it, `brain/packages/inference/tests/test_injection_defense_live.py`, which r
 one sitting, `brain/packages/inference/tests/test_image_arm.py`, which holds the size to moving
 nothing but the payload, [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which an
 operator reads for how to run the row and how to read a dark legibility cell, and this addendum.
+
+## Addendum (2026-09-04): the unfound-needle verdict is stated only where the two readings meet
+
+The kind-word addendum above recorded a cost it did not pay: `sender` is an ordinary word, so when
+the first mutation renamed the enum member's value alone, the unfound-needle reading found the word
+spelled as a token of its own seven times in the core's own docstrings and concluded that what
+moved was likely shape. It was filed as
+[R-538](../refinements/tasks/538-an-unfound-needle-over-an-ordinary-word-reads-prose-as-the-value.md)
+with the trigger that a second registered entry whose value is a word the far file's prose uses
+would make it due.
+
+### The trigger had already fired, twice over
+
+The declaration-fields addendum's seventh mutation showed the same misreading a second time, with
+`from` found thirteen times in the tools contract's prose. That was recorded on the task's trail
+rather than acted on. Re-deriving the registry as it stands settles it further: the two field
+entries landed with the values `kind` and `value`, and every value-rendering mention of them sits
+over a module contract whose prose spells the same word away from the needle (`kind` twice in the
+tools contract and three times in the email one, `value` once and five times). The condition is not
+confined to the email part either. Of the registry's 288 mentions, 65 render a value made of
+letters and underscores into a file that also spells it away from that needle, and 31 of those
+values are a single word of letters, among them `thinking` in the overlay's turn state, `auto` and
+`plain` in compose, and `dropped` in the recall runbook.
+
+Both recorded misreadings replay on the tree today, in a copy of it: renaming `SENDER = "sender"`
+to `"from"` reports the seven prose spellings, and re-spelling the value field's two bindings
+reports the thirteen.
+
+### The rule: the verdict follows the line, and the readings still print
+
+The run-line addendum already stated the distinction and left it to the reader: "a value on the
+line the run stops on is the strong form of *what moved is shape* and one seventy lines away is
+the weak form". The message did not act on it, stating the strong form's conclusion in both cases.
+`needles.verdict` now picks between two sentences on that line comparison. `needles.MET` is the
+one that was always stated: the shape is the likely mover and the constant named may not be the one
+to change. `needles.APART` reports both readings and names neither mover, saying that a file is
+free to spell those characters under another meaning. A file carrying no part of the needle has no
+stop for the value to share a line with, so it takes the weak form too.
+
+The comparison is made at the offset `needles.stops` reads, so the verdict is decided against the
+line number the same message prints rather than against a second reading of the same stop.
+
+Both readings go on printing in full, so a reader who wants the neighbour hunt still has the line
+numbers and the quoted line. What the weak form withholds is the sentence that sends them to a
+constant nothing has implicated.
+
+### Why not narrow what counts as a spelling of the value
+
+The task's own suggestion was to decide what a spelling of a value looks like when the value is a
+word, and count only those: occurrences inside quotes, say. That rule has to be right in four
+syntaxes at once, and it is already wrong in two of them. Compose spells an unquoted `plain` and a
+markdown table spells a bare cell, so a quote test would answer no for far sides whose value is
+genuinely spelled. The line comparison needs no such judgement: it asks where the file stopped
+agreeing with the needle, which is a fact about this entry rather than about the language the far
+side is written in.
+
+A second road, dropping the conclusion entirely, was rejected because the misattribution the
+ADR-0023 bind-host addendum measured is real and the strong form names it correctly: the compose
+publish's host-side interface moved, the port stayed on the line the run stopped on, and the fault
+said so.
+
+### Proved able to fail
+
+The suite is `scripts/tests/test_crosscheck.py`, 184 tests, run alone with `--no-cov`; the whole
+`scripts/tests/` tree is 1673 tests and the live registry is 87 entries over 102 declaring sites
+and 288 mentions, 24 of them pinned to a count. Every mutant is on `needles.py` and each was
+restored by copying back a saved file.
+
+| # | mutant | caught by |
+|---|---|---|
+| 1 | `verdict` always returns the strong form | the no-run case, the VRAM paragraph, and the renamed member's value |
+| 2 | `verdict` always returns the weak form | the moved compose interface and the renamed member's name |
+| 3 | the no-run half of the guard dropped | the no-run case, which raises rather than reads a line |
+
+One mutant survives and it is equivalent rather than uncaught: reading the stop at `at` instead of
+`at - 1`. A run is a prefix of a needle and no registered template spans a line, so the two offsets
+name one line in every case a file can present. It is written as `at - 1` because that is the
+offset the printed line number is computed from.
+
+### Records
+
+The record is the task file
+[R-538](../refinements/tasks/538-an-unfound-needle-over-an-ordinary-word-reads-prose-as-the-value.md),
+which closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated
+from it, `scripts/needles.py`, which carries the two verdicts and the rule choosing between them,
+`scripts/tests/test_crosscheck.py`, which holds both forms to a word-valued entry,
+[docs/modules/repo-gates.md](../modules/repo-gates.md), which a reader of a fault goes to, and this
+addendum.

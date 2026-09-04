@@ -20,6 +20,13 @@ characters so that two matches on one line order the way a reader would, and bot
 first occurrence when there is nothing to be nearest to. The message says which rule produced each
 line. The distance itself is not stated: two line numbers are the comparison, and a gap in lines
 would sometimes disagree with the pick, which was made in characters.
+
+The verdict those two readings support is stated only where they name one line (ADR-0029
+word-valued-verdict addendum). A value spelled where the run stops is the divergence itself, which
+is the evidence that the shape around it moved; a value spelled anywhere else is a second
+occurrence the file is free to write under another meaning, and a value that is an ordinary word
+gets one of those from every sentence of the far file's prose. So the strong form names the shape
+as the likely mover and the weak form reports both readings and names neither.
 """
 
 import re
@@ -49,6 +56,20 @@ QUOTED_WIDTH = 100
 # What marks a quote that starts or stops inside its line, so a reader reads a window rather than
 # a sentence the file does not have.
 TRIMMED = "..."
+
+# The two verdicts, each following the line the value was read on. MET is the misattribution the
+# ADR-0023 bind-host addendum measured: the value sits at the divergence, so the shape around it
+# is what moved. APART is every other reading, and it names no mover, because the run stopping
+# short of the value's own line is as consistent with the value having moved.
+MET = (
+    "so what moved is likely shape this needle carries rather than this value, and the constant "
+    "to change may not be the one named here"
+)
+APART = (
+    "and no run stops on that line, so what moved is not settled here: a file is free to spell "
+    "these characters under another meaning, which is what its own prose does with a value that "
+    "is an ordinary word"
+)
 
 
 def _guard(edge: str, guards: tuple[str, str]) -> str:
@@ -155,6 +176,19 @@ def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
     return f"{held}, which stops in {len(ends)} places, {which} on line {line}"
 
 
+def verdict(text: str, match: re.Match[str], at: int | None) -> str:
+    """What the two readings conclude: the strong form only where they name one line.
+
+    ``at`` is the stop the value reading was measured against, and there is none when the file
+    carries no part of the needle, which is a line the value can share with nothing. It is read
+    at the same offset ``stops`` reads it at, so the comparison is made against the line number
+    the message prints rather than against a second reading of the same stop.
+    """
+    if at is None or line_of(text, at - 1) != line_of(text, match.start()):
+        return APART
+    return MET
+
+
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     """Why ``text`` does not spend ``needle``, said as what of it the file does still carry.
 
@@ -177,7 +211,6 @@ def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     match, at = nearest(ends, matches)
     return (
         f"{stem}, {stops(text, run, ends, at)}; the file does still spell {spelled!r} as a token "
-        f"of its own{where(text, match, len(matches), anchored=bool(ends))}, so what moved is "
-        "likely shape this needle carries rather than this value, and the constant to change may "
-        "not be the one named here"
+        f"of its own{where(text, match, len(matches), anchored=bool(ends))}, "
+        f"{verdict(text, match, at)}"
     )
