@@ -1,6 +1,6 @@
 # The unfenced correction is unmeasured on the cortex, and the own texts are unrun against a Bridge
 
-**Status:** open, actionable
+**Status:** landed 2026-09-04
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
 
@@ -36,3 +36,21 @@ of the dialect rather than of the framing.
 ## Trail
 
 - 2026-09-02: opened by the close of [530](530-a-sidecars-own-text-is-re-stamped-trusted.md).
+- 2026-09-04: both measurements taken, recorded as the two ADR-0013 addenda of that date. The
+  cortex row: on `gemma-4-12B` the unfenced correction is followed on 13 of 20 draws where the
+  fenced one is followed on 3, which is exactly the 3 of 20 a bare `MCP tool ... failed` gets, so
+  inside the fence the sentence was worth nothing measurable. The harness is
+  `brain/packages/orchestrator/tests/test_unfenced_correction_live.py`, three arms an arm
+  including the bare-failure baseline, twenty draws each on the same seeds. Two of the entry's
+  premises did not hold. The folder correction reads 20 of 20 in every arm, the baseline
+  included, because `list_folders` is what this model does after any folder-taking failure, so
+  that row says nothing about framing and the baseline arm is what makes that visible. And the
+  cortex never wrote a query in a mail client's syntax: over two runs of twenty it wrote raw IMAP
+  criteria 10 and 9 times and client syntax 0 and 0, so the dispatch the correction buys back is
+  rarer than the entry assumed. The Bridge row: all five own answers come back trusted off a live
+  Bridge through `build_tool_registry`'s own wiring, the audit line reads `ok=False` beside
+  `trust=trusted`, the ledger stays untainted and the following `send_email` reaches the
+  confirmation card, which is the whole live claim of the overlay
+  (`test_own_texts_bridge_live.py`). One answer is unreachable on that server: a `read_email` in a
+  folder holding no mail raises instead of answering not-found, filed as
+  [548](548-an-empty-folder-read-raises-instead-of-answering-not-found.md).

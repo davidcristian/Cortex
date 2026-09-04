@@ -754,6 +754,12 @@ The service:
     the text rendered from the call's own argument, so a refused search no longer taints the turn
     or reaches the model fenced; a rule about bytes rather than a knob, so always on. No session
     is held between calls, so `build_tool_registry` is synchronous and its closer is a no-op).
+    Two integration-marked files measure that overlay where no fake can.
+    `tests/test_own_texts_bridge_live.py` runs this builder against the shipped sidecar and a
+    real Bridge, and `tests/test_unfenced_correction_live.py` measures whether the cortex acts on
+    the unfenced refusal; both are recorded in the ADR-0013 addenda of 2026-09-04, with their
+    procedures in [runbooks/email-imap.md](../runbooks/email-imap.md) and
+    [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
   - **subagents**
     (`build_subagents(config, tools, redis_url, clock, *, placer, task_store_factory)`,
     in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the

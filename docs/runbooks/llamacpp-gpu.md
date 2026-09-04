@@ -686,6 +686,46 @@ expensive row and the reason is its projector: Qwen3.5-9B's F32 `mmproj` puts ab
 front of the model against the pick's 450, and its uncapped vision turns run long enough that a
 full matrix is over an hour of card time. Budget for that before selecting it.
 
+## Does the cortex act on the email sidecar's correction (ADR-0013 own-text addenda, agent-runnable)
+
+The own-text overlay re-stamps the email sidecar's refusals trusted, so they reach the model
+unfenced. This harness measures whether the model then does what they say, and it is the sibling
+of the injection rows above: the same question about the same fence, asked about a sentence this
+repo wrote rather than one an attacker did.
+
+```
+cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
+  uv run pytest -m integration --no-cov -s \
+  packages/orchestrator/tests/test_unfenced_correction_live.py
+```
+
+Three rows, each starting its own container (`cortex-correction-probe`) and each selectable with
+`-k`: `dialect` for the query the cortex writes with no refusal in the turn, and one row per
+correction. A correction row runs three arms of twenty draws on the same twenty seeds: the
+refusal trusted (what ships), the same sentence fenced (the control), and the adapter's bare
+`MCP tool ... failed` (the baseline). Read the printed matrix; the only assertion is that an arm
+emitted a call at all, which is the check that keeps a silent model from scoring as a
+disobedient one.
+
+Four things worth knowing before the first run.
+
+- **Take the model host down first**, for the injection harness's reason: this container
+  publishes the cortex tier's own port, so a running `model-host` makes `docker run` exit 125.
+- **The server's flags are the deployment's**, read from `ModelHostConfig` through
+  `llama_server_argv`, so a row measures the tier as it is started rather than as the harness
+  remembers it. Nothing here is typed twice.
+- **The baseline arm is not optional.** The folder correction asks for `list_folders`, which is
+  what this model does after any folder-taking failure, so its 20 of 20 is the same in every arm.
+  Without the bare-failure arm that row reads as the fence costing nothing.
+- **A row takes about two minutes**, sixty draws at three to five seconds each plus the load, so
+  the whole file is roughly six minutes of card time.
+
+First run 2026-09-04: refused-search followed 13 / 20 unfenced against 3 / 20 fenced and 3 / 20
+bare; unknown-folder 20 / 20 in all three arms; the dialect row wrote client syntax 0 times in
+forty draws. The numbers and what they mean are in the
+[ADR-0013 addendum](../adr/ADR-0013-untrusted-content.md). Re-run on a cortex pick change or a
+rewording of `SEARCH_REFUSED` or `FOLDER_UNKNOWN`.
+
 ## How much of a 4K screen the cortex can read, and the two knobs that decide it (ADR-0029)
 
 Left to itself the model declares its own per-image budget, which measured **266 prompt tokens for
