@@ -59,9 +59,9 @@ _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
 # How much of each half is kept verbatim. A count says the tokens went somewhere other than
 # the reply and cannot say where, and where is the whole of what a retune would rest on.
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
-# The fields the sample keeps whole and the per-run line drops: both are long and one of them is
-# the same string on every run of an arm, so printing either buries the numbers a reader watches.
-_UNPRINTED = frozenset({"instruction", "output"})
+# The fields the sample keeps whole and the per-run line drops: all three are long and two of them
+# are the same string on every run of an arm, so printing any buries the numbers a reader watches.
+_UNPRINTED = frozenset({"instruction", "context", "output"})
 
 _REPLY_DESCRIPTION = "The answer to the instruction, written out in full as plain text."
 _DESCRIBED_ENVELOPE: JsonSchema = {
@@ -278,6 +278,7 @@ async def _one(
         "stream_text_chars": len(recorder.text),
         "reasoning_chars": len(recorder.reasoning),
         "instruction": recorder.instruction,
+        "context": body,
         "output": result.output,
         "stream_head": recorder.text[:_HEAD],
         "reasoning_head": recorder.reasoning[:_HEAD],
