@@ -74,6 +74,34 @@ cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_emai
 Add `CORTEX_EMAIL_IMAP_TLS_INSECURE=true` when you are accepting the Bridge's self-signed cert on
 loopback rather than verifying it with an exported `ca_cert`.
 
+## The own texts through the brain's own wiring (ADR-0013 own-text addendum)
+
+The refusals above are what the brain re-stamps `Trust.TRUSTED`, so a `send_email` after one of
+them reaches the confirmation card instead of the taint block. The email suite's live rows measure
+the adapter; this one measures the whole path from the Bridge to that decision, with the sidecar
+running as its own process and the registry built by `build_tool_registry`:
+
+```
+set -a; . ~/.cortex/email.env; set +a
+export CORTEX_EMAIL_IMAP_TLS_INSECURE=true
+cd brain && uv run pytest -m integration --no-cov -s \
+  packages/orchestrator/tests/test_own_texts_bridge_live.py
+```
+
+The module starts the sidecar itself on port 9100 and stops it at the end, so bring any other
+`cortex_email` down first or the bind fails. Nothing is sent: the send row runs with a confirmer
+that declines, and it asserts the model reads `USER_DECLINED_MSG` rather than `DENIED_MSG`, which
+is the whole live claim of the overlay. Enable the send path
+(`CORTEX_EMAIL_SEND_ENABLED=true` plus the SMTP credentials, below) to run that row at all;
+without it the row skips, since a read-only sidecar advertises no `send_email` to gate.
+
+Which folders the rows use is discovered rather than named, because one fact here is a property
+of the account: a `read_email` of a uid no message has answers `None` in a folder holding mail and
+raises in one holding none. The first is the not-found own text and comes back trusted; the second
+is [R-548](../refinements/tasks/548-an-empty-folder-read-raises-instead-of-answering-not-found.md)
+and taints the turn. Re-run after a Bridge upgrade for the reason the folder row above is re-run:
+the wording either side sends is what the classification reads.
+
 ## The IMAP probe: the other thing a refused SELECT can mean
 
 A `NO` to `SELECT` covers two facts, a mailbox that does not exist and a mailbox that does and
