@@ -1,10 +1,8 @@
 # An MCP image block is dropped by the adapter rather than carried as a result image
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-04
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Trigger:** a sidecar this repo composes answers a call with an `ImageContent` block, or a
-contract check needs the real adapter to hand the overlay a result that carries an image.
 
 Opened 2026-09-02 by the close of [530](530-a-sidecars-own-text-is-re-stamped-trusted.md), whose
 contract ran the own-text overlay over the real `McpToolRegistry` and found the image case
@@ -33,3 +31,13 @@ adapter failure takes.
 ## Trail
 
 - 2026-09-02: opened by the close of [530](530-a-sidecars-own-text-is-re-stamped-trusted.md).
+
+- 2026-09-04: landed. The premise held to the line: `invoke` built the `ToolResult` with no
+  `images`, and `test_own_text_contract.py` carried a test asserting the drop.
+  `cortex_tools/blocks.py` now reads every `ImageContent` block into an `ImagePart`, taking the
+  width and height `ImagePart` requires from the PNG header rather than widening the part's
+  contract or waiting on a sidecar declaration; `invoke` carries the result and crosses an
+  `ImageError` as `ToolError`. The image check now runs over both arms of the own-text contract,
+  and the ADR-0009 image-carry addendum records the two rejected ways of supplying the size.
+  PNG is the only format sized, which
+  [R-549](549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md) carries.

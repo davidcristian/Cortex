@@ -1,4 +1,4 @@
-"""McpToolRegistry: the core's ToolRegistry port over an MCP server (ADR-0009)."""
+"""McpToolRegistry: the core's ToolRegistry port over an MCP server."""
 
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
@@ -11,25 +11,27 @@ from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, ListToolsResult, TextContent
 
 from cortex_core import Provenance, ToolCall, ToolError, ToolResult, ToolSpec, claimed_source
+from cortex_core.images import ImageError
+from cortex_tools.blocks import result_images
 
+# The result `_meta` key a sidecar declares a content source under, and the two fields the
+# declaration is written with. They are a wire contract, because a sidecar cannot import the
+# core, so the email server defines the same three and `crosscheck.py` compares each pair.
 _SOURCE_META_KEY = "cortex/source"
 
-# The two field names a declaration is written under, the kind word and the value. Bound here and
-# again in the email sidecar for the reason the key is: a field renamed on one side alone would
-# read as no declaration, and `crosscheck.py` holds each pair of bindings equal.
 _KIND_FIELD = "kind"
 _VALUE_FIELD = "value"
 
-# McpError covers protocol-level failures; OSError covers socket-level transport failures.
-# Both cross the ToolRegistry port as ToolError with the cause chained.
+# McpError covers protocol failures and OSError socket ones. Opening a session can also fail
+# with an httpx transport error: a refused dial is httpx.ConnectError, delivered inside anyio's
+# ExceptionGroup, which `except*` unwraps.
 _WRAPPED = (McpError, OSError)
 
 _OPEN_WRAPPED = (McpError, OSError, httpx.HTTPError)
 
 
 def _declared_source(result: CallToolResult) -> Provenance | None:
-    """The source a sidecar declared for this result, as a claimed ``Provenance`` (ADR-0027/0009).
-    """
+    """The source a sidecar declared for this result, as a claimed ``Provenance``."""
     meta: Mapping[str, object] = result.meta or {}
     declaration = meta.get(_SOURCE_META_KEY)
     if not isinstance(declaration, Mapping):
@@ -50,7 +52,7 @@ class McpSession(Protocol):
 
 @asynccontextmanager
 async def streamable_http_session(url: str) -> AsyncGenerator[McpSession, None]:
-    """Open a structured, same-task streamable-http MCP session at ``url`` (ADR-0009)."""
+    """Open a structured, same-task streamable-http MCP session at ``url``."""
     async with (
         streamable_http_client(url) as (read, write, _),
         ClientSession(read, write) as session,
@@ -60,7 +62,7 @@ async def streamable_http_session(url: str) -> AsyncGenerator[McpSession, None]:
 
 
 class McpToolRegistry:
-    """ToolRegistry adapter over an MCP server reached through an `McpSession` (ADR-0009)."""
+    """ToolRegistry adapter over an MCP server reached through an `McpSession`."""
 
     def __init__(self, session: McpSession) -> None:
         self._session = session
@@ -80,27 +82,29 @@ class McpToolRegistry:
         ]
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Call one MCP tool; return its rendered text content, ``is_error`` set on failure.
-
-        A source the sidecar declared in the result's ``_meta`` (``_declared_source``) rides in as
-        ``ToolResult.source``, read from beside the content blocks so it never touches the text.
-        """
+        """Call one MCP tool; return its text content and images, ``is_error`` set on failure."""
         try:
             result = await self._session.call_tool(call.name, dict(call.arguments))
         except _WRAPPED as err:
             msg = f"MCP tool {call.name!r} failed"
             raise ToolError(msg) from err
         text = "".join(block.text for block in result.content if isinstance(block, TextContent))
+        try:
+            images = result_images(result)
+        except ImageError as err:
+            msg = f"MCP tool {call.name!r} returned an image the adapter cannot read"
+            raise ToolError(msg) from err
         return ToolResult(
             call_id=call.id,
             content=text,
             is_error=bool(result.isError),
             source=_declared_source(result),
+            images=images,
         )
 
 
 class ReconnectingMcpToolRegistry:
-    """A ``ToolRegistry`` that opens a fresh MCP session per call (ADR-0009 boot tolerance)."""
+    """A ``ToolRegistry`` that opens a fresh MCP session per call, so a sidecar may boot late."""
 
     def __init__(self, opener: Callable[[], AbstractAsyncContextManager[McpSession]]) -> None:
         self._opener = opener
