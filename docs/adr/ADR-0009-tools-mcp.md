@@ -4345,3 +4345,25 @@ spellings weighed in the entry have to be decided between.
 which stays open with a dated trail entry and a trigger that now says how it is counted,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
 addendum.
+
+## Addendum (2026-09-04): the spread spelling is re-derived and the brain still writes none
+
+The composed-fields addendum deferred the `**` spread of a bound name, and the entry was re-derived
+against the brain's source rather than taken on its own word. It stays open, with the reading that
+fires it written down.
+
+The brain's log calls attach 94 `extra=` expressions. 85 are a mapping written out at the call, six
+are a bare name the enclosing function binds, one is the `|` union at `cortex_core/brain_phase.py`
+line 210, and two are a call, `_pairing(subagents, tools)` at `cortex_orchestrator/bounds.py` lines
+129 and 144, which `logfields.py` refuses as neither a mapping written out nor a name bound to one.
+None of the 85 carries a `**` entry, so the spelling this refinement is about has no instance in the
+brain and a reader case for it would still be written against no example. `_literal` goes on
+reporting a spread as a field name that is not a plain string, which is the answer the entry argues
+is right for a spread of any name the reader would not follow.
+
+### Records
+
+[R-522](../refinements/tasks/522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md),
+which stays open with a dated trail entry and a trigger that now says how it is counted,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
+addendum.
