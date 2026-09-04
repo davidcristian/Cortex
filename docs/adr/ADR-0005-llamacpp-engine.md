@@ -3951,3 +3951,67 @@ the point: the reader's test asserts the whole second line, so a swap anywhere u
 there too, while the format's own test is what catches the swap at the sample. The probe's half has
 no suite, for the reason the format is held by name in the first place, and was run against the
 real server instead, twice, once refused on the draw floor and once published, both quoted above.
+
+## Engine-tag addendum (2026-09-04): the tag this stack names has moved past the build every reading was taken on
+
+Three refinements deferred here name an engine bump in their triggers, and none of them says how a
+reader establishes that one happened. The rendering-column entry waits for a bump under this stack,
+the context-size entry waits for the sweep that entry waits for, and the budget-half entry waits for
+a build on which the kwarg alone behaves differently from the pair. All three were re-derived
+against the tree and the registry as they stand, and all three stay open.
+
+### What the tree names, and what it pins
+
+Nothing in this repo pins an engine by digest. `docker/docker-compose.subagents.yml`,
+`docker-compose.subagents-roster.yml` and `docker-compose.memory.yml` each name
+`ghcr.io/ggml-org/llama.cpp:server`, and `brain/Dockerfile.modelhost` builds both of its stages
+`FROM ghcr.io/ggml-org/llama.cpp:server-cuda`. Both are mutable tags, no `@sha256` appears in
+`docker/` or in either Dockerfile, and no service sets a `pull_policy`, so compose's default
+leaves a cached image in place. That confirms the budget-half entry's own reading, which said the
+compose files name the image by a mutable tag and nothing pins the build the stack pulls.
+
+### What the stack starts today, and what the tag now resolves to
+
+Both cached images report the build every reading in this ADR was taken on:
+
+```
+$ docker run --rm --entrypoint /app/llama-server ghcr.io/ggml-org/llama.cpp:server-cuda --version
+version: 0.3.0-dev (build 10680, commit d7bd3bfca)
+$ docker run --rm --entrypoint /app/llama-server ghcr.io/ggml-org/llama.cpp:server --version
+version: 0.3.0-dev (build 10680, commit d7bd3bfca)
+```
+
+The tags no longer resolve to those images. Read from the registry without pulling, so the cached
+images are untouched:
+
+Each digest is quoted at its first twelve hex characters.
+
+| tag | cached index digest | tag now resolves to |
+| --- | --- | --- |
+| `server-cuda` | `sha256:952424b09abc` | `sha256:8557e3d273aa` |
+| `server` | `sha256:db057ec90de0` | `sha256:3d05996b4956` |
+
+So the bump has not happened here and is one `docker compose pull` away, and a machine with no
+cached image already starts something other than build 10680 on `just up-gpu`. The new build number
+was not read, because reading it means pulling the moved tag, which is the bump itself.
+
+### The three triggers, judged
+
+- The rendering column was read on build 10680 and this stack still starts build 10680, so no row
+  of it is stale here. Its trigger has not fired and the tag comparison above is how the next
+  reader fires it in two commands.
+- The context-size entry waits on the sweep the rendering-column entry waits for, so it has not
+  fired either, and the field it asks for is owed the next time the record's placement column is
+  typed by hand.
+- The budget-half entry asks for a build on which a server carrying the kwarg alone writes into the
+  reasoning channel where the pair does not. No build past 10680 was measured, so nothing
+  reproduces the 2026-08-26 reading and the pair stays. The moved tag is the occasion to re-measure
+  it, not evidence about it.
+
+### Records
+
+[R-529](../refinements/tasks/529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md),
+[R-535](../refinements/tasks/535-a-switch-sample-names-no-context-size-or-placement.md) and
+[R-526](../refinements/tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md), each still
+open with a dated trail entry, [docs/refinements/index.md](../refinements/index.md), which is
+regenerated from the task files, and this addendum.

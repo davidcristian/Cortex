@@ -37,3 +37,10 @@ The layer count stays typed by hand unless a later build reports it.
 - 2026-09-02: opened by the close of
   [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), whose
   ADR-0005 served-by addendum records what `GET /props` reports and what it does not.
+
+- 2026-09-04: re-derived and still open. The trigger names the sweep
+  [R-529](529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md) waits for,
+  and that sweep has not been run: this stack still starts `build 10680, commit d7bd3bfca`, the
+  build the lineup was read on. The second half of the trigger, a row whose verdict moves between
+  placements, is unchanged too, no row having been read at a second placement since. The ADR-0005
+  engine-tag addendum records what the engine tags now resolve to.
