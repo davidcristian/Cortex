@@ -1,10 +1,8 @@
 # The tool audit line is described in prose because its fields vary by condition
 
-**Status:** open, fix when it bites
+**Status:** open, actionable
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Trigger:** the tools runbook's description of the audit line found to disagree with the sink, or
-a second brain line whose field set varies by condition arriving with a runbook that describes it.
 
 Opened 2026-09-02 by the close of
 [R-516](516-a-field-list-composed-above-its-call-cannot-be-quoted.md), which read the deep phase's
@@ -20,6 +18,14 @@ the arguments, `trust`, either `result_chars` or `error` and the work identities
 by nothing, which is the shape the swap runbook's warning bullet drifted into before it was
 printed: six names in an order the formatter does not print and three missing.
 
+The drift the entry was opened against was already there and is now corrected: the runbook's
+enumeration named eleven of the line's twelve possible fields and left `at` out, where the sink
+attaches it on every call and the ADR's own arithmetic for this line counts it (five fixed fields,
+five work identities, and one of `result_chars` or `error`, which is the "up to eleven" a rendered
+line reaches). The module contract in `docs/modules/brain-tools.md` names the timestamp, the sink's
+suite asserts it in all four of its rendered lines, and the runbook alone did not. That is the
+condition this entry was waiting on, so what remains is the tie rather than the fix.
+
 Two ways to close it. A sample grammar for a field present by condition, say one sample per
 condition with the reader following the `if` that sets the field, which is the branch-following
 the entry above declined and would need the reader to say which branch a sample stands for. Or the
@@ -33,3 +39,13 @@ needle. The second costs one registry entry per field and holds the names, not t
 - 2026-09-02: opened by the close of
   [R-516](516-a-field-list-composed-above-its-call-cannot-be-quoted.md), which measured the audit
   line refused as bound at line 65 and used again at line 72, and left its prose where it was.
+- 2026-09-04: the first half of the trigger fired and the entry becomes actionable. Reading the
+  runbook's enumeration against the sink found one field missing, `at`, which the sink attaches on
+  every call: the prose named the tool, `ok`, the arguments, `trust`, either `result_chars` or
+  `error`, the four work ids and `call_id`, eleven of the twelve names a line can carry. The
+  sentence is corrected to name the timestamp, so the prose and the sink agree again, and the
+  refinement itself is untouched: nothing still holds them together, and the next drift will be as
+  quiet as this one. The second half has not fired. Reading the `extra=` of every brain log call
+  and following the seven that name a binding finds six read cleanly and one refused, the audit
+  sink's at line 89, bound at line 65 and used again at line 72, so this is still the only line in
+  the brain whose field set varies by condition.

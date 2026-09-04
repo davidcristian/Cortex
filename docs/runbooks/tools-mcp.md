@@ -99,7 +99,8 @@ With both up, `docker compose --project-directory . -f docker/docker-compose.yml
 brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that needs a file calls the tool, the dispatch
 is audited (one `cortex.tools.audit` line per call), and the result is fed back to the model.
 That line is a bare `tool.invocation` message followed by its fields, the tool's name, `ok`, the
-arguments, the result's `trust`, either `result_chars` or `error`, the work the call was made
+arguments, the result's `trust`, the time the dispatch stamped under `at`, either `result_chars` or
+`error`, the work the call was made
 for, and which call it was, printed in name order by the
 formatter the process entry installs (ADR-0038 rendered-fields addendum). The work is up to four
 ids (ADR-0009 named-work and named-call addenda): `session_id`, `turn_id`, `task_id` and

@@ -4367,3 +4367,34 @@ is right for a spread of any name the reader would not follow.
 which stays open with a dated trail entry and a trigger that now says how it is counted,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
 addendum.
+
+## Addendum (2026-09-04): the tools runbook's audit-line enumeration was missing the timestamp
+
+The composed-fields addendum left the tool audit's line described in prose, held by nothing, and
+recorded that the drift to watch for was the runbook and the sink disagreeing. They did. The
+runbook's sentence naming what the line carries listed the tool, `ok`, the arguments, `trust`,
+either `result_chars` or `error`, the four work ids and `call_id`, which is eleven of the twelve
+names the line can carry, and left out `at`. The sink attaches `at` on every call, the module
+contract in [docs/modules/brain-tools.md](../modules/brain-tools.md) names the timestamp as one of
+the fields every dispatch logs, and all four rendered lines in
+`brain/packages/tools/tests/test_audit.py` print it. The runbook alone did not, and the arithmetic
+this ADR already uses for the line, five fixed fields plus five work identities plus one of
+`result_chars` or `error`, counts it.
+
+The sentence now names the timestamp. That corrects the reading an operator gets and changes nothing
+about why it drifted: `logfields.py` still refuses this call, at line 89, for a binding made at line
+65 and used again at line 72, so no sample gate can stand behind the prose and nothing compared the
+two. Reading the `extra=` of every brain log call and following the seven that name a binding finds
+six read cleanly and this one refused, so the tool audit is still the only line in the brain whose
+field set varies by condition, and the second half of the entry's trigger has not fired.
+
+The entry moves from waiting to actionable. What it now asks for is unchanged in substance: tie the
+runbook's field list to the sink's own suite, which already asserts four whole rendered lines, the
+way the declared-name addendum ties the message to the assertion that prints it.
+
+### Records
+
+[R-523](../refinements/tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md),
+now open and actionable with a dated trail entry, [docs/runbooks/tools-mcp.md](../runbooks/tools-mcp.md),
+whose enumeration gains the timestamp, [docs/refinements/index.md](../refinements/index.md), which is
+regenerated from the task file, and this addendum.
