@@ -4314,3 +4314,34 @@ that.
 - The registered-binding needle for a call the formatter wraps is unchanged
   ([R-518](../refinements/tasks/518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md)):
   this addendum reads fields, and the needle it names belongs to the registry.
+
+## Addendum (2026-09-04): the wrapped-call needle is re-derived and its trigger has not fired
+
+The composed-fields addendum deferred the registered-binding needle for a call the formatter wraps,
+and the entry was re-derived against the tree as it stands rather than taken on its own word. It
+stays open, with the count that fires it written down so the next reader starts from a reading
+rather than from a rebuild.
+
+`logcalls.handed` reports eleven brain log calls whose message is a bare name. Five of those names
+are bound by the module's own top level, which is the kind a registry `Site` can declare:
+`_NO_READING_LOG_MSG`, `SPILLED_LOG_MSG` and `_MEASURED_LOG_MSG` in `cortex_core/brain_phase.py`,
+`ABANDONED_MESSAGE` in `cortex_orchestrator/abandon.py`, and `_MESSAGE` in `cortex_tools/audit.py`.
+The other six are handed a local `msg` the function builds, which no site declares. Two of the five
+are wrapped, the abandonment warning and the no-reading line, and neither is registered. Running the
+guard's own reading over the real registry returns one row, `_MESSAGE` at `audit.py:89`, whose call
+is on one line, so the shape this entry is about has no instance today.
+
+The miss the entry predicts is confirmed rather than assumed. Rendering the template the guard's
+failure message suggests, `<the call>({name},`, against each wrapped call finds it zero times in the
+file that writes it: `_logger.warning(ABANDONED_MESSAGE,` in `abandon.py` and
+`_logger.info(_NO_READING_LOG_MSG,` in `brain_phase.py`, where the same rendering for the audit sink
+finds `_logger.info(_MESSAGE,` once. An author registering either binding would therefore reach the
+guard's suggestion and get an unfound needle from `check-crosscheck`, which is the day the two
+spellings weighed in the entry have to be decided between.
+
+### Records
+
+[R-518](../refinements/tasks/518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md),
+which stays open with a dated trail entry and a trigger that now says how it is counted,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
+addendum.
