@@ -82,8 +82,11 @@ source of audited, model-callable tools.
   that tells a reader what to look for and that suite's two spellings (ADR-0009 audit-message
   addendum). The call itself is a fifth place the registry reads, `_logger.info({name},` over
   this module, so a call handed another word fails the gate (ADR-0009 held-call addendum). The
-  sample gate cannot stand in for either: this sink builds its `extra=` by condition, so no
-  runbook may print one of these lines as a rendered sample and have it hold.
+  sample gate holds this sink's lines another way: its `extra=` is built by condition, so no
+  reading of the source can list one line's fields, and a rendered sample of it in the tools
+  runbook is held to a whole line this module's own suite asserts against the shipped
+  formatter, which is why that suite asserts one whole line per shape the runbook prints
+  (ADR-0009 proven-line addendum).
   A line also names the work it was for: `session_id`, `turn_id`,
   `task_id` and `item_id`, taken off the dispatch's stamp and written under the field names the
   rest of the brain's log lines use.

@@ -98,20 +98,37 @@ default (`CORTEX_TOOLS_HANDSHAKE_SAMPLES`), about 16 s against the shipped sidec
 With both up, `docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up` runs the
 brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that needs a file calls the tool, the dispatch
 is audited (one `cortex.tools.audit` line per call), and the result is fed back to the model.
-That line is a bare `tool.invocation` message followed by its fields, the tool's name, `ok`, the
-arguments, the result's `trust`, the time the dispatch stamped under `at`, either `result_chars` or
-`error`, the work the call was made
-for, and which call it was, printed in name order by the
-formatter the process entry installs (ADR-0038 rendered-fields addendum). The work is up to four
-ids (ADR-0009 named-work and named-call addenda): `session_id`, `turn_id`, `task_id` and
-`item_id`, each printed only when
-the dispatch had it, so `grep turn_id=` on one id gathers a turn's own tool calls, the tool calls its
-subagents made, the line a failed turn wrote, and every line about a handoff that turn asked for
-(a handoff id is the escalating turn's id, and the swap path spells it under this same name,
-ADR-0009 sixth-name addendum), while a subagent's `task_id` selects one
-delegate's work out of a batch. A schedule fire carries the chat that scheduled the item, the
-`item_id` of the item that fired, and no
-turn, because nothing conversational is waiting on it.
+That line is a bare `tool.invocation` message followed by its fields, printed in name order by the
+formatter the process entry installs (ADR-0038 rendered-fields addendum). Which fields a line
+carries depends on the call, so the line is printed below once per shape it takes rather than
+once. Every line in the fence is one the sink's own suite, `brain/packages/tools/tests/test_audit.py`,
+asserts whole against the shipped formatter, and `scripts/samplecheck.py` holds each sample to that
+assertion rather than to the call, because the sink builds its field set by condition and no
+reading of the source can list one line's fields (ADR-0009 proven-line addendum). In order: a call
+that succeeded and was made for no chat, turn or task, every id the dispatch did not carry being
+left off the line rather than printed empty; a call that failed, whose `error` stands where `result_chars` would; a cortex call, which
+carries the chat, the turn and the id the model gave the call; a delegated call, which names the
+task and the turn that spawned it; and a schedule fire, which carries the chat that scheduled the
+item, the `item_id` of the item that fired, and no turn, because nothing conversational is waiting
+on it.
+
+```text
+INFO:cortex.tools.audit:tool.invocation arguments={"path":"<path>"} at=<timestamp> ok=True result_chars=<size of the result> tool=<tool name> trust=untrusted
+INFO:cortex.tools.audit:tool.invocation arguments={} at=<timestamp> error="<short detail>" ok=False tool=<tool name> trust=untrusted
+INFO:cortex.tools.audit:tool.invocation arguments={} at=<timestamp> call_id=<call id> ok=True result_chars=<size of the result> session_id=<chat id> tool=<tool name> trust=untrusted turn_id=<turn id>
+INFO:cortex.tools.audit:tool.invocation arguments={} at=<timestamp> ok=True result_chars=<size of the result> session_id=<chat id> task_id=<task id> tool=<tool name> trust=untrusted turn_id=<turn id>
+INFO:cortex.tools.audit:tool.invocation arguments={} at=<timestamp> call_id=schedule-<item id> item_id=<item id> ok=True result_chars=<size of the result> session_id=<chat id> tool=<tool name> trust=untrusted
+```
+
+A success logs the size of its result under `result_chars` and never the content, since a file
+read can be large or sensitive; a failure logs its short detail under `error`; every line carries
+the tool's name, its arguments, the result's `trust` and the time the dispatch stamped under `at`.
+The work a call was made for is up to four ids (ADR-0009 named-work and named-call addenda),
+`session_id`, `turn_id`, `task_id` and `item_id`, each printed only when the dispatch had it, so
+`grep turn_id=` on one id gathers a turn's own tool calls, the tool calls its subagents made, the
+line a failed turn wrote, and every line about a handoff that turn asked for (a handoff id is the
+escalating turn's id, and the swap path spells it under this same name, ADR-0009 sixth-name
+addendum), while a subagent's `task_id` selects one delegate's work out of a batch.
 
 **None of the four carries a prefix**, so grep a field name with an id you already have rather than
 a shape you half remember (ADR-0009 bare-id addendum). The brain mints a turn, a task and an item

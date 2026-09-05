@@ -127,8 +127,10 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
      would (ADR-0003 stub-fidelity addendum).
    - `samplecheck.py`: every log line a runbook shows an operator matches the call site that
      writes it, on level, logger, message, and field names in render order. Field names only,
-     because a captured value is a dated reading. A module may not spell one logger name or one
-     message twice (ADR-0009 sample-membership, one-name and one-message addenda).
+     because a captured value is a dated reading. A call whose field set the source cannot list,
+     the tool audit's, is held instead to a line the sink's own suite asserts whole (ADR-0009
+     proven-line addendum). A module may not spell one logger name or one message twice (ADR-0009
+     sample-membership, one-name and one-message addenda).
    - `rostercheck.py`: every roster a document keeps names the set it really describes. It
      compares membership and naming only, since the sentence beside each name is what the roster
      is for (ADR-0003 live-roster addendum, ADR-0029 roster addenda).
@@ -352,6 +354,8 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                     logsamples.py       what a documented sample claims
                     logcalls.py         what the call attaches, and the message it may not repeat
                     logfields.py        the field list, off the call or off the binding above it
+                    assertedlines.py    the lines a sink's own suite asserts whole, where the
+                                        source cannot list a call's fields
                     loggernames.py      which module owns a logger name
                   rostercheck.py    a document's roster still names the set it describes
                     rosters.py          which rosters exist and where each real set is read from

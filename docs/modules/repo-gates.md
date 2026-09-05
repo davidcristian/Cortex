@@ -23,7 +23,7 @@ brain workspace member (ADR-0002).
 `just envelope-floor` and `switchtail.py` from `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, forty nine modules, most split out under the line cap and
+**The rest have no CLI of their own**, fifty modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -47,8 +47,9 @@ each named for what it holds. Grouped by the gate that reads them:
   the Rust stub's form.
 - `samplecheck.py` reads `logsamples.py` for what a documented log line claims to print,
   `logcalls.py` for what the call writing it really attaches, with `logfields.py` split off it
-  for the field list read off the call or off the binding above it, and `loggernames.py` for
-  which module owns the logger that line is written under.
+  for the field list read off the call or off the binding above it, `assertedlines.py` for the
+  lines a sink's own suite asserts whole, read for the one call whose fields the source cannot
+  list, and `loggernames.py` for which module owns the logger that line is written under.
 - `rostercheck.py` reads `rosters.py` for every roster this repo has written down,
   `rosternames.py` for what a page's roster names, and `rostermembers.py` for the set it
   describes. `scanrecipes.py` answers the one such set that is no listing at all, which scans the
@@ -720,7 +721,16 @@ held in one place for the same reason.
   way the formatter quotes a value with a space in it is the fiction ADR-0009 refused to teach a
   gate to expect. **Found rather than registered**: the walk reads `docs/runbooks/` and checks
   every fenced line shaped like a rendered one, so a new sample is held the day it is written,
-  and a runbook quoting a line no brain module writes is a miss rather than a skip. **Runbooks
+  and a runbook quoting a line no brain module writes is a miss rather than a skip. **One call
+  is held to its suite rather than to itself**: the tool audit binds its mapping, grows it by
+  condition and only then hands it over, so `logfields.py` refuses it rather than choosing a
+  branch, and a sample of that line passes when the sink's own package suite asserts a whole
+  rendered line with the same level, logger, message and fields (`assertedlines.py`); the level
+  is still compared against the call, which was read that far. The chain holds because the
+  suite's assertion is an equality against the shipped formatter's output, which pytest fails the
+  day the sink moves, so a runbook sample no assertion matches is a miss naming what the suite
+  does assert, and a suite that loosens its equality into a containment check leaves the sample
+  unheld rather than held (ADR-0009 proven-line addendum). **Runbooks
   and not every document**, which is the other half of that decision: an ADR's transcripts are
   evidence of a run on a day, recorded beside the decision they justify, and holding a dated
   record to today's code would make the past a thing that must be edited to stay green. **Fails
@@ -789,10 +799,23 @@ held in one place for the same reason.
   prints, which is worse than holding it to nothing (ADR-0009 composed-fields addendum). The
   tool audit's trail is the refused case in the tree: its mapping is bound, grown by `update`
   and by a key set under a condition, and only then handed over, so no one sample could print
-  what it attaches, and it stays a line the tools runbook describes in prose. The rule for
-  which calls are log calls is handed in by `logcalls.py` rather than read here, so this module
-  carries no level table. Keys come back sorted and deduplicated, a key both halves of a
-  union carry being one key on the record.
+  what it attaches, and `logcalls.py` raises the refusal as `UnreadFieldsError` with the line
+  and level it read first, which is what lets `samplecheck.py` hold that line to the sink's
+  suite instead. The rule for which calls are log calls is handed in by `logcalls.py` rather
+  than read here, so this module carries no level table. Keys come back sorted and
+  deduplicated, a key both halves of a union carry being one key on the record.
+- `assertedlines.py` is the third reading `samplecheck.py` makes and has no CLI: the rendered
+  lines a package's own suite asserts whole, read for the one call whose fields the source cannot
+  list. It parses the suite with `ast` and reads a string only where it is one side of an
+  `assert x == "..."`, anchored at the level the formatter writes first and carrying no newline.
+  A containment check is not read, because the tool audit's suite feeds a forged head of the
+  trail through a field and checks it with `in`, and reading that would hold a runbook to a
+  forgery; an f-string and a name bound to a string are not read either, so a suite that asserts
+  its lines through one of them leaves the runbook sample unheld. The suite read is the `tests`
+  directory beside the `src` the sink's module lives under and no other: the orchestrator's
+  logging suite asserts a whole `cortex.tools.audit` line with one field, written straight
+  through the logger to prove the shipped level, and it is not a line the sink prints. A package
+  with no suite, a suite file that is not text and one that does not parse each raise.
 - `loggernames.py` is the other half of that reader and has no CLI. It answers which module owns a
   logger name, standing on `logcalls.py`'s walk of the brain's source, and it split off that
   module when teaching the message side its second spelling brought the file to the line cap, along
@@ -1596,7 +1619,10 @@ held in one place for the same reason.
   shapes the committed runbooks really carry, a bare fenced line, one behind compose's container
   label, and one commented out inside a shell block and wrapped over two lines, and a further test
   reads the runbooks themselves so a shape nobody writes any more cannot go on being tested
-  against itself.
+  against itself. A third real-tree test holds the walk to having held at least five samples to a
+  suite's assertion, which is the tools runbook's fence, so the fallback is never green over its
+  fixtures alone; `assertedlines.py`'s own suite reads the committed tools package and asserts
+  that every shape that fence prints is asserted whole there, with the timestamp on each.
 - `rostercheck.py` is held to the same pair, and the second half of it matters more here than
   anywhere: `test_the_repos_own_rosters_hold` runs the gate over the committed tree, and
   `test_the_repo_really_writes_a_roster_in_both_shapes` fails if the registry ever stops

@@ -519,7 +519,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     - `stubcheck.py`, the committed Rust stub against the proto, with its `protocomments` reader.
     - `samplecheck.py`, documented log lines against their call sites, with the `logsamples`
       reading of what a runbook's line claims, the `logcalls` reading of what the call attaches,
-      and the `logfields` reading of a field list bound above the call.
+      the `logfields` reading of a field list bound above the call, and the `assertedlines`
+      reading of the lines a sink's own suite asserts whole, for the call whose fields the
+      source cannot list.
     - `rostercheck.py`, a document's roster against the real set, with the `rosters` registry of
       which lists a document keeps, the `rosternames` reading of what a page names, the
       `rostermembers` reading of what the tree holds, and the `scanrecipes` reading of which scans

@@ -37,6 +37,16 @@ class LogCallError(Exception):
     """The brain's source could not be read, or a message could not be accounted for in it."""
 
 
+class UnreadFieldsError(LogCallError):
+    """A call was found and its level read, and its field list cannot be read off the source."""
+
+    def __init__(self, line: int, level: str, reason: str) -> None:
+        super().__init__(reason)
+        self.line = line
+        self.level = level
+        self.reason = reason
+
+
 class LogCall(NamedTuple):
     """One call's contribution to a line: where it stands, its level, and what it will print.
 
@@ -182,7 +192,7 @@ def logged(source: str, message: str, shown: str) -> LogCall:
     try:
         fields = attached(call, tree, shown, is_log_call=_logs)
     except FieldError as err:
-        raise LogCallError(str(err)) from err
+        raise UnreadFieldsError(call.lineno, level, str(err)) from err
     return LogCall(line=call.lineno, level=level, fields=fields)
 
 

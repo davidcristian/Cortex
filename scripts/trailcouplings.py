@@ -1,5 +1,4 @@
-"""The couplings around the brain's two per-line trails: the words one of their lines is found by.
-"""
+"""The couplings around the brain's two per-item logs: the words one of their lines is found by."""
 
 from couplings import Constant, Mention, Site
 
@@ -13,8 +12,8 @@ CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py
 TRAIL_READER = "scripts/trailwidth.py"
 LOGGER_GUARD = "scripts/tests/test_loggernames.py"
 
-GATES_MODULE = "docs/modules/repo-gates.md"
-LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
+GATES_MODULE = "docs/modules/repo-checks-tools.md"
+LOCAL_DEV_RUNBOOK = "docs/runbooks/brain-logs.md"
 MEMORY_MODULE = "docs/modules/brain-memory.md"
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
 TOOLS_MODULE = "docs/modules/brain-tools.md"
@@ -22,16 +21,10 @@ TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 
 FIELD_KEY = '"{value}":'
 
-# How a sink writes the message a line is found by: the first argument of the call that emits it.
-# The call and not the word alone, because this word is also the tail of the logger the sink writes
-# through, so a bare needle would go on being found there after the message it names had moved.
 TRAIL_CALL = '_logger.info("{value}"'
 
 DECLARED_NAME = '{value} = "'
 
-# How a module contract names that same identifier: in the sentence saying the sink declares its
-# logger there rather than inside the call. Both contracts write it, each having to explain why its
-# sink is spelled the way it is, and neither could reach the identifier by any import.
 CONTRACT_NAME = "the module as `{value}`"
 
 ASSERTED_MESSAGE = ':{value} "'
@@ -46,9 +39,9 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbook names it among the two per-line trails a deployment can raise or lower on "
             "its own, and the module contract states what the sink writes; a rename in the sink "
             "alone leaves all three instructing a reader about a logger nothing writes through "
-            "(ADR-0038 named-logger addendum); what holds this declaration to the call handed it "
+            "; what holds this declaration to the call handed it "
             "is the guard the sixth entry below is about, which names no sink and so restates "
-            "nothing here (ADR-0009 derived-sink addendum)"
+            "nothing here (ADR-0045 decision 13)"
         ),
         sites=(Site(RECALL_SINK, "_LOGGER_NAME"),),
         mentions=(
@@ -63,7 +56,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "the reader that measures this trail selects a line out of a capture by this message "
             "and spells it itself, having no way to import it, so a rename in the sink leaves a "
             "hand run measurement refusing every capture in the words of a stack that wrote no "
-            "trail (ADR-0038 tied-needle addendum); the runbook says the line carries this word "
+            "trail (ADR-0051 decision 16); the runbook says the line carries this word "
             "as its message and tells an operator to grep for it, and one of those two sentences "
             "is what a rename makes false while the other still works by accident, the logger's "
             "own name ending in the same word"
@@ -81,7 +74,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "this field's rendered width is what `VALUE_CHARS` is argued generous against, and "
             "the reader that measures it cuts the value out of a captured line by this name, so "
             "a rename in the sink alone leaves the one measurement behind that argument reading "
-            "nothing at all (ADR-0038 tied-needle addendum); the runbook names the field to say "
+            "nothing at all (ADR-0051 decision 16); the runbook names the field to say "
             "which question it answers and the module contract to say what is being measured, "
             "and neither could be reached by any import"
         ),
@@ -104,10 +97,10 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "the rendered result to prove the argument; a rename in the sink alone leaves two "
             "runbooks telling an operator to select a trail nothing writes, one module arguing "
             "about the level of a logger that no longer exists, and one suite demonstrating the "
-            "argument on a name the brain abandoned, all four green (ADR-0009 audit-logger "
-            "addendum); what holds this declaration to the call handed it is the guard the sixth "
-            "entry below is about, which names no sink and so restates nothing here (ADR-0009 "
-            "derived-sink addendum)"
+            "argument on a name the brain abandoned, all four green (ADR-0045 "
+            "decision 13); what holds this declaration to the call handed it is the guard the "
+            "sixth entry below is about, which names no sink and so restates nothing here "
+            "(ADR-0045 decision 13)"
         ),
         sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
         mentions=(
@@ -127,12 +120,12 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "suite writes it under the trail's name and asserts the rendered result back to prove "
             "the shipped level; a rename in the sink alone leaves the runbook describing a "
             "message nothing writes and the suite passing on both its spellings at once, having "
-            "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
-            "in for this one, a line whose fields are built by condition being one no runbook may "
-            "print as a rendered sample; the fourth place is the sink's own suite, which asserts "
-            "the rendered line (ADR-0009 declared-name addendum), and the fifth is the emitting "
-            "call, spending the binding by name, so a call handed another word fails here "
-            "(ADR-0009 held-call addendum)"
+            "renamed with itself (ADR-0045 decision 14); the sample gate holds the "
+            "runbook's rendered samples of this line to the sink's suite rather than to the call, "
+            "and holds no prose sentence, so this entry still ties the one naming the message; "
+            "the fourth place is the sink's own suite, which asserts the rendered line (ADR-0045 "
+            "decision 15), and the fifth is the emitting call, spending the binding by "
+            "name, so a call handed another word fails here (ADR-0045 decision 14)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
         mentions=(
@@ -150,7 +143,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "self-named out of the tree, a logger that is not its module's dotted path being one "
             "by construction, and then asks each of those modules for this one name, so the "
             "naming is what the derivation is read by and the guard, both sinks and any third "
-            "have to keep spelling it alike (ADR-0009 derived-sink addendum); a sink that renames "
+            "have to keep spelling it alike (ADR-0045 decision 13); a sink that renames "
             "it fails the guard as well as this entry, and what nothing else would notice is "
             "the guard itself going away, which takes the whole derivation with it and leaves the "
             "two declarations above tied to the documents restating them and to nothing at all "

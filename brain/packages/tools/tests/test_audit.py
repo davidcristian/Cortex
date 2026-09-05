@@ -1,5 +1,3 @@
-"""Behavior tests for LoggingAuditSink: one structured log record per invocation."""
-
 import logging
 from datetime import UTC, datetime
 
@@ -33,10 +31,8 @@ async def test_successful_invocation_logs_size_not_content(
         {"path": "/etc/hosts"},
     )
     assert fields["result_chars"] == 100
-    assert fields["trust"] == "untrusted"  # the ADR-0013 provenance is on the durable trail
-    assert "error" not in fields  # success never logs the (large/sensitive) content
-    # The whole line, exactly: name order makes it deterministic, so this pins what an operator
-    # sees rather than only what was attached.
+    assert fields["trust"] == "untrusted"
+    assert "error" not in fields
     assert _line(record) == (
         "INFO:cortex.tools.audit:tool.invocation "
         'arguments={"path":"/etc/hosts"} at=2026-07-03T12:00:00+00:00 ok=True '
@@ -55,9 +51,11 @@ async def test_failed_invocation_logs_the_error_detail(
     fields = record.__dict__
     assert (fields["tool"], fields["ok"], fields["error"]) == ("read", False, "permission denied")
     assert "result_chars" not in fields
-    line = _line(record)
-    assert 'error="permission denied"' in line  # quoted, so the detail stays one field
-    assert "result_chars" not in line
+    assert _line(record) == (
+        "INFO:cortex.tools.audit:tool.invocation "
+        'arguments={} at=2026-07-03T12:00:00+00:00 error="permission denied" ok=False '
+        "tool=read trust=untrusted"
+    )
 
 
 async def test_trusted_invocation_logs_its_trust_stamp(
@@ -77,9 +75,6 @@ async def test_trusted_invocation_logs_its_trust_stamp(
 async def test_the_line_names_the_work_the_call_was_made_for(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The three work ids reach the line under the field names an operator greps by (ADR-0009
-    named-work addendum).
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
@@ -104,11 +99,6 @@ async def test_the_line_names_the_work_the_call_was_made_for(
 async def test_an_unattributed_call_leaves_the_ids_off_the_line(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An id the call does not have is left off the line rather than printed empty.
-
-    The ticker's own dispatch has no chat, turn or task, and a printed `turn_id=` would read as a
-    value that went missing rather than as an id that never existed.
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(name="read", arguments={}, ok=True, detail="hi", at=_AT)
@@ -118,7 +108,7 @@ async def test_an_unattributed_call_leaves_the_ids_off_the_line(
     assert "session_id" not in fields
     assert "turn_id" not in fields
     assert "task_id" not in fields
-    assert "call_id" not in fields  # a dispatch whose caller minted no id names none
+    assert "call_id" not in fields
     assert "item_id" not in fields
     assert _line(record) == (
         "INFO:cortex.tools.audit:tool.invocation "
@@ -130,9 +120,6 @@ async def test_an_unattributed_call_leaves_the_ids_off_the_line(
 async def test_a_turnless_caller_still_names_the_chat_it_fired_for(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A fired schedule item has the chat that scheduled it and no turn, so the line carries the
-    session id and leaves the turn id off.
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
@@ -152,13 +139,17 @@ async def test_a_turnless_caller_still_names_the_chat_it_fired_for(
 
 
 async def test_the_line_names_the_call_it_records(caplog: pytest.LogCaptureFixture) -> None:
-    """The line carries the call id (ADR-0009 named-call addendum), the same key the result and
-    its `Role.TOOL` message use, so a turn's lines can be told apart.
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
-            name="read", arguments={}, ok=True, detail="hi", at=_AT, call_id="call-7", turn_id="t"
+            name="read",
+            arguments={},
+            ok=True,
+            detail="hi",
+            at=_AT,
+            call_id="call-7",
+            session_id="s-1",
+            turn_id="t",
         )
     )
     (record,) = caplog.records
@@ -166,17 +157,13 @@ async def test_the_line_names_the_call_it_records(caplog: pytest.LogCaptureFixtu
     assert _line(record) == (
         "INFO:cortex.tools.audit:tool.invocation "
         "arguments={} at=2026-07-03T12:00:00+00:00 call_id=call-7 ok=True result_chars=2 "
-        "tool=read trust=untrusted turn_id=t"
+        "session_id=s-1 tool=read trust=untrusted turn_id=t"
     )
 
 
 async def test_a_fired_item_is_named_beside_the_call_that_fired_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The ticker's line carries the item id as its own field, taken from the dispatch stamp,
-    beside the call id that spells the same item. The brain minted the first, while the second is
-    only a string that happens to look like it.
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
@@ -192,16 +179,18 @@ async def test_a_fired_item_is_named_beside_the_call_that_fired_it(
     )
     (record,) = caplog.records
     line = _line(record)
-    assert "item_id=t1" in line
-    assert "call_id=schedule-t1" in line
     assert "turn_id" not in line
     assert "task_id" not in line
+    assert line == (
+        "INFO:cortex.tools.audit:tool.invocation "
+        "arguments={} at=2026-07-03T12:00:00+00:00 call_id=schedule-t1 item_id=t1 ok=True "
+        "result_chars=4 session_id=chat-1 tool=spawn_subagents trust=untrusted"
+    )
 
 
 async def test_a_model_authored_id_spelling_the_ticker_prefix_names_no_item(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A model-authored call id spelling the `schedule-` prefix puts no `item_id` on the line."""
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
@@ -221,11 +210,6 @@ async def test_a_model_authored_id_spelling_the_ticker_prefix_names_no_item(
 
 
 async def test_a_hostile_id_cannot_forge_a_second_line(caplog: pytest.LogCaptureFixture) -> None:
-    """An id built to end the line and open a plausible next one stays inside one value.
-
-    The formatter quotes any rendering carrying whitespace, and quoting is `json.dumps`, so the
-    newline arrives escaped and the forgery lands inside one value. One record, one line.
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     forged = "c\nINFO:cortex.tools.audit:tool.invocation ok=True tool=send"
     await LoggingAuditSink().record(
@@ -234,14 +218,13 @@ async def test_a_hostile_id_cannot_forge_a_second_line(caplog: pytest.LogCapture
     (record,) = caplog.records
     line = _line(record)
     assert "\n" not in line
-    assert line.count("tool.invocation") == 2  # the real message, and the forgery inside a value
+    assert line.count("tool.invocation") == 2
     assert 'call_id="c\\nINFO:cortex.tools.audit:tool.invocation ok=True tool=send"' in line
 
 
 async def test_a_hostile_id_cannot_counterfeit_another_field(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An id built to close its own value and open a field of its own stays inside one field."""
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
@@ -257,7 +240,7 @@ async def test_a_hostile_id_cannot_counterfeit_another_field(
     (record,) = caplog.records
     line = _line(record)
     assert 'call_id="c\\" turn_id=t-victim item_id=t1"' in line
-    assert line.endswith(" turn_id=t-real")  # the real field, still last in name order
+    assert line.endswith(" turn_id=t-real")
     assert record.__dict__["turn_id"] == "t-real"
     assert "item_id" not in record.__dict__
 
@@ -265,9 +248,6 @@ async def test_a_hostile_id_cannot_counterfeit_another_field(
 async def test_a_hostile_id_cannot_write_control_characters_into_the_stream(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A NUL, a carriage return and an ANSI escape all reach the line as escape sequences, so
-    an id cannot repaint an operator's terminal or truncate what a reader sees.
-    """
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
@@ -283,7 +263,6 @@ async def test_a_hostile_id_cannot_write_control_characters_into_the_stream(
 async def test_an_over_long_id_is_cut_at_the_same_bound_every_value_is(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A very long id is cut to `VALUE_CHARS` and marked, the same bound every other value takes."""
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
