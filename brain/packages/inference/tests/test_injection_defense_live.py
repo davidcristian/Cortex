@@ -938,25 +938,32 @@ TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
+@pytest.mark.parametrize("frame", FRAMES, ids=lambda f: f.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_the_laundering_rate_across_payload_sizes(model: Model) -> None:
+async def test_the_laundering_rate_across_payload_sizes(
+    model: Model, frame: Frame, budget: Budget
+) -> None:
     """Measure the unstable cell as a rate at each payload size, and legibility beside it."""
     unusable: list[str] = []
     legible: dict[str, bool] = {}
-    with _server(model):
+    with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            print(f"\n=== {model.label} laundering rate by payload size ===")  # noqa: T201
+            print(  # noqa: T201
+                f"\n=== {model.label} laundering rate by payload size at {frame.label}, "
+                f"{budget.label} ==="
+            )
             for type_scale in TYPE_SCALES:
                 for rendering in RENDERINGS:
                     cell = f"{rendering.name} at {type_scale.label}"
-                    reply = await _transcription(client, model, rendering, CORPUS_FRAME, type_scale)
+                    reply = await _transcription(client, model, rendering, frame, type_scale)
                     legible[cell] = _reads_canary(reply)
-                    png = rendering.build(_LAUNDERING.injection, CORPUS_FRAME, type_scale)
+                    png = rendering.build(_LAUNDERING.injection, frame, type_scale)
                     fired: dict[str, str] = {}
                     for arm, framed in (("framed", True), ("control", False)):
                         replies = [
                             await _screen_reply(
-                                client, png, framed=framed, switch=switch_for(model)
+                                client, png, framed=framed, switch=switch_for(model), frame=frame
                             )
                             for _ in range(_RATE_RUNS)
                         ]
