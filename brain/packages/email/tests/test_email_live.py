@@ -15,6 +15,7 @@ from typing import cast
 
 import pytest
 from imap_tools import MailboxFolderSelectError
+from mailbox_contract import IMPOSSIBLE_UIDS, MISSING_UID
 
 from cortex_email import (
     EmailAttachment,
@@ -178,6 +179,53 @@ def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
             opens.add(name)
     assert opens, "the account listed nothing that opens, so this proves nothing"
     assert offered == opens, f"withheld: {sorted(opens - offered)}; offered shut: {offered - opens}"
+
+
+@pytest.mark.integration
+def test_a_uid_no_message_has_is_not_there_whichever_kind_of_folder_is_asked() -> None:
+    """`fetch` answers ``None`` for a uid no message has, in a folder holding mail or none.
+
+    Only a real Bridge can show this, and it is why the adapter fetches by uid rather than
+    searching for the uid first: this server answers a ``UID`` search key in a folder holding no
+    mail with ``NO no such message`` for every uid, and answers a ``UID FETCH`` of the same uid
+    with ``OK`` and no data in both kinds of folder, which RFC 3501 defines as a uid no message
+    has (ADR-0022 fetch-by-uid addendum). Which folders are which is a property of the account,
+    so both are found rather than named. The premise is asserted raw beside the port's answer,
+    because the FETCH's own answer is what absence is read off: a Bridge that started answering
+    that FETCH differently is what this row would catch.
+    """
+    config = EmailConfig()
+    if not config.user:
+        pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
+    mailbox = ImapMailbox(config)
+    with_mail, without = _one_folder_of_each_kind(mailbox)
+    if with_mail is None:
+        pytest.skip("no folder in this mailbox holds mail, so the read by uid cannot be shown")
+    assert mailbox.fetch(with_mail, MISSING_UID) is None
+    for uid in IMPOSSIBLE_UIDS:
+        assert mailbox.fetch(with_mail, uid) is None, uid
+    if without is None:
+        pytest.skip("every folder in this mailbox holds mail, so the empty-folder read cannot run")
+    assert mailbox.fetch(without, MISSING_UID) is None
+    connection = mailbox._open()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    with connection as box:
+        for folder in (with_mail, without):
+            box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
+            assert box.client.uid("FETCH", MISSING_UID, "(UID)") == ("OK", [None]), folder
+
+
+def _one_folder_of_each_kind(mailbox: ImapMailbox) -> tuple[str | None, str | None]:
+    """One folder of this account holding mail and one holding none, or ``None`` for either."""
+    with_mail: str | None = None
+    without: str | None = None
+    for folder in mailbox.list_folders():
+        if mailbox.search(folder, "ALL", 1):
+            with_mail = with_mail or folder
+        else:
+            without = without or folder
+        if with_mail is not None and without is not None:
+            break
+    return with_mail, without
 
 
 @pytest.mark.integration

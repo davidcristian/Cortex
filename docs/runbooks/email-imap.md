@@ -71,6 +71,20 @@ set -a; . ~/.cortex/email.env; set +a
 cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_email_live.py -k folder
 ```
 
+The third live row is the read by uid (ADR-0022 fetch-by-uid addendum). It finds one folder of
+the account holding mail and one holding none, asserts that `fetch` answers `None` for a uid no
+message has in both and for every string that is not a uid, and asserts the premise the adapter
+reads absence off: this Bridge answers a `UID FETCH` of such a uid with `OK` and no data in both
+kinds of folder, which RFC 3501 defines as a uid no message has. The row exists because the same
+Bridge answers the `UID` search imap-tools sends before its own fetch with `NO no such message`
+in a folder holding no mail, so the adapter sends the FETCH itself and never that search. Run it
+after any Bridge upgrade too:
+
+```
+set -a; . ~/.cortex/email.env; set +a
+cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_email_live.py -k uid
+```
+
 Add `CORTEX_EMAIL_IMAP_TLS_INSECURE=true` when you are accepting the Bridge's self-signed cert on
 loopback rather than verifying it with an exported `ca_cert`.
 
@@ -95,12 +109,13 @@ is the whole live claim of the overlay. Enable the send path
 (`CORTEX_EMAIL_SEND_ENABLED=true` plus the SMTP credentials, below) to run that row at all;
 without it the row skips, since a read-only sidecar advertises no `send_email` to gate.
 
-Which folders the rows use is discovered rather than named, because one fact here is a property
-of the account: a `read_email` of a uid no message has answers `None` in a folder holding mail and
-raises in one holding none. The first is the not-found own text and comes back trusted; the second
-is [R-548](../refinements/tasks/548-an-empty-folder-read-raises-instead-of-answering-not-found.md)
-and taints the turn. Re-run after a Bridge upgrade for the reason the folder row above is re-run:
-the wording either side sends is what the classification reads.
+Which folders the rows use is discovered rather than named, because whether the account has a
+folder holding no mail is a property of the account: the not-found row runs in a folder holding
+mail and again in one holding none, and both come back trusted. Until the adapter fetched by uid
+the second raised instead, because this Bridge answers the `UID` search imap-tools sent first
+with `NO no such message` in such a folder, and the row recorded the taint (ADR-0022 fetch-by-uid
+addendum). Re-run after a Bridge upgrade for the reason the folder row above is re-run: the answer
+either side sends is what the classification reads.
 
 ## The IMAP probe: the other thing a refused SELECT can mean
 
@@ -167,6 +182,15 @@ two apart, `list_folders` reads the LIST attributes imap-tools already carries b
 opens anything flagged `\Noselect` or `\NonExistent` before deciding, dropping it only when this
 server refuses it as well (ADR-0022 flagged-and-refused addendum). `Parent` goes, `Parent/Child` is
 listed in its own right, and on the Bridge the two flagged parents that open are kept.
+
+The probe is also the second server for the read by uid (ADR-0022 fetch-by-uid addendum), and one
+of its rows records the two answers side by side. Every folder here holds no mail, and in one
+`UID SEARCH UID 4294967290` answers `OK` with nothing found, where the Bridge answers
+`NO no such message`; `UID FETCH 4294967290` answers `OK` with no data on both servers, which is
+the one answer the adapter reads. A string that is not a uid is `BAD Invalid uidset` here for
+`abc`, `0` and `4294967296` alike, where the Bridge answers the first two with its own `BAD` and
+the third with no data, so the adapter holds the uid to RFC 3501's grammar itself rather than
+asking either server.
 
 ### Asking this server for the flag imap-tools never asks about
 

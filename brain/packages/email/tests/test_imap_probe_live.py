@@ -35,11 +35,13 @@ from collections.abc import Sequence
 
 import pytest
 from mailbox_contract import (
+    MISSING_UID,
     MailboxUnderTest,
     a_folder_that_could_not_be_opened_is_not_reported_missing,
     a_hierarchy_node_is_still_refused_when_a_caller_names_it,
     a_listed_name_is_never_one_the_port_calls_unknown,
     a_name_no_mailbox_could_have_is_one_no_mailbox_has,
+    a_uid_no_message_could_have_is_answered_as_not_there,
 )
 from pydantic import SecretStr
 
@@ -140,7 +142,9 @@ def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> 
             folder=GUARDED_FOLDER,
             refuse_searches=_nothing,
             break_folder_opening=_nothing,
+            decline_reads=_nothing,
             hierarchy_node=NOSELECT_PARENT,
+            empty_folder=REAL_FOLDER,
         )
     )
     with pytest.raises(MailboxError) as searched:
@@ -215,7 +219,9 @@ def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> N
         folder=REAL_FOLDER,
         refuse_searches=_nothing,
         break_folder_opening=_nothing,
+        decline_reads=_nothing,
         hierarchy_node=NOSELECT_PARENT,
+        empty_folder=REAL_FOLDER,
     )
     a_listed_name_is_never_one_the_port_calls_unknown(under_test)
     a_hierarchy_node_is_still_refused_when_a_caller_names_it(under_test)
@@ -239,7 +245,9 @@ def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correctio
             folder=REAL_FOLDER,
             refuse_searches=_nothing,
             break_folder_opening=_nothing,
+            decline_reads=_nothing,
             hierarchy_node=NOSELECT_PARENT,
+            empty_folder=REAL_FOLDER,
         )
     )
     with pytest.raises(FolderUnknownError) as raised:
@@ -256,6 +264,38 @@ def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correctio
             mailbox.fetch(name, "1")
         assert refused.value.folder == name
         assert "Invalid mailbox name" in str(refused.value.__cause__)
+
+
+@pytest.mark.integration
+def test_a_uid_no_message_has_is_not_there_in_this_server_s_empty_folders() -> None:
+    """The second server's answer to the read the Bridge got wrong one command down.
+
+    Every folder here holds no mail, so this is the empty-folder case on a server that follows
+    the standard. The port answers ``None`` for a uid no message has and for every string that
+    is not a uid, and the raw dialogue records why the adapter fetches by uid rather than
+    searching for the uid first: this server answers ``UID SEARCH UID <n>`` in an empty folder
+    with ``OK`` and nothing found, where the Bridge answers ``NO no such message``, and both
+    answer ``UID FETCH <n>`` with ``OK`` and no data, which RFC 3501 defines as a uid no message
+    has (ADR-0022 fetch-by-uid addendum). Only the second answer is one the port reads.
+    """
+    mailbox = probe_mailbox()
+    assert list(mailbox.search(REAL_FOLDER, "ALL", 1)) == []
+    assert mailbox.fetch(REAL_FOLDER, MISSING_UID) is None
+    a_uid_no_message_could_have_is_answered_as_not_there(
+        MailboxUnderTest(
+            mailbox=mailbox,
+            folder=REAL_FOLDER,
+            refuse_searches=_nothing,
+            break_folder_opening=_nothing,
+            decline_reads=_nothing,
+            hierarchy_node=NOSELECT_PARENT,
+            empty_folder=REAL_FOLDER,
+        )
+    )
+    with probe_dialogue() as conn:
+        conn.select(f'"{REAL_FOLDER}"', readonly=True)
+        assert conn.uid("SEARCH", "UID", MISSING_UID) == ("OK", [b""])
+        assert conn.uid("FETCH", MISSING_UID, "(UID)") == ("OK", [None])
 
 
 @pytest.mark.integration

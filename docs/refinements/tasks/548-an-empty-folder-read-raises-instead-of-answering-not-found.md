@@ -1,6 +1,6 @@
 # A read of an empty folder raises instead of answering not-found, so the turn is tainted
 
-**Status:** open, actionable
+**Status:** landed 2026-09-05
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -44,3 +44,19 @@ which is where the case moves up into the trusted set beside the other four.
 - 2026-09-04: opened by the live half of
   [533](533-the-unfenced-correction-is-unmeasured-on-the-cortex.md), which measured it against a
   real Bridge and recorded it in the ADR-0013 addendum on the own texts against a Bridge.
+- 2026-09-05: landed. Re-derived at the protocol level against Proton Mail Bridge 03.26.00, the
+  `NO no such message` answers the `UID SEARCH` imap-tools sends before its FETCH rather than a
+  FETCH, and only in a folder whose message count is zero; the `UID FETCH` itself answers `OK`
+  with no data in every folder, which RFC 3501 defines as a uid no message has, on the Bridge and
+  on the probe's Dovecot 2.3.21 alike. `ImapMailbox.fetch` now sends that one FETCH
+  (`brain/packages/email/src/cortex_email/uidfetch.py`), reads absence off its answer, holds the
+  uid to RFC 3501's grammar first, and raises for any other status. Two faults the entry did not
+  name went with it: imap-tools' own `TypeError` for `abc` had been crossing the port as itself,
+  and `1:*` had returned the folder's first message under a uid nobody named. The contract gained
+  four checks over both fixtures, the live row moved into the trusted set and passes off the
+  Bridge, and the email and probe suites gained a row each. Written up in the
+  [ADR-0022 addendum on reading absence off the FETCH's own answer](../../adr/ADR-0022-email-write-confirmer.md#addendum-2026-09-05-a-message-that-is-not-there-is-read-off-the-fetchs-own-answer),
+  with the mutation table. Opens
+  [550](550-a-uid-search-key-in-a-folder-holding-no-mail-is-refused-by-the-bridge-and-stays-untyped.md),
+  [551](551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md) and
+  [552](552-the-uid-parameter-of-read-email-carries-no-description.md).

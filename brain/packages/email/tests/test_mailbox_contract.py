@@ -14,7 +14,14 @@ from collections.abc import Callable
 from imaplib import IMAP4
 
 import pytest
-from imap_stub import UNOPENABLE_FOLDER_ANSWER, FakeBox, Msg, config, patch_box
+from imap_stub import (
+    DECLINED_READ_ANSWER,
+    UNOPENABLE_FOLDER_ANSWER,
+    FakeBox,
+    Msg,
+    config,
+    patch_box,
+)
 from imap_tools import MailboxFolderSelectError
 from mailbox_contract import ALL_CHECKS, WIRE_ANSWER, Check, MailboxUnderTest
 from mailbox_fake import FakeMailbox
@@ -25,6 +32,9 @@ _FOLDER = "INBOX"
 # The name each fixture's server lists and no mailbox has, named as a parent so it reads as
 # what it is; the live probe uses a real one that a real Dovecot builds.
 _NODE = "Parent"
+# A folder each fixture's server has and keeps no mail in, so a read there asks about a message
+# in a place that has none; on the live Bridge it is whichever folder of the account holds none.
+_EMPTY = "Archive"
 _SIMPLE = (
     b"From: Alice <alice@example.com>\r\nSubject: Lunch\r\n"
     b"Date: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nLet's do lunch.\r\n"
@@ -34,19 +44,21 @@ type Build = Callable[[pytest.MonkeyPatch], MailboxUnderTest]
 
 
 def _fake(_monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
-    mailbox = FakeMailbox(folders=[_FOLDER], nodes=[_NODE], found=[RawEmail("7", _SIMPLE)])
+    mailbox = FakeMailbox(folders=[_FOLDER, _EMPTY], nodes=[_NODE], found=[RawEmail("7", _SIMPLE)])
     return MailboxUnderTest(
         mailbox=mailbox,
         folder=_FOLDER,
         refuse_searches=mailbox.refuse,
         break_folder_opening=mailbox.break_folder_opening,
+        decline_reads=mailbox.decline_reads,
         hierarchy_node=_NODE,
+        empty_folder=_EMPTY,
     )
 
 
 def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
     """The real adapter over a stand-in box whose server can be made to answer BAD."""
-    box = FakeBox(names=[_FOLDER], messages=[Msg("7", _SIMPLE)], nodes=[_NODE])
+    box = FakeBox(names=[_FOLDER, _EMPTY], messages=[Msg("7", _SIMPLE)], nodes=[_NODE])
 
     def refuse() -> None:
         # What imaplib raises out of `UID SEARCH` when the tagged response is BAD.
@@ -58,13 +70,19 @@ def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
         # reason.
         box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
 
+    def decline_reads() -> None:
+        # A NO to UID FETCH, which no server this repo can reach has sent either.
+        box.fetch_answer = DECLINED_READ_ANSWER
+
     patch_box(monkeypatch, box)
     return MailboxUnderTest(
         mailbox=ImapMailbox(config()),
         folder=_FOLDER,
         refuse_searches=refuse,
         break_folder_opening=break_folder_opening,
+        decline_reads=decline_reads,
         hierarchy_node=_NODE,
+        empty_folder=_EMPTY,
     )
 
 

@@ -40,6 +40,11 @@ class Mailbox(Protocol):
     list a name that is only a node in its folder hierarchy, so an implementation has to filter
     those out: a node passed on comes back as `FolderUnknownError`, sending a model to the list
     for a name that list had just given it.
+
+    `fetch` answers `None` for a uid no message has, in a folder holding mail and in one holding
+    none alike, and for a string that is not a uid at all, since no message can have it. An
+    implementation answers `None` only when it can show the message is not there, so a read the
+    server declined for a reason of its own is a `MailboxError`, never an absent message.
     """
 
     def list_folders(self) -> Sequence[str]: ...

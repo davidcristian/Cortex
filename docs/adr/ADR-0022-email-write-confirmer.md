@@ -1907,3 +1907,135 @@ docker on all eight images. One thing could not be shown at compose level: `dock
 subnetted`, which is an environment condition unrelated to any of this, so the container-level
 `docker create` above stands in for it and `docker compose config` was used to confirm the tmpfs
 reaches the service.
+
+## Addendum (2026-09-05): a message that is not there is read off the FETCH's own answer
+
+Closes [R-548](../refinements/tasks/548-an-empty-folder-read-raises-instead-of-answering-not-found.md),
+the one answer the own-text overlay could not reach against a real Bridge (ADR-0013 addendum on
+the own texts against a Bridge): a `read_email` of a uid in a folder holding no mail raised a plain
+`MailboxError`, FastMCP restated it, and the turn was tainted by a message that was never read.
+The entry asked for a classification in `ImapMailbox.fetch` that would make an empty folder's `NO`
+the not-there answer, with the care the unknown-folder addendum took over a `NO` to `SELECT`.
+Re-deriving it against the code and at the protocol level changed what the fix is.
+
+**The `NO` was never to a FETCH.** imap-tools' `fetch` sends a `UID SEARCH` for the uid before it
+sends any `UID FETCH`: `BaseMailBox.fetch` calls `uids`, which runs `UID SEARCH CHARSET US-ASCII
+UID <uid>` and raises `MailboxUidsError` on anything but `OK`, and that search is what the Bridge
+refuses. Measured through a raw imaplib dialogue against Proton Mail Bridge 03.26.00 in every
+folder of the account, the fault is the folder's message count and nothing else:
+
+| in a folder whose EXISTS is | `UID SEARCH CHARSET US-ASCII UID 999` | `UID SEARCH ... ALL` | `UID FETCH 999 (BODY.PEEK[] UID FLAGS RFC822.SIZE)` |
+| --- | --- | --- | --- |
+| 0 (`INBOX`, `Folders`, `Labels`, `Starred`, `Archive`) | `NO no such message`, for `1`, `999` and `4294967290` alike | `OK` with nothing found | `OK` with no data |
+| above 0 (the other thirteen) | `OK` with nothing found | `OK` with the uids | `OK` with no data |
+
+So the FETCH the adapter never reached was answering correctly all along, and the search in front
+of it was the whole fault. The entry's other claim held: the fault is emptiness rather than the
+uid.
+
+**What the standard defines, and what the two servers do.** RFC 3501 section 6.4.8 says of `UID
+FETCH` that a non-existent unique identifier is ignored without any error message generated, so
+that the command may return `OK` without any data. That is a definition of absence, in the
+standard's own words, for the one command the adapter needs. A `SEARCH` has no such sentence, and
+what a server answers a `UID` key in a mailbox holding nothing is left to the server. Dovecot
+2.3.21, run as the probe, answers that search `OK` with nothing found in its empty folders and
+the FETCH `OK` with no data, so the Bridge's `NO` is one server's reading of an undefined case,
+and the FETCH's answer is what both servers share.
+
+**The decision: send the FETCH, read absence off its own answer, and read nothing else.**
+`ImapMailbox.fetch` now sends the one `UID FETCH` itself (`uidfetch.py`, through imap-tools'
+documented `box.client`) with the parts imap-tools would have composed for a whole, unseen read,
+and answers `None` on an `OK` carrying no data. Every other status is raised as imap-tools raises
+it out of its own fetch, so a `NO` to the FETCH reaches the model as a mailbox that could not
+answer, with the server's text on it, which is the direction the folder classification fails in: a
+message that cannot be shown absent is not reported absent. Three other ways to prove absence were
+weighed and passed over. Parsing the `NO`'s words would learn one server's sentence for a command
+the adapter no longer sends, and a `NO` to the FETCH is exactly the case that must not be read as
+absence. Reading the message count off the EXAMINE (`OK [b'0']`) is honest and free, since the
+count is already in hand, and it answers only the empty folder, where the FETCH's definition
+answers every folder and the count adds nothing to it. A `STATUS` or a `SEARCH ALL` before the
+FETCH costs a round trip to learn what the FETCH says on its own. The change also removes the
+search round trip every read had paid.
+
+**A uid is held to RFC 3501's grammar before anything is sent, because the two servers read a
+string that is not one differently.** Measured on both, through the same raw dialogue:
+
+| `UID FETCH` of | Proton Mail Bridge 03.26.00 | Dovecot 2.3.21 |
+| --- | --- | --- |
+| `abc`, ` 1`, `1 2` | `BAD [Error offset=16]: expected valid digit for number`, and a sibling per shape | `BAD Invalid uidset` |
+| `0` | `BAD [Error offset=17]: expected non zero number` | `BAD Invalid uidset` |
+| `01` | message 1 | (no mail to answer with) |
+| `2,1`, `1:*` | every message in the set | `OK` with no data, holding none |
+| `4294967296` | `OK` with no data | `BAD Invalid uidset` |
+
+`uniqueid` is a decimal number with no leading zero in the unsigned 32-bit range, and `is_uid`
+holds the argument to that; anything else is answered `None` with no command sent, since no
+message can have a uid that is not a uid, the reasoning the refused-name addendum applied to a
+folder no mailbox could have. Two faults the entry did not name went with it. `A(uid="abc")` had
+raised a `TypeError` out of imap-tools' own uid parsing that crossed the port as itself, which no
+contract check had held, and `1:*` had returned the first message of the folder under a uid the
+caller never named.
+
+**The other answer to a FETCH is unseen, and the one declined read a server could be made to
+produce is a BYE.** No server this repo can reach answers a `UID FETCH` with `NO`: a uid no
+message has is `OK` with no data on both, a string that is not a number is `BAD` on both, and on
+the probe a message another session had expunged still answers the whole-message FETCH `OK` with
+no data. One declined read could be produced. A message appended to the probe's `Feigned` and its
+dbox file made unreadable to the mail process (`chown root`, `chmod 000` inside the container) has
+Dovecot answer the whole-message FETCH with `* BYE FETCH failed: Internal error occurred. Refer to
+server log for more information.` and drop the connection, which imaplib raises as its abort and
+the adapter wraps as it wraps every lost connection. That sentence is the stand-in's
+`DROPPED_READ`, driven by a unit test of its own; the `NO` form, `DECLINED_READ_ANSWER`, is RFC
+5530's `[UNAVAILABLE]` written by this repo and labelled as such, the state the folder
+classification's fail-safe branch was in before the two-server addendum measured `[NOPERM]`.
+
+**Ports before adapters.** The `Mailbox` contract gained four checks, run over the fake and over
+`ImapMailbox` alike: a fetch of a uid a search named is that message under that uid; a uid no
+message has is `None`, in a folder holding mail and in one holding none; a string that is not a
+uid is `None`; and a read the server declined is never `None`. Both fixtures name a folder holding
+none (`empty_folder`) and carry a knob for the declined read. The fake answers by uid and keeps
+its mail in the first folder it lists, and the stand-in imap-tools box gained a `client` that
+answers a `UID FETCH` the way the measured servers do, in the Bridge's own item shape, with a
+`BAD` for a string that is not a number and the first message for a set, so a grammar check
+dropped from the adapter fails the contract's `imap` arm rather than only a unit test.
+
+**What the fix reaches.** The own-text row moved:
+`test_a_read_of_a_folder_holding_no_mail_reaches_the_not_found_answer_too` asserts the trusted
+answer where its predecessor asserted the taint, and off the same Bridge, through
+`build_tool_registry`'s wiring, it passes beside the five (3 passed, 1 skipped for the send row
+without SMTP credentials). `test_email_live.py` gained the adapter's row, which finds one folder
+of each kind and asserts the FETCH premise raw beside the port's answer (4 passed, 1 skipped), and
+`test_imap_probe_live.py` gained the second server's, which records the two answers side by side
+(8 passed on a fresh container).
+
+### Proved able to fail
+
+**Suite: the email package's unit suite, `cd brain && uv run pytest packages/email --no-cov`, 121
+tests with 13 integration rows deselected when M1 to M9 and L1 ran, 122 once the dropped-read test
+had been added for M10.** Each mutation applied alone, the run read off disk with `__pycache__`
+purged, and the file restored from a copy afterwards.
+
+| # | mutation | result |
+|---|---|---|
+| M1 | a `NO` to the FETCH answered `None` (the status check dropped) | 2 red: the declined-read contract check on the `imap` arm and the adapter test beside it |
+| M2 | every string is a uid (the grammar not checked) | 2 red: the not-a-uid contract check on the `imap` arm and the no-command adapter test |
+| M3 | an `OK` with no data parsed as a message | 2 red: the not-there contract check on the `imap` arm and the missing-uid adapter test |
+| M4 | the uid checked before the folder | 1 red: the folder-first adapter test |
+| M5 | the read without `PEEK`, so the Seen flag is set | 1 red: the read-only adapter test |
+| M6 | a leading zero and zero itself accepted as uids | 2 red: as M2 |
+| M7 | the 32-bit ceiling dropped | 1 red: the no-command adapter test, since both servers answer that number without a message |
+| M8 | the fake answers a fetch with whatever it holds first | 2 red: both uid contract checks on the `fake` arm |
+| M9 | the stand-in answers its messages in every folder | 1 red: the not-there contract check on the `imap` arm, at the assertion that the empty folder is empty |
+| M10 | a read the connection dropped on answered `None` | 2 red: the dropped-read adapter test and the failure-wrapping test beside it |
+| L1 | the old read restored, imap-tools' search-first fetch | 7 red in the unit suite; live against the Bridge, the own-text row (1 of 4, 1 skipped) and the email suite's row (1 of 5, 1 skipped) red, which is the row moving |
+
+**What this opens.** The search itself still meets the Bridge's `NO`: a `UID` criterion in
+`search_emails` against a folder holding no mail comes back as a mailbox that could not answer,
+filed as
+[a refinement](../refinements/tasks/550-a-uid-search-key-in-a-folder-holding-no-mail-is-refused-by-the-bridge-and-stays-untyped.md).
+The `NO` to a FETCH has never been seen and the one declined read was produced by hand rather than
+by the fixture, filed as
+[another](../refinements/tasks/551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md).
+And `read_email` tells a model nothing about what a uid is, now that a string that is not one is
+answered as a message that is not there, filed as
+[a third](../refinements/tasks/552-the-uid-parameter-of-read-email-carries-no-description.md).

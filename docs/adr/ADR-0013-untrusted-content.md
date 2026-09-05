@@ -1095,5 +1095,11 @@ any folder: no contract check holds the live adapter to that sentence. Filed as
 and asserted in the live file meanwhile, so the day the adapter classifies that answer the row
 goes red and the case joins the trusted set.
 
+**Closed 2026-09-05**, by the [ADR-0022](ADR-0022-email-write-confirmer.md) addendum on reading
+absence off the FETCH's own answer. The `NO` was to the `UID` search imap-tools sent before its
+FETCH rather than to a FETCH, and only in a folder whose message count is zero; `ImapMailbox.fetch`
+now sends the one `UID FETCH` whose `OK` with no data RFC 3501 defines as a uid no message has,
+and the row moved into the trusted set, where it passes off the same Bridge beside the other five.
+
 Procedure lives in [runbooks/email-imap.md](../runbooks/email-imap.md). No code changed here;
 both addenda are measurements recorded at the origin ADR.

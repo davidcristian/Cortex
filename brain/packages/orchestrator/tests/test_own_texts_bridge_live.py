@@ -6,9 +6,10 @@ own process against the live Bridge and reaches it the way the brain does, so ea
 originates in the server's own reply (a `BAD` to a malformed search, a `NO` to a folder no
 mailbox has) and crosses the streamable-http transport, the reconnecting registry, the call
 bound and the gated overlay before the own-text rule sees it. What it settles is the whole live
-claim of that build: that the four answers come back `Trust.TRUSTED` off a real server, that the
-audit line reads ``ok=False`` beside ``trust=trusted``, and that a `send_email` after one of them
-reaches the confirmation card instead of the taint block.
+claim of that build: that the four answers come back `Trust.TRUSTED` off a real server, the
+not-found one in a folder holding mail and in one holding none alike, that the audit line reads
+``ok=False`` beside ``trust=trusted``, and that a `send_email` after one of them reaches the
+confirmation card instead of the taint block.
 
 Integration-marked (excluded from CI and the coverage gate). Needs a running Bridge with the
 credentials in the env, per docs/runbooks/email-imap.md:
@@ -126,9 +127,9 @@ async def _folders(registry: ToolRegistry) -> tuple[str | None, str | None]:
     """One folder of this mailbox holding mail and one holding none, or ``None`` for either.
 
     Both are found rather than named, because which folders exist and which are empty is a
-    property of whoever's account the Bridge is serving. The two are needed apart because a
-    ``read_email`` of a uid that is not there answers one way in each, which is the whole of
-    the finding below.
+    property of whoever's account the Bridge is serving. The two are needed apart because this
+    server answered a ``read_email`` of a uid that is not there differently in each until the
+    adapter fetched by uid, so the not-found row is driven in both.
     """
     listed = await registry.invoke(ToolCall(id="f-0", name=_LIST_TOOL, arguments={}))
     with_mail: str | None = None
@@ -160,8 +161,8 @@ async def test_the_five_own_answers_off_a_real_bridge_come_back_trusted(
     the byte equality the rule turns on: a server whose wording moved, or a renderer that stopped
     matching it, lands the answer on the tainting side and fails here.
 
-    The not-found row runs in a folder that holds mail, because in one that holds none this
-    server answers something else entirely, which the test after this one records.
+    The not-found row runs in a folder that holds mail; the same row in a folder that holds none
+    is the test after this one, kept apart only because an account need not have such a folder.
     """
     with_mail, _ = await _folders(registry)
     if with_mail is None:
@@ -198,22 +199,18 @@ async def test_the_five_own_answers_off_a_real_bridge_come_back_trusted(
 
 
 @pytest.mark.integration
-async def test_a_read_of_an_empty_folder_never_reaches_the_not_found_answer(
+async def test_a_read_of_a_folder_holding_no_mail_reaches_the_not_found_answer_too(
     registry: ToolRegistry,
 ) -> None:
-    """A ``read_email`` of a folder holding no mail raises here, so the own text is unreached.
+    """The not-found row again, in a folder holding no mail, where this server once refused it.
 
-    The `Mailbox` port says ``fetch`` returns ``None`` when the message does not exist, and the
-    sidecar composes ``message <uid> not found in <folder>`` from that ``None``. A folder holding
-    mail behaves that way, and the row above proves it. A folder holding none is answered ``NO``
-    with ``no such message`` for every uid, which `ImapMailbox` classifies as a plain
-    `MailboxError`; FastMCP restates it as ``Error executing tool read_email: ...``, the overlay
-    has no matching text, and the turn is tainted by a message that was never read. The
-    in-process check could not see this: its stand-in mailbox returns ``None`` for any uid,
-    which is the port contract nothing holds the live adapter to.
-
-    Asserted rather than left as a note, so the day the adapter classifies that answer this row
-    goes red and the case joins the trusted set above.
+    The sixth row of the trusted set, beside the five above. It stands on its own only because a
+    folder holding none is a property of the account, which the five do not depend on. Until the
+    adapter fetched by uid, this Bridge answered the search imap-tools sent for the uid with
+    ``NO no such message`` in such a folder, `ImapMailbox` raised a plain `MailboxError`, FastMCP
+    restated it, and the turn was tainted by a message that was never read; the row recorded that
+    and went red on the fix (ADR-0022 fetch-by-uid addendum). Now the read is one ``UID FETCH``
+    whose ``OK`` with no data is the answer in both kinds of folder, and the own text is reached.
     """
     _, without = await _folders(registry)
     if without is None:
@@ -221,9 +218,11 @@ async def test_a_read_of_an_empty_folder_never_reaches_the_not_found_answer(
     result = await registry.invoke(
         ToolCall(id="u-1", name=_READ_TOOL, arguments={"folder": without, "uid": _MISSING_UID})
     )
-    assert result.trust is Trust.UNTRUSTED
-    assert result.content != not_found({"uid": _MISSING_UID, "folder": without})
-    assert result.is_error
+    assert (result.trust, result.content) == (
+        Trust.TRUSTED,
+        not_found({"uid": _MISSING_UID, "folder": without}),
+    )
+    assert not result.is_error
 
 
 @pytest.mark.integration

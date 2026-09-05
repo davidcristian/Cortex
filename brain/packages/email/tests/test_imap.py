@@ -11,6 +11,8 @@ from imaplib import IMAP4
 
 import pytest
 from imap_stub import (
+    DECLINED_READ_ANSWER,
+    DROPPED_READ,
     NONEXISTENT_NODE_FLAGS,
     OPEN_NODE_FLAGS,
     OTHER_MISSING_FOLDER_ANSWER,
@@ -22,6 +24,7 @@ from imap_stub import (
     patch_box,
 )
 from imap_tools import MailboxFolderSelectError
+from mailbox_contract import IMPOSSIBLE_UIDS
 
 from cortex_email import (
     FolderUnknownError,
@@ -29,6 +32,11 @@ from cortex_email import (
     MailboxError,
     RawEmail,
     SearchRefusedError,
+)
+
+_SIMPLE = (
+    b"From: Alice <alice@example.com>\r\nSubject: Lunch\r\n"
+    b"Date: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nLet's do lunch.\r\n"
 )
 
 
@@ -86,17 +94,81 @@ def test_search_is_headers_only_read_only_and_unseen(monkeypatch: pytest.MonkeyP
 
 
 def test_fetch_one_found_is_read_only_and_unseen(monkeypatch: pytest.MonkeyPatch) -> None:
-    box = FakeBox(messages=[Msg("7", b"full7")])
+    # One UID FETCH and no search before it, asking for the whole message with PEEK, which is
+    # what leaves the Seen flag alone; the uid comes back parsed off the server's own item.
+    box = FakeBox(messages=[Msg("7", _SIMPLE)])
     patch_box(monkeypatch, box)
-    assert ImapMailbox(config()).fetch("INBOX", "7") == RawEmail("7", b"full7")
-    assert box.set_calls == [("INBOX", True)]
-    ((_, limit, _headers, mark_seen),) = box.fetch_calls
-    assert (limit, mark_seen) == (1, False)
+    read = ImapMailbox(config()).fetch("INBOX", "7")
+    assert read is not None
+    assert (read.uid, read.raw[:6]) == ("7", b"From: ")
+    assert box.set_calls == [("INBOX", True)]  # EXAMINE, never SELECT
+    assert box.fetch_calls == []  # by uid, with no search for the uid first
+    ((command, uid, parts),) = box.client.uid_calls
+    assert (command, uid) == ("FETCH", "7")
+    assert "BODY.PEEK[]" in parts
+    assert "UID" in parts.split()
 
 
-def test_fetch_one_missing_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_box(monkeypatch, FakeBox(messages=[]))
+def test_fetch_one_missing_is_asked_and_answered_with_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The FETCH is sent and the server's OK carries no data, which is the standard's own answer
+    # for a uid no message has, so None is read off that rather than off any words.
+    box = FakeBox(messages=[])
+    patch_box(monkeypatch, box)
     assert ImapMailbox(config()).fetch("INBOX", "999") is None
+    assert [call[:2] for call in box.client.uid_calls] == [("FETCH", "999")]
+
+
+def test_a_read_the_server_declined_keeps_the_library_s_account_of_why(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A NO to the FETCH is the one answer that must not become None, and no server this repo can
+    # reach has sent one, so it is scripted. That it is not reported absent is a contract check;
+    # what this adds is that the base error carries the server's own text, the only explanation
+    # an operator gets for a mailbox that could not answer.
+    box = FakeBox(messages=[Msg("7", _SIMPLE)])
+    box.fetch_answer = DECLINED_READ_ANSWER
+    patch_box(monkeypatch, box)
+    with pytest.raises(MailboxError) as raised:
+        ImapMailbox(config()).fetch("INBOX", "7")
+    assert "could not read that message" in str(raised.value)
+    assert "UNAVAILABLE" in str(raised.value)
+
+
+def test_a_read_the_server_dropped_the_connection_on_is_not_reported_as_not_there(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The one declined read a real server could be made to produce is a BYE and a closed
+    # connection rather than a NO: the probe's Dovecot, over a message file it cannot open, which
+    # imaplib raises as its abort. It crosses the port as the base error carrying that text and
+    # never as None, since nothing about a connection that went away says the message is absent.
+    box = FakeBox(messages=[Msg("7", _SIMPLE)], fetch_error=DROPPED_READ)
+    patch_box(monkeypatch, box)
+    with pytest.raises(MailboxError) as raised:
+        ImapMailbox(config()).fetch("INBOX", "7")
+    assert not isinstance(raised.value, FolderUnknownError)
+    assert "Internal error occurred" in str(raised.value)
+
+
+def test_a_uid_no_message_could_have_sends_no_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A string that is not a uid is answered here, because the two servers read each of these
+    # shapes differently and one of them reads a set or a range as several messages. Nothing
+    # reaches the wire, so nothing a server would have answered can leak into the answer.
+    box = FakeBox(messages=[Msg("7", _SIMPLE)])
+    patch_box(monkeypatch, box)
+    for uid in IMPOSSIBLE_UIDS:
+        assert ImapMailbox(config()).fetch("INBOX", uid) is None, uid
+    assert box.client.uid_calls == []
+
+
+def test_the_folder_is_checked_before_the_uid(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Both arguments can be wrong at once, and the folder correction is the one a model can act
+    # on, so a guessed folder is refused before the uid is looked at, as the search refuses it.
+    patch_box(monkeypatch, FakeBox(names=["INBOX"]))
+    with pytest.raises(FolderUnknownError) as raised:
+        ImapMailbox(config()).fetch("Receipts", "abc")
+    assert raised.value.folder == "Receipts"
 
 
 def test_ssl_mode_uses_the_implicit_tls_box(monkeypatch: pytest.MonkeyPatch) -> None:
