@@ -38,3 +38,11 @@ to the tail: the last sentence, not the last characters. Record the reply in `RE
 - 2026-09-05: opened by the close of
   [R-543](543-the-description-confound-grows-with-the-image-budget.md), whose readings addendum
   at ADR-0029 records why quote marks are not among the closers a tail sheds.
+- 2026-09-05: the reading this entry proposes for its close, the tail read as its last sentence
+  and scored as `_alone` scores a line, was measured by the close of
+  [R-568](568-a-report-of-the-rule-without-its-quote-marks-reads-as-applied.md) over the
+  twenty-four tail replies `RECORDED` holds: it re-sorts eight recorded applications as
+  descriptions, every one that joins the notice to the summary with a comma or appends it after
+  the quoted rule without a full stop. The trigger has not fired, and the close needs a rule
+  other than that one; the measurement is the
+  [ADR-0029 shed-quote-marks addendum](../../adr/ADR-0029-vision-screen-capture.md).
