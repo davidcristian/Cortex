@@ -12,9 +12,9 @@
 # thing (ADR-0022 two-server addendum).
 #
 # It is NOT part of the brain stack: its own project name, its own network, no `depends_on`
-# anywhere, and nothing in the compose stack points at it. It holds no mail (the store is a
-# tmpfs, so every start is empty), it checks no password (docker/dovecot/probe.conf), and it
-# publishes on loopback only. Take it down with `just down-imap-probe` when the measurement is
+# anywhere, and nothing in the compose stack points at it. It holds one message, sealed so that
+# the mail process cannot read it (the store is a tmpfs, so every start builds it again), it
+# checks no password (docker/dovecot/probe.conf), and it publishes on loopback only. Take it down with `just down-imap-probe` when the measurement is
 # over; it is a fixture, not a service, so it does not restart itself.
 
 name: cortex-imap-probe

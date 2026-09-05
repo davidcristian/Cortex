@@ -169,7 +169,7 @@ def _opens(box: BaseMailBox, folder: str) -> bool:
 
     Read-only like every other open here (EXAMINE), and paid once per flagged name rather than
     once per listed name, which is what keeps the check off the ordinary mailboxes: a Bridge
-    flags two of nineteen names and the probe's Dovecot one of six.
+    flags two of nineteen names and the probe's Dovecot one of seven.
     """
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]

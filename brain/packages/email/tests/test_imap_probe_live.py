@@ -3,10 +3,12 @@
 Integration-marked: needs the probe stack up (`just up-imap-probe`), never runs in CI. Run it
 with `just email-folder-probe`, which finds where the server answers and passes host and port in;
 CORTEX_EMAIL_PROBE_PORT unset means the stack is not up and every test here skips. The stack is
-docker/docker-compose.imap-probe.yml, and its six listed names, of which five are mailboxes and
+docker/docker-compose.imap-probe.yml, and its seven listed names, of which six are mailboxes and
 one is a `\\Noselect` node that is not, are built by docker/dovecot/probe-mailboxes.sh, whose
-header says what each is for. A seventh name is subscribed and not there, which is the one way to
-make this server send RFC 5258's newer word for a name that is not a mailbox.
+header says what each is for. An eighth name is subscribed and not there, which is the one way to
+make this server send RFC 5258's newer word for a name that is not a mailbox. One mailbox holds
+one message, sealed so that the mail process cannot open it, which is the one way to make this
+server decline a read.
 
 Why a second server. A `NO` to `SELECT` covers two facts, a mailbox that does not exist and a
 mailbox that does and cannot be opened, and `ImapMailbox` types the first and only the first.
@@ -41,6 +43,7 @@ from mailbox_contract import (
     a_hierarchy_node_is_still_refused_when_a_caller_names_it,
     a_listed_name_is_never_one_the_port_calls_unknown,
     a_name_no_mailbox_could_have_is_one_no_mailbox_has,
+    a_read_the_server_declined_is_not_reported_as_not_there,
     a_uid_no_message_could_have_is_answered_as_not_there,
 )
 from pydantic import SecretStr
@@ -72,6 +75,15 @@ FEIGNED_FOLDER = "Feigned"
 # That child. Its subscription is the whole cause: RFC 3501 has an `LSUB` of `%` flag an
 # unsubscribed name with subscribed children `\Noselect` whatever the name really is.
 FOLLOWED_SUBSCRIPTION = "Feigned/Followed"
+# A real mailbox that opens and holds one message whose file the mail process cannot open, which
+# is the one read this server declines. Under the `imap_fetch_failure = no-after` the probe's
+# configuration sets, the FETCH itself is answered with a tagged `NO`, the answer the Bridge cannot
+# be made to send and the contract's declined-read check needs; under Dovecot's default the same
+# read is a `* BYE` and a dropped connection, which the unit suite scripts as `DROPPED_READ`.
+SEALED_FOLDER = "Sealed"
+# That message's uid, the first a fresh mailbox assigns. The file the fixture shuts is named after
+# it, and it is the uid the contract check reads.
+SEALED_UID = "1"
 # Four shapes of name this server refuses to read as a mailbox name at all, each answered with
 # RFC 5530's `[CANNOT]` and its own reason: a trailing separator, a leading one, two of them
 # together, and a relative path. They are here rather than in the unit suite because they are
@@ -156,6 +168,52 @@ def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> 
         # The words themselves, which are the evidence: RFC 5530's code for a mailbox that is
         # there and not available to this account, and nothing a missing folder ever says.
         assert "[NOPERM] Permission denied" in str(raised.value)
+
+
+@pytest.mark.integration
+def test_a_message_this_server_will_not_read_is_never_reported_missing() -> None:
+    """A read the server declines is refused without being answered as a message not there.
+
+    This is the assumption the read's fail-safe direction rests on, and only a server that answers
+    a `UID FETCH` with `NO` can show it, which the Bridge never does. Three things hold at once:
+    the folder is listed and the message is in it, so the read demonstrably asks about a message
+    that exists; the read is refused as the base error, carrying the server's own code and never
+    typed as a missing folder; and the same folder still answers a uid no message has as not
+    there, so the two answers are told apart on one server in one folder. The port contract's own
+    check runs over the live refusal rather than being restated, with the fixture's uid as the
+    message it reads, since here the refusal belongs to one message rather than to the server.
+    The raw dialogue records the answer itself, a tagged `NO` on a connection that stays open,
+    which is what `imap_fetch_failure = no-after` changes from the default's `BYE`.
+    """
+    mailbox = probe_mailbox()
+    assert SEALED_FOLDER in list(mailbox.list_folders())
+    a_read_the_server_declined_is_not_reported_as_not_there(
+        MailboxUnderTest(
+            mailbox=mailbox,
+            folder=SEALED_FOLDER,
+            refuse_searches=_nothing,
+            break_folder_opening=_nothing,
+            decline_reads=_nothing,
+            hierarchy_node=NOSELECT_PARENT,
+            empty_folder=REAL_FOLDER,
+            declined_uid=SEALED_UID,
+        )
+    )
+    with pytest.raises(MailboxError) as read:
+        mailbox.fetch(SEALED_FOLDER, SEALED_UID)
+    with pytest.raises(MailboxError) as searched:
+        mailbox.search(SEALED_FOLDER, "ALL", 1)
+    for raised in (read, searched):
+        assert not isinstance(raised.value, FolderUnknownError)
+        assert "[SERVERBUG] Internal error occurred" in str(raised.value)
+    assert mailbox.fetch(SEALED_FOLDER, MISSING_UID) is None
+    with probe_dialogue() as conn:
+        assert conn.select(f'"{SEALED_FOLDER}"', readonly=True) == ("OK", [b"1"])
+        status, data = conn.uid("FETCH", SEALED_UID, "(BODY.PEEK[] UID FLAGS RFC822.SIZE)")
+        assert status == "NO"
+        assert isinstance(data[0], bytes)
+        assert data[0].startswith(b"[SERVERBUG] Internal error occurred")
+        assert conn.noop()[0] == "OK"
 
 
 @pytest.mark.integration
@@ -270,13 +328,13 @@ def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correctio
 def test_a_uid_no_message_has_is_not_there_in_this_server_s_empty_folders() -> None:
     """The second server's answer to the read the Bridge got wrong one command down.
 
-    Every folder here holds no mail, so this is the empty-folder case on a server that follows
-    the standard. The port answers ``None`` for a uid no message has and for every string that
-    is not a uid, and the raw dialogue records why the adapter fetches by uid rather than
-    searching for the uid first: this server answers ``UID SEARCH UID <n>`` in an empty folder
-    with ``OK`` and nothing found, where the Bridge answers ``NO no such message``, and both
-    answer ``UID FETCH <n>`` with ``OK`` and no data, which RFC 3501 defines as a uid no message
-    has (ADR-0022 fetch-by-uid addendum). Only the second answer is one the port reads.
+    Every folder here but the sealed one holds no mail, so this is the empty-folder case on a
+    server that follows the standard. The port answers ``None`` for a uid no message has and for
+    every string that is not a uid, and the raw dialogue records why the adapter fetches by uid
+    rather than searching for the uid first: this server answers ``UID SEARCH UID <n>`` in an
+    empty folder with ``OK`` and nothing found, where the Bridge answers ``NO no such message``,
+    and both answer ``UID FETCH <n>`` with ``OK`` and no data, which RFC 3501 defines as a uid no
+    message has (ADR-0022 fetch-by-uid addendum). Only the second answer is one the port reads.
     """
     mailbox = probe_mailbox()
     assert list(mailbox.search(REAL_FOLDER, "ALL", 1)) == []

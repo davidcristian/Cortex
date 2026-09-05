@@ -2,9 +2,10 @@
 # Put the probe's configuration where dovecot reads it, build its mailbox tree, then become the
 # IMAP server (the container's entrypoint).
 #
-# Six names a LIST returns, five of them mailboxes and one of them deliberately not, all in
+# Seven names a LIST returns, six of them mailboxes and one of them deliberately not, all in
 # place before anything connects because the mail store is a tmpfs and starts empty every time.
-# Between them they cover every answer a SELECT of a listed name can get:
+# Between them they cover every answer a SELECT of a listed name can get, and one answer a FETCH
+# can get:
 #
 #   INBOX            opens, so a run proves the login and the reader work before it asks about a
 #                    refusal
@@ -25,8 +26,14 @@
 #                    else, because there the flag and the refusal are one fact on this server.
 #   Feigned/Followed the subscribed child that puts the flag on its parent, and a mailbox in its
 #                    own right, so nothing about the pair depends on a name that cannot be opened
+#   Sealed           a real mailbox that opens and holds one message whose dbox file the mail
+#                    process cannot open (owned by root, mode 000), so a FETCH of it is the one
+#                    read this server declines, answered with a tagged NO under the
+#                    `imap_fetch_failure` probe.conf sets. It is the one name here finished after
+#                    the server has run once, at the bottom, because a dbox message exists only
+#                    once an index names it and only a server writes that index
 #
-# And a seventh name that no LIST returns, which is why it is written into a file rather than made
+# And an eighth name that no LIST returns, which is why it is written into a file rather than made
 # as a directory:
 #
 #   Ghost            subscribed and not there, so a LIST that asks for subscriptions answers with
@@ -82,9 +89,42 @@ mkdir -p "$ROOT/mailboxes/INBOX/dbox-Mails" \
     "$ROOT/mailboxes/Guarded/dbox-Mails" \
     "$ROOT/mailboxes/Parent/Child/dbox-Mails" \
     "$ROOT/mailboxes/Feigned/dbox-Mails" \
-    "$ROOT/mailboxes/Feigned/Followed/dbox-Mails"
+    "$ROOT/mailboxes/Feigned/Followed/dbox-Mails" \
+    "$ROOT/mailboxes/Sealed/dbox-Mails"
 printf 'owner l\n' > "$ROOT/mailboxes/Guarded/dbox-Mails/dovecot-acl"
 printf 'V\t2\n\nGhost\nFeigned/Followed\n' > "$ROOT/subscriptions"
 chown -R "$MAIL_UID:$MAIL_GID" "$CORTEX_IMAP_PROBE_MAIL_ROOT/probe"
+
+# Poll for something the server does on its own, and stop the container when it never happens,
+# so a wait that would otherwise hang names itself in the logs instead.
+wait_until() {
+    tries=0
+    until "$@"; do
+        tries=$((tries + 1))
+        if [ "$tries" -gt 50 ]; then
+            echo "gave up waiting for: $*" >&2
+            exit 1
+        fi
+        sleep 0.2
+    done
+}
+
+# Sealed's message. A dbox message exists only once an index names it, and only a running server
+# writes that index: `doveadm save` looks the account up over the auth socket the server creates,
+# and fails with `connect(/run/dovecot/auth-userdb) failed` before one is listening, which is why
+# this is not a mkdir like the rest. So the server is started once on the container's own
+# loopback, where the published port cannot reach it, the message is saved through it, the file
+# is shut, and the server is stopped again before the one below takes its place. The stop is the
+# short gap the compose healthcheck's start period covers. The uid is 1 because it is the first
+# message a fresh mailbox is given, and the file is named after the uid.
+/usr/sbin/dovecot -o listen=127.0.0.1
+wait_until test -S /run/dovecot/auth-userdb
+printf 'From: sealed@example.com\r\nSubject: Sealed\r\n\r\nA message the mail process cannot open.\r\n' \
+    | doveadm save -u probe -m Sealed
+SEALED="$ROOT/mailboxes/Sealed/dbox-Mails/u.1"
+chown root "$SEALED"
+chmod 000 "$SEALED"
+doveadm stop
+wait_until test ! -e /run/dovecot/master.pid
 
 exec /usr/sbin/dovecot -F

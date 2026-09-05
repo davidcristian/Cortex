@@ -123,23 +123,23 @@ def test_fetch_one_missing_is_asked_and_answered_with_nothing(
 def test_a_read_the_server_declined_keeps_the_library_s_account_of_why(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # A NO to the FETCH is the one answer that must not become None, and no server this repo can
-    # reach has sent one, so it is scripted. That it is not reported absent is a contract check;
-    # what this adds is that the base error carries the server's own text, the only explanation
-    # an operator gets for a mailbox that could not answer.
+    # A NO to the FETCH is the one answer that must not become None, scripted here from the one
+    # the probe's Dovecot sends over a message it cannot open. That it is not reported absent is a
+    # contract check; what this adds is that the base error carries the server's own text, the
+    # only explanation an operator gets for a mailbox that could not answer.
     box = FakeBox(messages=[Msg("7", _SIMPLE)])
     box.fetch_answer = DECLINED_READ_ANSWER
     patch_box(monkeypatch, box)
     with pytest.raises(MailboxError) as raised:
         ImapMailbox(config()).fetch("INBOX", "7")
     assert "could not read that message" in str(raised.value)
-    assert "UNAVAILABLE" in str(raised.value)
+    assert "[SERVERBUG]" in str(raised.value)
 
 
 def test_a_read_the_server_dropped_the_connection_on_is_not_reported_as_not_there(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The one declined read a real server could be made to produce is a BYE and a closed
+    # Under Dovecot's default fetch-failure setting the same declined read is a BYE and a closed
     # connection rather than a NO: the probe's Dovecot, over a message file it cannot open, which
     # imaplib raises as its abort. It crosses the port as the base error carrying that text and
     # never as None, since nothing about a connection that went away says the message is absent.

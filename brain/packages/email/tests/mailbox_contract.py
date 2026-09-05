@@ -74,6 +74,10 @@ class MailboxUnderTest:
     # about a message in a place that has none. Not a knob either: every fixture is built over
     # a server that has one.
     empty_folder: str
+    # The uid of the read `decline_reads` arranges. On the fakes the knob declines every read, so
+    # any uid serves and this default is one no message has; on a server that declines one
+    # message and no other, the probe's sealed one, it is that message's uid.
+    declined_uid: str = MISSING_UID
 
 
 type Check = Callable[[MailboxUnderTest], None]
@@ -294,7 +298,7 @@ def a_read_the_server_declined_is_not_reported_as_not_there(under_test: MailboxU
     """
     under_test.decline_reads()
     with pytest.raises(MailboxError) as raised:
-        under_test.mailbox.fetch(under_test.folder, MISSING_UID)
+        under_test.mailbox.fetch(under_test.folder, under_test.declined_uid)
     assert not isinstance(raised.value, FolderUnknownError)
 
 

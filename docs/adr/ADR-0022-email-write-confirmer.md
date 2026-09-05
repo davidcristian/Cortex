@@ -2039,3 +2039,108 @@ by the fixture, filed as
 And `read_email` tells a model nothing about what a uid is, now that a string that is not one is
 answered as a message that is not there, filed as
 [a third](../refinements/tasks/552-the-uid-parameter-of-read-email-carries-no-description.md).
+
+## Addendum (2026-09-05): the read a server declines, produced by the probe and measured as a `NO`
+
+Closes [R-551](../refinements/tasks/551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md),
+which the addendum above opened: the contract's declined-read check was driven by a `NO` this
+repo wrote (`DECLINED_READ_ANSWER`, RFC 5530's `[UNAVAILABLE]`), because no server this repo
+reaches had answered a `UID FETCH` with `NO`, and the one declined read that could be produced, a
+`* BYE` over a message file the mail process cannot open, took a hand-run step the fixture did
+not perform. The entry asked for a fixture that performs that step, and offered a second outcome:
+if a real declined read on this server is only ever the BYE, retire the written `NO`. That second
+outcome was a false alternative, and finding out why is most of what this measured.
+
+**Which answer a failed FETCH gets is a setting of the server, not a fact about it.** Dovecot
+2.3.21 carries `imap_fetch_failure`. Its default, `disconnect-immediately`, is the BYE the
+addendum above measured by hand, and `no-after` answers the same fault with a tagged `NO` on a
+connection that stays open. Measured on the probe through the adapter's own `UID FETCH <uid>
+(BODY.PEEK[] UID FLAGS RFC822.SIZE)`, over a message appended through IMAP and then made
+unreadable to the mail process (`chown root`, `chmod 000`), one configuration at a time with a
+`doveadm reload` between them:
+
+| the probe configured with | what the FETCH answered |
+| --- | --- |
+| `imap_fetch_failure = disconnect-immediately`, the default | `* BYE FETCH failed: Internal error occurred. Refer to server log for more information.` and the connection dropped, which imaplib raises as its abort |
+| `imap_fetch_failure = disconnect-after` | the same BYE and abort, a one-message FETCH having nothing to run on after the failure |
+| `imap_fetch_failure = no-after` | `NO [SERVERBUG] Internal error occurred. Refer to server log for more information. [2026-09-05 04:43:45] (0.001 + 0.000 secs).`, and a `NOOP` on the same connection answered `OK` |
+
+The server's log carries `open(.../u.1) failed: Permission denied` twice in every case. So the
+sentence the entry called the one a real declined read could be is one of three the same server
+sends for one fault, chosen by whoever configures it, and a `NO` to a `UID FETCH` is what a
+Dovecot configured to keep its connections sends. The other ways the entry listed to make this
+server decline a read were tried one at a time, and none is one:
+
+| tried | what it answered |
+| --- | --- |
+| the message's file removed rather than shut, under `no-after` | the index rebuilt, then `* BYE IMAP session state is inconsistent, please relogin.` |
+| the same under the default, for a second message | the FETCH-failed BYE above |
+| an ACL of `owner l` written into the mailbox while a session had it open | the open session's FETCH answered `OK` with the message, the rights having been read when the mailbox opened; a fresh session got `NO [NOPERM] Permission denied` at SELECT and never reached a FETCH |
+| a message another session had expunged, from the addendum above | `OK` with no data |
+
+An ACL cannot produce a `NO` to a FETCH on this server, then: the read right is checked when the
+mailbox opens and not per message. A quota was not tried, since it bounds what is saved rather
+than what is read, and the hunt was decided within its first ten minutes.
+
+**The decision: the probe sets `no-after` and seals one message.** `docker/dovecot/probe.conf`
+sets `imap_fetch_failure = no-after`, the one of the three answers the Bridge cannot produce and
+the contract's check needs; the default's BYE stays what the unit suite scripts as
+`DROPPED_READ`, measured by hand here and in the addendum above. `docker/dovecot/probe-mailboxes.sh`
+builds a seventh listed mailbox, `Sealed`, holding one message whose file is owned by root at
+mode 000. The name joins the family the fixture's names form, one word each for the state the
+name is in (`Guarded`, `Feigned`, `Ghost`): a mailbox that opens like any other while its one
+message is sealed. `Withheld` and `Locked` were the alternates. The first names who withholds
+rather than what state the message is in, and the second reads as an ACL, which is the one thing
+this is not. `Sealed` collides with no family or token; the only other spelling in the tree is a
+rejected env value in a comment in `log_format.py`.
+
+**Why the message is saved through a server that is then stopped.** A dbox message exists only
+once an index names it, and the entry was right that the entrypoint could not append one on its
+own, for a reason `probe.conf` had claimed the opposite of: `doveadm save` looks the account up
+over the auth socket the server creates, and fails with `connect(/run/dovecot/auth-userdb)
+failed: No such file or directory` in a container where no server has started, measured in a
+throwaway container over the probe's own configuration (the comment is corrected). So the
+entrypoint starts the server once with `-o listen=127.0.0.1`, where the published port cannot
+reach it, waits for the auth socket, saves the message with `doveadm save`, shuts its file,
+stops the server with `doveadm stop`, waits for the pid file to go, and then `exec`s the server
+the suite reaches, which finds the index the first one wrote. Both waits are bounded and name
+themselves in the log when they give up, the shape the tmpfs checks have. A fresh container comes
+up healthy in about seven seconds with `Sealed` at `EXISTS 1`, the FETCH answers the `NO` above
+on the restarted server, and `docker volume ls` counts ten volumes with the fixture up and ten after `down`.
+
+**Ports before adapters.** `MailboxUnderTest` gains `declined_uid`, the uid of the read
+`decline_reads` arranges, defaulting to `MISSING_UID`: on the fakes the knob declines every read,
+so any uid serves; on a server that declines one message and no other, it is that message's uid,
+and `a_read_the_server_declined_is_not_reported_as_not_there` reads it. The probe suite's new row
+runs that check over the live refusal, then asserts three things at once on the port: the folder
+is listed and the message is in it; the read and a search of the folder are both refused as the
+base error carrying `[SERVERBUG]` and never typed as a missing folder; and a uid no message has
+still answers `None` in the same folder, so the two answers are told apart on one server in one
+folder. The stand-in's `DECLINED_READ_ANSWER` is now that measured sentence, replacing the
+written `[UNAVAILABLE]`, and `scripts/fixturecouplings.py` ties `SEALED_FOLDER` to the mkdir, the
+shut file's path and the `doveadm save`, and `SEALED_UID` to the file the script shuts.
+
+### Proved able to fail
+
+**Suites: the email package's unit suite, `cd brain && uv run pytest packages/email --no-cov`,
+123 tests with 14 integration rows deselected; and the probe's live suite,
+`just email-folder-probe`, 9 rows.** Each mutation applied alone, the live suite run on a
+container restarted onto the mutated fixture where the fixture was what moved, the unit suite read
+off disk with `__pycache__` purged, and every file restored from a copy afterwards.
+
+| # | mutation | result |
+|---|---|---|
+| L1 | `imap_fetch_failure` removed from `probe.conf`, so the probe answers the default's BYE | 1 live row red, at the assertion that the base error carries `[SERVERBUG]`: it carried imaplib's abort text instead, so the row tells the NO from the BYE |
+| L2 | the `chmod 000` dropped from the entrypoint, so the sealed message opens | 1 live row red: the fetch returned the message and raised nothing |
+| L3 | the contract check reads `MISSING_UID` instead of the fixture's `declined_uid` | 1 live row red, the fetch answering `None`; 0 red in the unit suite, where the default is that uid, which is why the field exists |
+| L4 | a `NO` to the FETCH answered `None` (the adapter's status check dropped) | 1 live row red at the contract check, and 2 red in the unit suite: the declined-read contract check on the `imap` arm and the adapter test beside it |
+| L5 | the stand-in's `NO` back to the written `[UNAVAILABLE]` | 1 red in the unit suite, the adapter test that reads the server's code off the base error |
+| L6 | the suite reads uid `2` where the script seals `u.1` | `crosscheck` red on the new row, naming the token the script does not spell; and 1 live row red, the fetch of a uid no message has answering `None` |
+
+**What this opens.** The BYE the default sends is still measured by hand and driven by no live
+row, since one server runs one setting, filed as
+[a refinement](../refinements/tasks/569-the-dropped-read-under-dovecots-default-is-measured-by-hand-and-driven-by-no-live-row.md).
+A search of a folder holding one message the server cannot read is refused whole, because
+imap-tools raises on the tagged `NO` and drops whatever the FETCH delivered before it, which
+`no-after` continues past the failed message, filed as
+[another](../refinements/tasks/570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md).

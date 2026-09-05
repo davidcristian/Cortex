@@ -77,18 +77,26 @@ type Answer = tuple[str, list[bytes | tuple[bytes, bytes] | None]]
 # one holding none alike: RFC 3501's OK with no data, as imaplib renders it (ADR-0022 fetch-by-uid
 # addendum).
 NOTHING_FETCHED: Answer = ("OK", [None])
-# A NO to a UID FETCH. No server this repo can reach has sent one: the Bridge and the probe's
-# Dovecot both answer a uid no message has with `NOTHING_FETCHED`, a malformed uid with BAD, and
-# a message another session expunged with `NOTHING_FETCHED` again. So this is RFC 5530's own code
-# for a subsystem being down, written here rather than measured, and the fail-safe branch it
-# drives is the one line a live pass cannot reach (ADR-0022 fetch-by-uid addendum).
-DECLINED_READ_ANSWER: Answer = ("NO", [b"[UNAVAILABLE] Temporary failure"])
-# The one declined read a server here could be made to produce, measured verbatim on the probe's
-# Dovecot 2.3.21 with a message's dbox file made unreadable to the mail process: the server
-# answers the whole-message FETCH with `* BYE FETCH failed: Internal error occurred. Refer to
-# server log for more information.` and drops the connection, which imaplib raises as its abort
-# rather than handing back as a status. A real declined read therefore reaches the adapter the
-# way a lost connection does, and the NO above stays the written form of the same fact.
+# A NO to a UID FETCH, measured verbatim on the probe's Dovecot 2.3.21 over `Sealed`, a message
+# whose dbox file the mail process cannot open, under the `imap_fetch_failure = no-after` the
+# probe's configuration sets: RFC 5530's code for a fault in the server itself, which is the
+# answer the contract's declined-read check is driven with (ADR-0022 declined-read addendum). No
+# ProtonMail Bridge has been made to send one: the Bridge and this Dovecot both answer a uid no
+# message has with `NOTHING_FETCHED`, a malformed uid with BAD, and a message another session
+# expunged with `NOTHING_FETCHED` again.
+DECLINED_READ_ANSWER: Answer = (
+    "NO",
+    [
+        b"[SERVERBUG] Internal error occurred. Refer to server log for more information. "
+        b"[2026-09-05 04:43:45] (0.001 + 0.000 secs)."
+    ],
+)
+# The same fault under Dovecot's default `imap_fetch_failure`, `disconnect-immediately`, measured
+# verbatim on the same server over the same kind of message: it answers the whole-message FETCH
+# with `* BYE FETCH failed: Internal error occurred. Refer to server log for more information.`
+# and drops the connection, which imaplib raises as its abort rather than handing back as a
+# status. A declined read therefore reaches the adapter this way from a server left at the
+# default, and as the NO above from one configured to keep the connection.
 DROPPED_READ = IMAP4.abort(
     "command: UID => FETCH failed: Internal error occurred. Refer to server log for more "
     "information. [2026-09-05 01:02:49]"
@@ -200,8 +208,8 @@ class FakeClient:
     message has, the first message of a set or a range, which is the Bridge fetching messages
     nobody named, and a ``BAD`` for a string that is not a number. The box's ``fetch_error`` is
     raised out of here the way imaplib raises a dropped connection, and ``fetch_answer``, when
-    set, replaces the answer with whatever a test wants the server to say, which is how the one
-    ``NO`` no server here has sent is reached.
+    set, replaces the answer with whatever a test wants the server to say, which is how the
+    ``NO`` the probe's Dovecot sends over a message it cannot open is reached without the probe.
     """
 
     def __init__(self, box: "FakeBox") -> None:

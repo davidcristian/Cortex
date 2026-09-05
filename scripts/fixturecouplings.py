@@ -149,6 +149,37 @@ FIXTURE_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the probe mailbox holding the message it seals",
+        why=(
+            "this is the one read a server this repo reaches declines, a FETCH answered with a "
+            "tagged NO, and the suite asserts on it by name, so a rename in the script alone "
+            "would have the suite reading from a mailbox nothing built and failing on a missing "
+            "folder where it was measuring a declined read (ADR-0022 declined-read addendum)"
+        ),
+        sites=(Site(PROBE_SUITE, "SEALED_FOLDER"),),
+        # Two occurrences of the directory, the mkdir and the path of the file that is shut, and
+        # one of the mailbox as `doveadm save` names it. A rename that moved the directory and
+        # left the save would put the message in a mailbox the suite never reads; one that moved
+        # the save and left the shut file's path would leave the message readable. Either is a
+        # measurement wasted on a fixture fault, and the two shapes are what catch a half applied
+        # rename here.
+        mentions=(
+            Mention(PROBE_SCRIPT, "mailboxes/{value}/dbox-Mails", occurrences=2),
+            Mention(PROBE_SCRIPT, "-m {value}"),
+        ),
+    ),
+    Constant(
+        label="the uid of the message the probe seals",
+        why=(
+            "the file the script shuts is named after the uid dovecot gave the message, and the "
+            "suite reads that uid to be refused, so a file shut under another number would leave "
+            "the suite reading a message that opens and failing at the assertion that the read "
+            "was declined rather than at the fixture (ADR-0022 declined-read addendum)"
+        ),
+        sites=(Site(PROBE_SUITE, "SEALED_UID"),),
+        mentions=(Mention(PROBE_SCRIPT, "dbox-Mails/u.{value}"),),
+    ),
+    Constant(
         label="the probe's child under that node",
         why=(
             "dropping an unselectable parent from an offered list is lossless only because its "

@@ -1,6 +1,6 @@
 # A read the server refuses is measured by hand and driven by no live row
 
-**Status:** open, actionable
+**Status:** landed 2026-09-05
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -38,3 +38,24 @@ read on this server is only ever the BYE.
 - 2026-09-05: opened by the close of
   [548](548-an-empty-folder-read-raises-instead-of-answering-not-found.md), which measured the
   BYE by hand and left the written `NO` labelled as written.
+- 2026-09-05: landed. Re-derived on the probe's Dovecot 2.3.21, which answer a failed FETCH gets
+  is the server's `imap_fetch_failure` setting: the default `disconnect-immediately` is the BYE
+  measured by hand, `disconnect-after` is the same BYE for a one-message FETCH, and `no-after`
+  answers `NO [SERVERBUG] Internal error occurred. Refer to server log for more information.`
+  on a connection that stays open. So the entry's second outcome, that a declined read on this
+  server is only ever the BYE, was a configuration rather than a fact, and the entry was right
+  that the entrypoint cannot append the message on its own (`doveadm save` fails with
+  `connect(/run/dovecot/auth-userdb) failed` before the server has started, which `probe.conf`
+  had claimed the opposite of). The other candidates were measured and none produces a `NO`: a
+  removed file rebuilds the index and drops the session, and an ACL written mid-session is read
+  only by the next SELECT. `docker/dovecot/probe.conf` now sets `no-after`,
+  `docker/dovecot/probe-mailboxes.sh` builds `Sealed`, a mailbox holding one message saved
+  through a first loopback-only start of the server and shut before the second, the contract's
+  `MailboxUnderTest` names the uid a declined read is of (`declined_uid`), the probe suite drives
+  `a_read_the_server_declined_is_not_reported_as_not_there` over the live refusal, and the
+  stand-in's `DECLINED_READ_ANSWER` is the measured sentence. Written up in the
+  [ADR-0022 addendum on the read a server declines](../../adr/ADR-0022-email-write-confirmer.md#addendum-2026-09-05-the-read-a-server-declines-produced-by-the-probe-and-measured-as-a-no),
+  with the mutation table. Opens
+  [569](569-the-dropped-read-under-dovecots-default-is-measured-by-hand-and-driven-by-no-live-row.md)
+  and
+  [570](570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md).

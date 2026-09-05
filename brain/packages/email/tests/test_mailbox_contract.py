@@ -71,7 +71,7 @@ def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
         box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
 
     def decline_reads() -> None:
-        # A NO to UID FETCH, which no server this repo can reach has sent either.
+        # The NO to a UID FETCH the probe's Dovecot sends over a message it cannot open.
         box.fetch_answer = DECLINED_READ_ANSWER
 
     patch_box(monkeypatch, box)
