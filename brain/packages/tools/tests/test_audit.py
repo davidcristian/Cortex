@@ -60,9 +60,13 @@ async def test_failed_invocation_logs_the_error_detail(
     fields = record.__dict__
     assert (fields["tool"], fields["ok"], fields["error"]) == ("read", False, "permission denied")
     assert "result_chars" not in fields
-    line = _line(record)
-    assert 'error="permission denied"' in line  # quoted, so the detail stays one field
-    assert "result_chars" not in line
+    # The whole line: `error` stands where `result_chars` would, quoted so the detail stays one
+    # field, and the tools runbook prints this shape as a sample held to this assertion.
+    assert _line(record) == (
+        "INFO:cortex.tools.audit:tool.invocation "
+        'arguments={} at=2026-07-03T12:00:00+00:00 error="permission denied" ok=False '
+        "tool=read trust=untrusted"
+    )
 
 
 async def test_trusted_invocation_logs_its_trust_stamp(
@@ -167,15 +171,24 @@ async def test_the_line_names_the_call_it_records(caplog: pytest.LogCaptureFixtu
     caplog.set_level(logging.INFO, logger="cortex.tools.audit")
     await LoggingAuditSink().record(
         ToolInvocation(
-            name="read", arguments={}, ok=True, detail="hi", at=_AT, call_id="call-7", turn_id="t"
+            name="read",
+            arguments={},
+            ok=True,
+            detail="hi",
+            at=_AT,
+            call_id="call-7",
+            session_id="s-1",
+            turn_id="t",
         )
     )
     (record,) = caplog.records
     assert record.__dict__["call_id"] == "call-7"
+    # A cortex dispatch's whole line: the chat, the turn and the call the model named, which is
+    # the shape the tools runbook prints as a sample held to this assertion.
     assert _line(record) == (
         "INFO:cortex.tools.audit:tool.invocation "
         "arguments={} at=2026-07-03T12:00:00+00:00 call_id=call-7 ok=True result_chars=2 "
-        "tool=read trust=untrusted turn_id=t"
+        "session_id=s-1 tool=read trust=untrusted turn_id=t"
     )
 
 
@@ -201,10 +214,15 @@ async def test_a_fired_item_is_named_beside_the_call_that_fired_it(
     )
     (record,) = caplog.records
     line = _line(record)
-    assert "item_id=t1" in line
-    assert "call_id=schedule-t1" in line
     assert "turn_id" not in line
     assert "task_id" not in line
+    # The whole line a fire writes: the item beside the call that spells it, the chat that
+    # scheduled it, and no turn. The tools runbook prints this shape as a sample held here.
+    assert line == (
+        "INFO:cortex.tools.audit:tool.invocation "
+        "arguments={} at=2026-07-03T12:00:00+00:00 call_id=schedule-t1 item_id=t1 ok=True "
+        "result_chars=4 session_id=chat-1 tool=spawn_subagents trust=untrusted"
+    )
 
 
 async def test_a_model_authored_id_spelling_the_ticker_prefix_names_no_item(

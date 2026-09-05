@@ -47,17 +47,18 @@ the recall trail in prose rather than by its logger, so it is tied to one of the
 about, and nothing here would notice the other's rename in it, there being no name in the file to
 notice.
 
-Its message is held here rather than by the sample gate, which cannot reach this line at all.
-`samplecheck.py` holds a documented log line to the call writing it, message included, but only
-where a runbook prints a RENDERED line, and this one may not be printed: the sink builds its
-`extra=` across statements and by condition, a success carrying a size where a failure carries an
-error and four identities present only when the dispatch had them, so `logcalls.py` cannot read a
-field list off it and any fenced sample of this trail fails as a call it cannot account for.
-There is also no single field list to print. So the message is registered exactly like the logger
-beside it, on the runbook sentence that tells a reader what to look for and on the two spellings in
-the suite that proves the shipped level. The declaration is a second constant in the sink, the one
-kind of far side this part has now added twice, and it is handed to the emitting call rather than
-sat beside a literal of itself, so the module writes the word once.
+Its message is held here as well as by the sample gate, which reaches this line by another road.
+`samplecheck.py` holds a documented log line to the call writing it, message included, where a
+runbook prints a RENDERED line; the sink builds its `extra=` across statements and by condition, a
+success carrying a size where a failure carries an error and five identities present only when the
+dispatch had them, so `logfields.py` cannot read a field list off it, and the tools runbook's
+samples of this trail are held instead to the whole lines the sink's own suite asserts (ADR-0009
+proven-line addendum). That holds the field set per shape and says nothing about the prose
+sentence naming the message, so the message is registered exactly like the logger beside it, on
+the runbook sentence that tells a reader what to look for and on the two spellings in the suite
+that proves the shipped level. The declaration is a second constant in the sink, the one kind of
+far side this part has now added twice, and it is handed to the emitting call rather than sat
+beside a literal of itself, so the module writes the word once.
 
 Two entries share the suite's asserted line, and each renders its own half of it. That line
 prints `LEVEL:logger:message` and so spends both values at once. The logger's needle used to spell
@@ -255,12 +256,12 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "suite writes it under the trail's name and asserts the rendered result back to prove "
             "the shipped level; a rename in the sink alone leaves the runbook describing a "
             "message nothing writes and the suite passing on both its spellings at once, having "
-            "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
-            "in for this one, a line whose fields are built by condition being one no runbook may "
-            "print as a rendered sample; the fourth place is the sink's own suite, which asserts "
-            "the rendered line (ADR-0009 declared-name addendum), and the fifth is the emitting "
-            "call, spending the binding by name, so a call handed another word fails here "
-            "(ADR-0009 held-call addendum)"
+            "renamed with itself (ADR-0009 audit-message addendum); the sample gate holds the "
+            "runbook's rendered samples of this line to the sink's suite rather than to the call, "
+            "and holds no prose sentence, so this entry still ties the one naming the message; "
+            "the fourth place is the sink's own suite, which asserts the rendered line (ADR-0009 "
+            "declared-name addendum), and the fifth is the emitting call, spending the binding by "
+            "name, so a call handed another word fails here (ADR-0009 held-call addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
         mentions=(

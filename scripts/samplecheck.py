@@ -13,6 +13,16 @@ fields are exactly the ones that call attaches, in exactly the order the formatt
 One comparison covers membership and order together, since the printed order is name order and
 therefore a function of the key set alone.
 
+One shape of call has no field list the source can give: a mapping bound, grown by condition and
+only then handed over, which is how the tool audit writes its line. The code reader refuses that
+call rather than choosing a branch, and a sample of it is held instead to the sink's own suite,
+which asserts whole rendered lines against the shipped formatter (`assertedlines.py`). The sample
+passes when some line that suite asserts whole prints the same level, logger, message and fields;
+the level is still compared against the call first, since the call is read that far. A line the
+suite proves is one the code prints under that test's conditions, and the assertion moves the day
+the sink does, so the chain from the runbook to the code is unbroken; what stays in prose is which
+condition a sample stands for (ADR-0009 proven-line addendum).
+
 Values are deliberately not held. A sample's values are placeholders as often as readings, and one
 runbook's captured `port=50051` is registered in the constant scan as a dated reading rather than a
 coupling, on the argument that a captured line stays true after the default it quotes moves.
@@ -49,7 +59,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-from logcalls import LogCallError, logged, messages
+from assertedlines import AssertedLineError, proven, suite_of
+from logcalls import LogCallError, UnreadFieldsError, logged, messages
 from loggernames import loggers
 from logsamples import Sample, samples
 from skippeddirs import SKIPPED_DIRS
@@ -68,6 +79,10 @@ MIN_MESSAGES = 1
 # rendering a reader cannot tell from a formatting slip.
 NO_FIELDS = "no fields"
 
+# What a fault says when the sink's suite asserts no line of the sample's message whole, in place
+# of an empty list of what it does assert.
+NO_LINES = "none"
+
 
 class SampleCheckError(Exception):
     """An input could not be walked, or one side of the comparison came back empty."""
@@ -81,13 +96,28 @@ class Miss(NamedTuple):
     detail: str
 
 
+class Verdict(NamedTuple):
+    """What one sample was held to, and how it differs from that when it does.
+
+    ``proven`` is True when the sample was held to a line the sink's own suite asserts whole,
+    the call's field list being one the source cannot give.
+    """
+
+    detail: str | None
+    proven: bool
+
+
 class Scan(NamedTuple):
-    """One comparison: what it was over, then what it could not account for."""
+    """One comparison: what it was over, then what it could not account for.
+
+    ``proven`` counts the samples held to a suite's assertion rather than to the call.
+    """
 
     docs: int
     samples: int
     loggers: int
     messages: int
+    proven: int
     misses: list[Miss]
 
 
@@ -118,8 +148,36 @@ def listed(fields: tuple[str, ...]) -> str:
     return ", ".join(fields) if fields else NO_FIELDS
 
 
-def disagreement(root: Path, names: dict[str, str], sample: Sample) -> str | None:
-    """How ``sample`` differs from the call it quotes, or None when it prints what that call does.
+def _proven(root: Path, module: str, sample: Sample, unread: UnreadFieldsError) -> str | None:
+    """How ``sample`` differs from every line the sink's own suite asserts whole, or None.
+
+    Reached only when the code reader refused the call's field list. The level was read off the
+    call before that and is compared first; the fields are compared against each line the suite
+    asserts whole under the sample's logger and message. A suite that cannot be walked raises,
+    the way a module that cannot be read does.
+    """
+    if unread.level != sample.level:
+        return f"prints {sample.level} where {module}:{unread.line} logs at {unread.level}"
+    try:
+        lines = proven(root, module)
+    except AssertedLineError as err:
+        raise SampleCheckError(str(err)) from err
+    alike = [
+        held.sample.fields
+        for held in lines
+        if (held.sample.logger, held.sample.message) == (sample.logger, sample.message)
+    ]
+    if sample.fields in alike:
+        return None
+    shown = "; ".join(listed(fields) for fields in alike) if alike else NO_LINES
+    return (
+        f"prints {listed(sample.fields)} where {unread.reason}, and no line under "
+        f"{suite_of(module)} is asserted whole with those fields (asserted whole there: {shown})"
+    )
+
+
+def disagreement(root: Path, names: dict[str, str], sample: Sample) -> Verdict:
+    """What ``sample`` was held to, and how it differs from that, with no detail when it agrees.
 
     A module this reader cannot account for is reported here beside the samples rather than
     raised, so one run names every disagreement instead of only the first. A module it cannot READ
@@ -127,19 +185,24 @@ def disagreement(root: Path, names: dict[str, str], sample: Sample) -> str | Non
     """
     module = names.get(sample.logger)
     if module is None:
-        return f"names the logger {sample.logger!r}, which no module under the brain declares"
+        detail = f"names the logger {sample.logger!r}, which no module under the brain declares"
+        return Verdict(detail=detail, proven=False)
     try:
         call = logged(_read(root / module, module), sample.message, module)
+    except UnreadFieldsError as unread:
+        return Verdict(detail=_proven(root, module, sample, unread), proven=True)
     except LogCallError as err:
-        return str(err)
+        return Verdict(detail=str(err), proven=False)
     if call.level != sample.level:
-        return f"prints {sample.level} where {module}:{call.line} logs at {call.level}"
+        detail = f"prints {sample.level} where {module}:{call.line} logs at {call.level}"
+        return Verdict(detail=detail, proven=False)
     if call.fields != sample.fields:
-        return (
+        detail = (
             f"prints {listed(sample.fields)} where {module}:{call.line} attaches "
             f"{listed(call.fields)}"
         )
-    return None
+        return Verdict(detail=detail, proven=False)
+    return Verdict(detail=None, proven=False)
 
 
 def check(root: Path) -> Scan:
@@ -159,17 +222,27 @@ def check(root: Path) -> Scan:
     docs = runbooks(root)
     misses: list[Miss] = []
     counted = 0
+    held = 0
     for doc in docs:
         shown = doc.relative_to(root).as_posix()
         for sample in samples(_read(doc, shown)):
             counted += 1
-            detail = disagreement(root, names, sample)
-            if detail is not None:
-                misses.append(Miss(doc=shown, line=sample.line, detail=detail))
+            verdict = disagreement(root, names, sample)
+            if verdict.proven:
+                held += 1
+            if verdict.detail is not None:
+                misses.append(Miss(doc=shown, line=sample.line, detail=verdict.detail))
     if counted < MIN_SAMPLES:
         msg = f"no log sample under {RUNBOOKS.as_posix()}; a comparison over nothing cannot fail"
         raise SampleCheckError(msg)
-    return Scan(docs=len(docs), samples=counted, loggers=len(names), messages=lines, misses=misses)
+    return Scan(
+        docs=len(docs),
+        samples=counted,
+        loggers=len(names),
+        messages=lines,
+        proven=held,
+        misses=misses,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -207,7 +280,8 @@ def main(argv: list[str] | None = None) -> int:
         f"samplecheck OK: {scanned.samples} log sample(s) under {given} in {scanned.docs} "
         f"runbook(s) print the level, logger, message and fields their call sites write, "
         f"resolved against {scanned.loggers} logger(s) the brain declares and the "
-        f"{scanned.messages} message(s) it logs"
+        f"{scanned.messages} message(s) it logs, {scanned.proven} of the samples held to a line "
+        "the sink's own suite asserts whole"
     )
     return 0
 

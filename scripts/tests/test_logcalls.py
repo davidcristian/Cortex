@@ -243,6 +243,22 @@ def test_a_keyword_beside_extra_is_passed_over() -> None:
     assert logcalls.logged(text, "done", "m.py").fields == ("ok",)
 
 
+def test_a_refused_field_list_is_raised_with_the_line_and_level_already_read() -> None:
+    """The sample gate holds such a call to the sink's own suite and still compares the level, so
+    the fault carries what was read before the fields were not."""
+    text = (
+        "def f():\n"
+        '    fields = {"ok": True}\n'
+        '    fields["tool"] = 1\n'
+        '    _log.warning("done", extra=fields)\n'
+    )
+    with pytest.raises(logcalls.UnreadFieldsError) as caught:
+        logcalls.logged(text, "done", "m.py")
+    assert (caught.value.line, caught.value.level) == (4, "WARNING")
+    assert caught.value.reason == str(caught.value)
+    assert "bound at line 2 and used again at line 3" in caught.value.reason
+
+
 def test_an_extra_that_is_not_written_out_at_the_call_is_a_fault() -> None:
     """A bare name at the module's top level has no function to be followed in, so the call
     raises rather than reporting none; `test_logfields.py` holds the shapes that are followed."""

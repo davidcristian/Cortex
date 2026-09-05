@@ -40,6 +40,48 @@ SAMPLE = (
 
 RUNBOOK = f"## Why a handoff failed\n\n```text\n{SAMPLE}\n```\n"
 
+# The tool audit's shape: the mapping is bound, grown under a condition and only then handed
+# over, so the code reader refuses the call and a sample of it is held to the sink's own suite.
+AUDIT_MODULE = "brain/packages/tools/src/cortex_tools/audit.py"
+AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
+
+AUDIT = '''\
+"""A miniature of the tool audit."""
+
+import logging
+
+_LOGGER_NAME = "cortex.tools.audit"
+_MESSAGE = "tool.invocation"
+
+_logger = logging.getLogger(_LOGGER_NAME)
+
+
+def record(name: str, ok: bool) -> None:
+    """Write one audit line."""
+    fields = {"tool": name}
+    if ok:
+        fields["ok"] = ok
+    _logger.info(_MESSAGE, extra=fields)
+'''
+
+# One line asserted whole, and the head of a longer one checked with `in`, which read as a whole
+# line would be a one-field line the sink never prints.
+SUITE = """\
+def test_a_line() -> None:
+    assert _line(record) == (
+        "INFO:cortex.tools.audit:tool.invocation "
+        "ok=True tool=read"
+    )
+
+
+def test_a_head() -> None:
+    assert "INFO:cortex.tools.audit:tool.invocation tool=send" in line
+"""
+
+AUDIT_SAMPLE = "INFO:cortex.tools.audit:tool.invocation ok=<whether it succeeded> tool=<name>"
+
+AUDIT_RUNBOOK = f"## What the trail prints\n\n```text\n{AUDIT_SAMPLE}\n```\n"
+
 
 def repo(root: Path, *, module: str = SETTLE, runbook: str = RUNBOOK) -> Path:
     """Write a miniature repo: one logging module, one runbook that prints its line."""
@@ -47,6 +89,30 @@ def repo(root: Path, *, module: str = SETTLE, runbook: str = RUNBOOK) -> Path:
     source.parent.mkdir(parents=True, exist_ok=True)
     source.write_text(module, encoding="utf-8")
     book = root / samplecheck.RUNBOOKS / "model-swap.md"
+    book.parent.mkdir(parents=True, exist_ok=True)
+    book.write_text(runbook, encoding="utf-8")
+    return root
+
+
+def audited(
+    root: Path,
+    *,
+    module: str = AUDIT,
+    suite: str | None = SUITE,
+    runbook: str = AUDIT_RUNBOOK,
+) -> Path:
+    """Write a miniature repo whose one line is the audit's shape, with the suite that proves it.
+
+    ``suite`` None writes no tests directory at all, which is a package nothing proves.
+    """
+    source = root / AUDIT_MODULE
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text(module, encoding="utf-8")
+    if suite is not None:
+        tests = root / AUDIT_SUITE
+        tests.parent.mkdir(parents=True, exist_ok=True)
+        tests.write_text(suite, encoding="utf-8")
+    book = root / samplecheck.RUNBOOKS / "tools-mcp.md"
     book.parent.mkdir(parents=True, exist_ok=True)
     book.write_text(runbook, encoding="utf-8")
     return root
@@ -121,6 +187,104 @@ def test_a_miss_names_the_runbook_and_the_line_it_stands_on(tmp_path: Path) -> N
     assert (miss.doc, miss.line) == ("docs/runbooks/model-swap.md", 4)
 
 
+# ── a line the source cannot list, held to the sink's own suite ───────────────
+
+
+def test_a_sample_of_a_line_the_reader_cannot_read_is_held_to_the_suite(tmp_path: Path) -> None:
+    """The tool audit's shape: the call is refused for its fields, and the sample passes because
+    the sink's own suite asserts a line with the same fields whole."""
+    scanned = samplecheck.check(audited(tmp_path))
+    assert scanned.misses == []
+    assert scanned.proven == 1
+
+
+def test_a_field_no_asserted_line_carries_is_caught(tmp_path: Path) -> None:
+    """This is the drift the fallback is written for: the runbook names a field the suite proves
+    no line of this shape prints, and the fault says what the suite does prove."""
+    wider = AUDIT_RUNBOOK.replace(
+        "ok=<whether it succeeded>", "at=<when> ok=<whether it succeeded>"
+    )
+    misses = samplecheck.check(audited(tmp_path, runbook=wider)).misses
+    assert len(misses) == 1
+    assert misses[0].detail == (
+        f"prints at, ok, tool where {AUDIT_MODULE}:16: extra= names fields, bound at line 13 and "
+        "used again at line 15, so the mapping reaching the call is not the one written out, and "
+        "no line under brain/packages/tools/tests is asserted whole with those fields (asserted "
+        "whole there: ok, tool)"
+    )
+
+
+def test_a_sample_printing_the_fields_in_another_order_is_not_a_line_the_suite_proves(
+    tmp_path: Path,
+) -> None:
+    swapped = AUDIT_RUNBOOK.replace("ok=<whether it succeeded> tool=<name>", "tool=<name> ok=<ok>")
+    misses = samplecheck.check(audited(tmp_path, runbook=swapped)).misses
+    assert len(misses) == 1
+    assert misses[0].detail.startswith("prints tool, ok where")
+
+
+def test_a_suite_that_stops_asserting_the_line_whole_leaves_the_sample_unheld(
+    tmp_path: Path,
+) -> None:
+    """A suite that moves its equality into a containment check proves no line, so the sample is
+    a miss rather than a pass: the chain from the runbook to the code is broken at the suite."""
+    loosened = SUITE.replace(
+        'assert _line(record) == (\n        "INFO:cortex.tools.audit:tool.invocation "\n'
+        '        "ok=True tool=read"\n    )',
+        'assert "ok=True tool=read" in _line(record)',
+    )
+    misses = samplecheck.check(audited(tmp_path, suite=loosened)).misses
+    assert len(misses) == 1
+    assert misses[0].detail.endswith("(asserted whole there: none)")
+
+
+def test_a_head_checked_with_in_does_not_prove_a_line(tmp_path: Path) -> None:
+    """The containment spells `tool` alone as the head of a longer line; a runbook printing that
+    alone is not held by it, since a containment says nothing about what follows."""
+    headed = AUDIT_RUNBOOK.replace("ok=<whether it succeeded> tool=<name>", "tool=<name>")
+    misses = samplecheck.check(audited(tmp_path, runbook=headed)).misses
+    assert len(misses) == 1
+    assert "asserted whole there: ok, tool)" in misses[0].detail
+
+
+def test_a_line_the_suite_asserts_under_another_message_holds_nothing(tmp_path: Path) -> None:
+    other = SUITE.replace("tool.invocation ", "tool.refusal ")
+    misses = samplecheck.check(audited(tmp_path, suite=other)).misses
+    assert len(misses) == 1
+    assert misses[0].detail.endswith("(asserted whole there: none)")
+
+
+def test_the_level_is_compared_against_the_call_before_the_suite_is_read(tmp_path: Path) -> None:
+    """The call was read as far as its level, so a sample at another level is the same miss it
+    would be for a call whose fields were read."""
+    demoted = AUDIT_RUNBOOK.replace("INFO:", "WARNING:")
+    misses = samplecheck.check(audited(tmp_path, runbook=demoted)).misses
+    assert [miss.detail for miss in misses] == [
+        f"prints WARNING where {AUDIT_MODULE}:16 logs at INFO"
+    ]
+
+
+def test_a_sink_whose_package_has_no_suite_is_a_failure(tmp_path: Path) -> None:
+    with pytest.raises(samplecheck.SampleCheckError, match="tests is not a directory"):
+        samplecheck.check(audited(tmp_path, suite=None))
+
+
+def test_a_suite_that_does_not_parse_is_a_failure(tmp_path: Path) -> None:
+    with pytest.raises(samplecheck.SampleCheckError, match=r"cannot parse .*test_audit\.py"):
+        samplecheck.check(audited(tmp_path, suite="def (:\n"))
+
+
+def test_a_suite_is_read_only_for_a_call_whose_fields_cannot_be_read(tmp_path: Path) -> None:
+    """A call the reader reads is held to the call: the suite beside it is never opened, so its
+    absence is no failure and its assertions cannot overrule the source."""
+    written = AUDIT.replace(
+        '    fields = {"tool": name}\n    if ok:\n        fields["ok"] = ok\n', ""
+    ).replace("extra=fields", 'extra={"ok": ok, "tool": name}')
+    scanned = samplecheck.check(audited(tmp_path, module=written, suite=None))
+    assert scanned.misses == []
+    assert scanned.proven == 0
+
+
 # ── fail closed ────────────────────────────────────────────────────────────────
 
 
@@ -186,6 +350,7 @@ def test_check_counts_the_samples_the_runbooks_the_loggers_and_the_messages(
 ) -> None:
     scanned = samplecheck.check(repo(tmp_path))
     assert (scanned.samples, scanned.docs, scanned.loggers, scanned.messages) == (1, 1, 1, 1)
+    assert scanned.proven == 0
 
 
 def test_main_states_what_it_read_beside_the_verdict(
@@ -196,7 +361,18 @@ def test_main_states_what_it_read_beside_the_verdict(
     assert capsys.readouterr().out == (
         f"samplecheck OK: 1 log sample(s) under {tmp_path} in 1 runbook(s) print the level, "
         "logger, message and fields their call sites write, resolved against 1 logger(s) the "
-        "brain declares and the 1 message(s) it logs\n"
+        "brain declares and the 1 message(s) it logs, 0 of the samples held to a line the "
+        "sink's own suite asserts whole\n"
+    )
+
+
+def test_main_counts_the_samples_held_to_a_suite(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    audited(tmp_path)
+    assert samplecheck.main(["--root", str(tmp_path)]) == 0
+    assert "1 of the samples held to a line the sink's own suite asserts whole" in (
+        capsys.readouterr().out
     )
 
 
@@ -238,6 +414,13 @@ def test_the_repo_really_carries_samples_for_this_gate_to_have_checked() -> None
     assert scanned.samples >= 3
     assert scanned.docs >= 10
     assert scanned.loggers >= 20
+
+
+def test_the_repo_really_holds_a_sample_to_a_suite() -> None:
+    """The tools runbook prints the audit trail's shapes, and each is held to the sink's own
+    suite rather than to a call the source cannot list the fields of; a tree where none was
+    would leave the fallback tested against its fixtures alone."""
+    assert samplecheck.check(REPO_ROOT).proven >= 5
 
 
 def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:

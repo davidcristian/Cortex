@@ -51,7 +51,10 @@ name bound to one above the call in the same function (ADR-0009 composed-fields 
 A call this reader cannot account for raises rather than being skipped: a message no call logs, a
 message logged in two places, an `extra=` that reader cannot follow to a mapping written out, and
 a key that is not a plain string are each reported, since skipping one would hand the gate an
-empty answer and report the document as correct.
+empty answer and report the document as correct. The field refusals are raised as their own kind,
+`UnreadFieldsError`, carrying the line and the level that were read before the fields were not,
+because the sample gate holds such a line to the sink's own suite instead (`assertedlines.py`) and
+needs the call's level to do it.
 """
 
 import ast
@@ -89,6 +92,16 @@ LEVELS = {
 
 class LogCallError(Exception):
     """The brain's source could not be read, or a message could not be accounted for in it."""
+
+
+class UnreadFieldsError(LogCallError):
+    """A call was found and its level read, and its field list cannot be read off the source."""
+
+    def __init__(self, line: int, level: str, reason: str) -> None:
+        super().__init__(reason)
+        self.line = line
+        self.level = level
+        self.reason = reason
 
 
 class LogCall(NamedTuple):
@@ -252,7 +265,7 @@ def logged(source: str, message: str, shown: str) -> LogCall:
     try:
         fields = attached(call, tree, shown, is_log_call=_logs)
     except FieldError as err:
-        raise LogCallError(str(err)) from err
+        raise UnreadFieldsError(call.lineno, level, str(err)) from err
     return LogCall(line=call.lineno, level=level, fields=fields)
 
 

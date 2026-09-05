@@ -4490,3 +4490,164 @@ landed, `brain/packages/tools/src/cortex_tools/blocks.py` and `registry.py`,
 `brain/packages/tools/tests/` (`test_blocks.py`, `pngs.py`, `test_registry.py`,
 `test_own_text_contract.py`), [docs/modules/brain-tools.md](../modules/brain-tools.md), and this
 addendum.
+
+## Proven-line addendum (2026-09-05): a line the source cannot list is held to the suite that prints it
+
+The composed-fields addendum left the tool audit's line described in the tools runbook in prose,
+and the addendum of 2026-09-04 found that prose short by one field, corrected it by hand, and moved
+the entry to actionable
+([R-523](../refinements/tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md)).
+The entry proposed two closes: a sample grammar in which the reader follows the `if` that sets a
+field, or one registry entry per field naming the sink's own suite beside the runbook's sentence.
+This addendum takes neither, because the first is the branch-following this record already
+declined and the second cannot be written in the registry's grammar, and lands a third: the
+runbook prints the line as rendered samples, one per shape, and the sample gate holds each of them
+to a whole line the sink's own suite asserts against the shipped formatter.
+
+### Re-derived first, and neither proposed close can be written
+
+The entry's counts hold at HEAD. The brain's log calls attach 94 `extra=` expressions: 85 mappings
+written out, six bare names, one union and two calls. Of the seven that name a binding, six are read
+and one is refused, `cortex_tools/audit.py:89`, bound at 65 and used again at 72. The sink's line
+can carry twelve names, five fixed, five identities and one of `result_chars` or `error`.
+
+The second close does not survive contact with `scripts/couplings.py`. A `Constant` needs a
+declaring `Site`, which is a module-level name the scan reads a value off, and the registry fails an
+entry that names none. Five of the twelve names have one, in `cortex_core.log_fields`. The other
+seven are literal keys in `record`'s mapping and are declared nowhere, so registering them means
+seven constants written into the sink so that a gate has something to read, which the quotable-line
+addendum's decision 2 declined in as many words. Three further things were wrong with the sentence
+the needles would have tied. It named ten of the twelve as field names and described two in prose,
+"the tool's name" and "the arguments", so it would have had to be rewritten before any needle could
+find them. Of the four ids it enumerated, three were tied by other sentences on the same page and
+`session_id` by nothing, the conversation entry in `logcouplings.py` carrying no tools-runbook
+mention at all. And a needle holds a name, never a set: a field added to the sink is a name no entry
+registers, and no needle misses it, which is the drift of 2026-09-04 in the other direction.
+
+### Decision 1: a sample of that line is held to the sink's own suite
+
+`scripts/logcalls.logged` raises the field reader's refusal as its own kind, `UnreadFieldsError`,
+carrying the line and the level it had read before the fields were not. `samplecheck.py` catches
+that one kind, compares the level against the call as before, and compares the fields against every
+line the sink's own package suite asserts whole under the sample's logger and message, read by
+`scripts/assertedlines.py`. The sample passes when one of those lines prints the same fields in the
+same order, and fails naming what the suite does assert.
+
+That is a chain with two links and no reading of a branch in either. The runbook's sample equals a
+suite assertion, which the gate holds; the suite assertion equals the formatter's output, which
+pytest holds at every commit, the assertion being `assert _line(record) == "..."` against
+`PlainFormatter` over a real record. A line the suite proves is one the code printed under the
+conditions that test set up, and it moves the day the sink does. What it is not is the declined
+close: the reader follows no `if`, and which condition a line prints under is said by the test that
+asserts it, in the test's own name and fixture, rather than guessed by a reader choosing a path
+through `record`.
+
+### Decision 2: an equality, anchored, one line, and the sink's package suite alone
+
+Four narrowings keep the reading a proof rather than a search, each with the case that argued it.
+Only a string that is one side of `assert x == "..."` is read, because a containment says the line
+carries that much and never that this is the line: the sink's suite checks the head of a longer line
+with `in` to pin one field, and reads a forged head of the trail back out of a value the same way,
+and either read whole would hold a runbook to a line the sink never prints. The string is matched at
+its start against the level, since the formatter's output begins there. A string carrying a newline
+is not one the formatter wrote. And the suite read is the `tests` directory beside the `src` the
+sink lives under, no other: walking every brain suite finds eleven asserted lines, and one of them
+is the orchestrator's `test_config_logging.py` asserting `INFO:cortex.tools.audit:tool.invocation
+tool=read`, written straight through the logger with one field to prove the shipped level, which
+the sink never prints and which a wider walk would have held a runbook sample to. A package with no
+suite, a suite file that is not text and one that does not parse each fail the gate rather than
+leaving a sample unheld and green.
+
+### Decision 3: the runbook prints five shapes, and the suite asserts each of them whole
+
+The tools runbook's enumeration is gone. In its place a fence prints five lines, each a shape the
+sink writes: a success carrying no work identity, a failure with `error` where `result_chars` would
+stand, a cortex call carrying the chat, the turn and the id the model gave the call, a delegated call
+naming its task and the turn that spawned it, and a schedule fire carrying the chat, the `item_id`
+and no turn. The sink's suite asserted three of those whole already and gained the other two: the
+failure line, which it had checked field by field, and the fired item's line, which it had checked
+the same way. The cortex-call line gained the chat, since a cortex dispatch always carries one. The
+sentence before the fence says which shape each line is, and that sentence is prose held by nothing,
+which is filed below rather than argued away.
+
+### What did not change, deliberately
+
+- The sink. `logfields.py` still refuses `record`'s call at its first use after the binding, and
+  `test_the_real_tool_audit_stays_unquotable` still passes: the source still cannot list one
+  line's fields, and nothing here pretends otherwise.
+- Values are still not held. The runbook's samples carry placeholders and the suite's carry the
+  fixture's date and ids, and the gate compares names.
+- The audit-message and audit-logger entries in `trailcouplings.py` stand. The sample gate holds
+  fenced lines and no prose, so the sentence telling a reader the line opens with `tool.invocation`
+  is still tied by its needle, and the entry's reason now says so instead of saying that no runbook
+  may print the line.
+- Runbooks only. An ADR's transcripts of this trail stay evidence.
+
+### Distrust green, over three suites
+
+Eleven mutations and a control, each applied alone to the working tree by a script and restored from
+a copy, with every restoration compared to the copy. Three columns: the **gate suite**
+(`scripts/tests/`, 1,673 checks before this change and 1,709 after), `check-samplecheck` over the
+committed runbooks (12 samples, 5 of them held to the suite), and the **sink's suite**
+(`brain/packages/tools/tests/test_audit.py`, 13 checks).
+
+| Mutation | gate suite | `check-samplecheck` | sink suite |
+| --- | --- | --- | --- |
+| CONTROL: nothing edited | 0 | passes, 12 samples, 5 held to the suite | 0 |
+| A: the runbook's failure sample drops `at` | **2** | **fails**: line 117 prints arguments, error, ok, tool, trust | 0 |
+| B: the sink attaches `duration_ms` on every call, suite untouched | 0 | passes | **7** |
+| B2: B, and the suite's six whole lines gain the field | **3** | **fails**: all five samples | **1**, the test slicing the id out between `call_id=` and ` ok=`, which the field now sits between |
+| C1: the sink renames `at` to `when`, suite untouched | 0 | passes | **7** |
+| C: C1, and the suite's six whole lines move the timestamp last | **3** | **fails**: all five samples | **1**, the test pinning `turn_id` as the line's last field |
+| D: the runbook's cortex-call sample prints `ok` before `call_id` | **2** | **fails**: line 118 | 0 |
+| E: GATE a containment is read as a line | **4** | passes | 0 |
+| F: GATE the level is not compared before the suite is read | **1** | passes | 0 |
+| G: GATE the fallback walks every brain suite | **3** | passes | 0 |
+| H: the suite loosens the failure line's equality into a containment | **3** | **fails**: line 117 | 0 |
+
+Rows B and C1 are the code moving alone and are red in the sink's suite and nowhere else, which is
+the first link of the chain, held by pytest before this change and after it. Rows B2 and C are the
+author's whole change with the runbook forgotten, and each is red on all five samples: that is the
+second link, and it is the drift of 2026-09-04 in both directions, a field the sink gained and a
+field it renamed. Rows A and D are the document moving under a suite that did not, in membership
+and in order. Rows E to G are the reader's own conditions, each disabled alone; E's middle column
+stays green because both containments the real suite writes fail the anchor as well as the equality
+rule, so the fixture tests are what hold that rule, and G's reds include the real-tree test that
+names the orchestrator's one-field line as the line a wider walk must not read. Row H is the chain
+broken at the suite: a sample the suite no longer proves is a miss saying so, rather than a pass
+resting on nothing.
+
+### Consequences
+
+- The tools runbook prints five rendered samples of the audit line and enumerates its fields in
+  no sentence, so the next field the sink gains or loses is a red gate on the day its suite moves.
+  The runbooks print twelve samples where they printed seven.
+- `scripts/` gains `assertedlines.py`, a reader with no CLI; `logcalls.py` raises
+  `UnreadFieldsError`; `samplecheck.py` states in its success line how many samples were held to a
+  suite. The module contract, the repo map and the docs index name the reader.
+- The audit-message addendum's statement that no runbook may print this line as a rendered sample
+  is superseded here, and the composed-fields addendum's consequence that the tool audit's line is
+  the one of the brain's handed lines a page cannot print narrows to: it cannot be held to its
+  call, and is held to its suite instead.
+- The gate count is unchanged. A reader joined a scan; no scan was added.
+
+### Deferred by this addendum
+
+- Which condition a printed sample stands for is the sentence before the fence, held by nothing,
+  and nothing holds the fence to printing every shape the suite asserts or the suite to asserting
+  every branch the sink has
+  ([R-553](../refinements/tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md)).
+- A whole line asserted through an f-string or a helper is not read as proven, so a suite that
+  moves its assertion into one leaves the runbook sample unheld and the fault names the runbook
+  ([R-554](../refinements/tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)).
+
+### Records
+
+[R-523](../refinements/tasks/523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md),
+now landed, `scripts/assertedlines.py`, `scripts/samplecheck.py`, `scripts/logcalls.py`,
+`scripts/trailcouplings.py`, `scripts/tests/` (`test_assertedlines.py`, `test_samplecheck.py`,
+`test_logcalls.py`), `brain/packages/tools/tests/test_audit.py`,
+[docs/runbooks/tools-mcp.md](../runbooks/tools-mcp.md),
+[docs/modules/repo-gates.md](../modules/repo-gates.md),
+[docs/modules/brain-tools.md](../modules/brain-tools.md), [docs/index.md](../index.md), the
+engineering contract's gate list and repo map, and this addendum.

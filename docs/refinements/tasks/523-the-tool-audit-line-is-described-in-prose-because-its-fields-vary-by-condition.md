@@ -1,6 +1,6 @@
 # The tool audit line is described in prose because its fields vary by condition
 
-**Status:** open, actionable
+**Status:** landed 2026-09-05
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -49,3 +49,20 @@ needle. The second costs one registry entry per field and holds the names, not t
   and following the seven that name a binding finds six read cleanly and one refused, the audit
   sink's at line 89, bound at line 65 and used again at line 72, so this is still the only line in
   the brain whose field set varies by condition.
+- 2026-09-05: **landed**, by neither proposed close (ADR-0009 proven-line addendum). Re-derivation
+  held every count: 94 `extra=` expressions, seven naming a binding, six read and one refused at
+  `audit.py:89`, twelve possible names. What the entry had wrong is its second close: a registry
+  entry needs a declaring site, seven of the twelve names are literal keys declared nowhere, the
+  runbook's sentence named ten of them and described two in prose, `session_id` had no
+  tools-runbook mention at all, and a needle holds a name and never a set, so a field the sink
+  gained would have missed nothing. The tie landed instead is a chain: the runbook prints five
+  rendered samples of the line, one per shape, and `scripts/samplecheck.py` holds each to a whole
+  line the sink's own suite asserts against the shipped formatter (`scripts/assertedlines.py`),
+  which pytest holds to the sink. Measured over the gate suite (1,709 checks), `check-samplecheck`
+  (12 samples, 5 held to the suite) and the sink's suite (13 checks): a field dropped from a
+  sample, a sample reordered, a field the sink gained or renamed with the suite updated, and a
+  suite assertion loosened to a containment each fail the gate. Opened
+  [R-553](553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md) for
+  the sentence saying which shape each sample is, and
+  [R-554](554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)
+  for the assertion shapes the reader leaves unread.
