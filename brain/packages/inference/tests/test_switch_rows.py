@@ -1,36 +1,57 @@
-"""CI-side gate on the injection harness's thinking-switch rows: the argv and the request.
+"""CI-side gate on the injection harness's rows: the argv each starts with and the body it posts.
 
-The measurement needs a GPU, but which lever each row pulls does not: it is a property of the
-command line the row starts its server with and of the body it posts, and both can be read here
-in a second. That reading is what the rows are for. A thinking-off tier is told to stop
-deliberating in two separate places, the server's own flags and the request's
+The measurement needs a GPU, but which lever each row pulls and where its server runs do not:
+both are properties of the command line the row starts with and of the body it posts, and both
+can be read here in a second. That reading is what the rows are for. A thinking-off tier is told
+to stop deliberating in two separate places, the server's own flags and the request's
 ``chat_template_kwargs`` key, and the shipped stack pulls the first while this harness pulled the
 second on every subagent number it published before 2026-09-04 (ADR-0004's switch-row addendum,
-ADR-0005's thinking-lever addendum). A shipped row that quietly stopped carrying the flags, or a
-request-key row that started carrying them, would go on printing a matrix under the other row's
-name and nothing would say so.
+ADR-0005's thinking-lever addendum). The subagent tier is also placed on the card or on the CPU
+per spawn, and every number this harness published before 2026-09-05 was a card number (ADR-0004's
+placement-row addendum). A shipped row that quietly stopped carrying the flags, a request-key row
+that started carrying them, or a CPU row that offloaded a layer would go on printing a matrix
+under the other row's name and nothing would say so.
 
-The pair itself is read off ``ModelHostConfig`` rather than typed into the harness, so most of
-what is held here is that the harness spends what it read. The one claim about the sidecar is
-that its subagent tier still declares both flags: a tier that emitted neither would make the
-shipped row a row with no lever in it at all, which is the drift this file exists to catch.
+The pair and the head of every command line are read off ``ModelHostConfig`` rather than typed
+into the harness, so most of what is held here is that the harness spends what it read. The one
+claim about the sidecar is that its subagent tier still declares both flags: a tier that emitted
+neither would make the shipped row a row with no lever in it at all, which is the drift this file
+exists to catch.
 """
 
+from dataclasses import replace
+
+import pytest
 from test_injection_defense_live import (
+    BRAIN_CANDIDATES,
+    BRAIN_TIER,
+    CORTEX_CANDIDATES,
+    CORTEX_TIER,
+    CPU_PLACEMENT,
+    GPU_PLACEMENT,
     MODELS,
+    PLACEMENTS,
     REQUEST_KEY,
     SHIPPED_BUDGET,
     SHIPPED_REASONING_OFF,
     SHIPPED_SWITCH,
+    SUBAGENT_CANDIDATES,
+    SUBAGENT_TIER,
     SWITCHES,
     THINKING_ON,
     VISION_MODELS,
     Model,
     completion_body,
+    repeat_of,
     server_argv,
     switch_for,
     template_kwargs,
+    tier_args,
 )
+
+from cortex_core import PlacementTarget
+from cortex_model_manager import llama_server_argv
+from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET
 
 # The two flags a subagent server is started with, named here because naming them is the whole of
 # what this file claims about the sidecar. A rename on that side fails this rather than passing:
@@ -45,6 +66,10 @@ _REASONING_BUDGET_FLAG = "--reasoning-budget"
 _MESSAGES: list[dict[str, object]] = [{"role": "user", "content": "summarise this"}]
 _TOOLS: list[dict[str, object]] = [{"type": "function", "function": {"name": "read_file"}}]
 _MAX_TOKENS = 1600
+
+# What the sidecar's builder puts first, which the harness drops because the image's entrypoint
+# is the server; any word does here, since only what follows it is compared.
+_ANY_BINARY = "llama-server"
 
 _THINKING_OFF = [model for model in MODELS if not model.thinking]
 
@@ -157,10 +182,103 @@ def test_the_default_switch_is_the_row_every_published_subagent_number_was_taken
     """A caller naming no switch gets the request key, which is what the old rows sent.
 
     ``server_argv`` defaults the other way, to no flag at all, and the two defaults together are
-    exactly the cell this harness measured before it could be handed a tier's argv.
+    exactly the cell this harness measured before it could be handed a tier's argv. The default
+    placement is the card, for the same reason: every published row is a card row.
     """
     subagent: Model = _THINKING_OFF[0]
     assert switch_for(subagent) is REQUEST_KEY
     assert server_argv(subagent, SHIPPED_BUDGET) == server_argv(
         subagent, SHIPPED_BUDGET, REQUEST_KEY
     )
+    assert server_argv(subagent, SHIPPED_BUDGET, REQUEST_KEY) == server_argv(
+        subagent, SHIPPED_BUDGET, REQUEST_KEY, GPU_PLACEMENT
+    )
+
+
+def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
+    """A text-only row on the shipped switch is the tier's argv with the artifact and port swapped.
+
+    Built by the sidecar's own builder here as well, so what is compared is that the harness
+    substitutes nothing else: not the layer count, not the window, not the slot count, not the
+    tail. Until 2026-09-05 the harness typed `-ngl 99 --ctx-size 8192 --parallel 1` for every
+    row, which this fails for the cortex tier, whose window is twice that, and for the subagent
+    tier, whose slot count is two.
+    """
+    for model in MODELS:
+        tier = tier_args(model.tier)
+        started = server_argv(model, SHIPPED_BUDGET, switch_for(model, SHIPPED_SWITCH))
+        artifact = started[started.index("--model") + 1]
+        port = int(started[started.index("--port") + 1])
+        own = llama_server_argv(_ANY_BINARY, replace(tier, model_path=artifact, port=port))
+        assert started == own[1:], model.label
+        assert artifact.endswith(model.gguf), model.label
+
+
+def test_the_cpu_row_offloads_no_layer_and_changes_nothing_else() -> None:
+    """The CPU row is the card row with the layer count the core hands the host for that server.
+
+    The image differs as well, because the stack starts that server from the CPU build, and the
+    card row's layer count is the tier's own rather than the core's word for the card, since the
+    model host is what really starts that process.
+    """
+    for model in _THINKING_OFF:
+        tier = tier_args(model.tier)
+        card = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH, GPU_PLACEMENT)
+        cpu = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH, CPU_PLACEMENT)
+        at = card.index("-ngl") + 1
+        assert card[at] == str(tier.ngl), model.label
+        assert cpu[at] == str(PlacementTarget.CPU.ngl), model.label
+        assert cpu[:at] + cpu[at + 1 :] == card[:at] + card[at + 1 :], model.label
+    assert GPU_PLACEMENT.on_card
+    assert not CPU_PLACEMENT.on_card
+    assert GPU_PLACEMENT.image != CPU_PLACEMENT.image
+    assert "--gpus" in GPU_PLACEMENT.reservation
+    assert CPU_PLACEMENT.reservation == ("--cpus", str(DEFAULT_CPU_BUDGET))
+    assert [placement.label for placement in PLACEMENTS] == [
+        PlacementTarget.GPU.value,
+        PlacementTarget.CPU.value,
+    ]
+
+
+def test_which_rows_are_a_models_own() -> None:
+    """A thinking-off model has a row per switch on the card and a shipped row on the CPU; a
+    thinking-on model has one row, under the shipped switch on the card.
+
+    The thinking-on rule is the one that skipped both of a cortex row's copies from 2026-09-04 to
+    2026-09-05, so the cortex row's one remaining copy is asserted to run rather than inferred.
+    """
+    thinking = [model for model in MODELS if model.thinking]
+    assert thinking, MODELS
+    for model in MODELS:
+        own = {
+            (switch.label, placement.label)
+            for switch in SWITCHES
+            for placement in PLACEMENTS
+            if repeat_of(model, switch, placement) is None
+        }
+        card = {(switch.label, GPU_PLACEMENT.label) for switch in SWITCHES}
+        expected = (
+            {(SHIPPED_SWITCH.label, GPU_PLACEMENT.label)}
+            if model.thinking
+            else card | {(SHIPPED_SWITCH.label, CPU_PLACEMENT.label)}
+        )
+        assert own == expected, model.label
+
+
+def test_thinking_follows_the_tier_and_each_lineup_names_its_own() -> None:
+    """Whether a model thinks is read off the tier it is measured as, and no lineup is mis-tiered.
+
+    A subagent candidate measured as the cortex tier would be started without the pair and read
+    as deliberating on purpose, so its published row would be a row of another tier.
+    """
+    assert all(model.tier == CORTEX_TIER for model in (*CORTEX_CANDIDATES, *VISION_MODELS))
+    assert all(model.tier == SUBAGENT_TIER for model in SUBAGENT_CANDIDATES)
+    assert all(model.tier == BRAIN_TIER for model in BRAIN_CANDIDATES)
+    assert all(model.thinking for model in (*CORTEX_CANDIDATES, *BRAIN_CANDIDATES))
+    assert not any(model.thinking for model in SUBAGENT_CANDIDATES)
+
+
+def test_a_tier_the_sidecar_does_not_declare_is_refused() -> None:
+    """A model naming a tier the model host has no row for fails at the read, not at the card."""
+    with pytest.raises(LookupError):
+        tier_args("no-such-tier")

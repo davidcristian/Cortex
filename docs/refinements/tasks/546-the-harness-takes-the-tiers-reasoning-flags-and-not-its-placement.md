@@ -1,6 +1,6 @@
 # The harness takes the tier's reasoning flags and not its placement
 
-**Status:** open, actionable
+**Status:** landed 2026-09-05
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 
@@ -41,3 +41,23 @@ model at one placement rather than the lineup.
 - 2026-09-04: opened by the close of
   [R-525](525-the-injection-harness-sends-a-request-key-and-never-the-tiers-argv.md), which read
   the tier's reasoning-off pair off the sidecar and left the three flags before it typed here.
+- 2026-09-05: **landed**. Re-derived: the head was typed and uncompared, as the entry says, and
+  two things it did not say. The head was one head for three tiers, so every cortex row ran at
+  8192 against the cortex tier's 16384; and the text arm had drawn no cortex row since 2026-09-04,
+  `switch_for` returning `THINKING_ON` under both switches and the test skipping whenever the
+  switch returned was not the one asked for (`-k "12B and shipped-argv"` reported `1 skipped`).
+  `server_argv` now hands the row's tier, read off `ModelHostConfig` by `tier_args`, to the
+  sidecar's `llama_server_argv` with the artifact, port, layer count and tail substituted; a
+  `Model` names its tier and `thinking` is read off it. `-ngl` is a row for the one tier the stack
+  places twice: `PLACEMENTS` builds on the core's `PlacementTarget`, and the CPU row runs the CPU
+  image with no device, the core's layer count for that server and the override's CPU quota off
+  `DEFAULT_CPU_BUDGET`, for the shipped switch alone. Eight mutations each fail
+  `test_switch_rows.py` (14 tests). Measured on the pick: 0 of 10 framed on the card under the
+  tier's own head, cell for cell the 2026-09-04 rows, and 0 of 10 on the CPU in two sittings (1837 s under
+  the quota, 819 s without); the cortex row, first drawn since 2026-09-04, is 0 of 10. The ADR-0004 placement-row
+  addendum carries the table. Opened
+  [R-555](555-the-other-four-subagent-candidates-have-no-cpu-row.md),
+  [R-556](556-no-pixel-row-has-been-replicated-at-the-tiers-own-window.md),
+  [R-557](557-the-engine-image-names-are-typed-in-five-places.md),
+  [R-558](558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md) and
+  [R-559](559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md).
