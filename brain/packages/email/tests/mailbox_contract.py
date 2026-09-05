@@ -21,6 +21,9 @@ INVENTED_FOLDER = "Receipts"
 # calls the empty name no such mailbox and the probe's Dovecot refuses to read it as a name.
 IMPOSSIBLE_FOLDER = ""
 SELECT_ANSWER_FRAGMENTS = ("Response status", "no such mailbox", "Data:")
+# A uid past anything a mailbox has assigned, so no message in any fixture's folder has it.
+MISSING_UID = "4294967290"
+IMPOSSIBLE_UIDS = ("abc", "0", "2,1", "1:*", "4294967296", "")
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,10 +34,15 @@ class MailboxUnderTest:
     folder: str
     refuse_searches: Callable[[], None]
     break_folder_opening: Callable[[], None]
+    decline_reads: Callable[[], None]
     # A name this implementation's server lists and no mailbox has: a node in the hierarchy.
     # It is not a knob, because no method can make a server grow one; each fixture is built
     # over a server that already has it, the live one included.
     hierarchy_node: str
+    # A folder this implementation's server has that holds no mail, so a read in it is asking
+    # about a message in a place that has none. Not a knob either: every fixture is built over
+    # a server that has one.
+    empty_folder: str
 
 
 type Check = Callable[[MailboxUnderTest], None]
@@ -142,6 +150,38 @@ def a_folder_that_could_not_be_opened_is_not_reported_missing(
     assert not isinstance(raised.value, FolderUnknownError)
 
 
+def a_fetch_answers_the_message_a_search_named(under_test: MailboxUnderTest) -> None:
+    """`fetch` of a uid `search` returned is that message, whole, under that uid."""
+    found = list(under_test.mailbox.search(under_test.folder, "ALL", 5))
+    assert found
+    read = under_test.mailbox.fetch(under_test.folder, found[0].uid)
+    assert read is not None
+    assert read.uid == found[0].uid
+    assert read.raw.startswith(b"From:")
+
+
+def a_uid_no_message_has_is_answered_as_not_there(under_test: MailboxUnderTest) -> None:
+    """A uid nothing in the folder carries comes back ``None``, whichever kind of folder it is."""
+    assert list(under_test.mailbox.search(under_test.folder, "ALL", 1))
+    assert under_test.mailbox.fetch(under_test.folder, MISSING_UID) is None
+    assert list(under_test.mailbox.search(under_test.empty_folder, "ALL", 1)) == []
+    assert under_test.mailbox.fetch(under_test.empty_folder, MISSING_UID) is None
+
+
+def a_uid_no_message_could_have_is_answered_as_not_there(under_test: MailboxUnderTest) -> None:
+    """A string that is not a uid names no message, so the answer is that none has it."""
+    for uid in IMPOSSIBLE_UIDS:
+        assert under_test.mailbox.fetch(under_test.folder, uid) is None, uid
+
+
+def a_read_the_server_declined_is_not_reported_as_not_there(under_test: MailboxUnderTest) -> None:
+    """A read the server would not perform stays the base error, never the not-there answer."""
+    under_test.decline_reads()
+    with pytest.raises(MailboxError) as raised:
+        under_test.mailbox.fetch(under_test.folder, MISSING_UID)
+    assert not isinstance(raised.value, FolderUnknownError)
+
+
 ALL_CHECKS: Sequence[Check] = (
     folders_come_back_as_plain_names,
     a_listed_name_is_never_one_the_port_calls_unknown,
@@ -153,4 +193,8 @@ ALL_CHECKS: Sequence[Check] = (
     an_unknown_folder_says_where_the_real_names_are,
     a_name_no_mailbox_could_have_is_one_no_mailbox_has,
     a_folder_that_could_not_be_opened_is_not_reported_missing,
+    a_fetch_answers_the_message_a_search_named,
+    a_uid_no_message_has_is_answered_as_not_there,
+    a_uid_no_message_could_have_is_answered_as_not_there,
+    a_read_the_server_declined_is_not_reported_as_not_there,
 )

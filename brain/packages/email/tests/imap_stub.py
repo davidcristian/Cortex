@@ -2,6 +2,7 @@
 
 import ssl
 from collections.abc import Sequence
+from imaplib import IMAP4
 from typing import Self
 
 import pytest
@@ -44,6 +45,20 @@ REFUSED_NAME_ANSWER = (
     [b"[CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs)."],
 )
 
+# What imaplib hands back for one command: the tagged status and the untagged lines, a line whose
+# literal arrived separately coming as a pair, and `[None]` when no line came at all.
+type Answer = tuple[str, list[bytes | tuple[bytes, bytes] | None]]
+
+# What both servers answer a UID FETCH of a uid no message has, in a folder holding mail and in
+# one holding none alike: RFC 3501's OK with no data, as imaplib renders it (ADR-0022 fetch-by-uid
+# addendum).
+NOTHING_FETCHED: Answer = ("OK", [None])
+DECLINED_READ_ANSWER: Answer = ("NO", [b"[UNAVAILABLE] Temporary failure"])
+DROPPED_READ = IMAP4.abort(
+    "command: UID => FETCH failed: Internal error occurred. Refer to server log for more "
+    "information. [2026-09-05 01:02:49]"
+)
+
 
 # The LIST attributes a real server sends with a name that is only a point in the hierarchy,
 # measured verbatim against the probe's `Parent`, which has a child and is not a mailbox:
@@ -84,6 +99,8 @@ class FolderManager:
         self._open_nodes = open_nodes
         self._set_calls = set_calls
         self.select_error: BaseException | None = None
+        # The folder the last accepted ``set`` opened, which is what a later fetch answers from.
+        self.current: str | None = None
 
     def list(self) -> list[Folder]:
         listed = [Folder(name) for name in self._names]
@@ -96,10 +113,54 @@ class FolderManager:
             raise self.select_error
         if folder not in self._names and folder not in self._open_nodes:
             raise MailboxFolderSelectError(MISSING_FOLDER_ANSWER, "OK")
+        self.current = folder
+
+
+def _fetched(message: Msg) -> list[bytes | tuple[bytes, bytes] | None]:
+    """One message as the Bridge's UID FETCH item reaches imaplib, in the shape measured verbatim.
+    """
+    raw = message.obj.as_bytes()
+    return [
+        (f"1 (BODY[] {{{len(raw)}}}".encode(), raw),
+        f" UID {message.uid} FLAGS () RFC822.SIZE {len(raw)})".encode(),
+    ]
+
+
+# What imaplib raises when the Bridge answers a UID FETCH of a string that is not a number,
+# measured verbatim; Dovecot 2.3.21 answers the same BAD in its own words. Both refuse ``0``
+# the same way, so the stand-in refuses everything that is not a number above zero.
+NOT_A_NUMBER = IMAP4.error(
+    "UID command error: BAD [b'[Error offset=16]: expected valid digit for number']"
+)
+
+
+class FakeClient:
+    """The ``box.client`` the adapter sends its one ``UID FETCH`` through, answering by uid."""
+
+    def __init__(self, box: "FakeBox") -> None:
+        self._box = box
+        self.uid_calls: list[tuple[str, ...]] = []
+
+    def uid(self, command: str, *args: str) -> Answer:
+        self.uid_calls.append((command, *args))
+        if self._box.fetch_error is not None:
+            raise self._box.fetch_error
+        if self._box.fetch_answer is not None:
+            return self._box.fetch_answer
+        uid = args[0]
+        held = self._box.messages_in_open_folder()
+        if any(mark in uid for mark in ",:") and held:
+            return ("OK", _fetched(held[0]))
+        if not uid.replace(",", "").replace(":", "").replace("*", "").isdigit() or uid == "0":
+            raise NOT_A_NUMBER
+        for message in held:
+            if message.uid == uid:
+                return ("OK", _fetched(message))
+        return NOTHING_FETCHED
 
 
 class FakeBox:
-    """Stands in for an imap-tools MailBox: login/context-manager/folder/fetch."""
+    """Stands in for an imap-tools MailBox: login/context-manager/folder/fetch/client."""
 
     def __init__(
         self,
@@ -114,8 +175,15 @@ class FakeBox:
         self.login_calls: list[tuple[str, str]] = []
         self.fetch_calls: list[tuple[object, int | None, bool, bool]] = []
         self.folder = FolderManager(names, self.set_calls, nodes, node_flags, open_nodes)
+        self.client = FakeClient(self)
         self.fetch_error = fetch_error
+        self.fetch_answer: Answer | None = None
+        self._mail_folder = names[0]
         self._messages = list(messages)
+
+    def messages_in_open_folder(self) -> list[Msg]:
+        """The canned messages when the open folder is the one holding them, else none."""
+        return self._messages if self.folder.current == self._mail_folder else []
 
     def login(self, user: str, password: str) -> Self:
         self.login_calls.append((user, password))
@@ -137,7 +205,7 @@ class FakeBox:
         self.fetch_calls.append((criteria, limit, headers_only, mark_seen))
         if self.fetch_error is not None:
             raise self.fetch_error
-        return self._messages
+        return self.messages_in_open_folder()
 
 
 def config(*, security: ImapSecurity = "starttls", tls_insecure: bool = False) -> EmailConfig:

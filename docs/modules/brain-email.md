@@ -29,7 +29,13 @@ denied outright.
   offered list and one requiring that naming a node anyway still fails. The other direction, that
   every name the server opens is offered, is not a contract check: it can only be seen beside the
   server's own LIST, so the adapter's tests and the live Bridge test carry it (ADR-0022
-  flagged-and-refused addendum).
+  flagged-and-refused addendum). The read by uid has its own promise: `fetch` answers `None` for
+  a uid no message has, in a folder holding mail and in one holding none alike, and for a string
+  that is not a uid, and it answers `None` only when the message is shown absent, so a read the
+  server declined for a reason of its own stays `MailboxError`. Four contract checks hold that,
+  one per half, one for a folder holding none (`empty_folder`, which every fixture names, because
+  a real server answered the two kinds differently one command down) and one for the round trip
+  from a search line's uid back to that message (ADR-0022 fetch-by-uid addendum).
 - `MailboxError` says the mailbox could not answer: unreachable Bridge, rejected TLS or login, a
   folder that could not be examined, a dropped connection. Beneath it are the two narrower
   subclasses, one per argument the read tools invite a model to guess, and the line in both cases
@@ -83,6 +89,21 @@ denied outright.
   whose prose merely contains "cannot" is not classified as a missing folder. The other
   refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
   two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
+- **A read by uid is one `UID FETCH`, sent by `uidfetch.py` rather than through imap-tools'
+  `fetch`.** imap-tools searches for the uid before fetching it, and a ProtonMail Bridge answers
+  that search `NO no such message` for every uid in a folder holding no mail, where it answers the
+  same search in a folder holding mail with nothing found; the adapter classified that `NO` as a
+  plain `MailboxError`, so a `read_email` in an empty folder tainted the turn instead of answering
+  `message <uid> not found in <folder>`. RFC 3501 defines what a `UID FETCH` answers for a uid no
+  message has, an `OK` carrying no data, and both servers answer exactly that in both kinds of
+  folder, so absence is read off the FETCH's own answer and off nothing else. A `NO` to the FETCH
+  is a read the server declined for a reason of its own and stays `MailboxError` with the
+  server's text, the direction the folder classification fails in. The uid is held to RFC 3501's
+  `uniqueid` grammar first (`is_uid`: a decimal number with no leading zero, at most 4294967295),
+  and a string that is not a uid is answered `None` with no command sent, because the two servers
+  read such strings differently and the Bridge reads `01` as 1 and `2,1` or `1:*` as a set that
+  fetches messages the caller never named. The whole message is asked for with `BODY.PEEK[]`,
+  the read that leaves the Seen flag alone (ADR-0022 fetch-by-uid addendum).
 - **The probe suite's seven fixture names are module constants and registered couplings.**
   `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT`, `NODE_CHILD`, `FEIGNED_FOLDER` and
   `FOLLOWED_SUBSCRIPTION` name mailboxes `docker/dovecot/probe-mailboxes.sh` builds, and
@@ -209,7 +230,8 @@ denied outright.
 
 **Read-only by default, in three layers on the read path.** Without the explicit send opt-in,
 only read tools register; folders are opened with EXAMINE (`readonly=True`, never SELECT); and
-fetches never set the Seen flag (`mark_seen=False`). The IMAP path can never modify a mailbox.
+fetches never set the Seen flag (`mark_seen=False` on a search, `BODY.PEEK[]` on a read by uid).
+The IMAP path can never modify a mailbox.
 The one write capability (`send_email`, SMTP on a different protocol and connection) exists only
 when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
 
@@ -219,10 +241,14 @@ when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
   Bridge); the parsing + tools are pure and 100%-covered without a server.
 - Fully typed, pyright strict clean; 100% line+branch over fakes, namely a fake `Mailbox` for the
   reader/tools (`tests/mailbox_fake.py`) and a stand-in imap-tools `MailBox` for `ImapMailbox`
-  (`tests/imap_stub.py`), each shared so the same one drives every suite. Both `Mailbox`
-  implementations are run through `tests/mailbox_contract.py`, which is where the port's promises
-  are written, both corrections among them, including that a folder which failed to open for any
-  other reason is never reported missing. The live contract is the `integration`-marked
+  (`tests/imap_stub.py`), each shared so the same one drives every suite. Both keep their canned
+  mail in the first folder they list and answer every other folder as holding none, and the
+  stand-in answers a `UID FETCH` the way the two measured servers do, by uid, so the contract's
+  read-by-uid checks drive a folder holding mail and one holding none over one fixture. Both
+  `Mailbox` implementations are run through `tests/mailbox_contract.py`, which is where the
+  port's promises are written, both corrections among them, including that a folder which failed
+  to open for any other reason is never reported missing and that a read the server declined is
+  never reported as a message that is not there. The live contract is the `integration`-marked
   `tests/test_email_live.py` (run per docs/runbooks/email-imap.md).
 - Pinned to the MCP SDK v1.x (`mcp>=1.23,<2`).
 - The advertised schema is **generated, never written**, so what the model is told about an

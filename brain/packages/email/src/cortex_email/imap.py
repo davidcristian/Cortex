@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from imaplib import IMAP4
 
 from imap_tools import (
-    A,
     BaseMailBox,
     ImapToolsError,
     MailBox,
@@ -17,6 +16,7 @@ from imap_tools import (
 from cortex_email.config import EmailConfig
 from cortex_email.errors import FolderUnknownError, MailboxError, SearchRefusedError
 from cortex_email.reader import RawEmail
+from cortex_email.uidfetch import fetch_by_uid
 
 # What the IMAP stack raises: imap-tools' own errors (a NO where an OK was expected), imaplib's
 # protocol errors (a BAD tagged response, a connection lost mid-command), and the socket and TLS
@@ -123,14 +123,7 @@ class ImapMailbox:
             ]
 
     def fetch(self, folder: str, uid: str) -> RawEmail | None:
-        """Fetch one full message by uid, or None when it does not exist (read-only).
-
-        A folder no mailbox has raises `FolderUnknownError`, the same as a search: the guess is
-        the same guess, and it fails before any uid is looked at.
-        """
+        """Fetch one whole message by uid, or None when no message has that uid (read-only)."""
         with _translated("read that message"), self._open() as box:
             _select(box, folder)
-            messages = list(box.fetch(A(uid=uid), limit=1, mark_seen=False))
-            if not messages:
-                return None
-            return RawEmail(uid=messages[0].uid or "", raw=messages[0].obj.as_bytes())
+            return fetch_by_uid(box, uid)

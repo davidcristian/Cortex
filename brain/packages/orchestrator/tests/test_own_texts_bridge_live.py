@@ -1,5 +1,3 @@
-"""The own-text overlay against a real ProtonMail Bridge, through the root's own wiring."""
-
 import contextlib
 import subprocess
 import sys
@@ -27,19 +25,11 @@ from cortex_email import EmailConfig
 from cortex_orchestrator import ToolsConfig, build_tool_registry
 from cortex_orchestrator.own_texts import folder_unknown, no_matches, not_found, search_refused
 
-# The port and path `cortex_email` serves on, and the URL a deployment points the brain at. The
-# sidecar reads its own bind from its module, so this is the address rather than a second
-# configuration of it.
 _ENDPOINT = "http://127.0.0.1:9100/mcp"
 _START_TIMEOUT_S = 60
 
-# The two arguments that make a real server answer with a correction rather than with mail. The
-# query is the client syntax ADR-0022's refused-search addendum wrote the correction for, which a
-# Bridge answers `BAD`; the folder is a name no mailbox has, which it answers `NO`.
 _CLIENT_SYNTAX = "from:someone@example.com"
 _MISSING_FOLDER = "Receipts-no-mailbox-has-this"
-# A uid past anything a mailbox has assigned, so the fetch finds nothing and the sidecar composes
-# its own not-found answer rather than reading a message.
 _MISSING_UID = "4294967290"
 
 _SEARCH_TOOL = "search_emails"
@@ -86,7 +76,7 @@ def registry(sidecar: None) -> ToolRegistry:
 
 
 def _empty_query() -> str:
-    """A search a real mailbox answers with no matches, on a subject nothing can carry."""
+    """A search a real mailbox answers with no matches, on a subject no message can have."""
     return f'SUBJECT "cortex-{uuid.uuid4().hex}"'
 
 
@@ -116,7 +106,6 @@ async def _folders(registry: ToolRegistry) -> tuple[str | None, str | None]:
 async def test_the_five_own_answers_off_a_real_bridge_come_back_trusted(
     registry: ToolRegistry,
 ) -> None:
-    """Each answer the sidecar composes itself, driven by the Bridge's own reply, is re-stamped."""
     with_mail, _ = await _folders(registry)
     if with_mail is None:
         pytest.skip("no folder in this mailbox holds mail, so the not-found row cannot run")
@@ -152,24 +141,24 @@ async def test_the_five_own_answers_off_a_real_bridge_come_back_trusted(
 
 
 @pytest.mark.integration
-async def test_a_read_of_an_empty_folder_never_reaches_the_not_found_answer(
+async def test_a_read_of_a_folder_holding_no_mail_reaches_the_not_found_answer_too(
     registry: ToolRegistry,
 ) -> None:
-    """A ``read_email`` of a folder holding no mail raises here, so the own text is unreached."""
     _, without = await _folders(registry)
     if without is None:
         pytest.skip("every folder in this mailbox holds mail, so the empty-folder read cannot run")
     result = await registry.invoke(
         ToolCall(id="u-1", name=_READ_TOOL, arguments={"folder": without, "uid": _MISSING_UID})
     )
-    assert result.trust is Trust.UNTRUSTED
-    assert result.content != not_found({"uid": _MISSING_UID, "folder": without})
-    assert result.is_error
+    assert (result.trust, result.content) == (
+        Trust.TRUSTED,
+        not_found({"uid": _MISSING_UID, "folder": without}),
+    )
+    assert not result.is_error
 
 
 @pytest.mark.integration
 async def test_a_message_the_bridge_read_stays_untrusted(registry: ToolRegistry) -> None:
-    """Mail is what the overlay must not re-stamp, and only a real mailbox can hand it over."""
     with_mail, _ = await _folders(registry)
     if with_mail is None:
         pytest.skip("no folder in this mailbox holds mail, so there is nothing to read")
@@ -219,7 +208,6 @@ class _Clock:
 async def test_a_refused_search_is_audited_trusted_and_leaves_the_send_confirmable(
     registry: ToolRegistry,
 ) -> None:
-    """The whole live claim of the overlay, in one turn: the audit line, the ledger, the gate."""
     audit, confirmer, ledger = _Recorder(), _Declining(), TaintLedger()
     dispatcher = ToolDispatcher(registry, audit, _Clock(), confirmer=confirmer)
     refused = await dispatcher.dispatch(

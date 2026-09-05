@@ -1,4 +1,4 @@
-"""The fake `Mailbox`: canned messages, no IMAP, and the port's two error paths on demand."""
+"""The fake `Mailbox`: canned messages, no IMAP, and the port's error paths on demand."""
 
 from collections.abc import Sequence
 
@@ -23,6 +23,7 @@ class FakeMailbox:
         self._one = one
         self._refusing = False
         self._unopenable = False
+        self._declining = False
         self.searched: list[tuple[str, str, int]] = []
 
     def refuse(self) -> None:
@@ -30,12 +31,12 @@ class FakeMailbox:
         self._refusing = True
 
     def break_folder_opening(self) -> None:
-        """Make every later call fail to open its folder for a reason that is not the name.
-
-        This is the contrast case the classification exists for: a folder that is listed, so it
-        really is there, and still cannot be examined right now.
-        """
+        """Make every later call fail to open its folder for a reason that is not the name."""
         self._unopenable = True
+
+    def decline_reads(self) -> None:
+        """Make every later fetch fail for a reason other than the uid, as a NO to the read does."""
+        self._declining = True
 
     def _open(self, folder: str) -> None:
         if self._unopenable:
@@ -43,6 +44,9 @@ class FakeMailbox:
             raise MailboxError(msg)
         if folder not in self._folders:
             raise FolderUnknownError(folder)
+
+    def _holds_mail(self, folder: str) -> bool:
+        return folder == self._folders[0]
 
     def list_folders(self) -> Sequence[str]:
         """Everything the server lists, less the nodes, which is the filtering the port requires."""
@@ -53,9 +57,12 @@ class FakeMailbox:
         self.searched.append((folder, query, limit))
         if self._refusing:
             raise SearchRefusedError(query)
-        return self._found
+        return self._found if self._holds_mail(folder) else ()
 
     def fetch(self, folder: str, uid: str) -> RawEmail | None:
-        del uid
         self._open(folder)
-        return self._one
+        if self._declining:
+            msg = "the mailbox could not read that message"
+            raise MailboxError(msg)
+        held = (*self._found, self._one) if self._holds_mail(folder) else ()
+        return next((item for item in held if item is not None and item.uid == uid), None)
