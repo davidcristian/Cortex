@@ -118,7 +118,7 @@ def test_a_read_the_server_declined_keeps_the_library_s_account_of_why(
     with pytest.raises(MailboxError) as raised:
         ImapMailbox(config()).fetch("INBOX", "7")
     assert "could not read that message" in str(raised.value)
-    assert "UNAVAILABLE" in str(raised.value)
+    assert "[SERVERBUG]" in str(raised.value)
 
 
 def test_a_read_the_server_dropped_the_connection_on_is_not_reported_as_not_there(

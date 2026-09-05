@@ -35,7 +35,12 @@ denied outright.
   server declined for a reason of its own stays `MailboxError`. Four contract checks hold that,
   one per half, one for a folder holding none (`empty_folder`, which every fixture names, because
   a real server answered the two kinds differently one command down) and one for the round trip
-  from a search line's uid back to that message (ADR-0022 fetch-by-uid addendum).
+  from a search line's uid back to that message (ADR-0022 fetch-by-uid addendum). The declined
+  read is measured on the probe's `Sealed`, a mailbox holding one message the mail process
+  cannot open, where the FETCH is answered `NO [SERVERBUG] Internal error occurred` under the
+  `imap_fetch_failure = no-after` the probe sets; the check reads the uid a fixture names as
+  `declined_uid`, since on a live server the refusal belongs to one message rather than to every
+  read (ADR-0022 declined-read addendum).
 - `MailboxError` says the mailbox could not answer: unreachable Bridge, rejected TLS or login, a
   folder that could not be examined, a dropped connection. Beneath it are the two narrower
   subclasses, one per argument the read tools invite a model to guess, and the line in both cases
@@ -104,15 +109,20 @@ denied outright.
   read such strings differently and the Bridge reads `01` as 1 and `2,1` or `1:*` as a set that
   fetches messages the caller never named. The whole message is asked for with `BODY.PEEK[]`,
   the read that leaves the Seen flag alone (ADR-0022 fetch-by-uid addendum).
-- **The probe suite's seven fixture names are module constants and registered couplings.**
-  `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT`, `NODE_CHILD`, `FEIGNED_FOLDER` and
-  `FOLLOWED_SUBSCRIPTION` name mailboxes `docker/dovecot/probe-mailboxes.sh` builds, and
-  `GHOST_SUBSCRIPTION` names the one it does not:
+- **The probe suite's eight fixture names and one uid are module constants and registered
+  couplings.** `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT`, `NODE_CHILD`, `FEIGNED_FOLDER`,
+  `FOLLOWED_SUBSCRIPTION` and `SEALED_FOLDER` name mailboxes `docker/dovecot/probe-mailboxes.sh`
+  builds, and `GHOST_SUBSCRIPTION` names the one it does not:
   a subscription written into the account's own file with no mailbox behind it, which is the only
-  way that server sends `\NonExistent`. The last two are a pair: `FEIGNED_FOLDER` opens, and
-  carries `\Noselect` in an `LSUB` of `%` only because `FOLLOWED_SUBSCRIPTION` under it is
-  subscribed and it is not, which is the one way this server says what the Bridge says in its
-  ordinary LIST (ADR-0022 flagged-name-that-opens addendum).
+  way that server sends `\NonExistent`. `FEIGNED_FOLDER` and `FOLLOWED_SUBSCRIPTION` are a pair:
+  the first opens, and carries `\Noselect` in an `LSUB` of `%` only because the second, under
+  it, is subscribed and it is not, which is the one way this server says what the Bridge says in
+  its ordinary LIST (ADR-0022 flagged-name-that-opens addendum). `SEALED_FOLDER` holds the one
+  message this fixture has, under `SEALED_UID`, and it is the one read this server declines: the
+  message is saved through a first, loopback-only start of the server, its file is shut before
+  the server the suite reaches starts, and `docker/dovecot/probe.conf` sets `imap_fetch_failure =
+  no-after` so the FETCH is answered with a tagged `NO` rather than Dovecot's default BYE
+  (ADR-0022 declined-read addendum).
   `scripts/crosscheck.py` ties each to the line
   the script writes it in (ADR-0029 fixture addendum). This suite is `integration`-marked and
   never runs in CI, so the gate is the only check that catches the fixture and the suite

@@ -123,8 +123,9 @@ A `NO` to `SELECT` covers two facts, a mailbox that does not exist and a mailbox
 cannot be opened, and this Bridge produces only the first: every wrong name is refused in the
 same words and all nineteen folders it lists open. So the second is measured against a second
 server, a Dovecot run locally for the purpose, whose ACL plugin can leave a mailbox listed, real,
-and shut ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md) two-server addendum). It holds no
-mail, checks no password, publishes on loopback only, and is nothing to do with the brain stack:
+and shut ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md) two-server addendum). It holds
+one message, sealed so that the mail process cannot read it, checks no password, publishes on
+loopback only, and is nothing to do with the brain stack:
 
 ```
 just up-imap-probe
@@ -132,12 +133,13 @@ just email-folder-probe
 just down-imap-probe
 ```
 
-Its LIST returns six names, five of them mailboxes (`INBOX`, `Parent/Child`, `Feigned` and
-`Feigned/Followed`, which open, and `Guarded`, which does not) and one of them a `\Noselect` node
-that is not a mailbox at all (`Parent`). A seventh name, `Ghost`, is subscribed and not there,
-which no LIST returns and which exists only to make the server send `\NonExistent`. What each is
-for is written in `docker/dovecot/probe-mailboxes.sh`, which builds them.
-All seven are named a second time by `packages/email/tests/test_imap_probe_live.py`, and
+Its LIST returns seven names, six of them mailboxes (`INBOX`, `Parent/Child`, `Feigned`,
+`Feigned/Followed` and `Sealed`, which open, and `Guarded`, which does not) and one of them a
+`\Noselect` node that is not a mailbox at all (`Parent`). An eighth name, `Ghost`, is subscribed
+and not there, which no LIST returns and which exists only to make the server send
+`\NonExistent`. What each is for is written in `docker/dovecot/probe-mailboxes.sh`, which builds
+them. All eight are named a second time by `packages/email/tests/test_imap_probe_live.py`, as is
+the uid of the one message `Sealed` holds, and
 `scripts/crosscheck.py` holds the two spellings together (ADR-0029 fixture addendum): rename a
 mailbox in the script alone and the gate says so on the next commit, where the suite that would
 otherwise catch it is `integration`-marked and runs only when somebody measures.
@@ -153,8 +155,10 @@ ls` exactly as it found it, which is worth checking after a Dovecot bump: a new 
 the image would start leaking again. Two ways this fixture fails to start, both by design and
 both naming themselves in `docker compose logs`: `is not the tmpfs the compose file mounts` means
 one of the two mounts went missing, and `parameter not set` means the variable behind it never
-arrived. Neither is a server fault, and `just up-imap-probe` reports both as a container that
-exited rather than as a stack that came up.
+arrived. A third, `gave up waiting for:`, means the first start of the server never produced its
+auth socket or its stop never finished, the two waits the sealed message below needs. None is a
+server fault, and `just up-imap-probe` reports each as a container that exited rather than as a
+stack that came up.
 The recipe reaches the server at the published port when that answers and at the container's own
 address when it does not, which is what a Docker Desktop engine beside a WSL distro gives; a probe
 that answers at neither is reported rather than waited on. The answers, measured through
@@ -184,13 +188,32 @@ server refuses it as well (ADR-0022 flagged-and-refused addendum). `Parent` goes
 listed in its own right, and on the Bridge the two flagged parents that open are kept.
 
 The probe is also the second server for the read by uid (ADR-0022 fetch-by-uid addendum), and one
-of its rows records the two answers side by side. Every folder here holds no mail, and in one
+of its rows records the two answers side by side. Every folder here but `Sealed` holds no mail,
+and in one
 `UID SEARCH UID 4294967290` answers `OK` with nothing found, where the Bridge answers
 `NO no such message`; `UID FETCH 4294967290` answers `OK` with no data on both servers, which is
 the one answer the adapter reads. A string that is not a uid is `BAD Invalid uidset` here for
 `abc`, `0` and `4294967296` alike, where the Bridge answers the first two with its own `BAD` and
 the third with no data, so the adapter holds the uid to RFC 3501's grammar itself rather than
 asking either server.
+
+`Sealed` is the one read this server declines (ADR-0022 declined-read addendum). It holds one
+message whose dbox file the entrypoint makes unreadable to the mail process after saving it
+through a first, loopback-only start of the server, and `docker/dovecot/probe.conf` sets
+`imap_fetch_failure = no-after`, so the FETCH is answered with a tagged `NO` on a connection that
+stays open rather than with Dovecot's default `* BYE` and a dropped connection. Measured through
+the adapter's own `UID FETCH <uid> (BODY.PEEK[] UID FLAGS RFC822.SIZE)`, verbatim:
+
+| `UID FETCH` of | what the server answered |
+| --- | --- |
+| `Sealed`'s message, under `no-after` | `NO [SERVERBUG] Internal error occurred. Refer to server log for more information. [2026-09-05 04:43:45] (0.001 + 0.000 secs).` |
+| the same message, under the default `disconnect-immediately` | `* BYE FETCH failed: Internal error occurred. Refer to server log for more information.`, and the connection closed |
+| a uid no message has, in the same folder | `OK` with no data |
+
+The adapter reads only the last of those as a message that is not there; the first two reach it
+as `MailboxError` carrying the server's words. The row that asserts it also asserts that the
+folder is listed and the message is in it (`EXISTS 1`), that a search of the folder is refused
+the same way, and that the connection survives the `NO`.
 
 ### Asking this server for the flag imap-tools never asks about
 

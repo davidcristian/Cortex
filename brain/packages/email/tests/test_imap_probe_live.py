@@ -13,6 +13,7 @@ from mailbox_contract import (
     a_hierarchy_node_is_still_refused_when_a_caller_names_it,
     a_listed_name_is_never_one_the_port_calls_unknown,
     a_name_no_mailbox_could_have_is_one_no_mailbox_has,
+    a_read_the_server_declined_is_not_reported_as_not_there,
     a_uid_no_message_could_have_is_answered_as_not_there,
 )
 from pydantic import SecretStr
@@ -44,6 +45,10 @@ FEIGNED_FOLDER = "Feigned"
 # That child. Its subscription is the whole cause: RFC 3501 has an `LSUB` of `%` flag an
 # unsubscribed name with subscribed children `\Noselect` whatever the name really is.
 FOLLOWED_SUBSCRIPTION = "Feigned/Followed"
+SEALED_FOLDER = "Sealed"
+# That message's uid, the first a fresh mailbox assigns. The file the fixture shuts is named after
+# it, and it is the uid the contract check reads.
+SEALED_UID = "1"
 IMPOSSIBLE_NAMES = ("Parent/", "/Parent", "Parent//Child", "INBOX/../etc")
 # No password is checked (docker/dovecot/probe.conf), so this is a formality the IMAP dialogue
 # requires rather than a secret, and the user and the password are the same word because nothing
@@ -110,6 +115,40 @@ def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> 
         # The words themselves, which are the evidence: RFC 5530's code for a mailbox that is
         # there and not available to this account, and nothing a missing folder ever says.
         assert "[NOPERM] Permission denied" in str(raised.value)
+
+
+@pytest.mark.integration
+def test_a_message_this_server_will_not_read_is_never_reported_missing() -> None:
+    """A read the server declines is refused without being answered as a message not there."""
+    mailbox = probe_mailbox()
+    assert SEALED_FOLDER in list(mailbox.list_folders())
+    a_read_the_server_declined_is_not_reported_as_not_there(
+        MailboxUnderTest(
+            mailbox=mailbox,
+            folder=SEALED_FOLDER,
+            refuse_searches=_nothing,
+            break_folder_opening=_nothing,
+            decline_reads=_nothing,
+            hierarchy_node=NOSELECT_PARENT,
+            empty_folder=REAL_FOLDER,
+            declined_uid=SEALED_UID,
+        )
+    )
+    with pytest.raises(MailboxError) as read:
+        mailbox.fetch(SEALED_FOLDER, SEALED_UID)
+    with pytest.raises(MailboxError) as searched:
+        mailbox.search(SEALED_FOLDER, "ALL", 1)
+    for raised in (read, searched):
+        assert not isinstance(raised.value, FolderUnknownError)
+        assert "[SERVERBUG] Internal error occurred" in str(raised.value)
+    assert mailbox.fetch(SEALED_FOLDER, MISSING_UID) is None
+    with probe_dialogue() as conn:
+        assert conn.select(f'"{SEALED_FOLDER}"', readonly=True) == ("OK", [b"1"])
+        status, data = conn.uid("FETCH", SEALED_UID, "(BODY.PEEK[] UID FLAGS RFC822.SIZE)")
+        assert status == "NO"
+        assert isinstance(data[0], bytes)
+        assert data[0].startswith(b"[SERVERBUG] Internal error occurred")
+        assert conn.noop()[0] == "OK"
 
 
 @pytest.mark.integration

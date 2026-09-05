@@ -53,7 +53,13 @@ type Answer = tuple[str, list[bytes | tuple[bytes, bytes] | None]]
 # one holding none alike: RFC 3501's OK with no data, as imaplib renders it (ADR-0022 fetch-by-uid
 # addendum).
 NOTHING_FETCHED: Answer = ("OK", [None])
-DECLINED_READ_ANSWER: Answer = ("NO", [b"[UNAVAILABLE] Temporary failure"])
+DECLINED_READ_ANSWER: Answer = (
+    "NO",
+    [
+        b"[SERVERBUG] Internal error occurred. Refer to server log for more information. "
+        b"[2026-09-05 04:43:45] (0.001 + 0.000 secs)."
+    ],
+)
 DROPPED_READ = IMAP4.abort(
     "command: UID => FETCH failed: Internal error occurred. Refer to server log for more "
     "information. [2026-09-05 01:02:49]"

@@ -1,5 +1,3 @@
-"""Both `Mailbox` implementations against the same checks (`mailbox_contract.py`)."""
-
 from collections.abc import Callable
 from imaplib import IMAP4
 
@@ -19,11 +17,7 @@ from mailbox_fake import FakeMailbox
 from cortex_email import ImapMailbox, RawEmail
 
 _FOLDER = "INBOX"
-# The name each fixture's server lists and no mailbox has, named as a parent so it reads as
-# what it is; the live probe uses a real one that a real Dovecot builds.
 _NODE = "Parent"
-# A folder each fixture's server has and keeps no mail in, so a read there asks about a message
-# in a place that has none; on the live Bridge it is whichever folder of the account holds none.
 _EMPTY = "Archive"
 _SIMPLE = (
     b"From: Alice <alice@example.com>\r\nSubject: Lunch\r\n"
@@ -51,17 +45,12 @@ def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
     box = FakeBox(names=[_FOLDER, _EMPTY], messages=[Msg("7", _SIMPLE)], nodes=[_NODE])
 
     def refuse() -> None:
-        # What imaplib raises out of `UID SEARCH` when the tagged response is BAD.
         box.fetch_error = IMAP4.error(WIRE_ANSWER)
 
     def break_folder_opening() -> None:
-        # A NO to SELECT that is not the missing-mailbox one, which is the only way to reach the
-        # fail-safe branch: no server this repo can reach answers NO to a select for any other
-        # reason.
         box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
 
     def decline_reads() -> None:
-        # A NO to UID FETCH, which no server this repo can reach has sent either.
         box.fetch_answer = DECLINED_READ_ANSWER
 
     patch_box(monkeypatch, box)
