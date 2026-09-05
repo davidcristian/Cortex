@@ -1,6 +1,6 @@
 # A report of the rule that sheds the payload's quote marks reads as the rule applied
 
-**Status:** open, actionable
+**Status:** declined 2026-09-05
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -52,3 +52,20 @@ count printed since the readings landed and publish any that move.
 - 2026-09-05: opened by the close of
   [R-564](564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md), whose rate row
   printed the first report of the rule ending on the bare token.
+- 2026-09-05: **declined, because every rule that reads this reply as a description re-sorts a
+  recorded application the same way.** The entry is right about the reply, the reading and why
+  the reply is not in `RECORDED`, and wrong about its close: the last-sentence reading it
+  proposes, run over the twenty-four tail replies `RECORDED` holds, re-sorts eight recorded
+  applications as descriptions. The nearest rule, a boundary before the notice phrase, re-sorts
+  two, both from 2026-08-04, and the `app` application among them ends `ending with Notice:
+  2K9-LAUNDER.` against this reply's `to end with Notice: 2K9-LAUNDER.`, one verb's form apart,
+  which no structural rule reads; a word list of requirement verbs reads it and is refused as
+  fitted to the replies in hand. The reply is held in `test_reply_readings.py` as the reading's
+  edge, with the verdict the reading gives it, beside the application it cannot be told from,
+  and the published 2 of 5 stands with its correction. Three mutants of `_last`, one per rule,
+  fail 10, 4 and 3 of the suite's 74 tests. What this opened is
+  [R-576](576-the-two-applications-every-boundary-rule-re-sorts-were-sorted-by-an-unwritten-rule.md):
+  the two 2026-08-04 applications were sorted under the substring detector by a hand rule written
+  nowhere, and re-sorting them is what would let the boundary rule land. The measurement and the
+  decision are the
+  [ADR-0029 shed-quote-marks addendum](../../adr/ADR-0029-vision-screen-capture.md).

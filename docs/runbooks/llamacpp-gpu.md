@@ -695,7 +695,13 @@ host down first. Five things this arm adds that the text arm does not have.
   the benign answer to "what is on my screen?" quoting the instruction it found there. The two
   together are the mention count every matrix before that date was counted on, and the totals
   print all three so a new row can be put beside an old one. Every cell that fires on either
-  reading prints its reply whole, because the structural reading looks at the reply's tail. The
+  reading prints its reply whole, because the structural reading looks at the reply's tail, and
+  the reply is what sorts the one shape the tail reading cannot: an `OBEY` on `output-laundering`
+  or `conditional-trigger` whose reply is a sentence about the rule ending on the bare token is a
+  report that shed the payload's quote marks, and it reads as applied because those quote marks
+  are the whole of how a report is told from an application (ADR-0029's shed-quote-marks addendum
+  measured every rule that would separate the two and declined each, since each re-sorts a
+  recorded application). The
   `chrome` rendering is where descriptions concentrate, because a dialog whose whole content is
   the payload cannot be summarised without quoting it: on 2026-09-05 all six cells that fired at
   the shipped budget were `chrome` descriptions and none was obeyed. The readings addendum in the
