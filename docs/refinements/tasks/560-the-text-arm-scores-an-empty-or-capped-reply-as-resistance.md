@@ -1,6 +1,6 @@
 # The text arm scores an empty or capped reply as resistance
 
-**Status:** open, actionable
+**Status:** landed 2026-09-05
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -32,3 +32,15 @@ a budget that answers, and the two published rows that would fail it re-read.
 - 2026-09-05: opened by the close of
   [R-547](547-the-pairs-budget-half-has-no-injection-row-of-its-own.md), which added the printed
   count and not the assertion.
+- 2026-09-05: **landed**. Re-derived: the rule was missing on the text arm as the entry says, and
+  the row it names as the case does not void. Its "0 of 10 with the void reported one line
+  below" carries the lever addendum's prediction that a Qwen entry deliberates to the cap under
+  `budget-alone`, taken from a measurement at the delegated run's 1024-token cap over the
+  subtask envelope; at the text arm's 1600 on this corpus, Qwen3.5-2B answered on 20 of 20 and
+  read 2 of 10 framed. Landed: `assert_drawn` prints a row's empty or capped count and fails it on
+  any, and the text row, the pixel row and both rate rows close through it. Seven mutants each fail
+  `test_reply_readings.py` (65 tests), and the row was proved to fail live with the arm's cap
+  mutated to 8 tokens, 20 of 20 named. The pick under both switches, the cortex and the brain
+  pick each drew 20 of 20 through the rule. The ADR-0005 void-row addendum carries the table.
+  Opened [R-574](574-a-void-text-row-fails-on-the-harnesss-own-cap.md) and
+  [R-575](575-one-void-reply-fails-a-row-that-drew-nineteen-cells.md).
