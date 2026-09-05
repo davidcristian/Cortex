@@ -766,7 +766,9 @@ override sets on that server, read off the brain's `DEFAULT_CPU_BUDGET`. The two
 typed into the harness as the compose files type them, nothing in Python declaring an image.
 `repeat_of` says which rows are a model's own: a thinking-off model has a row per switch on the
 card and a shipped row on the CPU, and a thinking-on model has one row, so the CPU placement adds
-five rows to the lineup rather than doubling it. The text arm collects 28 rows, of which 22 run.
+five rows to the lineup rather than doubling it. The text arm collected 28 rows, of which 17
+ran, until the lever addendum in [ADR-0005](ADR-0005-llamacpp-engine.md) added a third switch the
+same night and made that 42 and 22.
 
 **Measured 2026-09-05** on build 10680 (`d7bd3bfca`) from both cached images,
 `ghcr.io/ggml-org/llama.cpp:server-cuda` for the card and `ghcr.io/ggml-org/llama.cpp:server` for

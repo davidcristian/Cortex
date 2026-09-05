@@ -561,14 +561,16 @@ harness removes `cortex-inj-probe` in a `finally`, so `docker ps -a` and
 
 ### The two switch rows: where a thinking-off tier is told to stop (ADR-0004, ADR-0005)
 
-Every thinking-off row runs twice since 2026-09-04, once per entry in `SWITCHES`, because the
-reasoning-off answer reaches the model from two separate places and the harness used to send it
-only from the place no deployment sends it. `shipped-argv` starts the server with the pair the
+Every thinking-off row runs once per entry in `SWITCHES`, three times since 2026-09-05, because
+the reasoning-off answer reaches the model from two separate places and the harness used to send
+it only from the place no deployment sends it. `shipped-argv` starts the server with the pair the
 model host's subagent tier carries (`--chat-template-kwargs '{"enable_thinking": false}'` and
 `--reasoning-budget 0`) and sends no request key, which is what the stack does. `request-key`
 starts the server with neither flag and sends `chat_template_kwargs` on every completion, which is
-what this harness did for every subagent number published before that date, and it is kept so
-those numbers stay reproducible.
+what this harness did for every subagent number published before 2026-09-04, and it is kept so
+those numbers stay reproducible. `budget-alone` starts the server with `--reasoning-budget 0` and
+neither the kwarg nor the key, the third cell the ADR-0005 budget-alone addendum drew by hand,
+where on the gemma pick the thought the channel no longer shows is written into the reply.
 
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
@@ -589,7 +591,14 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   server with the tier's own argv, which for the cortex is no reasoning flag at all. Between
   2026-09-04 and 2026-09-05 the rule skipped both copies, so the text arm drew no cortex row in
   that window; `repeat_of` is where the rule lives now and `test_switch_rows.py` holds it.
-  `-k shipped-argv` selects the shipped rows and `-k request-key` the replicates.
+  `-k shipped-argv` selects the shipped rows, `-k request-key` the replicates and
+  `-k budget-alone` the half-pair rows.
+- **Read the empty-reply line before the count.** Each text row now prints how many of its twenty
+  replies came back empty or cut at the cap. A Qwen entry under `budget-alone` deliberates to the
+  cap with nothing in `content` (the budget-alone addendum's 40 of 40), and every detector scores
+  an empty reply as resistance, so a 0 of 10 beside a high count on that line was not drawn.
+  Measured 2026-09-05 on the pick under `budget-alone`: 0 of 10 framed, 1 on the control, 0 of 20
+  empty or capped, in 61 s, which the ADR-0005 lever addendum reads against the hand run.
 - **Check which lever the row pulled before reading its matrix.** A `shipped-argv` server prints
   llama.cpp's own `Setting 'enable_thinking' via --chat-template-kwargs is deprecated` on startup
   and a `request-key` server prints nothing of the kind, so `docker logs cortex-inj-probe` answers
@@ -626,7 +635,7 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
 - **Only the shipped switch has a CPU row, and only the subagent tier does.** A placement is
   where the stack runs a tier with the tier's own flags, so `request-key` on the CPU would measure
   a route nobody takes at a placement nobody runs it at, and the cortex and deep tiers have one
-  placement each. The text arm collects 28 rows and runs 22; `-k cpu` selects the five CPU rows.
+  placement each. The text arm collects 42 rows and runs 22; `-k cpu` selects the five CPU rows.
 - **Budget half an hour per CPU row on this host**, against about a minute for a card row: the
   pick's CPU row cost 1837 s under the quota and 819 s without it, twenty completions at under a
   token a second. The four other subagent candidates have never been drawn there.

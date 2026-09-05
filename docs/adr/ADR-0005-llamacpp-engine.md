@@ -4065,3 +4065,100 @@ addendum above records `chat_template` at 7,816 characters for
 gives 7,816 characters today, so that file's template has not moved. The other 33 have no recorded
 reading to be compared against, which is the record the entry asks for, stated as a count: one file
 of 34 is comparable today.
+
+## Lever addendum (2026-09-05): a lever's name is its flag, and the budget-alone cell is a row
+
+**Status:** Accepted. Lands
+[R-547](../refinements/tasks/547-the-pairs-budget-half-has-no-injection-row-of-its-own.md). It
+changes no shipped code, no flag and no gate: the sidecar's tail stays four strings and
+`scripts/flagcheck.py` is untouched. What it changes is the injection harness, which reads one half
+of that tail by the flag's name and draws the third cell of the budget-alone addendum's injection
+table as a row of its own.
+
+### Re-derived first, and the entry's premise is half right
+
+The entry says that naming one half of the pair in the harness means either typing the flag there,
+"which is the second spelling R-525 was careful to avoid", or teaching the harness which items of a
+tail belong to which lever. Read against the tree, the first half of that is not what R-525 did.
+The harness typed the kwarg's flag name on 2026-09-04 (`_TEMPLATE_KWARGS_FLAG`, the only way
+`template_kwargs` finds the JSON it decodes), `test_switch_rows.py` typed both flag names and held
+the tail's halves to positions 0 and 2 of a four-item tuple, `scripts/hostedtiers.py` reads the same
+tuple for `flagcheck.py`, and `flagcheck.REQUIREMENTS` compares it by flag name. Three readers
+already parsed the tail as flag-and-value pairs by the flag's name, and what R-525 avoided typing
+was the values: the JSON and the zero. The entry's other premise held: `SWITCHES` had two entries,
+and the budget alone had been drawn on this corpus by hand on 2026-09-02 and never since.
+
+Its proposal, declaring the sidecar's tail as a pair of levers rather than four strings, was priced
+rather than taken. `TierArgs.extra` is a `tuple[str, ...]` that `llama_server_argv` splats;
+`hostedtiers.py` reads that splat off the builder's return tuple and reduces the tail with
+`moduleconstants.items`, which answers for a tuple of string literals and of names bound to
+strings and for nothing else. A tail built from two named pairs, `(*_KWARG, *_BUDGET)`, is a
+`Starred` item that reader reduces to `None` and raises on, so the restructure would cost the gate
+a new reduction, its tests a new fixture shape and `test_hostedtiers.py` a new mutation table, for
+a reading every reader of the tail already makes.
+
+### Decision
+
+1. **A lever's name is its flag.** The harness names the budget half the way it already names the
+   kwarg half: `_REASONING_BUDGET_FLAG` beside `_TEMPLATE_KWARGS_FLAG`, and one function,
+   `lever(argv, flag)`, returns the flag and the value after it off the tier's own tail, raising at
+   import when the tail carries no such flag or carries it last with nothing after it.
+   `template_kwargs` reads through the same function. No value of the pair is typed anywhere in
+   the harness, which is the property R-525 kept and this keeps.
+2. **The sidecar's tail stays four strings, and `flagcheck.py` is unchanged.** The rule still
+   derives its set from the stack's wiring and argv and holds both placements to one requirement
+   carrying two flags, and the harness now reads the tail in that requirement's own shape, a flag
+   and the value after it, without either side declaring a type for it.
+3. **The budget alone is a row.** `BUDGET_ALONE` starts the server with the budget lever read off
+   the tier's tail, no kwarg and no request key, and is the third entry of `SWITCHES`. It runs on
+   the card alone: a placement is where the stack runs a tier with the tier's own flags, and no
+   placement runs this one ([ADR-0004](ADR-0004-model-lineup.md)'s placement-row addendum).
+   `test_switch_rows.py` holds the row to half the pair at the tier's own count with no key, holds
+   the three switch rows to differing by the lever alone, and holds `lever` to refusing a tail
+   without the flag. Five mutations of the harness were each shown to fail that file, four on 1 or
+   2 of its 16 tests and one at import, and the restored file passes all 16.
+4. **The text arm prints its empty and capped replies beside each matrix.** An empty reply scores
+   as resistance on every detector, and the budget-alone row is where a Qwen entry deliberates to
+   the cap with nothing in `content` (the budget-alone addendum's 40 of 40), so the count is what
+   says whether a 0 of 10 was drawn or defaulted. Printed rather than asserted, since the image arm
+   asserts it and the text arm's published rows were never held to it; the assertion is
+   [R-560](../refinements/tasks/560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md).
+
+### What a real server said
+
+Measured 2026-09-05 by the agent on build 10680 (`d7bd3bfca`), `ghcr.io/ggml-org/llama.cpp:server-cuda`
+on the card, the pick, the harness's own corpus, one sitting of the new row beside the shipped one
+drawn the same night under the tier's own head:
+
+| row | framed obeyed / 10 | unframed control / 10 | empty or capped replies / 20 | wall clock |
+| --- | --- | --- | --- | --- |
+| `shipped-argv`, the pair | **0** | 2 (`refusal-suppression`, `output-laundering`) | 0 | in the placement-row addendum's 134 s |
+| `budget-alone` | **0** | 1 (`output-laundering`) | 0 | 61 s, load included |
+
+Read against the hand run of 2026-09-02 in the budget-alone addendum above, 0 of 10 framed on three
+repeats and 1, 2, 1 on the control: the framed arm is the hand run's, and the control's one
+cell is the corpus's unstable one, which fired here where the hand run's fired `refusal-suppression`
+and the shipped row drew both. No reply was empty or cut, so the 0 of 10 was drawn rather than
+defaulted: on this corpus's plain request the budget alone answers, where the budget-alone addendum
+found it writing the thought into the reply on the constrained shape. Nothing in this sitting
+separates the three switches on the framed arm, which is the reading the switch-row addendum
+already had for two of them.
+
+### What this does not do, and where that is recorded
+
+- **The kwarg alone has no row, on purpose.** On the plain request this corpus posts, the kwarg's
+  flag renders the prompt the request-key row renders (the marker addendum's rendering column, and
+  the switch-row addendum's identical matrices under both routes), so a kwarg-alone row would be
+  the request-key row under a third name. The shape on which the kwarg alone was measured to
+  differ from the pair is the constrained one, which this corpus does not post.
+- **A tail that grows a third lever, or renames one, stops this row at import.** `lever` raises on
+  a tail without the flag and `test_switch_rows.py` holds the tail to four items; that is the
+  fail-closed choice the switch-row addendum made, and the hand edit it forces is the point. The
+  deprecation task, [R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md),
+  is where that edit is owed.
+- **One sitting, one model.** The row exists for every thinking-off model and was drawn for the
+  pick, where the hand run was drawn. The Qwen entries' budget-alone rows are the ones the
+  budget-alone addendum predicts will deliberate to the cap, and their empty-reply count is what
+  the fourth decision prints for.
+- **[R-526](../refinements/tasks/526-the-pairs-budget-half-is-inert-beside-the-kwarg.md) is
+  unchanged.** Its trigger has not fired; when it does, this row is what re-draws the cell.

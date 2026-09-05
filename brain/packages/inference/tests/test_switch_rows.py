@@ -25,6 +25,7 @@ import pytest
 from test_injection_defense_live import (
     BRAIN_CANDIDATES,
     BRAIN_TIER,
+    BUDGET_ALONE,
     CORTEX_CANDIDATES,
     CORTEX_TIER,
     CPU_PLACEMENT,
@@ -42,6 +43,7 @@ from test_injection_defense_live import (
     VISION_MODELS,
     Model,
     completion_body,
+    lever,
     repeat_of,
     server_argv,
     switch_for,
@@ -117,17 +119,20 @@ def test_a_request_key_row_starts_its_server_with_neither_flag() -> None:
         assert _REASONING_BUDGET_FLAG not in argv, model.label
 
 
-def test_the_two_switch_rows_differ_by_the_lever_and_by_nothing_else() -> None:
-    """One row moves the pair onto the argv and the key off the request; nothing else moves.
+def test_the_switch_rows_differ_by_the_lever_and_by_nothing_else() -> None:
+    """One row moves the pair onto the argv and the key off the request, one moves half the pair
+    there; nothing else moves.
 
-    This is what makes the pair of rows a comparison. If the bodies differed in a cap or the
-    command lines in a context size as well, a matrix that moved between them would not say which
-    change moved it.
+    This is what makes the rows a comparison. If the bodies differed in a cap or the command lines
+    in a context size as well, a matrix that moved between them would not say which change moved
+    it.
     """
     for model in _THINKING_OFF:
         keyed = server_argv(model, SHIPPED_BUDGET, REQUEST_KEY)
         shipped = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH)
+        budgeted = server_argv(model, SHIPPED_BUDGET, BUDGET_ALONE)
         assert shipped == (*keyed, *SHIPPED_REASONING_OFF), model.label
+        assert budgeted == (*keyed, *BUDGET_ALONE.argv), model.label
     bodies = {
         switch.label: completion_body(_MESSAGES, _TOOLS, switch=switch, max_tokens=_MAX_TOKENS)
         for switch in SWITCHES
@@ -136,6 +141,33 @@ def test_the_two_switch_rows_differ_by_the_lever_and_by_nothing_else() -> None:
     shipped_body = bodies[SHIPPED_SWITCH.label]
     assert set(keyed_body) - set(shipped_body) == {"chat_template_kwargs"}
     assert {key: keyed_body[key] for key in shipped_body} == shipped_body
+    assert bodies[BUDGET_ALONE.label] == shipped_body
+
+
+def test_the_budget_alone_row_carries_the_budget_half_and_not_the_kwarg() -> None:
+    """The third cell is the pair's second half on the argv, at the tier's own count, and no key.
+
+    Read off the tier's tail by the flag's name rather than typed, so a retuned count moves this
+    row with the shipped one; and held to be half the pair rather than the pair, since a row that
+    quietly carried the kwarg too would replicate the shipped row under another name.
+    """
+    at = SHIPPED_REASONING_OFF.index(_REASONING_BUDGET_FLAG)
+    assert BUDGET_ALONE.argv == (_REASONING_BUDGET_FLAG, SHIPPED_REASONING_OFF[at + 1])
+    assert BUDGET_ALONE.request_key is None
+    assert BUDGET_ALONE in SWITCHES
+    for model in _THINKING_OFF:
+        argv = server_argv(model, SHIPPED_BUDGET, BUDGET_ALONE)
+        assert _TEMPLATE_KWARGS_FLAG not in argv, model.label
+        assert argv[-2:] == BUDGET_ALONE.argv, model.label
+
+
+def test_a_lever_is_read_by_its_flag_and_a_missing_one_refuses() -> None:
+    """A lever is the flag and the value after it, and an argv without the flag raises."""
+    assert lever(("--a", "1", "--b", "2"), "--b") == ("--b", "2")
+    with pytest.raises(LookupError):
+        lever(("--a", "1"), "--b")
+    with pytest.raises(LookupError):
+        lever(("--a", "1", "--b"), "--b")
 
 
 def test_a_shipped_row_sends_no_request_key_and_a_keyed_row_sends_one() -> None:
