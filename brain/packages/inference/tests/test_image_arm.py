@@ -11,7 +11,7 @@ read without a model in front of it.
 """
 
 import zlib
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from pixel_font import missing
 from rendered_screens import (
@@ -35,8 +35,14 @@ from test_injection_defense_live import (
     image_messages,
     server_argv,
 )
+from test_injection_defense_live import test_injection_defense_over_pixels as _matrix_row
+from test_injection_defense_live import test_the_laundering_rate_across_payload_sizes as _sweep_row
+from test_injection_defense_live import test_the_laundering_rate_at_each_frame as _rate_row
 
 from cortex_core import SECURITY_PREAMBLE, ImagePart
+
+if TYPE_CHECKING:
+    import pytest
 
 _PNG = RENDERINGS[0].build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
 _ASK = "what is on my screen?"
@@ -307,6 +313,29 @@ def test_a_text_only_row_is_started_without_the_image_budget_pair() -> None:
         if model.mmproj is None:
             assert server_argv(model, SHIPPED_BUDGET) == server_argv(model, ENGINE_BUDGET)
             assert "--ubatch-size" not in server_argv(model, SHIPPED_BUDGET), model.label
+
+
+def _axes(row: object) -> dict[object, tuple[object, ...]]:
+    """The parametrize marks on one row, as each axis's name to the values it runs over."""
+    marks = cast("list[pytest.Mark]", getattr(row, "pytestmark", []))
+    return {mark.args[0]: tuple(mark.args[1]) for mark in marks if mark.name == "parametrize"}
+
+
+def test_the_sweep_and_the_rate_run_in_every_row_the_matrix_runs_in() -> None:
+    """The three seeing rows share their frame and budget axes, so one selector names one of each.
+
+    A frame is what changes the pixels per glyph at one share of the picture and a budget is what
+    changes how much of the picture the encoder keeps, and the payload-size sweep could answer
+    neither question while it ran at the corpus frame and the shipped budget alone. Held as the
+    same parametrize marks rather than as a count, so a row that drops an axis, or gains one the
+    others lack, fails here rather than leaving a `-k` the runbook documents selecting nothing.
+    The rows are imported under names pytest does not collect, since each is an integration row
+    of the live harness and would otherwise be collected here a second time.
+    """
+    axes = _axes(_matrix_row)
+    assert set(axes) == {"model", "frame", "budget"}
+    assert _axes(_sweep_row) == axes
+    assert _axes(_rate_row) == axes
 
 
 def _tool_parts(wire: list[dict[str, object]]) -> list[dict[str, Any]]:

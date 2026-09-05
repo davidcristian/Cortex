@@ -37,7 +37,10 @@ selects the shipped cortex alone. It runs once per frame in ``FRAMES`` and once 
 token budget in ``BUDGETS``, since the frame only reaches the model as more picture at a budget
 that spends tokens on it, and ``test_the_laundering_rate_at_each_frame`` measures the one cell
 that is unstable from run to run as a rate in each of those rows rather than as a cell
-(ADR-0029's frame-pair and image-budget addenda).
+(ADR-0029's frame-pair and image-budget addenda). ``test_the_laundering_rate_across_payload_sizes``
+runs in each of those rows too, sweeping the payload's size inside one server, since a frame is
+what changes the pixels per glyph at one share and a budget is what changes how much of the
+picture the encoder keeps (ADR-0029's payload-size and legibility-crossing addenda).
 
 The text arm runs once per **switch** in ``SWITCHES``, which is where a thinking-off tier's
 reasoning-off answer reaches the model from: the server's own argv, as every subagent server
@@ -1285,16 +1288,29 @@ TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
+@pytest.mark.parametrize("frame", FRAMES, ids=lambda f: f.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_the_laundering_rate_across_payload_sizes(model: Model) -> None:
+async def test_the_laundering_rate_across_payload_sizes(
+    model: Model, frame: Frame, budget: Budget
+) -> None:
     """Measure the unstable cell as a rate at each payload size, and legibility beside it.
 
     The frame pair varied the picture's size with the payload's share of it held constant. This
-    varies the share: the frame stays at the corpus's own and the instruction alone is set
-    smaller, from the headline the corpus draws down to text a screen would call small. Every
-    size runs inside one server rather than one row each, because the frame pair measured a cell
-    moving by 2 of 5 between two sittings, so points taken in different sittings could not
-    resolve anything smaller than that.
+    varies the share: the frame stays put and the instruction alone is set smaller, from the
+    headline the corpus draws down to text a screen would call small. Every size runs inside one
+    server rather than one row each, because the frame pair measured a cell moving by 2 of 5
+    between two sittings, so points taken in different sittings could not resolve anything
+    smaller than that.
+
+    Once per frame in ``FRAMES`` and per budget in ``BUDGETS`` since 2026-09-05, because the
+    corpus frame at the shipped budget cannot answer two questions on its own. A payload size at
+    the doubled frame is the same share of the picture carried by twice the pixels per glyph, so
+    a cell illegible at the corpus frame and legible at the doubled one failed for want of pixels
+    and one illegible at both failed for want of share. And the engine's own budget discards more
+    of the picture than the shipped one, which is the only way to move the legibility crossing
+    onto a rendering whose payload the font cannot draw smaller than 8 px (ADR-0029's
+    legibility-crossing addendum).
 
     Legibility is recorded here rather than asserted, which is the difference between this row
     and every other one in the arm: a payload the model cannot read is the far end of the sweep
@@ -1304,20 +1320,23 @@ async def test_the_laundering_rate_across_payload_sizes(model: Model) -> None:
     """
     unusable: list[str] = []
     legible: dict[str, bool] = {}
-    with _server(model):
+    with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            print(f"\n=== {model.label} laundering rate by payload size ===")  # noqa: T201
+            print(  # noqa: T201
+                f"\n=== {model.label} laundering rate by payload size at {frame.label}, "
+                f"{budget.label} ==="
+            )
             for type_scale in TYPE_SCALES:
                 for rendering in RENDERINGS:
                     cell = f"{rendering.name} at {type_scale.label}"
-                    reply = await _transcription(client, model, rendering, CORPUS_FRAME, type_scale)
+                    reply = await _transcription(client, model, rendering, frame, type_scale)
                     legible[cell] = _reads_canary(reply)
-                    png = rendering.build(_LAUNDERING.injection, CORPUS_FRAME, type_scale)
+                    png = rendering.build(_LAUNDERING.injection, frame, type_scale)
                     fired: dict[str, str] = {}
                     for arm, framed in (("framed", True), ("control", False)):
                         replies = [
                             await _screen_reply(
-                                client, png, framed=framed, switch=switch_for(model)
+                                client, png, framed=framed, switch=switch_for(model), frame=frame
                             )
                             for _ in range(_RATE_RUNS)
                         ]
