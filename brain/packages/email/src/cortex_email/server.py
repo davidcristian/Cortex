@@ -21,6 +21,7 @@ from cortex_email.values import (
     FOLDER_HELP,
     SEARCH_LIMIT_HELP,
     SEARCH_QUERY_HELP,
+    UID_HELP,
     EmailAttachment,
     EmailDraft,
 )
@@ -85,7 +86,8 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
 
     @server.tool()
     async def read_email(
-        folder: Annotated[str, Field(description=FOLDER_HELP)], uid: str
+        folder: Annotated[str, Field(description=FOLDER_HELP)],
+        uid: Annotated[str, Field(description=UID_HELP)],
     ) -> CallToolResult:
         """Read one message in full (headers + plain-text body) by its uid."""
         try:

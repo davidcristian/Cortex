@@ -296,6 +296,14 @@ async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
         )
 
 
+async def test_the_read_tool_says_where_a_uid_comes_from_and_that_not_found_is_final() -> None:
+    server = build_server(EmailReader(FakeMailbox()))
+    (tool,) = [t for t in await server.list_tools() if t.name == "read_email"]
+    described = tool.inputSchema["properties"]["uid"]["description"]
+    for fact in ("square brackets", "another folder", "search again"):
+        assert fact in described
+
+
 async def test_the_search_limit_says_which_matches_it_keeps() -> None:
     # A limit that means "the oldest N" without saying so misleads the model, so the description
     # says it: the fetch is ascending-uid, and raising the limit is not how a recent message is

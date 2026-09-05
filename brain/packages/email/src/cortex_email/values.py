@@ -74,6 +74,14 @@ FOLDER_UNKNOWN = (
     "list_folders and use a name spelled exactly as that list returns it, rather than trying "
     "another name that looks likely. The folder name that was refused was "
 )
+UID_HELP = (
+    "The uid of one message: the number search_emails writes in square brackets at the start of "
+    "each line, such as 4711 for a line beginning [4711]. Copy it digit for digit from a search "
+    "of the same folder, since a uid names a message only within the folder it was listed in, "
+    "and a number that is guessed, rounded, or taken from another folder's listing reads a "
+    "different message or none. A not-found answer is final for that folder, so search again "
+    "rather than trying a nearby number."
+)
 SEARCH_LIMIT_HELP = (
     "How many matches to return at most. They are the first matches in the folder's own uid "
     "order, which is not the same as the newest: narrow the search with the criteria above "

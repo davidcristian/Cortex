@@ -186,7 +186,11 @@ denied outright.
   Bridge proved the criterion works, plus the client `from:` syntax that is rejected rather than
   parsed; `FOLDER_HELP` (spent by `read_email` too, so the two cannot drift) says a folder
   name comes verbatim from `list_folders`, and `FOLDER_UNKNOWN` is the same fact said once the
-  server has rejected a name, so it names neither searching nor reading in particular; `SEARCH_LIMIT_HELP` says the matches kept are the
+  server has rejected a name, so it names neither searching nor reading in particular;
+  `UID_HELP`, spent by `read_email` alone, says a uid is the number in square brackets on a
+  `search_emails` line, copied digit for digit, that it names a message only in the folder it was
+  listed in, and that a not-found answer is final (ADR-0022 uid-description addendum);
+  `SEARCH_LIMIT_HELP` says the matches kept are the
   first in the folder's own uid order rather than the newest. The live test
   `test_every_advertised_search_criterion_is_one_the_bridge_accepts` is the guard on that prose:
   it runs one query per named family and fails if the description names a criterion no query
@@ -264,7 +268,8 @@ when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
 - The advertised schema is **generated, never written**, so what the model is told about an
   attachment is whatever `values.py` and the tool signature say. The server tests assert the
   generated schema itself (every attachment field described, the array's two bounds spelled
-  from the constants), which is the only place that coupling is checked.
+  from the constants, the uid's three facts present), which is the only place that coupling is
+  checked.
 
 **Dependencies.** mcp (the FastMCP server), imap-tools (the IMAP client, STARTTLS-capable via
 stdlib `imaplib`, which the Bridge defaults to), pydantic (the `Field` descriptions the tool
