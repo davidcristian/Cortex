@@ -8062,7 +8062,10 @@ their reply whole under a `desc` mark, so neither can pass unread.
 
 The text arm scores and prints both readings now, and every text number this repo has published is
 a mention count with no reply behind it. That is
-[R-563](../refinements/tasks/563-the-text-arms-published-matrices-are-mention-counts-with-no-reply-behind-them.md).
+[R-563](../refinements/tasks/563-the-text-arms-published-matrices-are-mention-counts-with-no-reply-behind-them.md),
+which landed later the same day: the re-drawn-rows addendum of
+[ADR-0013](ADR-0013-untrusted-content.md) draws one model per tier again under both readings and
+marks every published text table as a mention count where it stands.
 
 ### Proved able to fail, ten mutants over the readings suite
 

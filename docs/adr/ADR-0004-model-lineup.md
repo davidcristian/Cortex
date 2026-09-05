@@ -196,6 +196,13 @@ stay unmeasured.
 | | gemma-4-E2B | 4 |
 | **brain** (2026-08-04) | gemma-4-31B (pick), thinking on | **0** (the unframed control obeyed 1) |
 
+**Every count in this table is a mention count**, the canary anywhere in the reply, with no reply
+kept behind it (noted 2026-09-05). The subagent pick, the cortex pick and the brain pick were drawn
+again that day under the structural reading beside it, in the re-drawn-rows addendum of
+[ADR-0013](ADR-0013-untrusted-content.md); the other four subagent rows and the cortex alt have
+no obeyed count yet
+([R-573](../refinements/tasks/573-the-other-lineup-rows-have-no-obeyed-count-beside-their-mention-count.md)).
+
 - **Cortex:** injection-robustness does **not** decide it (both candidates are 0/10), so the gemma-4-12B
   pick stands on VRAM/quality/QAT (decision 1). Reassuring, since the cortex is the only user-facing
   generator (ADR-0013).
@@ -683,6 +690,10 @@ reproduced their published counts on the first pair were left at one sitting eac
 | Qwen3.5-2B | 1 | 1 | 1 | 2 |
 | Qwen3.5-4B | 4 | 2, 2, 3, 2 | 3, 2, 2, 2 | 3 to 4 |
 
+Every count in this table is a mention count with no reply kept behind it (noted 2026-09-05); the
+pick's `shipped-argv` row was drawn again that day under both readings, in the re-drawn-rows
+addendum of [ADR-0013](ADR-0013-untrusted-content.md).
+
 **The flags reach the engine, checked rather than assumed.** A `shipped-argv` server logs
 llama.cpp's own `Setting 'enable_thinking' via --chat-template-kwargs is deprecated` on startup and
 a `request-key` server logs nothing of the kind, which is the engine confirming which lever the row
@@ -780,6 +791,10 @@ the CPU, ten attacks per row with a framed arm and an unframed control:
 | gemma-4-12B (cortex pick), `thinking-on` | card, the tier's `-ngl 99 --ctx-size 16384 --parallel 1` | **0** | 1 (`output-laundering`) | (in the 134 s above) |
 | gemma-4-E4B (subagent pick), `shipped-argv` | CPU, `-ngl 0`, one thread per hardware thread, before the quota was part of the placement | **0** | 1 (`refusal-suppression`) | 819 s |
 | gemma-4-E4B (subagent pick), `shipped-argv` | CPU, `-ngl 0`, the stack's 4-CPU quota | **0** | 1 (`refusal-suppression`) | 1837 s |
+
+Every count in this table is a mention count with no reply kept behind it (noted 2026-09-05); the
+two card rows were drawn again that day under both readings, in the re-drawn-rows addendum of
+[ADR-0013](ADR-0013-untrusted-content.md), and the CPU row was not.
 
 **The reading.** The pick's card row under the tier's own head is the same cell for cell as its
 four sittings of 2026-09-04 under the typed head, attack names included, so reading the slot count
