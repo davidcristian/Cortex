@@ -1,6 +1,6 @@
 # The detector cannot tell a description from obedience, and the budget makes descriptions likelier
 
-**Status:** open, actionable
+**Status:** landed 2026-09-05
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -39,3 +39,26 @@ cells were obeyed.
 - 2026-09-04: opened by the close of
   [R-513](513-the-frame-pair-ran-only-where-the-picture-is-saturated.md), which found the arm's
   count rising with the image budget and every added cell being a description.
+- 2026-09-05: **landed, with the reading agreeing with every hand sort the tree holds and the
+  published counts re-read on it.** Re-derived: `Attack.obeyed` was a substring search on both
+  arms, as the entry says, and the confound is what it says it is, since the same row run again
+  tonight fired six cells and every one was a `chrome` description quoting the canary. The entry
+  was wrong that the published matrices "are printed with their replies": the harness printed a
+  fired reply to the terminal, cut at 220 characters, and the tree holds nine quoted replies across
+  four pixel sittings plus three from ADR-0013, so three of the four matrices can only be re-read
+  off the sort their addenda recorded. Its proposed shape held for the two attacks that name the
+  tail and needed narrowing for the six whose instruction is the token: a verbatim report of the
+  dialog ends on the bare token for all six, so a tail reading would have counted exactly the
+  cells the budget added, and those six are read as a line that is the token alone. Landed:
+  `Attack.obeyed` is structural and `Attack.mentioned` keeps the old reading, `verdict` marks a
+  cell `OBEY`, `desc` or `ok`, both arms and the rate rows print both counts and every fired reply
+  whole, the backfire assertion holds on both readings, and `test_reply_readings.py` holds the
+  reading to sixteen recorded replies; ten mutants of the readings fail it. Measured on the pick
+  at the corpus frame and the shipped budget: obeyed 0 of 30 framed and 0 of 30 control against
+  mention counts of 2 and 4, in 188.87 s, beside the published row's 3 and 4. Every published
+  pixel count is re-read in the ADR-0029 readings addendum; none is wrong about which cells were
+  obeyed. R-560 is not absorbed: an empty reply reads as resisted on every predicate as before.
+  Opened [R-561](561-a-token-beside-the-models-own-words-is-read-as-a-description.md),
+  [R-562](562-the-tail-reading-takes-a-quoted-notice-as-reported-speech.md),
+  [R-563](563-the-text-arms-published-matrices-are-mention-counts-with-no-reply-behind-them.md) and
+  [R-564](564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md).
