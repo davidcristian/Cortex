@@ -576,15 +576,20 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   packages/inference/tests/test_injection_defense_live.py
 ```
 
-- **The pair is read, not typed.** `shipped_reasoning_off()` builds `ModelHostConfig` and takes
-  its subagent tier's own `extra`, and the request key decodes the JSON that tier's flag carries,
-  so a retuned tier moves both rows and neither can drift. A tier that stopped carrying either
-  flag fails `test_switch_rows.py` in CI rather than leaving a row named `shipped-argv` measuring
-  no lever at all.
-- **The rows double the text arm's collection.** Seven rows became fourteen, of which the two
-  cortex rows' second copy is skipped: a tier that thinks on purpose pulls neither lever, so its
-  switch rows would repeat each other. `-k shipped-argv` selects the shipped ones and
-  `-k request-key` the replicates.
+- **The pair is read, not typed, and so is the head.** `tier_args` reads the row's tier off
+  `ModelHostConfig`, the shipped row takes that tier's own `extra`, and the request key decodes
+  the JSON that tier's flag carries, so a retuned tier moves both rows and neither can drift.
+  Since 2026-09-05 the whole command line is the sidecar's own `llama_server_argv` over that tier,
+  so a cortex row runs at the cortex tier's 16384 window and a subagent row at the tier's two
+  slots, where every row before that date ran `-ngl 99 --ctx-size 8192 --parallel 1` typed into
+  the harness. A tier that stopped carrying either flag fails `test_switch_rows.py` in CI rather
+  than leaving a row named `shipped-argv` measuring no lever at all.
+- **A thinking-on model runs once, under `shipped-argv`.** A tier that thinks on purpose pulls
+  neither lever, so its `request-key` copy is skipped and its `shipped-argv` copy starts the
+  server with the tier's own argv, which for the cortex is no reasoning flag at all. Between
+  2026-09-04 and 2026-09-05 the rule skipped both copies, so the text arm drew no cortex row in
+  that window; `repeat_of` is where the rule lives now and `test_switch_rows.py` holds it.
+  `-k shipped-argv` selects the shipped rows and `-k request-key` the replicates.
 - **Check which lever the row pulled before reading its matrix.** A `shipped-argv` server prints
   llama.cpp's own `Setting 'enable_thinking' via --chat-template-kwargs is deprecated` on startup
   and a `request-key` server prints nothing of the kind, so `docker logs cortex-inj-probe` answers
@@ -595,6 +600,40 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   drew the same cells on every candidate, and the one count that moved moved on both of them, so
   read a difference between two single matrices as that cell's instability until a repeat says
   otherwise.
+
+### The placement row: the pick on the CPU the stack defaults to (ADR-0004, ADR-0012)
+
+The subagent tier is the one tier the stack places twice, on the card in the model host's own
+tier and on the CPU in the server `docker-compose.subagents.yml` starts, and the shipped routing
+sends every spawn to the CPU server unless a deployment names the GPU tier. Every subagent number
+published before 2026-09-05 was a card number. Since that date the text arm runs the shipped
+switch once per entry in `PLACEMENTS` as well, so the pick can be drawn where a stock deployment
+runs it:
+
+```
+cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
+  uv run pytest -m integration --no-cov -s -k "E4B and shipped-argv and cpu" \
+  packages/inference/tests/test_injection_defense_live.py
+```
+
+- **The CPU row is the compose server, not the card with `-ngl 0`.** It starts
+  `ghcr.io/ggml-org/llama.cpp:server`, the image the subagent overrides name, with no GPU device,
+  the layer count the core hands the host for that server (`PlacementTarget.CPU.ngl`), the tier's
+  own window, slots and reasoning-off pair, and the override's own CPU quota, read off the brain's
+  `DEFAULT_CPU_BUDGET`. Without the quota the server runs one thread per hardware thread, a
+  shape no deployment runs; here it decoded at 0.8 tokens a second, and under the quota, the same
+  threads sharing four cores, at about 0.4, inside the range the subagent runbook records.
+- **Only the shipped switch has a CPU row, and only the subagent tier does.** A placement is
+  where the stack runs a tier with the tier's own flags, so `request-key` on the CPU would measure
+  a route nobody takes at a placement nobody runs it at, and the cortex and deep tiers have one
+  placement each. The text arm collects 28 rows and runs 22; `-k cpu` selects the five CPU rows.
+- **Budget half an hour per CPU row on this host**, against about a minute for a card row: the
+  pick's CPU row cost 1837 s under the quota and 819 s without it, twenty completions at under a
+  token a second. The four other subagent candidates have never been drawn there.
+- **Measured 2026-09-05**, build 10680 on both images: the pick is 0 of 10 framed on the CPU as on
+  the card, and the one cell that differed was the unframed control's `output-laundering`, the
+  corpus's unstable cell. The table is in the [ADR-0004](../adr/ADR-0004-model-lineup.md)
+  placement-row addendum.
 
 ### The image arm, where the payload is pixels (ADR-0029)
 

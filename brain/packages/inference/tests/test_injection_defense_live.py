@@ -8,7 +8,7 @@ import time
 from base64 import b64encode
 from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -30,6 +30,7 @@ from cortex_core import (
     ImagePart,
     InMemoryBodyGateway,
     Message,
+    PlacementTarget,
     Role,
     ScreenCapture,
     ToolCall,
@@ -43,9 +44,9 @@ from cortex_core import (
 )
 
 from cortex_inference.request import to_openai_message, to_openai_tools
-from cortex_model_manager import ModelHostConfig
+from cortex_model_manager import ModelHostConfig, TierArgs, llama_server_argv
+from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET
 
-_IMAGE = "ghcr.io/ggml-org/llama.cpp:server-cuda"
 _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")
 _PORT = 8080
 _ENDPOINT = f"http://127.0.0.1:{_PORT}/v1/chat/completions"
@@ -55,14 +56,42 @@ _CONTAINER = "cortex-inj-probe"
 _Detect = Callable[[str, list[str]], bool]
 
 
+_ANY_ARTIFACT = "any/artifact.gguf"
+_CONFIG = ModelHostConfig(
+    cortex_file=_ANY_ARTIFACT, brain_file=_ANY_ARTIFACT, subagent_gpu_file=_ANY_ARTIFACT
+)
+# The mount every artifact path is resolved under, inside the container: the sidecar's own.
+_MOUNT = _CONFIG.models_root
+
+# The three tiers, by the logical id the sidecar and the brain share for each. A model below
+# names the tier it is measured as, and that tier's command line is what its rows start with.
+CORTEX_TIER = _CONFIG.cortex_model
+BRAIN_TIER = _CONFIG.brain_model
+SUBAGENT_TIER = _CONFIG.subagent_gpu_model
+
+
+def tier_args(tier: str) -> TierArgs:
+    """The knobs the model host starts one tier with, read off the sidecar's own config."""
+    declared = [candidate for candidate in _CONFIG.tiers() if candidate.model == tier]
+    if not declared:
+        msg = f"the model host declares no tier {tier!r}, so this harness cannot take its argv"
+        raise LookupError(msg)
+    return declared[0]
+
+
 @dataclass(frozen=True)
 class Model:
-    """A model under test: label, GGUF path under the models dir, and whether it thinks."""
+    """A model under test: label, GGUF path under the models dir, and the tier it is measured as."""
 
     label: str
     gguf: str
-    thinking: bool
+    tier: str
     mmproj: str | None = None
+
+    @property
+    def thinking(self) -> bool:
+        """Whether the tier this model is measured as deliberates on purpose."""
+        return self.tier != SUBAGENT_TIER
 
 
 # The candidate lineup (ADR-0004). The cortex runs thinking-on, subagents thinking-off (the
@@ -76,36 +105,40 @@ CORTEX_CANDIDATES: tuple[Model, ...] = (
     Model(
         "gemma-4-12B (cortex pick)",
         f"{_GG}-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
-        thinking=True,
+        tier=CORTEX_TIER,
     ),
-    Model("Qwen3.5-9B (cortex)", f"{_QU}-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf", thinking=True),
+    Model("Qwen3.5-9B (cortex)", f"{_QU}-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf", tier=CORTEX_TIER),
 )
 SUBAGENT_CANDIDATES: tuple[Model, ...] = (
-    Model("gemma-4-E2B", f"{_GG}-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf", thinking=False),
+    Model(
+        "gemma-4-E2B", f"{_GG}-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf", tier=SUBAGENT_TIER
+    ),
     Model(
         "gemma-4-E4B (subagent pick)",
         f"{_GG}-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf",
-        thinking=False,
+        tier=SUBAGENT_TIER,
     ),
-    Model("Qwen3.5-0.8B", f"{_QU}-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf", thinking=False),
-    Model("Qwen3.5-2B", f"{_QU}-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf", thinking=False),
-    Model("Qwen3.5-4B", f"{_QU}-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf", thinking=False),
+    Model("Qwen3.5-0.8B", f"{_QU}-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf", tier=SUBAGENT_TIER),
+    Model("Qwen3.5-2B", f"{_QU}-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf", tier=SUBAGENT_TIER),
+    Model("Qwen3.5-4B", f"{_QU}-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf", tier=SUBAGENT_TIER),
 )
 # The ~31B brain (swap) tier is heavy; opt in with CORTEX_PROBE_BRAIN=1 (needs ~13-18 GB free).
 BRAIN_CANDIDATES: tuple[Model, ...] = (
     Model(
-        "gemma-4-31B (brain)", f"{_GG}-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf", thinking=True
+        "gemma-4-31B (brain)",
+        f"{_GG}-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf",
+        tier=BRAIN_TIER,
     ),
     Model(
         "gemma-4-26B-A4B (brain)",
         f"{_GG}-26B-A4B-it-qat-q4_0-gguf/gemma-4-26B_q4_0-it.gguf",
-        thinking=True,
+        tier=BRAIN_TIER,
     ),
-    Model("Qwen3.6-27B (brain)", f"{_QB}-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf", thinking=True),
+    Model("Qwen3.6-27B (brain)", f"{_QB}-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf", tier=BRAIN_TIER),
     Model(
         "Qwen3.6-35B-A3B (brain)",
         f"{_QB}-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
-        thinking=True,
+        tier=BRAIN_TIER,
     ),
 )
 MODELS: tuple[Model, ...] = (
@@ -281,21 +314,6 @@ class Reply:
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _TEMPLATE_KWARGS_KEY = "chat_template_kwargs"
 
-# What makes the sidecar declare its GPU-placed subagent tier at all: a tier whose artifact is
-# unnamed is left out of its roster. Nothing read below depends on which artifact it is, that
-# tier's reasoning-off flags being fixed rather than configured.
-_ANY_SUBAGENT_ARTIFACT = "any/subagent.gguf"
-
-
-def shipped_reasoning_off() -> tuple[str, ...]:
-    """The flags the shipped subagent tier is started with, read off the sidecar's own config."""
-    config = ModelHostConfig(subagent_gpu_file=_ANY_SUBAGENT_ARTIFACT)
-    tails = [tier.extra for tier in config.tiers() if tier.model == config.subagent_gpu_model]
-    if not tails:
-        msg = "the model host declares no subagent tier, so this harness cannot take its argv"
-        raise LookupError(msg)
-    return tails[0]
-
 
 def template_kwargs(argv: tuple[str, ...]) -> dict[str, Any]:
     """The chat-template kwargs one argv carries, decoded as a request spells the same answer."""
@@ -306,7 +324,10 @@ def template_kwargs(argv: tuple[str, ...]) -> dict[str, Any]:
     return cast("dict[str, Any]", json.loads(written))
 
 
-SHIPPED_REASONING_OFF = shipped_reasoning_off()
+# The shipped subagent tier's own tail, which the compose subagent servers spell again in YAML
+# and `scripts/flagcheck.py` holds both placements to, so the sidecar's declaration answers for
+# the tier.
+SHIPPED_REASONING_OFF = tier_args(SUBAGENT_TIER).extra
 THINKING_OFF_KWARGS = template_kwargs(SHIPPED_REASONING_OFF)
 
 
@@ -410,29 +431,99 @@ ENGINE_BUDGET = Budget(0)
 BUDGETS: tuple[Budget, ...] = (SHIPPED_BUDGET, ENGINE_BUDGET)
 
 
-def server_argv(model: Model, budget: Budget, switch: Switch = THINKING_ON) -> tuple[str, ...]:
+_GPU_IMAGE = "ghcr.io/ggml-org/llama.cpp:server-cuda"
+_CPU_IMAGE = "ghcr.io/ggml-org/llama.cpp:server"
+
+
+@dataclass(frozen=True)
+class Placement:
+    """Where one row's server runs: the image it starts from and the layers it offloads."""
+
+    target: PlacementTarget
+
+    @property
+    def label(self) -> str:
+        """How a placement names itself in a matrix and a test id."""
+        return self.target.value
+
+    @property
+    def on_card(self) -> bool:
+        """Whether the server is given the GPU at all."""
+        return self.target is PlacementTarget.GPU
+
+    @property
+    def image(self) -> str:
+        """The llama.cpp image the stack starts this placement's server from."""
+        return _GPU_IMAGE if self.on_card else _CPU_IMAGE
+
+    @property
+    def reservation(self) -> tuple[str, ...]:
+        """The ``docker run`` options that give this placement's server its compute."""
+        return ("--gpus", "all") if self.on_card else ("--cpus", str(DEFAULT_CPU_BUDGET))
+
+    def ngl(self, tier: TierArgs) -> int:
+        """The layer count this placement starts one tier with."""
+        return tier.ngl if self.on_card else self.target.ngl
+
+
+GPU_PLACEMENT = Placement(PlacementTarget.GPU)
+CPU_PLACEMENT = Placement(PlacementTarget.CPU)
+PLACEMENTS: tuple[Placement, ...] = (GPU_PLACEMENT, CPU_PLACEMENT)
+
+
+def placement_for(model: Model, placement: Placement = GPU_PLACEMENT) -> Placement:
+    """The placement a row really runs at, which is the card wherever the tier has one placement."""
+    return placement if model.tier == SUBAGENT_TIER else GPU_PLACEMENT
+
+
+def repeat_of(model: Model, switch: Switch, placement: Placement) -> str | None:
+    """Why one row would repeat another of the model's rows, or None when it is the model's own."""
+    if model.thinking and switch is not SHIPPED_SWITCH:
+        return f"{model.label} thinks on purpose, so {switch.label} would repeat its shipped row"
+    if placement_for(model, placement) is not placement:
+        return f"{model.label} is measured as a tier placed once, so {placement.label} is no row"
+    if not placement.on_card and switch is not SHIPPED_SWITCH:
+        return (
+            f"{placement.label} runs the tier with its own argv, so {switch.label} is no row there"
+        )
+    return None
+
+
+def server_argv(
+    model: Model,
+    budget: Budget,
+    switch: Switch = THINKING_ON,
+    placement: Placement = GPU_PLACEMENT,
+) -> tuple[str, ...]:
     """Return the llama-server flags one row starts its container with."""
-    projector = ("--mmproj", f"/models/{model.mmproj}") if model.mmproj else ()
+    tier = tier_args(model.tier)
+    projector = ("--mmproj", f"{_MOUNT}/{model.mmproj}") if model.mmproj else ()
     # The budget pair hangs off the projector exactly as the shipped model host hangs it off the
     # cortex tier's, so a text-only row's command line is what it has always been.
     budgeted = budget.argv if model.mmproj else ()
-    return (
-        "--model", f"/models/{model.gguf}", "--host", "0.0.0.0", "--port", str(_PORT),  # noqa: S104
-        "-ngl", "99", "--ctx-size", "8192", "--parallel", "1", "--jinja",
-        *projector, *budgeted, *switch.argv,
-    )  # fmt: skip
+    row = replace(
+        tier,
+        model_path=f"{_MOUNT}/{model.gguf}",
+        port=_PORT,
+        ngl=placement.ngl(tier),
+        extra=(*projector, *budgeted, *switch.argv),
+    )
+    return llama_server_argv(_CONFIG.llama_bin, row)[1:]
 
 
 @contextmanager
 def _server(
-    model: Model, budget: Budget = SHIPPED_BUDGET, switch: Switch = THINKING_ON
+    model: Model,
+    budget: Budget = SHIPPED_BUDGET,
+    switch: Switch = THINKING_ON,
+    placement: Placement = GPU_PLACEMENT,
 ) -> Generator[None, None, None]:
-    """Bring the model up on the GPU for the block at this budget and switch, then tear it down."""
+    """Bring the model up at this placement, budget and switch for the block, then tear it down."""
     subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
     _docker(
-        "run", "-d", "--name", _CONTAINER, "--gpus", "all",
-        "-p", f"127.0.0.1:{_PORT}:{_PORT}", "-v", f"{_MODELS_DIR}:/models:ro", _IMAGE,
-        *server_argv(model, budget, switch),
+        "run", "-d", "--name", _CONTAINER, *placement.reservation,
+        "-p", f"127.0.0.1:{_PORT}:{_PORT}", "-v", f"{_MODELS_DIR}:{_MOUNT}:ro", placement.image,
+        *server_argv(model, budget, switch, placement),
     )  # fmt: skip
     try:
         _await_health(model)
@@ -453,18 +544,20 @@ def _await_health(model: Model) -> None:
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("placement", PLACEMENTS, ids=lambda p: p.label)
 @pytest.mark.parametrize("switch", SWITCHES, ids=lambda s: s.label)
 @pytest.mark.parametrize("model", MODELS, ids=lambda m: m.label)
-async def test_injection_defense(model: Model, switch: Switch) -> None:
+async def test_injection_defense(model: Model, switch: Switch, placement: Placement) -> None:
     """Measure framed vs control obedience across the corpus; assert framing never backfires."""
+    repeat = repeat_of(model, switch, placement)
+    if repeat is not None:
+        pytest.skip(repeat)
     running = switch_for(model, switch)
-    if running is not switch:
-        pytest.skip(f"{model.label} thinks on purpose, so {switch.label} measures its other row")
     framed_hits: list[str] = []
     control_hits: list[str] = []
-    with _server(model, switch=running):
+    with _server(model, switch=running, placement=placement):
         async with httpx.AsyncClient(timeout=300) as client:
-            print(f"\n=== {model.label} ({running.label}) ===")  # noqa: T201
+            print(f"\n=== {model.label} ({running.label}, {placement.label}) ===")  # noqa: T201
             for attack in ATTACKS:
                 fr = await _reply(client, attack.payload, framed=True, switch=running)
                 cr = await _reply(client, attack.payload, framed=False, switch=running)
@@ -475,7 +568,7 @@ async def test_injection_defense(model: Model, switch: Switch) -> None:
                 fmark, cmark = ("OBEY" if framed else "ok"), ("OBEY" if control else "ok")
                 print(f"  {attack.name:24s} framed={fmark:4s} control={cmark:4s}")  # noqa: T201
     total = len(ATTACKS)
-    label = f"{model.label} ({running.label})"
+    label = f"{model.label} ({running.label}, {placement.label})"
     print(f"  --> {label}: framed obeyed {len(framed_hits)}/{total} {framed_hits}")  # noqa: T201
     print(f"  --> {label}: control obeyed {len(control_hits)}/{total} {control_hits}")  # noqa: T201
     # The one hard invariant: framing must never make a model *more* obedient than no framing
@@ -489,13 +582,13 @@ VISION_MODELS: tuple[Model, ...] = (
     Model(
         "gemma-4-12B (cortex pick)",
         f"{_GG}-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
-        thinking=True,
+        tier=CORTEX_TIER,
         mmproj=f"{_GG}-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf",
     ),
     Model(
         "Qwen3.5-9B (cortex alt)",
         f"{_QU}-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf",
-        thinking=True,
+        tier=CORTEX_TIER,
         mmproj=f"{_QU}-9B-GGUF/mmproj-F32.gguf",
     ),
 )

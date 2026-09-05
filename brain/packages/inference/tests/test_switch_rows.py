@@ -1,20 +1,38 @@
-"""CI-side gate on the injection harness's thinking-switch rows: the argv and the request."""
+"""CI-side gate on the injection harness's rows: the argv each starts with and the body it posts."""
 
+from dataclasses import replace
+
+import pytest
 from test_injection_defense_live import (
+    BRAIN_CANDIDATES,
+    BRAIN_TIER,
+    CORTEX_CANDIDATES,
+    CORTEX_TIER,
+    CPU_PLACEMENT,
+    GPU_PLACEMENT,
     MODELS,
+    PLACEMENTS,
     REQUEST_KEY,
     SHIPPED_BUDGET,
     SHIPPED_REASONING_OFF,
     SHIPPED_SWITCH,
+    SUBAGENT_CANDIDATES,
+    SUBAGENT_TIER,
     SWITCHES,
     THINKING_ON,
     VISION_MODELS,
     Model,
     completion_body,
+    repeat_of,
     server_argv,
     switch_for,
     template_kwargs,
+    tier_args,
 )
+
+from cortex_core import PlacementTarget
+from cortex_model_manager import llama_server_argv
+from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET
 
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
@@ -24,6 +42,10 @@ _REASONING_BUDGET_FLAG = "--reasoning-budget"
 _MESSAGES: list[dict[str, object]] = [{"role": "user", "content": "summarise this"}]
 _TOOLS: list[dict[str, object]] = [{"type": "function", "function": {"name": "read_file"}}]
 _MAX_TOKENS = 1600
+
+# What the sidecar's builder puts first, which the harness drops because the image's entrypoint
+# is the server; any word does here, since only what follows it is compared.
+_ANY_BINARY = "llama-server"
 
 _THINKING_OFF = [model for model in MODELS if not model.thinking]
 
@@ -103,13 +125,87 @@ def test_the_image_arms_rows_post_what_they_posted_before_the_switch_became_a_ro
 
 
 def test_the_default_switch_is_the_row_every_published_subagent_number_was_taken_under() -> None:
-    """A caller naming no switch gets the request key, which is what the old rows sent.
-
-    ``server_argv`` defaults the other way, to no flag at all, and the two defaults together are
-    exactly the cell this harness measured before it could be handed a tier's argv.
-    """
+    """A caller naming no switch gets the request key, which is what the old rows sent."""
     subagent: Model = _THINKING_OFF[0]
     assert switch_for(subagent) is REQUEST_KEY
     assert server_argv(subagent, SHIPPED_BUDGET) == server_argv(
         subagent, SHIPPED_BUDGET, REQUEST_KEY
     )
+    assert server_argv(subagent, SHIPPED_BUDGET, REQUEST_KEY) == server_argv(
+        subagent, SHIPPED_BUDGET, REQUEST_KEY, GPU_PLACEMENT
+    )
+
+
+def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
+    """A text-only row on the shipped switch is the tier's argv with the artifact and port swapped.
+    """
+    for model in MODELS:
+        tier = tier_args(model.tier)
+        started = server_argv(model, SHIPPED_BUDGET, switch_for(model, SHIPPED_SWITCH))
+        artifact = started[started.index("--model") + 1]
+        port = int(started[started.index("--port") + 1])
+        own = llama_server_argv(_ANY_BINARY, replace(tier, model_path=artifact, port=port))
+        assert started == own[1:], model.label
+        assert artifact.endswith(model.gguf), model.label
+
+
+def test_the_cpu_row_offloads_no_layer_and_changes_nothing_else() -> None:
+    """The CPU row is the card row with the layer count the core hands the host for that server."""
+    for model in _THINKING_OFF:
+        tier = tier_args(model.tier)
+        card = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH, GPU_PLACEMENT)
+        cpu = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH, CPU_PLACEMENT)
+        at = card.index("-ngl") + 1
+        assert card[at] == str(tier.ngl), model.label
+        assert cpu[at] == str(PlacementTarget.CPU.ngl), model.label
+        assert cpu[:at] + cpu[at + 1 :] == card[:at] + card[at + 1 :], model.label
+    assert GPU_PLACEMENT.on_card
+    assert not CPU_PLACEMENT.on_card
+    assert GPU_PLACEMENT.image != CPU_PLACEMENT.image
+    assert "--gpus" in GPU_PLACEMENT.reservation
+    assert CPU_PLACEMENT.reservation == ("--cpus", str(DEFAULT_CPU_BUDGET))
+    assert [placement.label for placement in PLACEMENTS] == [
+        PlacementTarget.GPU.value,
+        PlacementTarget.CPU.value,
+    ]
+
+
+def test_which_rows_are_a_models_own() -> None:
+    """A thinking-off model has a row per switch on the card and a shipped row on the CPU; a
+    thinking-on model has one row, under the shipped switch on the card.
+    """
+    thinking = [model for model in MODELS if model.thinking]
+    assert thinking, MODELS
+    for model in MODELS:
+        own = {
+            (switch.label, placement.label)
+            for switch in SWITCHES
+            for placement in PLACEMENTS
+            if repeat_of(model, switch, placement) is None
+        }
+        card = {(switch.label, GPU_PLACEMENT.label) for switch in SWITCHES}
+        expected = (
+            {(SHIPPED_SWITCH.label, GPU_PLACEMENT.label)}
+            if model.thinking
+            else card | {(SHIPPED_SWITCH.label, CPU_PLACEMENT.label)}
+        )
+        assert own == expected, model.label
+
+
+def test_thinking_follows_the_tier_and_each_lineup_names_its_own() -> None:
+    """Whether a model thinks is read off the tier it is measured as, and no lineup is mis-tiered.
+
+    A subagent candidate measured as the cortex tier would be started without the pair and read
+    as deliberating on purpose, so its published row would be a row of another tier.
+    """
+    assert all(model.tier == CORTEX_TIER for model in (*CORTEX_CANDIDATES, *VISION_MODELS))
+    assert all(model.tier == SUBAGENT_TIER for model in SUBAGENT_CANDIDATES)
+    assert all(model.tier == BRAIN_TIER for model in BRAIN_CANDIDATES)
+    assert all(model.thinking for model in (*CORTEX_CANDIDATES, *BRAIN_CANDIDATES))
+    assert not any(model.thinking for model in SUBAGENT_CANDIDATES)
+
+
+def test_a_tier_the_sidecar_does_not_declare_is_refused() -> None:
+    """A model naming a tier the model host has no row for fails at the read, not at the card."""
+    with pytest.raises(LookupError):
+        tier_args("no-such-tier")
