@@ -322,6 +322,19 @@ async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
         )
 
 
+async def test_the_read_tool_says_where_a_uid_comes_from_and_that_not_found_is_final() -> None:
+    # A uid is the one argument a model cannot look up: it is read off a search line, and a string
+    # that is not one is answered as a message that is not there with no command sent, so the
+    # description says where the number comes from, that it names a message only in the folder it
+    # was listed in, and that the not-found answer is final. Each phrase locates one of those
+    # three facts rather than a word that would survive deleting the sentence carrying it.
+    server = build_server(EmailReader(FakeMailbox()))
+    (tool,) = [t for t in await server.list_tools() if t.name == "read_email"]
+    described = tool.inputSchema["properties"]["uid"]["description"]
+    for fact in ("square brackets", "another folder", "search again"):
+        assert fact in described
+
+
 async def test_the_search_limit_says_which_matches_it_keeps() -> None:
     # A limit that means "the oldest N" without saying so misleads the model, so the description
     # says it: the fetch is ascending-uid, and raising the limit is not how a recent message is

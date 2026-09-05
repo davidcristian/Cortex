@@ -108,6 +108,20 @@ FOLDER_UNKNOWN = (
     "list_folders and use a name spelled exactly as that list returns it, rather than trying "
     "another name that looks likely. The folder name that was refused was "
 )
+# The uid, the other argument `read_email` takes and the one a model cannot look up: a folder
+# name comes off `list_folders`, and a uid comes off one line of a `search_emails` answer, where
+# it stands in square brackets. The not-found answer is composed from the `None` the port gives
+# for a uid no message has and for a string that is not a uid alike, with no command sent for the
+# second (ADR-0022 fetch-by-uid addendum), so this says where the number comes from and that the
+# answer is final, which is what stops a model trying a likelier number next.
+UID_HELP = (
+    "The uid of one message: the number search_emails writes in square brackets at the start of "
+    "each line, such as 4711 for a line beginning [4711]. Copy it digit for digit from a search "
+    "of the same folder, since a uid names a message only within the folder it was listed in, "
+    "and a number that is guessed, rounded, or taken from another folder's listing reads a "
+    "different message or none. A not-found answer is final for that folder, so search again "
+    "rather than trying a nearby number."
+)
 SEARCH_LIMIT_HELP = (
     "How many matches to return at most. They are the first matches in the folder's own uid "
     "order, which is not the same as the newest: narrow the search with the criteria above "

@@ -1,6 +1,6 @@
 # The uid parameter of read_email carries no description
 
-**Status:** open, actionable
+**Status:** landed 2026-09-05
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -32,3 +32,14 @@ not share a commit.
 - 2026-09-05: opened by the close of
   [548](548-an-empty-folder-read-raises-instead-of-answering-not-found.md), which made a string
   that is not a uid a not-found answer and left the parameter undescribed.
+- 2026-09-05: landed. The claim held as written, and one fact the entry did not name went in
+  beside its two: a uid names a message only within the folder it was listed in. `UID_HELP` in
+  `brain/packages/email/src/cortex_email/values.py` says where the number comes from, that it
+  is per folder, and that a not-found answer is final; `read_email` spends it as it spends
+  `FOLDER_HELP`, and a server test reads the three facts off the generated schema. Measured
+  through `build_tool_registry` against the shipped sidecar on a live Bridge, `describe_tools()`
+  hands the cortex the description byte for byte. Written up in the
+  [ADR-0022 addendum on what a uid is](../../adr/ADR-0022-email-write-confirmer.md#addendum-2026-09-05-read_email-says-what-a-uid-is),
+  with the mutation table. Opens
+  [571](571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md) and
+  [572](572-the-not-found-answer-states-no-correction-where-the-folders-does.md).

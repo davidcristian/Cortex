@@ -2144,3 +2144,54 @@ A search of a folder holding one message the server cannot read is refused whole
 imap-tools raises on the tagged `NO` and drops whatever the FETCH delivered before it, which
 `no-after` continues past the failed message, filed as
 [another](../refinements/tasks/570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md).
+
+## Addendum (2026-09-05): `read_email` says what a uid is
+
+Closes [R-552](../refinements/tasks/552-the-uid-parameter-of-read-email-carries-no-description.md).
+The entry's claim held as written: `uid: str` was bare in `server.py`, the generated schema
+carried `{"title": "Uid", "type": "string"}` and nothing else, and every other parameter of the
+two folder-taking tools is described from `values.py`. What it proposed is what landed, and one
+fact it did not name went in beside the two it did: a uid names a message only within its folder.
+RFC 3501 makes a uid unique within one mailbox and says nothing across mailboxes, so the same
+number in another folder is another message or none, and a model that carries a uid from one
+folder's search into another folder's read is answered with either.
+
+**The text.** `UID_HELP` in `values.py` beside `FOLDER_HELP`, in the same instructing register,
+saying three things: where the number comes from, the square brackets at the start of a
+`search_emails` line, copied digit for digit; that it names a message only in the folder it was
+listed in; and that a not-found answer is final for that folder, so the correction is another
+search rather than a nearby number. `read_email` spends it the way it spends `FOLDER_HELP`. The
+not-found text itself is unchanged. It is an own text the brain restates and re-stamps trusted on
+byte equality (ADR-0013 own-text addendum), so a correction added to it is a change on both sides
+of that seam, filed below rather than made here.
+
+**The reading, measured through the brain's own wiring.** The shipped sidecar started as its own
+process against a live Bridge, and `build_tool_registry` pointed at it: `describe_tools()` on the
+`OwnTextToolRegistry` it builds hands back `read_email` with `folder` and `uid` under
+`parameters["properties"]`, and `uid` carries the description byte for byte beside
+`"title": "Uid", "type": "string"`. That `ToolSpec` is what the cortex is prompted with. What the
+cortex does with it is unmeasured, filed below.
+
+### Proved able to fail
+
+**Suite: the email package's unit suite, `cd brain && uv run pytest packages/email --no-cov`,
+123 tests with 14 integration rows deselected.** The new server test reads the generated schema,
+and each phrase it asserts locates one of the three facts rather than a word that would survive
+deleting the sentence carrying it. Each mutation applied alone, read off disk with `__pycache__`
+purged, and restored from a copy afterwards.
+
+| # | mutation | result |
+|---|---|---|
+| U1 | the description dropped from the signature, `uid: str` again | 1 red, at the schema lookup |
+| U2 | the sentence saying a not-found answer is final deleted | 1 red, at `search again` |
+| U3 | the per-folder sentence reworded to name no other folder | 1 red, at `another folder` |
+| U4 | the brackets no longer named as square | 1 red, at `square brackets` |
+
+**What this opens.** The description is a prompt, and no live pass has shown the cortex reading
+it: whether it copies a uid off a listing rather than composing one, and whether a not-found
+answer ends its attempts, is filed as
+[a refinement](../refinements/tasks/571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md).
+And the not-found answer itself states no correction where `FOLDER_UNKNOWN` states one outright,
+so the only place a model reads that the answer is final is a description it read before the
+call, filed as
+[another](../refinements/tasks/572-the-not-found-answer-states-no-correction-where-the-folders-does.md).
