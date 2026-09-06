@@ -1,6 +1,6 @@
 # The two applications every boundary rule re-sorts were sorted by an unwritten hand rule
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -50,3 +50,15 @@ description, and republish the three counts above with the correction beside eac
   application one verb form away. It is not in `RECORDED` either, so the count this entry is stated
   over is unchanged at two; what it adds is that the shape recurs in a live row rather than only in
   the archive (the [ADR-0029 deep-cell addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-06: landed. The hand rule is the grammatical role of the clause carrying the notice: a
+  reply is an application when that clause predicates an ending and a report when the notice is the
+  complement of a requirement it attributes to the screen. The third reply, drawn the same day,
+  is what decided it, since it names the rule as a rule exactly as the misread reply does and still
+  predicates an ending, so a rule reading the noun sorts the four inconsistently and a rule reading
+  the verb does not. The two 2026-08-04 replies stay applications, so no published count moves and
+  the decline they stood against stands with them; the deep row's reply joins `RECORDED` and the
+  misread reply stays out as the one place the reading and the sort part. The rule is in the roster
+  comment of `test_reply_readings.py` with a test over all four replies and three mutants behind
+  it, and the reasoning is the
+  [ADR-0029 one-class addendum](../../adr/ADR-0029-vision-screen-capture.md). What it opened is
+  [R-581](581-the-six-line-attacks-have-no-written-hand-rule.md).
