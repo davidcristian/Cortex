@@ -208,7 +208,17 @@ denied outright.
   <name>: ...`, which is accurate for a mailbox that could not answer (deliberately left to
   escape) and inaccurate for a call the server read and declined. `search_emails` catches both
   corrections, `read_email` the folder one, which it hits before it has looked at a uid (so a
-  guessed folder never reads "message not found"). `read_email` adds a
+  guessed folder never reads "message not found"). The not-found answer is deliberately left
+  unmarked, and so is a search with no hits: the line `isError` draws is whether the server ran
+  the call, not whether the answer corrects the model (ADR-0022 not-found-flag addendum). The two
+  marked answers are calls the server declined before it touched the mailbox; a uid the folder
+  does not hold and a search with no matches are calls it ran, and their answer is what the
+  mailbox holds. The brain negates this flag into the audit trail's `ToolInvocation.ok`, so a
+  reading over `ok` counts the calls this server declined and not the answers that corrected the
+  model: the not-found answer states a correction and is recorded `ok`, and an `ok` audit line
+  carries the result's size in place of its text, so that reading cannot recover the correction
+  from the trail either. The flag leaves the brain as well, as the `ToolOutcome` that settles the
+  dispatch's activity chip, which is read for the screen-capture tool alone. `read_email` adds a
   result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
   (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
   `_meta` rides beside the text, so the model-facing content is unchanged; the brain's tool

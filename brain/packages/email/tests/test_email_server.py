@@ -183,6 +183,29 @@ async def test_read_email_tool_reports_not_found() -> None:
     )
 
 
+async def test_only_a_call_the_server_declined_is_marked_a_failure() -> None:
+    # The line `isError` draws is whether the server ran the call, not whether its answer carries
+    # a correction. An unknown folder is declined before the mailbox is touched, so it is marked;
+    # a uid the folder does not hold and a search with no hits are calls the server ran, whose
+    # answer is what the mailbox holds, so neither is. The not-found answer states a correction
+    # and is still not marked, which is why a reading over the audit trail's `ok` counts the calls
+    # the server declined and not the answers that corrected the model.
+    server = build_server(EmailReader(FakeMailbox(one=None, found=[])))
+    missing = cast(
+        "CallToolResult", await server.call_tool("read_email", {"folder": "INBOX", "uid": "999"})
+    )
+    empty = cast(
+        "CallToolResult",
+        await server.call_tool("search_emails", {"folder": "INBOX", "query": "ALL"}),
+    )
+    declined = cast(
+        "CallToolResult", await server.call_tool("read_email", {"folder": "Sent", "uid": "999"})
+    )
+    assert missing.isError is False
+    assert empty.isError is False
+    assert declined.isError is True
+
+
 async def test_read_email_declares_the_message_sender_as_a_source() -> None:
     # The producer half of the sidecar declaration channel (ADR-0027): the sender rides in the
     # result `_meta`, beside (never inside) the readable string the model consumes. The brain's

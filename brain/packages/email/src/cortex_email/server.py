@@ -134,6 +134,9 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         except FolderUnknownError as unknown:
             return _one_text(str(unknown), failed=True)
         if detail is None:
+            # Not marked failed, although it corrects the model as the refusal above does: the
+            # folder opened and the FETCH was sent, so this is what the mailbox holds rather than
+            # a call the server declined. It is the empty search's case, not the refusal's.
             return _one_text(NOT_FOUND.format(uid=uid, folder=folder))
         text = (
             f"From: {detail.sender}\nTo: {detail.recipients}\n"

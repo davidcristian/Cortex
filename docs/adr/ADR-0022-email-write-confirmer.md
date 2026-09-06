@@ -2315,3 +2315,62 @@ easiest. Both are filed as
 [R-584](../refinements/tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md),
 with the wording question the last row opens: the correction names a search where this tier
 re-reads the listing it already has.
+
+## Addendum (2026-09-06): the not-found answer stays unmarked, and what `ok` counts
+
+The close that gave the not-found answer its correction left one question behind it. `read_email`
+answers a uid the folder does not hold with `_one_text(NOT_FOUND.format(...))` and no `failed`,
+while both refusals answer with `_one_text(str(correction), failed=True)`, so three answers that
+now say the same kind of thing are recorded two ways: two failed, one `ok`.
+
+**The decision is that the flag stays off and the line it draws is written down.** The two marked
+answers are calls the server declined before it touched the mailbox: `FolderUnknownError` is
+raised while opening the folder and `SearchRefusedError` when the server rejects the query, and in
+neither case was any message read. The not-found answer is a call the server ran. The folder
+opened, the FETCH was sent, and the mailbox answered that it holds nothing under that uid, which
+is a fact about the mailbox rather than a fault in the call.
+
+The server already draws that line, one tool over. `search_emails` with no hits answers
+`(no matching messages)` unmarked, and that answer is the not-found answer's case exactly: a call
+that ran against a folder that held nothing matching. Marking the not-found answer alone would
+leave the empty search as the one ran-and-empty answer recorded `ok`, which moves the
+inconsistency rather than removing it, and marking both would record an empty mailbox as a tool
+failure. The reason the refusals carry the flag does not reach either of them: it is there because
+a tool that lets its exception out is restated by FastMCP as an execution error, and these two
+paths catch nothing.
+
+**What the entry had wrong about the tree.** It states that nothing downstream reads the flag.
+Two things do. `cortex_core/dispatch.py` negates it into the audit trail's `ToolInvocation.ok`,
+which the entry names, and `cortex_core/dispatch_round.py` reads the same result into the
+`StepOutcome` that crosses the seam as `ToolOutcome` and reaches the overlay, where
+`body/app/src/overlay/turnState.ts` applies it to the screen-capture tool alone. So an email
+answer renders nothing either way today, and a flipped flag would have written `ok=false` on the
+audit line and sent a false `ToolOutcome` for every read of an absent uid. The own-text overlay
+copies the flag through unchanged (`cortex_core/own_text.py`) and reads nothing off it, which is
+what the entry says.
+
+**What a reading over `ok` therefore counts.** It counts the calls this server declined, and not
+the answers that corrected the model, because the not-found answer corrects and is recorded `ok`.
+The trail offers no second way to recover it: `LoggingAuditSink` writes the detail under `error`
+on a failed call and the size alone under `result_chars` on a successful one, so the correction's
+text never reaches the line. A reading that wants corrections has to read the results rather than
+the audit trail, which is filed as
+[R-591](../refinements/tasks/591-an-ok-audit-line-carries-a-size-where-the-correction-is.md).
+
+The decision is recorded in three places: a comment at the return in `cortex_email/server.py`, the
+contract sentence in `docs/modules/brain-email.md`, and the test below, which pins the line rather
+than the flag of one answer.
+
+### Proved able to fail
+
+Three mutants of `brain/packages/email/src/cortex_email/server.py`, each reverted from a copy of
+the file, over `brain/packages/email/tests/test_email_server.py`'s 25 tests.
+
+| mutant | failing |
+|---|---|
+| the not-found answer marked `failed=True` | 1 |
+| the empty search marked `failed=True` | 1 |
+| `read_email`'s folder refusal left unmarked | 2 |
+
+The third fails the new test and the one that already held both folder refusals alike, which is
+the pair the new test was written to sit beside rather than duplicate.
