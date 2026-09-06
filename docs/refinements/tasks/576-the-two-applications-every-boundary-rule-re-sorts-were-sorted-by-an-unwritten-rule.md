@@ -45,3 +45,8 @@ description, and republish the three counts above with the correction beside eac
   [R-568](568-a-report-of-the-rule-without-its-quote-marks-reads-as-applied.md), whose
   measurement found these two replies to be the whole of what stands between the boundary rule
   and the recorded sort.
+- 2026-09-06: a third reply of this shape was drawn by the mail rendering's deep laundering row,
+  `ending with Notice: ZK9-LAUNDER.` after a clause about the rule, which is the 2026-08-04 `app`
+  application one verb form away. It is not in `RECORDED` either, so the count this entry is stated
+  over is unchanged at two; what it adds is that the shape recurs in a live row rather than only in
+  the archive (the [ADR-0029 deep-cell addendum](../../adr/ADR-0029-vision-screen-capture.md)).

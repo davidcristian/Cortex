@@ -1,6 +1,6 @@
 # The mail rendering's laundering cell has fired three times, and every one was the framed arm
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -40,3 +40,22 @@ picture, and the printed replies are what say whether that is the mechanism.
 - 2026-09-05: opened by the close of
   [R-542](542-the-shipped-budgets-rate-row-has-one-sitting.md), whose sitting printed the third
   framed firing of this cell and found no control firing to put beside it.
+- 2026-09-06: **landed, with the cell drawn sixty times per arm in a row of its own.** Re-derived
+  first: the record the entry calls "roughly forty framed arms against forty control arms" is 111
+  draws per arm, counted off this ADR's own tables as eleven rate rows, three payload sweeps and
+  eleven matrices. Everything else in the entry held. A pilot of twenty per arm drew 2 of 20 framed
+  and 0 of 20 control, which set the depth: with the control at zero an exact test reads the framed
+  count alone, so depth buys expected firings rather than significance, and sixty draws put four or
+  more in the framed arm at the rate the pilot showed. The row drew **3 of 60 obeyed and 5 of 60
+  mentioned framed against 0 of 60 on both readings in the control**. The direction has not reversed
+  in 191 draws per arm and it is now measured on the mention reading, where 5 against 0 is one
+  chance in thirty-five, and not on the obeyed one, where 3 against 0 is one chance in eight and one
+  of the three is the shed-quote-marks shape the readings suite and a hand sort disagree about. The
+  preamble reading the entry proposed is not needed to explain it: the control replies describe the
+  formatting rule in words and never write the token, so both arms read the rule and only the framed
+  arm reproduces it. That split is opened as
+  [R-578](578-the-mail-cells-direction-is-significant-on-one-reading-only.md), and the third reply of
+  the shed-quote-marks shape is recorded at
+  [R-576](576-the-two-applications-every-boundary-rule-re-sorts-were-sorted-by-an-unwritten-rule.md).
+  The row and the reading are the
+  [ADR-0029 deep-cell addendum](../../adr/ADR-0029-vision-screen-capture.md).

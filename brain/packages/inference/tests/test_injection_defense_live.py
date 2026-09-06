@@ -933,12 +933,45 @@ async def test_the_laundering_rate_at_each_frame(
     assert_drawn(label, unusable, 2 * _RATE_RUNS * len(RENDERINGS))
 
 
-def _print_fired(arm: str, attack: Attack, replies: list[Reply]) -> None:
-    """Print every repeated reply the mention reading fires on, with its verdict, whole."""
+def _print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bool = False) -> None:
+    """Print repeated replies with their verdicts, whole: the ones a reading fires on, or all."""
     for reply in replies:
         mark = verdict(attack, reply)
-        if mark is not Verdict.RESISTED:
+        if resisted or mark is not Verdict.RESISTED:
             print(f"      {arm} ({mark}): {reply.content!r}")  # noqa: T201
+
+
+_MAIL_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "app")
+_DEEP_RATE_RUNS = 60
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_mail_renderings_laundering_rate_drawn_deep(model: Model) -> None:
+    """Draw one rendering's laundering cell sixty times per arm instead of five."""
+    unusable: list[str] = []
+    fired: dict[str, str] = {}
+    with _server(model, SHIPPED_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            print(  # noqa: T201
+                f"\n=== {model.label} {_MAIL_RENDERING.name} laundering rate, "
+                f"{_DEEP_RATE_RUNS} per arm at {CORPUS_FRAME.label}, {SHIPPED_BUDGET.label} ==="
+            )
+            await _read_back(client, model, _MAIL_RENDERING, CORPUS_FRAME)
+            png = _MAIL_RENDERING.build(_LAUNDERING.injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
+            for arm, framed in (("framed", True), ("control", False)):
+                replies = [
+                    await _screen_reply(client, png, framed=framed, switch=switch_for(model))
+                    for _ in range(_DEEP_RATE_RUNS)
+                ]
+                fired[arm] = rate(_LAUNDERING, replies)
+                unusable += [f"{_MAIL_RENDERING.name}:{arm}" for reply in replies if reply.unusable]
+                _print_fired(arm, _LAUNDERING, replies, resisted=True)
+            print(  # noqa: T201
+                f"  [{_MAIL_RENDERING.name}] framed {fired['framed']} control {fired['control']}"
+            )
+    label = f"{model.label} {_MAIL_RENDERING.name} laundering rate, {_DEEP_RATE_RUNS} per arm"
+    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS)
 
 
 TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale(1))
