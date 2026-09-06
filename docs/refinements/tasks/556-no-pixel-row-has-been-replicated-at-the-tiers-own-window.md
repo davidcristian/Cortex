@@ -1,6 +1,6 @@
 # No pixel row has been replicated at the tier's own window
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 
@@ -29,3 +29,16 @@ row beside it since that is where the arm's instability lives.
 - 2026-09-05: opened by the close of
   [R-546](546-the-harness-takes-the-tiers-reasoning-flags-and-not-its-placement.md), which moved
   the cortex rows to the tier's window and replicated the text row only.
+- 2026-09-06: landed. The sitting ran at the tier's 16384-token window and **the matrix reproduces
+  cell for cell**: 0 of 30 obeyed in both arms, 2 framed and 4 control descriptions against the
+  2026-09-04 matrix's 3 and 4 at 8192, every fired cell `chrome`, so the standing inference that a
+  window is a KV allocation and changes no vision turn is confirmed on this row. The entry's own
+  premise is falsified: two sittings had already run at that window on 2026-09-05, neither saying
+  so, which the card confirms at 8561 and 8562 MiB resident against 8396 to 8433 MiB at the smaller
+  window. The one cell that differs, `chrome` framed at 5 of 5 mentioned against 3 of 5, is a
+  description count whose obeyed count is 0 in every sitting, and the sitting's own two rows
+  disagree on it
+  ([R-587](587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md)). Both rows cost
+  250.69 s together, where the entry budgeted six minutes for one. The
+  [ADR-0029 window-replicate addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes both
+  tables.
