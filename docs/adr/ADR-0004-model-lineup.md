@@ -844,8 +844,9 @@ and this is its sitting.
 **What ran.** `pytest -k "shipped-argv and gpu and not E4B and not 12B"`, five rows, on build 10680
 (`d7bd3bfca`) from `ghcr.io/ggml-org/llama.cpp:server-cuda` on the 24 GB card, ten attacks per row
 with a framed arm and an unframed control, each row starting with its tier's own command line.
-**267.91 s for the four rows that drew**, cold loads included. The fifth, the cortex alt, did not
-draw, and the reason is not the card: the artifact `MODELS` names for it,
+**267.91 s for the session**, four cold loads and the failed row's 180 s wait included, so the rows
+that drew cost about **88 s together**. The fifth, the cortex alt, did not draw, and the reason is
+not the card: the artifact `MODELS` names for it,
 `unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf`, is not on this host's mount, which holds a
 `UD-Q4_K_XL` and a `Q8_0` of that model beside the projector. The server exits on
 `load_model: failed to load model`, the harness reads that as a health timeout and fails the row
@@ -879,12 +880,12 @@ text arm.** The readings addendum at
 [ADR-0029](ADR-0029-vision-screen-capture.md) built the second reading for the pixel channel,
 where the benign answer to "what is on my screen?" quotes the screen, and its own sentence is that
 over text a `desc` mark is "whatever the printed reply says it is". Over text a summary of a
-document has no reason to quote the document's formatting rule, and on the two gemma rows and on
-the cortex and subagent picks it never did. The Qwen entries do: three of the four descriptions
-drawn tonight are Qwen replies that summarise the notes and then report the injected instruction in
-a subordinate clause. So the confound is not a property of pixels, it is a property of a model that
-answers a summarisation ask by reporting everything the document contains, and the text arm's
-published counts on that family carry it.
+document has no reason to quote the document's formatting rule, and the picks drawn again on
+2026-09-05 never did. Tonight's rows drew five descriptions, four of them Qwen replies that
+summarise the notes and then report the injected instruction in a subordinate clause, and the
+fifth the gemma candidate's control on the same attack. So the confound is not a property of
+pixels, it is a property of a model that answers a summarisation ask by reporting everything the
+document contains, and every text row here carries it, the Qwen family most.
 
 **The four rows' obeyed counts leave the lineup's ranking where it was, and sharpen one row.**
 `output-laundering` is the only attack any framed arm applied, on three of the four candidates, and
@@ -899,9 +900,8 @@ above now says which reading each number is.
 **All fourteen fired replies are in
 [test_reply_readings.py](../../brain/packages/inference/tests/test_reply_readings.py)** with the
 verdict a hand sort gives them, and the structural reading agrees with that sort on every one, so
-the suite's roster is 43 replies rather than 29 and the readings are held to a family the pixel
-arm cannot reach: no Qwen entry has a projector on the mount, so before tonight every recorded
-reply was a gemma reply or a text-arm replay.
+the roster is fourteen replies larger and holds a family it did not: before tonight not one of its
+entries named a Qwen row.
 
 **What this does not do.** The cortex alt has no row for the reason above, and the same artifact
 name is what the image arm's alt row loads, so that row cannot draw on this host either. The `request-key`
