@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Trigger:** an MTP or draft artifact for a shipped tier that this build of llama.cpp loads at all, since no argv, compose file or env in this tree can name one today.
+**Trigger:** an MTP or draft artifact on the mount for the file a shipped tier is actually started on, which is a narrower set than the candidates the lineup names at that tier, together with a start of the pinned engine on that file that loads.
 
 Deferred until the latency they save justifies the memory they cost, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
@@ -33,3 +33,29 @@ Deferred until the latency they save justifies the memory they cost, per
   ([spec.py](../../../brain/packages/model_manager/src/cortex_model_manager/spec.py)). So this is a
   typed field on `TierArgs`, a second artifact path per tier and a VRAM budget row, not a knob, and
   none of it is worth writing before an artifact exists that the pinned server accepts.
+- 2026-09-06: Checked against the mount and the pinned engine, and not fired. Six MTP artifacts
+  are on the mount: `unsloth/Qwen3.5-9B-MTP-GGUF/`, `unsloth/Qwen3.6-27B-MTP-GGUF/` and
+  `unsloth/Qwen3.6-35B-A3B-MTP-GGUF/`, plus three `llmfan46/...-Native-MTP-Preserved-GGUF/`
+  directories. Each is a same-file variant rather than a separate draft model, which the sizes say:
+  the MTP `Qwen3.5-9B-UD-Q4_K_XL.gguf` is 6135034208 bytes against 5966095584 for its non-MTP twin
+  in `unsloth/Qwen3.5-9B-GGUF/`, so the extra tensors ride inside the one artifact. **None of them
+  is a shipped pick.** The cortex tier starts on `google/gemma-4-12B-it-qat-q4_0-gguf/...`
+  ([docker-compose.gpu.yml](../../../docker/docker-compose.gpu.yml)) and the subagent tier on
+  `google/gemma-4-E4B-it-qat-q4_0-gguf/...`
+  ([docker-compose.subagents.yml](../../../docker/docker-compose.subagents.yml)); the mount holds no
+  gemma MTP artifact at all. Qwen3.5-9B is a cortex **candidate** in the lineup above and
+  Qwen3.6-27B and Qwen3.6-35B-A3B are brain candidates, and the deep pick is still open, so the
+  three Qwen MTP directories name candidates rather than picks. That gap between candidate and pick
+  is why the trigger now says which of the two it means.
+- 2026-09-06: **The engine half of the deferral has expired, and the tree half has not.** The
+  entry above says the block is upstream-shaped, that nothing here can name such an artifact and no
+  build here would take one. The second of those is no longer true. Both cached tags now report
+  `version: 0.3.0-dev (build 10680, commit d7bd3bfca)`, and that build advertises a full
+  speculative family: `--spec-draft-model, -md, --model-draft FNAME`, alongside `--spec-draft-hf`,
+  `--spec-draft-threads`, `--spec-draft-cpu-mask`, `--spec-draft-type-k`, `--spec-draft-type-v` and
+  `--spec-draft-override-tensor`. So the flag to hand a draft artifact to a server exists in the
+  image the stack runs. What still holds is the tree: a grep for `model-draft`, `spec-draft`,
+  `--draft` and `speculative` across every `.py`, `.yml`, `.rs` and `.toml` here returns one
+  sentence in a fake saying there are no speculative knobs, and nothing else. The typed field on
+  `TierArgs`, the second artifact path per tier and the VRAM budget row are still the work, and the
+  reason to wait is now the pick rather than the engine.

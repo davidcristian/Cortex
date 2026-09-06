@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Trigger:** The shell entering CI, a third status-table caller, or a third capture-target value.
+**Trigger:** A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
 
 Opened 2026-08-08 behind the landing above, in the same shape its own parent had: a registry that
 now reaches four kinds of coupling makes each remaining one a decision rather than an absence.
@@ -192,3 +192,25 @@ side, or a `.proto` reader arriving in the scan for another reason.
   and a `{name}` placeholder that pins a rendered name, leaving behind one presence-checked name
   narrower than the entry it came from. The three that remain are the bind port, the gRPC status
   code, and the capture target's generated enums.
+- 2026-09-06: **The shell clause fired, and it is the only one of the three that has.** The Tauri
+  shell entered CI on 2026-08-17 ([R-009](009-shell-clippy-in-ci.md), landed): `.github/workflows/ci.yml`
+  carries a `shell` job that installs the Tauri Linux dev stack and runs `just check-shell`, and
+  clippy there has to compile the crate. That removes the exact obstacle the bind-port sub-entry
+  named, which was that a constant in `body_server.rs` would be a source edit nothing type-checks.
+  The remedy is now ordinary work rather than a bad trade, so it is filed on its own as
+  [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md) and struck from this
+  entry, which leaves two couplings here.
+- 2026-09-06: the other two clauses were counted and neither has fired. The capture target still
+  has exactly two values, `CAPTURE_TARGET_DISPLAY = 0` and `CAPTURE_TARGET_FOCUS = 1` in
+  [body.proto](../../../proto/body.proto), so the third value that the generated-enum coupling waits
+  on does not exist. The gRPC status pair is still spelled in two trees and nowhere else: the body
+  writes `Status::failed_precondition` at four sites and `Status::resource_exhausted` at one, all
+  inside `body/crates/rpc/src/server.rs` and `body/crates/rpc/src/screen.rs`, and the brain keys on
+  `grpc.StatusCode.FAILED_PRECONDITION` and `RESOURCE_EXHAUSTED` in one table in
+  `cortex_body_client/failures.py`, read by `gateway.py` alone.
+- 2026-09-06: **"a third status-table caller" was not decidable as written**, which is why the
+  trigger above now says something a grep answers. A caller could have meant a third code joining
+  the pair, a third call site spelling one of them, or a third module that has to agree. By the
+  second reading the trigger had already fired and nobody noticed, five sites spelling a code today;
+  by the third it has not, two modules. The trigger is restated to the module reading, since the
+  coupling is between trees that must agree and a second site inside one file agrees with itself.
