@@ -2195,3 +2195,65 @@ And the not-found answer itself states no correction where `FOLDER_UNKNOWN` stat
 so the only place a model reads that the answer is final is a description it read before the
 call, filed as
 [another](../refinements/tasks/572-the-not-found-answer-states-no-correction-where-the-folders-does.md).
+
+## Addendum (2026-09-06): the not-found answer carries its correction
+
+Closes [R-572](../refinements/tasks/572-the-not-found-answer-states-no-correction-where-the-folders-does.md).
+The entry's account of the seam held on re-derivation, in every part.
+`OwnTextToolRegistry.invoke` (`cortex_core/own_text.py`) is the side that re-stamps, and the
+equality is byte equality between the result's whole `content` and what one declared `OwnText`
+renders from the brain's own copy of the call's arguments, with a result carrying an image left
+alone before any text is compared. `own_texts.py` restated the answer as
+`"message {uid} not found in {folder}"`, `server.py` composed the same text as an f-string over
+its own parameter names, and the registry row in `scripts/emailcouplings.py` held the two with
+one declaring site in the brain and the server's f-string as a mention rendering the value.
+
+**What the answer says now.** `NOT_FOUND` in `cortex_email/values.py`, beside `FOLDER_UNKNOWN`
+and in its shape: the fact (no message with that uid is in that folder, so nothing was read), the
+rule (a uid names a message only within the folder it was listed in, and a nearby number or a uid
+off another folder's listing names a different message here or none), and the correction, which
+names the call that fixes it (search this folder again and copy a uid from one line of that
+answer). It is a format template over `uid` and `folder` rather than a sentence with the
+refused argument appended, because the folder is named twice, once in the fact and once in the
+correction. `read_email` spends the binding in place of its f-string, and `own_texts.py` restates
+the same sentence. The answer's `isError` is unchanged: the tool ran and answered, and the
+overlay reads no part of the wire's own framing anyway.
+
+**What moved in the registry.** The row for this answer now has two declaring sites, the
+sidecar's and the brain's, where it had one, so the two spellings are compared to each other
+rather than one being rendered into the other's file. The server's spend is held as a mention of
+the binding name, `_one_text({name}.format(`, which is the shape the declared-source key's spends
+already use: a read that stopped going through the binding would leave both declarations
+agreeing on a sentence the server no longer wrote.
+
+### Proved able to fail
+
+**Suite: the cross-tree constant scan, `cd scripts && uv run python crosscheck.py --root ..`,
+89 entries over 105 declaring sites and 291 mentions.** Each mutation applied alone and restored
+from a copy of the file afterwards.
+
+| # | mutation | result |
+|---|---|---|
+| N1 | one word of `values.py`'s `NOT_FOUND` reworded, the brain's copy left alone | 1 untied constant, the two sites printed side by side |
+| N2 | the same word reworded in `own_texts.py` alone | 1 untied constant, the same entry |
+| N3 | the server's spend written back as the old f-string | 1 untied constant, `_one_text(NOT_FOUND.format(` unfound, the carried run stopping at `_one_text(` |
+| N4 | the correction sentence deleted from both sites together | green, which is the reading below |
+
+N4 is the mutation the scan cannot catch, both places still agreeing, and it is what the suites
+are for.
+
+**Suite: `cd brain && uv run pytest packages/email packages/orchestrator/tests/test_own_texts.py
+--no-cov`, 138 tests with 14 integration rows deselected.**
+
+| # | mutation | result |
+|---|---|---|
+| N4 | the correction sentence deleted from both sites together | 3 red: the server's not-found test, the renderer test, and the end-to-end `not-found` row |
+
+Both suites spell the expected answer out rather than importing the constant, which is why they
+move under N4 at all: a test built from the constant follows a rewording of it and reports
+nothing.
+
+**What this opens.** The sentence is a prompt and no live pass has read it back off the cortex,
+which is the measurement
+[R-571](../refinements/tasks/571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md)
+asks for, now against these bytes rather than the ones it was filed under.

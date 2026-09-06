@@ -29,6 +29,7 @@ from cortex_email.smtp import EmailSender, SmtpSender
 from cortex_email.values import (
     ATTACHMENTS_HELP,
     FOLDER_HELP,
+    NOT_FOUND,
     SEARCH_LIMIT_HELP,
     SEARCH_QUERY_HELP,
     UID_HELP,
@@ -133,7 +134,7 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         except FolderUnknownError as unknown:
             return _one_text(str(unknown), failed=True)
         if detail is None:
-            return _one_text(f"message {uid} not found in {folder}")
+            return _one_text(NOT_FOUND.format(uid=uid, folder=folder))
         text = (
             f"From: {detail.sender}\nTo: {detail.recipients}\n"
             f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"

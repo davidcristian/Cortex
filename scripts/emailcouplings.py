@@ -67,6 +67,10 @@ TOOLS_REGISTRY = "brain/packages/tools/src/cortex_tools/registry.py"
 # names it at both sites and at each module's spend of its own binding.
 SOURCE_KEY = "_SOURCE_META_KEY"
 
+# The binding both modules declare the not-found answer under, spelled once for the same reason:
+# the entry names it at both sites and at the server's spend of the sidecar's own binding.
+NOT_FOUND = "NOT_FOUND"
+
 # The binding the server declares the kind word under, and the enum member the core admits it as.
 # The member is spelled here rather than read, since the scan has no declaration syntax for a
 # name bound inside a class body; it is the name half of a mention that renders both halves.
@@ -130,13 +134,19 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the answer to reading a uid that is not there",
         why=(
-            "the sidecar writes this answer as an f-string over its own parameter names and the "
-            "brain declares the same text as a format over the call's arguments, so a reworded "
-            "answer or a renamed parameter alone would taint every such read with nothing "
-            "failing (ADR-0013 own-text addendum)"
+            "the sidecar renders this answer over the uid and folder the call named and the "
+            "brain declares the same template over the same two arguments, so a reworded answer "
+            "or a renamed field alone would taint every such read with nothing failing (ADR-0013 "
+            "own-text addendum)"
         ),
-        sites=(Site(OWN_TEXTS, "NOT_FOUND"),),
-        mentions=(Mention(EMAIL_SERVER, '_one_text(f"{value}")'),),
+        sites=(Site(EMAIL_VALUES, NOT_FOUND), Site(OWN_TEXTS, NOT_FOUND)),
+        mentions=(
+            # The server's one spend of the sentence, held to the binding rather than to the text:
+            # since the correction landed the answer is a value the sidecar declares beside its
+            # other two, and what a mention has to catch here is a read that stops going through
+            # that binding while both declarations still agree.
+            Mention(EMAIL_SERVER, "_one_text({name}.format(", name=NOT_FOUND),
+        ),
     ),
     Constant(
         label="the key a sidecar declares a content source under",

@@ -1,6 +1,6 @@
 # The not-found answer states no correction where the folder's does
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -33,3 +33,13 @@ the new bytes.
 - 2026-09-05: opened by the close of
   [552](552-the-uid-parameter-of-read-email-carries-no-description.md), which described the
   parameter and left the answer's bytes alone.
+- 2026-09-06: landed as written. The account of the seam held on re-derivation: the brain's
+  `OwnTextToolRegistry` is the side that re-stamps, on byte equality between the result's whole
+  content and what one `OwnText` renders from the brain's own copy of the call's arguments.
+  `NOT_FOUND` now lives in `cortex_email/values.py` in `FOLDER_UNKNOWN`'s shape, `read_email`
+  spends it in place of its f-string, `own_texts.py` restates it, and the registry row has two
+  declaring sites with the server's spend held to the binding name. The ADR-0022 addendum of that
+  date carries the mutation tables. What it left is
+  [582](582-the-not-found-answer-is-the-one-correction-the-audit-records-as-ok.md): the answer now
+  states a correction like the two refusals and is still the one of the three the audit records
+  as ok.

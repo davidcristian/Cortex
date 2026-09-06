@@ -2,8 +2,9 @@
 
 Four answers the sidecar composes without reading a message: a search the server refused and a
 folder no mailbox has (each a sentence from `cortex_email/values.py` followed by the `repr` of the
-argument it refused), an empty search, and a `read_email` of a uid that is not there (both
-literals in `cortex_email/server.py`). `OwnTextToolRegistry` re-stamps a result trusted only when
+argument it refused), a `read_email` of a uid that is not there (a sentence from the same module,
+rendered over the uid and the folder the call named), and an empty search (the one literal in
+`cortex_email/server.py`). `OwnTextToolRegistry` re-stamps a result trusted only when
 its bytes equal what one entry here renders from the call the brain sent, so these are the whole
 of what a remote tool may answer untainted. Each is restated rather than imported, because the
 sidecar is deployed on its own and the brain would otherwise carry a mail client's package to
@@ -33,9 +34,16 @@ FOLDER_UNKNOWN = (
 )
 # Restates the literal `search_emails` answers with when nothing matched.
 NO_MATCHES = "(no matching messages)"
-# Restates the `read_email` answer for a uid that is not there, its fields named as the sidecar's
-# own parameters are, which is what the call's arguments carry.
-NOT_FOUND = "message {uid} not found in {folder}"
+# Restates `NOT_FOUND` in `cortex_email/values.py`, the `read_email` answer for a uid that is not
+# there; the gate holds the two equal. Its fields are named as the sidecar's own parameters are,
+# which is what the call's arguments carry.
+NOT_FOUND = (
+    "No message with uid {uid} is in {folder}, so nothing was read. A uid names a message only "
+    "within the folder it was listed in, and this folder holds none under that number: a nearby "
+    "number and a uid off another folder's listing each name a different message here or none at "
+    "all. Search {folder} again with search_emails and copy a uid from one line of that answer, "
+    "rather than trying another number that looks likely."
+)
 
 
 def _string(arguments: Mapping[str, Any], name: str) -> str | None:

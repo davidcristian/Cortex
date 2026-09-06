@@ -122,6 +122,22 @@ UID_HELP = (
     "different message or none. A not-found answer is final for that folder, so search again "
     "rather than trying a nearby number."
 )
+# The answer to a read of a uid no message has, composed for a uid the folder does not hold and
+# for a string that is not a uid alike (ADR-0022 fetch-by-uid addendum). It states its correction
+# outright, as `FOLDER_UNKNOWN` does and for the same reason: `UID_HELP` above is read before the
+# call and this is what a model reads after one, so the sentence that says the answer is final has
+# to be here too. The correction is another search rather than another number, since a uid is not
+# a name a model can look up the way `list_folders` answers for a folder. Both `{uid}` and
+# `{folder}` are rendered from the call's own arguments, which is why this is a format template
+# rather than a sentence with the argument appended: the folder is named twice, once in the fact
+# and once in the correction.
+NOT_FOUND = (
+    "No message with uid {uid} is in {folder}, so nothing was read. A uid names a message only "
+    "within the folder it was listed in, and this folder holds none under that number: a nearby "
+    "number and a uid off another folder's listing each name a different message here or none at "
+    "all. Search {folder} again with search_emails and copy a uid from one line of that answer, "
+    "rather than trying another number that looks likely."
+)
 SEARCH_LIMIT_HELP = (
     "How many matches to return at most. They are the first matches in the folder's own uid "
     "order, which is not the same as the newest: narrow the search with the criteria above "

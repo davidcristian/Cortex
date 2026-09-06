@@ -38,6 +38,18 @@ from cortex_orchestrator.own_texts import (
 )
 from cortex_tools import McpSession, McpToolRegistry
 
+# The not-found answer written out, which is the one own text this file spells rather than
+# interpolates. Both places that expect it read this, and it is a literal rather than the constant
+# so that a rewording of the sidecar's sentence fails here instead of following it.
+_MISSING_ANSWER = (
+    "No message with uid 9 is in INBOX, so nothing was read. A uid names a message only within "
+    "the folder it was listed in, and this folder holds none under that number: a nearby number "
+    "and a uid off another folder's listing each name a different message here or none at all. "
+    "Search INBOX again with search_emails and copy a uid from one line of that answer, rather "
+    "than trying another number that looks likely."
+)
+
+
 # ── the renderers ───────────────────────────────────────────────────────────
 
 
@@ -58,8 +70,8 @@ def test_an_empty_search_renders_the_literal_whatever_the_arguments() -> None:
 
 
 def test_a_missing_message_renders_the_uid_and_folder_the_brain_named() -> None:
-    assert not_found({"uid": "7", "folder": "INBOX"}) == "message 7 not found in INBOX"
-    assert NOT_FOUND.format(uid="7", folder="INBOX") == not_found({"uid": "7", "folder": "INBOX"})
+    assert not_found({"uid": "9", "folder": "INBOX"}) == _MISSING_ANSWER
+    assert NOT_FOUND.format(uid="9", folder="INBOX") == not_found({"uid": "9", "folder": "INBOX"})
     assert not_found({"folder": "INBOX"}) is None
     assert not_found({"uid": "7"}) is None
     assert not_found({"uid": 7, "folder": "INBOX"}) is None
@@ -147,7 +159,7 @@ def _registry() -> OwnTextToolRegistry:
         ),
         ("read_email", {"folder": "Receipts", "uid": "7"}, f"{FOLDER_UNKNOWN}{'Receipts'!r}"),
         ("search_emails", {"folder": "INBOX", "query": "ALL"}, "(no matching messages)"),
-        ("read_email", {"folder": "INBOX", "uid": "9"}, "message 9 not found in INBOX"),
+        ("read_email", {"folder": "INBOX", "uid": "9"}, _MISSING_ANSWER),
     ],
     ids=["refused-search", "unknown-folder-search", "unknown-folder-read", "empty", "not-found"],
 )
