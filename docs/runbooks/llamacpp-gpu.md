@@ -686,9 +686,11 @@ posts that say what a screen costs in image tokens, and `-k travel` the companio
 canary can reach a reply from the pixels at all. Beware that `-k laundering_rate` matches the sweep
 too, so it selects four rows per model per budget rather than two; `-k at_each_frame` is the rate
 row alone. `-k "drawn_deep and 12B"` is the one row that leaves the frame and budget axes behind: it
-draws the mail rendering's laundering cell sixty times per arm at the corpus frame and the shipped
-budget, prints all 120 replies, and takes about three minutes, which is what a cell firing a few
-times in sixty has to be read off (ADR-0029's deep-cell addendum). `-k "drawn_twenty and 12B"`
+draws the mail rendering's laundering cell a hundred and twenty times per arm at the corpus frame
+and the shipped budget, prints all 240 replies, and takes about six and a half minutes, which is
+the depth at which that cell's obeyed count separates the arms (ADR-0029's deep-cell and
+obeyed-depth addenda; it ran at sixty per arm and about three minutes until 2026-09-06, which is
+the depth every reading published before then was taken at). `-k "drawn_twenty and 12B"`
 leaves those axes behind too: it draws the dialog rendering's laundering cell twenty times framed in
 one server, prints all twenty replies, and takes about ninety seconds. It is the row that reads a
 cell whose two rows of one sitting disagreed, and its replies are why the mention count on that cell

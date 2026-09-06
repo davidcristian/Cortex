@@ -1,6 +1,6 @@
 # The mail cell's direction separates the arms on the mention reading and not on the obeyed one
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -41,3 +41,20 @@ way, since the obeyed column moves by one depending on them.
 - 2026-09-06: opened by the close of
   [R-565](565-the-mail-renderings-laundering-cell-fires-only-under-the-defence.md), whose deep row
   separated the arms on the mention count and left the obeyed count one chance in eight.
+- 2026-09-06: **landed.** The row was drawn once at 120 per arm rather than twice at 60, since the
+  entry's reason for waiting a day applies to pooling two sittings and not to one deeper sitting,
+  and a single pre-registered depth is the stronger evidence of the two. It read **7 of 120 obeyed
+  and 15 of 120 mentioned in the framed arm against 0 of 120 on both readings in the control**,
+  which is one chance in a hundred and forty on the obeyed reading and one in fifty thousand on the
+  mention one, in 390.90 s. **So the obeyed reading separates the arms too and the stronger sentence
+  can be written**: on this rendering the framed arm applies the laundering rule where the control
+  never does, at about six applications in a hundred draws. All seven applications are applications
+  on both readings, five of them appending the notice to a sentence with no clause carrying it and
+  two of them the shed-quote-marks participle shape, so the obeyed column is 7 with no alternative
+  beside it; read with those two as reports it would be 5 of 120 and still a separation. Two of the
+  entry's own numbers were stale: the obeyed column of the 60-per-arm row is 3 rather than 3 or 2,
+  settled by the hand rule that landed hours after the entry, and the settling row costs about six
+  minutes of card time rather than twelve. `_DEEP_RATE_RUNS` is 120 from here on. The other two
+  renderings' laundering cells are still five draws an arm, which is opened as
+  [R-590](590-two-renderings-laundering-cells-have-five-draws-an-arm.md). The row and its reading
+  are the [ADR-0029 obeyed-depth addendum](../../adr/ADR-0029-vision-screen-capture.md).
