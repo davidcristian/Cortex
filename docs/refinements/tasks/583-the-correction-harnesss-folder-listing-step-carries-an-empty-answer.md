@@ -1,6 +1,6 @@
 # The correction harness's folder listing step carries an empty answer
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** orchestrator
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
 
@@ -38,3 +38,10 @@ again, and a model that named it because it was the only one on a list it could 
 - 2026-09-06: opened by the close of
   [571](571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md), which found the stub
   while reading that file for the shape of its own harness.
+- 2026-09-06: landed. The session dispatches to the server it holds, which is the three lines
+  `test_own_texts.py`'s session of the same name already had, and the same call now answers with
+  the eight folders `_FOLDERS` names where it answered `''`. The dialect row was redrawn on the
+  same twenty seeds: 19 of 20 raw against the published 10 and 9, still 0 client syntax, and the
+  repeat `list_folders` the empty listing had produced fell from 10 of 20 to 1. The reading the
+  published addendum took from those repeats, a model asking again with the list in front of it,
+  is withdrawn in the ADR-0013 addendum of that date.

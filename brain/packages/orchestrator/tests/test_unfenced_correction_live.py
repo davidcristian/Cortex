@@ -192,8 +192,17 @@ class _ServerSession:
     async def call_tool(
         self, name: str, arguments: dict[str, object] | None = None
     ) -> CallToolResult:
-        del name, arguments
-        return CallToolResult(content=[TextContent(type="text", text="")])
+        """Dispatch to the real server, so an answer a step carries is one the sidecar wrote.
+
+        A tool answering a ``CallToolResult`` of its own comes back as that; a string-returning
+        one comes back as FastMCP's (unstructured, structured) pair, which the transport would
+        have put into a result of its own.
+        """
+        answer: object = await self._server.call_tool(name, arguments or {})
+        if isinstance(answer, CallToolResult):
+            return answer
+        blocks = cast("tuple[Sequence[TextContent], object]", answer)[0]
+        return CallToolResult(content=list(blocks))
 
 
 def _sidecar() -> McpToolRegistry:

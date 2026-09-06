@@ -1220,3 +1220,33 @@ cell's instability until a repeat says otherwise, as the switch-row addendum alr
 under the lineup table and the switch-row and placement-row tables of ADR-0004, under the
 full-corpus table above and under the lever addendum's table in ADR-0005, the pointer in
 ADR-0029's readings addendum, and this addendum.
+
+## Addendum (2026-09-06): the dialect row was drawn against a folder listing with no folders on it
+
+Closes [R-583](../refinements/tasks/583-the-correction-harnesss-folder-listing-step-carries-an-empty-answer.md),
+found while `test_uid_reading_live.py` was being written in this harness's shape.
+`_ServerSession.call_tool` in `test_unfenced_correction_live.py` discarded the call it was given
+and answered an empty text block, so `sidecar_answer` returned the empty string for every call.
+The dialect row's one step is `list_folders` answered by that function, and its docstring says
+the answer is the sidecar's own, read back through the real adapter. Confirmed by calling the
+function against the module as it stood: the answer was `''`. The two correction rows compose
+their answers from `SEARCH_REFUSED` and `FOLDER_UNKNOWN` directly and were never affected.
+
+**What the row was really measuring.** The addendum of 2026-09-04 read the draws that made no
+search as the model calling `list_folders` a second time "with the list already in front of it".
+It had no list in front of it. The session dispatches to the server now, three lines that mirror
+the session of the same name in `test_own_texts.py`, and the same call answers with the eight
+folders `_FOLDERS` names.
+
+**The redraw, on the same twenty seeds.** Raw IMAP criteria 19 of 20, a mail client's `key:value`
+syntax **0 of 20**, no search 1 of 20, against 10 and 9 raw with 10 and 11 making no search under
+the empty listing. So the repeat `list_folders` was the model asking again for a list it had been
+handed empty, and it stops when the list has folders on it. The finding the row was published for
+survives untouched and is now over sixty draws: this tier does not write a query in a client's
+syntax, so `SEARCH_QUERY_HELP` does its job before any refusal happens. The one draw that still
+made no search called `list_folders` again, and one draw still wrote `SINCE 2025-05-12` in the ISO
+form the description forbids, which is the same edge that run recorded.
+
+The published `raw` counts of 2026-09-04 stand as what they were, a rate measured with an empty
+listing in the turn, and the sentence reading the repeats as a model ignoring a list it could see
+is withdrawn.
