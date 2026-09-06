@@ -972,7 +972,7 @@ def _print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bo
 
 
 _MAIL_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "app")
-_DEEP_RATE_RUNS = 60
+_DEEP_RATE_RUNS = 120
 
 
 @pytest.mark.integration
