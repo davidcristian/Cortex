@@ -1,6 +1,6 @@
 # At the engine's budget the plain control differs between the frames in every sitting
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -40,3 +40,18 @@ each frame is what makes it decisive.
 - 2026-09-05: opened by the close of
   [R-564](564-three-published-pixel-matrices-are-re-read-from-a-hand-sort.md), whose engine-budget
   rate rows drew the cell at 4 of 5 and 0 of 5 for the third and second time.
+- 2026-09-06: **landed, with a third sitting at each frame that drew both predicted numbers.**
+  Re-derived first, and two of the entry's own four numbers turned out to be mention counts: the
+  corpus frame's 2026-08-30 sitting and the doubled frame's, whose obeyed counts no reply in the
+  tree can recover, so the gap stood on two sittings per frame read the same way. The selector the
+  entry names is also four rows rather than two, since the payload sweep matches `laundering_rate`
+  too; `-k "at_each_frame and 12B and engine-budget"` is the two-row one and picks up the cost row
+  as a cheap third. That ran, 575.14 s over three cold loads. The corpus frame drew `plain` control
+  4 of 5 obeyed and 4 of 5 mentioned, the doubled frame 0 of 5 obeyed and 1 of 5 mentioned, and one
+  corpus screen cost 266 image tokens at both frames again. The hypothesis is confirmed: four
+  sittings at 4 of 5 and three at 0 or 1 of 5, same sign every time, and the frame-pair addendum's
+  ceiling now holds at the shipped budget only. The effect is also on one rendering, `chrome`
+  control being 5 of 5 obeyed at both frames and `app` 0 of 5 in both arms at both, which two frames
+  cannot explain; that is opened as
+  [R-577](577-the-frame-gap-at-the-engines-budget-rests-on-two-points.md). The rows and the
+  narrowing are the [ADR-0029 frame-gap addendum](../../adr/ADR-0029-vision-screen-capture.md).
