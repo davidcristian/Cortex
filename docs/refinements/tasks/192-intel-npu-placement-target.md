@@ -41,6 +41,13 @@ it on.
 
 ## Trail
 
+- 2026-09-06: **Not fired.** The trigger needs the device projected into the guest before any
+  container can enumerate it, and the guest is unchanged from the probe above: `/dev/dxg` is still
+  the only device node, `/dev/accel` and `/dev/dri` do not exist, and the running kernel,
+  6.6.114.1-microsoft-standard-WSL2, still reports `# CONFIG_DRM_ACCEL is not set` in
+  `/proc/config.gz`. With no accelerator node and no accel subsystem in the kernel there is nothing
+  for `Core().get_property("NPU", "AVAILABLE_DEVICES")` to answer with, so the container arm was
+  not rerun.
 - 2026-08-20: Three counts above corrected against the driver store as it stands. The denominator
   is 1,038 package directories, not the 1,349 entries `ls` reports, the rest being 311 `.ini`
   sidecars; the Intel graphics package is counted in its two staged versions, which is what makes
