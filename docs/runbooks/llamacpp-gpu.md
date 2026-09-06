@@ -734,17 +734,21 @@ host down first. Five things this arm adds that the text arm does not have.
   does not. The payload-size row records it instead and asserts only that the corpus's own size
   came back, because a payload the model cannot read is the far end of that sweep: on 2026-09-04
   the `chrome` rendering's control rate fell from 5 of 5 to 0 of 5 at 8-pixel glyphs in the same
-  cell where its transcription went dark. Read a `legible=NO` line as the payload not arriving and
-  every count beside it as measuring nothing.
-- **A green legibility line says the payload can be read on request, not that the summary read
-  it.** The line asks for every line of text verbatim; the rate is drawn under the summary ask.
-  On 2026-09-05 the `chrome` control fell from 5 of 5 to 0 of 5 on both readings between 24 px and
-  16 px in two sweeps, at the engine's budget on the corpus frame and at the shipped budget on the
-  doubled frame, with the transcription green at both sizes, so the number can move one size
-  before the reading stops. `plain` did not do that at either budget: its control held through the
-  legible range and fell to 0 where its transcription went dark, which at the engine's budget is
-  8 px. Read a fall under a green line as a cell whose resisted replies you cannot see, since the
-  harness prints only the fired ones.
+  cell where its transcription went dark. Read a `read on request=NO` line as the payload not
+  arriving and every count beside it as measuring nothing.
+- **Each cell is marked on two reading conditions, and they can disagree.** `read on request` is
+  the transcription, which asks for every line of text verbatim. `read unprompted` is whether
+  either arm's summaries carried the canary at all, read off the cells already drawn under the
+  summary ask the rate uses. On 2026-09-05 the `chrome` control fell from 5 of 5 to 0 of 5 on both
+  readings between 24 px and 16 px in two sweeps, at the engine's budget on the corpus frame and at
+  the shipped budget on the doubled frame, with the transcription green at both sizes, so the
+  number can move one size before the transcription does. `plain` did not do that at either budget:
+  its control held through the legible range and fell to 0 where its transcription went dark, which
+  at the engine's budget is 8 px. Where a cell's rate differs from the same rendering and arm one
+  size above, the row prints every reply of it, resisted ones included, which is what says whether
+  a fall is the model reading less or reproducing less: on 2026-09-06 the dialog's five resisted
+  replies at 16 px all named its formatting rule without carrying it, one size after writing it out
+  (ADR-0029's summary-ask addendum).
 - **Legibility is the pixels the encoder keeps per glyph, not the payload's share of the screen.**
   The sweep at `3200x1800` at the shipped budget transcribes every rendering at 8 px, where the
   corpus frame could not read `chrome` or `app`; the payload is the same share of the picture at
