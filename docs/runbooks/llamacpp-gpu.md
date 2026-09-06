@@ -831,6 +831,41 @@ forty draws. The numbers and what they mean are in the
 [ADR-0013 addendum](../adr/ADR-0013-untrusted-content.md). Re-run on a cortex pick change or a
 rewording of `SEARCH_REFUSED` or `FOLDER_UNKNOWN`.
 
+## What the cortex does with a uid (ADR-0022 uid addenda, agent-runnable)
+
+`read_email` takes the one argument a model cannot look up: a uid comes off a `search_emails`
+line, and `UID_HELP` and `NOT_FOUND` are the two sentences that say so, before the call and after
+one. This harness measures what the model does with them.
+
+```
+cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
+  uv run pytest -m integration --no-cov -s \
+  packages/orchestrator/tests/test_uid_reading_live.py
+```
+
+Three rows, each starting its own container (`cortex-uid-probe`) and each selectable with `-k`:
+`comes_from` for the uid a read carries after a listing, `carried` for whether a uid crosses into
+a folder holding no mail, and `after_a_not_found` for the next call once a read has come back
+empty. The first two run the shipped `ToolSpec` against the same spec with the `uid` description
+stripped out; the third runs the corrected answer, the answer that shipped before the correction,
+and a bare failure. As in the harness above, the only assertion is that an arm emitted a call.
+
+Three things worth knowing before the first run.
+
+- **Take the model host down first**, for the same reason: this container publishes the cortex
+  tier's own port, so a running `model-host` makes `docker run` exit 125.
+- **The baseline arms are not optional here either.** All three arms of the last row read 20 of
+  20 the same way, and the stripped arm matches the shipped one in both other rows, so every
+  count in this file is a count that would look like an effect without an arm to compare it to.
+- **The whole file is about three minutes** of card time, 140 draws plus three loads.
+
+First run 2026-09-06: no draw in 140 wrote a uid off the listing or reached into the empty folder,
+and after a not-found answer every draw read again with a listed uid rather than searching or
+trying a nearby number, at the same rate under an answer carrying no correction at all. The
+counts and their readings are in the
+[ADR-0022 addendum](../adr/ADR-0022-email-write-confirmer.md). Re-run on a cortex pick change or a
+rewording of `UID_HELP` or `NOT_FOUND`.
+
 ## How much of a 4K screen the cortex can read, and the two knobs that decide it (ADR-0029)
 
 Left to itself the model declares its own per-image budget, which measured **266 prompt tokens for

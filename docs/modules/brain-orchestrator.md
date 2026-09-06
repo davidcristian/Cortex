@@ -759,7 +759,12 @@ The service:
     real Bridge, and `tests/test_unfenced_correction_live.py` measures whether the cortex acts on
     the unfenced refusal; both are recorded in the ADR-0013 addenda of 2026-09-04, with their
     procedures in [runbooks/email-imap.md](../runbooks/email-imap.md) and
-    [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
+    [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). A third live file,
+    `tests/test_uid_reading_live.py`, measures the other half of what the sidecar tells a
+    model: which uid the cortex reads with after a listing, whether one crosses into a
+    folder holding no mail, and what the next call is after a not-found answer, each row
+    against an arm with the description or the correction taken away (ADR-0022 addendum of
+    2026-09-06, same runbook).
   - **subagents**
     (`build_subagents(config, tools, redis_url, clock, *, placer, task_store_factory)`,
     in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the

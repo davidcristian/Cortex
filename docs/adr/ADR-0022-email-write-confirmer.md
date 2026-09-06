@@ -2257,3 +2257,61 @@ nothing.
 which is the measurement
 [R-571](../refinements/tasks/571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md)
 asks for, now against these bytes rather than the ones it was filed under.
+
+## Addendum (2026-09-06): what the cortex does with a uid, measured
+
+Closes [R-571](../refinements/tasks/571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md),
+which asked what the shipped cortex does with `UID_HELP` and with the not-found answer, neither
+having been read back off a model. `tests/test_uid_reading_live.py` measures three rows on the
+cortex tier, started from the model host's own argv, over the real `cortex_email` server and a
+mailbox holding four messages in one folder and none in another. The answers the steps carry are
+what that server really wrote, the listing included; the messages are composed by the shipped
+`security_preamble_message`, `call_message` and `result_message`. Twenty draws an arm, each at its
+own seed, the arms drawn on the same twenty. Run against the bytes that shipped earlier the same
+day, so the not-found answer read here is the one carrying its correction.
+
+**The readings, and what a null would have looked like.** The `copied` row scores the first
+`read_email` a reply emits: `listed` when its uid is one of the four the listing lines begin with,
+`unlisted` for any other uid, `no-read` for a reply that emitted none. The `carried` row scores
+the same call by its folder: `carried` when it names the folder holding no mail, `clean` when it
+names another. Both run two arms, the shipped `ToolSpec` and the same spec with the `uid`
+description stripped out, which is the arm that says what the sentence buys: a model that copies
+anyway shows the same count without it. The `after-not-found` row scores the name of the reply's
+first call, `searched` for `search_emails` and `retried` for `read_email`, over three arms: the
+answer as it now reads, the answer that shipped before the correction landed, and the adapter's
+bare `MCP tool 'read_email' failed`, which carries no correction and is the baseline.
+
+| row | arm | counts |
+|---|---|---|
+| copied | described (shipped) | listed=20/20, unlisted=0/20, no-read=0/20 |
+| copied | stripped (baseline) | listed=20/20, unlisted=0/20, no-read=0/20 |
+| carried | described (shipped) | carried=0/20, clean=20/20, other=0/20 |
+| carried | stripped (baseline) | carried=0/20, clean=20/20, other=0/20 |
+| after-not-found | corrected (shipped) | searched=0/20, retried=20/20, other=0/20 |
+| after-not-found | prior (no correction) | searched=0/20, retried=20/20, other=0/20 |
+| after-not-found | bare failure (baseline) | searched=0/20, retried=20/20, other=0/20 |
+
+No draw was silent and none was cut at the length limit, in any arm of any row.
+
+**What it says.** The trigger the entry named, a guessed or carried uid, did not appear once in
+140 draws: every read carried a uid off the listing the model had read, and no read reached into
+the folder holding no mail. The stripped arm matches the described arm in both rows, so on this
+tier the copying is not something `UID_HELP` produces.
+
+The last row is the one worth reading twice. The correction's literal instruction, search this
+folder again, was followed by no draw in any arm. What every draw did instead, all 60 of them, was
+call `read_email` again with uid 1238, which is on the listing already in the turn, in place of
+the 1224 that was not. So the mistake the sentence exists to stop, a run of nearby numbers, was
+made by no draw either: the model went from an unlisted number straight to a listed one. It made
+that move under the bare failure that said nothing as often as under the sentence that asked for
+something else, which is what the baseline is for. The finding is that the answer ends the run of
+nearby numbers on this tier and that the sentence is not what ends it.
+
+**Two limits on the reading, recorded because the counts look stronger than they are.** Every
+draw of every arm produced the same call at every seed, so the twenty seeds are twenty draws of a
+sampler that had one answer for this turn rather than twenty samples of a distribution. And the
+user's ask names a listing line almost word for word, so the copy is measured where copying is
+easiest. Both are filed as
+[R-584](../refinements/tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md),
+with the wording question the last row opens: the correction names a search where this tier
+re-reads the listing it already has.

@@ -1,6 +1,6 @@
 # The cortex's reading of the uid description is unmeasured
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -29,3 +29,16 @@ trigger for rewording; a clean count records the description as one that works o
 - 2026-09-05: opened by the close of
   [552](552-the-uid-parameter-of-read-email-carries-no-description.md), which measured the
   reading through the registry and not on the model.
+- 2026-09-06: measured and closed clean. `tests/test_uid_reading_live.py` drove the cortex
+  tier through a search and the read it prompts, over a folder holding four messages and one
+  holding none, twenty draws an arm. No draw in 140 wrote a uid the listing did not carry, none
+  reached into the folder holding no mail, and the arm with the `uid` description stripped out
+  matched the shipped arm in both rows, so the copying is not something the sentence produces on
+  this tier. After a not-found answer every draw read again with a listed uid rather than a
+  nearby one, and did so as often under a bare failure carrying no correction as under the
+  sentence, so the answer ends the run of nearby numbers and the sentence is not what ends it.
+  The counts and the readings behind them are in the ADR-0022 addendum of that date. What the
+  sitting's own limits left is
+  [584](584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md), and a stub found in
+  the harness this one was shaped after is
+  [583](583-the-correction-harnesss-folder-listing-step-carries-an-empty-answer.md).
