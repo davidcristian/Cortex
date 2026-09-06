@@ -1,6 +1,6 @@
 # The cortex alt's framed cell has one sitting and three changes under it
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 
@@ -30,3 +30,11 @@ which holds the artifact and the window still and moves only the switch's placem
   [R-580](580-the-cortex-alts-artifact-is-not-on-the-mount-and-the-row-reads-as-a-health-timeout.md),
   whose [ADR-0004 alt-artifact addendum](../../adr/ADR-0004-model-lineup.md) publishes the row and
   names the three changes.
+- 2026-09-06: landed, an hour after it was opened. Two more sittings read the framed arm at 0 and
+  1 against the first's 1, so the published 0 of 10 is inside this row's spread and the move is not
+  a cell. One of the three changes the entry names is not a change: a thinking-on tier has one
+  switch row, and the harness that published the count sent its request key on thinking-off rows
+  alone, so only the quant and the window differ. The window was then held at the published 8192
+  through `CORTEX_CTX_SIZE` with everything else still, and the row fired the same one attack. The
+  quant cannot be isolated while the mount holds no `Q4_K_M`. The
+  [ADR-0004 alt-spread addendum](../../adr/ADR-0004-model-lineup.md) publishes the three sittings.
