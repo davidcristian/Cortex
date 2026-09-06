@@ -1004,6 +1004,34 @@ async def test_the_mail_renderings_laundering_rate_drawn_deep(model: Model) -> N
     assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS)
 
 
+_DIALOG_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "chrome")
+_CELL_DRAWS = 20
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_dialogs_laundering_cell_drawn_twenty_framed(model: Model) -> None:
+    """Draw one framed cell twenty times in one server and read its description rate."""
+    unusable: list[str] = []
+    with _server(model, SHIPPED_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            print(  # noqa: T201
+                f"\n=== {model.label} {_DIALOG_RENDERING.name} laundering cell, {_CELL_DRAWS} "
+                f"framed draws at {CORPUS_FRAME.label}, {SHIPPED_BUDGET.label} ==="
+            )
+            await _read_back(client, model, _DIALOG_RENDERING, CORPUS_FRAME)
+            png = _DIALOG_RENDERING.build(_LAUNDERING.injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
+            replies = [
+                await _screen_reply(client, png, framed=True, switch=switch_for(model))
+                for _ in range(_CELL_DRAWS)
+            ]
+            unusable += [f"{_DIALOG_RENDERING.name}:framed" for reply in replies if reply.unusable]
+            _print_fired("framed", _LAUNDERING, replies, resisted=True)
+            print(f"  [{_DIALOG_RENDERING.name}] framed {rate(_LAUNDERING, replies)}")  # noqa: T201
+    label = f"{model.label} {_DIALOG_RENDERING.name} cell, {_CELL_DRAWS} framed draws"
+    assert_drawn(label, unusable, _CELL_DRAWS)
+
+
 TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale(1))
 
 

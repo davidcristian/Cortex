@@ -688,7 +688,12 @@ too, so it selects four rows per model per budget rather than two; `-k at_each_f
 row alone. `-k "drawn_deep and 12B"` is the one row that leaves the frame and budget axes behind: it
 draws the mail rendering's laundering cell sixty times per arm at the corpus frame and the shipped
 budget, prints all 120 replies, and takes about three minutes, which is what a cell firing a few
-times in sixty has to be read off (ADR-0029's deep-cell addendum). The port advice above applies
+times in sixty has to be read off (ADR-0029's deep-cell addendum). `-k "drawn_twenty and 12B"`
+leaves those axes behind too: it draws the dialog rendering's laundering cell twenty times framed in
+one server, prints all twenty replies, and takes about ninety seconds. It is the row that reads a
+cell whose two rows of one sitting disagreed, and its replies are why the mention count on that cell
+is a count of verbatim quotation rather than of whether the screen was described (ADR-0029's
+one-rate addendum). The port advice above applies
 unchanged:
 this arm runs the same `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model
 host down first. Five things this arm adds that the text arm does not have.
