@@ -27,6 +27,12 @@ Three things in the backlog are waiting on a run that cannot occur:
 that the weekly sweep runs, and every claim this repo makes about CI being a mirror of the local
 gate is an argument from the workflow file rather than from a verdict.
 
+**What is already decided.** Actions being off is the maintainer's standing choice rather than an
+oversight. The setting was read against the API on 2026-08-31, put to him, and kept off
+deliberately. A fresh repository defaults to Actions on, so the state after the 2026-09-01
+registration was set rather than inherited. This entry therefore waits on a decision that has been
+made once already, and nobody should flip the setting to close it.
+
 **What would close it.** Enabling Actions for the repository, which is a setting on the account
 rather than a change in this tree, then reading back that a push produces a CI run and that the
 Monday cron produces a sweep. The agent does not push and does not change the account's settings,
