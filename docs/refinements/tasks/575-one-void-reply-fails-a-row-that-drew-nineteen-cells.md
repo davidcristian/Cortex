@@ -37,3 +37,8 @@ shape of a partial void is what decides whether the drawn cells are a matrix or 
 - 2026-09-05: opened by the close of
   [R-560](560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md), whose void-row
   addendum at ADR-0005 records the per-arm denominator as the alternative priced and not taken.
+- 2026-09-06: the trigger fired. The cortex alt's first pixel matrix voided three of its sixty
+  replies, all control arms, and the cells it drew are the first obeyed cells any matrix row of this
+  arm has produced, so the reading was taken off a hand tally of the printed marks and the row is
+  recorded as failed (the
+  [ADR-0029 alt-pixel addendum](../../adr/ADR-0029-vision-screen-capture.md)).

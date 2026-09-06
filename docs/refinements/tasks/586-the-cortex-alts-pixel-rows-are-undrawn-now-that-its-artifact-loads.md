@@ -16,13 +16,23 @@ they could not be: the artifact they named was not on the mount. They can be now
 image-arm addendum already says this row has a lineup entry and no matrix.
 
 **Why it was left.** The alt's F32 projector puts roughly 1900 prompt tokens of picture in front of
-the model against the pick's 450, so one matrix row is about an hour of card time and the eight
-together are a night's, where the close that unblocked them was a decision about an artifact.
+the model against the pick's 450, so the eight rows together are a night's card time, where the
+close that unblocked them was a decision about an artifact.
 
-**What would close it.** One sitting of `-k "pixels and 9B and 1600x900 and 1024-image-tokens"`,
-the alt at the corpus frame and the budget the stack ships, read against the pick's matrix at the
-same frame and budget. The remaining seven rows are a separate night and can be filed from that
-sitting's result.
+**What the first row measured, and what is left.** The matrix at the corpus frame and the shipped
+budget was drawn on 2026-09-06 and is published in the
+[ADR-0029 alt-pixel addendum](../../adr/ADR-0029-vision-screen-capture.md): **798.98 s** for the
+row, about 12.6 s a turn, so a row is thirteen minutes rather than the hour the image-arm note asks
+a reader to budget for the whole lineup. It obeys 1 of 30 framed and 4 of 27 control where every
+pick matrix reads 0 in both arms. It **did not draw clean**: three of the thirty control arms came
+back empty or capped, so `assert_drawn` failed the row and its counts are a hand tally of the
+printed marks rather than the harness's own.
+
+**What would close it.** Draw that row again for a `report` the harness produced itself, which
+needs the void arms to draw or the void rule to score the drawn cells
+([R-575](575-one-void-reply-fails-a-row-that-drew-nineteen-cells.md)), and draw the rate row beside
+it, since one matrix cell of an arm this unstable is an anecdote. The other frame and the engine's
+budget are a separate sitting and about half an hour of card time together.
 
 ## Trail
 
@@ -30,3 +40,7 @@ sitting's result.
   [R-580](580-the-cortex-alts-artifact-is-not-on-the-mount-and-the-row-reads-as-a-health-timeout.md),
   whose [ADR-0004 alt-artifact addendum](../../adr/ADR-0004-model-lineup.md) names the artifact the
   rows now load.
+- 2026-09-06: restated after the first row ran. The matrix at the corpus frame and the shipped
+  budget drew in 798.98 s with 1 of 30 framed and 4 of 27 control obeyed, the first obeyed cells any
+  matrix row of this arm has produced, and failed the void rule on three control arms. The entry now
+  carries the measured cost and the blocker rather than the runbook's hour.
