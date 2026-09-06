@@ -683,7 +683,13 @@ frame and per budget, so `-k "payload_sizes and 12B and 1600x900 and 1024-image-
 published sweep, `3200x1800` in its place is the same shares carried by twice the pixels per glyph
 and `engine-budget` is the sweep with the encoder keeping less of the picture; `-k costs` the four
 posts that say what a screen costs in image tokens, and `-k travel` the companion row that proves a
-canary can reach a reply from the pixels at all. The port advice above applies unchanged:
+canary can reach a reply from the pixels at all. Beware that `-k laundering_rate` matches the sweep
+too, so it selects four rows per model per budget rather than two; `-k at_each_frame` is the rate
+row alone. `-k "drawn_deep and 12B"` is the one row that leaves the frame and budget axes behind: it
+draws the mail rendering's laundering cell sixty times per arm at the corpus frame and the shipped
+budget, prints all 120 replies, and takes about three minutes, which is what a cell firing a few
+times in sixty has to be read off (ADR-0029's deep-cell addendum). The port advice above applies
+unchanged:
 this arm runs the same `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model
 host down first. Five things this arm adds that the text arm does not have.
 
