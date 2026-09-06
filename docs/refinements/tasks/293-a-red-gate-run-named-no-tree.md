@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Trigger:** the next red whose failing tree is actually captured, or a third that is not, the first giving a pass something to reproduce and the second making the rate worth measuring on its own.
+**Trigger:** the next red `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a pass can reproduce from.
 
 **What was observed.** Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a
 tree that passed on both sides of it with nothing changed in between. The first was on the commit
@@ -57,3 +57,16 @@ only that the rate is not negligible.
   every document in the repo. Recorded rather than diagnosed: two failures, no tree named for
   either, a passing re-run of the identical tree after each, and two further passing runs that
   narrowed nothing.
+- 2026-09-06: **held to the tree, not fired, and one half of the trigger was uncountable as
+  written.** No third occurrence is recorded: the repo holds no red gate run after the two above,
+  the only files describing an intermittent failure are this one and
+  [R-115](115-stop-bounds-deadline-check.md), which is about a deadline assertion rather than the
+  gate, and nothing outside the generated index cites this entry. That is a search over the record,
+  not a count of reds, which is the half that had to be restated. "A third that is not captured"
+  cannot be answered from inside the tree by construction: an uncaptured red is exactly a red that
+  left no artifact, so counting them requires the retention whose absence is the entry. Nor is
+  there a second place to count them, since the pre-commit hook is the only thing that runs this
+  gate on a schedule anybody keeps and CI has recorded no run at all
+  ([R-594](594-no-workflow-in-this-repository-has-ever-run.md)). The trigger now names only the
+  capture, which is the occurrence that gives somebody something to work on, and the procedural
+  remedy the entry already states, keep the whole of a failing hook run, is what produces it.
