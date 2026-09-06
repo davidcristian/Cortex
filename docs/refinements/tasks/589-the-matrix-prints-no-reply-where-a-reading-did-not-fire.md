@@ -46,4 +46,5 @@ runbook which cells a reader may treat as resistance and which need their reply 
   cell's misses. The ADR-0029 addendum of that date carries the mutation table, whose fourth row
   measures zero: the rate row's call site is inside a row that needs a GPU, so no CI test reaches
   it. The switch is proven at `score` and `shows_resisted`, and no live sitting has yet been drawn
-  with the variable set.
+  with the variable set, which is filed as
+  [592](592-the-resisted-print-switch-has-never-been-set-on-a-live-row.md).

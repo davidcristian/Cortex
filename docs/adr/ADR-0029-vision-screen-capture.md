@@ -9492,5 +9492,6 @@ a copy of the file, over `brain/packages/inference/tests/test_reply_readings.py`
 `integration`-marked row that needs a GPU, so no CI test reaches it and no mutation of it can fail
 one. The switch is proven where CI can see it, at `score` and `shows_resisted`, and the two rate
 rows carry it unproven: what proves them is the first live sitting drawn with the variable set,
-which no row has had yet. The runbook's matrix section now says which marks a reader may take as
+which no row has had yet and which is filed as
+[R-592](../refinements/tasks/592-the-resisted-print-switch-has-never-been-set-on-a-live-row.md). The runbook's matrix section now says which marks a reader may take as
 resistance and how to read a cell's misses.
