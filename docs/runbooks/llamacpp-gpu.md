@@ -992,6 +992,11 @@ The three CPU rows are not from that GPU session: the embedder was measured 2026
 subagent rows 2026-07-03, each in the [ADR-0004](../adr/ADR-0004-model-lineup.md) addendum that
 settled it, off the same mount and with no power cap in play.
 
+**The cortex alt's artifact has changed under its row.** The mount holds a `UD-Q4_K_XL` and a
+`Q8_0` of Qwen3.5-9B and no `Q4_K_M`, so every row this repo runs of that candidate since
+2026-09-06 loads `unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf` and the quant column above
+names the quant its 2026-06-29 reading was taken on (the ADR-0004 alt-artifact addendum).
+
 **Nor are the two brain rows**, added 2026-08-04 when the deep-model pick landed. They were taken
 on a card that holds the real tiers, through the `model-host` sidecar with the cortex evicted
 first, at `CORTEX_CTX_SIZE_BRAIN=8192` and `-ngl 99`, on llama.cpp `b10236-1464c62d8` with **no

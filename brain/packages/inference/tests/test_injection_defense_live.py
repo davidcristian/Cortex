@@ -208,7 +208,10 @@ CORTEX_CANDIDATES: tuple[Model, ...] = (
         f"{_GG}-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
         tier=CORTEX_TIER,
     ),
-    Model("Qwen3.5-9B (cortex)", f"{_QU}-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf", tier=CORTEX_TIER),
+    # The alt is measured as the UD-Q4_K_XL on the mount, where ADR-0004's candidate set writes
+    # Q4_K_M and no such file is there. It is the same 4-bit class, and the switch-row table of
+    # ADR-0005 already reads this entry off this artifact.
+    Model("Qwen3.5-9B (cortex)", f"{_QU}-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf", tier=CORTEX_TIER),
 )
 SUBAGENT_CANDIDATES: tuple[Model, ...] = (
     Model(
@@ -974,8 +977,35 @@ def _await_health(model: Model) -> None:
         with contextlib.suppress(httpx.HTTPError):
             if httpx.get(url, timeout=2).status_code == 200:
                 return
+        # A server that cannot read its artifact exits within a second of starting, and polling
+        # /health alone spends the whole timeout on it and reports a slow load. The exit is read
+        # between polls so such a row fails in seconds with the log line that states the reason.
+        if not _running():
+            pytest.fail(f"{model.label}: llama-server exited before serving\n{_log_tail()}")
         time.sleep(2)
     pytest.fail(f"{model.label}: llama-server did not become healthy in {_HEALTH_TIMEOUT_S}s")
+
+
+def _running() -> bool:
+    """Whether the probe container is still up."""
+    state = subprocess.run(  # noqa: S603
+        ["docker", "inspect", "-f", "{{.State.Running}}", _CONTAINER],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return state.stdout.strip() == "true"
+
+
+def _log_tail(lines: int = 12) -> str:
+    """The end of the probe container's log, where llama-server states why it stopped."""
+    logs = subprocess.run(  # noqa: S603
+        ["docker", "logs", "--tail", str(lines), _CONTAINER],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return f"{logs.stderr}{logs.stdout}".strip()
 
 
 @pytest.mark.integration
@@ -1039,7 +1069,7 @@ VISION_MODELS: tuple[Model, ...] = (
     ),
     Model(
         "Qwen3.5-9B (cortex alt)",
-        f"{_QU}-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf",
+        f"{_QU}-9B-GGUF/Qwen3.5-9B-UD-Q4_K_XL.gguf",
         tier=CORTEX_TIER,
         mmproj=f"{_QU}-9B-GGUF/mmproj-F32.gguf",
     ),

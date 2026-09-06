@@ -1,6 +1,6 @@
 # The cortex alt's artifact is not on the mount and the row reads as a health timeout
 
-**Status:** open, actionable
+**Status:** landed 2026-09-06
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 
@@ -35,3 +35,14 @@ blocked on the first half.
 - 2026-09-06: opened by the close of
   [R-573](573-the-other-lineup-rows-have-no-obeyed-count-beside-their-mention-count.md), whose
   [ADR-0004 lineup-readings addendum](../../adr/ADR-0004-model-lineup.md) records the failed row.
+- 2026-09-06: landed. The alt is measured as the `UD-Q4_K_XL` on the mount, where the candidate set
+  names a `Q4_K_M` that is not there, and its rows stay in this repo rather than moving to
+  `docs/host/`, since the card and the weights are both here. `_await_health` reads the container's
+  state between polls and fails with the log tail, so the same row that spent 180 s now fails in
+  3.47 s printing the load error. The alt's text row drew in 58.99 s at 1 of 10 framed obeyed
+  against 4 of 10 in the control, which does not reproduce the published 0 of 10; the quant, the
+  window and the argv head all changed under it
+  ([R-585](585-the-cortex-alts-framed-cell-has-one-sitting-and-three-changes-under-it.md)), and the
+  image arm's alt row is loadable and still undrawn
+  ([R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md)). The
+  [ADR-0004 alt-artifact addendum](../../adr/ADR-0004-model-lineup.md) records both decisions.
