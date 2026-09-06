@@ -828,7 +828,11 @@ Four things worth knowing before the first run.
 First run 2026-09-04: refused-search followed 13 / 20 unfenced against 3 / 20 fenced and 3 / 20
 bare; unknown-folder 20 / 20 in all three arms; the dialect row wrote client syntax 0 times in
 forty draws. The numbers and what they mean are in the
-[ADR-0013 addendum](../adr/ADR-0013-untrusted-content.md). Re-run on a cortex pick change or a
+[ADR-0013 addendum](../adr/ADR-0013-untrusted-content.md). Those forty draws read an empty
+folder listing, the harness's stand-in session having answered every call with an empty
+text block; with that fixed on 2026-09-06 the dialect row redrew 19 of 20 raw and still 0
+client syntax, and the repeat `list_folders` calls the empty listing had produced dropped
+from 10 of 20 to 1. Re-run on a cortex pick change or a
 rewording of `SEARCH_REFUSED` or `FOLDER_UNKNOWN`.
 
 ## What the cortex does with a uid (ADR-0022 uid addenda, agent-runnable)

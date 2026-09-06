@@ -1,5 +1,3 @@
-"""Does the shipped cortex act on the email sidecar's correction, fenced or unfenced (ADR-0013)?"""
-
 import contextlib
 import json
 import os
@@ -42,13 +40,7 @@ _CONTAINER = "cortex-correction-probe"
 _HEALTH_TIMEOUT_S = 300
 _DRAW_TIMEOUT_S = 300
 
-# How many draws an arm. Three is a story and twenty is a measurement: the reply that decides a
-# draw is one tool call off a sampler the tier leaves at its own defaults, so a rate is what
-# there is to read here and a rate off three draws is worth nothing.
 DRAWS = 20
-
-
-# ── the server, started the way the model host starts the cortex tier ────────
 
 
 def shipped_cortex_tier() -> tuple[tuple[str, ...], int]:
@@ -96,6 +88,8 @@ def _server() -> Generator[None, None, None]:
         subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
 
 
+# A real Proton account's own set: this list is read back to the model as the answer to its
+# first call, and a one-folder mailbox would settle the choice of INBOX before the model made it.
 _FOLDERS = ("INBOX", "Sent", "Drafts", "Archive", "Spam", "Trash", "All Mail", "Folders/Jobs")
 
 
@@ -135,8 +129,12 @@ class _ServerSession:
     async def call_tool(
         self, name: str, arguments: dict[str, object] | None = None
     ) -> CallToolResult:
-        del name, arguments
-        return CallToolResult(content=[TextContent(type="text", text="")])
+        """Dispatch to the real server, so an answer a step uses is one the sidecar really wrote."""
+        answer: object = await self._server.call_tool(name, arguments or {})
+        if isinstance(answer, CallToolResult):
+            return answer
+        blocks = cast("tuple[Sequence[TextContent], object]", answer)[0]
+        return CallToolResult(content=list(blocks))
 
 
 def _sidecar() -> McpToolRegistry:
@@ -155,24 +153,20 @@ async def sidecar_answer(call: ToolCall) -> str:
     return (await _sidecar().invoke(call)).content
 
 
-# ── the exchange, composed by the shipped helpers ────────────────────────────
-
 _AT = datetime(2026, 9, 4, 3, 0, tzinfo=UTC)
 _TURN = "correction-probe"
 _LIST_ID = "c0"
 _CALL_ID = "c1"
-# The sidecar's own default for how many matches a search returns, restated so the refused call
-# carries the argument a real dispatch carries.
 _LIMIT = 20
 
+# The criteria are read out of the `query` description rather than listed here, so one added
+# there counts the day it is added. IMAP and SEARCH name the dialect; OR and NOT are operators.
 _NOT_CRITERIA = frozenset({"IMAP", "SEARCH", "OR", "NOT"})
 _CRITERIA = frozenset(re.findall(r"\b[A-Z][A-Z-]{1,}\b", SEARCH_QUERY_HELP)) - _NOT_CRITERIA
 
 _SEARCH_TOOL = "search_emails"
 _LIST_TOOL = "list_folders"
 
-# What the user asks for, phrased the way somebody asks for mail rather than the way an IMAP
-# query is written: naming a person and a date range leaves the model to decide the dialect.
 _SEARCH_ASK = "Find the emails Ann Weaver sent me since the start of last week and summarise them."
 _FOLDER_ASK = "Look in my Receipts folder for the electricity bill and tell me the amount."
 
@@ -213,7 +207,7 @@ class Reply:
 
 
 def raw_dialect(query: str) -> bool:
-    """Whether ``query`` names at least one criterion the ``query`` description spells out."""
+    """Whether ``query`` names at least one criterion the ``query`` description lists."""
     return bool(frozenset(re.findall(r"\b[A-Z][A-Z-]{1,}\b", query)) & _CRITERIA)
 
 
@@ -228,7 +222,7 @@ class Step:
 
 
 def turn_messages(ask: str, steps: Sequence[Step]) -> list[Message]:
-    """The turn as the brain composes it: the standing rule, the user's ask, then each step."""
+    """The turn as the brain composes it: the security preamble, the user's ask, then each step."""
     messages = [
         security_preamble_message(_AT, _TURN),
         Message(role=Role.USER, text=ask, at=_AT, turn_id=_TURN),
@@ -288,16 +282,13 @@ VERDICTS = (FOLLOWED, REPEATED, OTHER)
 
 @dataclass(frozen=True)
 class Arm:
-    """One arm of a correction row: what the refused call was answered with, and how stamped."""
+    """One variant of a correction row: what the refused call was answered with, and how stamped."""
 
     label: str
     corrected: bool
     trust: Trust
 
 
-# The three arms, in the order they are drawn and printed. The control is the fenced correction:
-# it is what this repo shipped until the own-text overlay landed, and it is the before the entry
-# that asked for this measurement had nothing to compare against.
 SHIPPED_ARM = Arm("unfenced (shipped)", corrected=True, trust=Trust.TRUSTED)
 FENCED_ARM = Arm("fenced (control)", corrected=True, trust=Trust.UNTRUSTED)
 BARE_ARM = Arm("bare failure (baseline)", corrected=False, trust=Trust.TRUSTED)
@@ -305,11 +296,7 @@ ARMS: tuple[Arm, ...] = (SHIPPED_ARM, FENCED_ARM, BARE_ARM)
 
 
 def bare_failure(call: ToolCall) -> str:
-    """The adapter's own message for a tool that failed, rendered as `McpToolRegistry` renders it.
-
-    Restated here rather than imported because it is built inside the adapter's ``except`` and
-    never bound to a name; the rendering is one line and the shape is what the baseline arm needs.
-    """
+    """The adapter's own message for a failed tool, rendered as `McpToolRegistry` renders it."""
     return f"MCP tool {call.name!r} failed"
 
 
@@ -335,7 +322,7 @@ def score_unknown_folder(reply: Reply, refused: ToolCall) -> str:
 
 
 def _tally(verdicts: Sequence[str]) -> str:
-    """One arm's counts, rendered in the fixed verdict order so the arms read side by side."""
+    """One variant's counts, in the fixed outcome order so the variants read side by side."""
     return "  ".join(f"{name}={verdicts.count(name)}/{len(verdicts)}" for name in VERDICTS)
 
 
@@ -347,7 +334,6 @@ def _report(label: str, replies: Sequence[Reply], verdicts: Sequence[str]) -> No
 
 @pytest.mark.integration
 async def test_the_dialect_the_cortex_writes_its_first_query_in() -> None:
-    """How the first ``search_emails`` query is written, with no refusal anywhere in the turn."""
     tools = await email_tool_specs()
     listing = ToolCall(id=_LIST_ID, name=_LIST_TOOL, arguments={})
     steps = [Step(listing, await sidecar_answer(listing), Trust.UNTRUSTED)]
@@ -376,7 +362,6 @@ async def test_the_dialect_the_cortex_writes_its_first_query_in() -> None:
 
 @pytest.mark.integration
 async def test_the_refused_search_correction_across_the_three_arms() -> None:
-    """The refused-search correction, unfenced and fenced and against a bare failure."""
     refused = ToolCall(
         id=_CALL_ID,
         name=_SEARCH_TOOL,
@@ -388,7 +373,6 @@ async def test_the_refused_search_correction_across_the_three_arms() -> None:
 
 @pytest.mark.integration
 async def test_the_unknown_folder_correction_across_the_three_arms() -> None:
-    """The folder correction, whose instruction is one call rather than a rewrite."""
     refused = ToolCall(
         id=_CALL_ID,
         name=_SEARCH_TOOL,
@@ -405,7 +389,7 @@ async def _measure(
     correction: str,
     score: Callable[[Reply, ToolCall], str],
 ) -> None:
-    """Run one row's three arms on the same seeds and print their counts."""
+    """Run one row's three variants on the same seeds and print their counts."""
     tools = await email_tool_specs()
     emitted: dict[str, int] = {}
     with _server():
@@ -422,8 +406,5 @@ async def _measure(
                     print(f"  {arm.label:23s} seed={seed:<3d} {verdict:9s} {made}")  # noqa: T201
                 _report(f"{row} {arm.label}", replies, verdicts)
                 emitted[arm.label] = sum(1 for reply in replies if reply.calls)
-    # The one hard assertion, and it is the artifact check rather than the finding: an arm that
-    # emitted no call at all would score every draw OTHER and read as a model ignoring the
-    # correction, when what it measured was a model that answered nothing.
     mute = [label for label, calls in emitted.items() if calls == 0]
     assert not mute, f"{row}: {mute} emitted no tool call at all, so the counts measure silence"
