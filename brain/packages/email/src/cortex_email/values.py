@@ -5,16 +5,11 @@ from typing import Annotated
 
 from pydantic import Field
 
-# How many attachments one send may carry. Going over rejects the send rather than truncating it:
-# an attachment dropped without a word is a send the user approved and did not get (ADR-0010's
-# batch-cap argument).
+# Going over any of these rejects the send rather than truncating it, because an attachment
+# dropped without a word is a send the user approved and did not get. 32K characters is half
+# the cortex's 16K-token context; a filename is bounded at a header line's length.
 MAX_ATTACHMENTS = 8
-# Characters summed across every attachment's content. The bound comes from the authoring side
-# rather than from SMTP: 32K is already half the cortex's 16K-token context, so past it an
-# attachment competes with the conversation that wrote it (ADR-0022 attachments addendum).
 MAX_ATTACHMENT_CHARS = 32768
-# A filename travels in a Content-Disposition header rather than in the payload, so it is bounded
-# at a header line's length.
 MAX_FILENAME_CHARS = 128
 
 _FILENAME_HELP = (
@@ -33,8 +28,6 @@ _SUBTYPE_HELP = (
     "calendar, and so on. Write that bare word only, never 'text/markdown' and never anything "
     "holding a slash, a space or a semicolon, or the send is refused. Leave it out for plain."
 )
-# The two bounds that belong to the array rather than to any one attachment: one counts the
-# entries, the other sums their content. Used by the tool signature in `server.py`.
 ATTACHMENTS_HELP = (
     "Files to attach, each of them text you have written. At most "
     f"{MAX_ATTACHMENTS} of them, and their content totals at most {MAX_ATTACHMENT_CHARS} "
@@ -81,6 +74,13 @@ UID_HELP = (
     "and a number that is guessed, rounded, or taken from another folder's listing reads a "
     "different message or none. A not-found answer is final for that folder, so search again "
     "rather than trying a nearby number."
+)
+NOT_FOUND = (
+    "No message with uid {uid} is in {folder}, so nothing was read. A uid names a message only "
+    "within the folder it was listed in, and this folder holds none under that number: a nearby "
+    "number and a uid off another folder's listing each name a different message here or none at "
+    "all. Search {folder} again with search_emails and copy a uid from one line of that answer, "
+    "rather than trying another number that looks likely."
 )
 SEARCH_LIMIT_HELP = (
     "How many matches to return at most. They are the first matches in the folder's own uid "

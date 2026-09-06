@@ -1,4 +1,5 @@
-"""The email sidecar's couplings: two hatches, a switch, four texts, and a declaration's four words.
+"""The email sidecar's couplings: its four fixed answers to a refused or empty read, the four
+names a declared source is written under, and the two settings that ship off.
 """
 
 from couplings import Constant, Mention, Site, Spelling
@@ -14,18 +15,13 @@ OWN_TEXTS = "brain/packages/orchestrator/src/cortex_orchestrator/own_texts.py"
 TOOLS_MODULE = "docs/modules/brain-tools.md"
 TOOLS_REGISTRY = "brain/packages/tools/src/cortex_tools/registry.py"
 
-# The binding both modules declare the declared-source key under, spelled once because the entry
-# names it at both sites and at each module's spend of its own binding.
 SOURCE_KEY = "_SOURCE_META_KEY"
 
-# The binding the server declares the kind word under, and the enum member the core admits it as.
-# The member is spelled here rather than read, since the scan has no declaration syntax for a
-# name bound inside a class body; it is the name half of a mention that renders both halves.
+NOT_FOUND = "NOT_FOUND"
+
 SENDER_KIND = "_SENDER_KIND"
 SENDER_MEMBER = "SENDER"
 
-# The bindings both modules declare the declaration's two field names under, spelled once each
-# because an entry names its field at both sites and at each module's spend of its own binding.
 KIND_FIELD = "_KIND_FIELD"
 VALUE_FIELD = "_VALUE_FIELD"
 
@@ -33,7 +29,7 @@ _REFUSAL_SHAPE = 'f"{{name}}{{argument}!r}"'
 
 
 def _refusal(sentence: str, argument: str) -> tuple[Mention, ...]:
-    """The two spends of one refusal sentence, each rendering it followed by ``argument``'s repr."""
+    """The two places one refusal sentence appears, each followed by ``argument``'s repr."""
     template = _REFUSAL_SHAPE.replace("{argument}", argument)
     return (
         Mention(EMAIL_ERRORS, template, name=sentence),
@@ -48,7 +44,7 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             "the brain re-stamps a search_emails result trusted only when its bytes are this "
             "sentence followed by the repr of the query the brain sent, and the sidecar composes "
             "that answer from its own copy, so a rewording on either side alone would land every "
-            "refusal on the tainting side with nothing failing (ADR-0013 own-text addendum)"
+            "refusal on the tainting side with nothing failing (ADR-0013 decision 10)"
         ),
         sites=(Site(EMAIL_VALUES, "SEARCH_REFUSED"), Site(OWN_TEXTS, "SEARCH_REFUSED")),
         mentions=_refusal("SEARCH_REFUSED", "query"),
@@ -59,7 +55,7 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             "both folder-taking tools answer a guessed folder with this sentence followed by the "
             "repr of the folder the brain sent, and the brain re-stamps that answer trusted on "
             "those bytes alone, so a rewording on either side alone would taint every such turn "
-            "with nothing failing (ADR-0013 own-text addendum)"
+            "with nothing failing (ADR-0013 decision 10)"
         ),
         sites=(Site(EMAIL_VALUES, "FOLDER_UNKNOWN"), Site(OWN_TEXTS, "FOLDER_UNKNOWN")),
         mentions=_refusal("FOLDER_UNKNOWN", "folder"),
@@ -69,7 +65,7 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the sidecar writes this answer as a bare literal and the brain declares it to "
             "re-stamp an empty search trusted, so a rewording of the literal alone would taint "
-            "every empty search with nothing failing (ADR-0013 own-text addendum)"
+            "every empty search with nothing failing (ADR-0013 decision 10)"
         ),
         sites=(Site(OWN_TEXTS, "NO_MATCHES"),),
         mentions=(Mention(EMAIL_SERVER, '_one_text("{value}")'),),
@@ -77,13 +73,13 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the answer to reading a uid that is not there",
         why=(
-            "the sidecar writes this answer as an f-string over its own parameter names and the "
-            "brain declares the same text as a format over the call's arguments, so a reworded "
-            "answer or a renamed parameter alone would taint every such read with nothing "
-            "failing (ADR-0013 own-text addendum)"
+            "the sidecar renders this answer over the uid and folder the call named and the "
+            "brain declares the same template over the same two arguments, so a reworded answer "
+            "or a renamed field alone would taint every such read with nothing failing (ADR-0013 "
+            "decision 10)"
         ),
-        sites=(Site(OWN_TEXTS, "NOT_FOUND"),),
-        mentions=(Mention(EMAIL_SERVER, '_one_text(f"{value}")'),),
+        sites=(Site(EMAIL_VALUES, NOT_FOUND), Site(OWN_TEXTS, NOT_FOUND)),
+        mentions=(Mention(EMAIL_SERVER, "_one_text({name}.format(", name=NOT_FOUND),),
     ),
     Constant(
         label="the key a sidecar declares a content source under",
@@ -92,13 +88,12 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             "tool registry reads the same key into the turn's provenance, each binding it as a "
             "wire contract because the sidecar cannot import the core, so a rename on either side "
             "alone would have every message arrive without its sender and nothing fail, an absent "
-            "key reading as no declaration by design (ADR-0027 sidecar addendum)"
+            "key reading as no declaration by design (ADR-0027 decision 9)"
         ),
         sites=(Site(TOOLS_REGISTRY, SOURCE_KEY), Site(EMAIL_SERVER, SOURCE_KEY)),
         mentions=(
             Mention(TOOLS_REGISTRY, "meta.get({name})", name=SOURCE_KEY),
             Mention(EMAIL_SERVER, "{{name}: {", name=SOURCE_KEY),
-            # Both module contracts quote the binding and the key together, in this one shape.
             Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
             Mention(EMAIL_MODULE, '`{name}`, `"{value}"`)', name=SOURCE_KEY),
         ),
@@ -110,20 +105,13 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             "declaration only when the word is the value of a claimed SourceKind member, the "
             "sidecar binding it as _SENDER_KIND because it cannot import the core, so a renamed "
             "enum value alone would have claimed_source drop every declared sender and nothing "
-            "fail, an unrecognized kind reading as no declaration by design (ADR-0027 sidecar "
-            "addendum)"
+            "fail, an unrecognized kind reading as no declaration by design (ADR-0027 "
+            "decision 9)"
         ),
         sites=(Site(EMAIL_SERVER, SENDER_KIND),),
         mentions=(
-            # The enum member, rendered name and value together because the scan cannot read a
-            # binding inside a class body as a site: the needle is built from the server's value
-            # and looked for in the core, so either side moving alone leaves it unfound.
             Mention(CORE_PROVENANCE, '{name} = "{value}"', name=SENDER_MEMBER),
-            # The server's one spend of the word, held to its own binding for the reason the key's
-            # spend is above. The field it is written under is a binding of its own, held by the
-            # kind-field entry below, so its name is this needle's shape.
             Mention(EMAIL_SERVER, f"{KIND_FIELD}: {{name}},", name=SENDER_KIND),
-            # The module contract quotes the declaration's shape with the word in it.
             Mention(EMAIL_MODULE, '{"kind": "{value}", "value": <From>}'),
         ),
     ),
@@ -134,16 +122,13 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             "registry reads the same field before admitting the declaration, each binding it as "
             "a wire contract because the sidecar cannot import the core, so a field renamed on "
             "either side alone would hand claimed_source a None, drop every declared sender and "
-            "fail nothing, an unreadable declaration reading as none by design (ADR-0027 sidecar "
-            "addendum)"
+            "fail nothing, an unreadable declaration reading as none by design (ADR-0027 "
+            "decision 9)"
         ),
         sites=(Site(TOOLS_REGISTRY, KIND_FIELD), Site(EMAIL_SERVER, KIND_FIELD)),
         mentions=(
-            # Each module's one spend of the field, held to its own binding as the key's is: the
-            # registry's read, and the server's write as the inner mapping's first key.
             Mention(TOOLS_REGISTRY, "fields.get({name})", name=KIND_FIELD),
             Mention(EMAIL_SERVER, "{{name}: ", name=KIND_FIELD),
-            # Both module contracts quote the binding and the field together, in the key's shape.
             Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=KIND_FIELD),
             Mention(EMAIL_MODULE, '`{name}`, `"{value}"`)', name=KIND_FIELD),
         ),
@@ -156,12 +141,10 @@ EMAIL_COUPLINGS: tuple[Constant, ...] = (
             "it as a wire contract because the sidecar cannot import the core, so a field renamed "
             "on either side alone would hand claimed_source a None, drop every declared sender "
             "and fail nothing, an unreadable declaration reading as none by design (ADR-0027 "
-            "sidecar addendum)"
+            "decision 9)"
         ),
         sites=(Site(TOOLS_REGISTRY, VALUE_FIELD), Site(EMAIL_SERVER, VALUE_FIELD)),
         mentions=(
-            # The same two spends: the registry's read, and the server's write as the inner
-            # mapping's second key, after the separator.
             Mention(TOOLS_REGISTRY, "fields.get({name})", name=VALUE_FIELD),
             Mention(EMAIL_SERVER, ", {name}: ", name=VALUE_FIELD),
             Mention(TOOLS_MODULE, '`{name}`, `"{value}"`)', name=VALUE_FIELD),

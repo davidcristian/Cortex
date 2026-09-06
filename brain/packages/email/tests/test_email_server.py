@@ -149,7 +149,13 @@ async def test_read_email_tool_returns_formatted_message() -> None:
 async def test_read_email_tool_reports_not_found() -> None:
     server = build_server(EmailReader(FakeMailbox(one=None)))
     text = await _text(server, "read_email", {"folder": "INBOX", "uid": "999"})
-    assert text == "message 999 not found in INBOX"
+    assert text == (
+        "No message with uid 999 is in INBOX, so nothing was read. A uid names a message only "
+        "within the folder it was listed in, and this folder holds none under that number: a "
+        "nearby number and a uid off another folder's listing each name a different message here "
+        "or none at all. Search INBOX again with search_emails and copy a uid from one line of "
+        "that answer, rather than trying another number that looks likely."
+    )
 
 
 async def test_read_email_declares_the_message_sender_as_a_source() -> None:

@@ -99,9 +99,10 @@ denied outright.
   that search `NO no such message` for every uid in a folder holding no mail, where it answers the
   same search in a folder holding mail with nothing found; the adapter classified that `NO` as a
   plain `MailboxError`, so a `read_email` in an empty folder tainted the turn instead of answering
-  `message <uid> not found in <folder>`. RFC 3501 defines what a `UID FETCH` answers for a uid no
-  message has, an `OK` carrying no data, and both servers answer exactly that in both kinds of
-  folder, so absence is read off the FETCH's own answer and off nothing else. A `NO` to the FETCH
+  `NOT_FOUND` over the uid and folder it was given. RFC 3501 defines what a `UID FETCH`
+  answers for a uid no message has, an `OK` carrying no data, and both servers answer
+  exactly that in both kinds of folder, so absence is read off the FETCH's own answer and
+  off nothing else. A `NO` to the FETCH
   is a read the server declined for a reason of its own and stays `MailboxError` with the
   server's text, the direction the folder classification fails in. The uid is held to RFC 3501's
   `uniqueid` grammar first (`is_uid`: a decimal number with no leading zero, at most 4294967295),
@@ -189,7 +190,12 @@ denied outright.
   server has rejected a name, so it names neither searching nor reading in particular;
   `UID_HELP`, spent by `read_email` alone, says a uid is the number in square brackets on a
   `search_emails` line, copied digit for digit, that it names a message only in the folder it was
-  listed in, and that a not-found answer is final (ADR-0022 uid-description addendum);
+  listed in, and that a not-found answer is final (ADR-0022 uid-description addendum), and
+  `NOT_FOUND` is that last fact said again once the read has come back empty, in the shape
+  `FOLDER_UNKNOWN` has: the uid and folder the call named, the rule that a uid belongs to one
+  folder, and the correction, which is another `search_emails` rather than another number
+  (ADR-0022 not-found-correction addendum). It is a format template over `uid` and `folder`
+  rather than a sentence with the argument appended, because the folder is named twice;
   `SEARCH_LIMIT_HELP` says the matches kept are the
   first in the folder's own uid order rather than the newest. The live test
   `test_every_advertised_search_criterion_is_one_the_bridge_accepts` is the guard on that prose:

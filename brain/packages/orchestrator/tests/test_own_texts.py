@@ -1,6 +1,3 @@
-"""The email sidecar's own texts as the brain holds them, end to end (ADR-0013 own-text addendum).
-"""
-
 from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from typing import cast
@@ -32,7 +29,15 @@ from cortex_orchestrator.own_texts import (
 )
 from cortex_tools import McpSession, McpToolRegistry
 
-# ── the renderers ───────────────────────────────────────────────────────────
+# The not-found answer written out here rather than imported, so a rewording of the sidecar's
+# sentence fails this suite instead of following it.
+_MISSING_ANSWER = (
+    "No message with uid 9 is in INBOX, so nothing was read. A uid names a message only within "
+    "the folder it was listed in, and this folder holds none under that number: a nearby number "
+    "and a uid off another folder's listing each name a different message here or none at all. "
+    "Search INBOX again with search_emails and copy a uid from one line of that answer, rather "
+    "than trying another number that looks likely."
+)
 
 
 def test_a_refused_search_renders_the_sentence_and_the_repr_of_the_brains_query() -> None:
@@ -52,8 +57,8 @@ def test_an_empty_search_renders_the_literal_whatever_the_arguments() -> None:
 
 
 def test_a_missing_message_renders_the_uid_and_folder_the_brain_named() -> None:
-    assert not_found({"uid": "7", "folder": "INBOX"}) == "message 7 not found in INBOX"
-    assert NOT_FOUND.format(uid="7", folder="INBOX") == not_found({"uid": "7", "folder": "INBOX"})
+    assert not_found({"uid": "9", "folder": "INBOX"}) == _MISSING_ANSWER
+    assert NOT_FOUND.format(uid="9", folder="INBOX") == not_found({"uid": "9", "folder": "INBOX"})
     assert not_found({"folder": "INBOX"}) is None
     assert not_found({"uid": "7"}) is None
     assert not_found({"uid": 7, "folder": "INBOX"}) is None
@@ -69,17 +74,11 @@ def test_the_declared_set_covers_both_folder_taking_tools() -> None:
     ]
 
 
-# ── end to end through the real sidecar and the real adapter ───────────────
-
 _MESSAGE = b"From: Ann <ann@example.com>\r\nTo: me@example.com\r\nSubject: hi\r\n\r\nread me\r\n"
 
 
 class _Mailbox:
-    """The `Mailbox` port over one folder holding one message under uid 7 and nothing else.
-
-    A query in a mail client's syntax is refused the way a real server refuses it, and a folder
-    other than INBOX is unknown, so every one of the sidecar's four own answers is reachable.
-    """
+    """The `Mailbox` port over one folder holding one message under uid 7 and nothing else."""
 
     def list_folders(self) -> Sequence[str]:
         return ["INBOX"]
@@ -110,9 +109,6 @@ class _ServerSession:
     async def call_tool(
         self, name: str, arguments: dict[str, object] | None = None
     ) -> CallToolResult:
-        # A tool answering a `CallToolResult` of its own comes back as that; a string-returning
-        # one comes back as FastMCP's (unstructured, structured) pair, which the transport would
-        # have put into a result of its own.
         answer: object = await self._server.call_tool(name, arguments or {})
         if isinstance(answer, CallToolResult):
             return answer
@@ -141,15 +137,13 @@ def _registry() -> OwnTextToolRegistry:
         ),
         ("read_email", {"folder": "Receipts", "uid": "7"}, f"{FOLDER_UNKNOWN}{'Receipts'!r}"),
         ("search_emails", {"folder": "INBOX", "query": "ALL"}, "(no matching messages)"),
-        ("read_email", {"folder": "INBOX", "uid": "9"}, "message 9 not found in INBOX"),
+        ("read_email", {"folder": "INBOX", "uid": "9"}, _MISSING_ANSWER),
     ],
     ids=["refused-search", "unknown-folder-search", "unknown-folder-read", "empty", "not-found"],
 )
 async def test_the_sidecars_real_own_answers_are_recognized(
     tool: str, arguments: dict[str, object], expected: str
 ) -> None:
-    """The sidecar's own `SearchRefusedError`, `FolderUnknownError` and literal answers, driven
-    through FastMCP and read by the real adapter, come back trusted with the text unchanged."""
     result = await _registry().invoke(ToolCall(id="c-1", name=tool, arguments=arguments))
     assert (result.trust, result.content) == (Trust.TRUSTED, expected)
 
@@ -166,9 +160,6 @@ async def test_a_message_the_sidecar_read_stays_untrusted_with_its_source() -> N
 async def test_a_folder_listing_stays_untrusted() -> None:
     result = await _registry().invoke(ToolCall(id="c-3", name="list_folders", arguments={}))
     assert (result.trust, result.content) == (Trust.UNTRUSTED, "INBOX")
-
-
-# ── the wiring ──────────────────────────────────────────────────────────────
 
 
 class _CannedSession:
