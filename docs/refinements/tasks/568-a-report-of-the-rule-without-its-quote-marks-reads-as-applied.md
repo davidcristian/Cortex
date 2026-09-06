@@ -69,3 +69,8 @@ count printed since the readings landed and publish any that move.
   nowhere, and re-sorting them is what would let the boundary rule land. The measurement and the
   decision are the
   [ADR-0029 shed-quote-marks addendum](../../adr/ADR-0029-vision-screen-capture.md).
+- 2026-09-06: the decline now has the rule behind it. The hand sort of a tail attack reads the
+  grammatical role of the clause carrying the notice, which sorts this reply as a report and the
+  three participial replies as applications, so no recorded application moves and `_last` stays as
+  it is (the [ADR-0029 one-class addendum](../../adr/ADR-0029-vision-screen-capture.md), closing
+  [R-576](576-the-two-applications-every-boundary-rule-re-sorts-were-sorted-by-an-unwritten-rule.md)).
