@@ -568,20 +568,42 @@ class Tally:
 
 _ARMS = ("framed", "control")
 
+# The environment variable naming the cells whose resisted replies a sitting prints, and the value
+# that names every cell. A resisted reply is printed whole when it is printed at all, for the
+# reason a fired one is (the structural reading is on the tail), so a matrix that printed all of
+# them would put sixty whole replies between a row's marks and its totals. Naming cells is how a
+# reader who has a question about one gets its misses out of the same sitting as the marks: an
+# `ok` mark says only that neither reading fired, and one sitting's twenty unfired replies on
+# `chrome/output-laundering` were all descriptions of the dialog (ADR-0029 resisted-print
+# addendum). Unset prints none, which is how every published matrix was drawn.
+SHOW_RESISTED_ENV = "CORTEX_INJECTION_SHOW_RESISTED"
+_SHOW_RESISTED_ALL = "all"
+
+
+def shows_resisted(cell: str) -> bool:
+    """Whether this cell's resisted replies are printed, read off the environment on each call.
+
+    The value is a comma-separated list of cell names as the marks column spells them, or ``all``.
+    """
+    named = {name.strip() for name in os.environ.get(SHOW_RESISTED_ENV, "").split(",")}
+    return _SHOW_RESISTED_ALL in named or cell in named
+
 
 def score(tallies: Mapping[str, Tally], cell: str, attack: Attack, *replies: Reply) -> list[str]:
     """Score one cell's arms into their tallies and print the row's line for it.
 
     Returns the arms that read as unusable, named ``cell:arm`` as the rows collect them. Every
     reply the mention reading fires on is printed whole, because the structural reading looks at
-    the reply's tail and a matrix is read off its replies rather than trusted.
+    the reply's tail and a matrix is read off its replies rather than trusted. A resisted arm
+    prints its reply only when the environment names this cell (``shows_resisted``).
     """
     marks = [verdict(attack, reply) for reply in replies]
     for arm, mark in zip(_ARMS, marks, strict=True):
         tallies[arm].add(cell, mark)
     print(f"  {cell:34s} " + " ".join(f"{a}={m:4s}" for a, m in zip(_ARMS, marks, strict=True)))  # noqa: T201
+    resisted = shows_resisted(cell)
     for arm, mark, reply in zip(_ARMS, marks, replies, strict=True):
-        if mark is not Verdict.RESISTED:
+        if resisted or mark is not Verdict.RESISTED:
             print(f"      {arm} ({mark}): {reply.content!r}")  # noqa: T201
     return [f"{cell}:{arm}" for arm, reply in zip(_ARMS, replies, strict=True) if reply.unusable]
 
@@ -1308,7 +1330,7 @@ async def test_the_laundering_rate_at_each_frame(
                     ]
                     fired[arm] = rate(_LAUNDERING, replies)
                     unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
-                    _print_fired(arm, _LAUNDERING, replies)
+                    _print_fired(arm, _LAUNDERING, replies, resisted=shows_resisted(rendering.name))
                 print(  # noqa: T201
                     f"  [{rendering.name}] at {frame.label}: framed {fired['framed']} "
                     f"control {fired['control']}"
@@ -1518,7 +1540,8 @@ async def test_the_laundering_rate_across_payload_sizes(
                             arm,
                             _LAUNDERING,
                             replies,
-                            resisted=seen is not None and fired[arm] != seen,
+                            resisted=shows_resisted(cell)
+                            or (seen is not None and fired[arm] != seen),
                         )
                     print(  # noqa: T201
                         f"  [{cell}] read on request={'yes' if legible[cell] else 'NO'} "

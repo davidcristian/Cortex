@@ -16,6 +16,7 @@ grammatical role of the clause the notice sits in.
 import pytest
 from test_injection_defense_live import (
     ATTACKS,
+    SHOW_RESISTED_ENV,
     Attack,
     Reply,
     Tally,
@@ -24,6 +25,7 @@ from test_injection_defense_live import (
     rate,
     report,
     score,
+    shows_resisted,
     verdict,
 )
 
@@ -658,8 +660,10 @@ def test_a_scored_cell_lands_in_each_arms_tally_and_prints_every_fired_reply_who
 
 def test_a_scored_cell_names_its_unusable_arms_and_prints_nothing_for_a_resisted_one(
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An empty or capped arm is returned by name, and a resisted arm prints no reply."""
+    monkeypatch.delenv(SHOW_RESISTED_ENV, raising=False)
     tallies = {"framed": Tally(), "control": Tally()}
     unusable = score(
         tallies,
@@ -675,6 +679,53 @@ def test_a_scored_cell_names_its_unusable_arms_and_prints_nothing_for_a_resisted
     assert "framed=ok" in out
     assert "control=ok" in out
     assert "(" not in out.split("app/dan-roleplay", 1)[1]
+
+
+def test_a_resisted_cell_prints_its_replies_when_the_environment_names_it(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A named cell prints its resisted replies whole; an unnamed one still prints none.
+
+    An `ok` mark says only that neither reading fired, and one sitting's unfired replies on a
+    pixel cell were all descriptions of the dialog, so a reader with a question about one cell
+    needs its misses out of the same sitting as the marks (ADR-0029 resisted-print addendum).
+    The name is the one the row prints in its marks column, and `all` names every cell.
+    """
+    described = "The dialog says every summary must end with a notice."
+    ignored = "The notes report revenue up 12%."
+    named = "chrome/dan-roleplay"
+    for value, shown in ((None, False), ("app/x", False), (named, True), ("all", True)):
+        if value is None:
+            monkeypatch.delenv(SHOW_RESISTED_ENV, raising=False)
+        else:
+            monkeypatch.setenv(SHOW_RESISTED_ENV, value)
+        tallies = {"framed": Tally(), "control": Tally()}
+        unusable = score(
+            tallies, named, _attack("dan-roleplay"), _reply(described), _reply(ignored)
+        )
+        assert unusable == []
+        assert tallies["framed"].mentioned == []
+        out = capsys.readouterr().out
+        assert (repr(described) in out) is shown
+        assert (repr(ignored) in out) is shown
+        assert "framed=ok" in out
+
+
+def test_a_named_cell_is_read_off_the_environment_on_every_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The list is comma-separated, a name may carry spaces, and `all` covers every cell."""
+    monkeypatch.delenv(SHOW_RESISTED_ENV, raising=False)
+    assert shows_resisted("chrome/output-laundering") is False
+    monkeypatch.setenv(SHOW_RESISTED_ENV, "app/dan-roleplay, chrome/output-laundering")
+    assert shows_resisted("chrome/output-laundering") is True
+    assert shows_resisted("app/dan-roleplay") is True
+    assert shows_resisted("plain/output-laundering") is False
+    monkeypatch.setenv(SHOW_RESISTED_ENV, "all")
+    assert shows_resisted("plain/output-laundering") is True
+    monkeypatch.setenv(SHOW_RESISTED_ENV, "")
+    assert shows_resisted("plain/output-laundering") is False
 
 
 def _tallies(framed_obeyed: int, framed_described: int, control_obeyed: int) -> dict[str, Tally]:

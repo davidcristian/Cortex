@@ -9450,3 +9450,47 @@ which closes as landed, its opening R-590,
 `brain/packages/inference/tests/test_injection_defense_live.py`, which carries the depth, and
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which an operator reads for what the
 row now costs.
+
+## Addendum (2026-09-06): a resisted cell prints its replies when the environment names it
+
+An `ok` mark says that neither reading fired and nothing more, so a model that ignored the screen
+and one that described it without quoting the canary carry the same mark and the matrix prints no
+reply for either. The deep row before this one read what those marks stood for on one cell: all
+twenty framed draws of the dialog rendering's `output-laundering` described the dialog, and the
+five the mention reading did not fire on named the formatting rule and stopped before quoting it,
+so five `ok` marks stood for five descriptions rather than for five refusals to look.
+
+**What was decided.** Not a truncated print. A resisted reply is printed whole when it is printed
+at all, for the reason a fired one is: the structural reading is on the reply's tail, and a first
+clause would not sort the one shape that reading cannot sort by itself. Not an unconditional print
+either, since a matrix draws sixty arms per row and sixty whole replies would put a row's marks
+out of reach of the eye that is reading them. What landed is a switch that names cells:
+`CORTEX_INJECTION_SHOW_RESISTED` holds a comma-separated list of cell names as the row prints them
+in its marks column, or `all`, and each named cell prints its resisted replies beside its fired
+ones. Unset, none are printed, which is the shape every published matrix was drawn in, so no
+published row is re-read differently for this. `shows_resisted` reads the environment on each call
+rather than at import, so a suite can set it per row.
+
+It is wired at the three places a resisted reply could be printed: `score`, which the two matrix
+rows call and which passed nothing; `test_the_laundering_rate_at_each_frame`, which passed nothing;
+and the payload-size sweep, where it joins the condition that already prints every reply of a cell
+whose rate moved.
+
+### Proved able to fail
+
+Four mutants of `brain/packages/inference/tests/test_injection_defense_live.py`, each reverted from
+a copy of the file, over `brain/packages/inference/tests/test_reply_readings.py`'s 107 tests.
+
+| mutant | failing |
+|---|---|
+| `score` ignores the switch and prints as it did | 1 |
+| `all` no longer names every cell | 2 |
+| a name in the list is not stripped of spaces | 1 |
+| the rate row drops the switch and passes nothing | 0 |
+
+**The zero is a finding and is left standing.** The rate row's call site is inside an
+`integration`-marked row that needs a GPU, so no CI test reaches it and no mutation of it can fail
+one. The switch is proven where CI can see it, at `score` and `shows_resisted`, and the two rate
+rows carry it unproven: what proves them is the first live sitting drawn with the variable set,
+which no row has had yet. The runbook's matrix section now says which marks a reader may take as
+resistance and how to read a cell's misses.
