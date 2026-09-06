@@ -1,6 +1,7 @@
-"""FastMCP server exposing the email tools over an EmailReader (ADR-0009, ADR-0022)."""
-# The tool handlers are registered via the @server.tool() decorator (a side effect), so
-# pyright's "not accessed" check is a false positive for this small handler module.
+"""FastMCP server exposing the email tools over an EmailReader."""
+
+# The tool handlers are only referenced by the @server.tool() decorator, so pyright reads them
+# as unused.
 # pyright: reportUnusedFunction=false
 
 import asyncio
@@ -31,13 +32,14 @@ _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interfa
 _SERVER_PORT = 9100
 _DEFAULT_SEARCH_LIMIT = 20
 
+# The result `_meta` key the brain's tool registry reads a declared source from. This sidecar
+# cannot import the core, so both sides define the key, the kind word and the two field names
+# separately and `scripts/crosscheck.py` compares them.
 _SOURCE_META_KEY = "cortex/source"
 
+# The value of the brain's `SourceKind.SENDER`.
 _SENDER_KIND = "sender"
 
-# The two field names that declaration is written under, bound here and again in `cortex_tools`,
-# which reads them, for the reason the key is: a field renamed on one side alone would read as no
-# declaration, and the same scan holds each pair of bindings equal.
 _KIND_FIELD = "kind"
 _VALUE_FIELD = "value"
 
@@ -48,11 +50,7 @@ def _one_text(text: str, *, failed: bool = False) -> CallToolResult:
 
 
 def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
-    """The result ``_meta`` declaring ``sender`` as the message's source, or ``None`` when absent.
-
-    A message with no ``From`` header declares nothing rather than an empty sender; the brain drops
-    an empty value anyway, so this keeps the wire clean.
-    """
+    """The result ``_meta`` declaring ``sender`` as the message's source, or ``None`` when none."""
     if not sender:
         return None
     return {_SOURCE_META_KEY: {_KIND_FIELD: _SENDER_KIND, _VALUE_FIELD: sender}}
@@ -96,6 +94,8 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         except FolderUnknownError as unknown:
             return _one_text(str(unknown), failed=True)
         if detail is None:
+            # Not marked failed: the folder opened and the FETCH was sent, so this is what the
+            # mailbox holds rather than a call the server declined.
             return _one_text(NOT_FOUND.format(uid=uid, folder=folder))
         text = (
             f"From: {detail.sender}\nTo: {detail.recipients}\n"
@@ -106,14 +106,15 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         )
 
     if sender is not None:
-        # Advisory MCP metadata only. The enforcing declaration is the brain-side
-        # CORTEX_TOOLS_GATED overlay (ADR-0022): a sidecar must not be able to
-        # self-declare its way past the gate, in either direction.
+        # Advisory metadata only. What actually requires approval is the brain-side
+        # CORTEX_TOOLS_GATED setting, so a sidecar cannot declare its way around it.
         @server.tool(
             annotations=ToolAnnotations(
                 readOnlyHint=False, destructiveHint=True, openWorldHint=True
             )
         )
+        # PLR0913 counts injected collaborators (see ruff.toml). These parameters are the
+        # draft's fields, and this signature is the JSON schema the model is given.
         async def send_email(  # noqa: PLR0913
             to: str,
             subject: str,
@@ -142,11 +143,7 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
 
 
 def main() -> None:
-    """Run the email MCP server from the environment (streamable-http).
-
-    The send path is opt-in: a sender exists only under CORTEX_EMAIL_SEND_ENABLED=true
-    (with credentials validated at startup). Otherwise this is the read-only server.
-    """
+    """Run the email MCP server from the environment, over streamable-http."""
     reader = EmailReader(ImapMailbox(EmailConfig()))
     smtp = SmtpConfig()
     sender = SmtpSender(smtp) if smtp.enabled else None
