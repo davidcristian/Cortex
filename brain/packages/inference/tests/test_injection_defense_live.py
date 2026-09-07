@@ -950,6 +950,15 @@ async def test_the_laundering_rate_at_each_frame(
     model: Model, frame: Frame, budget: Budget
 ) -> None:
     """Measure the unstable cell as a rate per frame, since one matrix cell is an anecdote."""
+    await _draw_laundering_rate(model, frame, budget)
+
+
+async def _draw_laundering_rate(model: Model, frame: Frame, budget: Budget) -> None:
+    """Draw the laundering cell five times per arm per rendering, at one frame and one budget.
+
+    The body of the rate row, factored out because a frame outside ``FRAMES`` is drawn by a row
+    of its own and the two rows must draw the same thing to be read against each other.
+    """
     unusable: list[str] = []
     with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
@@ -974,6 +983,21 @@ async def test_the_laundering_rate_at_each_frame(
                 )
     label = f"{model.label} laundering rate at {frame.label}, {budget.label}"
     assert_drawn(label, unusable, 2 * _RATE_RUNS * len(RENDERINGS))
+
+
+_THIRD_FRAME = Frame(3)
+
+# Every frame a row here delivers a screen at: the pair the seeing rows are parametrized over and
+# the third frame the row below draws. The CI-side image-arm suite holds each of them to being a
+# real picture of the size it claims, and reads this rather than naming the frames a second time.
+RENDERED_FRAMES: tuple[Frame, ...] = (*FRAMES, _THIRD_FRAME)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_laundering_rate_at_a_third_frame(model: Model) -> None:
+    """Draw the rate at ``4800x2700``, the third point on the frame axis at the engine's budget."""
+    await _draw_laundering_rate(model, _THIRD_FRAME, ENGINE_BUDGET)
 
 
 def _print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bool = False) -> None:
@@ -1150,26 +1174,28 @@ async def test_what_this_corpus_costs_in_image_tokens_at_each_frame(
     costs: dict[str, int] = {}
     with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            for frame in FRAMES:
+            for frame in RENDERED_FRAMES:
                 png = RENDERINGS[0].build(_LAUNDERING.injection, frame, CORPUS_TYPE_SCALE)
                 costs[frame.label] = await _picture_cost(client, png)
                 print(  # noqa: T201
                     f"  [{model.label}] {frame.label} at {budget.label}: "
                     f"{costs[frame.label]} image tokens"
                 )
-    base, large = (costs[frame.label] for frame in FRAMES)
-    if budget.image_max_tokens:
-        assert large > base, (
-            f"{model.label} at {budget.label}: the doubled frame cost no more than the corpus "
-            f"frame ({large} against {base}), so this budget saturates here too and its frame "
-            "rows compare two deliveries of one picture"
-        )
-    else:
-        assert large == base, (
-            f"{model.label} at {budget.label}: the engine's own budget spent {large} tokens on "
-            f"the doubled frame against {base} on the corpus frame, so the published frame pair "
-            "did vary the picture the model saw and was not read at saturation"
-        )
+    base = costs[CORPUS_FRAME.label]
+    for frame in RENDERED_FRAMES[1:]:
+        large = costs[frame.label]
+        if budget.image_max_tokens:
+            assert large > base, (
+                f"{model.label} at {budget.label}: {frame.label} cost no more than the corpus "
+                f"frame ({large} against {base}), so this budget saturates here too and its frame "
+                "rows compare two deliveries of one picture"
+            )
+        else:
+            assert large == base, (
+                f"{model.label} at {budget.label}: the engine's own budget spent {large} tokens "
+                f"on {frame.label} against {base} on the corpus frame, so the frames it is read "
+                "at did vary the picture the model saw and were not read at saturation"
+            )
 
 
 @pytest.mark.integration

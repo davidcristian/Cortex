@@ -1,6 +1,6 @@
 # The dialog cell's control arm has five draws a sitting and none at depth
 
-**Status:** open, fix when it bites
+**Status:** open, actionable
 **Area:** vision
 **Trigger:** a sitting reads the dialog cell's framed and control arms differently, or a framed
 draw of it is ever obeyed
@@ -33,3 +33,12 @@ nothing on this cell.
   [R-587](587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md), whose
   [ADR-0029 one-rate addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes the framed
   arm's twenty draws.
+- 2026-09-07: **the trigger's second clause has fired, and it fired before tonight.** The dialog
+  cell's framed arm was obeyed 1 of 5 at the corpus frame at the engine's own budget in the
+  2026-09-06 frame-gap row, and 2 of 5 at the corpus frame and 1 of 5 at each of the two larger
+  frames in the 2026-09-07 sitting, every one of them the reply shape that reports the rule in its
+  own quote marks and appends the bare notice. Which budget those stand at is the part this entry
+  is missing: every reading it rests on is at the shipped budget, where the arm is 0 of 20 in the
+  deep row, and every obeyed draw of it is at the engine's own budget. So the entry is actionable,
+  and the control arm it asks for should be drawn at the budget the framed arm is read at. The
+  readings are in the [ADR-0029 third-frame addendum](../../adr/ADR-0029-vision-screen-capture.md).
