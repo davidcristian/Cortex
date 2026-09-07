@@ -4292,3 +4292,104 @@ the four rows that close through it, `brain/packages/inference/tests/test_reply_
 which holds the rule, [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), whose
 brain-tier section and switch-row bullet an operator reads for what a failed row means, and this
 addendum.
+
+## Trigger-sweep addendum (2026-09-07): the four triggers deferred here are answered, and three are narrowed
+
+Four refinements deferred at this ADR wait on a trigger, and none of the four clauses had ever been
+held to the tree. All four were answered, two of them against a real server, and none has fired.
+Three carried a clause that could not come out false or could not be checked at all, and those three
+are narrowed to something a later reader can measure.
+
+### What the tree says, and what nothing sets
+
+`CORTEX_REPLY_TRACE_TOKENS` is set by nothing in this repository. It is named in
+`brain/packages/orchestrator/src/cortex_orchestrator/config_reply.py`, in the GPU runbook's settings
+table, in `docs/modules/brain-orchestrator.md`, in this ADR and in the backlog files themselves, and
+by no compose file, no `just` recipe and no workflow; there is no `.env` at the repo root either.
+Two of the four triggers open with a deployment that sets it, so both open unfired.
+`CORTEX_ESCALATION` is off by default in `config_swap.py`, and `docker/docker-compose.gpu.yml` names
+it only in a comment saying what a deployment would add. The one place in the tree that spells it as
+a setting is a host task's compose snippet in [docs/host/index.md](../host/index.md), which is work
+waiting on hardware rather than a stack that runs.
+
+The two mechanisms those entries describe are unchanged. `drain_text` reads `bounds.thinking` alone
+and never `bounds.trace_tokens`, so a count the engine did not read is still unreported.
+`ReplyBoundsConfig.bounds()` still builds one `GenerationBounds`, and `brain_phase.py` still carries
+`self._caps.bounds` into the deep model's completion, so one request-level count still binds both
+phases of a turn.
+
+### What a real server said
+
+Two builds were started in turn on the shipped subagent pick (gemma-4-E4B QAT q4_0) at
+`-ngl 99 -c 8192 --jinja --parallel 2`, each with **neither** reasoning flag on its argv, and each
+asked the lever question the GPU runbook prints before anything was decoded. Both answered `400`
+naming `reasoning_budget_tokens`, which is the answer this ADR records for `b10666-4e97ac86e` on
+2026-08-29 and is now measured for the build the stack starts today as well.
+
+Then `CORTEX_TRACE_REPEATS=100` through the committed probe, a cap of 256, 300 draws a build:
+
+| cell | b10680 deliberated | b10680 empty reply | b10666 deliberated | b10666 empty reply |
+| --- | --- | --- | --- | --- |
+| control, neither lever | 100 of 100 | 100 of 100 | 100 of 100 | 100 of 100 |
+| the switch alone | 85 of 100 | 85 of 100 | 86 of 100 | 86 of 100 |
+| the switch and `trace_tokens=0` | 0 of 100 | 0 of 100 | 0 of 100 | 0 of 100 |
+
+The two counts in each row are equal on every row, and that is the finding rather than a
+coincidence: on this pick a draw that deliberates spends the whole cap on the trace and returns
+nothing, so the middle row's 85 and 86 are 85 and 86 lost replies. The last row is the repair and it
+held on 200 draws of 200. **No draw of the 600 leaked**, on either of the two readings the probe's
+detector takes.
+
+The images those two builds were started from are what the lever entry's question needs.
+`ghcr.io/ggml-org/llama.cpp:server-cuda` is cached here at `sha256:952424b09abc` and reports
+`b10680-d7bd3bfca`; `:server-cuda-b10666` is cached beside it at `sha256:150b59966fb5` and reports
+`b10666-4e97ac86e`, so the build the leak was first seen on is still startable on this machine. The
+mutable tag has already moved under this host once: this ADR's reading of 2026-08-29 names
+`ghcr.io/ggml-org/llama.cpp:server` at `b10666-4e97ac86e`, and the image cached under that tag now
+reports `b10680-d7bd3bfca`. Each tag has moved again in the registry since the engine-tag addendum
+read it on 2026-09-04, `server-cuda` now resolving to `sha256:84a9f771dfcb` and `server` to
+`sha256:ef50b81ee57e`, read with `docker manifest inspect` so the cached images stay untouched.
+Nothing of this stack was running while any of that happened, and nothing of it is running now.
+
+### The four triggers, judged
+
+- **The leak entry's second limb was true on the day it was written**, its opening run having
+  counted 1 leak in 58 budgeted draws, so "any draw of the committed probe whose leak count is not
+  zero" could never come out false and could not tell one build from another. The fresh reading is
+  what it is narrowed against: 0 leaks in 100 budgeted draws on each of the two builds, the second
+  of them the very build the leak was seen on. With the 140 flag draws of 2026-09-02 that arm stands
+  at 1 in 258 against 0 in 140, and the two do not separate, which is what the entry opened by
+  saying. The clause now asks for two leaks in a hundred draws, a rate an order above the one
+  recorded. The mechanism is real and nothing repairs it, so the entry stays open.
+- **The cached lever answer is not stale here, and a bump alone would not make it so.** The trigger
+  named an image upgrade under a running brain, and the upgrade half has happened while the rest has
+  not: no brain and no model host is running, and the cached images are the two the engine-tag
+  addendum read. The harm the entry describes needs a build whose answer to the lever question
+  differs from the one a running brain cached, and across the one bump this host has taken the
+  answer did not move, both builds refusing the out-of-range value by name. The clause is narrowed
+  to say that, and the runbook line the entry proposes is still the cheap half of a close.
+- **Nothing reports an unread count, and nothing has needed to.** No deployment sets the count, the
+  three side calls all send `thinking=False` and `trace_tokens=0`, the lever defaults to `auto`, and
+  both builds this machine can start answer it yes, so the zero reaches the engine on every tier
+  this stack starts. The trigger's second limb asked about "a tier nobody has probed", which has no
+  truth value as written, and is narrowed to the reading that would show it: a side call returning
+  an empty reply on an endpoint whose boot probe answered that the engine reads no budget.
+- **One count still reaches both tiers, and no deployment is in that position.** The trigger needs
+  `CORTEX_REPLY_TRACE_TOKENS` and `CORTEX_ESCALATION` on together and neither is on at all. That
+  clause is checkable as written, so it is left alone.
+
+### Records
+
+The four task files
+[R-495](../refinements/tasks/495-the-forced-thought-can-leak-its-own-start-tag.md),
+[R-496](../refinements/tasks/496-the-trace-lever-is-answered-once-per-boot.md),
+[R-497](../refinements/tasks/497-nothing-reports-a-trace-budget-that-went-unread.md) and
+[R-498](../refinements/tasks/498-one-reply-trace-budget-for-two-tiers.md), each still open with a
+dated trail entry and three of them with a rewritten trigger, the one opening
+[R-598](../refinements/tasks/598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md),
+which is the denominator the leak's original session is published at in two ways,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+`brain/packages/inference/tests/test_trace_budget_live.py`, which drew every cell above,
+[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) and
+[docs/modules/brain-inference.md](../modules/brain-inference.md), whose leak paragraphs now carry
+the re-drawn counts, and this addendum.

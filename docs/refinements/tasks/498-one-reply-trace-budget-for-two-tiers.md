@@ -44,3 +44,13 @@ honest and cheap; the first is what the trigger above asks for.
   [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which added a per-request
   trace count to the bounds a turn and its deep continuation already share, where the same setting
   at the server is two knobs on purpose.
+- 2026-09-07: the trigger has not fired, and it is precise enough to leave as written.
+  Both settings it names would have to be on together and neither is on at all.
+  `CORTEX_REPLY_TRACE_TOKENS` is set by no compose file, justfile recipe or workflow here, and
+  there is no `.env` at the repo root. `CORTEX_ESCALATION` is off by default in `config_swap.py`,
+  and the GPU override names it only in a comment saying what a deployment would add; the one place
+  in the tree that spells it as a setting is a host task's compose snippet, which is work waiting
+  on hardware rather than a deployment that runs. The sharing this entry is about is unchanged:
+  `ReplyBoundsConfig.bounds()` still builds one `GenerationBounds`, and `brain_phase.py` still
+  carries `self._caps.bounds` into the deep model's completion, so the first deployment to set both
+  gets one count over two tiers.

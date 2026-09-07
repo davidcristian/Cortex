@@ -461,7 +461,11 @@ a fragment of that tag can survive into the answer, and it does. One draw in 53 
 rejects that, so a delegated run reports it as the subtask's answer. The same sampler as a tier
 flag (`--reasoning-budget 0`, which every subagent server here already carries) did not do it in 20
 draws, and at those sizes the two do not separate: this is a rare engine behaviour the per-request
-key inherits rather than one it adds.
+key inherits rather than one it adds. How rare was measured on 2026-09-07 at a hundred draws a cell
+on both builds this repo has readings for, `b10680-d7bd3bfca` and `b10666-4e97ac86e`, the same pick
+at `-ngl 99`: no draw of the 600 leaked, and the budgeted cell held the trace at 0 on 200 of 200
+(ADR-0005 trigger-sweep addendum). Expect not to see it, and read the printed count rather than one
+draw.
 
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 
