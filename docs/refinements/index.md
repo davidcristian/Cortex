@@ -61,12 +61,13 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-### Actionable now (16)
+### Actionable now (17)
 
 - **[R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)** A red sweep leaves no trace in the repo (repo-gates).
 - **[R-299](tasks/299-prose-cites-an-engine-build-nothing-pins.md)** Prose cites an engine build that nothing pins (inference-model-manager).
 - **[R-423](tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md)** The two obligation tests recognize a caller by how it is spelled (repo-gates).
 - **[R-540](tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md)** The judged rate and the hand column are compared on a probe and no sweep (subagents).
+- **[R-549](tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md)** JPEG and WebP image blocks are refused rather than sized (tools-mcp).
 - **[R-555](tasks/555-the-other-four-subagent-candidates-have-no-cpu-row.md)** The other four subagent candidates have no CPU row (inference).
 - **[R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md)** No workflow in this repository has ever run (repo-gates).
 - **[R-598](tasks/598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md)** The leak's denominator is 53 in the runbook and 58 in the three other places that publish it (inference).
@@ -90,7 +91,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)** A turn that goes quiet for an hour is indistinguishable from a brain that died (seam-transport).
 - **[R-466](tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md)** Nothing holds a cap sized on the answer to a tier whose trace is bounded (inference).
 
-### Fix when it bites (121)
+### Fix when it bites (120)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-gates). Reopens when: An edit landing in the wrong cascade position, or a second stylesheet appearing.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot hold (repo-gates). Reopens when: A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
@@ -195,7 +196,6 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-535](tasks/535-a-switch-sample-names-no-context-size-or-placement.md)** A switch sample names no context size or placement (inference). Reopens when: the next lineup sweep under an engine bump, which is the sweep R-529 waits for, when the placement column of the lineup-tails record is typed by hand again for eleven rows; or a row whose verdict moves between placements, which the record so far says does not happen.
 - **[R-539](tasks/539-a-spend-beside-another-entrys-binding-carries-that-name-as-shape.md)** A spend written beside another entry's binding carries that binding's name as shape (repo-gates). Reopens when: a `crosscheck` fault over the kind word after a rename of a field binding sending a reader to the wrong constant, or a second registry entry whose needle spells another entry's site name in its literal shape, which is countable by rendering every mention and searching its shape for the site names the registry declares.
 - **[R-541](tasks/541-the-swept-subtask-shapes-are-spelled-in-two-trees-and-held-by-nothing.md)** The swept subtask shapes are spelled in two trees and held by nothing (repo-gates). Reopens when: a report publishing `stood` alone for a shape the sweep did ask, which is what a changed instruction looks like from the reader's side.
-- **[R-549](tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md)** JPEG and WebP image blocks are refused rather than sized (tools-mcp). Reopens when: a sidecar this repo composes answers a call with an `ImageContent` block whose mime type is `image/jpeg` or `image/webp`, which fails the call today with an `ImageError` naming the format.
 - **[R-550](tasks/550-a-uid-search-key-in-a-folder-holding-no-mail-is-refused-by-the-bridge-and-stays-untyped.md)** A UID search key in a folder holding no mail is refused by the Bridge and stays untyped (email). Reopens when: a model writes a `UID` criterion into `search_emails` against a folder holding no mail and reads back `the mailbox could not run that search` rather than `(no matching messages)`, which taints the turn.
 - **[R-553](tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md)** Which condition a printed audit sample stands for is prose beside the fence (repo-gates). Reopens when: a rendered sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose introducing sentence names a shape other than the one its fields spell, or a whole-line assertion added to `brain/packages/tools/tests/test_audit.py` with a field set the runbook's fence does not print. Both are countable: read each sample's field names against the clause introducing it, and compare the set of field lists `scripts/assertedlines.proven` returns for the sink against the set the fence prints.
 - **[R-554](tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md)** A whole line asserted through an f-string or a helper is not read as proven (repo-gates). Reopens when: a whole-line assertion in a sink's own suite whose expected line is not a plain string constant: an f-string interpolating the fixture's timestamp, a name bound to the line above the assert, or a helper that builds or compares it. Countable by listing a suite's `assert` statements whose test is one `==` and whose neither side is a string constant, and reading whether either side would render to a line opening with a level.
@@ -864,7 +864,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - [R-380](tasks/380-a-fires-delegates-do-not-name-the-item.md) A fire's delegates do not name the item that fired them. landed 2026-08-23.
 - [R-395](tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md) A work identity is copied by hand at every hop and nothing ties the copies. open, fix when it bites.
 - [R-532](tasks/532-an-mcp-image-block-is-dropped-rather-than-carried.md) An MCP image block is dropped by the adapter rather than carried as a result image. landed 2026-09-04.
-- [R-549](tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md) JPEG and WebP image blocks are refused rather than sized. open, fix when it bites.
+- [R-549](tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md) JPEG and WebP image blocks are refused rather than sized. open, actionable.
 - [R-591](tasks/591-an-ok-audit-line-carries-a-size-where-the-correction-is.md) An ok audit line carries a size where the correction is. open, fix when it bites.
 
 ### untrusted-content

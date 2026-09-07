@@ -31,3 +31,14 @@ the worst case a listing can take is the sum of the endpoints' bounds rather tha
 - 2026-08-21: Filed by the close of
   [341](341-nothing-declines-work-it-cannot-finish.md), which gave the tool seam its first bound of
   any kind. Recorded in the ADR-0009 bound addendum.
+- 2026-09-07: trigger re-derived against the tree and it has not fired. The stack still composes
+  exactly two tool sidecars, `CORTEX_TOOLS_ENDPOINTS__FILESYSTEM` in
+  `docker/docker-compose.tools.yml` and `CORTEX_TOOLS_ENDPOINTS__EMAIL` in
+  `docker/docker-compose.email.yml`, with no third endpoint key anywhere in `docker/`.
+  `CORTEX_TOOLS_CALL_TIMEOUT_S` is still one flat number, defaulted to 60.0 in
+  `docker/docker-compose.yml` and held as a single `call_timeout_s` field on the tools config, so
+  no per-endpoint form of the variable is read. Nothing in the tree records a real call the bound
+  cut, and the email sidecar is still untimed: every per-call number in
+  [docs/runbooks/tools-mcp.md](../../runbooks/tools-mcp.md) is the filesystem sidecar's. The clause
+  is left as written, because both halves name something that can come out false. Recorded in the
+  ADR-0009 addendum of this date.
