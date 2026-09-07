@@ -39,3 +39,14 @@ today, and what it does not hold is an identity nobody wrote a case for.
   [380](380-a-fires-delegates-do-not-name-the-item.md), which asked whether the identities should
   travel as one value, declined the bundle on the criterion above, and counted the hops the
   decline leaves hand-written. Recorded in the ADR-0009 fired-work addendum.
+- 2026-09-07: trigger re-derived against the tree and neither half has fired. `TurnStamp` in
+  `brain/packages/core/src/cortex_core/tools.py` still carries exactly the four work identities
+  this entry counts, `session_id`, `turn_id`, `task_id` and `item_id`; its other five fields are
+  the taint bit, the provenance tuple and the three live handles (`budget`, `progress`,
+  `escalation`), none of which name work. No hop drops one either: `SpawnSubagentsTool` in
+  `spawn.py` writes the three a task stores off the call's stamp, `_encode_task` and `_decode_task`
+  in `cortex_session/tasks.py` round-trip all three, `PlacedAttempt` in `subagent_attempt.py` reads
+  all four back into its `ToolLoopContext` (`turn_id` from the stored task, on the line above the
+  comment that explains the other three), and `_stamp` in `dispatch_round.py` puts them on each
+  dispatch. Every symbol the entry names still lives in the file it names, so its counts hold.
+  Recorded in the ADR-0009 addendum of this date.

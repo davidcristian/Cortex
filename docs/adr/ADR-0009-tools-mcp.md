@@ -4740,3 +4740,43 @@ registry parts that name this document tie constants in it, not its prose.
 [R-378](../refinements/tasks/378-the-barrel-rule-omits-two-root-internals.md), now landed,
 [docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md),
 [docs/refinements/index.md](../refinements/index.md), and this addendum.
+
+## Addendum (2026-09-07): three more deferred triggers are held to the tree, one of them repaired
+
+Three deferred refinements filed against this decision record wait on a trigger. Each was checked
+against the code rather than against its own prose, and the answers differ.
+
+**One bound for every sidecar has not fired.** The stack still composes exactly two tool sidecars,
+the filesystem server and the read-only email server, and `docker/` holds no third
+`CORTEX_TOOLS_ENDPOINTS__<name>` key. `CORTEX_TOOLS_CALL_TIMEOUT_S` is still one flat number
+defaulted to 60.0, carried as a single `call_timeout_s` field, with no per-endpoint form read
+anywhere. Nothing in the tree records a real call the bound cut, and the email sidecar is still
+untimed: every per-call figure in the tools runbook is the filesystem sidecar's. The trigger stands
+as written.
+
+**The hand-copied work identity has not fired either.** `TurnStamp` still carries exactly four work
+identities, `session_id`, `turn_id`, `task_id` and `item_id`, its other five fields being the taint
+bit, the provenance tuple and the three live handles, so no fifth has arrived. No hop drops one:
+the spawn tool writes the three a task stores, the Redis task codec round-trips them in both
+directions, `PlacedAttempt` reads all four back into its `ToolLoopContext`, and `_stamp` puts them
+on each dispatch. Every symbol the entry names still lives in the file it names.
+
+**The refused JPEG and WebP blocks are a repair.** The trigger has not fired, because no call here
+has returned such a block, but both reasons the entry recorded for leaving it were already false
+when it was written on 2026-09-04. It said every composed sidecar returns text, so no such format
+was reachable; the filesystem sidecar's shipped allow list has named `read_media_file` since
+2026-07-03, and that tool exists to return a media block, so an operator who puts a JPEG under
+`CORTEX_TOOLS_ROOT` reaches the refusal from the composed stack. It also offered as the cheap close
+a rule that the adapter reads PNG alone and any other format is a sidecar to fix, on the grounds
+that every sidecar here is one this repo writes; the filesystem server is a pinned third-party
+package, so that close means narrowing the allow list, not editing a server. Both sentences are
+repaired in the entry and it moves to actionable. It is not landed here: a bounded JPEG segment
+walk and a WebP container read owe byte-level tests and a mutation table, and narrowing the allow
+list is a posture decision that deserves its own pass rather than a footnote in a triage.
+
+### Records
+
+[R-362](../refinements/tasks/362-one-bound-for-every-sidecar.md),
+[R-395](../refinements/tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md),
+[R-549](../refinements/tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md),
+[docs/refinements/index.md](../refinements/index.md), and this addendum.
