@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Trigger:** the `check-body` line stops filling both toolchain relays from two command substitutions in one shell, whether by splitting them across shells or by sourcing either from an environment variable, a file, or a CI step's output.
+**Trigger:** the `check-body` line stops filling both toolchain relays from two command substitutions in one shell, whether by splitting them across shells or by sourcing either from an environment variable, a file, or a CI step's output; or `.github/workflows/ci.yml` stops reaching that line through `just check-body` and runs `coverage_gate.py` itself, which is the one place a CI step's output could arrive without the recipe changing at all.
 
 Opened 2026-08-20 by the decline of [R-313](313-a-relay-can-be-required-and-empty.md), which asked
 for a non-blank validator on `--rustc` and `--llvm-cov` in `scripts/coverage_gate.py` and was
@@ -30,3 +30,14 @@ rule for the export's own fields. It is three lines and the decline was never ab
 - 2026-08-20: opened by the decline of [R-313](313-a-relay-can-be-required-and-empty.md), to carry
   the trigger a closed task may not, and narrowed to the arrangement that decline depends on rather
   than the symptom it was originally filed under.
+- 2026-09-07: not fired, and the arrangement holds in both places it can be read. The `justfile`
+  still fills both relays from two command substitutions on the one line that runs
+  `coverage_gate.py`, so one shell, and `.github/workflows/ci.yml` reaches that line by running
+  `just check-body` rather than the gate, so CI inherits the same shell instead of supplying a
+  second filling site. A second support for the decline turned up while checking the first: the two
+  standing probes above the line are their own recipe lines, so a toolchain name that does not
+  resolve fails the recipe there and the gate is never reached. An empty `--rustc` therefore needs
+  the standing probe to succeed and the substitution of the same command to come back empty, which
+  are not independent. The trigger gains the CI half as a second place to look, since a workflow
+  that called the gate directly would restore the quiet relay without touching the recipe the
+  clause was written about.
