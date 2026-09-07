@@ -1,6 +1,6 @@
 # The cortex alt's pixel rows are undrawn now that its artifact loads
 
-**Status:** open, actionable
+**Status:** landed 2026-09-07
 **Area:** inference
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -49,3 +49,18 @@ budget are a separate sitting and about half an hour of card time together.
   the deep rate row run once per budget, and every one of them is parametrized over
   `VISION_MODELS`, so each is an alt row nobody has drawn. What the entry asks for first, the
   matrix and the rate at the corpus frame, is unchanged by that.
+- 2026-09-07: landed. Five alt rows drew at the corpus frame in 1304.36 s of card time: the
+  laundering rate and the matrix at the shipped budget, the picture-cost row at each budget, and the
+  canary row. The rate row drew 30 of 30 and reads 1, 2 and 0 of 5 applied framed against 0, 5 and 0
+  in the control, where every pick cell of that row reads 0 in both arms. The matrix reproduced its
+  2026-09-06 reading cell for cell, one description apart, **and voided the same three control
+  arms**, so the entry's own first path to a clean `report`, drawing the row again, is refused by
+  the evidence and only the per-arm denominator
+  [R-575](575-one-void-reply-fails-a-row-that-drew-nineteen-cells.md) prices is left. The cost rows
+  both failed, which is how the alt's picture turns out to be capped at 1010 tokens on the corpus
+  frame at the shipped budget and to grow to 4082 at the engine's own, against the pick's 266
+  everywhere. The measurement is the
+  [ADR-0029 corpus-frame addendum](../../adr/ADR-0029-vision-screen-capture.md), and what it opened
+  is [R-606](606-the-alt-reports-the-dialogs-rule-in-grammar-the-tail-reading-sorts-as-applied.md),
+  [R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md) and
+  [R-608](608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md).

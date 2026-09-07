@@ -878,9 +878,12 @@ too**: `server-cuda` is a mutable tag and it moved between the first two sitting
 2026-09-04, 2026-09-05 and 2026-09-07 rows all ran on
 `sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, which is what makes the
 budgets comparable. The alt is the
-expensive row and the reason is its projector: Qwen3.5-9B's F32 `mmproj` puts about 1900 prompt tokens of picture in
-front of the model against the pick's 450, and its uncapped vision turns run long enough that a
-full matrix is over an hour of card time. Budget for that before selecting it.
+expensive row and the reason is its projector, measured on 2026-09-07 rather than estimated:
+Qwen3.5-9B's F32 `mmproj` puts 1402 prompt tokens of one corpus screen in front of the model at the
+engine's own budget against the pick's 266, and 1010 against 629 at the shipped one, where the alt
+is already at the cap on the corpus frame. Its turns cost about 12 s each against the pick's 2.3, so
+budget a quarter of an hour for a matrix row, five minutes for a rate row, and over two hours for
+either deep row.
 
 ## Does the cortex act on the email sidecar's correction (ADR-0013 own-text addenda, agent-runnable)
 
