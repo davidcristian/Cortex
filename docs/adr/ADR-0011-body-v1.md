@@ -1309,3 +1309,88 @@ mutation. Every one of them is red.
 
 Mutant 13 is the one that mattered: on its first run it was **green**, which is how the refusal in
 mutant 5 came to exist. The table was rerun whole afterwards, and the count above is that rerun.
+
+## Addendum (2026-09-07): the shell's Windows half gets a compiler, inside the recipe that already exists
+
+The 2026-08-17 addendum above put the shell under clippy and stopped one triple short. Both
+`just check-shell` and the CI `shell` job ran `cargo clippy --locked --all-targets` for the host,
+which is Linux in both places, so every `#[cfg(windows)]` item in `body/app/src-tauri/src/` was
+configured out: `DEFAULT_BODY_PORT` and `DEFAULT_TOAST_APP_ID` plus the real `start` and
+`exclude_overlay` in `body_server.rs`, and the real `register` and `configured_chord` in
+`hotkey.rs`. That is six items and 108 lines, counting each from its `#[cfg(windows)]` attribute
+through its closing line. `check-body` fmt-checks the same tree and rustfmt
+walks the module tree without evaluating `cfg`, so those lines were formatted and read by no
+compiler at all. `DEFAULT_BODY_PORT` is the sharpest case: `scripts/crosscheck.py` holds 23 far
+sides to that number as text on every `just check`, and until now nothing had type-checked the
+declaration it reads.
+
+**What it took, measured here.** `cargo clippy --locked --target x86_64-pc-windows-msvc
+--all-targets -- -D warnings` in `body/app/src-tauri` type-checks the whole Tauri Windows graph,
+`webview2-com-sys`, `tao`, the `windows` crate family, `os_windows` and `body-core` among them, in
+**26.1 s wall from an empty target directory** with the crate registry already fetched. It needs
+none of the five `-dev` roots the host clippy needs, because the Linux desktop stack is not in the
+Windows dependency graph. What it does need is a resource compiler. `tauri_build::build()`
+compiles a VERSIONINFO resource for every Windows target, hands it to `tauri-winres`, and that
+hands it to `embed-resource`, which reaches for `llvm-rc` on an `*-pc-windows-msvc` target and
+panics `NotAttempted("llvm-rc")` when there is none. No rustup toolchain ships one: the
+`llvm-tools` component installs `llvm-ar`, `llvm-cov`, `llvm-objcopy` and a dozen more into
+`lib/rustlib/x86_64-unknown-linux-gnu/bin`, and `llvm-rc` is not among them.
+
+**llvm-rc was the obvious answer and it is the wrong one.** Ubuntu ships it inside `llvm-18`, 25 MB
+fetched and 117 MB installed on top of `libllvm18`, and `embed-resource`'s llvm-rc path then
+preprocesses the `.rc` through the `cc` crate, which for an msvc target looks for `cl.exe` and
+would want a clang standing in for it. That is two more system dependencies to lint six Rust items.
+`embed-resource` documents a cross-compilation override for exactly this, `RC_$TARGET`,
+`RC_${TARGET//-/_}` or `RC`, and GNU windres answers it from `binutils-mingw-w64-x86-64`, 6.1 MB
+fetched and 52 MB installed, with no preprocessor configuration and no second package. The
+resource it writes is a COFF object that is never read, since clippy does not link, which is the
+same argument the GTK metadata already stands on.
+
+**The variable must name a path, not a program.** windres derives its C preprocessor from its own
+`argv[0]`. Given a directory it looks for `x86_64-w64-mingw32-gcc` beside itself, does not find one
+when only the binutils half is installed, and falls back to plain `gcc`. Given a bare name off
+`PATH` it runs the prefixed gcc unconditionally and dies with `sh: 1: x86_64-w64-mingw32-gcc: not
+found`. So the recipe defaults the variable to `/usr/bin/x86_64-w64-mingw32-windres`, where apt
+puts it, and a host that cannot install the package overrides it with a path into an unpacked
+prefix. This cost a full cycle to find, because the absolute path was what the first probe happened
+to use and the bare name was what the recipe was first written with.
+
+**Decision: the second clippy is a second line inside `check-shell`, and the exception list stays
+at one.** [R-595](../refinements/tasks/595-no-gate-compiles-the-tauri-shells-windows-half.md)
+argued the placement from cost: a check needing no system library belongs in `check-body` beside
+the `os_windows` windows-target clippy, inside `just check`, and only a check needing a package
+belongs out here. It needs a package. The two lines also cover complementary halves of the same
+files, the host one reading the `cfg(not(windows))` stubs the Windows one configures out, so
+splitting them across two recipes would put half of two files in the single gate and half outside
+it. A new recipe was never a candidate: the 2026-08-25 addendum above refuses a second exception
+and AGENTS.md carries that as a rule. The CI `shell` job installs the package on the apt line it
+already runs and adds `x86_64-pc-windows-msvc` to its toolchain, since the target the `rust` job
+installs belongs to a different job.
+
+### Distrusting green: the mutation table
+
+Seven arms, one at a time, each counted over **`just check-shell`**, which is the two clippy runs
+in `body/app/src-tauri`: the host one on recipe line 266 and the Windows one on line 267. The
+unmutated recipe exits 0. Every mutation below is red, and the recipe line each one names is the
+result that matters, because a fault planted in a Windows-gated item has to reach the new line and
+not the old one.
+
+| # | Mutation | Result |
+|---|---|---|
+| 1 | the `cfg(windows)` `DEFAULT_BODY_PORT` is renamed at its declaration and not at its use | host line green, Windows line E0425, exit 101 |
+| 2 | `cfg(windows)` `start` passes a `String` where `WindowsNotify::new` wants a `&str` | host line green, Windows line E0308, exit 101 |
+| 3 | a `useless_format` is planted in `cfg(windows)` `configured_chord` | host line green, Windows line denies the lint, exit 101 |
+| 4 | the same shape of fault is planted in the `cfg(not(windows))` stub instead | host line E0425, exit 101, Windows line never reached |
+| 5 | no resource compiler at the default path and no override | Windows line, `NotAttempted`, exit 101 |
+| 6 | the override names windres by bare name off `PATH` | Windows line, `Failed`, exit 101 |
+| 7 | the override names windres by absolute path again | exit 0 |
+
+Arms 1 to 3 are the whole point of the entry: each is invisible to the clippy that existed before
+today and fails the one added. Arm 4 is the pair to them, proving the host line still bites where
+the Windows line is blind. Arms 5 and 6 prove the resource step cannot skip itself quietly: a
+missing or wrongly named compiler fails the recipe rather than passing a check that compiled
+nothing. Arm 7 is the restore.
+
+The lint this leaves is nothing: the shell's Windows half is clean as it stands, so this lands
+green, and what it is for is the next rename. It still LINTS the shell rather than running it,
+which needs a real Win32 desktop session ([host/](../host/index.md)).

@@ -246,8 +246,25 @@ check-body:
 # so no other `body/` change pays for it. Clippy never LINKS, so the metadata is all that is
 # needed and none of those libraries is ever loaded; a sudo-less host runs it with
 # PKG_CONFIG_PATH naming an unpacked prefix, which that addendum records.
+# The second line is the same clippy on the Windows target (ADR-0011 windows-shell addendum).
+# The host clippy above configures out every `#[cfg(windows)]` item in the shell: the real
+# `start` and `exclude_overlay` in body_server.rs, `register` and `configured_chord` in
+# hotkey.rs, and the two constants those read, about a hundred lines that rustfmt formats and
+# no compiler sees. It is the shape `check-body` already runs over `os_windows` one directory
+# up, and it needs none of the packages above, because the Linux desktop stack is not in the
+# Windows dependency graph. It does need a resource compiler: `tauri_build::build()` compiles a
+# VERSIONINFO resource for every Windows target, and embed-resource reaches for `llvm-rc`
+# there, which no rustup toolchain ships. `RC_$TARGET` is embed-resource's own documented
+# cross-compilation override, and GNU windres from binutils-mingw-w64-x86-64 answers it, at the
+# path apt installs it to. THE ABSOLUTE PATH IS REQUIRED and a bare name on PATH does not work:
+# windres derives its C preprocessor from its own argv[0], and given a directory it stats
+# `x86_64-w64-mingw32-gcc` beside itself, does not find one, and falls back to plain `gcc`,
+# while given a bare name it runs the prefixed gcc unconditionally and fails on a box that has
+# only the binutils half. Override the variable to point at an unpacked prefix on a host that
+# cannot install the package. Clippy never links, so the object windres writes is never read.
 check-shell:
     cd body/app/src-tauri && cargo clippy --locked --all-targets -- -D warnings
+    cd body/app/src-tauri && RC_x86_64_pc_windows_msvc="${RC_x86_64_pc_windows_msvc:-/usr/bin/x86_64-w64-mingw32-windres}" cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings
 
 # Overlay frontend (React + Vite): typecheck + Vitest at 100% line+branch coverage
 # (ADR-0011 addendum). Host-only node toolchain, path-filtered in CI (ADR-0006); its .ts/.tsx
