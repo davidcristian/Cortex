@@ -9495,3 +9495,68 @@ rows carry it unproven: what proves them is the first live sitting drawn with th
 which no row has had yet and which is filed as
 [R-592](../refinements/tasks/592-the-resisted-print-switch-has-never-been-set-on-a-live-row.md). The runbook's matrix section now says which marks a reader may take as
 resistance and how to read a cell's misses.
+
+## Addendum (2026-09-07): the bind-port coupling asked for here already exists, and the entry asking for it was written from a document
+
+A backlog entry filed on 2026-09-06 asked for the body's bind port to be declared in
+`body/app/src-tauri/src/body_server.rs` and registered against the body override's endpoint
+default, on the ground that the Tauri shell had entered CI and a constant there would finally be
+compiled. Both halves of the work had been done a fortnight earlier. `DEFAULT_BODY_PORT` has been
+declared in that file since 2026-08-22, `cfg(windows)` beside `DEFAULT_TOAST_APP_ID`, and the bind
+spends it. `scripts/endpointcouplings.py` carries an entry called "the body's own listen port" that
+holds the declaration against 23 far sides, the compose mention among them, still spelled
+`${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}` on line 27 of
+[docker-compose.body.yml](../../docker/docker-compose.body.yml). The entry is therefore closed as
+satisfied with nothing built.
+
+### The coupling was proved rather than read
+
+Three runs of `just check-crosscheck`, which is `scripts/crosscheck.py` over the repo root, on the
+committed tree. The counts are over that one scan, whose fault lines name the entry, the file and
+the needle that stopped matching.
+
+| tree | result |
+|---|---|
+| `DEFAULT_BODY_PORT` moved to 50251, every far side standing | exit 1, 23 faults, one per far side |
+| the compose endpoint default moved to `host.docker.internal:50251`, the constant standing | exit 1, 1 fault naming line 27 |
+| unchanged | exit 0, 89 constants agree over 105 declaring sites and 291 mentions |
+
+The second run's message is worth recording for what it does beyond failing: it reports that the
+file still spells 50151 three times under another meaning, in its own header prose, and says that
+what moved is therefore not settled by the scan. That is the shadowing rule the endpoint file's own
+docstring describes, doing its job on a real drift.
+
+### How the entry came to be written
+
+It was filed out of the bind-port sub-entry of
+[R-013](../refinements/tasks/013-couplings-widened-registry-cannot-hold.md), a multi-subject entry
+that folds several couplings into one file. That sub-entry's prose said the port was a bare
+literal, which stopped being true on 2026-08-22, and neither of the two entries that landed the
+declaration named R-013, so the coupling was held by the scan and listed as unheld in the backlog
+at the same time. The 2026-09-06 sweep answered the trigger clause, which had genuinely fired, and
+took the claim beside it from the sibling document rather than from `body_server.rs`.
+
+**The fault is not the sweep's method.** The other five trigger answers that day were each
+re-derived against the tree, the model mount or the account's run history, so this was the one of
+six taken from a document. What generalizes is narrower and is now written where it can be read: a
+folded sub-entry describes the tree on the day it was folded, no landing elsewhere updates it, and
+it carries no status line of its own for `just backlog` to render. R-013's bind-port paragraph now
+says under itself that it was struck and that it had been satisfied before it was struck, in the
+convention its three other closed sub-entries already use, and the running count at the head of
+that file records the two couplings that remain.
+
+### What the close opens
+
+One claim in the closed entry survives it. The shell entering CI does not put a `cfg(windows)`
+constant under a compiler: `just check-shell` and the CI `shell` job both clippy for the host
+triple, which is Linux in both places, so the six Windows-gated items in `body_server.rs` and
+`hotkey.rs` are configured out. `check-body` fmt-checks that tree and rustfmt never evaluates
+`cfg`, so those hundred or so lines are formatted and type-checked by nothing, while
+`crosscheck.py` reads one of them as text on every `just check`. A windows-target clippy of the
+shell was tried here on the day: it type-checks the entire Tauri Windows graph and then fails in
+`cortex-body`'s own build script, where `tauri-winres` panics for want of `llvm-rc`, and it needs
+no GTK, webkit or dbus at all, since the Linux desktop stack is not in that graph. Filed as
+[R-595](../refinements/tasks/595-no-gate-compiles-the-tauri-shells-windows-half.md), where the
+placement question is the part to argue: a check needing no system library belongs in `check-body`
+beside the `os_windows` windows-target clippy, and the 2026-08-25 addendum to
+[ADR-0011](ADR-0011-body-v1.md) refuses a second recipe outside the single gate.

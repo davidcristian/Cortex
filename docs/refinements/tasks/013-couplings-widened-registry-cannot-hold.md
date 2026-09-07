@@ -22,6 +22,9 @@ form that renders a NAME rather than a value, which is the half of the pair the 
 not to be; what the close leaves behind is written under it and is narrower than the entry it
 came from, being one presence-checked name rather than a shape the registry cannot express. The
 three that remain are the bind port, the gRPC status code, and the capture target's enums.
+**Two on 2026-09-06**, when the bind port was struck on its trigger; it had in fact been registered
+since 2026-08-22, which is written under that sub-entry rather than here. The two that remain are
+the gRPC status code and the capture target's generated enums.
 **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
 `ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this needs a collection value form as
 well as a comparator, and the reducer rejects what it cannot reduce, by policy rather than by
@@ -60,6 +63,19 @@ only place that could declare it is inside the one crate no gate compiles (the T
 clippy entry above is that same hole). Landing a constant there to give the scan something to
 read means shipping a source edit nothing type-checks, which is a worse trade than leaving one
 port untied. **Trigger:** the shell entering CI, which that sibling entry already tracks.
+**Struck 2026-09-06, and satisfied for a fortnight before that.** The paragraph above stopped
+describing the tree on 2026-08-22, when
+[R-356](356-the-body-port-is-a-bare-literal.md) promoted the literal to `DEFAULT_BODY_PORT` in
+`body/app/src-tauri/src/body_server.rs` and registered it, and
+[R-383](383-the-body-port-past-the-six-that-were-registered.md) widened it to 23 far sides the next
+day. Neither of those entries named this one, so the coupling was held by the scan and listed as
+unheld here at the same time. The 2026-09-06 strike read the trigger and not the claim beside it,
+and filed the remedy as [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md),
+which closed satisfied on 2026-09-07 with a mutation table showing the coupling failing in both
+directions. What this leaves is the argument the paragraph makes rather than its finding: a
+declaration inside the Tauri shell is read by the scan on every `just check` and compiled by
+nothing, since both clippy runs over that crate target the Linux host and the constant is
+`cfg(windows)` ([R-595](595-no-gate-compiles-the-tauri-shells-windows-half.md)).
 **A duration restated in another unit.** `overlay.css` spells the roll's length as `0.3s` at
 some thirty inline sites while `MORPH_ROLL_MS` counts milliseconds, so no template renders one
 into the other; the curve half of the same pair closed, `--ease` restating `EASING` verbatim.
@@ -214,3 +230,7 @@ side, or a `.proto` reader arriving in the scan for another reason.
   second reading the trigger had already fired and nobody noticed, five sites spelling a code today;
   by the third it has not, two modules. The trigger is restated to the module reading, since the
   coupling is between trees that must agree and a second site inside one file agrees with itself.
+- 2026-09-07: the bind-port sub-entry now says under itself that it was struck, and that it had
+  been satisfied since 2026-08-22 rather than on the day it was struck. Its remedy closed as
+  [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md), satisfied, and the
+  count line at the head of this entry records the two that remain.
