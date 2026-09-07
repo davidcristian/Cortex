@@ -41,3 +41,12 @@ independent by design rather than by accident.
 - 2026-08-26: opened by the close of
   [R-438](438-a-documented-log-sample-can-still-print-the-wrong-fields.md), whose new doc reader
   is the third copy. Recorded under what the ADR-0009 sample-membership addendum defers.
+- 2026-09-07: trigger checked and not fired, on both halves. No fourth reader has arrived:
+  `scripts/` still holds exactly three fence patterns, `headingshapes.FENCE`, `commitlint._FENCE`
+  and `logsamples.FENCE`, and a search of the tree for the fence markers finds no other module
+  answering the question for itself. And no fenced block one gate reads and another does not,
+  because all three patterns are still character for character `r"^\s*(?:```|~~~)"`, so they agree
+  on the indent they allow, on both markers, and on treating an info string as part of the fence.
+  The clause is checkable in one search and can come out false, so it stays as written. Left open:
+  what the entry asks for is still that the three stay identical by construction rather than by
+  inspection, and nothing about today's reading changes that argument either way.

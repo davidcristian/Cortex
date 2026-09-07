@@ -61,10 +61,11 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-### Actionable now (15)
+### Actionable now (16)
 
 - **[R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)** A red sweep leaves no trace in the repo (repo-gates).
 - **[R-299](tasks/299-prose-cites-an-engine-build-nothing-pins.md)** Prose cites an engine build that nothing pins (inference-model-manager).
+- **[R-423](tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md)** The two obligation tests recognize a caller by how it is spelled (repo-gates).
 - **[R-540](tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md)** The judged rate and the hand column are compared on a probe and no sweep (subagents).
 - **[R-555](tasks/555-the-other-four-subagent-candidates-have-no-cpu-row.md)** The other four subagent candidates have no CPU row (inference).
 - **[R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md)** No workflow in this repository has ever run (repo-gates).
@@ -89,7 +90,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)** A turn that goes quiet for an hour is indistinguishable from a brain that died (seam-transport).
 - **[R-466](tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md)** Nothing holds a cap sized on the answer to a tier whose trace is bounded (inference).
 
-### Fix when it bites (122)
+### Fix when it bites (121)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-gates). Reopens when: An edit landing in the wrong cascade position, or a second stylesheet appearing.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot hold (repo-gates). Reopens when: A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
@@ -157,8 +158,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-410](tasks/410-the-floor-under-a-walk-is-one-file.md)** The floor under a walk is one file, so a collapsed scan still clears it (repo-gates). Reopens when: an exclusion, a root or a walk changes and a gate's printed count drops without anybody noticing, which is the same silence the count was added to break and the first evidence that a floor of one is too low.
 - **[R-416](tasks/416-a-new-log-line-can-name-its-work-anything.md)** A new log line can name its work anything, the registry holding only the modules it lists (repo-gates). Reopens when: a module the log-vocabulary registry does not list attaching a work identity under a name of its own, or a sixth identity arriving with nowhere to be registered
 - **[R-418](tasks/418-a-relabelled-copy-of-a-coupling-is-invisible.md)** A coupling copied into a second part and relabelled is two entries checking one thing (repo-gates). Reopens when: a fault is reported twice under two labels for one drift, or `shape.entries` is quoted in a mutation table and a reader cannot reconcile it with the couplings the registry actually holds, which is the first time the duplicate costs anybody anything.
-- **[R-422](tasks/422-a-newly-ignored-tree-reaches-the-list-by-hand.md)** A tree that joins .gitignore reaches the shared skip list only by hand (repo-gates). Reopens when: a directory joins `.gitignore` and a walk that does not ask git keeps reading it, which is the first time the two collections disagree about a tree that really exists.
-- **[R-423](tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md)** The two obligation tests recognize a caller by how it is spelled (repo-gates). Reopens when: a walk or a git call written some other way, which is the first time one of these tests reports an empty list of offenders because it found no callers at all.
+- **[R-422](tasks/422-a-newly-ignored-tree-reaches-the-list-by-hand.md)** A tree that joins .gitignore reaches the shared skip list only by hand (repo-gates). Reopens when: a file one of the three walks reads appears inside a directory git ignores that `SKIPPED_DIRS` does not name: a `.py`, `.rs`, `.ts` or `.tsx` for the cap, a `.md` for the anchor scan, a `docker-compose*` or `compose*` `.yml` or `.yaml` for the compose walk. The bare disagreement is not the trigger, because the two collections already disagree about five directories that exist today.
 - **[R-429](tasks/429-nothing-counts-how-often-the-cpu-re-run-fires.md)** Nothing counts how often the CPU re-run fires, so the doubled hold is sized from reasoning (subagents). Reopens when: The first deployment observed refused at the admission bound, or any retune of the run deadline or the admission wait.
 - **[R-430](tasks/430-the-bounds-are-sized-on-an-idle-box.md)** Every bound on a delegated run is sized on an idle box, and a busy one nearly reaches them (resource-governance). Reopens when: The first delegated run observed cut at its own deadline, or the first spawn refused at the admission bound.
 - **[R-439](tasks/439-nothing-counts-the-record-between-passes.md)** Nothing counts the record between replay passes (repo-gates). Reopens when: a replay pass that turns out to have been due for two windows or more, which is what the ledger's dates will show the first time somebody looks.
@@ -604,7 +604,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - [R-419](tasks/419-the-git-call-inside-a-hook-is-written-three-times.md) The environment strip that makes a git call inside a hook honest is written out three times. landed 2026-08-24.
 - [R-420](tasks/420-the-skipped-dirs-list-restates-what-git-ignores.md) The hand-written skip list restates what git ignores, for every entry but one. landed 2026-08-24.
 - [R-422](tasks/422-a-newly-ignored-tree-reaches-the-list-by-hand.md) A tree that joins .gitignore reaches the shared skip list only by hand. open, fix when it bites.
-- [R-423](tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md) The two obligation tests recognize a caller by how it is spelled. open, fix when it bites.
+- [R-423](tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md) The two obligation tests recognize a caller by how it is spelled. open, actionable.
 - [R-425](tasks/425-nothing-notices-an-image-volume-nobody-mounts.md) Nothing notices an image declaring a volume no compose file mounts. landed 2026-08-25.
 - [R-426](tasks/426-the-run-is-reported-without-a-line-of-its-own.md) The run an unfound needle reports has no line, though choosing between matches computes one. landed 2026-08-25.
 - [R-433](tasks/433-a-mutable-image-tag-moves-under-the-recorded-answer.md) A mutable image tag can move under the recorded answer and nothing notices. landed 2026-08-25.

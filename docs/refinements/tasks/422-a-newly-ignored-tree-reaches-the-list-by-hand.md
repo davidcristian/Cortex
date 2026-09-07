@@ -1,8 +1,11 @@
 # A tree that joins .gitignore reaches the shared skip list only by hand
 
 **Status:** open, fix when it bites
-**Trigger:** a directory joins `.gitignore` and a walk that does not ask git keeps reading it,
-which is the first time the two collections disagree about a tree that really exists.
+**Trigger:** a file one of the three walks reads appears inside a directory git ignores that
+`SKIPPED_DIRS` does not name: a `.py`, `.rs`, `.ts` or `.tsx` for the cap, a `.md` for the anchor
+scan, a `docker-compose*` or `compose*` `.yml` or `.yaml` for the compose walk. The bare
+disagreement is not the trigger, because the two collections already disagree about five
+directories that exist today.
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
@@ -12,10 +15,10 @@ between `skippeddirs.SKIPPED_DIRS` and `.gitignore` and pinned it in a test.
 
 That test reads one direction. It takes the ten names the list carries and asks git about each,
 so a name that stops being a restatement, or starts being one, makes the test fail. It says nothing about a
-name `.gitignore` carries and the list does not. If a new tool's cache directory joins the ignore
-file tomorrow, the dash ban skips it because its collection is git's answer, and the line cap, the
-anchor scan and the compose walk read it, because their collection is a hand-written list of ten
-names that nothing updates.
+name `.gitignore` carries and the list does not. For such a name the dash ban skips the tree
+because its collection is git's answer, while the line cap, the anchor scan and the compose walk
+descend into it, because their collection is a hand-written list of ten names that nothing
+updates.
 
 The consequence is small today and is not nothing: the cap would measure a generated file it did
 not write, the anchor scan would check a heading in a vendored document, and both would report a
@@ -35,3 +38,25 @@ rule, so it may belong in the module contract as a note to whoever edits `.gitig
 honest alternative is to write down that the list is maintained by hand on purpose and that a new
 ignore entry does not oblige anybody, which is defensible for exactly as long as no gate reports a
 fault over a tree it should not have read.
+
+## Trail
+
+- 2026-09-07: trigger checked and not fired, and the clause narrowed because its old form
+  described the standing state. `git ls-files --others --ignored --directory --exclude-standard`
+  reports 44 ignored directories that exist in this tree. Pruning them by name against
+  `SKIPPED_DIRS` leaves five the shared list does not cover, so a walk descends into every one of
+  them: `body/app/src-tauri/gen/`, `measurements/`, `models/`, `pgdata/` and `sandbox/`. Every
+  `__pycache__`, `.venv`, `.pytest_cache`, `.ruff_cache`, `target`, `dist`, `node_modules` and
+  `.claude`, and `body/app/coverage/` under its own name, is already pruned. So the old clause's
+  last half, that the two collections disagree about a tree that really exists, was true when the
+  entry was written and no `.gitignore` line has changed since (`git log --since=2026-08-24 --
+  .gitignore` is empty). It could not come out false and could not fire.
+- 2026-09-07: the harm has not happened, which is what the narrowed clause now watches for. The
+  three walks that do not ask git select by suffix: `linecap.scan` takes `SOURCE_SUFFIXES`,
+  `backloganchors.markdown_files` takes `.md`, and `composefiles.compose_files` takes a
+  `docker-compose*` or `compose*` `.yml` or `.yaml`. The five directories hold `gen/schemas`
+  (JSON), `measurements/*.json`, nothing at all under `models/`, two `.dump` files under
+  `pgdata/`, and `sandbox/hello.txt`. None of them holds a file any of the three reads, so no gate
+  has yet counted or reported over a tree it should not have read. The entry stays open with the
+  same two branches, and the narrowed clause is checkable in one command rather than being true
+  already.
