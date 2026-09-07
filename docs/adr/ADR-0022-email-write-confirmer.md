@@ -2374,3 +2374,74 @@ the file, over `brain/packages/email/tests/test_email_server.py`'s 25 tests.
 
 The third fails the new test and the one that already held both folder refusals alike, which is
 the pair the new test was written to sit beside rather than duplicate.
+
+## Trigger-sweep addendum (2026-09-07): the four folder triggers deferred here are answered, and two are narrowed
+
+Four refinements deferred at this ADR wait on a trigger, all four about the folder rules in
+`brain/packages/email/src/cortex_email/imap.py`, and no clause among them had ever been held to the
+tree. All four were answered and none of them has fired. Two carried a clause a later reader
+could not check as written, and those two are narrowed.
+
+### What the Bridge answered today
+
+The one question the tree could not settle is whether the account that proves the keep branch is
+still there, so it was asked. Read live on 2026-09-07 through `ImapMailbox` with the credentials in
+`~/.cortex/email.env`, the Bridge lists 19 names. Two of them are flagged:
+
+    Folders   ('\Noselect', '\Unmarked')   opens
+    Labels    ('\Noselect', '\Unmarked')   opens
+
+All 19 open, `list_folders` offers all 19, and the two sets are equal, so this account refuses no
+listed name at all. That is the same reading the flagged-and-refused addendum recorded, taken again
+on the account that is the only live proof of it.
+
+### What the probe says, and what it cannot say
+
+Nothing was started for the probe, because the tree already answers what was asked of it and the
+image behind the answer has not moved. `docker/docker-compose.imap-probe.yml` still names
+`dovecot/dovecot:2.3.21`, the only commit `git log -S` over that file returns for the image line is
+the one that added the stack, and the tag resolves to
+`sha256:1c18c756f20d03867077a1b509a6e2e3008ab1eafa56377b6f2eca12dc1ba581` both in the registry
+(`docker manifest inspect`) and in the copy cached on this host (`docker image inspect`). So the
+recorded answers stand: `Parent` is the only name a plain LIST flags here and it is refused
+`NO Mailbox doesn't exist: Parent (0.001 + 0.000 secs).`, `Guarded` is shut and unflagged and is
+refused `NO [NOPERM] Permission denied (0.001 + 0.000 secs).`, and `Feigned` is `(\HasChildren)`
+in a plain LIST and `(\Noselect)` only in an `LSUB` of `%`.
+
+One fact about the probe is structural rather than measured, and it is what settles the first
+trigger: `docker/dovecot/probe-mailboxes.sh` writes exactly one `dovecot-acl` file, under
+`Guarded`, and `Guarded` is not flagged. A mailbox that is both flagged and shut therefore does
+not exist on this server, and no setting produces one without editing that script.
+
+### The four triggers, judged
+
+- **A flagged name refused for a reason that is not its name** has not been seen, and the clause
+  that said how it would be seen was wrong. The probe's flagged name is refused in the words that
+  prove a folder missing and the Bridge's flagged names are not refused, so the combination has no
+  producer here. The clause went on to say the live folder test would surface it as a name that
+  opened and was not offered, and that observation is impossible: a flagged name that is refused
+  does not open, so it is absent from both sides of `_assert_no_name_this_server_opens_is_withheld`
+  and its equality holds. The direction that test really catches is the other one, a name that is
+  offered and does not open, which is a shut mailbox the server never flagged. The trigger now asks
+  for the combination itself, read off a LIST past the port, which is where it would have to be
+  read.
+- **A third server, or a shut refusal that echoes the name it refused**, has not arrived. This repo
+  reaches two IMAP servers and the probe is the only IMAP server image any compose file names.
+  Dovecot's shut refusal is `[NOPERM] Permission denied` with no name in it, and the Bridge cannot
+  produce a shut mailbox at all, which the 19 opens above say again. The clause is checkable as it
+  stands and keeps its wording.
+- **The keep branch's one account** is still reachable and still the only live proof, and no second
+  server has started flagging a name in a plain LIST and opening it. Both limbs are answered by the
+  readings above, and the entry stays open on the same footing it was filed on.
+- **The pinned image has not moved**, and the clause is narrowed because it read the text of the
+  pin alone. A version tag can be re-pushed, which moves the image under an unchanged line, and
+  this pin is exactly the kind of evidence a silent move would invalidate: the wordings the folder
+  classification is built on were measured against one build of it. The trigger now names the
+  digest above beside the image reference, so a reader can check it without starting anything.
+
+### What this sweep did not do
+
+It started no probe container and ran no `just email-folder-probe`, because every question asked of
+that server is already recorded against an image that has not changed. It also did not attempt the
+two rejected dovecot configurations again; whether either is worth keeping as a runnable fixture is
+the open question of the fourth entry, and a sweep answering triggers is not the place to decide it.

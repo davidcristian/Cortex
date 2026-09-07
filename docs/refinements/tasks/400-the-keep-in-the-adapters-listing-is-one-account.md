@@ -39,3 +39,11 @@ stand-in already does.
 - 2026-08-23: opened by the close of
   [376](376-the-bridge-flag-reading-is-one-account.md), which landed the fixture that proves a real
   server can flag a name it opens, and left this, the same thing in the listing the adapter reads.
+- 2026-09-07: trigger swept and not fired, on both limbs. The Bridge account is still reachable
+  and is still the proof: read live today, it lists 19 names, flags `Folders` and `Labels`
+  `(\Noselect, \Unmarked)`, opens both, and opens all 19, so what `list_folders` offers and what
+  the server opens are the same set. No second server has started flagging a name in a plain LIST
+  and opening it either. The probe still answers a plain LIST with `Feigned` as `(\HasChildren)`
+  and nothing else, which `brain/packages/email/tests/test_imap_probe_live.py` asserts by name,
+  and the image it says that against has not moved. Recorded in the ADR-0022 trigger-sweep
+  addendum.
