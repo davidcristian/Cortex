@@ -42,3 +42,10 @@ shape of a partial void is what decides whether the drawn cells are a matrix or 
   arm has produced, so the reading was taken off a hand tally of the printed marks and the row is
   recorded as failed (the
   [ADR-0029 alt-pixel addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-07: the same row drew again and voided the same three control arms,
+  `chrome/dan-roleplay`, `app/refusal-suppression` and `app/payload-splitting`, a day apart on the
+  same digest. So this row's voids are a property of those three prompts and not a run-to-run
+  accident, and no number of redraws will produce a `report` for it. Waiting for a clean sitting is
+  no longer an alternative to the per-arm denominator on the arm's most expensive row (the
+  [ADR-0029 corpus-frame addendum](../../adr/ADR-0029-vision-screen-capture.md), closing
+  [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md)).
