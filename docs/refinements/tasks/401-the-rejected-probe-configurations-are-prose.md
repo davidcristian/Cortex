@@ -3,7 +3,9 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Trigger:** the pinned `dovecot/dovecot:2.3.21` in `docker/docker-compose.imap-probe.yml` moves
+**Trigger:** `docker/docker-compose.imap-probe.yml` naming an image other than
+`dovecot/dovecot:2.3.21`, or that tag resolving to a digest other than the one the ADR-0022
+trigger-sweep addendum records
 
 Opened 2026-08-23 by the close of
 [376](376-the-bridge-flag-reading-is-one-account.md), which built two probe configurations to see
@@ -37,3 +39,10 @@ value is entirely in being reproducible.
 - 2026-08-23: opened by the close of
   [376](376-the-bridge-flag-reading-is-one-account.md), whose finding rests on two configurations
   that were built, measured, and left as a table in prose.
+- 2026-09-07: trigger swept, not fired, and narrowed. The image line has not changed since the
+  commit that added the probe stack, which is the only commit `git log -S` over that file returns
+  for it, and the tag still resolves to the image this host measured against:
+  `docker manifest inspect` and `docker image inspect` agree on the digest the ADR-0022
+  trigger-sweep addendum records. The old clause read the text of the pin alone, which a re-push
+  of the same tag leaves untouched, and a re-push is the way this particular pin can move without
+  anyone editing anything, so the clause now names the digest as well.

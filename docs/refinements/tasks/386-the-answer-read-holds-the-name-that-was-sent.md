@@ -34,3 +34,15 @@ be decided is how much of an IMAP response-code grammar to write for a needle th
 `in` against a string. The cheaper half, and the one worth doing first if this ever bites, is to
 stop matching anywhere in the message and match only the code at the front of the data line, which
 is the one position RFC 5530 lets a code appear in.
+
+## Trail
+
+- 2026-09-07: trigger swept and not fired, on both limbs. This repo reaches two IMAP servers and
+  no third: the ProtonMail Bridge the live suite talks to, and the probe's dovecot, which is the
+  only IMAP server image any compose file here names. The refusal dovecot gives for a mailbox that
+  is there and shut is `NO [NOPERM] Permission denied (0.001 + 0.000 secs).`, asserted in
+  `brain/packages/email/tests/test_imap_probe_live.py` and recorded in the runbook's table of
+  measured answers, and it carries no mailbox name; the echo happens only in the refusal for a
+  name no mailbox has, which is the harmless direction this entry already measured. The Bridge
+  still cannot produce a shut mailbox at all, read live today: every one of the 19 names it lists
+  opens. Recorded in the ADR-0022 trigger-sweep addendum.
