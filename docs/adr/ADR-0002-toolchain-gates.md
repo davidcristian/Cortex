@@ -1126,3 +1126,54 @@ record has moved since, so a pass that is due can go unnoticed exactly as the fi
 the window are written in the recipe's defaults and in prose in two documents, with no coupling
 registered to hold the copies together
 ([R-440](../refinements/tasks/440-the-replay-sample-is-spelled-in-three-places.md)).
+
+## Addendum (2026-09-07): three deferred triggers on the coverage relays and the replay, answered
+
+Three entries opened against this record were left as `fix when it bites`, and none of them had
+been asked whether the bite happened. None has fired. Two of the three carried a sentence that was
+wrong about its own subject, and this addendum records both readings and the corrections.
+
+### The relays still share one shell, and CI reaches that shell through the recipe
+
+The decline of the empty-relay validator rests on the shape of one line, and the entry carrying its
+trigger asked whether that shape survives. It does. `just check-body` still fills `--rustc` and
+`--llvm-cov` from two command substitutions on the single line that runs `coverage_gate.py`, so a
+toolchain that empties one empties the other. The half nothing had checked before is the other
+tree: `.github/workflows/ci.yml` runs `just check-body`, not the gate, so the CI step's output
+route the clause names cannot arrive without the workflow changing, and the entry's trigger now
+names that second place to look.
+
+Checking it turned up a second support the decline never claimed. The two version probes above the
+line are recipe lines of their own, and just runs each line in its own shell, so a `+nightly` that
+does not resolve fails the recipe there and the gate is never reached. An empty `--rustc` needs the
+standing probe to succeed and a substitution of that same command to come back empty in the next
+shell, which are not independent events. The declined validator is three lines and the decline was
+never about their cost, so this changes the confidence rather than the decision.
+
+### The replay is not overdue, and the burst that predicted otherwise did not continue
+
+The entry about counting the record between passes predicted that the ledger's dates would show a
+pass two windows overdue the first time somebody looked. Somebody looked.
+`just replay "" 2026-08-25` reports nine candidate bodies since the ledger's last row, thirteen
+days after it, so a pass is not due once, never mind twice.
+
+The prediction was drawn from the rate this addendum's parent measured, thirty nine candidate
+bodies in the four days after the 2026-08-21 pass, which put the practice a window and a half
+behind almost immediately. That rate has not held. The vocabulary the recipe greps for matches a
+body that carries a mutation table, and the sessions since have mostly landed documentation closes,
+which carry none. The entry stands, its trigger narrowed to the number it was always about and
+naming the command that answers it, because the nine only exists because a person ran that command
+by hand, which is the gap the entry is filed against.
+
+### The sample and the window are spelled four times, not three
+
+Neither number has moved. The defaults line still reads `count="5" window="25"` and has not been
+edited since the recipe was added, the runbook still states twenty five candidates and five drawn,
+and the addendum above still argues for both. What was wrong is the entry's count of the copies.
+Recounting rather than rechecking found four of each: the two defaults, the comment directly above
+the recipe, which spells five commit bodies out of the twenty five most recent, the runbook's
+prose, and this record's argument.
+
+The fourth copy is the least dangerous of them. It sits in the `justfile` on the same screen as the
+default an editor would be retuning, where the two documents in `docs/` are the ones a retuned
+default leaves behind unread. So the entry keeps its shape and gains an accurate count.

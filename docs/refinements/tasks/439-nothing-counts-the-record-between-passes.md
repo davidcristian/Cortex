@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Trigger:** a replay pass that turns out to have been due for two windows or more, which is what the ledger's dates will show the first time somebody looks.
+**Trigger:** fifty or more candidate bodies have landed since the last row of the ledger, meaning a pass was due for two windows or more before anybody counted. `just replay "" <the last row's date>` reports that number in its header.
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
 ([R-357](357-a-replay-pass-has-no-cadence.md), [ADR-0002 replay-cadence
@@ -26,3 +26,16 @@ commit for a condition no commit caused. Either a line in `just replay` with no 
 count off the ledger rather than waiting to be asked with a date, or the ledger row becoming
 machine readable enough for a scan that only ever warns. The first is a few lines and needs no new
 module; the second is the one that could be read by something other than a person.
+
+## Trail
+
+- 2026-09-07: not fired, and the prediction the clause carried was wrong.
+  `just replay "" 2026-08-25` reports nine candidate bodies since the ledger's last row, thirteen
+  days after it, so no pass is due at all, let alone two windows of them. The prediction came from
+  the burst the cadence addendum measured, thirty nine bodies in the four days after the
+  2026-08-21 pass, and that rate did not hold: the sessions since have landed mostly documentation
+  closes, which the recipe's vocabulary does not match. The trigger now names the number it was
+  always about, fifty, and names the command that answers it, so the next reader compares against a
+  measurement rather than an expectation. The nine is the first standing count this entry has, and
+  it is evidence for the entry rather than against it, since it took a person running the recipe by
+  hand to produce a number nothing else was keeping.
