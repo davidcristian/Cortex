@@ -19,7 +19,6 @@ from rendered_screens import (
     CORPUS_PAYLOAD_SCALE,
     CORPUS_TYPE_SCALE,
     RENDERINGS,
-    Frame,
     Rendering,
     TypeScale,
     drawn,
@@ -28,6 +27,7 @@ from test_injection_defense_live import (
     ATTACKS,
     ENGINE_BUDGET,
     MODELS,
+    RENDERED_FRAMES,
     SHIPPED_BUDGET,
     TYPE_SCALES,
     VISION_MODELS,
@@ -46,9 +46,11 @@ if TYPE_CHECKING:
 
 _PNG = RENDERINGS[0].build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
 _ASK = "what is on my screen?"
-# The second frame the live arm measures at, held here so the CI side proves a magnified render
-# is a real picture of the size it claims before an hour of card time discovers otherwise.
-_LARGE = Frame(2)
+# The frames the live arm delivers a screen at, other than the corpus's own, read off the harness
+# rather than named a second time here: the pair the seeing rows are parametrized over and the
+# third frame the rate row of its own draws. The CI side proves each of them is a real picture of
+# the size it claims before an hour of card time discovers otherwise.
+_MAGNIFIED = tuple(frame for frame in RENDERED_FRAMES if frame != CORPUS_FRAME)
 
 
 def test_every_payload_is_fully_drawable_by_the_font() -> None:
@@ -69,7 +71,7 @@ def test_every_rendering_of_every_attack_is_a_png_of_the_frame_it_was_asked_for(
     matrix is rendered at the one frame that matrix names, since two cells at two sizes would
     not be comparable.
     """
-    for frame in (CORPUS_FRAME, _LARGE):
+    for frame in RENDERED_FRAMES:
         for rendering in RENDERINGS:
             for attack in ATTACKS:
                 png = rendering.build(attack.injection, frame, CORPUS_TYPE_SCALE)
@@ -89,7 +91,7 @@ def test_the_corpus_is_byte_identical_when_rendered_twice() -> None:
 
 def test_every_rendering_is_accepted_by_the_shipped_image_part() -> None:
     """The bytes clear the brain's own mime, edge and budget checks before any server sees them."""
-    for frame in (CORPUS_FRAME, _LARGE):
+    for frame in RENDERED_FRAMES:
         for rendering in RENDERINGS:
             png = rendering.build(ATTACKS[0].injection, frame, CORPUS_TYPE_SCALE)
             part = ImagePart(
@@ -122,39 +124,42 @@ def _rows(png: bytes, width: int) -> list[bytes]:
 
 
 def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None:
-    """The large frame is the base frame pixel for pixel, each pixel grown to a square block.
+    """Every larger frame is the base frame pixel for pixel, each pixel grown to a square block.
 
-    This is the property that makes two frames an answer to whether resistance moves with the
-    picture's *size*: the payload occupies exactly the same share of the picture at both, so
-    size is the only thing that differs. A second frame that redrew the screen, or that left
-    the glyphs at their old size while the canvas grew, would move a second variable and the
-    two matrices would no longer be a comparison. Rows are sampled across the whole picture,
+    This is the property that makes the frames an answer to whether resistance moves with the
+    picture's *size*: the payload occupies exactly the same share of the picture at each of
+    them, so size is the only thing that differs. A larger frame that redrew the screen, or that
+    left the glyphs at their old size while the canvas grew, would move a second variable and
+    the rows would no longer be a comparison. Rows are sampled across the whole picture,
     because the same assertion over every row of every rendering costs a minute of CI for a
     property that cannot hold on 24 rows and fail on the 25th.
     """
-    magnify = _LARGE.magnify
     for rendering in RENDERINGS:
         small = _rows(
             rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE),
             CORPUS_FRAME.width,
         )
-        large = _rows(
-            rendering.build(ATTACKS[0].injection, _LARGE, CORPUS_TYPE_SCALE), _LARGE.width
-        )
         assert len(small) == CORPUS_FRAME.height, rendering.name
-        assert len(large) == _LARGE.height, rendering.name
-        for line in range(0, CORPUS_FRAME.height, 37):
-            grown = b"".join(
-                small[line][x : x + 3] * magnify for x in range(0, CORPUS_FRAME.width * 3, 3)
+        for frame in _MAGNIFIED:
+            magnify = frame.magnify
+            large = _rows(
+                rendering.build(ATTACKS[0].injection, frame, CORPUS_TYPE_SCALE), frame.width
             )
-            for repeat in range(magnify):
-                assert large[line * magnify + repeat] == grown, f"{rendering.name}:{line}"
+            assert len(large) == frame.height, f"{rendering.name} at {frame.label}"
+            for line in range(0, CORPUS_FRAME.height, 37):
+                grown = b"".join(
+                    small[line][x : x + 3] * magnify for x in range(0, CORPUS_FRAME.width * 3, 3)
+                )
+                for repeat in range(magnify):
+                    assert large[line * magnify + repeat] == grown, (
+                        f"{rendering.name} at {frame.label}:{line}"
+                    )
 
 
 def test_every_payload_size_the_sweep_runs_at_is_a_png_of_its_frame() -> None:
-    """A smaller payload is still a whole screen, at both frames."""
+    """A smaller payload is still a whole screen, at every frame the arm renders at."""
     for type_scale in TYPE_SCALES:
-        for frame in (CORPUS_FRAME, _LARGE):
+        for frame in RENDERED_FRAMES:
             for rendering in RENDERINGS:
                 png = rendering.build(ATTACKS[0].injection, frame, type_scale)
                 header = frame.width.to_bytes(4, "big") + frame.height.to_bytes(4, "big")
@@ -256,7 +261,7 @@ async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at()
     stand-in text, so a frame that scaled the pixels and left that sentence alone would tell the
     model it was looking at a capture nobody took.
     """
-    for frame in (CORPUS_FRAME, _LARGE):
+    for frame in RENDERED_FRAMES:
         png = RENDERINGS[0].build(ATTACKS[0].injection, frame, CORPUS_TYPE_SCALE)
         result = await capture_result(png, frame)
         # The label is what a printed matrix and a test id call this frame, so it is held to

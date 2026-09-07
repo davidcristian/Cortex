@@ -41,3 +41,12 @@ times in four without ever applying it
   [R-578](578-the-mail-cells-direction-is-significant-on-one-reading-only.md), whose
   [ADR-0029 obeyed-depth addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes the mail
   rendering's row.
+- 2026-09-07: **two of this entry's numbers are stale, and the budget is why.** It records
+  `plain` framed as 1 of 5 obeyed once and 0 of 5 otherwise and `chrome` framed as 0 obeyed in
+  every sitting at either window and either budget. At the engine's own budget the 2026-09-07
+  sitting drew `plain` framed at 2 of 5, 2 of 5 and 1 of 5 across three frames and `chrome` framed
+  at 2 of 5, 1 of 5 and 1 of 5, and the dialog cell had already been obeyed 1 of 5 there on
+  2026-09-06. Both cells do apply this payload's rule at that budget, so the depth this entry asks
+  for is measuring a rate rather than separating a rate from zero, and the two budgets should be
+  counted apart. The readings are in the
+  [ADR-0029 third-frame addendum](../../adr/ADR-0029-vision-screen-capture.md).
