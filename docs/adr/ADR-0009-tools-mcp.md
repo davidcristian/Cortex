@@ -4651,3 +4651,62 @@ now landed, `scripts/assertedlines.py`, `scripts/samplecheck.py`, `scripts/logca
 [docs/modules/repo-gates.md](../modules/repo-gates.md),
 [docs/modules/brain-tools.md](../modules/brain-tools.md), [docs/index.md](../index.md), the
 engineering contract's gate list and repo map, and this addendum.
+
+## Addendum (2026-09-07): five deferred triggers are held to the tree, two of them repaired
+
+Five entries this decision record is the origin of had never had their `**Trigger:**` line checked
+against the code. Each was read, worked out into something the tree could answer, and answered.
+None of the five has fired, and two of the five turned out to be wrong about their own subject in a
+way the checking repaired.
+
+**The shipped ordering of the call bound and the run bound.** `git log -L` on each declaring line
+returns exactly one commit, so `DEFAULT_TOOL_CALL_TIMEOUT_S` is still 60.0 and
+`DEFAULT_SUBAGENT_RUN_TIMEOUT_S` still 2400.0 and no retune has inverted the pair. Both halves of
+the widening the entry asks for are still unbuilt: `relation_fault` filters its readings with
+`isinstance(value, int)` and refuses anything else, and compares with `<=`. What was stale is where
+that function lives. The entry sent a reader to `values.py`, and it moved to `readings.py` when the
+boolean and the signed integer brought `values.py` to the line cap, so the pointer is repaired in
+the entry.
+
+**The barrel rule and the module contract.** Nothing outside `cortex_orchestrator` imports one of
+the composition root's own types: every import of `stores`, `engines`, `preference_servicer` and
+`session_servicer` is inside that package or its own tests. The entry's second trigger clause was
+dropped rather than checked, because "a reader follows the module contract's own rule and cannot
+import a name it documents" describes the standing state the entry exists to record, so it was true
+the day it was filed and no state of the tree could falsify it. Two measurements came out of the
+check. The contract names five module-path internals its barrel omits rather than three, adding
+`preference_servicer.PreferenceRpcMixin` and `session_servicer.SessionRpcMixin`; and the same
+reading over the nine other package contracts that open with this sentence finds none, so the
+narrowing the entry prefers belongs to this contract alone. That was the survey the entry said the
+choice was waiting on, and it is now done.
+
+**Which log lines a runbook should print.** This trigger could not fire either. An operator wanting
+a line during a real failure is an event outside the repo, and a reader opening the entry to check
+it had nothing to read. It is narrowed to the same evidence written down in the entry's own trail,
+which is what decides between its two closes: a gated criterion needs at least one missed line to be
+written against, and the editorial close needs none. No such line is recorded. Two readings move the
+entry's numbers. `samplecheck.py` reports 12 samples across 12 runbooks against 38 loggers and 93
+messages, where the entry was written when the runbooks printed three; and the second half the
+2026-08-29 sharpening named is answered by the proven-line addendum, since a call whose field list
+the source cannot read is now held to the line its sink's suite asserts whole. What is still open is
+only the first half, which lines a runbook owes an operator.
+
+**The wrapped-call needle and the spread spelling.** Both counts reproduce the 2026-09-04 readings
+exactly. `logcalls.handed` still reports eleven calls, five of them a module-bound name at the same
+five lines, two of those wrapped, and the registry still carries one mention rendering a call handed
+a name. The brain's log calls still attach 94 `extra=` expressions, 85 of them a mapping written out
+at the call and none of those carrying a `**` entry, so the spread spelling still has no example.
+The one drift is a formatter move: `_pairing(subagents, tools)` in `cortex_orchestrator/bounds.py`
+is now at lines 131 and 144 rather than 129 and 144.
+
+### Records
+
+[R-367](../refinements/tasks/367-the-shipped-ordering-of-two-bounds-is-ungated.md),
+[R-378](../refinements/tasks/378-the-barrel-rule-omits-two-root-internals.md),
+[R-444](../refinements/tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md),
+[R-518](../refinements/tasks/518-a-registered-binding-handed-at-a-wrapped-call-has-no-one-line-needle.md)
+and
+[R-522](../refinements/tasks/522-a-union-spelled-as-a-spread-of-the-bound-name-is-still-refused.md),
+all five staying open with a dated trail entry, two of them with a repaired trigger and two with a
+repaired body, [docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+and this addendum.

@@ -3,8 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Trigger:** An operator goes to the logs during a real failure, wants a line, and finds that no
-runbook names it.
+**Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
+this file's Trail. That is the evidence the entry says nobody has collected, and it is what decides
+between the two closes below: a gated criterion needs at least one such line to be written against,
+and the editorial close needs none. The trigger fires when a Trail bullet here names one, which is
+checkable by reading this file.
 
 Opened 2026-08-26 by the close of
 [R-438](438-a-documented-log-sample-can-still-print-the-wrong-fields.md), which built the scan that
@@ -16,7 +19,7 @@ the question a reader has about those samples.
 stopped attaching. It says nothing at all about **coverage**. A line the brain writes and no
 runbook mentions is invisible to that scan by construction, because a scan over what a document
 prints can only ever be as complete as the document. The brain writes far more lines than the
-three the runbooks print, and which of them an operator would want documented is a question nobody
+twelve the runbooks print, and which of them an operator would want documented is a question nobody
 has asked in one place.
 
 The two questions are genuinely different and the second is much harder. Agreement is decidable: a
@@ -53,3 +56,20 @@ question rather than a gated one.
   runbook owes an operator has a second half nobody had noticed, which lines the mechanism can
   hold, and the fault a writer meets today names the sink rather than saying the line is
   unsampleable.
+- 2026-09-07: checked, narrowed and left open. The trigger has not fired, and the clause it fired
+  on could not have: "an operator goes to the logs during a real failure, wants a line, and finds
+  that no runbook names it" is an event outside the tree, so no state of the repo makes it true or
+  false and a reader checking this entry had nothing to read. It is narrowed above to the same
+  evidence written down here, which a reader can check by reading this file. No such line is
+  recorded, so the entry stays open on the choice between its two closes rather than on evidence.
+
+  Two readings were taken while checking, and both move the body's numbers.
+  `scripts/samplecheck.py` now reports 12 samples across 12 runbooks, resolved against 38 loggers
+  the brain declares and the 93 messages it logs, where this entry was written when the runbooks
+  printed three. So the runbooks print four times as many lines as they did and still print an
+  eighth of what the brain writes, and the body above is updated to say twelve. The second half the
+  2026-08-29 bullet above named is answered: `_proven` in `samplecheck.py` and `assertedlines.py`
+  land a sample of a call whose field list the source cannot read on a line the sink's own suite
+  asserts whole, so five of the twelve samples are held that way and the tool audit trail is
+  documentable after all. What remains unanswered is only the first half, which lines a runbook
+  owes an operator.

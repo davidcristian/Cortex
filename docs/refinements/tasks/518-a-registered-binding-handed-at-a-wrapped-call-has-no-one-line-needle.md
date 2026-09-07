@@ -51,3 +51,15 @@ the prose side.
   confirms the miss it predicts: `_logger.warning(ABANDONED_MESSAGE,` and
   `_logger.info(_NO_READING_LOG_MSG,` are each found zero times in their own file, where
   `_logger.info(_MESSAGE,` is found once.
+- 2026-09-07: re-checked and left open. The trigger has not fired, and the count the entry
+  prescribes reproduces the 2026-09-04 reading exactly. `logcalls.handed` reports 11 brain log
+  calls whose message is a bare name; five of those names are bound at their module's own top
+  level, the same five, at the same lines (`_NO_READING_LOG_MSG` at `brain_phase.py:191`,
+  `SPILLED_LOG_MSG` at 210, `_MEASURED_LOG_MSG` at 212, `ABANDONED_MESSAGE` at `abandon.py:73`,
+  `_MESSAGE` at `audit.py:89`); and comparing each name's line with its call's still marks two of
+  them wrapped, `_NO_READING_LOG_MSG` whose call opens at 190 and `ABANDONED_MESSAGE` whose call
+  opens at 72. Neither has gained a `Site`: the registry still carries exactly one mention
+  rendering a call handed a name, `Mention(AUDIT_SINK, "_logger.info({name},", name="_MESSAGE")` in
+  `trailcouplings.py`, and rendering the guard's suggested template against the three files finds
+  `_logger.warning(ABANDONED_MESSAGE,` and `_logger.info(_NO_READING_LOG_MSG,` zero times each and
+  `_logger.info(_MESSAGE,` once.

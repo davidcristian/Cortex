@@ -35,3 +35,11 @@ a shape nobody has asked for. When one arrives, the fault names its line.
   mapping written out nor a name bound to one. None of the 85 carries a `**` entry, so no mapping
   in the brain spreads a name into itself and the case this entry describes still has no example to
   be written against.
+- 2026-09-07: re-checked and left open. The trigger has not fired. Reading the `extra=` of every
+  log call in the brain's source and sorting by the shape of the expression gives the same census
+  as 2026-09-04: 94 in all, 85 a mapping written out at the call, six a bare name, one the `|`
+  union at `cortex_core/brain_phase.py:210`, and two a call, `_pairing(subagents, tools)` in
+  `cortex_orchestrator/bounds.py`, which the formatter has moved to lines 131 and 144 from the 129
+  and 144 recorded before. None of the 85 mappings carries a `**` entry, so the shape this entry
+  describes still has no example in the brain and a reader case for it would still be written
+  against no call.
