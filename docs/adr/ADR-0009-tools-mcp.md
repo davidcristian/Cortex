@@ -4710,3 +4710,33 @@ and
 all five staying open with a dated trail entry, two of them with a repaired trigger and two with a
 repaired body, [docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
 and this addendum.
+
+## Root-surface addendum (2026-09-07): the orchestrator's contract describes the surface it has
+
+The sweep above found the survey that the barrel-rule entry said its choice was waiting on, so the
+choice is made here. `docs/modules/brain-orchestrator.md` opened its public contract with
+"everything importable from `cortex_orchestrator`; `__all__` is the API" and then named five types
+the barrel does not export, all of them composition-root internals reached by module path from
+inside the package. A reader could not tell whether an omission was a decision or an oversight.
+
+Of the two fixes, the rule is narrowed rather than the barrel widened. The contract now reads
+"everything importable from `cortex_orchestrator`; `__all__` is the API, plus the composition
+root's own types, which stay at their module path because nothing outside the root builds one", and
+lists `stores.RedisStores`, `engines.StreamEngines`, `engines.DeepTier`,
+`preference_servicer.PreferenceRpcMixin` and `session_servicer.SessionRpcMixin`. Exporting them
+instead would have added ten lines to `__init__.py` and put five types in a package's public
+surface that nothing outside that package constructs, which is a wider claim to keep true than the
+one it would have replaced.
+
+The change is taken here and nowhere else. Reading `__all__` out of each brain package's
+`__init__.py` and matching every module-path name written in backticks in that package's contract
+finds a barrel-omitted name in this contract alone; the nine other contracts that open with the
+same sentence hold to it. Nothing in the brain's other packages, in `scripts/`, or in the body
+imports one of the five, so no caller's surface changes and no gate reads the sentence: the three
+registry parts that name this document tie constants in it, not its prose.
+
+### Records
+
+[R-378](../refinements/tasks/378-the-barrel-rule-omits-two-root-internals.md), now landed,
+[docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md),
+[docs/refinements/index.md](../refinements/index.md), and this addendum.

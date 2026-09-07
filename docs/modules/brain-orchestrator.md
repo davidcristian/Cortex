@@ -8,7 +8,10 @@ per-stream `StreamEngines` in `engines.py` that root hands `serve`). A shell onl
 conversation/task state may live in this process beyond the in-flight turn (AGENTS.md
 hard rule).
 
-**Public contract** (everything importable from `cortex_orchestrator`; `__all__` is the API):
+**Public contract** (everything importable from `cortex_orchestrator`; `__all__` is the API, plus
+the composition root's own types, which stay at their module path because nothing outside the root
+builds one: `stores.RedisStores`, `engines.StreamEngines`, `engines.DeepTier`,
+`preference_servicer.PreferenceRpcMixin` and `session_servicer.SessionRpcMixin`):
 
 Config (pydantic-settings; explicit constructor arguments beat the environment):
 
