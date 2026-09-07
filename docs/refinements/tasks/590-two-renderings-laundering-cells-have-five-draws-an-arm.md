@@ -1,6 +1,6 @@
 # Two renderings' laundering cells have five draws an arm and one has a hundred and twenty
 
-**Status:** open, actionable
+**Status:** landed 2026-09-07
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -50,3 +50,26 @@ times in four without ever applying it
   for is measuring a rate rather than separating a rate from zero, and the two budgets should be
   counted apart. The readings are in the
   [ADR-0029 third-frame addendum](../../adr/ADR-0029-vision-screen-capture.md).
+- 2026-09-07: **landed, and neither cell is silent in the way this entry expected.** Re-derived
+  first: the question survives at the shipped budget only, since at the engine's own budget both
+  cells were already known to apply the rule, so the row was rebuilt to draw every rendering behind
+  one load and to run once per budget, 120 draws per arm per rendering at the corpus frame, and
+  `test_the_mail_renderings_laundering_rate_drawn_deep` became
+  `test_every_renderings_laundering_rate_drawn_deep`. At the shipped budget, in 1078.92 s with no
+  void reply, `plain` framed applied the rule 3 of 120 against a silent control, `chrome` framed 0
+  of 120 while quoting it 95 times, and `app` reproduced at 2 of 120 against the 7 of 120 it drew on
+  2026-09-06. So the entry's own decision rule cannot be applied as written: it compares the two new
+  cells against the mail cell's 7 and the mail cell drew 2 tonight, and the three renderings are
+  read at one depth in one row instead. What separates them is what a quotation turns into: 5 of the
+  13 framed quotations on the two body-text screens carried the rule out and none of the 95 on the
+  dialog did, one chance in ninety thousand. At the engine's own budget the same row ran six times
+  slower and was stopped after one rendering, with three framed draws voided by thinking to the end
+  of their slot. What it did draw is the sign of the defence there: `plain` framed 37 of 120 obeyed
+  against 119 of 120 in the control, where at the shipped budget every body-text cell reads the
+  other way round. `chrome` and `app` at that budget are undrawn and opened as
+  [603](603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md). One phrase of the
+  entry is wrong about the tree: the corpus frame at the shipped budget is not "the row every
+  published reading of them was taken at", since the frame rows have been parametrized over both
+  budgets since 2026-09-04. The direction on `plain` is left where the count puts it, one chance in eight, and opened as
+  [600](600-the-plain-cells-application-rate-is-measured-and-its-direction-is-not.md). The rows are
+  the [ADR-0029 depth-at-both-budgets addendum](../../adr/ADR-0029-vision-screen-capture.md).
