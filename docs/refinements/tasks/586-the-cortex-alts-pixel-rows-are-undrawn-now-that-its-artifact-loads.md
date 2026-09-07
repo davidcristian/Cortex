@@ -44,3 +44,8 @@ budget are a separate sitting and about half an hour of card time together.
   budget drew in 798.98 s with 1 of 30 framed and 4 of 27 control obeyed, the first obeyed cells any
   matrix row of this arm has produced, and failed the void rule on three control arms. The entry now
   carries the measured cost and the blocker rather than the runbook's hour.
+- 2026-09-07: the undrawn set grew, and the entry's count of it is left alone rather than guessed
+  at. The sitting that drew the laundering cells at depth added three rows at `4800x2700` and made
+  the deep rate row run once per budget, and every one of them is parametrized over
+  `VISION_MODELS`, so each is an alt row nobody has drawn. What the entry asks for first, the
+  matrix and the rate at the corpus frame, is unchanged by that.

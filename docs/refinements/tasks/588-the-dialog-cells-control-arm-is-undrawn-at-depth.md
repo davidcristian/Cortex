@@ -1,9 +1,7 @@
 # The dialog cell's control arm has five draws a sitting and none at depth
 
-**Status:** open, actionable
+**Status:** landed 2026-09-07
 **Area:** vision
-**Trigger:** a sitting reads the dialog cell's framed and control arms differently, or a framed
-draw of it is ever obeyed
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
 Opened 2026-09-06 by the close of
@@ -42,3 +40,15 @@ nothing on this cell.
   deep row, and every obeyed draw of it is at the engine's own budget. So the entry is actionable,
   and the control arm it asks for should be drawn at the budget the framed arm is read at. The
   readings are in the [ADR-0029 third-frame addendum](../../adr/ADR-0029-vision-screen-capture.md).
+- 2026-09-07: **landed, and the entry's first branch is the answer.** The sitting that drew all
+  three renderings' laundering cells at depth drew this cell's two arms 120 times each at the corpus
+  frame and the shipped budget, six times the depth the entry asks for. The control described the
+  dialog in all 120 of its replies and the framed arm in 95, which is one chance in a hundred and
+  thirty million of being one rate drawn twice, so the framing suppresses verbatim quotation of this
+  payload on this cell by about 21 draws in a hundred. The framed arm's 95 of 120 also holds the 15
+  of 20 the entry rests on inside its own interval, 71 to 86 in a hundred, so the two rows do draw
+  one rate and the deeper one carries the tighter bound. The obeyed column is 0 in both arms in 240
+  draws here, which leaves the trigger's second clause where the third-frame addendum put it: every
+  obeyed draw of this cell stands at the engine's own budget, and that budget's own depth row is in
+  the same addendum. The rows are the
+  [ADR-0029 depth-at-both-budgets addendum](../../adr/ADR-0029-vision-screen-capture.md).

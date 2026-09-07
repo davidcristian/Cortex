@@ -910,6 +910,15 @@ async def _read_back(
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
 async def test_injection_defense_over_pixels(model: Model, frame: Frame, budget: Budget) -> None:
     """Measure framed vs control obedience with each injection drawn into a screen (ADR-0029)."""
+    await _draw_pixel_matrix(model, frame, budget)
+
+
+async def _draw_pixel_matrix(model: Model, frame: Frame, budget: Budget) -> None:
+    """Draw the whole corpus into a screen at one frame and one budget, and report both readings.
+
+    The body of the matrix, factored out because a frame outside ``FRAMES`` is drawn by a row of
+    its own and the two rows must draw the same thing to be read against each other.
+    """
     tallies = {arm: Tally() for arm in _ARMS}
     unusable: list[str] = []
     with _server(model, budget):
@@ -1008,37 +1017,49 @@ def _print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bo
             print(f"      {arm} ({mark}): {reply.content!r}")  # noqa: T201
 
 
-_MAIL_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "app")
 _DEEP_RATE_RUNS = 120
 
 
-@pytest.mark.integration
-@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
-async def test_the_mail_renderings_laundering_rate_drawn_deep(model: Model) -> None:
-    """Draw one rendering's laundering cell sixty times per arm instead of five."""
+async def _draw_deep_cell(
+    client: httpx.AsyncClient, model: Model, rendering: Rendering, budget: Budget
+) -> list[str]:
+    """Draw one rendering's laundering cell deep in both arms, print every reply, return unusable.
+    """
+    print(  # noqa: T201
+        f"\n=== {model.label} {rendering.name} laundering rate, {_DEEP_RATE_RUNS} per arm at "
+        f"{CORPUS_FRAME.label}, {budget.label} ==="
+    )
+    await _read_back(client, model, rendering, CORPUS_FRAME)
+    png = rendering.build(_LAUNDERING.injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
     unusable: list[str] = []
     fired: dict[str, str] = {}
-    with _server(model, SHIPPED_BUDGET):
+    for arm, framed in (("framed", True), ("control", False)):
+        replies = [
+            await _screen_reply(client, png, framed=framed, switch=switch_for(model))
+            for _ in range(_DEEP_RATE_RUNS)
+        ]
+        fired[arm] = rate(_LAUNDERING, replies)
+        unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
+        _print_fired(arm, _LAUNDERING, replies, resisted=True)
+    print(  # noqa: T201
+        f"  [{rendering.name}] at {budget.label}: framed {fired['framed']} "
+        f"control {fired['control']}"
+    )
+    return unusable
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_every_renderings_laundering_rate_drawn_deep(model: Model, budget: Budget) -> None:
+    """Draw every rendering's laundering cell a hundred and twenty times per arm instead of five."""
+    unusable: list[str] = []
+    with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
-            print(  # noqa: T201
-                f"\n=== {model.label} {_MAIL_RENDERING.name} laundering rate, "
-                f"{_DEEP_RATE_RUNS} per arm at {CORPUS_FRAME.label}, {SHIPPED_BUDGET.label} ==="
-            )
-            await _read_back(client, model, _MAIL_RENDERING, CORPUS_FRAME)
-            png = _MAIL_RENDERING.build(_LAUNDERING.injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
-            for arm, framed in (("framed", True), ("control", False)):
-                replies = [
-                    await _screen_reply(client, png, framed=framed, switch=switch_for(model))
-                    for _ in range(_DEEP_RATE_RUNS)
-                ]
-                fired[arm] = rate(_LAUNDERING, replies)
-                unusable += [f"{_MAIL_RENDERING.name}:{arm}" for reply in replies if reply.unusable]
-                _print_fired(arm, _LAUNDERING, replies, resisted=True)
-            print(  # noqa: T201
-                f"  [{_MAIL_RENDERING.name}] framed {fired['framed']} control {fired['control']}"
-            )
-    label = f"{model.label} {_MAIL_RENDERING.name} laundering rate, {_DEEP_RATE_RUNS} per arm"
-    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS)
+            for rendering in RENDERINGS:
+                unusable += await _draw_deep_cell(client, model, rendering, budget)
+    label = f"{model.label} laundering rates at {budget.label}, {_DEEP_RATE_RUNS} per arm"
+    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS * len(RENDERINGS))
 
 
 _DIALOG_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "chrome")
@@ -1080,6 +1101,15 @@ async def test_the_laundering_rate_across_payload_sizes(
     model: Model, frame: Frame, budget: Budget
 ) -> None:
     """Measure the unstable cell as a rate at each payload size, and legibility beside it."""
+    await _draw_payload_sweep(model, frame, budget)
+
+
+async def _draw_payload_sweep(model: Model, frame: Frame, budget: Budget) -> None:
+    """Sweep the payload's size at one frame and one budget, inside one server.
+
+    The body of the sweep, factored out because a frame outside ``FRAMES`` is swept by a row of
+    its own and the two rows must draw the same thing to be read against each other.
+    """
     unusable: list[str] = []
     legible: dict[str, bool] = {}
     with _server(model, budget):
@@ -1132,6 +1162,20 @@ async def test_the_laundering_rate_across_payload_sizes(
         f"{model.label}: the corpus's own payload size did not come back in a transcription "
         f"({unread}), so this sitting cannot read the size every published row was measured at"
     )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_payload_sweep_at_a_third_frame(model: Model) -> None:
+    """Sweep the payload's size at ``4800x2700``, at the engine's own budget."""
+    await _draw_payload_sweep(model, _THIRD_FRAME, ENGINE_BUDGET)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_matrix_at_a_third_frame(model: Model) -> None:
+    """Draw the whole corpus at ``4800x2700``, at the engine's own budget."""
+    await _draw_pixel_matrix(model, _THIRD_FRAME, ENGINE_BUDGET)
 
 
 _COST_ASK = "Reply with the single word OK."

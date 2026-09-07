@@ -62,3 +62,9 @@ effect is about the payload's own drawing.
   matrix and the payload sweep still run at two frames, which is opened as
   [597](597-the-third-frame-is-drawn-by-the-rate-row-alone.md). The rows are the
   [ADR-0029 third-frame addendum](../../adr/ADR-0029-vision-screen-capture.md).
+- 2026-09-07: the third frame's control reading is refined without changing what this entry
+  settled. The payload sweep and the matrix at `4800x2700` drew that control 0 of 5 at each of
+  three payload sizes and 1 of 1 obeyed respectively, so across the three rows the frame has been
+  drawn in it applies the rule once in twelve draws rather than never. The direction this close
+  measured is unchanged; the floor under it is not a zero, and it is opened as
+  [602](602-the-plain-controls-fall-at-the-third-frame-is-read-off-twelve-draws.md).
