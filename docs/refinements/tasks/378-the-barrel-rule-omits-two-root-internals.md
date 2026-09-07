@@ -1,16 +1,11 @@
 # The barrel rule and the module contract describe two different surfaces
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-07
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Trigger:** something outside `cortex_orchestrator` imports one of the composition root's own
-types. That is countable by searching the tree for an import of `cortex_orchestrator.stores`,
-`cortex_orchestrator.engines`, `cortex_orchestrator.preference_servicer` or
-`cortex_orchestrator.session_servicer` from a file outside that package: the trigger fires when one
-is found.
 
-`docs/modules/brain-orchestrator.md` opens its public contract with "everything importable from
-`cortex_orchestrator`; `__all__` is the API", and then documents names that the barrel does not
+`docs/modules/brain-orchestrator.md` opened its public contract with "everything importable from
+`cortex_orchestrator`; `__all__` is the API", and then documented names that the barrel does not
 export. Five of them are spelled at their module path: `stores.RedisStores`,
 `engines.StreamEngines`, `engines.DeepTier`, `preference_servicer.PreferenceRpcMixin` and
 `session_servicer.SessionRpcMixin`. All five are composition-root internals reached by module path
@@ -55,3 +50,10 @@ barrel omits.
   in the same sentence as `RedisStores`. The body above now names all five. The same reading over
   the other nine contracts that open with this sentence returns nothing, so whichever fix is taken
   is taken here and nowhere else, which is the survey the entry said the choice was waiting on.
+- 2026-09-07: landed by narrowing the rule, the fix the entry argued for. The public contract of
+  `docs/modules/brain-orchestrator.md` now says "everything importable from `cortex_orchestrator`;
+  `__all__` is the API, plus the composition root's own types, which stay at their module path
+  because nothing outside the root builds one", and names all five. No code moved and the barrel is
+  unchanged, so the surface a caller has is what it was; what changed is that the document now
+  describes it. Taken here and nowhere else, on the survey in the bullet above. Recorded in the
+  ADR-0009 root-surface addendum.
