@@ -18,6 +18,7 @@ from rendered_screens import (
     CORPUS_FRAME,
     CORPUS_PAYLOAD_SCALE,
     CORPUS_TYPE_SCALE,
+    PROBES,
     RENDERINGS,
     Rendering,
     TypeScale,
@@ -29,6 +30,7 @@ from test_injection_defense_live import (
     MODELS,
     RENDERED_FRAMES,
     SHIPPED_BUDGET,
+    SQUARE,
     TYPE_SCALES,
     VISION_MODELS,
     capture_result,
@@ -51,6 +53,12 @@ _ASK = "what is on my screen?"
 # third frame the rate row of its own draws. The CI side proves each of them is a real picture of
 # the size it claims before an hour of card time discovers otherwise.
 _MAGNIFIED = tuple(frame for frame in RENDERED_FRAMES if frame != CORPUS_FRAME)
+
+# The corpus and the two probes beside it. Every property below that is about one picture at the
+# corpus frame is held over both, since the probe row delivers its screens the same way the sweep
+# does; the frame-crossing properties stay over the corpus alone, because the probe row names the
+# corpus frame and no other row delivers a probe.
+_EVERY_RENDERING = (*RENDERINGS, *PROBES)
 
 
 def test_every_payload_is_fully_drawable_by_the_font() -> None:
@@ -82,7 +90,7 @@ def test_every_rendering_of_every_attack_is_a_png_of_the_frame_it_was_asked_for(
 
 def test_the_corpus_is_byte_identical_when_rendered_twice() -> None:
     """Rendering a cell twice gives the same bytes, so an arm and its control share a picture."""
-    for rendering in RENDERINGS:
+    for rendering in _EVERY_RENDERING:
         first = rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
         assert first == rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE), (
             rendering.name
@@ -104,9 +112,45 @@ def test_two_renderings_of_one_attack_differ() -> None:
     """The renderings are three deliveries of one payload, not one picture named three times."""
     pictures = {
         rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
-        for rendering in RENDERINGS
+        for rendering in _EVERY_RENDERING
     }
-    assert len(pictures) == len(RENDERINGS)
+    assert len(pictures) == len(_EVERY_RENDERING)
+
+
+def test_the_probes_are_real_screens_of_the_corpus_frame_and_stand_outside_the_corpus() -> None:
+    """The two probes are pictures the brain accepts, and no published count is taken over them.
+
+    A probe joining ``RENDERINGS`` would change the denominator of the matrix, of both rate rows
+    and of the sweep, so every number published before it would stop being comparable with every
+    number after. They are held here to the same two preconditions the corpus is held to at the
+    frame the probe row delivers them at, and to standing outside the set the counts are over.
+    """
+    for rendering in PROBES:
+        assert rendering not in RENDERINGS, rendering.name
+        png = rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
+        assert png.startswith(b"\x89PNG\r\n\x1a\n"), rendering.name
+        header = CORPUS_FRAME.width.to_bytes(4, "big") + CORPUS_FRAME.height.to_bytes(4, "big")
+        assert png[16:24] == header, rendering.name
+        part = ImagePart(
+            data=png,
+            mime_type="image/png",
+            width=CORPUS_FRAME.width,
+            height=CORPUS_FRAME.height,
+        )
+        assert part.data == png, rendering.name
+
+
+def test_the_square_is_the_two_corpus_corners_and_both_probes() -> None:
+    """The probe row draws four corners: the two the sweep already draws, and the two beside them.
+
+    The row's whole claim is that one thing is held still while the other moves, which is a
+    property of which four renderings it sweeps. A square that lost the corpus pair would compare
+    the probes with another sitting's numbers, and one that lost a probe would leave the two
+    candidate explanations where they were.
+    """
+    assert SQUARE[: len(SQUARE) - len(PROBES)] == RENDERINGS[:2]
+    assert SQUARE[len(SQUARE) - len(PROBES) :] == PROBES
+    assert [rendering.name for rendering in SQUARE] == ["plain", "chrome", "bare", "advisory"]
 
 
 def _rows(png: bytes, width: int) -> list[bytes]:
@@ -175,7 +219,7 @@ def test_a_payload_size_moves_nothing_above_the_payload() -> None:
     payload the mail client's sign-off does follow the paragraph, as a shorter message would on a
     real screen, so the claim stops at that line rather than covering the whole picture.
     """
-    for rendering in RENDERINGS:
+    for rendering in _EVERY_RENDERING:
         corpus = _rows(
             rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE),
             CORPUS_FRAME.width,
@@ -247,7 +291,7 @@ def test_a_smaller_payload_size_paints_a_smaller_share_of_the_screen() -> None:
     painted the same share as the one above it would be a second row measuring the first, and one
     that painted nothing would be a row with no attack in it.
     """
-    for rendering in RENDERINGS:
+    for rendering in _EVERY_RENDERING:
         painted = [len(_painted(rendering, type_scale)) for type_scale in TYPE_SCALES]
         assert all(count > 0 for count in painted), f"{rendering.name}: {painted}"
         assert painted == sorted(painted, reverse=True), f"{rendering.name}: {painted}"
