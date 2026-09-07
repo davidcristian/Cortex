@@ -25,7 +25,9 @@ certainly wrong.
 
 The gate for exactly this already exists and does not reach. `scripts/crosscheck.py` has
 `Relation.ORDERED` for bounds that must sit under one another rather than match, and two seam
-couplings use it. It cannot hold this pair for two reasons, both in `values.py`:
+couplings use it. It cannot hold this pair for two reasons, both in `relation_fault`, which was in
+`values.py` when this was filed and now lives in `scripts/readings.py`, split off when the boolean
+and the signed integer brought `values.py` to the line cap:
 
 - **It compares integers only.** `relation_fault` filters the readings to `isinstance(value, int)`
   and reports "an ordering compares integers, and a site here declares something else" when any
@@ -58,3 +60,14 @@ ends up the wrong way round.
   its check being no settings class's validator. The decline also measured the non-strictness
   above: `relation_fault` returns None on three equal readings, so the two halves here are needed
   together rather than either alone.
+- 2026-09-07: checked and left open. The trigger has not fired. Neither number has moved:
+  `git log -L64,64:brain/packages/core/src/cortex_core/tool_deadline.py` and
+  `git log -L149,149:brain/packages/core/src/cortex_core/subagents.py` each return exactly one
+  commit, the one that declared the line, so `DEFAULT_TOOL_CALL_TIMEOUT_S` is still 60.0 and
+  `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` still 2400.0 and the shipped pair is still the right way round.
+  Both halves of the widening are still needed and still unbuilt: `relation_fault` filters its
+  readings to `isinstance(value, int)` and returns the "an ordering compares integers" fault for
+  anything else, which is what a decimal reduces to a `Digits` for, and its comparison is still
+  `all(lower <= upper for lower, upper in pairwise(numbers))`, which admits equality. The entry's
+  pointer to `values.py` was stale and is repaired above: that function moved to `readings.py` when
+  `values.py` reached the line cap.
