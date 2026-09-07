@@ -129,6 +129,7 @@ check-body:
 
 check-shell:
     cd body/app/src-tauri && cargo clippy --locked --all-targets -- -D warnings
+    cd body/app/src-tauri && RC_x86_64_pc_windows_msvc="${RC_x86_64_pc_windows_msvc:-/usr/bin/x86_64-w64-mingw32-windres}" cargo clippy --locked --target x86_64-pc-windows-msvc --all-targets -- -D warnings
 
 check-overlay:
     cd body/app && npm ci

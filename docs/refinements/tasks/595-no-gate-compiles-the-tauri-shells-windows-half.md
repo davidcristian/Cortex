@@ -1,6 +1,6 @@
 # No gate compiles the Tauri shell's Windows half
 
-**Status:** open, actionable
+**Status:** landed 2026-09-07
 **Area:** repo-gates
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
@@ -55,3 +55,25 @@ Linux clippy and must fail the new one.
   [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md), which found that the
   reason that entry gave for being unblocked, a shell constant now being type-checked, does not
   hold for a `cfg(windows)` constant under a Linux clippy.
+- 2026-09-07: **landed as a second line inside `check-shell`**, `cargo clippy --locked --target
+  x86_64-pc-windows-msvc --all-targets -- -D warnings` in `body/app/src-tauri`, with the CI `shell`
+  job installing the target and one more package on the apt line it already runs. Everything this
+  entry measured re-derived: six `#[cfg(windows)]` items over 108 lines, both recipes on the host
+  triple, the whole Windows graph type-checking in **26.1 s wall from an empty target directory**
+  with no GTK, webkit or dbus, and the build script panicking `NotAttempted("llvm-rc")`. The way
+  past it is `embed-resource`'s own documented `RC_$TARGET` override pointed at GNU windres from
+  `binutils-mingw-w64-x86-64`, 6.1 MB fetched against 25 MB for the `llvm-18` that carries
+  `llvm-rc`, whose preprocessing would then have wanted a `cl.exe` or a clang as well. **The
+  variable must name a path and not a program**: windres derives its C preprocessor from its own
+  `argv[0]`, so an absolute path makes it look for `x86_64-w64-mingw32-gcc` beside itself, fail to
+  find one, and fall back to plain `gcc`, while a bare name off `PATH` makes it insist on the
+  prefixed gcc and die. The placement question this entry called the part to argue answered itself:
+  the check needs a package, so `check-body` was never open to it, and the two clippy lines cover
+  complementary halves of the same two files. Proven able to fail over seven arms of `just
+  check-shell`, recorded in [ADR-0011](../../adr/ADR-0011-body-v1.md)'s 2026-09-07 addendum, three
+  of them faults planted in `cfg(windows)` items that the old line passes and the new one fails.
+- 2026-09-07: **what the close opens.** The Windows clippy is outside `just check` for one reason
+  only, a resource step that no argument to `tauri_build::build()` and no environment variable
+  turns off, so a `cfg(windows)` regression in the shell still reaches a local commit and is caught
+  in CI rather than at the hook. Filed as
+  [R-599](599-the-shells-windows-clippy-waits-on-a-resource-step.md).

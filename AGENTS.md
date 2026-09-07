@@ -149,13 +149,16 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    run them (ADR-0003 scan-roster addendum). Pre-commit mirrors it. Run it before declaring
    anything done.
 
-   **One recipe is deliberately outside it**: `check-shell` (clippy on the Tauri shell), which CI
-   schedules and `just check` does not run. It is the only check needing system libraries, the
-   Linux GTK/webkit/dbus dev packages a clean dev box need not have, and requiring them would make
-   the single gate unrunnable rather than strict (ADR-0011 shell-clippy addendum). Nothing else
-   may join it. A check whose *evidence* is out of reach, rather than its toolchain, is not a
-   second exception: it records the far answer in the tree, gates the record, and re-derives it
-   with a hand-run recipe (ADR-0011 out-of-reach-evidence addendum).
+   **One recipe is deliberately outside it**: `check-shell` (clippy on the Tauri shell, for the
+   host triple and for `x86_64-pc-windows-msvc`, which is where the shell's `cfg(windows)` items
+   are type-checked), which CI schedules and `just check` does not run. It is the only check
+   needing system libraries: the Linux GTK/webkit/dbus dev packages for the host run and a
+   resource compiler for the Windows one, none of which a clean dev box need have, and requiring
+   them would make the single gate unrunnable rather than strict (ADR-0011 shell-clippy and
+   windows-shell addenda). Nothing else may join it. A check whose *evidence* is out of reach,
+   rather than its toolchain, is not a second exception: it records the far answer in the tree,
+   gates the record, and re-derives it with a hand-run recipe (ADR-0011 out-of-reach-evidence
+   addendum).
 
 ## Prose
 

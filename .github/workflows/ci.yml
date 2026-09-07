@@ -136,17 +136,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install the Tauri Linux dev stack (pkg-config metadata only; clippy never links)
+      - name: Install the Tauri Linux dev stack and a resource compiler (clippy never links)
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libdbus-1-dev
+            librsvg2-dev libdbus-1-dev binutils-mingw-w64-x86-64
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
         with:
           toolchain: stable
           components: clippy
+          targets: x86_64-pc-windows-msvc
       - uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2
         with:
           tool: just
