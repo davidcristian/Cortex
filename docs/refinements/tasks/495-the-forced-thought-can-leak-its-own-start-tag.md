@@ -3,8 +3,8 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Trigger:** a delegated run whose answer is one word, or any draw of the committed probe whose
-leak count is not zero, on any tier that ends a thought at the engine.
+**Trigger:** a delegated run whose answer is one word, or a budgeted cell of the committed probe
+counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine.
 
 Opened 2026-08-29 by the close of
 [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which shipped the per-request
@@ -74,3 +74,20 @@ since a sampler that emits half a tag into content is a bug wherever it is fixed
   `--reasoning-budget 0` alone on the E4B pick across both request shapes, the arm on which the
   forced close fires on every draw, and no reply began with a leaked tag or was the channel name
   alone; nor did any of the pair's 40. The rate stays under one in a hundred and the entry stands.
+- 2026-09-07: the trigger was answered, and its second limb was **already true on the day the entry
+  was written**, which is why it is narrowed above: the opening run's own leak count was 1, so "any
+  draw whose leak count is not zero" could never come out false and told no build apart from
+  another. Held to a fresh reading instead, on both builds this host can start, the committed probe
+  at a hundred draws a cell on the shipped subagent pick at `-ngl 99` and a cap of 256. Neither
+  build leaked once, in the budgeted cell or in either of the other two: `b10680-d7bd3bfca`, which
+  is what the stack starts today, and `b10666-4e97ac86e`, which is the build the leak was seen on
+  and is still cached here under its pinned tag, so the original arm was re-drawn rather than
+  approximated. Six hundred draws, no leak. The budgeted cell carrying the request key now stands
+  at 1 leak in 258 draws against 0 in the 140 flag draws of the bullet above, and the two still do
+  not separate, which is the reading the entry opened with. The first limb has nothing behind it
+  either, no delegated run recorded in this repo having reported a one-word answer. The mechanism
+  is real and nothing repairs it, so the entry stays open; what would be news is a rate an order
+  above the one recorded, and that is what the narrowed clause names. Cells and builds: the
+  ADR-0005 trigger-sweep addendum. Quoting the 258 turned up
+  [R-598](598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md): the GPU runbook
+  publishes the original leak as one draw in 53 where the other three places publish 58.

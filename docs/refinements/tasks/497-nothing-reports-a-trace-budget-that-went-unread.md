@@ -4,7 +4,8 @@
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 **Trigger:** a deployment that set `CORTEX_REPLY_TRACE_TOKENS` to a count and cannot tell whether it
-did anything, or a side call whose cap keeps emptying its reply on a tier nobody has probed.
+did anything, or a side call that returns an empty reply on an endpoint whose boot probe answered
+that the engine reads no per-request trace budget.
 
 Opened 2026-08-29 by the close of
 [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which gave the port a count the
@@ -39,3 +40,14 @@ probably the whole of what this needs.
 - 2026-08-29: opened by the close of
   [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which added a per-request
   count whose failure to be read goes as unreported as the switch's did before the drain's warning.
+- 2026-09-07: neither limb of the trigger has fired, and the premise was re-derived and holds.
+  `CORTEX_REPLY_TRACE_TOKENS` is set by nothing in this tree: it is named in `config_reply.py`, the
+  GPU runbook's settings table, the orchestrator module doc, the origin ADR and these backlog
+  files, and by no compose file, no justfile recipe and no workflow, and there is no `.env` at the
+  repo root, so the field sits at its unset sentinel wherever the stack runs. The second limb was
+  too vague to have a truth value and is narrowed above to the reading that would show it. What it
+  now names cannot arise on this host either: the three side calls all send `thinking=False` and
+  `trace_tokens=0`, `CORTEX_INFERENCE_TRACE_LEVER` defaults to `auto`, and both builds this machine
+  can start answer the lever question `400` naming the field, so the zero reaches the engine on
+  every tier this stack starts. `drain_text` is unchanged, reading `bounds.thinking` alone and
+  never `bounds.trace_tokens`, so the three cases the count adds are still unreported.

@@ -3,8 +3,10 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Trigger:** a llama.cpp image upgraded under a brain that keeps running, which is a
-`docker compose pull` followed by a recreate of the model host alone.
+**Trigger:** a llama.cpp image upgraded under a brain that keeps running, where the new build
+answers the lever question differently from the answer the running brain cached, which is a
+`docker compose pull`, a recreate of the model host alone, and the GPU runbook's own curl returning
+a status that contradicts the boot line.
 
 Opened 2026-08-29 by the close of
 [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), whose decision 5 argues that
@@ -40,3 +42,17 @@ if somebody is bitten.
   [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which cached the lever's
   answer on the argument that it describes a binary and left the case where the binary is replaced
   under a running brain.
+- 2026-09-07: the trigger was held to the tree and to a real server, and it has **not** fired,
+  though its first half has happened once. The mutable tag really does move here: a reading of
+  2026-08-29 names `ghcr.io/ggml-org/llama.cpp:server` at `b10666-4e97ac86e`, the cached image
+  under that tag reports `b10680-d7bd3bfca` today, and a pinned `:server-cuda-b10666` copy sits
+  beside it on the same host. The rest of the trigger did not happen. No brain and no model host is
+  running on this machine, so nothing was left running across a recreate, and the cached images are
+  the two the ADR-0005 engine-tag addendum read on 2026-09-04, so no pull has happened since; the
+  registry has moved on again in the meantime, `server-cuda` now resolving to `sha256:84a9f771dfcb`
+  and `server` to `sha256:ef50b81ee57e`. The staleness the entry is about needs more than a bump,
+  and that is what the narrowing above says: asked the GPU runbook's own lever question tonight,
+  `b10680-d7bd3bfca` answered `400` naming `reasoning_budget_tokens`, which is the answer
+  `b10666-4e97ac86e` gave on 2026-08-29, so across the one bump this host has taken the honest
+  answer did not move. The runbook line the entry proposes is still unwritten and still the cheap
+  half.

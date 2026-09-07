@@ -224,7 +224,9 @@ with the cause chained:
   earlier build showed did reproduce, once, and inside the payload rather than in front of it
   (`{"reply": "thought"}`, 1 of 58 budgeted draws, and 0 of 20 against a tier carrying the same
   sampler as a flag), so the file prints a leak count rather than asserting on one and the count
-  reads two shapes.
+  reads two shapes. Re-drawn at a hundred draws a cell on both builds this repo has readings for,
+  the leak did not reappear on either and the budgeted cell held the trace at 0 on 200 of 200
+  (ADR-0005 trigger-sweep addendum).
 - **The streaming contract states what every stream owes, and never when it owes it.** Eleven
   checks
   over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
