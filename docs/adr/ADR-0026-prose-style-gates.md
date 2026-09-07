@@ -963,3 +963,67 @@ The record is the task file
 `scripts/skippeddirs.py` and `scripts/tests/test_skippeddirs.py`, the four walks that read it,
 [modules/repo-gates.md](../modules/repo-gates.md), which states the relationship the deleted test
 used to, and this addendum.
+
+## Addendum (2026-09-07): three deferred triggers on the repo gates, answered
+
+Three entries opened against this record were left as `fix when it bites`, which only works if
+somebody eventually asks whether the bite happened. This addendum records that reading. One
+trigger had fired twice unobserved, one described the standing state and could not fire at all,
+and one was well formed and has not fired.
+
+### The skip list and `.gitignore` disagree already, so that cannot be the trigger
+
+The entry about a newly ignored tree said its trigger was the two collections disagreeing about a
+directory that really exists. They already do, and did on the day it was written.
+`git ls-files --others --ignored --directory --exclude-standard` reports 44 ignored directories
+present in this tree. Pruning that list by name against `SKIPPED_DIRS` leaves five that no walk
+skips: `body/app/src-tauri/gen/`, `measurements/`, `models/`, `pgdata/` and `sandbox/`. No
+`.gitignore` line has changed since the entry was opened, so the clause was true from the start.
+
+What has not happened is the harm, and that is the checkable event the clause now names. The three
+walks that do not ask git select by suffix, so descending into a directory costs nothing until it
+holds a file one of them reads: `linecap.scan` takes `SOURCE_SUFFIXES`,
+`backloganchors.markdown_files` takes `.md`, and `composefiles.compose_files` takes a
+`docker-compose*` or `compose*` `.yml` or `.yaml`. Those five directories hold JSON schemas,
+measurement samples, two database dumps, one text file, and in one case nothing. The narrowed
+trigger is a file with one of those suffixes appearing inside an ignored directory the list does
+not name, which is one command to check and can come out false.
+
+### The obligation test's blind spot is now occupied, by three filtered globs
+
+The entry about recognizing a caller by its spelling has fired, on its walk half. Its own clause
+said the tests would report an empty offender list because they found no callers at all, and that
+is unreachable: both floors are subset assertions evaluated before the offender list is examined,
+so a search matching nothing fails on the floor rather than passing empty.
+
+The real reading is a caller the search does not recognize, and three arrived after the entry was
+written. `scripts/logcalls.py` and `scripts/samplecheck.py`, both from the log-sample gate, and
+`scripts/assertedlines.py`, from the proven-line reader, each read a tree with `Path.rglob` and
+then drop what falls inside `SKIPPED_DIRS`. All three import the shared list and honour the rule,
+so the tree is correct; none spells `dirnames[:]`, so none is in `walkers` and the obligation held
+none of them to it. A fourth glob reader that omitted the filter would pass the same way. The
+entry moves to actionable, with the note that an `ast` walk alone does not cover this: a filtered
+glob is a different call, not an argv assembled one line earlier, so the recognizer has to admit a
+recursive glob as a walk or the shared-iterator alternative has to win.
+
+The git half has not fired. `scripts/*.py` spells the `["git", ` argv head in exactly the three
+files the floor names, and the only other `subprocess.run` under `scripts/` is `imagedrift.py`,
+which runs `docker pull` and `docker image inspect`.
+
+### The three fence patterns are still three, and still identical
+
+The entry about the markdown fence has not fired on either half. `scripts/` holds exactly three
+fence patterns, `headingshapes.FENCE`, `commitlint._FENCE` and `logsamples.FENCE`, so no fourth
+reader has arrived; and all three are still character for character `r"^\s*(?:```|~~~)"`, so there
+is no fenced block one gate reads and another does not. That clause is checkable in one search and
+can come out false, so it stands as written and the entry stays open on its own argument, which is
+that the three should stay identical by construction rather than by inspection.
+
+### Records
+
+The record is the three task files,
+[R-422](../refinements/tasks/422-a-newly-ignored-tree-reaches-the-list-by-hand.md),
+[R-423](../refinements/tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md) and
+[R-445](../refinements/tasks/445-three-gates-each-spell-the-markdown-fence-for-themselves.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No gate changed, so no mutation table is owed.
