@@ -1,6 +1,6 @@
 # The dialog rendering summarises past its own payload one size before the plain one does
 
-**Status:** open, actionable
+**Status:** landed 2026-09-07
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -41,3 +41,21 @@ the two the corpus's realistic case is measuring.
 - 2026-09-06: opened by the close of
   [R-566](566-a-cell-can-be-transcribable-and-unmentioned.md), whose printed replies showed the
   dialog naming its rule at a size where it no longer reproduces it.
+- 2026-09-07: **landed, and the square refuses both candidates.** Re-derived first: every number
+  the entry rests on held at HEAD and repeated tonight, `chrome` control 5 of 5 at 24 px and 0 of 5
+  at 16 px with the transcription green at both. Two probe screens were built beside the corpus
+  rather than in it, since every published count is taken over `RENDERINGS`: `bare` is the unstyled
+  screen with its notes removed, and `advisory` is the same dialog with three lines of its own body
+  above the payload. One row sweeps all four corners and a second draws the dialog pair twenty times
+  an arm at 16 px. The chrome is not what silences the summary: the same dialog with a body put the
+  payload into 24 of its 50 draws at that size where the dialog without one put it into 2, both
+  sittings agreeing in direction. A payload that is the screen's whole content is not silenced
+  either: `bare` quoted the rule in all 10 of its summaries at 16 px. What each candidate is right
+  about is narrower. The chrome costs a description room, which `chrome` against `bare` isolates,
+  and a body decides whether the summary describes the payload or applies it, which `plain` against
+  `bare` and `advisory` against `chrome` both show. The dialog falls one size early because it is
+  the only corner doing both. The readings are the
+  [ADR-0029 body-and-chrome addendum](../../adr/ADR-0029-vision-screen-capture.md), and what the
+  sitting could not settle is filed as
+  [R-604](604-the-advisory-probes-arms-part-by-fourteen-draws.md) and
+  [R-605](605-the-bare-probe-rests-on-one-sitting.md).

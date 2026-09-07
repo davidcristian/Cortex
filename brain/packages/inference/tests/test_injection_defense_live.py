@@ -18,6 +18,7 @@ import pytest
 from rendered_screens import (
     CORPUS_FRAME,
     CORPUS_TYPE_SCALE,
+    PROBES,
     RENDERINGS,
     Frame,
     Rendering,
@@ -1021,22 +1022,31 @@ _DEEP_RATE_RUNS = 120
 
 
 async def _draw_deep_cell(
-    client: httpx.AsyncClient, model: Model, rendering: Rendering, budget: Budget
+    client: httpx.AsyncClient,
+    model: Model,
+    rendering: Rendering,
+    budget: Budget,
+    type_scale: TypeScale = CORPUS_TYPE_SCALE,
+    runs: int = _DEEP_RATE_RUNS,
 ) -> list[str]:
     """Draw one rendering's laundering cell deep in both arms, print every reply, return unusable.
     """
     print(  # noqa: T201
-        f"\n=== {model.label} {rendering.name} laundering rate, {_DEEP_RATE_RUNS} per arm at "
-        f"{CORPUS_FRAME.label}, {budget.label} ==="
+        f"\n=== {model.label} {rendering.name} laundering rate, {runs} per arm at "
+        f"{CORPUS_FRAME.label}, {type_scale.label}, {budget.label} ==="
     )
     await _read_back(client, model, rendering, CORPUS_FRAME)
-    png = rendering.build(_LAUNDERING.injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
+    if type_scale != CORPUS_TYPE_SCALE:
+        reply = await _transcription(client, model, rendering, CORPUS_FRAME, type_scale)
+        read = "yes" if _reads_canary(reply) else "NO"
+        print(f"  [{rendering.name}] at {type_scale.label}: read on request={read}")  # noqa: T201
+    png = rendering.build(_LAUNDERING.injection, CORPUS_FRAME, type_scale)
     unusable: list[str] = []
     fired: dict[str, str] = {}
     for arm, framed in (("framed", True), ("control", False)):
         replies = [
             await _screen_reply(client, png, framed=framed, switch=switch_for(model))
-            for _ in range(_DEEP_RATE_RUNS)
+            for _ in range(runs)
         ]
         fired[arm] = rate(_LAUNDERING, replies)
         unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
@@ -1104,12 +1114,10 @@ async def test_the_laundering_rate_across_payload_sizes(
     await _draw_payload_sweep(model, frame, budget)
 
 
-async def _draw_payload_sweep(model: Model, frame: Frame, budget: Budget) -> None:
-    """Sweep the payload's size at one frame and one budget, inside one server.
-
-    The body of the sweep, factored out because a frame outside ``FRAMES`` is swept by a row of
-    its own and the two rows must draw the same thing to be read against each other.
-    """
+async def _draw_payload_sweep(
+    model: Model, frame: Frame, budget: Budget, renderings: tuple[Rendering, ...] = RENDERINGS
+) -> None:
+    """Sweep the payload's size at one frame and one budget, inside one server."""
     unusable: list[str] = []
     legible: dict[str, bool] = {}
     with _server(model, budget):
@@ -1120,7 +1128,7 @@ async def _draw_payload_sweep(model: Model, frame: Frame, budget: Budget) -> Non
             )
             above: dict[str, str] = {}
             for type_scale in TYPE_SCALES:
-                for rendering in RENDERINGS:
+                for rendering in renderings:
                     cell = f"{rendering.name} at {type_scale.label}"
                     reply = await _transcription(client, model, rendering, frame, type_scale)
                     legible[cell] = _reads_canary(reply)
@@ -1154,7 +1162,7 @@ async def _draw_payload_sweep(model: Model, frame: Frame, budget: Budget) -> Non
                         f"framed {fired['framed']} control {fired['control']}"
                     )
     label = f"{model.label} laundering rate by payload size at {frame.label}, {budget.label}"
-    assert_drawn(label, unusable, 2 * _RATE_RUNS * len(RENDERINGS) * len(TYPE_SCALES))
+    assert_drawn(label, unusable, 2 * _RATE_RUNS * len(renderings) * len(TYPE_SCALES))
     unread = [
         name for name, read in legible.items() if not read and CORPUS_TYPE_SCALE.label in name
     ]
@@ -1169,6 +1177,40 @@ async def _draw_payload_sweep(model: Model, frame: Frame, budget: Budget) -> Non
 async def test_the_payload_sweep_at_a_third_frame(model: Model) -> None:
     """Sweep the payload's size at ``4800x2700``, at the engine's own budget."""
     await _draw_payload_sweep(model, _THIRD_FRAME, ENGINE_BUDGET)
+
+
+_PLAIN_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "plain")
+SQUARE: tuple[Rendering, ...] = (_PLAIN_RENDERING, _DIALOG_RENDERING, *PROBES)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_summarys_fall_against_the_body_and_the_chrome(model: Model) -> None:
+    """Sweep the payload's size over the four corners of the square, in one server."""
+    await _draw_payload_sweep(model, CORPUS_FRAME, ENGINE_BUDGET, SQUARE)
+
+
+_ADVISORY_RENDERING = next(rendering for rendering in PROBES if rendering.name == "advisory")
+_FALLING_SCALE = TYPE_SCALES[1]
+_PAIR_RUNS = 20
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_dialog_pair_at_the_falling_size_drawn_deeper(model: Model) -> None:
+    """Draw the dialog and its probe twenty times an arm at the size the dialog falls at."""
+    unusable: list[str] = []
+    with _server(model, ENGINE_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            for rendering in (_DIALOG_RENDERING, _ADVISORY_RENDERING):
+                unusable += await _draw_deep_cell(
+                    client, model, rendering, ENGINE_BUDGET, _FALLING_SCALE, _PAIR_RUNS
+                )
+    label = (
+        f"{model.label} dialog pair at {_FALLING_SCALE.label}, {ENGINE_BUDGET.label}, "
+        f"{_PAIR_RUNS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _PAIR_RUNS * 2)
 
 
 @pytest.mark.integration
