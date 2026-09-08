@@ -4,7 +4,10 @@
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 **Trigger:** a second server this repo can reach starts flagging a name in a plain LIST and opening
-it, or the Bridge account whose two flagged parents are the current proof stops being reachable
+it, or the Bridge account whose two flagged parents are the current proof stops being reachable.
+Both limbs come off one reading, a plain `LIST "" "*"` taken past the port with every listed name
+opened: on the probe after `just up-imap-probe`, and on the Bridge through `ImapMailbox`. This
+entry's trail records the counts and the flags each server answered with when that was last run.
 
 Opened 2026-08-23 by the close of
 [376](376-the-bridge-flag-reading-is-one-account.md), which asked whether the probe could grow a
@@ -47,3 +50,17 @@ stand-in already does.
   and nothing else, which `brain/packages/email/tests/test_imap_probe_live.py` asserts by name,
   and the image it says that against has not moved. Recorded in the ADR-0022 trigger-sweep
   addendum.
+- 2026-09-08: read again on both limbs, neither fired, and the line above is corrected. The Bridge
+  account is reachable and is still the proof: read live, it lists 19 names, offers 19, opens 19,
+  and flags `Folders` and `Labels` `('\Noselect', '\Unmarked')`, both of which open, so the keep
+  branch is taken twice on this account and nowhere else live. The probe was started and its plain
+  LIST read past the port: seven names, one of them flagged, `Parent (\Noselect \HasChildren)`,
+  which does not open, so this server still produces the drop branch and not the keep. The
+  correction is what the probe says about `Feigned`. Its plain LIST answered
+  `(\HasChildren \UnMarked)`, not `(\HasChildren)` alone, and the suite does not assert that tuple:
+  `test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing` asserts that
+  `\HasChildren` is present and that neither unselectable word is, deliberately, because this server
+  starts sending `\UnMarked` once something has searched the name and the contract check searches
+  every offered name. The suite's own comment records an exact reading being written, passing on the
+  container that built it, and failing on the rerun. Recorded in the ADR-0022 addendum of the same
+  day.
