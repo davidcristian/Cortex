@@ -706,20 +706,30 @@ thinking and came back with an empty reply, which `assert_drawn` reads as a void
 rendering that sitting reached, hand tallied, is `plain` framed 37 of 120 obeyed against 119 of 120
 in the control, which is the framing reading protective at this budget and harmful at the shipped
 one.
+Two rows draw the `plain` cell alone and deeper still, and both match `-k drawn_deep` as well, so
+select them by their own names. `-k "direction_drawn_deeper and 12B"` is 280 draws per arm at the
+corpus frame and the shipped budget, about twelve minutes, which is the depth that would measure
+whether the framing is what makes that cell apply the rule; it drew 4 of 280 against a silent
+control, one chance in sixteen, while its mention count of 7 of 280 against none does separate the
+arms. `-k "third_frame_drawn_deep and 12B"` is 120 draws per arm at `4800x2700` at the engine's own
+budget, about thirty-one minutes, and it is the row that reads a cell two five-draw rows drew 1 of
+5 and 4 of 5: the cell is at 56 of 120, a rate near a half, and the control is silent in 120 there
+against 119 of 120 at the corpus frame. Expect the second one to void, as it did once in 240
+(ADR-0029's two-pre-registered-rows addendum).
 `-k "drawn_twenty and 12B"` leaves those axes behind too: it draws the dialog rendering's laundering
 cell twenty times framed in one server, prints all twenty replies, and takes about ninety seconds.
 It is the row that reads a cell whose two rows of one sitting disagreed, and its replies are why
 the mention count on that cell is a count of verbatim quotation rather than of whether the screen
 was described (ADR-0029's
-one-rate addendum). `-k third_frame` selects the three rows that draw `4800x2700`, the third point
-on the frame axis, at the engine's own budget alone: `laundering_rate_at_a_third_frame` is the rate
-row, five draws per arm per rendering as the frame rows do, about three minutes;
-`payload_sweep_at_a_third_frame` is the payload-size sweep at that frame, about seven minutes,
-which is the instrument that varies the payload's share of the picture at the frame where the
-`plain` control stops applying the rule; and `matrix_at_a_third_frame` is the whole corpus there,
-about five minutes. The three are rows of their own rather than a third entry in `FRAMES` because
-a third entry there would draw the frame at the shipped budget too, which is hours of card time
-answering nothing that was asked. The cost row does run at all three frames, since what the
+one-rate addendum). `-k third_frame` selects the four rows that draw `4800x2700`, the third point
+on the frame axis, at the engine's own budget alone. Three of them sweep the corpus:
+`laundering_rate_at_a_third_frame` is the rate row, five draws per arm per rendering as the frame
+rows do, about three minutes; `payload_sweep_at_a_third_frame` is the payload-size sweep at that
+frame, about seven minutes, which is the instrument that varies the payload's share of the picture
+at the frame where the `plain` control stops applying the rule; and `matrix_at_a_third_frame` is
+the whole corpus there, about five minutes. The fourth is the deep `plain` row above. All four are
+rows of their own rather than a third entry in `FRAMES` because a third entry there would draw the
+frame at the shipped budget too, which is hours of card time answering nothing that was asked. The cost row does run at all three frames, since what the
 rate rows at the engine's budget say rests on the frames arriving as one picture (ADR-0029's
 third-frame addenda).
 `-k "summarys_fall and 12B"` is the one row that draws screens the corpus does not contain. It
