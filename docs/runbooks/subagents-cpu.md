@@ -288,6 +288,23 @@ delegation time (ADR-0012 admission-wall addendum).
 > Zero is legal and means never queue at all: refuse anything that does not fit the budget right
 > now.
 
+**Every refusal writes one line, and that line is where to look.** A refused spawn does not fail
+the turn: the runner degrades it to an `ok=False` result the cortex reads and answers around, so
+nothing in the overlay says a subtask was dropped and the tool audit records the aggregate's size
+rather than its text. The brain's own log is what lasts. Each refusal writes one `WARNING` from
+`cortex_core.runner`:
+
+```
+WARNING:cortex_core.runner:a spawn was refused before it ran model=<the roster entry that would have run> reason=<which refusal, in the scheduler's own words> task_id=<task id>
+```
+
+`reason` is the whole of the diagnosis and says which of the three refusals this was: a charge no
+budget could ever hold, a pool draining for a model handoff, or a queue that outlasted the bound
+above. The formatter quotes a value carrying whitespace and every one of these reasons does, so
+`grep -c 'reason="waited'` over the brain's log counts the third refusal alone, which is the one
+this section's numbers are about. The fields print in name order whatever order the call site
+wrote them in (ADR-0038 rendered-fields addendum), so that is the order you will see.
+
 > **Admitted is not the same as concurrent.** Each roster entry holds one `LlamaCppBackend` per
 > placement target, and a backend holds its model lease for the whole stream, so two spawns of the
 > *same* entry on the same target run one after the other however many the budget admits. Measured

@@ -1,4 +1,4 @@
-"""SubagentRunner: run one delegated task as a stateless function over the store (ADR-0010/0012)."""
+"""SubagentRunner: run one delegated task as a stateless function over the store."""
 
 import logging
 
@@ -22,7 +22,7 @@ _logger = logging.getLogger(__name__)
 
 
 class SubagentRunner:
-    """Run a delegated task to a persisted result, resolving, admitting, placing (ADR-0012/0018)."""
+    """Run a delegated task to a persisted result: resolve, admit, place, run."""
 
     def __init__(
         self,
@@ -43,12 +43,12 @@ class SubagentRunner:
 
     @property
     def roster(self) -> SubagentRoster:
-        """The roster this runner resolves against. The spawn tool advertises from it."""
+        """The roster this runner resolves against."""
         return self._roster
 
     @property
     def tools_enabled(self) -> bool:
-        """Whether subagents hold tools (ADR-0017 rule 2b), structural at wiring time."""
+        """Whether subagents have tools at all, decided when this runner is wired."""
         return self._tools is not None
 
     async def run(
@@ -58,7 +58,7 @@ class SubagentRunner:
         budget: DispatchBudget | None = None,
         progress: ProgressSink | None = None,
     ) -> SubagentResult:
-        """Load, resolve (ADR-0017), admit (CPU/RAM), place (VRAM), run, persist."""
+        """Load the task, resolve the model, admit it, place it, run it, and persist the result."""
         task = await self._store.get_task(task_id)
         if task is None:
             return await self._failed(task_id, "task not found")
@@ -81,6 +81,13 @@ class SubagentRunner:
                     )
                 )
         except SubagentAdmissionError as err:
+            # Turned into a result rather than raised: an exception here would cross the
+            # spawn tool and fail the whole turn, discarding the batch's other subagents.
+            # The warning is here because nothing else keeps a lasting record of a refusal.
+            _logger.warning(
+                "a spawn was refused before it ran",
+                extra={"task_id": task_id, "model": res.request.model, "reason": str(err)},
+            )
             return await self._failed(task_id, _REFUSED_TEMPLATE.format(reason=err))
 
     async def _placed(
@@ -91,7 +98,7 @@ class SubagentRunner:
         budget: DispatchBudget | None,
         progress: ProgressSink | None,
     ) -> AttemptOutcome:
-        """Place and run, re-running once on the CPU when a GPU-placed backend did not answer."""
+        """Place and run, re-running once on the CPU when a GPU-placed backend did not reply."""
         placement = res.placer.place(res.request)
         try:
             outcome = await self._attempt.run(
