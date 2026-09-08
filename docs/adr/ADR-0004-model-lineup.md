@@ -1014,3 +1014,127 @@ the alt's control fires four times as often as its framed arm.
 The second and third rows cost **39.10 s** and **39.30 s** against the first's 58.99 s, the
 artifact being in the host's page cache after the first load, so a replicate of this row is worth
 about forty seconds of card time.
+
+## Addendum (2026-09-08): three lineup triggers re-read, and a memory cap already at 90% of its limit
+
+Three refinements against this decision were filed on 2026-09-05 to be fixed when they bit, which
+only works if somebody asks whether the bite happened. This addendum records what asking answered.
+One has fired and its filed reason for waiting was a reading of the wrong number. One has not fired
+and is accurate about its subject. One was wrong about its subject twice, in its count and in its
+assumption that nothing holds an image name.
+
+Every reading below was taken against the images this repo pulls by floating tag, cached here at
+`sha256:db057ec90de0` for `ghcr.io/ggml-org/llama.cpp:server` and `sha256:952424b09abc` for
+`server-cuda`, both reporting build `b10680-d7bd3bfca`, which the
+[ADR-0005 build-provenance addendum](ADR-0005-llamacpp-engine.md) records and this session
+re-read out of the local cache without pulling.
+
+### The subagent pick's server sits at 90% of the cap the row does not apply
+
+[R-559](../refinements/tasks/559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md) says
+the injection harness's CPU placement hands its server the subagents override's `cpus:` and not that
+service's `mem_limit` and `memswap_limit`, and left it there because a memory cap a process stays
+under is a cap that does nothing: the pick's server was recorded holding about 3.5 GiB against the
+8 GiB cap. That figure is `docker stats`, and `docker stats` subtracts `inactive_file`, which on a
+server that maps its weights from a read-only bind is most of what the cgroup is charged for.
+
+The pick was started under both of the override's caps, `--cpus 4.0 --memory 8g --memory-swap 8g`,
+on the shipped argv, `-ngl 0 --jinja --chat-template-kwargs '{"enable_thinking": false}'` and
+`--reasoning-budget 0 --ctx-size 8192 --parallel 2`, and the shipped artifact, gemma-4-E4B q4_0 at
+5,154,941,280 bytes on the mount. It loaded in 25.75 s and answered a 64-token completion in
+22.22 s. Its own cgroup then read:
+
+| `/sys/fs/cgroup` file | bytes | as GiB |
+| --- | --- | --- |
+| `memory.current` | 7,766,204,416 | 7.23 |
+| `memory.peak` | 7,769,690,112 | 7.24 |
+| `memory.max` | 8,589,934,592 | 8.00 |
+| `memory.stat` `anon` | 2,579,050,496 | 2.40 |
+| `memory.stat` `file` | 5,156,114,432 | 4.80 |
+| `memory.stat` `inactive_file` | 5,139,607,552 | 4.79 |
+
+`docker stats` read `2.444GiB / 8GiB` for that container at that moment, so the two numbers differ
+by the 4.79 GiB of mapped weights the cap is charged for and the tool hides. The charge is 90.4% of
+the limit with 0.77 GiB of headroom, and `memory.events` read `low 0 high 0 max 0 oom 0 oom_kill 0`,
+so nothing was reclaimed on this run. What the cap bounds on this pick is how much of the artifact
+stays cached under pressure, and losing a page of it is a re-read from a drvfs bind. The entry moves
+to actionable: the row needs `--memory` and `--memory-swap` at `DEFAULT_MEM_BUDGET_GB`. Rendering
+them costs nothing, docker taking the fractional spelling that constant prints, `--memory 8.0g`
+reading back as a `memory.max` of 8,589,934,592 inside the container.
+
+The same reading found that `llama-subagent-qwen` in `docker-compose.subagents-roster.yml` declares
+no `cpus`, no `mem_limit` and no `memswap_limit` at all, so the second CPU server this stack can
+start runs uncapped while the brain's ledger charges its declared ask against the same budget. Filed
+as
+[R-616](../refinements/tasks/616-the-roster-alternates-cpu-server-carries-neither-cgroup-cap.md).
+
+### A gate already holds the deployment's image spellings, and four float
+
+[R-557](../refinements/tasks/557-the-engine-image-names-are-typed-in-five-places.md) counts five
+places typing an engine image name and says no registry row in `scripts/crosscheck.py` holds any of
+them equal. The second half is true and the conclusion drawn from it is not, because
+`scripts/crosscheck.py` is not the only gate that reads an image name.
+
+Eight files carry a spelling something reads, not five, and one of them arrived after the entry was
+written: `test_uid_reading_live.py` typed `_IMAGE` on 2026-09-06. The eight are the three compose
+files that name `:server` on a service, both `FROM` lines of `brain/Dockerfile.modelhost`, the two
+keys `scripts/imagevolumes.py` records, and three live harnesses. Four further files name an image
+in prose alone and start nothing.
+
+`scripts/volumecheck.py` holds the deployment's spellings to that record, which was proved by
+editing the tree and running the gate rather than by reading it. The table is over the working tree
+at `45e00d1d` with one edit at a time, each reverted before the next:
+
+| edit | `python3 scripts/volumecheck.py` |
+| --- | --- |
+| `docker-compose.subagents.yml` image to `:server-b10680` | fails: `service 'llama-subagent' runs 'ghcr.io/ggml-org/llama.cpp:server-b10680', which scripts/imagevolumes.py has no row for` |
+| `Dockerfile.modelhost` final `FROM` to `:server-cuda-b10680` | fails twice: the base has no row, and `the record has a row for 'ghcr.io/ggml-org/llama.cpp:server-cuda', which nothing here names` |
+| `Dockerfile.modelhost` builder `FROM` to `:server-cuda-b10680` | passes: `volumecheck OK`, a builder stage's base getting no row by design |
+| unedited | passes |
+
+So a retag on the stack is caught, in both directions at once, and the spellings that float are the
+builder stage's `FROM` and the three harnesses. That is the case worth covering: the gate forces the
+compose files and the final `FROM` to move together, and the harnesses would go on starting
+containers from the tag the stack has left. The entry moves to actionable with the coupling narrowed
+to those four, the compose and final-stage spellings needing no mention.
+
+### Both thinking budgets still ship unbounded, so the nominal reading holds
+
+[R-558](../refinements/tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md) asks
+for `Model.thinking` to be read off the tier's tail rather than off its name. Its trigger is a
+deployment starting the cortex or the deep tier at a zero budget, and no such deployment exists:
+`docker-compose.gpu.yml` defaults `CORTEX_REASONING_BUDGET` and `CORTEX_REASONING_BUDGET_BRAIN` to
+`-1`, and `_UNRESTRICTED_REASONING` emits no flag at that value. Read through `ModelHostConfig`:
+
+| tier | `extra` at the shipped default | `extra` with both budgets at zero |
+| --- | --- | --- |
+| cortex | `()` | `('--reasoning-budget', '0')` |
+| brain | `()` | `('--reasoning-budget', '0')` |
+| subagent-gpu | the reasoning-off pair | the reasoning-off pair |
+
+The nominal and structural readings part company only in the second column. The entry stays open at
+`fix when it bites` with a trigger that now names the file, the default and the call that reads a
+tail back.
+
+The zero column also says something the entry did not, and it argues for the reading rather than
+against it. A cortex tier at zero carries the budget alone, without the `--chat-template-kwargs`
+half that the subagent tier's fixed `_REASONING_OFF` pairs with it, and the ADR-0005 budget-alone
+addendum measured the budget alone to do one thing on the gemma family and another on the Qwen one,
+emptying gemma-4-E4B's reasoning channel on 40 draws of 40 and leaving Qwen3.5-2B deliberating on 40
+of 40. Both cortex candidates in this lineup are one of each family. A structural reading of the
+tail therefore answers what the tier was told and not what the model then does, which is exactly
+what `repeat_of` needs when it decides whether a row is a repeat.
+
+### Records
+
+The record is the three task files,
+[R-557](../refinements/tasks/557-the-engine-image-names-are-typed-in-five-places.md) and
+[R-559](../refinements/tasks/559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md), both
+now actionable with a repaired body, and
+[R-558](../refinements/tasks/558-thinking-follows-the-tiers-name-and-not-its-shipped-budget.md),
+which stays open with a sharpened trigger; the new
+[R-616](../refinements/tasks/616-the-roster-alternates-cpu-server-carries-neither-cgroup-cap.md);
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them; and this
+addendum. No source file and no gate changed, so no mutation table beyond the gate proof above is
+owed. The server readings were taken in a container against the mount and the cgroup, the tier tails
+against the working tree through `brain/.venv`, and the image digests out of the local cache.
