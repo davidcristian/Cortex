@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Iterable
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 import scanrecipes
@@ -54,7 +55,7 @@ def _filenames(root: Path, pattern: str) -> list[str]:
     if not tree.is_dir():
         msg = f"{GATES.as_posix()} is not a directory, so there is nothing to read"
         raise MemberError(msg)
-    return sorted(path.name for path in tree.glob(pattern))
+    return sorted(path.name for path in tree.iterdir() if fnmatchcase(path.name, pattern))
 
 
 def ignored_tests(text: str) -> list[str]:

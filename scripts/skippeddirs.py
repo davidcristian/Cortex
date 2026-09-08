@@ -1,4 +1,4 @@
-"""Which directory components no walk in this tree enters, in the one place all of them read."""
+"""Which directory components no walk in this tree enters, in the one place it is read from."""
 
 # Vendored trees, build output, tool caches, and the object database. Ten names, of which eight
 # also appear in a `.gitignore`; the two that do not are argued above.

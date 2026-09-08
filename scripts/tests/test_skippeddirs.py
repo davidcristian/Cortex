@@ -8,8 +8,6 @@ from skippeddirs import SKIPPED_DIRS
 
 GATES = Path(__file__).resolve().parents[1]
 REPO_ROOT = GATES.parent
-# How a walk is spelled here: `root.walk()` with its directory list pruned in place.
-WALK = "dirnames[:]"
 # A directory git tracks, under which nothing named below exists, so what comes back is the
 # ignore rules and not a fact about this checkout.
 PROBE = "brain/packages/core"
@@ -42,14 +40,6 @@ def _ignored_anywhere(name: str) -> bool:
     )
     assert result.returncode in (0, 1), result.stderr.decode(errors="replace")
     return result.returncode == 0
-
-
-def test_every_walk_here_prunes_with_this_list() -> None:
-    """Every module under `scripts/` that prunes a walk imports `SKIPPED_DIRS`."""
-    sources = {path.name: path.read_text(encoding="utf-8") for path in GATES.glob("*.py")}
-    walkers = {name for name, text in sources.items() if WALK in text}
-    assert {"backloganchors.py", "composefiles.py", "dashcheck.py", "linecap.py"} <= walkers
-    assert [name for name in sorted(walkers) if "skippeddirs import" not in sources[name]] == []
 
 
 def test_the_overlap_with_gitignore_is_measured_rather_than_believed() -> None:

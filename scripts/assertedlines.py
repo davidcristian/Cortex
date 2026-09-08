@@ -4,16 +4,12 @@ import ast
 from pathlib import Path
 from typing import NamedTuple
 
-from logcalls import SOURCE_DIR
+from logcalls import PYTHON, SOURCE_DIR
 from logsamples import SAMPLE, Sample, split_fields
-from skippeddirs import SKIPPED_DIRS
+from treewalk import walk_files
 
-# Where a package keeps the suite that proves its lines: beside the source directory rather than
-# inside it, which is the convention `logcalls.modules` walks the other half of.
 SUITE_DIR = "tests"
 
-# The one comparison that asserts a whole line. A chain (`a == b == c`) is two comparisons and is
-# left unread rather than split.
 EQUALITY_OPS = 1
 
 
@@ -98,8 +94,8 @@ def proven(root: Path, module: str) -> list[Proven]:
         msg = f"{suite} is not a directory, so nothing proves what {module} prints"
         raise AssertedLineError(msg)
     found: list[Proven] = []
-    for path in sorted(tree.rglob("*.py")):
-        if SKIPPED_DIRS & set(path.relative_to(tree).parts):
+    for path in sorted(walk_files(tree)):
+        if path.suffix != PYTHON:
             continue
         shown = path.relative_to(root).as_posix()
         try:

@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 from headingshapes import headings
 from headingshapes import problems as shape_problems
-from skippeddirs import SKIPPED_DIRS
+from treewalk import walk_files
 
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 DROPPED = re.compile(r"[^\w \-]")
@@ -91,15 +91,7 @@ def anchors(text: str) -> frozenset[str]:
 
 def markdown_files(root: Path) -> list[Path]:
     """Return every markdown file under ``root``, in walk order, vendored trees skipped."""
-    found: list[Path] = []
-    for directory, dirnames, filenames in root.walk():
-        dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)
-        found.extend(
-            directory / name
-            for name in sorted(filenames)
-            if name.endswith(MARKDOWN) and (directory / name).is_file()
-        )
-    return found
+    return [path for path in walk_files(root) if path.suffix == MARKDOWN]
 
 
 def check(root: Path, indexes: Mapping[Path, Index]) -> list[str]:

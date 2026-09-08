@@ -6,14 +6,14 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import NamedTuple
 
-from skippeddirs import SKIPPED_DIRS as SHARED_SKIPS
+from treewalk import walk_files
 
 DEFAULT_MAX_LINES = 300
 SOURCE_SUFFIXES = frozenset({".py", ".rs", ".ts", ".tsx"})
-# The trees no walk here enters, plus the two only this one skips: a 400-line test is not the
-# cap's problem, and generated code is exempt from every quality gate. Neither is true of prose,
-# which is why the dash ban and the anchor scan read the shared list without them.
-SKIPPED_DIRS = SHARED_SKIPS | {"tests", "_generated"}
+# The two trees only this walk skips, beyond the ones no walk here enters: a 400-line test is not
+# the cap's problem, and generated code is exempt from every quality gate. Neither is true of
+# prose, which is why the dash ban and the anchor scan add nothing to the shared list.
+EXTRA_SKIPS = frozenset({"tests", "_generated"})
 SKIPPED_FILE_PATTERNS = (
     "test_*.py",
     "*_test.py",
@@ -67,19 +67,14 @@ def scan(root: Path, cap: int) -> Scan:
     violations: list[Violation] = []
     files = 0
     total = 0
-    for directory, dirnames, filenames in root.walk():
-        dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)
-        for name in sorted(filenames):
-            if Path(name).suffix not in SOURCE_SUFFIXES or is_skipped_file(name):
-                continue
-            path = directory / name
-            if not path.is_file():  # dangling symlink or other non-regular file
-                continue
-            lines = count_lines(path)
-            files += 1
-            total += lines
-            if lines > cap:
-                violations.append(Violation(path=path.relative_to(root), lines=lines))
+    for path in walk_files(root, also_skip=EXTRA_SKIPS):
+        if path.suffix not in SOURCE_SUFFIXES or is_skipped_file(path.name):
+            continue
+        lines = count_lines(path)
+        files += 1
+        total += lines
+        if lines > cap:
+            violations.append(Violation(path=path.relative_to(root), lines=lines))
     return Scan(files=files, lines=total, violations=violations)
 
 

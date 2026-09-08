@@ -1,9 +1,6 @@
 # The two obligation tests recognize a caller by how it is spelled
 
-**Status:** open, actionable
-**Trigger:** fired on 2026-09-07. A module under `scripts/` reads a directory tree or runs git in
-a shape neither test's search recognizes, so the obligation passes over it and nothing reports the
-omission. Three such tree readers exist, all of them filtered recursive globs.
+**Status:** landed 2026-09-08
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
@@ -71,3 +68,20 @@ earlier, which is the near miss both of them share.
   it** above no longer covers the observed case on its own, since a filtered glob is a different
   call rather than an argv built one line earlier: the recognizer has to admit a recursive glob as
   a walk, or the shared iterator argument has to win.
+- 2026-09-08: landed, with the two halves answered differently. The descent moved to
+  `scripts/treewalk.py`, which every one of the seven readers is now handed its files by, so the
+  walk obligation is that one module descends and the rest do not, compared as an equality. The
+  git call kept its own argv, the environment-versus-call argument holding on a re-reading of the
+  three call sites, and the obligation moved from the file to the call: `scripts/gatecalls.py`
+  reads a module's syntax and answers which calls descend a tree and which are handed a git argv,
+  with the function each hands to `env=`. The git half had fired too, which the reading that
+  opened this missed by looking only at `scripts/*.py`: the suite beside the skip list runs git
+  with an argv written one item per line, so the searched literal appears nowhere in it, and
+  `test_gitenv.py` was counted a caller for spelling that literal in a constant while running no
+  git at all. `rostermembers._filenames` changed with them, from a glob handed its pattern to a
+  listing plus a match, since a pattern the reader cannot see is answered as a descent. Recorded
+  at the [ADR-0026 shaped-obligation addendum](../../adr/ADR-0026-prose-style-gates.md), with a
+  nine-row mutation table over the 1726-test scripts suite; rows 1, 3, 7 and 8 are cases the old
+  searches all pass. It opened
+  [R-610](610-the-descent-obligation-stops-at-the-suites.md), the tests being outside the set the
+  obligation is compared over.

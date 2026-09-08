@@ -379,9 +379,12 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
 
                   Shared by several of the above: composefiles.py (which compose files the four
                   compose gates walk), gitenv.py (the environment every git call runs with),
-                  skippeddirs.py (the directory names every walk here prunes, deliberately not
-                  .gitignore). Standalone: coverage_gate.py (Rust branch coverage), ci_paths.py
-                  (the CI path classifier), commitlint.py (commit-message style).
+                  treewalk.py (the one descent every reader here is handed its files by) reading
+                  skippeddirs.py (the directory names it never enters, deliberately not
+                  .gitignore), gatecalls.py (what a module here calls, read out of its syntax, so
+                  the two obligations over those shared things hold a caller by its shape rather
+                  than by how it is spelled). Standalone: coverage_gate.py (Rust branch coverage),
+                  ci_paths.py (the CI path classifier), commitlint.py (commit-message style).
 
                   Seven modules gate nothing and report a measurement: contrast.py (the interval a
                   live measurement reports) and trailwidth.py (the width the recall trail's widest

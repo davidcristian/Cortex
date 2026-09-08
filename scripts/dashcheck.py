@@ -1,4 +1,4 @@
-"""Repo gate: fail when a text file this repo owns uses a banned dash."""
+"""Fail when a text file in this repo uses a banned dash."""
 
 import argparse
 import os
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from gitenv import git_env
-from skippeddirs import SKIPPED_DIRS
+from treewalk import walk_files
 
 ALLOW_PRAGMA = "dashcheck: allow"
 EM_DASH = "\u2014"
@@ -35,11 +35,7 @@ class Violation(NamedTuple):
 
 
 class Scan(NamedTuple):
-    """One walk: the collection the verdict is over, then the verdict.
-
-    ``files`` and ``lines`` count the text that was read, so a binary file the walk skipped is
-    in neither. The rule is per line, which is why the lines are counted as well as the files.
-    """
+    """What one walk read, and every violation it found."""
 
     files: int
     lines: int
@@ -79,7 +75,7 @@ def scan_text(path: Path, text: str) -> list[Violation]:
 
 
 def read_text(path: Path) -> str | None:
-    """Return the file's text, or None when it is binary. Raise if unreadable."""
+    """Return the file's text, or None when it is binary."""
     try:
         data = path.read_bytes()
     except OSError as err:
@@ -95,7 +91,7 @@ def ignored_paths(root: Path) -> frozenset[str]:
     listing = ("ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z")
     try:
         result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
-            ["git", "-C", str(root), *listing],  # noqa: S607 -- git resolves on PATH; a pinned path is not portable
+            ["git", "-C", str(root), *listing],  # noqa: S607 -- git resolves on PATH; an absolute path is not portable
             capture_output=True,
             check=False,
             env=git_env(),
@@ -117,31 +113,21 @@ def scan(root: Path) -> Scan:
     violations: list[Violation] = []
     files = 0
     lines = 0
-    for directory, dirnames, filenames in root.walk():
-        here = directory.relative_to(root)
-        dirnames[:] = sorted(
-            name
-            for name in dirnames
-            if name not in SKIPPED_DIRS and (here / name).as_posix() not in ignored
-        )
-        for name in sorted(filenames):
-            relative = here / name
-            if relative.as_posix() in ignored:
-                continue
-            path = directory / name
-            if not path.is_file():  # dangling symlink or other non-regular file
-                continue
-            text = read_text(path)
-            if text is None:
-                continue
-            files += 1
-            lines += len(text.splitlines())
-            violations.extend(scan_text(relative, text))
+    for path in walk_files(root, enter=lambda inside: inside.as_posix() not in ignored):
+        relative = path.relative_to(root)
+        if relative.as_posix() in ignored:
+            continue
+        text = read_text(path)
+        if text is None:
+            continue
+        files += 1
+        lines += len(text.splitlines())
+        violations.extend(scan_text(relative, text))
     return Scan(files=files, lines=lines, violations=violations)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any violations and return the process exit code."""
+    """Run the check; print any violations and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when a text file uses a banned dash.",
     )
