@@ -4,7 +4,11 @@
 **Area:** resource-governance
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 **Trigger:** An NPU device enumerating from inside a container, meaning
-`Core().get_property("NPU", "AVAILABLE_DEVICES")` answers with anything at all.
+`Core().get_property("NPU", "AVAILABLE_DEVICES")` answers with anything at all. That is one
+container run: `pip install openvino` over `python:3.12-slim`, with `/dev/dxg` and `/usr/lib/wsl`
+handed in, then read `available_devices` and that property. This entry's trail records what the run
+answered when it was last taken, and the body records which half of the condition is already
+satisfied.
 
 A future OpenVINO `InferenceBackend` adapter + a
 `PlacementTarget.NPU`, pending a feasibility pass. Using the otherwise-idle NPU for tiny
@@ -36,18 +40,43 @@ today's kernel: of the 1,038 Windows driver packages WSL maps in, exactly three 
 mode libraries, the Intel graphics package in its two staged versions and the NVIDIA one, while
 both NPU packages ship only Windows DLLs. So the condition that revives this work has two halves,
 WSL projecting the device and the vendor shipping a Linux driver for it, which is why the trigger
-is now the one command that needs both. Unknown (b) is untouched, there being nothing to measure
+is the one command that needs both. Unknown (b) is untouched, there being nothing to measure
 it on.
+
+**Re-read 2026-09-08, and the projection half of that condition is already met.** The adapter list
+is not the whole of what the paravirtualization carries. `D3DKMTEnumAdapters2` asked for a count
+answers **three** where the list it fills carries two, a buffer sized for fewer than three is
+refused outright, and the adapter the list omits opens by LUID and describes itself: host PCI
+address `00:0B.0`, no dedicated video memory, and an adapter type of `0x2881`, whose set bits are
+render, paravirtualized and **compute only**. `00:0B.0` is where Intel's NPU sits on this CPU
+generation, and this record already carries the driver store's `npu.inf` of class
+`ComputeAccelerator` covering the Arrow Lake id, so calling that adapter the NPU is an inference
+from the address, the type and those packages rather than a reading of Windows device state, which
+this guest still cannot take. It is also the strongest evidence yet for the line this entry has
+kept as unmeasured, whether the machine has an NPU at all. What it changes is which half of the
+condition is outstanding: WSL does project the device, so what is missing is the Linux user mode
+driver, exactly the half the driver-store count above says no vendor ships. The count
+reconciliation this reading came out of is [R-348](348-three-devices-against-two-adapters.md).
 
 ## Trail
 
+- 2026-09-08: **Not fired**, and the entry's account of the projection is corrected above. The
+  container arm was re-run rather than reasoned about: `python:3.12-slim` with `/dev/dxg` and
+  `/usr/lib/wsl` mounted, `pip install openvino` at 2026.3.1, `available_devices` reading `['CPU']`
+  and `Core().get_property("NPU", "AVAILABLE_DEVICES")` reading `[]`, which is what the probe of
+  2026-08-20 read and is the trigger's own command. The guest is unchanged as well: `/dev/dxg` is
+  still the only device node, `/dev/accel` and `/dev/dri` do not exist, and the running kernel,
+  6.6.114.1-microsoft-standard-WSL2, still reports `# CONFIG_DRM_ACCEL is not set` in
+  `/proc/config.gz`. What is new is that `dxgkrnl` carries a third adapter the enumeration does not
+  return, compute only, at host `00:0B.0`, with no dedicated video memory.
 - 2026-09-06: **Not fired.** The trigger needs the device projected into the guest before any
   container can enumerate it, and the guest is unchanged from the probe above: `/dev/dxg` is still
   the only device node, `/dev/accel` and `/dev/dri` do not exist, and the running kernel,
   6.6.114.1-microsoft-standard-WSL2, still reports `# CONFIG_DRM_ACCEL is not set` in
   `/proc/config.gz`. With no accelerator node and no accel subsystem in the kernel there is nothing
   for `Core().get_property("NPU", "AVAILABLE_DEVICES")` to answer with, so the container arm was
-  not rerun.
+  not rerun. (The projection reading of 2026-09-08 corrects the premise of this entry: the device
+  is projected, and it is projected as a DXCore adapter rather than as a Linux accelerator node.)
 - 2026-08-20: Three counts above corrected against the driver store as it stands. The denominator
   is 1,038 package directories, not the 1,349 entries `ls` reports, the rest being 311 `.ini`
   sidecars; the Intel graphics package is counted in its two staged versions, which is what makes

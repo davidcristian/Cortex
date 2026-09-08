@@ -1307,3 +1307,135 @@ it able to fail are all in the [ADR-0009 hold addendum](ADR-0009-tools-mcp.md) o
 because the comparison lives in `SubagentsConfig` beside its neighbour rather than here. What this
 addendum records is that the derivation above is superseded: this bound is no longer purely a
 measurement, and the term that binds it is a relation over another bound.
+
+## Addendum (2026-09-08): three governance triggers re-read, and a compute accelerator that is projected after all
+
+Three refinements against this decision were filed to be fixed when they bit, which only works if
+somebody asks whether the bite happened. This addendum records what asking answered. One of the
+three fired, because its trigger was the next run of the NPU probe and this is that run; it is
+answered and closed. The other two have not fired, and both were wrong about their own subject, one
+about what this machine projects into the guest and one about the arithmetic it would derive a
+number from.
+
+### The device is projected, and the enumeration is what drops it
+
+The NPU-probe addendum above records two counts of the same paravirtualized surface without joining
+them: three Microsoft vPCI devices of display class `0x030200` on the guest's bus, and two adapters
+under every DXCore capability attribute.
+[R-348](../refinements/tasks/348-three-devices-against-two-adapters.md) filed the gap and guessed
+that WSL projects one device per host adapter plus one that is not an adapter, the compositor or
+indirect display path. The guess named the right device for the wrong reason.
+
+The reading is `D3DKMTEnumAdapters2`, which `/usr/lib/wsl/lib/libdxcore.so` exports, called three
+ways in one process and reproduced identically on three consecutive runs:
+
+| how it is called | answer |
+| --- | --- |
+| null buffer, count only | `STATUS_SUCCESS`, `NumAdapters = 3` |
+| buffer for one, and for two | `STATUS_BUFFER_TOO_SMALL` (`0xc0000023`) |
+| buffer for three, and for four | `STATUS_SUCCESS`, two entries written, `NumAdapters` rewritten to 2 |
+
+So three is a requirement rather than an estimate, and the third device is not a device that carries
+no adapter. Three adapters exist and the enumeration returns two of them. Which layer drops the
+third, the kernel driver or the user mode library that wraps it, was not measured.
+
+The omitted adapter is identifiable and answers every query the other two answer. Beside the three
+vPCI devices, `dxgkrnl` owns three VMBus channels of class
+`{6e382d18-3336-4f4b-acc4-2b7703d4df4a}` whose instance GUIDs begin `0031d90a`, `0031ddff` and
+`0031eb6d`, and each of those hex prefixes is one adapter LUID. The enumeration returns `0x31D90A`
+and `0x31DDFF`. `D3DKMTOpenAdapterFromLuid` opens all three, and the control that makes an open
+evidence rather than a handle the library hands back for anything is that `0x31EB6C`, `0x31EB6E`,
+zero and an arbitrary value are each refused with `STATUS_INVALID_PARAMETER`. Read through
+`D3DKMTQueryAdapterInfo` on those handles:
+
+| adapter LUID | host PCI address | dedicated video memory | `D3DKMT_ADAPTERTYPE` |
+| --- | --- | --- | --- |
+| `0x31D90A` | `01:00.0` | 23.57 GiB | `0x2091`: render, hybrid discrete, paravirtualized |
+| `0x31DDFF` | `00:02.0` | 32 GiB | `0x20A1`: render, hybrid integrated, paravirtualized |
+| `0x31EB6D` | `00:0B.0` | none | `0x2881`: render, compute only, paravirtualized |
+
+The first two are the discrete and the integrated GPU, which the addendum above named by hardware id
+and which their host addresses and memory sizes confirm independently. The third is a compute
+accelerator: `ComputeOnly` is bit 11 of `D3DKMT_ADAPTERTYPE` and it is the bit that separates this
+adapter from the pair. `00:0B.0` is where Intel's NPU sits on this CPU generation, and the addendum
+above already records the Windows driver store carrying `npu.inf` of class `ComputeAccelerator`
+covering the Arrow Lake id `8086:AD1D`. Calling that adapter the NPU is therefore an inference from
+the address, the type and those packages, not a reading of Windows device state, which this guest
+still cannot take with interop off.
+
+Which of the three guest devices it belongs to is read off the VMBus offer order rather than off a
+link sysfs carries. Channel 6 is the vPCI device on bus `d1e4` (`1414:008e`) and channel 7 its vGPU
+channel `0x31D90A`; channel 8 is `dxgkrnl`'s global channel; channel 9 is the vPCI device on bus
+`cd99` (`1414:008e`) and channel 10 its vGPU channel `0x31DDFF`; channel 11 is the vPCI device on
+bus `2c5d` (`1414:008a`) and channel 12 its vGPU channel `0x31EB6D`. Each display-class device is
+offered immediately before one vGPU channel, so the odd device is `1414:008a`, which is where the
+guess landed.
+
+### What that costs the probe, which is not nothing, and what it does not cost
+
+R-348 argued the discrepancy was free, because a third device that enumerates as no adapter at all
+cannot be one that answers to the compute accelerator type. The third device does carry an adapter
+and that adapter is compute only, so the argument does not hold. The probe's conclusion does, on
+legs measured elsewhere: the guest has no `/dev/accel` and a kernel built
+`# CONFIG_DRM_ACCEL is not set`, and Intel's two staged NPU driver packages ship Windows DLLs and no
+Linux user mode library at all.
+
+The container arm was re-run rather than reasoned about, since it is
+[R-192](../refinements/tasks/192-intel-npu-placement-target.md)'s own trigger:
+`python:3.12-slim` with `/dev/dxg` and `/usr/lib/wsl` handed in, `pip install openvino` at 2026.3.1,
+`Core().available_devices` reading `['CPU']` and `Core().get_property("NPU", "AVAILABLE_DEVICES")`
+reading `[]`. The trigger has not fired.
+
+What moves is the shape of the blocker. That entry says the condition reviving the work has two
+halves, WSL projecting the device and the vendor shipping a Linux driver for it. The first half is
+now measured true: the device is projected, as a DXCore adapter rather than as the Linux accelerator
+node `intel_vpu` would need, and it is the second half that is missing. Both entries are corrected
+to say so, and the probe's earlier sentence that this guest's PCI bus carries no Intel silicon
+stands, since what the guest sees are Microsoft vPCI shells and `00:0B.0` is a host address.
+
+### The depth number is still a guess, and the hold does not supply one
+
+[R-195](../refinements/tasks/195-queue-depth-bound.md) asks for a queue-depth bound, refusing early
+where the wait bound refuses late, and the bounded-admission-wait addendum above declined it because
+the scheduler holds charges and no durations. Since then the hold addendum gave this deployment a
+duration it did not have: a task holds its admission for at most `ATTEMPTS_PER_ADMISSION` run
+deadlines, 4800 s at the shipped numbers, and `SubagentsConfig` refuses at boot any wiring where
+that hold reaches the wait. A reader could take that as the missing term. It is not, and the reason
+is worth writing down rather than rediscovering: the hold is an upper bound, and a depth rule needs
+a lower one. Asked when a waiter is guaranteed admission inside the 7200 s wait, with two admitted
+at a time and each holding up to 4800 s, the answer is one waiter ahead of it and no more. A rule
+refusing at a depth of two would have refused six of the eight spawns in the batch the addendum
+above measured, whose last member was admitted 1624.6 s in. Nothing bounds a run from below, so
+nothing can prove a queue hopeless.
+
+What the entry's queue actually looks like was measured rather than reasoned. Driving
+`ResourceBudgetScheduler(4.0, 8.0)` with eight concurrent asks of `cpus=2.0, memory_gb=3.0` admits
+two and leaves six waiting, and the object's whole state at that moment is `_cpu_budget`,
+`_mem_budget_gb`, `_wait_timeout_s`, `_cpu_used`, `_mem_used_gb`, `_in_flight` and `_draining`. The
+six waiters exist only on the `asyncio.Condition`'s own deque, so a depth bound's first cost is a
+counter the class does not have. The port was opened rather than quoted, on the standing rule that
+this area gets "behind the unchanged port" wrong: `admit(request)`, `drain(*, timeout_s)` and
+`undrain()` carry a depth knob without a signature edit, because it is the budget's policy like the
+wait before it, and `PlacementRequest` still carries `model`, `vram_gb`, `cpus` and `memory_gb` and
+no duration. What the port would owe is the sentence the wait bound owed it, since its contract says
+that over budget callers wait and a depth refusal is a caller that does not.
+
+The sweep also found that this entry's trigger, and two others sharing it, name an event nobody can
+observe. `SubagentRunner._failed` writes the refused result and logs nothing, the spawn tool logs
+nothing, and its aggregate is not an error result, so the tool audit records `result_chars` and
+never the text. The refusal survives only as the persisted `SubagentResult.detail` under
+`cortex:task:{id}:result`, at a TTL of 3600 s against a 7200 s bound. Filed as
+[R-614](../refinements/tasks/614-a-refused-spawn-reaches-no-log-line.md).
+
+### Records
+
+The record is the three task files,
+[R-192](../refinements/tasks/192-intel-npu-placement-target.md) and
+[R-195](../refinements/tasks/195-queue-depth-bound.md), both of which stay open with a repaired body
+and a trigger that now says how it is read, and
+[R-348](../refinements/tasks/348-three-devices-against-two-adapters.md), which closes; the new
+[R-614](../refinements/tasks/614-a-refused-spawn-reaches-no-log-line.md);
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them; and this
+addendum. No source file and no gate changed, so no mutation table is owed. The device readings were
+taken at the guest through `libdxcore.so` and at sysfs, the OpenVINO reading in a container, and the
+scheduler reading against the working tree through `brain/.venv`.
