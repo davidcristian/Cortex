@@ -1,11 +1,18 @@
-"""Behavior tests for the MCP image-block reader (`cortex_tools.blocks`, ADR-0009)."""
-
 import base64
 import struct
 
 import pytest
 from mcp.types import CallToolResult, ImageContent, TextContent
-from pngs import PNG_BASE64, PNG_BYTES, PNG_HEIGHT, PNG_WIDTH
+from pictures import (
+    JPEG_BYTES,
+    LOSSY_WEBP_BYTES,
+    PNG_BASE64,
+    PNG_BYTES,
+    PNG_HEIGHT,
+    PNG_WIDTH,
+    SAMPLE_HEIGHT,
+    SAMPLE_WIDTH,
+)
 
 from cortex_core.images import MAX_IMAGE_EDGE, ImageError
 from cortex_tools.blocks import result_images
@@ -53,20 +60,24 @@ def test_a_block_whose_data_is_not_base64_is_refused() -> None:
 
 
 def test_a_block_carrying_a_character_outside_the_base64_alphabet_is_refused() -> None:
-    # `b64decode` discards an unknown character unless it is validating, so a decoder without
-    # `validate=True` would read this as the PNG and never report the byte that was thrown away.
+    # `b64decode` discards an unknown character unless it is validating, so a decoder
+    # without `validate=True` would read this as the PNG and never report the lost byte.
     block = ImageContent(type="image", data=PNG_BASE64 + "!", mimeType="image/png")
     with pytest.raises(ImageError, match="not valid base64"):
         result_images(CallToolResult(content=[block]))
 
 
-def test_a_block_that_is_not_a_png_is_refused() -> None:
-    # A JPEG states its size in a segment this reader does not walk, so it fails closed rather
-    # than arriving with a guessed size.
-    with pytest.raises(ImageError, match="not a PNG"):
-        result_images(
-            CallToolResult(content=[_block(b"\xff\xd8\xff\xe0" + b"0" * 40, "image/jpeg")])
-        )
+@pytest.mark.parametrize(
+    ("data", "mime"), [(JPEG_BYTES, "image/jpeg"), (LOSSY_WEBP_BYTES, "image/webp")]
+)
+def test_a_block_in_either_other_listed_format_is_carried(data: bytes, mime: str) -> None:
+    (image,) = result_images(CallToolResult(content=[_block(data, mime)]))
+    assert (image.mime_type, image.width, image.height) == (mime, SAMPLE_WIDTH, SAMPLE_HEIGHT)
+
+
+def test_a_block_in_a_format_with_no_reader_is_refused() -> None:
+    with pytest.raises(ImageError, match="not a PNG, JPEG or WebP"):
+        result_images(CallToolResult(content=[_block(b"GIF89a" + b"0" * 40, "image/gif")]))
 
 
 def test_a_png_too_short_to_hold_a_header_is_refused() -> None:
@@ -75,13 +86,10 @@ def test_a_png_too_short_to_hold_a_header_is_refused() -> None:
 
 
 def test_a_header_stating_a_size_past_the_core_bound_is_refused() -> None:
-    # The size is a declaration like any other, so the core's edge bound still judges it.
     with pytest.raises(ImageError, match=f"outside 1..{MAX_IMAGE_EDGE}"):
         result_images(CallToolResult(content=[_block(_resized(MAX_IMAGE_EDGE + 1, 1))]))
 
 
 def test_a_png_declared_under_an_unlisted_mime_type_is_refused() -> None:
-    # The mime type is the sidecar's word and the core's allow-list judges it, exactly as it
-    # judges the body's declared type.
     with pytest.raises(ImageError, match="unsupported image type 'image/gif'"):
         result_images(CallToolResult(content=[_block(PNG_BYTES, "image/gif")]))

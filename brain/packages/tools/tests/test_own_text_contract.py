@@ -1,5 +1,3 @@
-"""The own-text overlay over the fake and over the real `McpToolRegistry` (ADR-0013 addendum)."""
-
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any, cast
 
@@ -12,7 +10,7 @@ from mcp.types import (
     TextContent,
     Tool,
 )
-from pngs import PNG_BASE64, PNG_BYTES, PNG_HEIGHT, PNG_WIDTH
+from pictures import PNG_BASE64, PNG_BYTES, PNG_HEIGHT, PNG_WIDTH
 
 from cortex_core import (
     InMemoryToolRegistry,
@@ -167,7 +165,6 @@ async def test_the_overlay_holds_over_both_arms(check: Check, build: Build) -> N
 
 
 async def test_the_adapter_hands_the_overlay_the_image_the_sidecar_sent() -> None:
-    """Through the real adapter the image block arrives on the result, sized from its own header."""
     registry = OwnTextToolRegistry(
         _over_mcp(Answer(EXACT, image=True)), own=(OwnText("search_emails", _refusal),)
     )

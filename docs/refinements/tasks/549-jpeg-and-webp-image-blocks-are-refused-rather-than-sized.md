@@ -1,10 +1,7 @@
 # JPEG and WebP image blocks are refused rather than sized
 
-**Status:** open, actionable
+**Status:** landed 2026-09-08
 **Area:** tools-mcp
-**Trigger:** a sidecar this repo composes answers a call with an `ImageContent` block whose mime
-type is `image/jpeg` or `image/webp`, which fails the call today with an `ImageError` naming the
-format.
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
 Opened 2026-09-04 by the close of
@@ -53,3 +50,16 @@ still available, but the second now costs a narrowed allow list and a runbook li
   bounded JPEG segment walk and a WebP container read owe byte-level tests and a mutation table
   that this slot had no room for, and narrowing the allow list instead is a posture decision worth
   its own pass. Recorded in the ADR-0009 addendum of this date.
+- 2026-09-08: landed as the first of the two closes, a bounded JPEG segment walk and a WebP
+  container read. The three readers are a module of their own,
+  `brain/packages/tools/src/cortex_tools/headers.py`, and `blocks.py` keeps the path from a block to
+  an `ImagePart`. The walk is bounded at 512 segments, refuses a length below the two bytes the
+  length field occupies so the cursor always advances, and compares every offset against the buffer
+  before reading it, so a truncated or self-referential chain raises `ImageError` rather than
+  looping or raising `struct.error`. All three WebP container shapes are read from the first chunk.
+  The fixture module holds one real picture per shape, written by ffmpeg, and `test_headers.py`
+  builds every malformed container by hand. Twelve mutations over the 108 test
+  `brain/packages/tools` suite, one of which survived and was answered with a new test, are in the
+  ADR-0009 sized-formats addendum of this date. The close opens
+  [609](609-a-declared-mime-type-may-now-disagree-with-the-bytes-it-labels.md): with three formats
+  sized, a declaration naming the wrong one of them is no longer caught by the size read.

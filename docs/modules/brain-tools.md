@@ -29,13 +29,26 @@ source of audited, model-callable tools.
     (`scripts/emailcouplings.py`, ADR-0029 declared-source-key and declaration-fields addenda).
 - `blocks.result_images(result)` reads every `ImageContent` block of a `CallToolResult` into an
   `ImagePart`, in wire order (ADR-0009 image-carry addendum). An MCP image block states no
-  dimensions and `ImagePart` requires them, so the width and height come from the PNG header: a
-  signature comparison and a fixed-offset read of bytes 16 to 24, which is not a decode and reaches
-  no pixel. PNG is the only format sized, so a JPEG or WebP block is refused rather than carried at
-  a guessed size. Bad base64, a non-PNG, a header too short to hold a size, a size past
-  `MAX_IMAGE_EDGE` and a mime type outside `ALLOWED_MIME_TYPES` all raise `ImageError`, which
-  `invoke` crosses the port as `ToolError` with the cause chained. Not exported from
-  `cortex_tools`: the adapter is its only caller.
+  dimensions and `ImagePart` requires them, so the width and height come out of the bytes, through
+  `headers.image_size` below. Bad base64, a size past `MAX_IMAGE_EDGE`, a mime type outside
+  `ALLOWED_MIME_TYPES`, and every refusal a header reader raises all arrive as `ImageError`, which
+  `invoke` crosses the port as `ToolError` with the cause chained. The mime type stays the
+  sidecar's declaration, judged against the core's allow-list rather than against the bytes, which
+  is the standing the body's declared type has; the reader is picked by the signature the bytes
+  carry instead. Not exported from `cortex_tools`: the adapter is its only caller.
+- `headers.image_size(data)` states the width and height an encoded image's container declares, for
+  the three formats `ALLOWED_MIME_TYPES` lists (ADR-0009 sized-formats addendum). PNG's IHDR chunk
+  and a WebP RIFF container are fixed-offset reads, the WebP in whichever of its three shapes its
+  first chunk is: `VP8 `, whose two edges sit under two scale bits; `VP8L`, which packs them across
+  bits rather than bytes; and `VP8X`, which states a canvas one less than each edge. A JPEG's frame
+  header is not a fixed-offset read: it sits behind a chain of segments whose lengths the bytes
+  themselves state, so reaching it means following a length an attacker wrote. That walk is bounded
+  three ways. It takes at most `MAX_JPEG_SEGMENTS` steps; every segment must state a length of at
+  least two bytes, so the cursor advances every step; and every offset is compared against the
+  buffer before it is read, so a truncated or self-referential chain raises `ImageError` rather than
+  looping, reading past the end, or raising `struct.error`. Nothing here reaches a pixel, an
+  entropy-coded byte, or a palette, so the posture `cortex_core.images` sets out still holds. A
+  block carrying none of the three signatures is refused rather than carried at a guessed size.
 - `streamable_http_session(url)` is an `@asynccontextmanager` opening a **structured, same-task**
   streamable-http MCP session (`streamable_http_client` + `ClientSession` + `initialize`), yielded
   for the scope of one `async with`. Replaces the old `connect` classmethod, which held the
