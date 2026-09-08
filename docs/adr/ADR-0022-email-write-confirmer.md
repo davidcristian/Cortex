@@ -2445,3 +2445,111 @@ It started no probe container and ran no `just email-folder-probe`, because ever
 that server is already recorded against an image that has not changed. It also did not attempt the
 two rejected dovecot configurations again; whether either is worth keeping as a runnable fixture is
 the open question of the fourth entry, and a sweep answering triggers is not the place to decide it.
+
+## Addendum (2026-09-08): the three folder triggers re-read against both servers, and a closing move refuted
+
+The sweep the day before answered four triggers deferred here, and it answered three of them from
+the tree and from one live Bridge read rather than from the second server: it started no probe
+container, on the argument that the image behind the recorded answers had not moved. That argument
+is sound about the answers already recorded and says nothing about answers nobody had asked for.
+This sitting started the probe and asked them. None of the three triggers has fired, one entry's
+closing move turns out not to work on this server, and one line of the previous sweep is corrected.
+
+### What the two servers answered
+
+The probe was started with `just up-imap-probe`, and `just email-folder-probe` passed its nine
+checks. A plain `LIST "" "*"` taken past the port, with every listed name then opened, answered:
+
+    Feigned            (\HasChildren \UnMarked)     opens
+    Feigned/Followed   (\HasNoChildren \UnMarked)   opens
+    Guarded            (\HasNoChildren)             NO [NOPERM] Permission denied
+    INBOX              (\HasNoChildren)             opens
+    Parent             (\Noselect \HasChildren)     NO Mailbox doesn't exist: Parent
+    Parent/Child       (\HasNoChildren \UnMarked)   opens
+    Sealed             (\HasNoChildren)             opens
+
+Both refusals carry this server's timing suffix, `(0.001 + 0.000 secs).`, and `list_folders` offers
+six of the seven names, dropping `Parent` alone. The Bridge was read the same way on the same day:
+19 names listed, 19 offered, 19 opening, `Folders` and `Labels` flagged
+`('\Noselect', '\Unmarked')` and both opening, and not one listed name refused. So the flag sits on
+a name that opens on one server and on a name refused as missing on the other, which is the split
+the flag rule was built for.
+
+### The flag and the shut refusal cannot both land on one name here
+
+The first entry waits for a name that is both flagged unselectable and refused in words other than
+the ones that prove a folder missing, and the previous sweep said no setting produces one on this
+server without editing `docker/dovecot/probe-mailboxes.sh`. Editing that script does not produce one
+either, and that was measured rather than argued.
+
+The probe's ACL backend is `acl = vfile` with no path (`docker/dovecot/probe.conf`), so dovecot
+reads a per-mailbox `dovecot-acl` file from inside the mailbox directory, at
+`<mailbox>/dbox-Mails/dovecot-acl`. The absence of that `dbox-Mails` directory is what makes a name
+`\Noselect` here: an sdbox mailbox is a directory holding one, and `Parent` is a directory without
+one. The file that shuts a name can therefore only be written into the directory whose absence is
+the flag. Creating `Parent/dbox-Mails` and writing `owner l` into `Parent/dbox-Mails/dovecot-acl`
+moved the listing from `Parent (\Noselect \HasChildren)` refused
+`NO Mailbox doesn't exist: Parent (0.001 + 0.000 secs).` to `Parent (\HasChildren)` refused
+`NO [NOPERM] Permission denied (0.001 + 0.000 secs).`: shutting the name unflagged it in the same
+edit. The store is a tmpfs, so `just down-imap-probe` left the fixture as the script builds it.
+
+What is left untried is dovecot's global form, `acl = vfile:<path>`, which names ACLs outside the
+mailbox directory. Whether a name with no mailbox directory can be shut that way is unmeasured, and
+so is whether the existence check that answers `Mailbox doesn't exist` runs before the permission
+check at all. The entry now records both, beside the alternative it always had: settle the asymmetry
+by argument and drop a flagged name only on the words `_FOLDER_MISSING_ANSWERS` already spells.
+
+### The refusal that could report a shut mailbox missing, built and measured
+
+The second entry is about the caller's own folder name reaching the classification. `_select` reads
+`str(err)`, imap-tools renders the refused command's data into that string, and dovecot puts the
+name it refused inside `Mailbox doesn't exist: <name>`. The direction that could cause harm needs a
+refusal that both declines a real mailbox and echoes its name, and the argument that none exists
+rested on `Guarded` being refused `[NOPERM] Permission denied`, which is one mailbox with one name.
+
+So a second one was built, with the name chosen to be the worst this rule can be handed: a real
+mailbox called `no such mailbox`, shut by the same ACL. It was refused
+`NO [NOPERM] Permission denied (0.001 + 0.000 secs).` with the name nowhere in the answer, and
+`ImapMailbox.search` raised the base `MailboxError` rather than `FolderUnknownError`. `Parent`, once
+shut in the paragraph above, was refused in those same words. Three shut mailboxes, three names, and
+one refusal that carries no name at all.
+
+Two smaller readings go with it. The echo itself reproduced verbatim, `EXAMINE "[NOPERM] archive"`,
+`EXAMINE "no such mailbox"` and `EXAMINE "[CANNOT] thing"` each answered
+`NO Mailbox doesn't exist:` followed by the name that was sent, which is the direction that changes
+nothing. And the library claim in that entry's closing move was checked rather than trusted: in
+imap-tools 1.13.0 `MailboxFolderSelectError` inherits `UnexpectedCommandStatusError`, which keeps
+the refused command's `(status, data)` on `command_result` and renders it into `__str__`, so the raw
+tuple is on the exception the adapter already catches. The other limb of that trigger, a third IMAP
+server, has not arrived: `grep -n 'image:' docker/*.yml` returns one IMAP server image,
+`dovecot/dovecot:2.3.21`.
+
+### The keep branch is still one account, and one line of the previous sweep is corrected
+
+The third entry says the keep branch of the flag rule, a flagged name that opens and is offered, is
+exercised live by the Bridge test alone. Today's readings say the same. The Bridge takes that branch
+twice, on `Folders` and `Labels`; the probe takes the drop branch once, on `Parent`, and never the
+keep. `Feigned` is the probe's name that a listing calls unselectable and that opens, but only in an
+`LSUB` of `%`, which is not the call `list_folders` makes.
+
+One line in that entry's trail is corrected here. It said the probe answers a plain LIST with
+`Feigned` as `(\HasChildren)` and nothing else, and that the suite asserts that by name. The reading
+today is `(\HasChildren \UnMarked)`, and the suite asserts neither tuple:
+`test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing` asserts that
+`\HasChildren` is present and that neither `\Noselect` nor `\NonExistent` is. That is deliberate,
+because this server starts sending `\UnMarked` with a mailbox once something has searched it and the
+port contract's own check searches every offered name. The suite's comment records an exact reading
+being written, passing on the container that built it, and failing on the rerun, which is why the
+assertion has the shape it has.
+
+### Records
+
+The record is the three task files,
+[R-375](../refinements/tasks/375-a-flagged-name-shut-is-dropped-as-if-missing.md),
+[R-386](../refinements/tasks/386-the-answer-read-holds-the-name-that-was-sent.md) and
+[R-400](../refinements/tasks/400-the-keep-in-the-adapters-listing-is-one-account.md), all three of
+which stay open with a dated trail entry and a trigger that now says how it is read,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No source file and no gate changed, so no mutation table is owed. The probe was started
+and taken down again, and it builds its store fresh on every start, so the two mailboxes added by
+hand left nothing behind.

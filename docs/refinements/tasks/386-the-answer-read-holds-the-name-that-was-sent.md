@@ -2,7 +2,10 @@
 
 **Status:** open, fix when it bites
 **Area:** email-confirmer
-**Trigger:** a third IMAP server, or one whose refusal for a mailbox that is there and shut echoes the name it refused
+**Trigger:** a third IMAP server, or one whose refusal for a mailbox that is there and shut echoes
+the name it refused. The first limb is read off the compose files, which name every server image
+this repo runs (`grep -n 'image:' docker/*.yml`); the second by shutting a mailbox on a server this
+repo reaches and reading the refusal verbatim. This entry's trail records both readings.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
 `_select` in `brain/packages/email/src/cortex_email/imap.py` classifies a refused SELECT by
@@ -26,12 +29,23 @@ cannot produce a shut mailbox at all. In the other direction the echo changes no
 mailbox has is answered `Mailbox doesn't exist: <name>` whatever the name is, so the phrase that
 matches is the server's own either way.
 
+That harmful direction was built on 2026-09-08 rather than reasoned about. The probe was given a
+real mailbox named `no such mailbox` and shut with the same ACL that shuts `Guarded`, which is the
+worst name this rule can be handed: a mailbox that is there, cannot be opened, and is called the
+needle. The server refused it `NO [NOPERM] Permission denied (0.001 + 0.000 secs).` with the name
+nowhere in the answer, and the port raised the base `MailboxError` rather than `FolderUnknownError`.
+`Parent`, once the same ACL shut it, was refused in exactly those words too. So this server's shut
+refusal carries no mailbox name whatever the mailbox is called, and the echo it does produce belongs
+to the direction that changes nothing.
+
 **What would close it.** Reading the response code and the text out of the refused command's data
 rather than out of a rendered exception message, which is where the boundary between what the
-server said and what the caller sent actually is. imap-tools carries the raw `(status, data)` on
-`MailboxFolderSelectError`, so the parse is available without reaching past the library; what has to
-be decided is how much of an IMAP response-code grammar to write for a needle that is currently one
-`in` against a string. The cheaper half, and the one worth doing first if this ever bites, is to
+server said and what the caller sent actually is. imap-tools 1.13.0 carries the raw `(status, data)`
+on `MailboxFolderSelectError` as `command_result`, inherited from `UnexpectedCommandStatusError`,
+whose `__str__` is what renders it into the message the rule reads today; so the parse is available
+without reaching past the library. What has to be decided is how much of an IMAP response-code
+grammar to write for a needle that is currently one `in` against a string. The cheaper half, and
+the one worth doing first if this ever bites, is to
 stop matching anywhere in the message and match only the code at the front of the data line, which
 is the one position RFC 5530 lets a code appear in.
 
@@ -46,3 +60,17 @@ is the one position RFC 5530 lets a code appear in.
   name no mailbox has, which is the harmless direction this entry already measured. The Bridge
   still cannot produce a shut mailbox at all, read live today: every one of the 19 names it lists
   opens. Recorded in the ADR-0022 trigger-sweep addendum.
+- 2026-09-08: read again on both limbs, neither fired, and the second was measured rather than
+  inferred. `grep -n 'image:' docker/*.yml` returns one IMAP server image, `dovecot/dovecot:2.3.21`,
+  so this repo still reaches two servers and no third. The echo reproduced verbatim on the probe the
+  same day, the three lines above plus `EXAMINE "Nonexistent"` answered
+  `NO Mailbox doesn't exist: Nonexistent (0.001 + 0.000 secs).`, and the harmful direction was then
+  built: a real mailbox named `no such mailbox`, ACL-shut, refused
+  `NO [NOPERM] Permission denied (0.001 + 0.000 secs).` with no name in it and raised the base
+  `MailboxError` through the port. The Bridge was read live the same day and still refuses nothing
+  at all, 19 names listed and 19 opening. The library claim in **What would close it** was checked
+  against the installed imap-tools 1.13.0 rather than taken on trust:
+  `MailboxFolderSelectError` inherits `UnexpectedCommandStatusError`, which stores the refused
+  command's `(status, data)` as `command_result` and renders it into `__str__` as `Data: ...`, so
+  the raw tuple really is on the exception the adapter already catches. Recorded in the ADR-0022
+  addendum of the same day.
