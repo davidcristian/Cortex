@@ -2382,3 +2382,82 @@ follows it. It reopens on one thing, and only on it: a two-reading defense whose
 measured, at which point the mixed host is a consequence rather than a case. Unchanged: the full
 UTS-39 confusables set stays declined, footer and boilerplate heuristics stay declined, and a bare
 domain with no scheme is still out of scope.
+
+## Addendum (2026-09-08): two deferred entries re-measured, and both of their numbers were stale
+
+Answers the triggers on the two entries this ADR left open against the lookalike policy, R-284 on
+whether that policy should be the shipped default and R-294 on the one-identity assumption behind
+the mixed dot-and-gap decline. Neither trigger has fired and nothing in the tree changes. What does
+change is both entries' arithmetic: each carried a corpus number from the day it was written, and
+both were wrong by the time anybody re-read them.
+
+### The default is untouched, and the corpus arm grew sixfold
+
+`config.py` still binds `output_guardrail` to `redact`, so the lookalike ground ships off and no
+turn on this machine has ever run under it. That is also why the trigger cannot have fired from the
+other side: the deployment measurement R-284 waits on is a count of redactions under a policy that
+has never been switched on here, so there is nothing to count and the entry's own decision to wait
+on being bitten still stands.
+
+The reading that did move is the corpus arm, re-run over `git ls-files` at `HEAD` rather than
+trusted. `URL_RE` finds 2,997 matched spans across the 1,548 readable files of 1,574 tracked and
+2,304,319 words, reducing through `extract_urls` to 1,192 distinct identities. Reading each match's
+host the way `_flagged` does, `host_of(normalize_url(match.group(), confusables=False))`, **12** of
+those hosts are not plain ASCII where the entry recorded 2. Every one is still a fixture and they
+occupy four files: this document, `brain/packages/core/tests/test_guardrail.py`,
+`docs/modules/brain-core.md`, and one backlog entry. Three of the twelve are not hosts anybody wrote
+but artifacts of the matcher running over Markdown, a backtick and an arrow both being ordinary body
+characters to a grammar that stops only at whitespace and the prose closers.
+
+That growth is the finding rather than a correction to file away. The count rises with every
+addendum here that writes a homoglyph example down, so what this repo's corpus measures is how much
+this decision has been documented. It cannot stand in for how often a turn names an
+internationalized host, which is the question, and six times as many fixtures is six times as much
+of an answer to something nobody asked.
+
+### The relaxation now extends 22 spans, and its shape is unchanged
+
+The twentieth addendum priced the mixed dot-and-gap host at 14 extended spans and 14 changed
+identities over 1,072 files and 1,410,285 words, and declined it because an extended span there is
+an existing correct match eating the prose after it. Rebuilt against `HEAD` from the current
+`url_spellings` tables, with `SPLIT_LABEL` allowed to carry a plain dot and the gap, the split host
+and the host anchor all recomposed on that relaxed label, the relaxation over the same corpus adds
+**0** spans, loses **0**, and extends **22**, changing all 22 identities.
+
+The published bar was zero added spans and the relaxation still clears it. The column that decided
+it is the last one, and it decides the same way at the larger size: `http://example.com` followed by
+` dot the file is there` becomes `http://example.com.the`, so the guardrail delivers a link it
+redacts today. The decline holds, now on 22 rather than on 14.
+
+### The four call sites, named because the interaction is what a mutation table misses
+
+R-294 said the fix is blocked by two places that assume one answer. There are four, and naming them
+is the point: an agent building a two-reading defense mutates the matcher it just wrote, and the
+interaction between that matcher, the trim that rebuilds a replacement, and the ordering the
+hold-back imposes survives a whole mutation table untouched.
+
+- `urls.py:226`, `extract_urls`, which maps each `finditer` match through `normalize_url` into a
+  frozenset. This one could carry two identities for one span with no caller change.
+- `guardrail.py:220`, `_scrub`, which substitutes with `URL_RE.sub`. That visits non-overlapping
+  spans and calls `_redacted` exactly once per span.
+- `guardrail.py:226`, `_redacted`, which trims trailing prose punctuation off the matched text and
+  rebuilds the replacement around what it trimmed. A span holding two readings has to decide whose
+  trailing punctuation that is.
+- `url_holdback.py:136`, `held_from`, which releases the buffer up to `last.start()` when a match
+  ends at `last.end() == len(buf)`. A second reading ending later than the first is released before
+  it can be recognized at all.
+
+Any two-reading design answers all four together or it does not work, and the last three are where
+the cost lives.
+
+### The decision
+
+Both entries stay open as fix-when-it-bites, with their bodies repaired to today's readings and
+their triggers rewritten to be recheckable. R-294's old trigger named a condition that was already
+true on the day it was written, the mixed host being itself a span with two honest readings, so it
+could never report anything; it is replaced by a second such spelling appearing or the mixed host
+reaching a real reply here. R-284's trigger keeps the deployment measurement it always wanted and
+gains the two cheap readings, the shipped default and the non-ASCII host count, that say whether
+anything has moved. Unchanged: the lookalike policy stays opt-in, the mixed dot-and-gap host stays
+declined, and the full UTS-39 confusables set, the footer heuristics and the schemeless bare domain
+all stay out.
