@@ -3,7 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
-**Trigger:** routine mid-turn evictions once the real model swap lands, and turns costly enough that a silent re-run beats paying for dedup.
+**Trigger:** a deployment that sets `CORTEX_ESCALATION`, which is the switch that builds a swap
+scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:97` returns
+`None` without it), together with turns costly enough that a silent re-run beats paying for dedup.
+Recheck with `grep -rn CORTEX_ESCALATION docker/`: one hit, inside a comment, means nothing swaps
+and this has not fired.
 
 The transport retry entry costed this at one line, "a replayable request and a signature
 change", which was right about the shape and said nothing about the size.
@@ -28,6 +32,16 @@ mid-turn evictions once the real model swap lands, and turns costly enough that 
 beats paying for dedup. `converse` stays unretried (`SeamMethod::Converse` is not repeatable);
 this sharpening explains why, and does not change it.
 
+Read again on 2026-09-08, one level above the knob the previous reading checked. An empty
+`CORTEX_SWAP_EVICT_MODELS` says no peer tier is evicted, but the switch that decides whether any
+handoff machinery exists is `CORTEX_ESCALATION`: with it off, `build_swap_scope` returns `None`
+(`swap_builders.py:97`), so no conductor, no model host, and no swap of any kind is constructed,
+whatever the eviction list holds. `grep -rn CORTEX_ESCALATION docker/` reports exactly one hit
+today, a comment at `docker/docker-compose.gpu.yml:25` describing what an operator would set to
+turn escalation on. The shipped defaults agree: `escalation` is `False` and `modelhost_backend` is
+`"none"` (`config_swap.py:108-109`). So no model swap runs on any composed stack in this repo, and
+the mid-turn eviction the trigger waits for cannot occur yet.
+
 ## Trail
 
 - 2026-07-08: recorded as deferred inside the transport retry and reconnect policy entry, costed
@@ -43,3 +57,10 @@ this sharpening explains why, and does not change it.
   moved and found it quiet, nothing being routinely evicted while `CORTEX_SWAP_EVICT_MODELS` is
   empty by default (`brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py:113`, the
   knob the recovery path names at `brain/packages/core/src/cortex_core/swap_recovery.py:101`).
+- 2026-09-08: reread at the switch above that knob and still quiet. `CORTEX_ESCALATION` decides
+  whether a swap scope is built at all, and it appears once in `docker/`, in a comment; the
+  shipped defaults are `escalation=False` and `modelhost_backend="none"`. The seam side is
+  unchanged: `ClientEvent` and `UserTurn` still carry `session_id`, text and images and no request
+  identity (`proto/body.proto:93-104`). Left open with the trigger rewritten to name that switch
+  and the command that reports it, recorded in the ADR-0024 addendum on what the two seam-transport
+  triggers read on this date.

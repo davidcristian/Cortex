@@ -6,7 +6,11 @@
 **Trigger:** A store read whose duration is measured rather than guessed, meaning a distribution
 this repo keeps rather than one number somebody picked; or the body's own bound ceasing to be
 shorter than the deadline it announces, which is what currently makes the handler's own return
-worth so little.
+worth so little. Recheck the second half with
+`grep -n ANNOUNCED_DEADLINE_GRACE_MS body/crates/core/src/retry/plan.rs`: a positive constant there
+means the announced deadline is still the longer of the two and this has not fired. Recheck the
+first with `grep -c time_remaining brain/packages/orchestrator/src/cortex_orchestrator/session_servicer.py`:
+zero means no read handler branches on the clock.
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads,
@@ -37,9 +41,28 @@ paging cursor ([184](184-paging-cursor.md)) or a catalog large enough that a lis
 round trip but a scan would make the saving worth the invented expiry, and would also be the thing
 that finally produces a measurement to set the floor from.
 
+Both halves were reread on 2026-09-08 and both still hold. `session_servicer.py` spells
+`time_remaining` zero times across all five of its unary handlers (`ListSessions`,
+`GetSessionMessages`, `RenameSession`, `DeleteSession`, `SetSessionPinned`), so no read consults
+the clock before spending its round trip. The only reader in the brain is the abandonment
+interceptor, which prints the value and branches on nothing
+(`brain/packages/orchestrator/src/cortex_orchestrator/abandon.py:74`, and the module doc above it
+says so). The grace margin is still `ANNOUNCED_DEADLINE_GRACE_MS = 250`
+(`body/crates/core/src/retry/plan.rs:79`), asserted as an equality rather than an inequality by
+`body/crates/core/tests/retry_plan.rs:465`, so the announced deadline remains exactly 250 ms longer
+than the bound the body enforces and the handler's early return would still be inventing an expiry.
+The measurement that would set a floor is still absent: no histogram or timing of a store read
+exists anywhere in the tree, and the paging cursor that would make one worth taking
+([184](184-paging-cursor.md)) is itself still open, fix when it bites.
+
 ## Trail
 
 - 2026-08-21: Filed by the close of
   [341](341-nothing-declines-work-it-cannot-finish.md), which decided all three of its shapes and
   built the one that was not a per-RPC policy. Recorded in the ADR-0024 addendum on what the
   announced deadline is worth downstream.
+- 2026-09-08: both halves of the trigger reread and neither has fired. Five unary handlers,
+  zero mentions of `time_remaining` among them; the grace margin still 250 ms and still asserted
+  as an equality; still no timing of a store read anywhere in the tree. Left open with the trigger
+  rewritten to name the two commands that report it, recorded in the ADR-0024 addendum on what the
+  two seam-transport triggers read on this date.
