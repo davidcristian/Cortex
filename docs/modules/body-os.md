@@ -33,9 +33,10 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   narrowly authorized by ADR-0023: `os_windows` is the **only** crate that opts out of the
   workspace `unsafe_code = forbid`, using its own `[lints.rust] unsafe_code = deny` plus a
   scoped `#![allow(unsafe_code)]` per module (re-declaring the other workspace
-  lints); every other crate keeps `forbid`. There are three such modules now, each with its own
+  lints); every other crate keeps `forbid`. There are four such modules now, each with its own
   authorization line naming its own ADR: `audio` (Core Audio, ADR-0023), `notify` (one apartment
-  initialization, ADR-0025), and `screen` (GDI plus the display-affinity call, ADR-0029). The toast module carries the same scoped allow for
+  initialization, ADR-0025), `screen` (GDI plus the display-affinity call, ADR-0029), and `focus`
+  (the Z-order walk behind a targeted capture, ADR-0029). The toast module carries the same scoped allow for
   one line: WinRT projections are safe, but activating a WinRT factory needs a
   COM-initialized thread and the `BodyService` server's threads have none, so
   it makes the same idempotent `CoInitializeEx` call the audio backend does.
