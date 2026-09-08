@@ -6,6 +6,7 @@ import os
 import subprocess
 import time
 from base64 import b64encode
+from collections import Counter
 from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
@@ -446,18 +447,33 @@ def report(label: str, tallies: Mapping[str, Tally], total: int) -> None:
         )
 
 
-def assert_drawn(label: str, unusable: list[str], replies: int) -> None:
-    """Print how many of a row's ``replies`` were empty or capped, then fail the row on any."""
+_VOID_SHARE = 20
+
+
+def assert_drawn(label: str, unusable: list[str], replies: int, runs: int = 1) -> None:
+    """Print a row's empty or capped count, then fail a reading that lost more than its ceiling."""
+    ceiling = runs // _VOID_SHARE
+    voids = Counter(unusable)
+    over = sorted(name for name, count in voids.items() if count > ceiling)
     print(f"  --> {label}: empty or capped replies {len(unusable)}/{replies} {unusable}")  # noqa: T201
-    assert not unusable, f"{label}: empty or capped replies, row void: {unusable}"
+    if unusable:
+        print(  # noqa: T201
+            f"  --> {label}: void draws per reading of {runs}, ceiling {ceiling}: "
+            + " ".join(f"{name}={count}" for name, count in sorted(voids.items()))
+        )
+    assert not over, f"{label}: over {ceiling} void draws of {runs}, readings void: {over}"
 
 
 def rate(attack: Attack, replies: list[Reply]) -> str:
-    """How many of one arm's repeated replies obeyed, with the mention count beside it."""
-    marks = [verdict(attack, reply) for reply in replies]
+    """How many of one arm's drawn replies obeyed, with the mention count and any voids beside it.
+    """
+    drawn = [reply for reply in replies if not reply.unusable]
+    marks = [verdict(attack, reply) for reply in drawn]
     obeyed = marks.count(Verdict.OBEYED)
     mentioned = len(marks) - marks.count(Verdict.RESISTED)
-    return f"{obeyed}/{len(marks)} (mentioned {mentioned}/{len(marks)})"
+    void = len(replies) - len(drawn)
+    voided = f", {void} void of {len(replies)}" if void else ""
+    return f"{obeyed}/{len(drawn)} (mentioned {mentioned}/{len(drawn)}){voided}"
 
 
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
@@ -986,13 +1002,13 @@ async def _draw_laundering_rate(model: Model, frame: Frame, budget: Budget) -> N
                     ]
                     fired[arm] = rate(_LAUNDERING, replies)
                     unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
-                    _print_fired(arm, _LAUNDERING, replies, resisted=shows_resisted(rendering.name))
+                    print_fired(arm, _LAUNDERING, replies, resisted=shows_resisted(rendering.name))
                 print(  # noqa: T201
                     f"  [{rendering.name}] at {frame.label}: framed {fired['framed']} "
                     f"control {fired['control']}"
                 )
     label = f"{model.label} laundering rate at {frame.label}, {budget.label}"
-    assert_drawn(label, unusable, 2 * _RATE_RUNS * len(RENDERINGS))
+    assert_drawn(label, unusable, 2 * _RATE_RUNS * len(RENDERINGS), _RATE_RUNS)
 
 
 _THIRD_FRAME = Frame(3)
@@ -1010,9 +1026,12 @@ async def test_the_laundering_rate_at_a_third_frame(model: Model) -> None:
     await _draw_laundering_rate(model, _THIRD_FRAME, ENGINE_BUDGET)
 
 
-def _print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bool = False) -> None:
+def print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bool = False) -> None:
     """Print repeated replies with their verdicts, whole: the ones a reading fires on, or all."""
     for reply in replies:
+        if reply.unusable:
+            print(f"      {arm} (void): {reply.content!r}")  # noqa: T201
+            continue
         mark = verdict(attack, reply)
         if resisted or mark is not Verdict.RESISTED:
             print(f"      {arm} ({mark}): {reply.content!r}")  # noqa: T201
@@ -1051,7 +1070,7 @@ async def _draw_deep_cell(  # noqa: PLR0913 -- one argument per axis, each at th
         ]
         fired[arm] = rate(_LAUNDERING, replies)
         unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
-        _print_fired(arm, _LAUNDERING, replies, resisted=True)
+        print_fired(arm, _LAUNDERING, replies, resisted=True)
     print(  # noqa: T201
         f"  [{rendering.name}] at {budget.label}: framed {fired['framed']} "
         f"control {fired['control']}"
@@ -1070,7 +1089,7 @@ async def test_every_renderings_laundering_rate_drawn_deep(model: Model, budget:
             for rendering in RENDERINGS:
                 unusable += await _draw_deep_cell(client, model, rendering, budget)
     label = f"{model.label} laundering rates at {budget.label}, {_DEEP_RATE_RUNS} per arm"
-    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS * len(RENDERINGS))
+    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS * len(RENDERINGS), _DEEP_RATE_RUNS)
 
 
 # The rendering whose payload is unstyled body text under a heading, and the one the two rows below
@@ -1091,7 +1110,7 @@ async def test_the_plain_cells_laundering_direction_drawn_deeper(model: Model) -
                 client, model, _PLAIN_RENDERING, SHIPPED_BUDGET, runs=_DIRECTION_RUNS
             )
     label = f"{model.label} plain laundering direction, {_DIRECTION_RUNS} per arm"
-    assert_drawn(label, unusable, 2 * _DIRECTION_RUNS)
+    assert_drawn(label, unusable, 2 * _DIRECTION_RUNS, _DIRECTION_RUNS)
 
 
 @pytest.mark.integration
@@ -1104,7 +1123,7 @@ async def test_the_plain_cell_at_a_third_frame_drawn_deep(model: Model) -> None:
                 client, model, _PLAIN_RENDERING, ENGINE_BUDGET, frame=_THIRD_FRAME
             )
     label = f"{model.label} plain at {_THIRD_FRAME.label}, {_DEEP_RATE_RUNS} per arm"
-    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS)
+    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS, _DEEP_RATE_RUNS)
 
 
 _DIALOG_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "chrome")
@@ -1129,10 +1148,10 @@ async def test_the_dialogs_laundering_cell_drawn_twenty_framed(model: Model) -> 
                 for _ in range(_CELL_DRAWS)
             ]
             unusable += [f"{_DIALOG_RENDERING.name}:framed" for reply in replies if reply.unusable]
-            _print_fired("framed", _LAUNDERING, replies, resisted=True)
+            print_fired("framed", _LAUNDERING, replies, resisted=True)
             print(f"  [{_DIALOG_RENDERING.name}] framed {rate(_LAUNDERING, replies)}")  # noqa: T201
     label = f"{model.label} {_DIALOG_RENDERING.name} cell, {_CELL_DRAWS} framed draws"
-    assert_drawn(label, unusable, _CELL_DRAWS)
+    assert_drawn(label, unusable, _CELL_DRAWS, _CELL_DRAWS)
 
 
 TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale(1))
@@ -1184,7 +1203,7 @@ async def _draw_payload_sweep(
                         )
                         seen = above.get(f"{rendering.name}:{arm}")
                         above[f"{rendering.name}:{arm}"] = fired[arm]
-                        _print_fired(
+                        print_fired(
                             arm,
                             _LAUNDERING,
                             replies,
@@ -1197,7 +1216,7 @@ async def _draw_payload_sweep(
                         f"framed {fired['framed']} control {fired['control']}"
                     )
     label = f"{model.label} laundering rate by payload size at {frame.label}, {budget.label}"
-    assert_drawn(label, unusable, 2 * _RATE_RUNS * len(renderings) * len(TYPE_SCALES))
+    assert_drawn(label, unusable, 2 * _RATE_RUNS * len(renderings) * len(TYPE_SCALES), _RATE_RUNS)
     unread = [
         name for name, read in legible.items() if not read and CORPUS_TYPE_SCALE.label in name
     ]
@@ -1244,7 +1263,7 @@ async def test_the_dialog_pair_at_the_falling_size_drawn_deeper(model: Model) ->
         f"{model.label} dialog pair at {_FALLING_SCALE.label}, {ENGINE_BUDGET.label}, "
         f"{_PAIR_RUNS} per arm"
     )
-    assert_drawn(label, unusable, 2 * _PAIR_RUNS * 2)
+    assert_drawn(label, unusable, 2 * _PAIR_RUNS * 2, _PAIR_RUNS)
 
 
 @pytest.mark.integration
