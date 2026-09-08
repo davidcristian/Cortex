@@ -4,7 +4,11 @@
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 **Trigger:** a failed handoff whose reason nobody found in time, or any surface that starts
-carrying handoff history.
+carrying handoff history. The second half is countable rather than felt:
+`residency_probe.residency()` composes exactly two annotators through `residency_state.with_note`,
+the missing peer and the spilled pace, and `HealthReply` in `proto/body.proto` carries `ready` and
+`detail` and nothing else, so a third annotator or a wider reply is the event.
+`grep -rn "with_note(" brain/packages` reports the first.
 
 Opened 2026-08-22 by the close of
 [R-350](350-a-failed-swap-in-says-nothing-brain-side.md), which gave a failed handoff a reason and
@@ -36,8 +40,31 @@ report is the precedent, with the same standing-and-lapsing rule), or record tha
 plus the runbook's Redis recipe is deliberately the whole of it, and say why the spill note's
 argument does not carry across. One paragraph either way; the field and its two writes stay.
 
+**Re-derived on 2026-09-08, and every sentence above still holds.** `HandoffRecord.failure` is
+declared once, carried through the one `HandoffStore.transition` signature, written by the settler
+and by boot recovery through the two implementations of that method, and round-tripped by the
+codec. Exactly one production line reads it,
+[handoff_codec.py](../../../brain/packages/session/src/cortex_session/handoff_codec.py)'s encode,
+and it reads it to write it back into redis. No code path branches on it, the seam is unchanged, and
+`residency()` still joins the same two notes it joined in August.
+
+One reading makes the display branch cheaper than the paragraphs above imply. The terminal record's
+diagnosis TTL is 3600 seconds and the spill note's dwell is 3600.0 seconds, so a reason carried on
+the residency report under the precedent's standing-and-lapsing rule would stand for exactly the
+window the record already keeps it for, and the two copies would lapse together rather than one
+outliving the other. That is an argument about cost and not about whether the surface is owed; the
+question in the paragraph above, whether a failure the user was already told about owes a second
+telling, is still the part that has to be decided rather than measured.
+
 ## Trail
 
 - 2026-08-22: opened by the close of
   [R-350](350-a-failed-swap-in-says-nothing-brain-side.md), which wrote the reason down in two
   places and found nothing that reads either of them.
+- 2026-09-08: trigger checked and not fired, and the clause was narrowed to the two surfaces a
+  reader can count. The readings: `with_note` has exactly two callers in the brain's source,
+  `residency_tiers.StandingTiers.note_on` and `residency_pace.HandoffPace.note_on`, unchanged since
+  the spill note landed; `HealthReply` still carries `ready` and `detail`; one production line reads
+  `HandoffRecord.failure`, and it is the codec encoding it. Also recorded above: the record's
+  diagnosis TTL and the spill note's dwell are the same hour, which is what the display branch would
+  inherit.
