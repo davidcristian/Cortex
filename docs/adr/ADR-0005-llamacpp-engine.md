@@ -4205,6 +4205,12 @@ rather than on one found voiding.
    and the text row, the pixel row, the rate row and the payload-size sweep all close through it.
    The count prints first so the cells above it, each with its marks and its fired replies, can be
    read when the row fails. The message names the row and the arms that voided.
+   **Narrowed 2026-09-08 by the void-ceiling addendum at
+   [ADR-0029](ADR-0029-vision-screen-capture.md)**, which holds each *reading* rather than each row
+   to a ceiling of one void draw in twenty of that reading's own depth. A row whose replies are
+   each a different cell has a depth of one and so keeps this decision unchanged, failing on any
+   void; a row that draws one cell 120 times counts its void draws out of the denominator, names
+   them beside it, and fails above six of them.
 2. **The rule is one rule, not a text rule beside a pixel rule.** The pixel row's own assertion
    and the two rate rows' assertions are replaced by the call, so a row added to either arm has
    the rule the day it is written. The rate rows gain the printed count line, which they did not

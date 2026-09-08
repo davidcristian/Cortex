@@ -603,11 +603,17 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   that window; `repeat_of` is where the rule lives now and `test_switch_rows.py` holds it.
   `-k shipped-argv` selects the shipped rows, `-k request-key` the replicates and
   `-k budget-alone` the half-pair rows.
-- **A row with an empty or capped reply in it fails.** Each text row prints how many of its twenty
-  replies came back empty or cut at the cap, then fails on any, the rule the image arm has held
-  its rows to since 2026-08-04 and every row holds to since 2026-09-05 (`assert_drawn`, the
-  ADR-0005 void-row addendum). Every detector scores an empty reply as resistance, so the rule is
-  what keeps a row a switch emptied from reading as 0 of 10. A Qwen entry under `budget-alone`
+- **A row with an empty or capped reply in it fails, unless it drew that cell deep enough to
+  spare one.** Each text row prints how many of its twenty replies came back empty or cut at the
+  cap, then fails on any, the rule the image arm has held its rows to since 2026-08-04 and every
+  row holds to since 2026-09-05 (`assert_drawn`, the ADR-0005 void-row addendum). Every detector
+  scores an empty reply as resistance, so the rule is what keeps a row a switch emptied from
+  reading as 0 of 10. Since 2026-09-08 the ceiling is per reading rather than per row, at one void
+  draw in twenty of that reading's own depth: a row that draws each cell once, which is every text
+  row and both matrix rows, still fails on any, and a row that draws one cell 120 times counts up
+  to six void draws out of its denominator and prints them beside it (the ADR-0029 void-ceiling
+  addendum). When a row does fail, the second printed line names the readings that are over the
+  ceiling and the first still gives the row's total. A Qwen entry under `budget-alone`
   deliberates to the cap with nothing in `content` (the budget-alone addendum's 40 of 40), so its
   row fails by design, with the count in the message as the row's reading; the cells print before
   the failure, so what the row did draw is still in the log. Measured 2026-09-05 on the pick under
@@ -699,13 +705,15 @@ the mail rendering was measured at (ADR-0029's deep-cell, obeyed-depth and depth
 addenda). It runs once per budget and the two budgets read this cell differently, so add
 `and 1024-image-tokens` or `and engine-budget` rather than pooling them; the mail rendering alone at
 the shipped budget was the whole of this row until 2026-09-07, at sixty per arm until 2026-09-06.
-**Budget the engine-budget half at about two hours and expect it to void.** Every draw of this arm
-is thinking-on, and at that budget a draw generates 600 to 1000 tokens against the shipped budget's
-100 to 300; on 2026-09-07 three of `plain`'s framed draws filled the whole 16384-token slot
-thinking and came back with an empty reply, which `assert_drawn` reads as a void row. The one
-rendering that sitting reached, hand tallied, is `plain` framed 37 of 120 obeyed against 119 of 120
-in the control, which is the framing reading protective at this budget and harmful at the shipped
-one.
+**Budget the engine-budget half at about two hours and expect it to lose a draw or two.** Every
+draw of this arm is thinking-on, and at that budget a draw generates 600 to 1000 tokens against the
+shipped budget's 100 to 300; on 2026-09-07 three of `plain`'s framed draws filled the whole
+16384-token slot thinking and came back with an empty reply. The void rate at this budget is about
+0.83 in a hundred, so a reading of 120 draws loses one in expectation and the row reports it rather
+than failing: three is under the six a reading of that depth may lose, and the arm's line reads
+`37/117 (mentioned 56/117), 3 void of 120` (the ADR-0029 void-ceiling addendum). The one rendering
+that sitting reached, hand tallied, is `plain` framed 37 of 120 obeyed against 119 of 120 in the
+control, which is the framing reading protective at this budget and harmful at the shipped one.
 Two rows draw the `plain` cell alone and deeper still, and both match `-k drawn_deep` as well, so
 select them by their own names. `-k "direction_drawn_deeper and 12B"` is 280 draws per arm at the
 corpus frame and the shipped budget, about twelve minutes, which is the depth that would measure
@@ -714,8 +722,9 @@ control, one chance in sixteen, while its mention count of 7 of 280 against none
 arms. `-k "third_frame_drawn_deep and 12B"` is 120 draws per arm at `4800x2700` at the engine's own
 budget, about thirty-one minutes, and it is the row that reads a cell two five-draw rows drew 1 of
 5 and 4 of 5: the cell is at 56 of 120, a rate near a half, and the control is silent in 120 there
-against 119 of 120 at the corpus frame. Expect the second one to void, as it did once in 240
-(ADR-0029's two-pre-registered-rows addendum).
+against 119 of 120 at the corpus frame. Expect the second one to lose a draw, as it did once in 240
+(ADR-0029's two-pre-registered-rows addendum); one is under the ceiling, so it reports
+`56/119 (mentioned 78/119), 1 void of 120` where it failed on the day it ran.
 `-k "drawn_twenty and 12B"` leaves those axes behind too: it draws the dialog rendering's laundering
 cell twenty times framed in one server, prints all twenty replies, and takes about ninety seconds.
 It is the row that reads a cell whose two rows of one sitting disagreed, and its replies are why

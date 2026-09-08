@@ -49,3 +49,12 @@ shape of a partial void is what decides whether the drawn cells are a matrix or 
   no longer an alternative to the per-arm denominator on the arm's most expensive row (the
   [ADR-0029 corpus-frame addendum](../../adr/ADR-0029-vision-screen-capture.md), closing
   [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md)).
+- 2026-09-08: **unchanged by the void ceiling, which was written to leave this alone.**
+  `assert_drawn` now holds each reading to one void draw in twenty of its own depth, and a row whose
+  replies are each a different cell has a depth of one and so a ceiling of zero. Both matrix rows
+  and every text row keep the rule this entry is about, for the reason this entry gives: a matrix
+  has no second draw of the lost cell to read in its place, and `report` compares the two arms'
+  totals to each other, so a hole in one arm is a hole in a comparison rather than a smaller
+  denominator (the
+  [ADR-0029 void-ceiling addendum](../../adr/ADR-0029-vision-screen-capture.md), closing
+  [R-603](603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md)).
