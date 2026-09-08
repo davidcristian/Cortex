@@ -4780,3 +4780,139 @@ list is a posture decision that deserves its own pass rather than a footnote in 
 [R-395](../refinements/tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md),
 [R-549](../refinements/tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md),
 [docs/refinements/index.md](../refinements/index.md), and this addendum.
+
+## Sized-formats addendum (2026-09-08): a JPEG and a WebP block are sized rather than refused
+
+The image-carry addendum read an MCP image block's size out of the PNG header and refused the two
+other formats the core's `ALLOWED_MIME_TYPES` lists, naming the format in the error. That refusal
+is reachable from the shipped compose: `CORTEX_TOOLS_ALLOW__FILESYSTEM` has named `read_media_file`
+since 2026-07-03, and an operator who puts a JPEG under `CORTEX_TOOLS_ROOT` and asks for it gets a
+failed call. `cortex_tools/headers.py` now states the size for all three formats.
+
+### Re-derived first, and the entry's account held
+
+Every claim in [R-549](../refinements/tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md)
+was checked against the code before anything was written. `blocks.py` compared the PNG signature
+and unpacked bytes 16 to 24; `cortex_core/images.py` still lists all three mime types and still
+declares that nothing in the core parses a pixel; `test_blocks.py` held eight tests, one of which
+asserted the JPEG refusal by name; and the compose allow list still names `read_media_file`. The
+entry needed no repair, so this addendum is the close it asked for rather than a correction of it.
+
+### Decision 1: the segment walk is admitted, and bounded three ways
+
+A JPEG states its size in a frame header sitting behind a chain of segments whose lengths the bytes
+themselves state, so finding it means following a length an attacker wrote. That is the step the
+image-carry addendum declined to take, and it is taken here, because the alternative close, dropping
+`read_media_file` from the allow list, buys the same safety by removing a capability an operator has
+been shipped. The walk is bounded so that a hostile chain fails rather than runs:
+
+- it takes at most `MAX_JPEG_SEGMENTS` steps, 512, which is far above any real file (an ICC profile
+  alone may be split across 255 APP2 segments, and the rest of an encoder's preamble is counted in
+  tens), and a chain that reaches the bound is refused rather than followed further;
+- every segment must state a length of at least the two bytes the length field itself occupies, so
+  the cursor advances on every step and a self-referential chain cannot stall it;
+- every offset is compared against the buffer before it is read, so a length running past the end is
+  refused rather than silently producing a short slice.
+
+The third bound is the one that keeps the failure typed. Python slices past the end without raising,
+so a frame header claiming more bytes than the block holds would reach `struct.unpack` with too few
+and raise `struct.error`, which is not an `ImageError` and would cross the port as something the
+adapter never declared. The walk still reaches no pixel: the two markers that end the useful chain,
+end of image and start of scan, are refusals, so the reader stops where the entropy-coded bytes
+begin. The posture `cortex_core/images.py` sets out, that no attacker-controlled bytes reach a
+decoder inside the process holding the durable memory store, is unchanged by this: following a
+length is not decoding, and the frame header is metadata the format requires to precede the picture.
+
+### Decision 2: all three WebP container shapes are read, from the first chunk
+
+WebP is a RIFF container whose first chunk states the canvas size in one of three shapes, and all
+three are read rather than two of them refused. `VP8 ` carries a lossy keyframe whose two edges sit
+in the low 14 bits of two little-endian 16 bit fields, the top two bits being a scale factor.
+`VP8L` carries a lossless bitstream packing width minus one and height minus one across bits rather
+than bytes, with the alpha flag and a version number above them. `VP8X` is the extended header an
+alpha channel or an animation forces, stating the canvas as two little-endian 24 bit fields, each
+one less than the edge it names. Reading the first chunk is enough for all three, because the
+format requires `VP8X` to come first when it is present. A container opening with any other chunk
+name is refused, which is what a bare `ALPH` chunk at the front would be.
+
+### Decision 3: the reader is picked by the signature, and the mime type keeps its standing
+
+`image_size` tries the three signatures in turn and hands the bytes to the matching reader; a block
+carrying none of them is refused. The mime type is untouched by this and stays what the image-carry
+addendum made it, the sidecar's declaration judged against the core's allow-list rather than
+against the bytes, the same standing the body's declared type has.
+
+One sentence of that addendum stops being true here. It observed that a declaration disagreeing
+with the bytes fails anyway, since only a PNG had a size to read. Now that three formats are read,
+a block declaring `image/png` while carrying a JPEG is sized correctly and reaches the model
+mislabeled, and nothing refuses it. The consequence is bounded: the mime type reaches an inference
+backend inside a `data:` URI and no decoder in this process, so a mislabeled block is a wrong label
+rather than a wrong parse. Making the declaration answer to the bytes is a posture change, not a
+line of code, so it is filed rather than taken here
+([R-609](../refinements/tasks/609-a-declared-mime-type-may-now-disagree-with-the-bytes-it-labels.md)).
+
+### The split, and the pictures the tests are proven against
+
+The three readers are their own module, `cortex_tools/headers.py`, and `blocks.py` keeps only the
+path from a block to an `ImagePart`: decode the base64, ask for a size, construct. That is the same
+seam the two files' docstrings already described, and it keeps both well under the line cap.
+
+`tests/pngs.py` becomes `tests/pictures.py` and holds one real picture per container shape, all
+four new ones written by ffmpeg at 4 by 6 pixels, a size whose edges differ so a reader returning
+them the wrong way round fails. The JPEG's chain runs APP0, COM, DQT, DHT and then SOF0, so the
+walk that finds its frame header steps over four segments, one of them the DHT marker that sits
+inside the frame-header marker range without being one. Malformed containers are built byte by
+byte in the tests, because a malformed container is exactly what an encoder will not write.
+
+### Distrust green
+
+The suite is `brain/packages/tools`, 108 tests and 2 deselected. Twelve mutations, each applied and
+reverted by a targeted edit:
+
+- the frame-header marker set widened to the whole 0xC0 to 0xCF range, so DHT is read as one:
+  4 failed.
+- the refusal of a segment length below two bytes dropped: 1 failed,
+  `test_a_jpeg_segment_length_that_cannot_advance_the_walk_is_refused`.
+- the refusal of a segment length running past the end dropped: **survived** the first table. The
+  one test for it walked an APP0 segment, where an over-long length only moves the cursor past the
+  end and the next step reports a truncated chain. The case that reads a short slice is a frame
+  header, so `test_a_jpeg_frame_header_length_running_past_the_end_is_refused` was added, whose
+  block raises `struct.error` without the check. The replayed mutation fails it and the APP0 test
+  together, 2 failed.
+- the bound on the walk removed, leaving it to run until the bytes stop it: 1 failed,
+  `test_a_jpeg_chain_longer_than_the_walk_allows_is_refused`.
+- the fill-byte skip replaced by a single step: 2 failed.
+- the frame header read in the order the bytes state it rather than width first: 4 failed.
+- the lossy keyframe's edge mask dropped, so the scale bits are read as size: 1 failed,
+  `test_a_lossy_webp_edge_is_read_without_the_scale_bits_above_it`. That test builds its keyframe
+  by hand: no encoder here sets those bits, so the real picture alone left the mask unheld.
+- the lossless header's height mask dropped, so the flags above it are read as size: 1 failed,
+  `test_a_lossless_webp_edge_is_read_without_the_flags_above_it`, built by hand for the same
+  reason. The width mask is held by the real picture, whose packed bits carry the height above it.
+- the extended canvas fields read as stated rather than one less than the edge: 1 failed.
+- the signature comparison always passing, so every block is read as a PNG: 31 failed.
+- the chain-ending marker set emptied, so a scan header is walked as a segment: 2 failed.
+- the length-free marker set emptied, so a restart marker is read as a segment: 2 failed.
+
+### Consequences
+
+A sidecar answering with a JPEG or a WebP now hands the model a picture at the size its container
+states, and `TaintLedger.opaque` fires for it, where before the call failed. The failure that
+remains is narrower and still typed: a format none of the three signatures claims, a container that
+cannot state a size, and every way a JPEG chain can lie all raise `ImageError`, which `invoke`
+crosses the port as `ToolError`. An operator who puts a picture under `CORTEX_TOOLS_ROOT` and asks
+`read_media_file` for it no longer needs it to be a PNG.
+
+### Deferred by this addendum
+
+[R-609](../refinements/tasks/609-a-declared-mime-type-may-now-disagree-with-the-bytes-it-labels.md):
+a block declaring one of the three read formats while carrying another is sized correctly and
+reaches the model under the wrong label.
+
+### Records
+
+[R-549](../refinements/tasks/549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md), now
+landed, `brain/packages/tools/src/cortex_tools/headers.py` and `blocks.py`,
+`brain/packages/tools/tests/` (`pictures.py`, `test_headers.py`, `test_blocks.py`,
+`test_registry.py`, `test_own_text_contract.py`),
+[docs/modules/brain-tools.md](../modules/brain-tools.md), and this addendum.

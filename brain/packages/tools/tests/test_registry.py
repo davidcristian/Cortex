@@ -19,7 +19,7 @@ from mcp.types import (
     TextContent,
     Tool,
 )
-from pngs import PNG_BASE64, PNG_BYTES
+from pictures import PNG_BASE64, PNG_BYTES
 
 import cortex_tools.registry as registry_module
 from cortex_core import Provenance, SourceKind, ToolCall, ToolError, ToolResult

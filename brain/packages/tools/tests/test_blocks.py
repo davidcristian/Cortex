@@ -1,8 +1,9 @@
 """Behavior tests for the MCP image-block reader (`cortex_tools.blocks`, ADR-0009).
 
-The reader supplies the width and height `ImagePart` requires from the PNG header, because an
-MCP `ImageContent` block states no dimensions. Every way a block can fail to yield one is
-`ImageError`, which `McpToolRegistry.invoke` crosses the port as `ToolError`.
+The reader supplies the width and height `ImagePart` requires out of the bytes, because an MCP
+`ImageContent` block states no dimensions. Every way a block can fail to yield one is `ImageError`,
+which `McpToolRegistry.invoke` crosses the port as `ToolError`. What each container header states
+is `test_headers.py`; what this file holds is the path from a block to an `ImagePart`.
 """
 
 import base64
@@ -10,7 +11,16 @@ import struct
 
 import pytest
 from mcp.types import CallToolResult, ImageContent, TextContent
-from pngs import PNG_BASE64, PNG_BYTES, PNG_HEIGHT, PNG_WIDTH
+from pictures import (
+    JPEG_BYTES,
+    LOSSY_WEBP_BYTES,
+    PNG_BASE64,
+    PNG_BYTES,
+    PNG_HEIGHT,
+    PNG_WIDTH,
+    SAMPLE_HEIGHT,
+    SAMPLE_WIDTH,
+)
 
 from cortex_core.images import MAX_IMAGE_EDGE, ImageError
 from cortex_tools.blocks import result_images
@@ -65,13 +75,19 @@ def test_a_block_carrying_a_character_outside_the_base64_alphabet_is_refused() -
         result_images(CallToolResult(content=[block]))
 
 
-def test_a_block_that_is_not_a_png_is_refused() -> None:
-    # A JPEG states its size in a segment this reader does not walk, so it fails closed rather
-    # than arriving with a guessed size.
-    with pytest.raises(ImageError, match="not a PNG"):
-        result_images(
-            CallToolResult(content=[_block(b"\xff\xd8\xff\xe0" + b"0" * 40, "image/jpeg")])
-        )
+@pytest.mark.parametrize(
+    ("data", "mime"), [(JPEG_BYTES, "image/jpeg"), (LOSSY_WEBP_BYTES, "image/webp")]
+)
+def test_a_block_in_either_other_listed_format_is_carried(data: bytes, mime: str) -> None:
+    (image,) = result_images(CallToolResult(content=[_block(data, mime)]))
+    assert (image.mime_type, image.width, image.height) == (mime, SAMPLE_WIDTH, SAMPLE_HEIGHT)
+
+
+def test_a_block_in_a_format_with_no_reader_is_refused() -> None:
+    # A GIF states its size in a header nothing here reads, so it fails closed rather than
+    # arriving at a guessed size.
+    with pytest.raises(ImageError, match="not a PNG, JPEG or WebP"):
+        result_images(CallToolResult(content=[_block(b"GIF89a" + b"0" * 40, "image/gif")]))
 
 
 def test_a_png_too_short_to_hold_a_header_is_refused() -> None:

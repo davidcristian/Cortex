@@ -19,7 +19,7 @@ from mcp.types import (
     TextContent,
     Tool,
 )
-from pngs import PNG_BASE64, PNG_BYTES, PNG_HEIGHT, PNG_WIDTH
+from pictures import PNG_BASE64, PNG_BYTES, PNG_HEIGHT, PNG_WIDTH
 
 from cortex_core import (
     InMemoryToolRegistry,
