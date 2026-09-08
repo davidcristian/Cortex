@@ -10441,3 +10441,87 @@ the second trail entry on
 [llamacpp-gpu runbook](../runbooks/llamacpp-gpu.md)'s image-arm section, whose projector estimate
 this sitting replaces with the measurement, and this addendum. No source file changed: every row
 drawn here was already written.
+
+## Addendum (2026-09-08): three deferred triggers on the constant registry and its neighbours, answered
+
+Three entries opened against this record were left as `fix when it bites`, and each carried a
+reading nobody had taken since the day it was written. This addendum records taking them. One
+clause described an event that had already happened and could not come out false, one is well
+formed and comes out false today over a collection a third larger than the one it was written
+against,
+and one described a document that has since been rewritten out from under it.
+
+### An exclusion changed and a count dropped, hours after the entry naming that pair was opened
+
+The entry about the floor under a walk
+([R-410](../refinements/tasks/410-the-floor-under-a-walk-is-one-file.md)) said its trigger was an
+exclusion, a root or a walk changing and a gate's printed count dropping with nobody noticing. That
+happened on the day it was opened. The entry was written at 01:58 on 2026-08-24, and at 04:32 the
+same day the dash ban's walk gained its second exclusion, the paths git ignores. Running
+`dashcheck.scan` over this tree twice, the second time with `ignored_paths` returning the empty set,
+puts that exclusion at 28 files and 10991 lines of the printed count today. So the count dropped and
+`MIN_FILES` reported nothing, which is the mechanism the entry describes; what did not happen is anybody
+being misled, the change being deliberate and the whole subject of its own commit. The clause could
+not separate the two, so it is narrowed to a count below a recorded reading with no commit
+accounting for it, and the readings are recorded in the entry: 422 source files over 60321 lines for
+the cap, 1534 text files over 292137 lines for the dash ban, 10 compose files under the two gates
+that walk them.
+
+One correction goes with it. The entry points at `test_bindcheck.py` and `test_defaultcheck.py` as
+carrying the shape a floor over the real count would take, `len(defaults) >= 6` and
+`len(repeated) >= 6`, and suggests the same line for the other two suites. Those two floors sit
+beside a run of their own gate over the repo root, and neither `test_linecap.py` nor
+`test_dashcheck.py` reads this repo at all: every test in both builds a temporary tree. A floor
+there would be the first assertion either suite makes about the tree it ships in, which is a larger
+decision than copying a line. The two existing floors also read differently against today's tree,
+6 against exactly 6 bind mounts with a substitution and 6 against 8 variables spelled more than
+once, so one of them has no headroom and the other has two.
+
+### No two registry entries name the same places, over a registry a third larger than before
+
+The entry about a relabelled copy
+([R-418](../refinements/tasks/418-a-relabelled-copy-of-a-coupling-is-invisible.md)) is accurate
+about the code and its trigger has not fired. `test_the_registry_holds_each_coupling_once` still
+counts labels alone, and `registry.shape` still counts entries without regard for what any entry
+names, so two entries over one tuple of sites and mentions would pass both. Grouping the registry by
+`(constant.sites, constant.mentions)` gives 89 groups of one; grouping by `constant.sites` alone
+also gives 89, so no two entries name even the same declaring sites. The registry held 67 entries
+when the entry was opened and holds 89 now, and the trigger is restated to name that grouping so the
+next reader runs it rather than rebuilding the argument.
+
+### The module listing was rewritten gate first, which inverts the rule the entry proposed
+
+The entry about a borrowed name
+([R-451](../refinements/tasks/451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md)) was written
+against a version of [modules/repo-gates.md](../modules/repo-gates.md) that no longer exists. It
+quoted the no-CLI half as a running paragraph written library first, `composemounts.py` is
+`bindcheck.py`'s mount reader and the two sides `samplecheck.py` holds together. That half is now a
+bulleted list written gate first, `bindcheck.py` reads `composemounts.py` for the mounts a compose
+file declares. Both quoted sentences are gone from the page, and so is the possessive marker the
+entry weighed as the cheapest approximate rule.
+
+The hole itself is unchanged and unfired. Reading the eleven bullets against the `import` statements
+of the eleven gates that open them says every direction on the page is right, and no module in the
+no-CLI half imports any of the eleven, so no sentence there is wrong today. The counts moved:
+`scripts/` held 48 modules with 14 command lines when the entry was opened and holds 68 with 18 now,
+and the borrowed names in the passage went from seven to eleven.
+
+What the rewrite changed is the remedy. The entry proposed accepting a borrowed name only where it
+is not the subject of the clause it opens, and under the current listing all eleven are exactly
+that, so the proposal would reject the whole passage. The inverse rule is the one this shape can
+carry: a borrowed name is accepted only as a bullet's first code span, and one appearing anywhere
+else in a bullet is a claim about a library rather than a reference to its reader. Reading the
+passage says that rule is green today, all eleven borrowed names being first spans, none appearing
+elsewhere in a bullet, and no member of the half opening one. It stays unwritten, since a new rule
+is a gate change owing a mutation table, and the entry's other branch, arguing that the existing
+bound is far enough, is still unanswered.
+
+### Records
+
+The record is the three task files,
+[R-410](../refinements/tasks/410-the-floor-under-a-walk-is-one-file.md),
+[R-418](../refinements/tasks/418-a-relabelled-copy-of-a-coupling-is-invisible.md) and
+[R-451](../refinements/tasks/451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md), all three of
+which stay open with a dated trail entry and a trigger that now says how it is counted,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No gate changed, so no mutation table is owed.

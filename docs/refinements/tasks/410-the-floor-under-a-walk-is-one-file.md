@@ -1,9 +1,10 @@
 # The floor under a walk is one file, so a collapsed scan still clears it
 
 **Status:** open, fix when it bites
-**Trigger:** an exclusion, a root or a walk changes and a gate's printed count drops without
-anybody noticing, which is the same silence the count was added to break and the first evidence
-that a floor of one is too low.
+**Trigger:** a printed count comes in below the reading this entry's trail records, with no commit
+between the two runs that changed an exclusion, a root or a suffix. An exclusion changing and a
+count dropping is not by itself the trigger: that happened two and a half hours after this entry
+was opened, in a commit whose own subject was the exclusion.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -14,7 +15,7 @@ scans a success line naming what they read and put a floor of one file under the
 `linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, and `composefiles.py` raises on a walk that
 found no compose file. All three answer one question: did this scan enter the tree at all. None of
 them answers the question a reader of the printed count actually has, which is whether it read as
-much as it read yesterday. A line cap that measured 3 of 379 files, because a directory name
+much as it read yesterday. A line cap that measured 3 of 422 files, because a directory name
 joined `SKIPPED_DIRS` or a suffix left `SOURCE_SUFFIXES`, clears the floor, prints 3, and exits 0.
 
 **Why it was left.** The close decided that nothing may assert these counts, because prose or a
@@ -31,4 +32,36 @@ comes from an edit to the gate itself, and an edit to the gate is reviewed. Note
 and `defaultcheck` already carry the shape of the middle option in their suites, as guards on the
 guard (`len(defaults) >= 6`, `len(repeated) >= 6`), which is a floor over the tree written where a
 stale one fails the suite rather than passing unnoticed. Whether that pattern belongs in the other two suites
-is the concrete first question.
+is the concrete first question, and it does not transplant as one line: both of those suites run
+their gate over the repo root and can put a floor beside that run, while `test_linecap.py` and
+`test_dashcheck.py` never read this repo at all, every test in both building a temporary tree
+instead. A floor over the cap's or the dash ban's real count would be the first assertion either
+suite makes about the tree it ships in.
+
+## Trail
+
+- 2026-09-08: the clause was narrowed, because the event the old one named had already happened.
+  This entry was opened at 01:58 on 2026-08-24, and at 04:32 the same day the dash ban's walk
+  gained a second exclusion, the paths git ignores. On today's tree that exclusion drops 28 files
+  and 10991 lines from the printed count, measured by running `dashcheck.scan` twice with
+  `ignored_paths` returning the empty set for the second run. So an exclusion changed, the count
+  dropped, and the floor of one reported nothing, exactly as the entry predicted. Nobody was misled,
+  because the change was deliberate and was the whole subject of its own commit, and the old clause
+  could not tell those two apart. The narrowed clause names the falsifiable event instead, a count
+  below the recorded reading with no commit accounting for it.
+- 2026-09-08: the readings the clause is now against, from `just check-linecap` and
+  `just check-dashcheck` at the repo root. `linecap OK: 422 non-test source file(s) under .. are
+  within 300 lines, over 60321 line(s) counted`. `dashcheck OK: 1534 text file(s) under .. use no
+  banned dash, over 292137 line(s) read`. The compose walk under the other two gates found 10
+  compose files, reported by `just check-bindcheck` as `11 bind mount(s) ... over 10 compose
+  file(s) and 22 landing(s) checked` and by `just check-defaultcheck` as `8 variable(s) spelled
+  twice or more ... over 10 compose file(s) and 59 variable(s) read`. The cap read 379 files when
+  this entry was written and reads 422 now, so no count has fallen.
+- 2026-09-08: one reading against the middle option, which this entry cites as the shape already
+  in the tree. `test_bindcheck.py`'s floor is `len(defaults) >= 6` and the tree carries exactly 6
+  bind mounts with a substitution in the source, so that floor has no headroom left and would
+  report the next removal. `test_defaultcheck.py`'s floor is `len(repeated) >= 6` against 8
+  variables spelled more than once, so it would absorb two removals in silence. The two 6s were
+  written two weeks apart against two different collections and neither has been revisited since,
+  which is what a floor set well under the real count and never maintained looks like after a
+  while.
