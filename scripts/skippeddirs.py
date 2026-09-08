@@ -1,11 +1,10 @@
-"""Which directory components no walk in this tree enters, in the one place all of them read.
+"""Which directory components no walk in this tree enters, in the one place it is read from.
 
-Four walks here prune the same trees before they read anything: `dashcheck.py` over every text
-file, `linecap.py` over three toolchains' source, `backloganchors.py` over the repo's markdown,
-and `composefiles.py` over the compose files. They ask different questions and none of the
-answers is about a dependency's tree, a build output or a tool's cache, so the names live here
-and no walk spells them twice. `linecap.py` adds two of its own, and that addition lives with the
-reason for it rather than here.
+Seven readers here descend a tree and none of the questions they ask is about a dependency's
+tree, a build output or a tool's cache, so the names live in this list and no reader spells them
+twice. The reader is `treewalk.py`, which applies the list on every descent; what a caller of it
+may add on top is that caller's own, the line cap's `tests` and `_generated` being the only
+addition in the tree.
 
 **This list is deliberately not `.gitignore`, and the overlap with it is measured rather than
 believed.** Eight of the ten names below are ones git ignores wherever they appear, so for those
@@ -18,13 +17,14 @@ answer:
   at the root or under `brain/` is ignored by nothing, so skipping it is this list's doing and
   nobody else's.
 
-The other three walks deliberately do not ask git. The dash ban does ask, and its collection is
-git's answer (the ADR-0026 dash-ban-collection addendum). Teaching the rest would make the line
-cap, the anchor scan and the compose walk all fail on a root git cannot answer about, which would
-stop `just check` running outside a git working tree: an export, an unpacked archive, a vendored
-copy of this repo. That narrows three gates to remove a redundancy in eight names, and the eight
-are cheap. Pruning by name also happens before any question is asked, which is what keeps a walk
-out of an ignored bind target rather than merely quiet about it.
+Only one reader asks git anything. The dash ban does, and its collection is git's answer (the
+ADR-0026 dash-ban-collection addendum), which it applies as a predicate of its own on top of this
+list. Teaching the rest would make the line cap, the anchor scan and the compose walk all fail on
+a root git cannot answer about, which would stop `just check` running outside a git working tree:
+an export, an unpacked archive, a vendored copy of this repo. That narrows three gates to remove a
+redundancy in eight names, and the eight are cheap. Pruning by name also happens before any
+question is asked, which is what keeps a walk out of an ignored bind target rather than merely
+quiet about it.
 
 So the redundancy stays on purpose, and the suite beside this module compares the two: it measures
 every name against git's own answer for this repo, so a name that stops being a restatement, or

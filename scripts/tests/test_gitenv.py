@@ -11,11 +11,26 @@ from pathlib import Path
 
 import pytest
 
+import gatecalls
 import gitenv
+import moduleconstants
 
 GATES = Path(__file__).resolve().parents[1]
-# A git call here is always a fixed argv with no shell, so this literal prefix finds every one.
-ARGV_HEAD = '["git", '
+# What every git call here must be handed, named as the reader reports it.
+SHARED = "git_env"
+# The files that run git today. A floor rather than the whole set: a scan that recognized nothing
+# would otherwise pass forever, and a caller written tomorrow is held without being listed.
+CALLERS = frozenset(
+    {
+        "bindcheck.py",
+        "commitlint.py",
+        "dashcheck.py",
+        "tests/test_bindcheck.py",
+        "tests/test_commitlint.py",
+        "tests/test_dashcheck.py",
+        "tests/test_skippeddirs.py",
+    }
+)
 
 
 def test_every_variable_git_exports_to_a_hook_is_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -52,17 +67,27 @@ def test_an_environment_git_never_touched_is_returned_whole(
     assert gitenv.git_env() == {"PATH": "/usr/bin", "HOME": "/home/nobody"}
 
 
-def test_every_file_that_runs_git_reads_this_environment() -> None:
-    """Every file under `scripts/` that spells a git argv also calls `git_env()`.
+def test_every_git_call_here_is_handed_this_environment() -> None:
+    """Every call under `scripts/` handed a git argv passes `env=git_env()`.
 
     A gate or fixture that builds its own environment fails silently, so this is checked
-    structurally rather than left to be remembered when the next caller is written. The three
-    named gates are a floor: without them a scan that matched no files would pass forever.
+    structurally rather than left to be remembered when the next caller is written. The call is
+    found by parsing each module rather than by searching its text, which is what widened this
+    obligation to the caller it had been passing over: the suite beside the skip list runs git
+    with an argv the formatter wrote one item per line, so the literal `["git", ` this test used
+    to search for appears nowhere in it. The environment is read off the call rather than off the
+    file, so a second call in a file that already imports the helper is held too.
     """
-    sources = {
-        path.relative_to(GATES).as_posix(): path.read_text(encoding="utf-8")
+    calls = {
+        path.relative_to(GATES).as_posix(): gatecalls.git_calls(
+            moduleconstants.parse(path, path.name)
+        )
         for path in [*GATES.glob("*.py"), *GATES.glob("tests/*.py")]
     }
-    callers = {name for name, text in sources.items() if ARGV_HEAD in text}
-    assert {"bindcheck.py", "commitlint.py", "dashcheck.py"} <= callers
-    assert [name for name in sorted(callers) if "git_env(" not in sources[name]] == []
+    assert {name for name, found in calls.items() if found} >= CALLERS
+    assert [
+        f"{name}:{call.line}"
+        for name, found in sorted(calls.items())
+        for call in found
+        if call.environment != SHARED
+    ] == []

@@ -25,6 +25,7 @@ stopped matching would otherwise leave a comparison that reports success forever
 
 import re
 from collections.abc import Iterable
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 import scanrecipes
@@ -76,12 +77,18 @@ def _read(root: Path, name: Path) -> str:
 
 
 def _filenames(root: Path, pattern: str) -> list[str]:
-    """Return the file names under `scripts/` matching ``pattern``, in a fixed order."""
+    """Return the file names under `scripts/` matching ``pattern``, in a fixed order.
+
+    One directory listed rather than a tree descended: every module here sits at the top of that
+    directory, and the suites below it are not modules. It is written as a listing plus a match
+    rather than as a glob because a glob handed a pattern it is given cannot be read as either
+    one, and `treewalk.py` is where a call that descends belongs.
+    """
     tree = root / GATES
     if not tree.is_dir():
         msg = f"{GATES.as_posix()} is not a directory, so there is nothing to read"
         raise MemberError(msg)
-    return sorted(path.name for path in tree.glob(pattern))
+    return sorted(path.name for path in tree.iterdir() if fnmatchcase(path.name, pattern))
 
 
 def ignored_tests(text: str) -> list[str]:

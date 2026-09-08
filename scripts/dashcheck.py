@@ -49,7 +49,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from gitenv import git_env
-from skippeddirs import SKIPPED_DIRS
+from treewalk import walk_files
 
 ALLOW_PRAGMA = "dashcheck: allow"
 EM_DASH = "\u2014"
@@ -171,26 +171,16 @@ def scan(root: Path) -> Scan:
     violations: list[Violation] = []
     files = 0
     lines = 0
-    for directory, dirnames, filenames in root.walk():
-        here = directory.relative_to(root)
-        dirnames[:] = sorted(
-            name
-            for name in dirnames
-            if name not in SKIPPED_DIRS and (here / name).as_posix() not in ignored
-        )
-        for name in sorted(filenames):
-            relative = here / name
-            if relative.as_posix() in ignored:
-                continue
-            path = directory / name
-            if not path.is_file():  # dangling symlink or other non-regular file
-                continue
-            text = read_text(path)
-            if text is None:
-                continue
-            files += 1
-            lines += len(text.splitlines())
-            violations.extend(scan_text(relative, text))
+    for path in walk_files(root, enter=lambda inside: inside.as_posix() not in ignored):
+        relative = path.relative_to(root)
+        if relative.as_posix() in ignored:
+            continue
+        text = read_text(path)
+        if text is None:
+            continue
+        files += 1
+        lines += len(text.splitlines())
+        violations.extend(scan_text(relative, text))
     return Scan(files=files, lines=lines, violations=violations)
 
 

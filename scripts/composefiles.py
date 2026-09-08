@@ -8,10 +8,10 @@ second copy of this walk would leave one gate reading a new override file while 
 not, with nothing reported, which is the shape of defect all three exist to remove. So the question
 lives here, and no gate writes it twice.
 
-The directory skips are shared for the same reason the names are: a compose file inside a
-vendored tree or a build output belongs to something this repo did not write, and that is true
-of it whichever gate is asking. They are `skippeddirs.py`'s, the list every walk here reads;
-what a gate may add to that list is its own, the line cap's two names being the only addition
+The descent itself is shared for the same reason the answer is: a compose file inside a vendored
+tree or a build output belongs to something this repo did not write, and that is true of it
+whichever gate is asking. It is `treewalk.py`'s, which every reader here is handed its files by;
+what a gate may skip on top of that is its own, the line cap's two names being the only addition
 in the tree.
 
 Finding nothing is a failure rather than an empty pass, which is the one rule this module
@@ -27,7 +27,7 @@ to read the stems to find it, which is what this module already does.
 from collections.abc import Iterable
 from pathlib import Path
 
-from skippeddirs import SKIPPED_DIRS
+from treewalk import walk_files
 
 # What a compose file is called. Both stems and both suffixes, because a scan that silently
 # missed a new override file is the defect the gates reading this exist to prevent.
@@ -41,16 +41,11 @@ class ComposeSearchError(Exception):
 
 def compose_files(root: Path) -> list[Path]:
     """Return every compose file under ``root``, raising rather than reporting success on none."""
-    found: list[Path] = []
-    for directory, dirnames, filenames in root.walk():
-        dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)
-        found.extend(
-            directory / name
-            for name in sorted(filenames)
-            if Path(name).suffix in COMPOSE_SUFFIXES
-            and Path(name).stem.startswith(COMPOSE_STEMS)
-            and (directory / name).is_file()
-        )
+    found = [
+        path
+        for path in walk_files(root)
+        if path.suffix in COMPOSE_SUFFIXES and path.stem.startswith(COMPOSE_STEMS)
+    ]
     if not found:
         msg = f"no compose file under {root}; a scan that matched nothing cannot fail"
         raise ComposeSearchError(msg)

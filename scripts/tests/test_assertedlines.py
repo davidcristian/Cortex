@@ -147,6 +147,12 @@ def test_a_pruned_directory_under_the_suite_is_not_read(tmp_path: Path) -> None:
     assert len(assertedlines.proven(root, TOOL_AUDIT)) == 1
 
 
+def test_a_file_of_the_suite_that_is_not_python_is_not_read(tmp_path: Path) -> None:
+    """A suite may hold a fixture or a note beside its modules, and neither asserts a line."""
+    root = suite(tmp_path, {"test_a.py": WHOLE, "notes.md": WHOLE})
+    assert len(assertedlines.proven(root, TOOL_AUDIT)) == 1
+
+
 def test_a_package_with_no_suite_is_a_fault(tmp_path: Path) -> None:
     with pytest.raises(assertedlines.AssertedLineError, match="is not a directory"):
         assertedlines.proven(tmp_path, TOOL_AUDIT)

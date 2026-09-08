@@ -1027,3 +1027,107 @@ The record is the three task files,
 [R-445](../refinements/tasks/445-three-gates-each-spell-the-markdown-fence-for-themselves.md),
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
 addendum. No gate changed, so no mutation table is owed.
+
+## Addendum (2026-09-08): both obligations now read the call, and the walk has one home
+
+Two tests here hold a caller of a shared thing to using it, and both found their callers by
+searching source text: one for the argv head `["git", `, the other for the pruning line
+`dirnames[:]`. A search like that recognizes a caller by how it is spelled, so a caller written in
+another shape is not held and nothing reports the omission. Both had already passed over a real
+caller when this was read.
+
+### Re-derived first, and the git half had fired too
+
+The addendum above records the walk half as fired: seven modules here descend a tree, four prune a
+`dirnames` list in place and three read it with a filtered `rglob`, and the search saw the four.
+
+The git half is fired as well, and the reading that said otherwise was too narrow. It looked at
+`scripts/*.py`, where the argv head really does appear in exactly the three gates the floor names.
+The test also scans `scripts/tests/*.py`, and there are eight git calls in seven files: the three
+gates and five in four suites. `test_skippeddirs.py` is the eighth, and its argv is written one
+item per line by the formatter, so the literal `["git", ` appears nowhere in it. It calls `git_env()`
+anyway, so the tree was correct and the obligation simply did not reach it. The search's own list
+was wrong in the other direction too: `test_gitenv.py` was counted a caller because it spells the
+head inside a constant, and it runs no git at all.
+
+There is a second gap in the same test, independent of how the search reads. It asked whether the
+**file** spells `git_env(`, so a file with two calls passes on the strength of the first.
+`test_commitlint.py` has two.
+
+### The fork, decided: the two halves get different answers
+
+**The walk moves to the shared thing.** A descent is one shape with no per-caller policy in it:
+every reader wants the files under a root with the vendored trees, the build output and the tool
+caches left out, and the two things a reader adds are not about which trees are worth entering. So
+`scripts/treewalk.py` holds the descent, `walk_files(root, also_skip=..., enter=...)`, and the
+seven readers are handed their files. The obligation stops being "import the list" and becomes
+"the descent lives in one module", which is compared as an equality rather than as a floor plus an
+empty offender list: a reader that finds nothing at all fails it too.
+
+**The git call keeps its own argv**, and the argument is the one weighed when the environment got
+its home. The three gates disagree about every part of a call except the environment, and reading
+them again today confirms it: `check-ignore` answers 1 for a legitimate no, a non-zero from
+`ls-files` is a failure, and `commitlint.py` answers an `OSError` with False because a box with no
+git cannot disprove a hash. A runner would take an allowed-codes set, an exception factory and an
+`OSError` policy, which is a parameter per caller. What changes instead is how the obligation
+reads: the call rather than the file, by shape rather than by spelling.
+
+### What landed
+
+`scripts/gatecalls.py` reads what a module here calls, out of its syntax. `tree_reads(module)`
+returns every call that descends a directory tree, `walk` and `rglob` always and `glob` or `iglob`
+unless the pattern is a literal naming one directory's entries, with `ast.walk` told apart by the
+module it is spelled on, since six modules here walk a syntax tree. `git_calls(module)` returns
+every call handed a git argv, written inside the call or assigned to a name above it, with the
+function its `env=` keyword calls. Parsing is `moduleconstants.parse`'s. A shape it was not taught
+is answered as a descent rather than passed over, so its failure mode is a fault somebody has to
+look at rather than a caller nobody hears about.
+
+One reader changed to suit it. `rostermembers._filenames` listed `scripts/` with
+`tree.glob(pattern)`, a pattern handed in from its callers, and a glob whose pattern cannot be read
+is a call this reader answers as a descent. It lists one directory and matches the names with
+`fnmatchcase`, which is what it was always doing and now says so.
+
+Nothing else moved. Over the same tree, before and after: the cap reads 425 source files and
+60,728 lines, the dash ban 1,541 text files and 293,423 lines, the log-sample gate 12 samples in 12
+runbooks, and the roster gate 193 members in 8 rosters. The three readers that arrived as globs
+sort what they are handed, so their order is unchanged as well.
+
+`test_skippeddirs.py` keeps the one claim that is still about the list, the measured overlap with
+`.gitignore`. The descent is `test_treewalk.py`'s, and the environment every git call is handed is
+`test_gitenv.py`'s, per call.
+
+### Proved able to fail, nine times, over the scripts suite
+
+Nine planted mutations over the two new modules, the readers that use them and the callers the
+obligations hold (the `scripts/tests` suite, 1726 tests after this change, which is the collection
+every count below is out of). Each was applied and reverted with a targeted edit, with the
+bytecode caches purged between runs, and the 1726-passed baseline was re-established after the
+last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | a new tree reader in `backlog.py`, written as a recursive glob | the obligation names the module | 1 failed, 1725 passed |
+| 2 | the compose walk descends again itself, with a correct copy of the skips | the obligation names it, no behaviour having changed | 1 failed, 1725 passed |
+| 3 | the roster reader goes back to a glob handed its pattern | the obligation names it, a pattern it cannot read being a descent | 1 failed, 1725 passed |
+| 4 | `walk_files` stops applying the shared list | every reader that skips a tree fails | 28 failed, 1698 passed |
+| 5 | `walk_files` ignores `also_skip` | the cap's two extra names, and the walk's own case | 5 failed, 1721 passed |
+| 6 | `walk_files` ignores `enter` | the dash ban's ignored directories, and the walk's own case | 4 failed, 1722 passed |
+| 7 | the second git call in one suite loses the environment, the first keeping it | the obligation names the file and the line | 1 failed, 1725 passed |
+| 8 | the git call the old search never saw loses the environment | the obligation names it | 1 failed, 1725 passed |
+| 9 | the dash ban's own call loses it | its end-to-end test, and the obligation with it | 2 failed, 1724 passed |
+
+Rows 1, 3, 7 and 8 are the rows this close needed, and the old tests pass all four: a recursive
+glob and an unreadable pattern are not `dirnames[:]`, a file that already calls `git_env` once is
+not reported for a second call that does not, and the argv the formatter broke apart was never
+found in the first place. Row 2 is the historical defect the old walk test was written for, a copy
+that agrees with the original and is invisible to every behaviour test, and it stays caught. Rows
+4 to 6 are the shared walk failing the way a shared thing should, in every reader at once.
+
+### Records
+
+The record is the task file
+[R-423](../refinements/tasks/423-an-obligation-test-knows-a-caller-by-its-spelling.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/treewalk.py` and `scripts/gatecalls.py` with the suites beside them, the seven readers and
+the two obligation tests, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.

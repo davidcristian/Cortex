@@ -63,11 +63,12 @@ from assertedlines import AssertedLineError, proven, suite_of
 from logcalls import LogCallError, UnreadFieldsError, logged, messages
 from loggernames import loggers
 from logsamples import Sample, samples
-from skippeddirs import SKIPPED_DIRS
+from treewalk import walk_files
 
 # Where the documents that instruct an operator live. The one tree whose log samples are read as
 # a claim about what the code prints today, argued in the module docstring.
 RUNBOOKS = Path("docs/runbooks")
+MARKDOWN = ".md"
 
 # The floors under the reading in the success line: a side that came back empty has read nothing,
 # and a comparison over nothing cannot fail.
@@ -136,11 +137,7 @@ def runbooks(root: Path) -> list[Path]:
     if not tree.is_dir():
         msg = f"{RUNBOOKS.as_posix()} is not a directory, so there is nothing to read"
         raise SampleCheckError(msg)
-    return sorted(
-        found
-        for found in tree.rglob("*.md")
-        if not SKIPPED_DIRS & set(found.relative_to(tree).parts)
-    )
+    return sorted(found for found in walk_files(tree) if found.suffix == MARKDOWN)
 
 
 def listed(fields: tuple[str, ...]) -> str:

@@ -23,7 +23,7 @@ brain workspace member (ADR-0002).
 `just envelope-floor` and `switchtail.py` from `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, fifty modules, most split out under the line cap and
+**The rest have no CLI of their own**, fifty-two modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -70,17 +70,21 @@ each named for what it holds. Grouped by the gate that reads them:
   writes, and `envelopejudges.py`, the judge declared for each subtask shape and the three
   readings a delivered rate is taken under.
 
-Three are shared rather than owned. `composefiles.py` is which files the four compose gates walk,
+Five are shared rather than owned. `composefiles.py` is which files the four compose gates walk,
 answered once so they cannot drift apart. `gitenv.py` is the environment every git call in this
 tree runs with, held in one place because a caller that omits it reads the wrong repository
-without reporting an error. `skippeddirs.py` is the directory components no walk here enters,
-held in one place for the same reason.
+without reporting an error. `treewalk.py` is the one descent every reader here is handed its files
+by, and `skippeddirs.py` is the directory components it never enters, held apart because one is a
+walk and the other is a list with an argument about `.gitignore` attached to it. `gatecalls.py` is
+what a module here calls, read out of its syntax, which is how the obligation over the git call
+and the obligation over the descent each recognize a caller.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
   since the ADR-0011 line-cap addendum, counting ALL lines (code, comments, blanks; cap
   default 300). Stylesheets, markup and `proto/body.proto` are outside the cap by that same
-  addendum. Skips `skippeddirs.SKIPPED_DIRS`, the ten directory components no walk in this
+  addendum. Its files come from `treewalk.walk_files`, so it skips
+  `skippeddirs.SKIPPED_DIRS`, the ten directory components no walk in this
   tree enters, plus two of its own that no other walk skips, `tests` and `_generated`
   (the generated-code marker), and test-named files (`test_*.py`, `*_test.py`,
   `conftest.py`, `*_test.rs`, `*.test.ts`, `*.test.tsx`, `test-setup.ts`, the last three
@@ -108,7 +112,8 @@ held in one place for the same reason.
   escape-hatch rule effectively requires; commit messages are stricter and `commitlint.py`
   bans it there). Skips `skippeddirs.SKIPPED_DIRS`, which is what `linecap.py` skips minus
   `tests` and `_generated`, since prose in a test or a generated stub is still prose; the two
-  lists cannot drift, the cap composing its own from this one. That list is partly redundant
+  cannot drift, both walks being `treewalk.walk_files` and the cap's two extra names being
+  what it is handed. That list is partly redundant
   with the ignore answer and stays anyway, on two names out of ten: `.git`, which git does not
   call ignored, and `coverage`, which the repo ignores only under `body/app/`. Binary files are
   detected and skipped. A line carrying `dashcheck: allow` plus a reason is exempt, for a
@@ -477,12 +482,13 @@ held in one place for the same reason.
   an identifier, and an operator it was not taught.
 - `composefiles.py` is which files the compose gates walk and has no CLI. `compose_files(root)`
   returns every compose file under `root` by name (stem `docker-compose`/`compose`, suffix
-  `.yml`/`.yaml`), skipping the vendored directory components, and raises `ComposeSearchError`
+  `.yml`/`.yaml`), and raises `ComposeSearchError`
   on none, a scan whose glob matched nothing being one that reports success forever. It is one
   module rather than a copy in each gate because a second walk is a gate that learns about a new
-  override while its sibling does not, in silence. The components it skips are
-  `skippeddirs.SKIPPED_DIRS`, shared with every other walk here; it carried a shorter list of its
-  own until that module landed, and joining changed neither compose gate's reading.
+  override while its sibling does not, in silence. The descent is `treewalk.walk_files`, so the
+  components it skips are `skippeddirs.SKIPPED_DIRS`, shared with every other reader here; it
+  carried a shorter list of its own until that module landed, and joining changed neither compose
+  gate's reading.
   `base_project(...)` is the same question asked one step further and lives here for the same
   reason: only the bare-stemmed file is what compose reads when handed no `-f`, and only it pins
   the project name an override inherits, so a gate keying a build-only service as
@@ -490,16 +496,37 @@ held in one place for the same reason.
   name; none and several both return `None`, and the caller draws a fault rather than keying a
   silently wrong row.
 - `skippeddirs.py` is the directory components no walk here enters and has no CLI: ten names,
-  read by all four walks (`dashcheck.py`, `linecap.py`, which composes its own list from it,
-  `backloganchors.py` and `composefiles.py`). **It is deliberately not `.gitignore`**, and the
+  read by `treewalk.py` and by nothing else, which is what applies them to all seven readers.
+  **It is deliberately not `.gitignore`**, and the
   overlap is measured rather than believed: eight of the ten are names git ignores wherever they
   appear, `.git` is never reported ignored (it is not part of the work tree), and `coverage` is
   ignored only under `body/app/`, by that tree's own file. Collapsing the list to `.git` and
   asking git for the rest would make the line cap, the anchor scan and the compose walk refuse a
   root git cannot answer about, which is `just check` refusing to run outside a git working tree;
-  only the dash ban has a rule whose collection is git's answer. `test_skippeddirs.py` holds both
-  claims: every walking module reads this list rather than a copy, and the eight-two partition
-  against git's own answer for this repo, which fails from either side.
+  only the dash ban has a rule whose collection is git's answer. `test_skippeddirs.py` holds what
+  is left of the two claims once the walk has one home: the eight-two partition against git's own
+  answer for this repo, which fails from either side. That every reader uses the list rather than
+  a copy is `test_treewalk.py`'s, and it is now held over the descent instead of over the list.
+- `treewalk.py` is that descent and has no CLI. `walk_files(root, also_skip=..., enter=...)`
+  yields every regular file under `root` in walk order, never entering a directory named in
+  `skippeddirs.SKIPPED_DIRS`, in `also_skip` (the line cap's `tests` and `_generated`, its two
+  extra names), or refused by `enter` (the dash ban's ignored paths, asked by the directory's path
+  relative to the root). Seven readers take their files from it: the dash ban, the line cap, the
+  anchor scan, the compose walk, the brain's modules for `logcalls.py`, one suite for
+  `assertedlines.py` and the runbooks for `samplecheck.py`. A candidate that is not a regular file
+  after following symlinks is not yielded, every caller going on to open what it is handed. The
+  three that arrived as a filtered `rglob` sort what they are handed, which is the order they had
+  before; the four that were walks already keep walk order.
+- `gatecalls.py` is what a module under `scripts/` calls, read out of its syntax, and has no CLI.
+  `tree_reads(module)` returns every call that descends a directory tree (`walk` and `rglob`
+  always, `glob` and `iglob` unless the pattern is a literal naming one directory's entries, with
+  `ast.walk` excluded by the module it is spelled on), and `git_calls(module)` returns every call
+  handed a git argv (a list or tuple opening with `git`, written inside the call or assigned to a
+  name above it) with the function its `env=` keyword calls. Parsing is `moduleconstants.parse`'s.
+  It exists because the two obligations it serves used to search source text and so knew a caller
+  by how it was spelled: both had already passed over a real one (ADR-0026 shaped-obligation
+  addendum). A shape it was not taught is answered as a read rather than passed over, so the
+  failure it can have is a fault somebody has to look at.
 - `composemounts.py` is `bindcheck.py`'s mount reader and has no CLI. `read_mounts(text)` returns one
   `Mount(line, source)` per bind mount a compose file declares, skipping named volumes (long-form
   `type:` in `NON_BIND_TYPES`, short-form sources without a `PATH_PREFIXES` prefix) and the

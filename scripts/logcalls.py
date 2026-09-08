@@ -64,13 +64,14 @@ from typing import NamedTuple
 
 from logfields import FieldError, attached
 from moduleconstants import constants, text
-from skippeddirs import SKIPPED_DIRS
+from treewalk import walk_files
 
 # Where the brain's importable source lives, and the directory each package puts it under. Only
 # these trees are walked: a package's tests sit beside `src` rather than inside it, and a logger a
 # test declares is not a logger the deployment writes under.
 BRAIN_PACKAGES = Path("brain/packages")
 SOURCE_DIR = "src"
+PYTHON = ".py"
 
 # The one logging method whose level is an argument rather than its own name, and where its
 # message sits when it is. The model host switches between a warning and an error that way, and a
@@ -140,10 +141,9 @@ def modules(root: Path) -> Iterator[tuple[Path, Path, str]]:
         source = package / SOURCE_DIR
         if not source.is_dir():
             continue
-        for module in sorted(source.rglob("*.py")):
-            inside = module.relative_to(source)
-            if not SKIPPED_DIRS & set(inside.parts):
-                yield module, inside, module.relative_to(root).as_posix()
+        for module in sorted(walk_files(source)):
+            if module.suffix == PYTHON:
+                yield module, module.relative_to(source), module.relative_to(root).as_posix()
 
 
 def parsed(source: str, shown: str) -> ast.Module:
