@@ -3935,3 +3935,97 @@ number.
 
 Nothing about the sequence, the states, the claim or the failed reason changes. This is the field
 name a line writes its work under, and the same eleven lines say the same eleven things.
+
+## Addendum (2026-09-08): three deferred triggers on the model host, answered
+
+Three entries opened against this record were left as `fix when it bites`, which only works if
+somebody eventually asks whether the bite happened. Nobody had, and this addendum records the
+reading. None of the three triggers has fired. Two of the entries were accurate and gained a clause
+a reader can count instead of one only an operator could feel, and the third had nominated a home
+for a count that the code does not offer.
+
+### The pass still starts nothing, and two boot starters already do
+
+The entry about a pass that starts the cortex
+([R-310](../refinements/tasks/310-a-pass-that-starts-the-cortex.md)) describes the code correctly.
+`regain_residency` calls `host.status` twice and `host.start` never, and `sweep_tiers` beside it is
+the only half of the pass that starts anything, and only for the peers named in `evict_models`.
+
+What the entry did not say is that two other places start the cortex with nobody asking, and both
+are boot-scoped. The sidecar's lifespan starts `boot_model` when the daemon comes up, which is
+decision 3 read literally, and the brain's boot recovery starts the cortex and gates it ready
+(`swap_recovery._settle_cortex`). Restarting either container therefore brings a down cortex back
+on its own. The state nothing covers is narrower than the entry's opening sentence: a cortex that
+dies while both containers keep running, which is the state the runbook's step 2 exists for. The
+operator-facing verb the entry floats as the alternative has nowhere to land either.
+[proto/body.proto](../../proto/body.proto) declares 16 RPCs across `BrainService` and `BodyService`
+and none of them is an operator command, and the model host's control API is still the four routes
+it shipped with, `/health`, `GET /models/{model}`, and start and stop.
+
+One number in the entry's cost argument is true only of the shipped configuration, and it comes
+from `TierHealer.aclose`'s own docstring, which says a pass is at most two control calls. That was
+written on 2026-08-09, when the pass retried the tiers the record had marked. The pass has gained
+two halves since, the tier sweep and the regain, and it now costs one `status` and possibly one
+`start` per evictable peer plus the regain's two readings, so a pass is at most 2N + 2 control
+calls for N peers. It reads as two today because `CORTEX_SWAP_EVICT_MODELS` is unset in the shipped
+stack, `config_swap.py` giving `evict_models` the empty tuple, and the deployment that sets it is
+the GPU-placed subagent one. The docstring's conclusion is unaffected, every call being cut by the
+model host client's own deadline; the count in it is stale.
+
+### A count of spilled handoffs has no home, because a successful handoff leaves no record
+
+The entry about a forgotten spill
+([R-321](../refinements/tasks/321-a-spill-nobody-saw-is-forgotten.md)) is right that the note is
+deliberately forgotten and right about the price. It is wrong about the one thing it offered as the
+way out. Its parenthetical nominated the handoff record, "the handoff record itself already
+survives a swap and is already written per handoff", and both halves of that are true while the
+conclusion is not: the record survives a model swap and does not survive the handoff.
+
+`HandoffSettler._settle` deletes the record on `DONE`, and that delete is not incidental, it is what
+frees the store's active pointer, per the addendum above that split settling from releasing. A
+spilled handoff is a successful one, which is the whole reason the spill watch exists: the card was
+overcommitted, both tiers reported ready, the fit check passed, and only the decode rate was wrong.
+So the handoffs a spill count would count are exactly the handoffs that leave nothing behind. The
+records that do persist are the failed ones, kept for `_TERMINAL_TTL_SECONDS`, 3600 seconds, which
+is the same hour `DEFAULT_SPILL_DWELL_S` gives the note. Nothing in the brain writes a per handoff
+row that outlives its handoff, so closing that entry means choosing a store as well as a shape,
+which is a larger decision than the one its text describes.
+
+The entry's second trigger clause, a second per handoff verdict worth counting rather than
+displaying, was approached three days after it was written and not met. The failed-reason addendum
+above gave a failed handoff a reason and put it on the record and in one `WARNING`, which is this
+shape one step further along, and the entry filed for it argues it is a display question rather
+than a counting one.
+
+### The settled reason is read by one line, and that line is the codec
+
+The entry about a reason nothing reads back
+([R-379](../refinements/tasks/379-a-settled-reason-nothing-reads-back.md)) holds sentence for
+sentence. `HandoffRecord.failure` is declared once, carried through the one `HandoffStore.transition`
+signature, written by the settler and by boot recovery through the two implementations of that
+method, and round-tripped by the codec. Exactly one production line reads it, the codec's encode,
+and it reads it to write it back into redis. Nothing branches on it. The seam has not moved either:
+`residency()` composes exactly two annotators through `residency_state.with_note`, the missing peer
+and the spilled pace, both of them there since 2026-08-19, and `HealthReply` still carries `ready`
+and `detail` and nothing else.
+
+One reading makes the display branch cheaper than the entry implies. The terminal record's
+diagnosis TTL and the spill note's dwell are the same hour, chosen three days apart by two
+decisions that did not cite each other. A reason carried on the residency report under the spill
+note's standing-and-lapsing rule would therefore stand for exactly the window the record already
+keeps it for, and the two copies would lapse together. That settles a cost and not the question:
+whether a failure the user was already told about owes a second telling on a health surface is
+still a decision rather than a measurement.
+
+### Records
+
+The record is the three task files,
+[R-310](../refinements/tasks/310-a-pass-that-starts-the-cortex.md),
+[R-321](../refinements/tasks/321-a-spill-nobody-saw-is-forgotten.md) and
+[R-379](../refinements/tasks/379-a-settled-reason-nothing-reads-back.md), all three of which stay
+open with a dated trail entry and a trigger that now names what to count,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No source file changed, so no mutation table is owed. The one code inaccuracy this
+sitting found, the control-call count in `TierHealer.aclose`'s docstring, is recorded in R-310
+rather than repaired here, that docstring being an argument about shutdown cost and this being a
+sitting over the backlog.
