@@ -29,12 +29,25 @@ same suite:
 - appending it to every ask rather than only a constrained one fails 8: the two negative cases
   here plus six existing tests across ``test_runner.py``, ``test_spawn.py`` and
   ``test_delegation.py`` that read the prompt a subagent was handed.
+
+And three for the warning a refused spawn now writes (ADR-0012 refusal-log addendum), over the
+same suite:
+
+- deleting the ``_logger.warning`` call fails 2, both refusal cases below;
+- writing it at ``info`` rather than ``warning`` fails the same 2, since the operator greps a
+  level as well as a message;
+- naming ``task.model`` rather than the resolved entry fails exactly 1,
+  ``test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception``, the other case
+  reading only the reason.
 """
 
 import asyncio
+import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+
+import pytest
 
 from cortex_core import (
     ATTEMPTS_PER_ADMISSION,
@@ -50,6 +63,7 @@ from cortex_core import (
     Message,
     PlacementRequest,
     PlacementTarget,
+    PlainFormatter,
     ReasoningChunk,
     RecordingAuditSink,
     RecordingProgressSink,
@@ -71,6 +85,9 @@ from cortex_core import (
 from cortex_core.subagent_reply import REPLY_INSTRUCTION
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
+# The logger the runner's own module owns, named here so the refusal tests pin the line's logger
+# the way an operator greps for it.
+_RUNNER_LOGGER = "cortex_core.runner"
 
 
 class FixedClock:
@@ -540,12 +557,26 @@ async def test_an_overflowing_subagent_runs_on_the_cpu_backend() -> None:
     assert not gpu.seen
 
 
-async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception() -> None:
+def _refusal_line(caplog: pytest.LogCaptureFixture) -> str:
+    """The one refusal warning the runner wrote, rendered the way the operator reads it."""
+    (record,) = [line for line in caplog.records if line.name == _RUNNER_LOGGER]
+    return PlainFormatter().format(record)
+
+
+async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """The budget's wall reaches the cortex as a value (ADR-0012 admission-wall addendum).
 
     An escaping exception would cross `SpawnSubagentsTool`, past which only `ToolError` is
     caught, and fail the whole turn. The runner's contract is that every outcome is a persisted
     `SubagentResult`, so the refusal joins "task not found" and "unknown subagent model".
+
+    Degrading the error also hides it, so the same path warns (ADR-0012 refusal-log addendum).
+    The assertion is over the rendered line rather than the record, because the rendered line is
+    what the delegation runbook shows and what an operator greps. The model named is the roster
+    entry that would have run, not the `model` the task requested, which is `""` whenever the
+    cortex let the roster choose and would name nothing an operator could act on.
     """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="do", context="", at=_AT))
@@ -558,10 +589,16 @@ async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception()
         # 8 cpus against a whole budget of 4: no peer releasing anything could ever admit it.
         request=PlacementRequest("subagent", vram_gb=2.0, cpus=8.0, memory_gb=2.0),
     )
-    result = await SubagentRunner(store, _roster(resources), FixedClock()).run("t1")
+    with caplog.at_level(logging.WARNING, logger=_RUNNER_LOGGER):
+        result = await SubagentRunner(store, _roster(resources), FixedClock()).run("t1")
     assert (result.ok, result.output) == (False, "")
     assert "refused before running" in result.detail
     assert "exceeds the whole budget" in result.detail
+    line = _refusal_line(caplog)
+    assert line.startswith(f"WARNING:{_RUNNER_LOGGER}:a spawn was refused before it ran ")
+    assert " model=subagent " in line
+    assert " task_id=t1" in line
+    assert "exceeds the whole budget" in line  # the operator reads what the cortex was told
     assert not backend.seen  # refused before running means no inference was ever issued
     assert await store.get_result("t1") == result  # the cortex reads it back from the store
     # Placement is inside admission, so a refusal reserved no VRAM either: headroom is intact.
@@ -589,7 +626,9 @@ async def _peer_holding_the_whole_budget(
         await task
 
 
-async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too() -> None:
+async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """The third refusal takes the same road as the wall (ADR-0012 bounded-admission-wait).
 
     A queue nothing ends is a delegated turn nothing ends, so the wait carries a bound and the
@@ -612,11 +651,15 @@ async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too() -> N
         request=_REQUEST,
     )
     runner = SubagentRunner(store, _roster(resources), FixedClock())
-    async with asyncio.timeout(10.0), _peer_holding_the_whole_budget(scheduler):
-        result = await runner.run("t1")
+    with caplog.at_level(logging.WARNING, logger=_RUNNER_LOGGER):
+        async with asyncio.timeout(10.0), _peer_holding_the_whole_budget(scheduler):
+            result = await runner.run("t1")
     assert (result.ok, result.output) == (False, "")
     assert "refused before running" in result.detail
     assert "outlasts the deployment's admission bound" in result.detail
+    # The bound's own refusal is the one this line exists for: the persisted result expires an
+    # hour after a spawn may have queued for two, so the log is what outlives the wait.
+    assert "outlasts the deployment's admission bound" in _refusal_line(caplog)
     assert not backend.seen  # refused before running means no inference was ever issued
     assert await store.get_result("t1") == result  # the cortex reads it back from the store
     # Placement is inside admission, so a wait refused at the bound reserved no VRAM either.

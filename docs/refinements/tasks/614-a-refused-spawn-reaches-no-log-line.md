@@ -1,6 +1,6 @@
 # A refused spawn reaches no log line
 
-**Status:** open, actionable
+**Status:** landed 2026-09-08
 **Area:** resource-governance
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 
@@ -20,14 +20,30 @@ are the cortex's own reply, which nothing keeps, and the persisted result under
 is 7200 s, so the record of a spawn refused at that bound expires an hour after it is written and
 the operator would have to be looking already.
 
-**What would close it.** One `_logger.warning` where `SubagentRunner` degrades the error, carrying
-the task id, the requested model and the reason, which is the same shape as the re-run warning
-already beside it. That is enough for the three triggers above to be read off the brain's log
-rather than off a Redis key with a shorter life than the bound it records. The gates it must satisfy
-are the ordinary ones for a new call site: a logger name owned by one module, a message spelled
-once, and a documented sample only if a runbook shows the line.
+**What closed it.** One `_logger.warning` where `SubagentRunner` degrades the error, in the
+`except` rather than in `_failed`, since the two refusals `_failed` also writes ("task not found"
+and an unknown model) are faults in the call rather than in the deployment's capacity. It carries
+`task_id`, the resolved roster entry's `model` and the scheduler's own `reason`, so which of the
+three refusals this was is on the line. The model named is the resolved entry rather than the
+requested one, which is `""` whenever the cortex let the roster choose. The delegation runbook shows
+the rendered line beside the wait bound's own paragraph, which puts it under `samplecheck.py`.
+
+The TTL sentence above was re-derived rather than taken on trust, and the alarming reading of it is
+wrong: `run` reads the task once, before `admit`, and carries it through the wait in the coroutine's
+own frame, so the task key's only read is taken before the queue starts. Nothing else reads a task
+back, and nothing at all reads a result back, so there is no rehydrate path for the shorter TTL to
+break and the two numbers are deliberately not held together. What the shorter TTL does cost is the
+audit pair, a result key with no task key beside it, which is the cost this entry's log line
+removes. The absent reader is filed as
+[R-615](615-nothing-reads-a-subagent-result-back-from-the-store.md).
 
 ## Trail
 
 - 2026-09-08: opened by the trigger sweep on [R-195](195-queue-depth-bound.md), which went looking
   for where a wait-bound refusal would be seen and found that it is seen nowhere.
+- 2026-09-08: landed. The warning is in `SubagentRunner.run`, the rendered line is in
+  [subagents-cpu.md](../../runbooks/subagents-cpu.md), the contract is in
+  [brain-core.md](../../modules/brain-core.md), and the reasoning, the mutation table and the
+  settled record-lifetime question are in the
+  [ADR-0012](../../adr/ADR-0012-resource-governance.md) refusal-log addendum. Opened
+  [R-615](615-nothing-reads-a-subagent-result-back-from-the-store.md).

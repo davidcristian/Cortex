@@ -1439,3 +1439,85 @@ and a trigger that now says how it is read, and
 addendum. No source file and no gate changed, so no mutation table is owed. The device readings were
 taken at the guest through `libdxcore.so` and at sysfs, the OpenVINO reading in a container, and the
 scheduler reading against the working tree through `brain/.venv`.
+
+## Addendum (2026-09-08, later): the refusal log, and the record lifetime behind it
+
+The sweep above left two things open about a spawn nobody sees, and this addendum settles both. The
+first is the entry it filed: a refusal reaches no log line, so three entries whose triggers are
+refusals name an event nobody can observe. The second is what that entry noticed in passing and did
+not verify, that `RedisTaskStore` writes its records at a 3600 s TTL while a spawn may queue for
+7200 s, which is the shape the one hard rule exists to prevent.
+
+### The refusal log line, and why it sits at the degrade rather than at the write
+
+`SubagentRunner.run` catches `SubagentAdmissionError` and returns an `ok=False` result, which is
+what keeps one refused subtask from failing the whole delegating turn. Degrading it also hides it:
+the refused text reaches the cortex's own reply, which nothing keeps, and the persisted
+`SubagentResult`, which expires; the tool audit sees the batch's aggregate, which is not an error
+result, so it records `result_chars` and never the text. So the `warning` goes in that `except`
+rather than in `_failed`, which also writes the two refusals that are not admission's ("task not
+found" and an unknown model), each of them a fault in the call rather than in the deployment's
+capacity, and neither one an operator tunes anything in response to.
+
+The line is `cortex_core.runner`, `WARNING`, "a spawn was refused before it ran", carrying
+`task_id`, `model` and `reason`. The model named is the resolved roster entry rather than
+`task.model`, which is `""` whenever the cortex let the roster choose and would name nothing an
+operator could act on. The `reason` is the scheduler's own text, so which of the three refusals
+this was is on the line: the impossible charge, the drain window of a model handoff, or the queue
+that outlasted the bound. The delegation runbook shows the rendered line beside the wait bound's
+own paragraph, which puts it under `scripts/samplecheck.py`: the sample is now held to this call
+site on level, logger, message and field names.
+
+### The record lifetime is not a defect, and this is why it looked like one
+
+`_TASK_TTL_SECONDS` is 3600 in `brain/packages/session/src/cortex_session/tasks.py` and covers both
+`cortex:task:{id}` and `cortex:task:{id}:result`. `DEFAULT_ADMISSION_WAIT_S` is 7200.0 in
+`brain/packages/core/src/cortex_core/scheduler.py`. A spawn queued at the bound therefore outlives
+the record of the task it was queued for, and the reading that makes that alarming is that the
+runner would re-read the task after admission.
+
+It does not. `run` calls `get_task` once, before `admit`, and carries the `SubagentTask` in the
+coroutine's own frame through the wait and into the attempt, so the task key has exactly one read
+and that read is taken before the queue starts. Nothing else in the brain reads a task back:
+`get_task` has one production call site, and `get_result` has none at all, the cortex being handed
+the aggregate in memory by `SpawnSubagentsTool` rather than reading results out of Redis. There is
+no rehydrate-after-swap path to break, because a delegation is not resumed after a restart by
+anything today; the store's promise is that the state is re-readable, not that something re-reads
+it.
+
+So the ordering is not required and is deliberately not registered in `scripts/crosscheck.py`. A
+coupling holding the TTL above the wait would encode a relation nothing depends on, and the honest
+way to hold a relation nothing depends on is to write down why it is absent, which is what this
+addendum and the two module contracts now do. What the shorter TTL does cost is the audit pair: a
+spawn queued past an hour has no task key left beside the result key it eventually writes, so an
+operator inspecting Redis sees an outcome with no record of what was asked. That cost is what the
+log line above removes, which is why it lands here rather than a raised TTL: the line carries the
+task id, the model and the reason, and it lasts as long as the log does.
+
+### Proved able to fail, three times
+
+Over the whole `brain/packages` suite, each mutation applied to `runner.py` alone with the suite
+re-run:
+
+- deleting the `_logger.warning` call fails 2,
+  `test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception` and
+  `test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too`;
+- writing it at `info` rather than `warning` fails the same 2, since the operator greps a level as
+  well as a message;
+- naming `task.model` rather than the resolved entry fails 1, the first of those, the second
+  reading only the reason.
+
+Attachment order is deliberately not pinned by a test: `render_fields` prints in name order
+whatever order the call site wrote, so a mutation reordering the `extra` dict changes nothing a
+reader or the gate can see.
+
+### Records
+
+The record is [R-614](../refinements/tasks/614-a-refused-spawn-reaches-no-log-line.md), which
+closes; the new [R-615](../refinements/tasks/615-nothing-reads-a-subagent-result-back-from-the-store.md),
+which is what re-deriving the TTL turned up; the log line and its test in
+`brain/packages/core/`; the sample in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md); the two module contracts
+[brain-core.md](../modules/brain-core.md) and [brain-session.md](../modules/brain-session.md);
+[docs/refinements/index.md](../refinements/index.md), regenerated from the task files; and this
+addendum.

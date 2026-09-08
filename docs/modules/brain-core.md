@@ -1946,7 +1946,11 @@ Use-case:
   `SubagentAdmissionError`, meaning a charge no budget could ever fit, a pool draining for a
   handoff, or a queue that outlasted the admission bound, is caught and becomes an
   `ok=False` "refused before running" result rather than an exception that would cross the spawn
-  tool's `gather` and fail the turn, ADR-0012 admission-wall and bounded-admission-wait addenda),
+  tool's `gather` and fail the turn, ADR-0012 admission-wall and bounded-admission-wait addenda;
+  degrading it also hides it, so the same path writes one `warning` from `cortex_core.runner`, "a
+  spawn was refused before it ran", carrying `task_id`, the resolved entry's `model` and the
+  scheduler's `reason`, which is the only lasting record of a refusal and the line the delegation
+  runbook shows, ADR-0012 refusal-log addendum),
   **places** on GPU or CPU against the VRAM budget (inner, synchronous), runs the attempt on the
   entry's `backends[placement.target]`, persists + returns a `SubagentResult`, and always releases
   the VRAM in a `finally`.

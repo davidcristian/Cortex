@@ -96,6 +96,11 @@ Translators only: serialization, key layout, and error wrapping; no business log
     document (unknown id → `None`).
   - `async put_result(result)` / `async get_result(task_id)` SET/GET one `SubagentResult`
     JSON document (unknown id → `None`).
+  - Both keys carry a 3600 s TTL, which is **shorter than the 7200 s a spawn may queue for room**
+    and is deliberately not ordered against it: the runner reads the task once, before it admits,
+    and holds it for the wait, so the only read either key has is taken inside the first hour
+    (ADR-0012 record-lifetime addendum). What the shorter TTL does cost is the audit pair, since a
+    spawn queued past an hour has no task key left beside the result key it eventually writes.
 - `RedisScheduleStore` implements the `ScheduleStore` port over redis-py asyncio
   (ADR-0025), same injected-client / `from_url` / `aclose` shape as above. The fenced
   claim→finish protocol's *semantics* live at the port (a stale token no-ops `False`;

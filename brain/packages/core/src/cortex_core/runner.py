@@ -127,6 +127,17 @@ class SubagentRunner:
             # runner's contract that every outcome is a `SubagentResult`: an escaping exception
             # would cross the spawn tool, which only `ToolError` is caught past, and fail the
             # whole turn, discarding the batch's other subagents along with it.
+            #
+            # Degrading it also hides it, which is why the warning is here rather than at the
+            # write in `_failed`. The refused text reaches the cortex's own reply, which nothing
+            # keeps, and the persisted result, which expires; the tool audit records the
+            # aggregate's `result_chars` and never its text, because a batch carrying one refusal
+            # is not an error result. So this line is the only lasting record that a spawn was
+            # refused, and the three entries whose triggers are refusals are read off it.
+            _logger.warning(
+                "a spawn was refused before it ran",
+                extra={"task_id": task_id, "model": res.request.model, "reason": str(err)},
+            )
             return await self._failed(task_id, _REFUSED_TEMPLATE.format(reason=err))
 
     async def _placed(
