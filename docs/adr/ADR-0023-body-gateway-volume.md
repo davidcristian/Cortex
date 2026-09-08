@@ -1115,3 +1115,62 @@ The record is the task file
 already read, [AGENTS.md](../../AGENTS.md), whose repo map now names it, and
 [modules/repo-gates.md](../modules/repo-gates.md), whose count of the modules here that have no CLI
 of their own was already stale by one before this change touched it, and this addendum.
+
+## Addendum (2026-09-08): the two COM deferrals read from the source, and one count repaired
+
+Both deferrals this ADR left against the Windows audio backend were rechecked against the code
+rather than against their own accounts of it: the safe Core Audio wrapper
+([R-223](../refinements/tasks/223-safe-core-audio-wrapper.md)) and the unbalanced COM
+initialization ([R-224](../refinements/tasks/224-unbalanced-com-initialization.md)). Neither
+trigger has fired, both stay open, and one of the two was wrong about what firing it would buy. No
+code changed; two prose counts did.
+
+### A safe crate would retire one allow of four, not the exception
+
+The wrapper entry read as though `audio` were the only holder of the `unsafe` authorization this
+ADR granted, which it was when the entry was written. The authorization is two levels. `body/Cargo.toml`
+forbids `unsafe_code` for the workspace; `body/crates/os_windows/Cargo.toml` relaxes that one crate
+to `deny`; and four modules re-enable it with a scoped `#![allow(unsafe_code)]` naming the decision
+behind it: `audio` (Core Audio, here), `notify` (one apartment initialization, ADR-0025), `screen`
+(the GDI blit and the display-affinity call, ADR-0029) and `focus` (the Z-order walk behind a
+targeted capture, ADR-0029). Adopting a safe Core Audio crate would delete the four `unsafe` blocks
+and the one `unsafe fn` in `audio.rs` and its allow with them. The crate-level relaxation would
+stay, held up by three modules this ADR never decided anything about.
+
+### The apartment count is still two, over a crate that grew from three modules to five
+
+`grep -rn 'CoInitializeEx\|CoUninitialize' body/crates/os_windows/src/` reports `audio.rs:43`, in
+`WindowsAudioControl::endpoint`, and `notify.rs:61`, at the top of `WindowsNotify::show`. Neither
+has a matching `CoUninitialize`, and the repository contains none. `screen` and `focus` arrived
+after the entry was filed and initialize nothing, which ADR-0029 argued for at the time: GDI was
+picked over DXGI Desktop Duplication and `Windows.Graphics.Capture` partly to keep a third
+initialized backend off the blocking pool. What did grow is the pool's traffic.
+`body_rpc::server::off_worker` now has four call sites, `get_volume`, `set_volume` and `notify` in
+`server.rs` plus the capture in `screen.rs`, and three of the four reach an initializing backend.
+The fix the entry names, one dedicated COM-initialized thread, is unchanged by any of that.
+
+### One count was stale in two places
+
+`body/crates/os_windows/Cargo.toml` and [modules/body-os.md](../modules/body-os.md) both said three
+modules carry a scoped allow. That was right until `focus` landed on 2026-08-10 and stale
+afterwards; `lib.rs` says four and had been kept current. Both now say four and name `focus` with
+the ADR that authorized it.
+
+### What could not be read here, and stays where it belongs
+
+The second entry's trigger is an observation, not a check: a volume or toast call that starts
+failing after a long uptime, or a thread count that climbs. This machine has no Win32 desktop
+session, the crate is `cfg(windows)` and compiles to nothing on Linux, and `just check` deliberately
+omits `check-shell`, so nothing in the gate executes a line of either backend. That half is already
+filed as the `windows-desktop` standing watch item in [docs/host/](../host/index.md), and the
+division stands: the observation sits there, the code cost stays counted in the refinements backlog.
+
+### Records
+
+The records are the two task files
+[R-223](../refinements/tasks/223-safe-core-audio-wrapper.md) and
+[R-224](../refinements/tasks/224-unbalanced-com-initialization.md), which stay open with the
+readings above written into them,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+`body/crates/os_windows/Cargo.toml` and [modules/body-os.md](../modules/body-os.md), whose module
+count was repaired, and this addendum.
