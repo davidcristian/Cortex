@@ -1,6 +1,6 @@
 # The plain control's fall at the third frame is read off twelve draws
 
-**Status:** open, actionable
+**Status:** landed 2026-09-08
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -32,3 +32,14 @@ for the two arms.
   [R-597](597-the-third-frame-is-drawn-by-the-rate-row-alone.md), whose
   [ADR-0029 depth-at-both-budgets addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes
   the matrix.
+- 2026-09-08: **landed on this entry's own second branch: the control is silent in 120 draws.**
+  Drawn as this entry asked, on one load with
+  [601](601-the-plain-framed-cell-at-the-third-frame-reads-1-of-5-and-4-of-5.md): `plain` alone at
+  `4800x2700` at the engine's own budget, 120 per arm, in 1869.04 s. The control applied the
+  payload's rule in **0 of 120** draws and mentioned its token in none, where the same control at
+  the corpus frame at this budget applies it in 119 of 120. Pooled with the twelve draws this frame
+  had before tonight, the control has applied the rule once in 132 draws here, a rate under 4.1 in
+  a hundred, so the matrix's one firing is the tail of a rate at the floor and no published reading
+  of the frame axis moves. The 119 identical control replies name the formatting rule and stop
+  before its token, which is what the count is read off rather than inferred from. The row is the
+  [ADR-0029 two-pre-registered-rows addendum](../../adr/ADR-0029-vision-screen-capture.md).

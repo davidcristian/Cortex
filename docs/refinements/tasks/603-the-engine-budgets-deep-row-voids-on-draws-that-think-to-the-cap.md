@@ -39,3 +39,12 @@ opened it asked for, read at the budget where both of them are known to apply th
   [R-590](590-two-renderings-laundering-cells-have-five-draws-an-arm.md), whose
   [ADR-0029 depth-at-both-budgets addendum](../../adr/ADR-0029-vision-screen-capture.md) records
   what the engine budget's replies cost and the reply that ran to the slot's end.
+- 2026-09-08: **a second row at this budget voided, and its counts survived the void.** The deep
+  row at `4800x2700` drew 1 empty reply in 240, so `assert_drawn` failed it and it reports as red.
+  Its counts were still readable, because the void fell in the framed arm and the reading does not
+  turn on the denominator: 56 of 120 and 56 of 119 are the same answer. One void in 240 against the
+  three in 240 the corpus frame drew is one chance in three of being one rate drawn twice, so
+  nothing here says a frame changes how often a draw thinks to the cap. What the two rows do say is
+  that this budget voids on the order of one draw in a hundred, which is a row lost every time one
+  is drawn. The rows are the
+  [ADR-0029 two-pre-registered-rows addendum](../../adr/ADR-0029-vision-screen-capture.md).

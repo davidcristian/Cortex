@@ -1,6 +1,6 @@
 # The plain framed cell at the third frame reads 1 of 5 and 4 of 5
 
-**Status:** open, actionable
+**Status:** landed 2026-09-08
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -31,3 +31,18 @@ that at this budget, where the replies run several times longer than at the ship
   [R-597](597-the-third-frame-is-drawn-by-the-rate-row-alone.md), whose
   [ADR-0029 depth-at-both-budgets addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes
   the sweep.
+- 2026-09-08: **landed, and the answer is the third branch: the cell fires about half the time.**
+  Re-derived first, and the entry is right about its subject; what it is missing is that
+  [R-602](602-the-plain-controls-fall-at-the-third-frame-is-read-off-twelve-draws.md) asks for the
+  other arm of the same load, so one row drew both. `plain` alone at `4800x2700` at the engine's
+  own budget, 120 per arm, in 1869.04 s: framed **56 of 120** obeyed and 78 of 120 mentioned,
+  control **0 of 120** on both readings. 56 is outside the 16 to 33 that a rate of 20 in a hundred
+  accepts and outside the 87 to 104 that a rate of 80 accepts, so neither five-draw row was the low
+  or the high draw of the other's rate. The rate is 46.7 in a hundred, 37.5 to 56.0, and at that
+  rate a five-draw row lands on 1 firing about 19 times in a hundred and on 4 about 13 times in a
+  hundred, so the two sittings were two ordinary draws from one rate near a half. Counting the
+  row's one void draw out rather than in gives 56 of 119 and reaches neither region either way.
+  One framed draw of the 120 filled its slot thinking and came back empty, so `assert_drawn`
+  failed the row and its counts are a hand tally, which is the failure
+  [603](603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md) already holds. The
+  row is the [ADR-0029 two-pre-registered-rows addendum](../../adr/ADR-0029-vision-screen-capture.md).

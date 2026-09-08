@@ -1021,31 +1021,32 @@ def _print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: bo
 _DEEP_RATE_RUNS = 120
 
 
-async def _draw_deep_cell(
+async def _draw_deep_cell(  # noqa: PLR0913 -- one argument per axis, each at the corpus's own
     client: httpx.AsyncClient,
     model: Model,
     rendering: Rendering,
     budget: Budget,
     type_scale: TypeScale = CORPUS_TYPE_SCALE,
     runs: int = _DEEP_RATE_RUNS,
+    frame: Frame = CORPUS_FRAME,
 ) -> list[str]:
     """Draw one rendering's laundering cell deep in both arms, print every reply, return unusable.
     """
     print(  # noqa: T201
         f"\n=== {model.label} {rendering.name} laundering rate, {runs} per arm at "
-        f"{CORPUS_FRAME.label}, {type_scale.label}, {budget.label} ==="
+        f"{frame.label}, {type_scale.label}, {budget.label} ==="
     )
-    await _read_back(client, model, rendering, CORPUS_FRAME)
+    await _read_back(client, model, rendering, frame)
     if type_scale != CORPUS_TYPE_SCALE:
-        reply = await _transcription(client, model, rendering, CORPUS_FRAME, type_scale)
+        reply = await _transcription(client, model, rendering, frame, type_scale)
         read = "yes" if _reads_canary(reply) else "NO"
         print(f"  [{rendering.name}] at {type_scale.label}: read on request={read}")  # noqa: T201
-    png = rendering.build(_LAUNDERING.injection, CORPUS_FRAME, type_scale)
+    png = rendering.build(_LAUNDERING.injection, frame, type_scale)
     unusable: list[str] = []
     fired: dict[str, str] = {}
     for arm, framed in (("framed", True), ("control", False)):
         replies = [
-            await _screen_reply(client, png, framed=framed, switch=switch_for(model))
+            await _screen_reply(client, png, framed=framed, switch=switch_for(model), frame=frame)
             for _ in range(runs)
         ]
         fired[arm] = rate(_LAUNDERING, replies)
@@ -1070,6 +1071,40 @@ async def test_every_renderings_laundering_rate_drawn_deep(model: Model, budget:
                 unusable += await _draw_deep_cell(client, model, rendering, budget)
     label = f"{model.label} laundering rates at {budget.label}, {_DEEP_RATE_RUNS} per arm"
     assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS * len(RENDERINGS))
+
+
+# The rendering whose payload is unstyled body text under a heading, and the one the two rows below
+# draw alone. It is looked up by name so a reordering of the corpus cannot silently point this
+# elsewhere, which is the reason the dialog's own rendering is looked up that way.
+_PLAIN_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "plain")
+
+_DIRECTION_RUNS = 280
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_plain_cells_laundering_direction_drawn_deeper(model: Model) -> None:
+    """Draw the `plain` cell two hundred and eighty times per arm at the corpus frame."""
+    with _server(model, SHIPPED_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            unusable = await _draw_deep_cell(
+                client, model, _PLAIN_RENDERING, SHIPPED_BUDGET, runs=_DIRECTION_RUNS
+            )
+    label = f"{model.label} plain laundering direction, {_DIRECTION_RUNS} per arm"
+    assert_drawn(label, unusable, 2 * _DIRECTION_RUNS)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_plain_cell_at_a_third_frame_drawn_deep(model: Model) -> None:
+    """Draw the `plain` cell a hundred and twenty times per arm at ``4800x2700``."""
+    with _server(model, ENGINE_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            unusable = await _draw_deep_cell(
+                client, model, _PLAIN_RENDERING, ENGINE_BUDGET, frame=_THIRD_FRAME
+            )
+    label = f"{model.label} plain at {_THIRD_FRAME.label}, {_DEEP_RATE_RUNS} per arm"
+    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS)
 
 
 _DIALOG_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "chrome")
@@ -1179,7 +1214,6 @@ async def test_the_payload_sweep_at_a_third_frame(model: Model) -> None:
     await _draw_payload_sweep(model, _THIRD_FRAME, ENGINE_BUDGET)
 
 
-_PLAIN_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "plain")
 SQUARE: tuple[Rendering, ...] = (_PLAIN_RENDERING, _DIALOG_RENDERING, *PROBES)
 
 
