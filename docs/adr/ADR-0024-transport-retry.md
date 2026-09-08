@@ -1727,3 +1727,66 @@ than the seam: nothing holds the roster of live checks in
 [docs/modules/body-rpc.md](../modules/body-rpc.md) to the checks the file actually carries, and it
 had drifted to "two" while seven were running
 ([R-442](../refinements/tasks/442-nothing-holds-the-live-check-roster-to-the-suite.md)).
+
+## Trigger addendum (2026-09-08): both deferred seam-transport shapes are still waiting, one switch higher than last time
+
+Two entries against this seam were parked as fix-when-it-bites with a trigger apiece, and nobody
+had asked since whether the bite happened. Both were reread against the code rather than against
+their own accounts of it. Neither has fired, and one of the two triggers was watching the wrong
+knob.
+
+### The reconnect before the first event, reread at the switch above the knob
+
+The safe-`converse`-reconnect entry waits on routine mid-turn evictions. The last sweep of it, in
+August, read that as "is `CORTEX_SWAP_EVICT_MODELS` empty", found it was, and stopped. That is a
+true reading of a knob that does not decide the question. The eviction list names which peer tiers
+a handoff stops; whether any handoff machinery exists at all is decided one level above it, by
+`CORTEX_ESCALATION`. With escalation off, `build_swap_scope` returns `None`
+(`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:97`), so no conductor and no
+model host are constructed and nothing can swap, however the eviction list is set.
+
+Read that way, the answer is the same but for a stronger reason. `grep -rn CORTEX_ESCALATION
+docker/` returns exactly one line, and it is a comment at `docker/docker-compose.gpu.yml:25`
+telling an operator what to set. The shipped defaults agree: `escalation` is `False` and
+`modelhost_backend` is `"none"` (`config_swap.py:108-109`). No composed stack in this repo performs
+a model swap, so the mid-turn eviction that would make a reconnect worth paying for cannot happen
+yet.
+
+The seam side of the entry is unchanged and still correct. `ClientEvent` and `UserTurn` carry
+`session_id`, text and images and nothing else (`proto/body.proto:93-104`), so no request identity
+crosses the wire and a re-issued request would still double-run the turn. `SeamMethod::Converse`
+stays outside the repeatable set.
+
+### The read that will not fit, both halves still standing
+
+The early-`DEADLINE_EXCEEDED` entry names two conditions, and both were checked.
+
+`session_servicer.py` spells `time_remaining` zero times. All five of its unary handlers,
+`ListSessions`, `GetSessionMessages`, `RenameSession`, `DeleteSession` and `SetSessionPinned`, call
+the store without consulting the clock. The brain's only reader of that value is the abandonment
+interceptor at `abandon.py:74`, which prints it and branches on nothing, exactly as its module doc
+says.
+
+The grace margin is still `ANNOUNCED_DEADLINE_GRACE_MS = 250` at
+`body/crates/core/src/retry/plan.rs:79`, and `body/crates/core/tests/retry_plan.rs:465` holds it as
+`announced == enforced + grace` rather than as an inequality. The announced deadline is therefore
+still strictly the longer of the two by a fixed 250 ms, which is the fact that makes an early
+return in the handler worth about one Redis round trip on a call the caller has already abandoned,
+bought with a branch that reports an expiry the deadline has not reached.
+
+The measurement that would set a floor is still missing. Nothing in the tree times a store read,
+and the paging cursor that would make a listing expensive enough to be worth timing
+([184](../refinements/tasks/184-paging-cursor.md)) is itself still open.
+
+### Decision
+
+Both entries stay open, fix when it bites. Neither description needed correcting; both triggers
+did, in the same way. A trigger that says what to look at but not how to look at it invites the
+next reader to pick a plausible knob, as the August sweep did. Each now names the file, the value
+and the command that reports it, so a recheck is a single grep rather than a re-derivation, and
+each entry's body records what that command answered today.
+
+### What this opens
+
+Nothing new. The August sweep's reading is not withdrawn, only deepened: an empty eviction list was
+a true observation, and the escalation switch is the one that settles the question.
