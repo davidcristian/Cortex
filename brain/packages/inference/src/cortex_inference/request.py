@@ -129,10 +129,12 @@ def build_payload(
     off by default). Nothing here reads ``bounds.thinking`` to decide it: a switch and a count are
     two facts, and a caller that wanted a bounded trace named the count.
 
-    Nothing is asked for on behalf of the decode cadence (ADR-0030 spill-watch addendum). This
-    build already answers a plain streaming request with a ``timings`` object on its final chunk,
-    verified against llama.cpp ``b10298-15586e2d7``, so the adapter reads what is offered rather
-    than changing every request in the repo to ask for more.
+    Nothing is asked for on behalf of the decode cadence (ADR-0030 spill-watch addendum). The
+    engine already answers a plain streaming request with a ``timings`` object on its final chunk,
+    so the adapter reads what is offered rather than changing every request in the repo to ask for
+    more. Verified 2026-08-08 on the build that named itself ``b10298-15586e2d7`` in its own
+    ``system_fingerprint``, and re-read 2026-09-08 on ``b10680-d7bd3bfca``, which is what the tags
+    this stack names start here now (ADR-0005 build-provenance addendum).
     """
     payload: dict[str, object] = {
         "model": model,

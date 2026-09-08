@@ -1860,9 +1860,13 @@ Re-derived from the tree on 2026-08-08 rather than taken from the entry: a grep 
 `predicted_per_second` across `brain/packages` found the string only inside two live tests' own
 wall-clock timing dictionaries, so **nothing in the brain read the server's own figure**, and
 `LlamaCppBackend` discarded the chunk that carries it. Verified against the running stack that the
-figure is there to be read: llama-server build `b10298-15586e2d7` puts one `timings` object on the
-**final** chunk of an ordinary streaming `/v1/chat/completions`, unasked, exactly one chunk of a
-twelve-chunk stream carrying it. So no request anywhere had to change to get this.
+figure is there to be read: the llama-server answering here that day, which named itself
+`b10298-15586e2d7` in the `system_fingerprint` on its own responses, puts one `timings` object on
+the **final** chunk of an ordinary streaming `/v1/chat/completions`, unasked, exactly one chunk of
+a twelve-chunk stream carrying it. So no request anywhere had to change to get this. The build the
+tags this stack names start today, `b10680-d7bd3bfca`, was read the same way on 2026-09-08 and
+still answers with one `timings` object on the last chunk and no other (ADR-0005 build-provenance
+addendum).
 
 ### Decision: a port arm, a pure watch, and one sentence in the log
 

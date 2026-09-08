@@ -102,12 +102,15 @@ def _cadence(data: Mapping[str, object]) -> DecodeCadence | None:
     """The completion's decode rate off llama.cpp's own ``timings``, or ``None`` (ADR-0030).
 
     llama-server puts one ``timings`` object on the **final** streamed chunk of an ordinary
-    ``/v1/chat/completions`` request, verified against build ``b10298-15586e2d7``: exactly one
-    chunk of a twelve-chunk stream carried it. ``predicted_per_second`` is the server's own
-    arithmetic and is taken rather than recomputed from ``predicted_ms``, because the rate the
-    runbook's measured table is written in is that field. ``predicted_n`` is floored to an int
-    rather than required to be one, a server reporting a whole number as a float being no
-    protocol violation.
+    ``/v1/chat/completions`` request. Verified 2026-08-08 on the build that named itself
+    ``b10298-15586e2d7`` in its own ``system_fingerprint``, exactly one chunk of a twelve-chunk
+    stream carrying it, and re-read 2026-09-08 on ``b10680-d7bd3bfca``, the build the tags this
+    stack names start here now, one chunk of seven (ADR-0005 build-provenance addendum).
+
+    ``predicted_per_second`` is the server's own arithmetic and is taken rather than recomputed
+    from ``predicted_ms``, because the rate the runbook's measured table is written in is that
+    field. ``predicted_n`` is floored to an int rather than required to be one, a server reporting
+    a whole number as a float being no protocol violation.
 
     A build that omits ``timings``, a field of the wrong type, or a negative figure yields no
     cadence, which the port allows a backend to report.

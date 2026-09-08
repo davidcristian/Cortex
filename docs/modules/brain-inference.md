@@ -56,9 +56,12 @@ the one that defines it and `backend.py` imports all three.
      no `choices` at all yield nothing, so a stream reports one stop and not one per chunk.
   5. Yields one `DecodeCadence(tokens_per_second, tokens)` when a chunk carries llama.cpp's own
      `timings` object, read from `predicted_per_second` and `predicted_n` (ADR-0030 spill-watch
-     addendum). On build `b10298-15586e2d7` exactly one chunk of a stream carries it, the last,
-     and it arrives unasked, so no request changed to get it. Timings are read **before** the
-     chunk's `choices` are, so a build closing on `{"choices": []}` is still read. The event is
+     addendum). Exactly one chunk of a stream carries it, the last, and it arrives unasked, so no
+     request changed to get it: read on 2026-08-08 off the build that named itself
+     `b10298-15586e2d7` in its own `system_fingerprint`, and again on 2026-09-08 off
+     `b10680-d7bd3bfca`, which is what the tags this stack names start here now (ADR-0005
+     build-provenance addendum). Timings are read **before** the chunk's `choices` are, so a build
+     closing on `{"choices": []}` is still read. The event is
      emitted after the text it describes, a rate being unknowable before the tokens are counted.
   - **The two closing events are independent.** They ride the same final chunk on this build but
     come off different parts of it, the stop off the first choice and the cadence off the chunk,

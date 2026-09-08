@@ -456,16 +456,18 @@ Measured on the shipped subagent pick at `-ngl 0` on `b10666-4e97ac86e`, a cap o
 constrained reply: the switch alone deliberated on **17 of 20** draws and returned an **empty**
 capped reply on every one of them; with `trace_tokens=0` the trace stopped on **20 of 20**. One
 caution worth knowing before you see it: forcing the end of a thought lands after its start tag, so
-a fragment of that tag can survive into the answer, and it does. One draw in 53 came back as
-`{"reply": "thought"}`, a well formed envelope whose whole answer is the tag. Nothing downstream
-rejects that, so a delegated run reports it as the subtask's answer. The same sampler as a tier
-flag (`--reasoning-budget 0`, which every subagent server here already carries) did not do it in 20
-draws, and at those sizes the two do not separate: this is a rare engine behaviour the per-request
-key inherits rather than one it adds. How rare was measured on 2026-09-07 at a hundred draws a cell
-on both builds this repo has readings for, `b10680-d7bd3bfca` and `b10666-4e97ac86e`, the same pick
-at `-ngl 99`: no draw of the 600 leaked, and the budgeted cell held the trace at 0 on 200 of 200
-(ADR-0005 trigger-sweep addendum). Expect not to see it, and read the printed count rather than one
-draw.
+a fragment of that tag can survive into the answer, and it does. One draw in 58 came back as
+`{"reply": "thought"}`, a well formed envelope whose whole answer is the tag. That denominator is
+every draw of the measuring session carrying `reasoning_budget_tokens: 0`, 28 through the raw wire
+and 30 through this probe, which is the count the ADR-0005 request-lever addendum's table is over
+as well. Nothing downstream rejects that, so a delegated run reports it as the subtask's answer.
+The same sampler as a tier flag (`--reasoning-budget 0`, which every subagent server here already
+carries) did not do it in 20 draws, and at those sizes the two do not separate: this is a rare
+engine behaviour the per-request key inherits rather than one it adds. How rare was measured on
+2026-09-07 at a hundred draws a cell on both builds this repo has readings for,
+`b10680-d7bd3bfca` and `b10666-4e97ac86e`, the same pick at `-ngl 99`: no draw of the 600 leaked,
+and the budgeted cell held the trace at 0 on 200 of 200 (ADR-0005 trigger-sweep addendum). Expect
+not to see it, and read the printed count rather than one draw.
 
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 

@@ -4393,3 +4393,142 @@ which is the denominator the leak's original session is published at in two ways
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) and
 [docs/modules/brain-inference.md](../modules/brain-inference.md), whose leak paragraphs now carry
 the re-drawn counts, and this addendum.
+
+## Leak-denominator addendum (2026-09-08): the runbook's fifty three is the same session counted before its last five draws
+
+The leak the request-lever addendum records is published at two denominators. This ADR, the probe's
+own docstring and
+[R-495](../refinements/tasks/495-the-forced-thought-can-leak-its-own-start-tag.md) say the draw was
+one of 58; [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) said one in 53. Three
+against one says nothing about which count anybody took, so the measuring session's own draws were
+read back out instead.
+
+### What the session drew, run by run
+
+The session of 2026-08-29 drew the budgeted cell, a constrained reply into the fixed envelope with
+the thinking switch and `reasoning_budget_tokens: 0`, three times through the committed probe. The
+transcript of that session, kept outside this repository, carries every draw the probe printed:
+
+| run | budgeted draws | leaks |
+| --- | --- | --- |
+| first | 5 | 0 |
+| second | 20 | **1** |
+| third, drawn after the documents were written | 5 | 0 |
+
+The leaked draw is the fifth of the second run, `{"reply": "thought"}` at 24 characters of reply and
+no trace, which is the draw quoted in the request-lever addendum. Those thirty are the probe's half
+of the 58 in that addendum's table; the other 28 were drawn through the raw wire ahead of them.
+
+### Which number each sentence was written against
+
+53 is not a narrower set. It is the same set counted before the third run landed. The session wrote
+its documents while its running total was 53, drew five more, and then swept the corpus from 53 to
+58 across `docs/modules/brain-inference.md`, this ADR, the probe's docstring,
+[R-495](../refinements/tasks/495-the-forced-thought-can-leak-its-own-start-tag.md),
+[R-474](../refinements/tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md) and its own
+commit message. The sweep searched for the string `of 53`. The runbook says `One draw in 53`, so
+the search did not reach it and that one sentence kept the earlier total. Nothing in the runbook's
+paragraph was ever counting the raw wire out or the probe alone, and no set of that session's draws
+comes to 53 once the third run has landed.
+
+### Decision
+
+**58 is the count, and the runbook says what it is over.** The three places that already publish 58
+stand. The runbook's sentence now names 58 and spells out the set: every draw of the measuring
+session carrying `reasoning_budget_tokens: 0`, 28 through the raw wire and 30 through the probe an
+operator is reading that paragraph to run. An operator compares a printed leak count against a rate
+whose denominator is stated, rather than against a number whose set they would have to reconstruct.
+
+The capability table in the request-lever addendum is a different cell from the other three and was
+never in disagreement with them. Its `0/58` is how many of those 58 draws deliberated, which is
+zero, where the leak count over the same 58 draws is one. Both are over the same set.
+
+### Records
+
+[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), whose leak paragraph now carries the
+count and the set,
+[R-598](../refinements/tasks/598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md),
+closed against this addendum, [docs/refinements/index.md](../refinements/index.md), which is
+regenerated from the task files, and this addendum.
+
+## Build-provenance addendum (2026-09-08): the build the cadence prose names is a fingerprint the engine still prints
+
+Five places attribute the decode-cadence reading to llama.cpp `b10298-15586e2d7`, a build that no
+`--version` reading in this repository has ever produced.
+[R-299](../refinements/tasks/299-prose-cites-an-engine-build-nothing-pins.md) recorded that as prose
+naming a build this machine does not have, and offered three shapes without choosing one. Re-derived
+today, the number has a source, the source is still available on the build running here, and one of
+the three shapes is cheaper than the entry supposed.
+
+### Where the number came from
+
+`b10298-15586e2d7` was never read from `llama-server --version`. It is the `system_fingerprint`
+llama-server puts on its own responses, read off the running stack on 2026-08-08 while the decode
+cadence was being designed (ADR-0030 spill-watch addendum). So the build was reported here, by the
+server that produced the measurement, in the field the prose quotes. What could not be compared was
+the reading against an image's `--version`, which is where the entry's own conclusion came from.
+
+### What the engine says today
+
+Measured 2026-09-08 by the agent. `ghcr.io/ggml-org/llama.cpp:server` was started on the shipped
+subagent pick (gemma-4-E4B QAT q4_0) at `-ngl 0 --jinja --ctx-size 2048 --parallel 1` and asked for
+one short completion:
+
+```
+$ curl -s .../v1/chat/completions -d '{...,"max_tokens":4}' | python3 -c '...print(d["system_fingerprint"])'
+b10680-d7bd3bfca
+$ curl -s .../props | python3 -c '...print(d["build_info"])'
+b10680-d7bd3bfca
+```
+
+The `bNNNNN-<commit>` spelling the prose uses is therefore alive on the build present here, even
+though `--version` on the same image now prints `version: 0.3.0-dev (build 10680, commit
+d7bd3bfca)`. A reader who parses the old shape gets an answer from the response body and from
+`/props`, and only the version string moved.
+
+The cadence reading itself re-derives on that build. One streamed completion came back in seven
+chunks, exactly one of them carried `timings`, the last, unasked, and all seven named the build in
+`system_fingerprint`. That is what the 2026-08-08 reading says of `b10298-15586e2d7` over a stream
+of twelve.
+
+### What the images and the tags say
+
+Both cached images still report build 10680 at the digests the engine-tag addendum recorded on
+2026-09-04, `sha256:952424b09abc` for `server-cuda` and `sha256:db057ec90de0` for `server`, so
+nothing here has been pulled since. Each tag has moved again in the registry, read with
+`docker manifest inspect` so the cached images stay untouched. Each digest is quoted at its first
+twelve hex characters:
+
+| tag | read 2026-09-04 | read 2026-09-07 | read 2026-09-08 |
+| --- | --- | --- | --- |
+| `server-cuda` | `sha256:8557e3d273aa` | `sha256:84a9f771dfcb` | `sha256:4ae7aeb8b667` |
+| `server` | `sha256:3d05996b4956` | `sha256:ef50b81ee57e` | `sha256:07cf5635844c` |
+
+Three readings in five days, and this stack still starts build 10680 because nothing has pulled.
+
+### Decision
+
+1. **The five citations say what they were measured under and how the build named itself.** Each of
+   `cortex_inference/request.py`, `cortex_inference/decode.py`,
+   `inference/tests/test_cadence_contract.py`, [brain-inference.md](../modules/brain-inference.md)
+   and the handoff ADR now dates the reading, says the build named itself in `system_fingerprint`,
+   and says what the stack starts today. A figure whose build is named without a date and without a
+   source cannot be told from a figure measured on the build a reader is running.
+2. **Pinning either tag by digest is not decided here.** It would make the tag mean one thing and
+   turn every upstream fix into a commit in this repository, which is a deployment choice for the
+   maintainer rather than a documentation repair, and nothing measured today argues one way. The
+   engine-tag addendum's tag comparison stays the way a reader establishes what has moved.
+3. **The recording shape is available and is not built.** Nothing in this tree reads
+   `system_fingerprint` or `/props.build_info`, so every measurement this stack produces is still
+   attributed by hand in prose. That is
+   [R-611](../refinements/tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md),
+   filed with what was measured today, because it needs a port arm or a boot-time reading rather
+   than a sentence.
+
+### Records
+
+[R-299](../refinements/tasks/299-prose-cites-an-engine-build-nothing-pins.md), closed against this
+addendum, [R-611](../refinements/tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md),
+opened by it, the five citations named above,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from the task files, and
+this addendum.

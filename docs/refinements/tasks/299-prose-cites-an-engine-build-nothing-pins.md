@@ -1,9 +1,12 @@
 # Prose cites an engine build that nothing pins
 
-**Status:** open, actionable
+**Status:** landed 2026-09-08
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Trigger:** the first measurement that contradicts a recorded one, or the first behaviour a reader cannot reproduce, on a stack whose engine build has moved under the number the prose names.
+
+The trigger this entry waited on, a measurement contradicting a recorded one or a behaviour a
+reader cannot reproduce on a stack whose engine build has moved under the number the prose names,
+fired on 2026-09-06 and is recorded in the trail below.
 
 Opened 2026-08-17 by an observation made while closing an unrelated entry, and recorded rather than
 acted on because acting on it would change the deployed image.
@@ -37,6 +40,32 @@ figures exist precisely to establish. The first two are not exclusive.
 
 Nothing here proposes changing the deployed image, and nothing in this entry was measured against a
 build other than the two named above.
+
+**Where the number came from, which this entry did not know.** `b10298-15586e2d7` was never a
+`--version` reading. It is the `system_fingerprint` llama-server puts on its own responses, read off
+the running stack on 2026-08-08 while the decode cadence was designed. So the build did answer here,
+in the field the prose quotes, and this entry's comparison against an image's `--version` was
+comparing two different readings. Measured 2026-09-08 on `ghcr.io/ggml-org/llama.cpp:server`, the
+shipped subagent pick at `-ngl 0 --jinja --ctx-size 2048 --parallel 1`: `system_fingerprint` on a
+completion and `build_info` at `/props` both read `b10680-d7bd3bfca`, so the `bNNNNN` spelling the
+corpus quotes is alive on the build present today and only the version string moved to
+`0.3.0-dev (build 10680, commit d7bd3bfca)`. The cadence claim re-derives on it as well: one
+streamed completion of seven chunks carried `timings` on exactly one, the last, unasked.
+
+**Both cached images are unmoved and both tags have moved again.** `server-cuda` is still cached at
+`sha256:952424b09abc` and `server` at `sha256:db057ec90de0`, the digests recorded on 2026-09-04, and
+both report build 10680. In the registry, read with `docker manifest inspect` so nothing is pulled,
+`server-cuda` now resolves to `sha256:4ae7aeb8b667` and `server` to `sha256:07cf5635844c`, which is
+a third pair in five days.
+
+**Two of the three shapes, and the third left to the maintainer.** The five citations now say when
+each was read, that the build named itself in `system_fingerprint`, and what the stack starts today.
+Pinning by digest is not decided here: it turns every upstream fix into a commit in this
+repository, which is a deployment choice rather than a documentation repair, and nothing measured
+today argues either way. The recording shape is available and unbuilt, since nothing in the tree
+reads `system_fingerprint` or `/props`, and it is filed as
+[R-611](611-nothing-reads-the-build-the-engine-names-on-every-response.md) because it needs a log
+line at boot or a port arm rather than a sentence.
 
 ## Trail
 
@@ -74,3 +103,13 @@ build other than the two named above.
   them is it. A withdrawn dialect reading, a falsified pixel-replication premise and a lineup table
   naming a quant an engine ADR had measured as a different one are all facts about this tree and
   this mount, not about the engine build moving under the prose. They belong to their own entries.
+- 2026-09-08: **landed, on two of its three shapes, and one premise was wrong.** The build the
+  prose names was read off `system_fingerprint` and not off `--version`, so the entry's own
+  conclusion that no image here ever reported it was drawn from the wrong reading, and the trail
+  note above saying a reader parsing the old shape gets nothing is wrong for the shape the corpus
+  uses: `system_fingerprint` and `/props.build_info` still print `b10680-d7bd3bfca` on the build
+  present today. The five citations now date their reading and name what the stack starts.
+  Digest pinning is left to the maintainer, and the recording half is
+  [R-611](611-nothing-reads-the-build-the-engine-names-on-every-response.md). Measurements and the
+  registry readings: the [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) build-provenance
+  addendum.

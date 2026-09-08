@@ -2,9 +2,12 @@
 
 The scripted twin and the real ``LlamaCppBackend`` pass the identical checks, which is the
 ports-before-adapters gate for the cadence arm (AGENTS.md). The adapter's leg reads a **real**
-llama-server body: the ``timings`` object below was copied from a live run of the shipped stack on
-this repo's own card (llama.cpp build ``b10298-15586e2d7``), only its two watched numbers changed
-to the contract's, so what the parser is held to is bytes the server actually emits.
+llama-server body: the ``timings`` object below was copied on 2026-08-08 from a live run of the
+shipped stack on this repo's own card, off the build that named itself ``b10298-15586e2d7`` in its
+own ``system_fingerprint``, only its two watched numbers changed to the contract's, so what the
+parser is held to is bytes the server actually emits. The build the tags this stack names start
+here today, ``b10680-d7bd3bfca``, still puts the object on the last chunk and nowhere else
+(ADR-0005 build-provenance addendum).
 
 Mutations run against this file, each reverted, proving the checks can fail rather than trusting
 that they pass:
