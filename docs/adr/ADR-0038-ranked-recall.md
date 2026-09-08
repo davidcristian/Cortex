@@ -3878,3 +3878,110 @@ which is the difference between holding an instruction and holding a mention of 
 - The tool audit's logger name is spelled in four places and held in none, which is this entry's
   sibling with the mechanism now built:
   [R-486](../refinements/tasks/486-the-tool-audits-logger-name-is-spelled-in-four-places-and-held-in-none.md).
+
+## Trigger-sweep addendum (2026-09-08): three log-line triggers re-read, and one narrowed by escaping
+
+Three refinements against the structured log line were filed to be fixed when they bit, which only
+works if somebody asks whether the bite happened. Nobody had asked since they were written. This
+addendum records what asking answered. None of the three has fired. One of them was wrong about
+what the two renderings share, one had the wrong line in mind for the question it asks, and one
+turns out to be narrower than it reads because of an interaction between the redaction and the
+escaping that nobody had measured.
+
+### The packed rendering shares more than the secrets rule
+
+[R-336](../refinements/tasks/336-packed-values-keep-their-whole-length.md) says the per-value bound
+reaches only the plain rendering and that the two renderings therefore share the secrets rule and
+nothing else. The first half holds and the suite already asserts it:
+`test_the_packed_rendering_carries_a_value_the_plain_one_would_cut` reads a 100,000-character field
+back out of a packed line whole. The second half is false. Both formatters end in `redact_urls`
+over the whole rendered line, and the packed suite asserts that on a record carrying a credential in
+its message, in a field and in a traceback. What the packed rendering lacks is the bound and the
+per-value credential pass `render_value` runs before the bound cuts, and, as the last section here
+records, the per-value pass is not the half that catches the shapes the plain rendering catches.
+
+Its trigger has not fired. `docker/docker-compose.yml` ships
+`CORTEX_LOG_FORMAT: ${CORTEX_LOG_FORMAT:-plain}` and `docker/docker-compose.gpu.yml` ships
+`CORTEX_MODELHOST_LOG_FORMAT` the same way, no `.env` in the tree sets either, and no compose file
+declares a collector: the services are `brain`, `redis`, `postgres`, `pg-backup`, `llama-embed`,
+`mcp-filesystem`, `mcp-email`, `model-host`, two `llama-subagent` servers and the IMAP probe. What
+the exposure costs was measured rather than argued: one `LoggingAuditSink`-shaped record whose
+model-written `tool`, `call_id`, `arguments` and `error` each carry a million characters renders at
+8,580 characters plain and at 4,000,439 packed, which is 245 of the driver's 16 KiB messages
+against one.
+
+### The widest line is the tool audit's, not the recall trail's
+
+[R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md) asks what bounds the
+whole line, and the whole-line addendum above answered it with a live reading of the recall trail:
+1,800 characters at its widest over 466 lines, against a cliff of 16,383, a factor of nine. That
+number is right about the trail and wrong about the deployment, because the trail is not the widest
+line this tree can build.
+
+Four of the tool audit's eleven fields carry text no call site chose. `tool`, `call_id` and
+`arguments` are the model's own, copied deliberately so the record says what was asked for rather
+than what the brain made of it, and `error` is the dispatch's or a sidecar's answer, which for an
+unknown tool is `unknown tool {name!r}` and so is the model's string again. One emitted call can put
+all four past the bound at once. Rendered through the shipped `PlainFormatter` today, with a million
+characters in each of the four, that line measures **8,580 characters with four cut markers on it**,
+which is 52% of the cliff and a headroom factor of 1.91. The recall trail at its shipped caps
+measures 2,264 on the same run, which is the near-2,200 the whole-line addendum computed for it.
+
+So the trigger has not fired and cannot fire on today's field sets, and the entry stays open with a
+much smaller margin than the one it was last read against. The arithmetic under `VALUE_CHARS` is
+unchanged: measured the same way, seven fields at the bound make a line of 14,494 characters and
+eight make one of 16,562, so seven is still the headroom in fields. Those are the two counts the
+cut-defeats-withholding addendum records as 14,536 and 16,607, taken over longer field names;
+eight-character keys reproduce 14,536 exactly, so the difference is the names each run chose rather
+than anything in the formatter. What changes is which sink the cheaper alternative should be
+written against. A test asserting that the widest line a shipped sink
+builds stays under the cliff now has two figures rather than none, and the tool audit is where it
+would bite first.
+
+### The whitespace the pattern misses is the whitespace no encoder escapes
+
+[R-343](../refinements/tasks/343-a-userinfo-the-pattern-cannot-reach.md) lists three credential
+shapes `_USERINFO` does not match, one of them "a userinfo containing whitespace". Reading the
+redaction on its own says that, and reading the redaction where it actually runs says something
+narrower, which is the interaction this repo has already paid to learn: the pattern was audited
+against the pattern, and what escaping does to it in between was never measured.
+
+Every value reaches a line through `json.dumps` unless it renders bare, and `_bound_value` runs the
+pattern over the **escaped** rendering. By that point a tab or a newline inside a userinfo is two
+printing characters, both of them in the class, so the pattern reaches the credential that the same
+pattern misses on the raw text. Each shape was put through five readings, `render_value` on its own
+and then a field and a message in each formatter, reading whether `<redacted>` reaches the output:
+
+| userinfo carries | `render_value` | plain field | plain message | packed field | packed message |
+| --- | --- | --- | --- | --- | --- |
+| a space, U+00A0 or U+3000 | exposed | exposed | exposed | exposed | exposed |
+| a tab, newline, CR, VT or FF | held | held | **exposed** | held | held |
+| a `/` | exposed | exposed | exposed | exposed | exposed |
+| a `"` or a `\` | held | held | held | held | held |
+| no scheme in front | exposed | exposed | exposed | exposed | exposed |
+
+The `/` limb and the no-scheme limb stand exactly as the entry states them. The whitespace limb is
+the space and the Unicode whitespace above the C0 range, and nothing else: a control character
+reaches a line in one place only, the plain rendering's message and its traceback, which no encoder
+touches. The direction of the interaction is safe in general, since JSON escaping only ever
+replaces a character the class excludes with characters it admits and never the other way, so
+escaping widens what the pattern reaches and cannot narrow it.
+
+The trigger has not fired. The one URL this deployment builds with a credential in it is
+`CORTEX_MEMORY_DSN` in `docker/docker-compose.memory.yml`,
+`postgresql://cortex:${CORTEX_PG_PASSWORD:-cortex}@postgres:5432/cortex`, and the shipped password
+is `cortex`, which carries neither a `/` nor a space; `CORTEX_REDIS_URL` ships with no credential at
+all. The trigger fires on the day an operator sets `CORTEX_PG_PASSWORD` to a password with a `/` or
+a space in it, and the entry now says so.
+
+### Records
+
+The record is the three task files,
+[R-336](../refinements/tasks/336-packed-values-keep-their-whole-length.md),
+[R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md) and
+[R-343](../refinements/tasks/343-a-userinfo-the-pattern-cannot-reach.md), all three of which stay
+open with a dated trail entry and a trigger that now says how it is read,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No source file and no gate changed, so no mutation table is owed. The readings were taken
+against the working tree through `brain/.venv`, not against a running stack, because every one of
+them is a property of the formatter and of what the compose files declare.
