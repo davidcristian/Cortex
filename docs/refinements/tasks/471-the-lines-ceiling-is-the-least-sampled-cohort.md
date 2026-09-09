@@ -2,9 +2,13 @@
 
 **Status:** open, fix when it bites
 **Area:** cross-cutting
-**Trigger:** a deployment raises the recall `k` above the shipped five or widens the dropped
-trail limit, either of which moves the widest line into a shape this run barely produced
+**Trigger:** a change to `turn_context.DEFAULT_RECALL_K` or to `ranking.DROPPED_TRAIL_LIMIT`,
+either of which moves the widest line into a shape this run barely produced. Both are module
+constants and neither is read from the environment, so the change is a diff in this tree and not a
+deployment's setting: `grep -rn "DEFAULT_RECALL_K\|DROPPED_TRAIL_LIMIT" brain/packages/*/src`
+reports every place either is spelled.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-27 by the close of
 [R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md), which measured the whole trail
@@ -31,3 +35,11 @@ named and could name the cohorts it never saw.
 - 2026-08-27: opened by the close of
   [R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md), whose cohort table runs
   backwards, the widest field sitting on the narrowest line.
+- 2026-09-09: swept, and the trigger re-aimed at what could actually fire it. Every measurement
+  above still stands as a reading of the run it came from, and the two numbers it depends on are
+  unchanged: `DEFAULT_RECALL_K` is 5 (`brain/packages/core/src/cortex_core/turn_context.py`) and
+  `DROPPED_TRAIL_LIMIT` is 20 (`brain/packages/core/src/cortex_core/ranking.py`). What was wrong
+  was the trigger's subject. It said a deployment raises `k`, and no deployment can: neither
+  constant has an env variable, and `k` reaches the recall from one call site that passes
+  `DEFAULT_RECALL_K` and nothing else. So the trigger fires on a commit here, which is a thing a
+  reader of this file can watch for, rather than on a setting nobody can write.

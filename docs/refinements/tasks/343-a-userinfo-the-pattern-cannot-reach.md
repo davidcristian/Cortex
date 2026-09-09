@@ -9,6 +9,7 @@ and each shape is read by putting the URL through `render_value` and then throug
 twice, as a field and as a message, which is five answers and not one. This entry's trail records
 what the shipped URLs and each shape answered when that was last run.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-09
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three shapes of credential:
 

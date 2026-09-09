@@ -3985,3 +3985,45 @@ open with a dated trail entry and a trigger that now says how it is read,
 addendum. No source file and no gate changed, so no mutation table is owed. The readings were taken
 against the working tree through `brain/.venv`, not against a running stack, because every one of
 them is a property of the formatter and of what the compose files declare.
+
+## Trigger-sweep addendum (2026-09-09): a fired trigger nobody read, and one aimed at a knob that does not exist
+
+Five deferred entries about what a log line carries and what it withholds were held to the code.
+Three stand exactly as written and now record the day they were read: the packed rendering is still
+unbounded while sharing every other defence with the plain one, the widest line the tree can build
+is still the tool audit's and still unmeasured against a gate, and the userinfo pattern still misses
+the same three shapes. Two needed more than a date.
+
+### The sixth site arrived the day after the entry was filed
+
+The entry counting messages that are both logged and raised was filed waiting for a sixth site,
+because a sixth is what makes a rule worth writing. `check_dispatch_bounds`
+(`brain/packages/orchestrator/src/cortex_orchestrator/bounds.py`) is that site and it landed
+2026-08-21, one day later. It spells four numbers in its refusal message, logs the message, and
+attaches the same four as fields built by `_pairing`, which exists so that both of its lines carry
+the same set. Nobody read the arrival as the trigger firing, because a trigger is only read when
+somebody opens the file it is written in.
+
+So the entry is actionable rather than deferred, its count is six, and it names `bounds.py` as the
+site to write the rule against, that being the only one of the six whose fields are already built
+by a function both lines call. The five it already named were re-read and all five stand. Searched
+structurally rather than by grep, over every module under `brain/packages/*/src`, exactly six places
+assign a name, pass it to a logging call and then raise it: there is no seventh.
+
+### A trigger a deployment cannot fire
+
+The entry about the recall line's unsampled ceiling was aimed at a deployment raising the recall `k`
+or widening the dropped trail limit. Neither is something a deployment can do. `DEFAULT_RECALL_K`
+is 5 in `turn_context.py` and reaches the recall from the one call site that passes it;
+`DROPPED_TRAIL_LIMIT` is 20 in `ranking.py` and is a default argument. Neither is read from the
+environment, and there is no `CORTEX_MEMORY_RECALL_K`. A trigger naming a setting nobody can write
+cannot fire, so it is re-aimed at a change to either constant, which is a diff in this tree and
+something a reader can watch for. Every measurement the entry rests on is unchanged.
+
+### Records
+
+The record is the five task files, three of which gain a `Verified` date and change in no other
+way, [docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No source file and no gate changed, so no mutation table is owed. The readings that
+needed a run were taken against the working tree through `brain/.venv`: the formatter's output for
+each shape, and an AST walk over `brain/packages/*/src` for the count of logged-and-raised sites.
