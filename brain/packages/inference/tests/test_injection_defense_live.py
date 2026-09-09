@@ -48,7 +48,7 @@ from cortex_core import (
 
 from cortex_inference.request import to_openai_message, to_openai_tools
 from cortex_model_manager import ModelHostConfig, TierArgs, llama_server_argv
-from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET
+from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM_BUDGET_GB
 
 _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")
 _PORT = 8080
@@ -639,7 +639,13 @@ class Placement:
     @property
     def reservation(self) -> tuple[str, ...]:
         """The ``docker run`` options that give this placement's server its compute."""
-        return ("--gpus", "all") if self.on_card else ("--cpus", str(DEFAULT_CPU_BUDGET))
+        if self.on_card:
+            return ("--gpus", "all")
+        # Docker takes the fractional spelling the budget prints, `8.0g` reading back as a
+        # `memory.max` of 8,589,934,592, so no rounding rule is needed here. Swap is disabled by
+        # giving the swap limit the memory limit's value, which is what the compose file does.
+        memory = f"{DEFAULT_MEM_BUDGET_GB}g"
+        return ("--cpus", str(DEFAULT_CPU_BUDGET), "--memory", memory, "--memory-swap", memory)
 
     def ngl(self, tier: TierArgs) -> int:
         """The layer count this placement starts one tier with."""

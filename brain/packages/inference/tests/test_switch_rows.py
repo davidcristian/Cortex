@@ -34,7 +34,7 @@ from test_injection_defense_live import (
 
 from cortex_core import PlacementTarget
 from cortex_model_manager import llama_server_argv
-from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET
+from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM_BUDGET_GB
 
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
@@ -191,7 +191,15 @@ def test_the_cpu_row_offloads_no_layer_and_changes_nothing_else() -> None:
     assert not CPU_PLACEMENT.on_card
     assert GPU_PLACEMENT.image != CPU_PLACEMENT.image
     assert "--gpus" in GPU_PLACEMENT.reservation
-    assert CPU_PLACEMENT.reservation == ("--cpus", str(DEFAULT_CPU_BUDGET))
+    memory = f"{DEFAULT_MEM_BUDGET_GB}g"
+    assert CPU_PLACEMENT.reservation == (
+        "--cpus",
+        str(DEFAULT_CPU_BUDGET),
+        "--memory",
+        memory,
+        "--memory-swap",
+        memory,
+    )
     assert [placement.label for placement in PLACEMENTS] == [
         PlacementTarget.GPU.value,
         PlacementTarget.CPU.value,
