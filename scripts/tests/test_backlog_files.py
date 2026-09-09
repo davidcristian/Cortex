@@ -224,6 +224,7 @@ def test_a_missing_required_field_is_rejected(
         ("refinements", REFINEMENT_PATH, {**REFINEMENT_FIELDS, "Capability": "W"}, "Capability"),
         ("host", HOST_PATH, {**HOST_FIELDS, "Trigger": "a card arrives"}, "Trigger"),
         ("host", HOST_PATH, {**HOST_FIELDS, "Area": "brain"}, "Area"),
+        ("host", HOST_PATH, {**HOST_FIELDS, "Verified": "2026-09-09"}, "Verified"),
     ],
 )
 def test_a_field_the_kind_does_not_carry_is_rejected(
@@ -285,6 +286,46 @@ def test_an_open_task_that_waits_on_nothing_may_still_carry_a_trigger() -> None:
     fields = {**REFINEMENT_FIELDS, "Trigger": "a second adapter arrives"}
     task = backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
     assert task.fields["Trigger"] == "a second adapter arrives"
+
+
+# ── the date a claim was last held against the code ────────────────────────────
+
+
+def test_a_verified_line_keeps_the_day_the_claim_was_read() -> None:
+    fields = {**REFINEMENT_FIELDS, "Verified": "2026-09-09"}
+    task = backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
+    assert task.fields["Verified"] == "2026-09-09"
+
+
+@pytest.mark.parametrize("value", ["yesterday", "2026-13-09", "09-09-2026", "2026-09-09 by hand"])
+def test_a_verified_line_that_is_not_a_date_is_rejected(value: str) -> None:
+    """A typed reading has to fail here; otherwise it renders into the index as prose."""
+    fields = {**REFINEMENT_FIELDS, "Verified": value}
+    with pytest.raises(backlog.TaskFileError, match="needs a real YYYY-MM-DD date"):
+        backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
+
+
+def test_a_bad_verified_date_is_reported_against_its_own_line() -> None:
+    """A task file carries two dates, so the message names the one that has to be fixed."""
+    fields = {**REFINEMENT_FIELDS, "Verified": "2026-13-09"}
+    with pytest.raises(backlog.TaskFileError, match=r"the Verified line '2026-13-09' needs a real"):
+        backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
+
+
+def test_a_date_in_the_future_is_accepted() -> None:
+    """The rule reads the shape of the date and never a clock, so the suite needs no injectable
+    today and the gate's answer does not change on the day it is run."""
+    fields = {**REFINEMENT_FIELDS, "Verified": "2099-01-01"}
+    task = backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
+    assert task.fields["Verified"] == "2099-01-01"
+
+
+def test_a_closed_task_may_not_carry_a_verified_date() -> None:
+    """A closed task's own record says what was found, so a Verified line on one would advertise
+    an open question that is settled."""
+    fields = {**REFINEMENT_FIELDS, "Status": "landed 2026-03-04", "Verified": "2026-03-04"}
+    with pytest.raises(backlog.TaskFileError, match="a closed task may not carry a Verified date"):
+        backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
 
 
 @pytest.mark.parametrize("capability", backlog.CAPABILITIES)

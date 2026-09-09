@@ -430,3 +430,71 @@ a remedy that promises an escape before one exists is worse than one that fits b
 together, and the smallest honest version of the fix is one remedy per shape, which is the shape the
 constants already have. Filed as
 [R-344](../refinements/tasks/344-a-remedy-that-repeats-the-heading.md).
+
+## Addendum (2026-09-09): a task records the day its claim was last re-derived
+
+The hand-written half of the refinements index tells anyone picking up a task to re-derive its
+claim from the code before starting, and the two warnings under that instruction say why: an entry
+is routinely wrong about its own subject rather than merely about its cost. Measured over one
+session, seven of the eight entries worked were wrong about what the code they described now does.
+So every landing pays for that reading, and until now nothing recorded that it had been paid. The
+next agent to open the same entry took it again from scratch.
+
+A refinements task may now carry one more optional field, `**Verified:** YYYY-MM-DD`, holding the
+day somebody last held its claim against the code. It is a date rather than a flag because a
+verification is a reading taken at a moment: the tree moves under it and the claim does not, so a
+date lets a reader judge the age of the reading, and a boolean would claim a property the entry
+cannot have.
+
+**Two rules, both in `_check_consistency`.** The value must parse as a real ISO date, through the
+same `_parse_date` the status line uses, so a typed reading fails the gate instead of rendering
+into the index as prose. A task file now carries two dates, so that helper takes the subject it is
+reading rather than assuming the status line, and the message names the `Verified` line when that
+is the one to fix. And a closed task may not carry the field, exactly as it may not carry a
+`Trigger`: a closed task's own record already says what was found, and a `Verified` line on one
+would advertise an open question that is settled.
+
+**A date in the future is accepted, deliberately.** Rejecting one would put a clock inside a gate,
+which means an injectable today in the suite and an answer that changes on the day the gate is run.
+The rule reads the shape of the date and nothing else.
+
+**Two renderings, and why the count went where it did.** On the entry line the date follows the
+`Reopens when:` sentence when there is one, because a reader picking work is there for what would
+reopen the task and the reading's age is the footnote. The count is a sentence beside the existing
+one about triggers nobody wrote down, and not an extra number in the counted headline. The headline
+is a partition: open, standing, closed, and a total each task is counted in exactly once. A
+verified count overlaps `open` entirely, so a fourth number in that line would read as a fourth
+disjoint bucket and make the arithmetic look wrong. The paragraph under `What remains` is already
+where the open half says what state its own record is in, which is what this count is. It is worded
+with the same singular care and for the mirror reason: the trigger count is driven to zero, this
+one climbs from it, so in both cases one is a reading somebody really sees.
+
+**The trigger clause gained a full stop it was missing.** A clause can only follow the trigger if
+the trigger ends as a sentence, and of the 144 triggers the refinements index rendered, 131 already
+ended in a full stop and 13 did not. `removesuffix(".")` normalises to exactly one without a
+branch, and 13 lines of the index gained a period.
+
+Host tasks do not get the field in this change. Their claims about built code drift the same way,
+but a host claim is half a hardware fact that no date in this repo can record, and the `**Status:**`
+grammar already carries `attempted <date>, inconclusive: <what happened>` for the reading a host
+task can take. That question is
+[R-618](../refinements/tasks/618-the-verified-date-reaches-only-one-of-the-two-backlogs.md).
+
+**Proved before it was trusted.** Eight mutations, each applied to `scripts/backlog.py` or
+`scripts/backlogindex.py` alone with the whole `scripts/tests` suite re-run, so the counts are
+measured rather than aimed at. The suite is 1741 passing tests at the fixed seed.
+
+| Mutation | Tests failed | Which |
+| --- | --- | --- |
+| `Verified` dropped from the refinements optional fields | 8 | every test in the new block, all of them on `unknown field(s) ['Verified']` |
+| the ISO-date rule dropped | 5 | the four typed-reading cases plus the one asserting the message names the `Verified` line |
+| the closed-task rule dropped | 1 | `test_a_closed_task_may_not_carry_a_verified_date` |
+| `Verified` added to the host optional fields | 1 | `test_a_field_the_kind_does_not_carry_is_rejected[host-path4-fields4-Verified]` |
+| the entry-line clause dropped | 2 | `..._is_shown_on_the_entry_that_records_it`, `..._follows_the_trigger_rather_than_displacing_it` |
+| the count paragraph unwired from `render` | 2 | `..._counts_the_claims_somebody_has_re_derived`, `..._is_counted_in_the_singular` |
+| the singular reading dropped from the count | 1 | `test_the_first_dated_claim_is_counted_in_the_singular` |
+| the trigger's full stop not normalised | 2 | `..._follows_the_trigger_rather_than_displacing_it`, `test_a_waiting_task_says_what_would_reopen_it` |
+
+No task file was given a `Verified` date here. The field is the mechanism; filling it in is a
+reading somebody has to take, one entry at a time, and a date written without one would be the
+defect this addendum is about.

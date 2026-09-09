@@ -9,7 +9,8 @@ Six things fail here:
 
 1. A task file outside the layout: a name that is not `NNN-slug.md`, a missing or
    duplicated field, a status outside the grammar, a title restating its own status, a
-   number already used, or one of the two waiting states not naming its trigger.
+   number already used, one of the two waiting states not naming its trigger, or a
+   `Verified` line that is not a date or sits on a task that has closed.
 2. A relative link that does not resolve. Task files are moved and renumbered as the
    backlog is worked, and a link is the one part of a move that fails silently.
 3. A fragment aimed at a heading its target does not offer, which is the other half of that

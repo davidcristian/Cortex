@@ -11,8 +11,9 @@ The two backlogs hold different kinds of not-done and so carry different fields,
 `Kind` exists rather than one union of optional fields:
 
 - **refinements** is deferred design: work anyone can pick up once a seam, a consumer, or a
-  decision unblocks it. It carries an `Area` and, when its state is one defined by a named trigger,
-  a `Trigger`.
+  decision unblocks it. It carries an `Area`; a `Trigger` when its state is one defined by a named
+  trigger; and a `Verified` date once somebody has held its claim against the code, which is a date
+  rather than a flag because the tree moves under a reading and a reader has to judge its age.
 - **host** is built code waiting on hardware this repo is not developed on. It carries the
   `Sitting` one bring-up covers and the `Capability` that bring-up needs.
 """
@@ -59,7 +60,7 @@ HOST_STATES = ("never attempted", "attempted", "done")
 STANDING = "standing"
 
 KIND_FIELDS = {
-    "refinements": (("Status", "Area", "Origin"), ("Trigger",)),
+    "refinements": (("Status", "Area", "Origin"), ("Trigger", "Verified")),
     "host": (("Status", "Sitting", "Capability", "Origin"), ()),
 }
 CAPABILITIES = ("W", "G", "W+G")
@@ -142,7 +143,7 @@ def parse_status(raw: str) -> Status:
         return Status(state=STANDING, on=None, detail=why.strip())
     head, _, rest = raw.partition(" ")
     if head in CLOSED_VERBS or head == "done":
-        return Status(state=head, on=_parse_date(rest, raw), detail="")
+        return Status(state=head, on=_parse_date(rest, f"status {raw!r}"), detail="")
     if head == "attempted":
         stamp, sep, detail = rest.partition(", inconclusive:")
         if not sep or not detail.strip():
@@ -151,17 +152,17 @@ def parse_status(raw: str) -> Status:
                 f"'attempted <date>, inconclusive: <what happened>': {raw!r}"
             )
             raise TaskFileError(msg)
-        return Status(state=head, on=_parse_date(stamp, raw), detail=detail.strip())
+        return Status(state=head, on=_parse_date(stamp, f"status {raw!r}"), detail=detail.strip())
     msg = f"unknown status {raw!r}"
     raise TaskFileError(msg)
 
 
-def _parse_date(text: str, raw: str) -> date:
-    """Return the ISO date in ``text``, or raise naming the whole status line."""
+def _parse_date(text: str, subject: str) -> date:
+    """Return the ISO date in ``text``, or raise naming the whole line ``subject`` describes."""
     try:
         return date.fromisoformat(text.strip())
     except ValueError as err:
-        msg = f"status {raw!r} needs a real YYYY-MM-DD date: {err}"
+        msg = f"{subject} needs a real YYYY-MM-DD date: {err}"
         raise TaskFileError(msg) from err
 
 
@@ -237,6 +238,12 @@ def _check_consistency(kind: str, title: str, status: Status, fields: dict[str, 
     if trigger is None and status.state in NEEDS_TRIGGER:
         msg = f"a {status.state!r} task must name the Trigger that would reopen it"
         raise TaskFileError(msg)
+    verified = fields.get("Verified")
+    if verified is not None and not status.is_open:
+        msg = "a closed task may not carry a Verified date"
+        raise TaskFileError(msg)
+    if verified is not None:
+        _parse_date(verified, f"the Verified line {verified!r}")
     capability = fields.get("Capability")
     if capability is not None and capability not in CAPABILITIES:
         msg = f"capability {capability!r} is not one of {list(CAPABILITIES)}"

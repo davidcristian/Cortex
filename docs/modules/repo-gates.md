@@ -1058,8 +1058,9 @@ and the obligation over the descent each recognize a caller.
   into disagreement with the tasks, because the only supported way to change it is to change a
   task file and regenerate. Five things fail. A task file outside the layout (a name that is not
   `NNN-slug.md`, a missing, duplicated or unknown field, a status outside the grammar, a title
-  restating its own status, a number already used, or one of the two waiting states not naming
-  its trigger). A relative link in a task file or an index that does not resolve. **A fragment
+  restating its own status, a number already used, one of the two waiting states not naming
+  its trigger, or a `Verified` line that is not a date or sits on a task that has closed). A
+  relative link in a task file or an index that does not resolve. **A fragment
   aimed at a heading a backlog index does not render**, which is the same link's other half and
   the half a rename breaks silently, checked since the ADR-0039 anchor addendum. An index whose
   generated block is stale, missing or hand-edited. A `tasks/` directory holding anything that is
@@ -1073,15 +1074,25 @@ and the obligation over the descent each recognize a caller.
   ends at a blank line, the rule markdown uses to end a paragraph, so a long value cannot render
   truncated mid-sentence in the index. Inside that block a line starting with `**` is a field or
   an error, never a continuation, which is what keeps a field line missing its colon from being
-  absorbed into the value above it (ADR-0039 wrapped-field addendum).
+  absorbed into the value above it (ADR-0039 wrapped-field addendum). A refinements task may
+  also carry a `Verified` date, the day somebody last held its claim against the code, which is
+  parsed by the same helper the status line's date is and refused on a task that has closed, for
+  the reason a `Trigger` is (ADR-0039 re-derivation addendum). No clock is read: a date in the
+  future passes, since a gate that compared one to today would need an injectable today in its
+  suite and would answer differently on different days.
 - `backlogindex.py` renders the generated half of an index and has no CLI. `render(tasks,
   group_word)` returns the whole block, markers included: the counted headline, the open set
   under one heading per bucket, the standing items, then the roll call under one `### <group>`
   heading per area or sitting. `splice(existing, block)` puts it back between the markers,
   raising `ValueError` when a marker is missing or out of order. Nothing in that block is typed
-  by hand, so a count in it cannot disagree with the files it counts. One count is a sentence
-  rather than a number, the tally of waiting tasks whose trigger nobody recorded, and it renders
-  in the singular at one, that being the reading the pass which finishes the job produces.
+  by hand, so a count in it cannot disagree with the files it counts. Two counts are sentences
+  rather than numbers, and both take the same singular care at one: the tally of waiting tasks
+  whose trigger nobody recorded, which is driven to zero, so one is the reading the pass that
+  finishes the job produces; and the tally of tasks carrying a `Verified` date, which climbs from
+  zero, so one is the first reading anybody sees. Neither joins the counted headline, which is a
+  partition each task appears in exactly once. A task's `Verified` date also renders on its own
+  entry, after the `Reopens when:` sentence where there is one, and that sentence is normalised to
+  end in exactly one full stop so the clause after it reads as its own.
 - `backloganchors.py` is the anchor half of the link check and the only part of this gate that
   reads outside the backlog. `anchors(text)` returns every anchor a document offers, by the slug
   rule a markdown renderer uses (lowercase, drop every character that is not a word character, a

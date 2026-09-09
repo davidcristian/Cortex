@@ -76,11 +76,17 @@ def _open_section(tasks: list[Task]) -> list[str]:
             entry = f"- **{_link(task)}** {task.title} ({task.group})."
             trigger = task.fields.get("Trigger")
             if trigger and task.status.state in NEEDS_TRIGGER:
+                # The trigger is an author's sentence and most of them already end in a full
+                # stop, so it is normalised to exactly one: a clause may follow it here, and a
+                # run-on would read as part of the trigger rather than after it.
                 entry += (
                     " No trigger was ever recorded for it."
                     if trigger == UNRECORDED
-                    else f" Reopens when: {trigger}"
+                    else f" Reopens when: {trigger.removesuffix('.')}."
                 )
+            verified = task.fields.get("Verified")
+            if verified:
+                entry += f" Its claim was re-derived from the code on {verified}."
             lines.append(entry)
         lines.append("")
     return lines
@@ -105,6 +111,20 @@ def _group_section(tasks: list[Task], group_word: str) -> list[str]:
         lines.append(f"No {group_word} holds a task yet.")
         lines.append("")
     return lines
+
+
+def _verified_note(read: list[Task]) -> list[str]:
+    """Return the paragraph counting the tasks whose claim somebody re-derived and dated."""
+    if not read:
+        return []
+    # Worded with the care the count above it takes, for the mirror reason: this number starts
+    # at zero and climbs, so the singular is the first reading anybody sees rather than the last.
+    opener = (
+        "One of these records the day its claim was last re-derived from the code"
+        if len(read) == 1
+        else f"{len(read)} of these record the day their claims were last re-derived from the code"
+    )
+    return [f"{opener}. On every other task here, that reading is still yours to take.", ""]
 
 
 def render(tasks: list[Task], group_word: str) -> str:
@@ -133,6 +153,7 @@ def render(tasks: list[Task], group_word: str) -> str:
             f"record rather than a decision, and reading one of them closes it."
         )
         lines.append("")
+    lines.extend(_verified_note([task for task in tasks if task.fields.get("Verified")]))
     if opens:
         lines.extend(_open_section(tasks))
     else:
