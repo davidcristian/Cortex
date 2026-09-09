@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
+**Verified:** 2026-09-09
 **Trigger:** a cortex that stops while the brain and the model host both keep running, which is the
 one state neither of the two boot starters covers, or a second visit to the runbook's step 2. Both
 are operator events, so the cheap recheck is whether the surfaces have moved:
