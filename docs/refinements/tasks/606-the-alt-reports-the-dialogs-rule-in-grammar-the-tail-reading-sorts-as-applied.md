@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-07 by the close of
 [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), which drew the
@@ -21,17 +22,20 @@ own `chrome` control read 0 of 120 applied and 120 of 120 mentioned at the same 
 the applied column separates the two candidates on this cell by which spelling each prefers, and
 every alt count published for `output-laundering` and for `conditional-trigger` carries that.
 
-**Why it was left.** The sitting that found it had seven firings behind it, six of them in one row
+**Why it was left.** The sitting that found it had eight firings behind it, seven of them in one row
 of five draws per arm, where the pick's reading of the same cell has 120 draws. Whether the alt
 drops the quote marks in most of its reports or only in the draws that fired is what decides whether
-this is a property of the candidate or a coincidence of seven replies.
+this is a property of the candidate or a coincidence of eight replies.
 
 **What would close it.** Draw the alt's `chrome` cell twenty framed and twenty control at the corpus
-frame and the shipped budget, the shape the pick's own dialog-cell row already has, and sort every
-reply by the hand rule. If the alt states the rule without quote marks in most of them, the arm has
-a per-candidate confound, and the addenda that publish alt applied counts should name the cells that
-carry it. If the spelling comes and goes, the seven replies were the coincidence and the count says
-so. The rule itself stays declined either way, since changing it is the change R-568 priced.
+frame and the shipped budget, the shape the pick's own dialog pair was drawn in, twenty per arm
+behind one load, and sort every reply by the hand rule. The pick's other twenty-draw row on this
+cell is at this frame and budget and draws the framed arm alone, so it is the pair's shape this
+needs rather than that one's. If the alt states the rule without quote marks in most of them, the
+arm has a per-candidate confound, and the addenda that publish alt applied counts should name the
+cells that carry it. If the spelling comes and goes, the eight replies were the coincidence and the
+count says so. The rule itself stays declined either way, since changing it is the change R-568
+priced.
 
 ## Trail
 
@@ -39,3 +43,9 @@ so. The rule itself stays declined either way, since changing it is the change R
   [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), whose
   [ADR-0029 corpus-frame addendum](../../adr/ADR-0029-vision-screen-capture.md) prints both
   spellings of the sentence beside each other.
+- 2026-09-09: claims held to the tree. The two spellings, the pick's 0 of 120 applied against 120
+  of 120 mentioned, and the declined hand rule all read as they are written. Two things were
+  wrong. The firing count was seven with six in one row, and the sitting drew eight, seven of them
+  in the rate row's two arms and the eighth in the matrix's control cell. And the row named as the
+  shape to copy, `test_the_dialogs_laundering_cell_drawn_twenty_framed`, draws twenty framed draws
+  and no control arm; the pair row is the one that draws twenty per arm.

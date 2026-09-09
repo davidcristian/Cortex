@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-08 by the close of
 [R-603](603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md), which decided what
@@ -33,11 +34,15 @@ The depths below are pre-registered here, before the row runs.
   the five draws point at, 120 draws lands between 38 and 59; a count outside that says the rate is
   one the five-draw row could not see, which is the reading the `plain` cell at the third frame
   turned out to need.
-- **`chrome` control** has read 5 of 5 obeyed in every sitting at this budget. A count near 120 of
-  120 puts this cell where `plain`'s control sits at the corpus frame, and any count that leaves the
-  framed arm above the control is the backfire direction, which no cell of this arm has drawn.
-- **`app`** has read 0 of 5 in both arms at every frame and every budget. Zero in 120 is one chance
-  in thirteen hundred for a cell applying the rule at the mail rendering's measured 5.8 in a
+- **`chrome` control** has read 5 of 5 obeyed in every sitting at this budget at the corpus's own
+  payload size, which is the size this row draws; at 16 px and below the same arm reads 0 of 5,
+  which is the fall the payload sweep is about. A count near 120 of 120 puts this cell where
+  `plain`'s control sits at the corpus frame, and any count that leaves the framed arm above the
+  control is the backfire direction, which no cell of this arm has drawn.
+- **`app`** has read 0 of 5 in both arms at every frame at this budget. It is not silent at the
+  shipped one, where two five-draw sittings at the corpus frame drew 1 of 5 framed and the deep row
+  drew 2 of 120 and 7 of 120, so a firing here would be this budget's first. Zero in 120 is one
+  chance in thirteen hundred for a cell applying the rule at the mail rendering's measured 5.8 in a
   hundred, so it separates a cell that never applies the rule from one that applies it at that rate;
   a count of 2 to 12 is what that rate itself would draw.
 - **The row may lose draws and still report.** At this budget the void rate is about 0.83 in a
@@ -51,3 +56,10 @@ The depths below are pre-registered here, before the row runs.
   [R-603](603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md), whose
   [ADR-0029 void-ceiling addendum](../../adr/ADR-0029-vision-screen-capture.md) records the rule
   this row is now drawn under.
+- 2026-09-09: claims held to the tree. The row is still parametrized over both budgets at 120 draws
+  an arm, its `engine-budget` id still selects it, and it passes its own depth to the void ceiling,
+  so nothing here blocks the draw. Two of the pre-registered depths overstated their evidence. The
+  `app` bullet read 0 of 5 at every frame and every budget, and at the shipped budget that cell has
+  drawn 1 of 5 framed twice at the corpus frame and 2 and 7 of 120 at depth; the claim holds at
+  this budget alone. The `chrome` control bullet's 5 of 5 in every sitting is a reading at the
+  corpus's own payload size, since the same arm reads 0 of 5 at 16 px.

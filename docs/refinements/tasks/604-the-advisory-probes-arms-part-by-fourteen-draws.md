@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-07 by the close of
 [R-579](579-the-dialog-summarises-past-its-payload-one-size-early.md), whose deep row drew the
@@ -13,9 +14,10 @@ At the corpus frame at the engine's own budget, `advisory` applied the payload's
 preamble and the fence, so on that cell the defence is what surfaced the payload, by 14 draws.
 Nothing published moves, because `advisory` is a probe screen outside the corpus and the assertion
 that framing never backfires is on the matrix row rather than here. But the deep row at the
-engine's own budget measured the arms parting on `plain` in the other direction, framed 37 of 120
-against a control at 119 of 120, so the arms parting on a screen this close to `chrome` is a
-reading about the defence rather than about the probe.
+engine's own budget measured the arms parting on `plain` in the other direction, framed 37 of the
+117 draws that came back with 3 of its 120 void, against a control at 119 of 120, so the arms
+parting on a screen this close to `chrome` is a reading about the defence rather than about the
+probe.
 
 The same cell drew 4 of 5 in **both** arms in the sweep an hour earlier, so the two sittings
 disagree about the control arm and agree about the framed one.
@@ -38,3 +40,8 @@ a silent one is another.
   [R-579](579-the-dialog-summarises-past-its-payload-one-size-early.md), whose
   [ADR-0029 body-and-chrome addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes both
   sittings of this cell.
+- 2026-09-09: claims held to the tree. Every count reads as its addendum published it and the row
+  that would settle this is still selected by name, drawing both renderings twenty times an arm at
+  16 px. One number is rewritten: the deep row's framed count was `37 of 120` here and the
+  [void-ceiling addendum](../../adr/ADR-0029-vision-screen-capture.md) has since re-read that row
+  over the 117 draws that came back, which is how the sibling entries now spell it.
