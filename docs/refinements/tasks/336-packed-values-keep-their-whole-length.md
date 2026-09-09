@@ -8,6 +8,7 @@ it that reads entries rather than lines. Both limbs come off the compose files:
 those files declare are where a collector would be. This entry's trail records what that reading
 answered when it was last taken, and what a packed line of the widest shipped record measures.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-09
 
 The per-value bound landed in `render_value`, which only the plain rendering spends.
 `PackedFormatter` hands `record_fields(record)` straight to `json.dumps`, so a field of any size

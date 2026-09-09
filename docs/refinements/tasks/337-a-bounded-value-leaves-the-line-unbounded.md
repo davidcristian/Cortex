@@ -9,6 +9,7 @@ the widest line the tree can build is read off the two shipped sinks by renderin
 `LoggingAuditSink`'s eleven fields through `PlainFormatter` with the four a model or a tool server
 writes each past `VALUE_CHARS`. This entry's trail records both when they were last taken.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-09
 
 `VALUE_CHARS` bounds one field's value at 2,048 rendered characters. A line carries a message and
 as many fields as its call site attached, so **eight** fields at the bound pass the measured 16 KiB
