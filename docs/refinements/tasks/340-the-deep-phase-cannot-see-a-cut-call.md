@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 **Trigger:** the first handoff observed settling FAILED whose partial answer ends mid tool call, or
 a second consumer of the narrower error growing a reason to tell the two apart
 

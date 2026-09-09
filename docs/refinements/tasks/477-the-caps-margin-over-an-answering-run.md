@@ -1,35 +1,43 @@
 # The token cap has 12% of headroom over a delegated answer that is doing its job
 
-**Status:** open, fix when it bites
+**Status:** open, actionable
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Trigger:** a delegated summary cut at the cap on a subagents-only stack, or any change to what a
-constrained subagent is told, since the reply lengths this entry is about are a property of the
-instruction rather than of the grammar.
+**Verified:** 2026-09-09
 
 Opened 2026-08-28 by the close of
 [R-457](457-the-caps-derivation-on-the-shape-that-ships.md), which confirmed
 `DEFAULT_SUBAGENT_MAX_TOKENS` where it stands and named the one number that argues the other way.
-The instruction its trigger turns on is
-[R-476](476-the-envelopes-answer-rate-is-an-instruction.md).
+The instruction it waited on, [R-476](476-the-envelopes-answer-rate-is-an-instruction.md), landed
+the same day, so this entry is work somebody can pick up rather than a deferral.
 
 At the instruction the measurement harness has always sent, the shipped tool-less shape answers in
-256 to 429 decoded tokens, so 1024 has room to spare. Under the instruction that actually makes that
+256 to 429 decoded tokens, so 1024 has room to spare. Under the probe instruction that made that
 shape answer, four bodies at ten draws, 38 of 40 runs land between 248 and 323 tokens and the
 remaining two are the interesting ones: **one finished a correct, complete summary at 912 decoded
-tokens, and two were cut at 1024 and came back refused.** So on the shape that would ship if R-476
-lands, the cap sits about 12% above a real answer and fires on 5% of draws.
+tokens, and two were cut at 1024 and came back refused.** So on that shape the cap sits about 12%
+above a real answer and fires on 5% of draws.
 
-**Why it was left.** Retuning against a distribution measured under a probe instruction is the same
-mistake this entry's parent declined twice: the cap was once derived from a shape nothing shipped,
-and it declined to be re-derived from a reply nobody would accept. A cap sized to an instruction
-that has not been decided on yet is the third version of it. The two cut runs are also not obviously
-answers being truncated: they spent 3351 and 3692 characters in the reasoning channel that a
-delegated run drops unread, so what the cap cut may be a trace rather than a summary, and which of
-those two it is decides whether the repair is a bigger cap or a quieter tier.
+**What that distribution is not is the shipped one.** The sentence that ships is `REPLY_INSTRUCTION`
+in `cortex_core/subagent_reply.py`, appended by `instruct_reply` on the constrained path alone, and
+it names the answer where the probe named the summary. The re-measurement that landed it read 288
+runs over three subtask shapes and published rates rather than token bands: the envelope with the
+sentence answers 90 of 96 against 72 without it, and 8 of 96 constrained draws wrote into the
+reasoning channel. So what the cap has never been read against is the wording a subagent is
+actually sent.
 
-**What would close it.** Re-read the same distribution once the constrained instruction is settled,
-at the same four bodies and at least ten draws, and separate the two populations before touching the
+**Why it was left, and why that reason has expired.** Retuning against a distribution measured under
+a probe instruction is the same mistake this entry's parent declined twice: the cap was once derived
+from a shape nothing shipped, and it declined to be re-derived from a reply nobody would accept. A
+cap sized to an instruction that had not been decided on yet was the third version of it, and that
+was the whole of why this waited. The decision has since been recorded and the wording shipped, so
+the distribution can be read on it. The two cut runs are also not obviously answers being truncated:
+they spent 3351 and 3692 characters in the reasoning channel that a delegated run drops unread, so
+what the cap cut may be a trace rather than a summary, and which of those two it is decides whether
+the repair is a bigger cap or a quieter tier.
+
+**What would close it.** Re-read the distribution on the shipped sentence, at the same four bodies
+and at least ten draws, and separate the two populations before touching the
 number: a run whose decoded tokens went to `reply` and a run whose tokens went to the reasoning
 channel are different failures and only the first argues for more room. If the answering tail really
 does reach 900 tokens with no trace under it, the honest options are a cap above it or an
@@ -38,3 +46,14 @@ already bounds a runaway in the other unit: on an idle host it admits about 3200
 there is room between 1024 and that to grow into. On a saturated host there is none, which is
 [R-478](478-two-ceilings-on-one-run-and-no-ordering.md) and is the reason this entry's answer cannot
 be a single number for both.
+
+## Trail
+
+- 2026-09-09: **The trigger fired the day this was written and nobody moved the status.** Its second
+  clause is any change to what a constrained subagent is told, and the instruction landed on
+  2026-08-28, hours after this entry was opened, as `REPLY_INSTRUCTION` in
+  `cortex_core/subagent_reply.py`. The shipped wording is not the probe wording the 912-token draw
+  was measured under, so the distribution this entry is about has never been read on the shape that
+  ships. Every number here still holds against the ceilings addendum: 1024 in
+  `cortex_core/subagents.py`, 38 of 40 inside 248 to 323, one finished answer at 912, two cut at the
+  cap, and 3351 and 3692 characters of reasoning under those two.

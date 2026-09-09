@@ -2134,10 +2134,14 @@ a delegated run drops unread. Reaching this cap still means what the comment bes
 
 What is no longer comfortable is the margin at the other end, and it is recorded rather than acted
 on: 912 is a finished, correct answer at 89% of the cap, and two of that arm's forty draws were cut
-at it. That is [R-477](../refinements/tasks/477-the-caps-margin-over-an-answering-run.md), and it is
-deliberately a trigger rather than a retune, since the instruction those numbers were measured under
-is itself the open question at
-[R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md).
+at it. That is [R-477](../refinements/tasks/477-the-caps-margin-over-an-answering-run.md), which was
+recorded rather than retuned because the instruction those numbers were measured under was itself
+the open question at
+[R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md). That question was
+answered later the same day by the [ADR-0028](ADR-0028-grammar-constrained-subagents.md) instruction
+addendum, which shipped `REPLY_INSTRUCTION` naming the answer where the probe above named the
+summary, so the margin is now work somebody can pick up and the distribution has to be re-read on
+the shipped wording first.
 
 ### Which of the two ceilings binds, which is the question nobody had asked
 
