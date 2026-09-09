@@ -53,7 +53,7 @@ from test_injection_defense_live import (
 
 from cortex_core import PlacementTarget
 from cortex_model_manager import llama_server_argv
-from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET
+from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM_BUDGET_GB
 
 # The two flags a subagent server is started with, named here because naming them is the whole of
 # what this file claims about the sidecar. A rename on that side fails this rather than passing:
@@ -251,7 +251,10 @@ def test_the_cpu_row_offloads_no_layer_and_changes_nothing_else() -> None:
 
     The image differs as well, because the stack starts that server from the CPU build, and the
     card row's layer count is the tier's own rather than the core's word for the card, since the
-    model host is what really starts that process.
+    model host is what really starts that process. Its reservation is all three cgroup caps the
+    subagents override sets on that service, with the swap limit equal to the memory limit
+    because that is what disables the container's swap. Only the shape is read here: what each
+    number is stays a claim the constant scan holds to the compose file.
     """
     for model in _THINKING_OFF:
         tier = tier_args(model.tier)
@@ -265,7 +268,15 @@ def test_the_cpu_row_offloads_no_layer_and_changes_nothing_else() -> None:
     assert not CPU_PLACEMENT.on_card
     assert GPU_PLACEMENT.image != CPU_PLACEMENT.image
     assert "--gpus" in GPU_PLACEMENT.reservation
-    assert CPU_PLACEMENT.reservation == ("--cpus", str(DEFAULT_CPU_BUDGET))
+    memory = f"{DEFAULT_MEM_BUDGET_GB}g"
+    assert CPU_PLACEMENT.reservation == (
+        "--cpus",
+        str(DEFAULT_CPU_BUDGET),
+        "--memory",
+        memory,
+        "--memory-swap",
+        memory,
+    )
     assert [placement.label for placement in PLACEMENTS] == [
         PlacementTarget.GPU.value,
         PlacementTarget.CPU.value,

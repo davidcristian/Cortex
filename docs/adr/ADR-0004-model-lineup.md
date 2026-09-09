@@ -1193,3 +1193,41 @@ record with no row.
 in a sentence, and ten documents name one inside a dated measurement, where the tag is part of what
 was read rather than a value that must track the stack. A digest pin on the stack would close this
 the other way, the pin becoming the declaration, and nothing here forecloses it.
+
+## Addendum (2026-09-09): the CPU row carries the override's memory caps as well as its quota
+
+The memory-cap reading above measured the shipped subagent pick's CPU server at 90.4% of the 8 GiB
+limit the injection harness's CPU row was not applying, which made
+[R-559](../refinements/tasks/559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md)
+actionable. `Placement.reservation` now returns all three cgroup caps `docker-compose.subagents.yml`
+sets on that service: `--cpus` at `DEFAULT_CPU_BUDGET` as before, and `--memory` and `--memory-swap`
+at `DEFAULT_MEM_BUDGET_GB`, the swap limit equal to the memory limit because that is what disables
+a container's swap. Both constants are imported rather than typed, so the row spends what the
+scheduler admits against and the constant scan goes on holding those two numbers to the compose
+file.
+
+The fractional spelling was re-derived rather than trusted from the reading above.
+`docker run --rm --memory 8.0g --memory-swap 8.0g alpine` reports `memory.max` of 8,589,934,592 and
+`memory.swap.max` of 0, so `f"{DEFAULT_MEM_BUDGET_GB}g"` is the whole of what the row needs and no
+rounding rule is owed. The compose file writes the same limit as `8g`, its own substitution
+defaulting to a whole number, which is a different syntax for one value and is why the registry
+already spells that mention whole.
+
+The mutation table is over `brain/packages/inference/tests/test_switch_rows.py`, the CI-side suite
+on the harness's rows, 16 tests. Each edit was applied to `Placement.reservation` alone and
+reverted before the next.
+
+| edit | `pytest packages/inference/tests/test_switch_rows.py` |
+| --- | --- |
+| both memory caps dropped, leaving the quota | 1 failed, 15 passed |
+| `--memory-swap` left at `-1`, which re-enables swap | 1 failed, 15 passed |
+| `--memory` spelled without the size suffix | 1 failed, 15 passed |
+| the caps placed before the quota | 1 failed, 15 passed |
+| unedited | 16 passed |
+
+**The pick's published CPU row predates this shape.** The 1837 s row in the placement-row addendum
+was drawn under the quota alone, and its server is the one measured at 0.77 GiB of headroom, so it
+is the row where the cap is most likely to change something: what the cap bounds on that pick is how
+much of the artifact stays cached, and losing a page of it is a re-read from a drvfs bind. Redrawing
+it is
+[R-617](../refinements/tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md).

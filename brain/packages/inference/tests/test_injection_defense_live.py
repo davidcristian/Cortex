@@ -134,7 +134,7 @@ from cortex_core import (
 # underscored since the cadence split gave them their own module, which the adapter itself imports.
 from cortex_inference.request import to_openai_message, to_openai_tools
 from cortex_model_manager import ModelHostConfig, TierArgs, llama_server_argv
-from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET
+from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM_BUDGET_GB
 
 _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")
 _PORT = 8080
@@ -946,13 +946,21 @@ class Placement:
     def reservation(self) -> tuple[str, ...]:
         """The ``docker run`` options that give this placement's server its compute.
 
-        The card for the model host's tier. For the CPU server, the cgroup quota the subagents
-        override sets on it, which is the brain's own CPU budget, held to that compose spelling by
-        the constant scan. Without it a CPU row runs one thread per hardware thread of whatever
-        host draws it, a shape no deployment runs and one that costs a different wall clock: the
-        placement-row addendum in ADR-0004 records both.
+        The card for the model host's tier. For the CPU server, all three cgroup caps the
+        subagents override sets on it, the brain's own CPU budget and its memory budget as both
+        `mem_limit` and `memswap_limit`, each held to that compose spelling by the constant scan.
+        Without the quota a CPU row runs one thread per hardware thread of whatever host draws it,
+        and without the caps it runs against the whole host's memory where the shipped pick's
+        server sits at 90% of the 8 GiB limit, so a row drawn without them measures a shape no
+        deployment runs (ADR-0004's placement-row and memory-cap addenda).
         """
-        return ("--gpus", "all") if self.on_card else ("--cpus", str(DEFAULT_CPU_BUDGET))
+        if self.on_card:
+            return ("--gpus", "all")
+        # Docker takes the fractional spelling the budget prints, `8.0g` reading back as a
+        # `memory.max` of 8,589,934,592, so no rounding rule is needed here. Swap is disabled by
+        # giving the swap limit the memory limit's value, which is what the compose file does.
+        memory = f"{DEFAULT_MEM_BUDGET_GB}g"
+        return ("--cpus", str(DEFAULT_CPU_BUDGET), "--memory", memory, "--memory-swap", memory)
 
     def ngl(self, tier: TierArgs) -> int:
         """The layer count this placement starts one tier with."""

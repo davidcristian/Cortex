@@ -1,6 +1,6 @@
 # The CPU row carries the CPU quota and not the memory cap
 
-**Status:** open, actionable
+**Status:** landed 2026-09-09
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 
@@ -47,10 +47,20 @@ row `Placement.reservation` draws describes the default service alone. Qwen3.5-2
 CPU row for a model the stack runs uncapped. That is a separate reading from this one and is not
 what this entry closes.
 
-**What would close it.** `--memory` and `--memory-swap` at the brain's `DEFAULT_MEM_BUDGET_GB` in
-the same `reservation`. The `g` suffix costs nothing to render: docker takes the fractional
-spelling, `--memory 8.0g` reading back as `memory.max` of 8,589,934,592 on 2026-09-08, so
-`f"{DEFAULT_MEM_BUDGET_GB}g"` is the whole of it and no rounding rule is needed.
+**Landed 2026-09-09.** `Placement.reservation` returns `--cpus` at `DEFAULT_CPU_BUDGET` and
+`--memory` and `--memory-swap` at `DEFAULT_MEM_BUDGET_GB`, the swap limit equal to the memory limit
+because that is what disables a container's swap. Both constants are imported rather than typed, so
+the row spends what the scheduler admits against. The fractional spelling was re-derived on the day:
+`docker run --rm --memory 8.0g --memory-swap 8.0g alpine` reports a `memory.max` of 8,589,934,592
+and a `memory.swap.max` of 0, so `f"{DEFAULT_MEM_BUDGET_GB}g"` is the whole of it and no rounding
+rule is needed. Four mutations of that property each fail one of the 16 tests in
+[test_switch_rows.py](../../../brain/packages/inference/tests/test_switch_rows.py), which is the
+CI-side suite on the harness's rows; the table is in the
+[ADR-0004 memory-cap addendum](../../adr/ADR-0004-model-lineup.md#addendum-2026-09-09-the-cpu-row-carries-the-overrides-memory-caps-as-well-as-its-quota).
+
+The pick's own published CPU row was drawn before this shape existed and is the row with 0.77 GiB
+of headroom under the cap, so redrawing it is
+[R-617](617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md).
 
 ## Trail
 
@@ -61,3 +71,7 @@ spelling, `--memory 8.0g` reading back as `memory.max` of 8,589,934,592 on 2026-
   of 8 GiB rather than the 3.5 GiB recorded here, the trigger has fired, and the fractional suffix
   was measured to be accepted. Recorded in the
   [ADR-0004 lineup-trigger addendum](../../adr/ADR-0004-model-lineup.md#addendum-2026-09-08-three-lineup-triggers-re-read-and-a-memory-cap-already-at-90-of-its-limit).
+- 2026-09-09: landed. The CPU row carries both memory caps, the swap limit equal to the memory
+  limit, and four mutations of the property were each shown to fail the CI-side row suite. The
+  pick's published CPU row, drawn under the quota alone, is left to
+  [R-617](617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md).
