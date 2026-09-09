@@ -6,13 +6,14 @@ import backlog
 import backlogindex
 
 
-def _task(
+def _task(  # noqa: PLR0913 -- one keyword per field a task file carries, all but two optional
     number: int,
     status: str,
     *,
     title: str = "Wire the memory port",
     group: str = "brain",
     trigger: str | None = None,
+    verified: str | None = None,
     kind: str = "refinements",
 ) -> backlog.Task:
     """Build one parsed task, carrying the fields the renderer reads."""
@@ -20,6 +21,8 @@ def _task(
     fields["Area" if kind == "refinements" else "Sitting"] = group
     if trigger is not None:
         fields["Trigger"] = trigger
+    if verified is not None:
+        fields["Verified"] = verified
     return backlog.Task(
         kind=kind,
         number=number,
@@ -104,7 +107,7 @@ def test_a_closed_task_is_absent_from_the_open_half() -> None:
 def test_a_waiting_task_says_what_would_reopen_it() -> None:
     task = _task(1, "open, fix when it bites", trigger="a turn drops a memory")
     entry = "- **[R-001](tasks/001-a-slug.md)** Wire the memory port (brain). Reopens when: "
-    assert entry + "a turn drops a memory" in backlogindex.render([task], "area")
+    assert entry + "a turn drops a memory." in backlogindex.render([task], "area")
 
 
 def test_a_trigger_on_a_state_that_waits_for_nothing_is_not_shown() -> None:
@@ -286,3 +289,63 @@ def test_nothing_is_said_when_every_waiting_task_names_its_trigger() -> None:
     block = backlogindex.render(tasks, "area")
     assert "nobody wrote down" not in block
     assert "Reopens when: a second consumer appears" in block
+
+
+# ── a claim somebody re-derived carries the day they read it ───────────────────
+
+CLAIM = "Its claim was re-derived from the code on 2026-09-09."
+
+
+def test_a_dated_claim_is_shown_on_the_entry_that_records_it() -> None:
+    task = _task(1, "open, actionable", verified="2026-09-09")
+    entry = f"- **[R-001](tasks/001-a-slug.md)** Wire the memory port (brain). {CLAIM}"
+    assert entry in backlogindex.render([task], "area")
+
+
+def test_a_dated_claim_follows_the_trigger_rather_than_displacing_it() -> None:
+    """Both clauses are the same entry's, and what would reopen the task is the one a reader
+    picking work is there for, so it keeps its place."""
+    task = _task(
+        1, "open, fix when it bites", trigger="a turn drops a memory", verified="2026-09-09"
+    )
+    entry = (
+        "- **[R-001](tasks/001-a-slug.md)** Wire the memory port (brain). "
+        f"Reopens when: a turn drops a memory. {CLAIM}"
+    )
+    assert entry in backlogindex.render([task], "area")
+
+
+def test_a_trigger_written_as_a_sentence_is_not_given_a_second_full_stop() -> None:
+    """Most triggers already end in one, and the clause that may follow has to read as its own
+    sentence either way."""
+    task = _task(1, "open, fix when it bites", trigger="a turn drops a memory.")
+    block = backlogindex.render([task], "area")
+    assert "Reopens when: a turn drops a memory." in block
+    assert "memory.." not in block
+
+
+def test_the_open_half_counts_the_claims_somebody_has_re_derived() -> None:
+    tasks = [
+        _task(1, "open, actionable", verified="2026-09-09"),
+        _task(2, "open, actionable", verified="2026-09-08"),
+        _task(3, "open, actionable"),
+    ]
+    block = backlogindex.render(tasks, "area")
+    assert (
+        "2 of these record the day their claims were last re-derived from the code. On every "
+        "other task here, that reading is still yours to take." in block
+    )
+
+
+def test_the_first_dated_claim_is_counted_in_the_singular() -> None:
+    """This count climbs from zero, so one is the first reading anybody sees rather than the
+    last."""
+    tasks = [_task(1, "open, actionable", verified="2026-09-09"), _task(2, "open, actionable")]
+    block = backlogindex.render(tasks, "area")
+    assert "One of these records the day its claim was last re-derived from the code." in block
+    assert "1 of these record" not in block
+
+
+def test_nothing_is_said_when_no_task_records_a_reading() -> None:
+    block = backlogindex.render([_task(1, "open, actionable")], "area")
+    assert "re-derived from the code" not in block
