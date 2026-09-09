@@ -1,8 +1,11 @@
 # No workflow in this repository has ever run
 
-**Status:** open, actionable
+**Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0006](../../adr/ADR-0006-gate-performance.md)
+**Trigger:** the first run this repository records under either workflow, which needs Actions
+enabled for the whole repository and is therefore a setting on the account rather than a change in
+this tree.
 
 Opened 2026-09-06 by the trigger check on
 [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md), which went looking for a shuffle sweep that
@@ -40,7 +43,26 @@ so the setting is the maintainer's; the reading afterwards is not, and a run his
 in it closes this. Until then the honest statement in any doc that describes CI is that the
 workflows are written and unexecuted.
 
+**What is in reach before that, and is not started.** No doc here says the workflows have never
+run. Two lines of [docs/index.md](../../index.md) say the opposite in passing, one pointing at the
+architecture record's contract-test addendum as naming "which implementations CI actually drives it
+against" and one describing the pgvector adapter's behaviour as "proven against the fake in CI".
+Both describe what the workflow file specifies and read as a report of runs that happened. Wording
+those as the workflow's instruction rather than as a verdict is a change anyone can make in this
+tree, and it is what this entry can deliver while the setting stays off.
+
 ## Trail
 
 - 2026-09-06: opened by the trigger check on
   [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md), which fired on its schedule clause.
+- 2026-09-09: re-aimed by the premise sweep, which held the tree half of this entry to the code and
+  left the remote half alone. The tree half stands: `ci.yml` is still the gate mirror,
+  [R-300](300-shell-job-never-ran-on-a-runner.md) still waits on the first run reaching the shell,
+  and [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md) still waits on evidence that the sweep
+  runs. The state was wrong. This was filed as actionable now while its own text says the close is a
+  setting nobody here may flip, and [R-300](300-shell-job-never-ran-on-a-runner.md), which waits on
+  the same event, is filed as fix when it bites. It now says what fires it, and names the one half
+  that is in reach meanwhile, the wording of the docs that describe CI as a thing that has run. The
+  three API readings above are the maintainer's standing answer of 2026-09-06 rather than a fresh
+  one, so this entry carries no verified date: a claim about a remote service is not held to the
+  code.
