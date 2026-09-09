@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
+**Verified:** 2026-09-09
 **Trigger:** a failed handoff whose reason nobody found in time, or any surface that starts
 carrying handoff history. The second half is countable rather than felt:
 `residency_probe.residency()` composes exactly two annotators through `residency_state.with_note`,
@@ -56,6 +57,16 @@ outliving the other. That is an argument about cost and not about whether the su
 question in the paragraph above, whether a failure the user was already told about owes a second
 telling, is still the part that has to be decided rather than measured.
 
+**Held to the code again on 2026-09-09, including the negative claim, which is the one that
+matters here.** `with_note` still has exactly two callers in the brain's source,
+`residency_pace.py` and `residency_tiers.py`; `HealthReply` in
+[proto/body.proto](../../../proto/body.proto) is still `bool ready` and `string detail`; and
+`record.failure` is still read by one production line, the codec's encode. The reason is the one
+piece of handoff state here that does survive a model swap, since it rides the record in Redis
+rather than any model's process, so what is missing is a reader and never durability. That is worth
+saying plainly, because an entry about an unread field is easy to misread as an entry about a field
+that gets lost.
+
 ## Trail
 
 - 2026-08-22: opened by the close of
@@ -68,3 +79,7 @@ telling, is still the part that has to be decided rather than measured.
   `HandoffRecord.failure`, and it is the codec encoding it. Also recorded above: the record's
   diagnosis TTL and the spill note's dwell are the same hour, which is what the display branch would
   inherit.
+- 2026-09-09: claims held to the code and all of them stand, the negative one included: two
+  `with_note` callers, a two field `HealthReply`, and one production read of `record.failure`.
+  Recorded above: the reason survives a swap on the record, so the gap is a reader. The trigger has
+  not fired.

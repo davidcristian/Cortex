@@ -9,6 +9,7 @@ R-379. Checking the counting half is one reading: nothing in the brain keeps a p
 outlives its handoff, `HandoffSettler._settle` deleting a `DONE` record outright and the Redis
 adapter expiring a `FAILED` one after an hour, so a count still has nowhere to live.
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-19 by the close of [304](304-spill-rides-the-residency-report.md). The standing rule
 that close chose is deliberate and it has a price: the note lives in the process, stands for an
@@ -38,7 +39,10 @@ wrong. So the handoffs a spill count would count are exactly the ones that leave
 record settled `FAILED` is kept instead, under the `_TERMINAL_TTL_SECONDS` of 3600 seconds in
 [handoffs.py](../../../brain/packages/session/src/cortex_session/handoffs.py), which is the same
 hour `DEFAULT_SPILL_DWELL_S` gives the note. Nothing in the brain writes a per handoff row that
-outlives its handoff, so closing this means choosing a store as well as a shape.
+outlives its handoff, so closing this means choosing a store as well as a shape. This is where the
+entry touches the rule that state must survive a model swap, and the two obligations are not one:
+the record exists so that a turn outlives the swap, and it is released as soon as the turn it
+carried is finished, which is why a store built for swap survival is not a store for history.
 
 **A second per handoff verdict has arrived, and it is not one of the counting kind.** Three days
 after this entry was opened, a handoff settled `FAILED` gained a reason, written onto the record and
@@ -59,3 +63,8 @@ been approached once and not met.
   3600.0, chosen three days apart by two decisions that did not cite each other; and the one later
   verdict of this shape, the failed handoff's reason, is a display question rather than a counting
   one.
+- 2026-09-09: claims held to the code and all of them stand. `HandoffSettler._settle` still deletes
+  a `DONE` record, `_TERMINAL_TTL_SECONDS` is still 3600 and `DEFAULT_SPILL_DWELL_S` still 3600.0,
+  the spill's only history is still the one `WARNING` in `brain_phase.py`, and `residency_pace.py`
+  still binds no logger. Recorded above: why the record's swap survival is not the durability a
+  count would need. The trigger has not fired.
