@@ -6,6 +6,7 @@
 reasoning channel where the pair does not, which is the reading the budget was added on; or the
 kwarg's deprecation biting, when the argv is being rewritten anyway.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-02 by the close of
 [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).

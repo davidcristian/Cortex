@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 **Trigger:** a delegated run whose answer is one word, or a budgeted cell of the committed probe
 counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine.
 

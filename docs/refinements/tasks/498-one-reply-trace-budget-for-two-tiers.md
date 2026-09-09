@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 **Trigger:** the first deployment that sets `CORTEX_REPLY_TRACE_TOKENS` on a stack with
 `CORTEX_ESCALATION` on, which is when one count starts binding two tiers picked on opposite
 arguments.
