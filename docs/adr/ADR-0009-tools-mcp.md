@@ -4849,7 +4849,7 @@ mislabeled, and nothing refuses it. The consequence is bounded: the mime type re
 backend inside a `data:` URI and no decoder in this process, so a mislabeled block is a wrong label
 rather than a wrong parse. Making the declaration answer to the bytes is a posture change, not a
 line of code, so it is filed rather than taken here
-([R-609](../refinements/tasks/609-a-declared-mime-type-may-now-disagree-with-the-bytes-it-labels.md)).
+([R-609](../refinements/tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md)).
 
 ### The split, and the pictures the tests are proven against
 
@@ -4905,7 +4905,7 @@ crosses the port as `ToolError`. An operator who puts a picture under `CORTEX_TO
 
 ### Deferred by this addendum
 
-[R-609](../refinements/tasks/609-a-declared-mime-type-may-now-disagree-with-the-bytes-it-labels.md):
+[R-609](../refinements/tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md):
 a block declaring one of the three read formats while carrying another is sized correctly and
 reaches the model under the wrong label.
 
@@ -4916,3 +4916,31 @@ landed, `brain/packages/tools/src/cortex_tools/headers.py` and `blocks.py`,
 `brain/packages/tools/tests/` (`pictures.py`, `test_headers.py`, `test_blocks.py`,
 `test_registry.py`, `test_own_text_contract.py`),
 [docs/modules/brain-tools.md](../modules/brain-tools.md), and this addendum.
+
+## Mislabel-dating addendum (2026-09-09): a mislabeled block predates the sized formats
+
+The sized-formats addendum above records that one sentence of the image-carry addendum stops being
+true once three formats are sized: the observation that a declaration disagreeing with the bytes
+fails anyway, since only a PNG has a size to read. A sweep that held
+[R-609](../refinements/tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md) to
+the code measured which way that sentence was wrong, and it was wrong before those readers landed.
+
+The size read never consulted the declaration. It compared the PNG signature and unpacked bytes 16
+to 24, and `cortex_core/images.py` has listed all three mime types since the capture path was
+written, so bytes that were a PNG were sized and accepted whatever the block declared them to be.
+Running the pre-landing `blocks.py` over the tools suite's own pictures accepts PNG bytes declared
+`image/jpeg` and PNG bytes declared `image/webp`, and refuses only the JPEG declared `image/png`.
+The sentence therefore held for a mislabeled JPEG or WebP and never for a mislabeled PNG, which is
+two of the six mismatched pairs the three formats can make.
+
+What the second and third readers changed is the reach rather than the possibility: a mismatch used
+to need a PNG payload and now every pair is accepted. The posture is untouched. The mime type is
+still the sidecar's declaration, still judged against the core's allow-list rather than against the
+bytes, and whether it should answer to the bytes is still the open question that entry holds. What
+changes is the dating in both records: a mislabeled picture reaching the model is not a new
+consequence of sizing three formats.
+
+### Records
+
+[R-609](../refinements/tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md),
+the sized-formats addendum above, and this addendum.

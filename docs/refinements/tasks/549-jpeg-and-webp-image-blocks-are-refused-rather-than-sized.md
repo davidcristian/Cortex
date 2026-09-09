@@ -61,5 +61,5 @@ still available, but the second now costs a narrowed allow list and a runbook li
   builds every malformed container by hand. Twelve mutations over the 108 test
   `brain/packages/tools` suite, one of which survived and was answered with a new test, are in the
   ADR-0009 sized-formats addendum of this date. The close opens
-  [609](609-a-declared-mime-type-may-now-disagree-with-the-bytes-it-labels.md): with three formats
+  [609](609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md): with three formats
   sized, a declaration naming the wrong one of them is no longer caught by the size read.

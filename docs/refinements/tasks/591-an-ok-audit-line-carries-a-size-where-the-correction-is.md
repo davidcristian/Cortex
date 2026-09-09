@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** a reading over the tool audit that asks how often a turn was corrected, or an
 operator reading a failed turn's trail to see what a tool told the model before it gave up.
 

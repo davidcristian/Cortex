@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** Starvation shows up in practice.
 
 One greedy subagent can spend the turn's remaining pool
