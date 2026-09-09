@@ -65,13 +65,12 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-9 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+12 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
-### Actionable now (13)
+### Actionable now (12)
 
-- **[R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)** A red sweep leaves no trace in the repo (repo-gates).
-- **[R-540](tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md)** The judged rate and the hand column are compared on a probe and no sweep (subagents).
-- **[R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md)** No workflow in this repository has ever run (repo-gates).
+- **[R-291](tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)** A red sweep leaves no trace in the repo (repo-gates). Its claim was re-derived from the code on 2026-09-09.
+- **[R-540](tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md)** The judged rate and the hand column are compared on a probe and no sweep (subagents). Its claim was re-derived from the code on 2026-09-09.
 - **[R-604](tasks/604-the-advisory-probes-arms-part-by-fourteen-draws.md)** The dialog probe's two arms part by fourteen draws, in the direction the defence is not for (vision). Its claim was re-derived from the code on 2026-09-09.
 - **[R-605](tasks/605-the-bare-probe-rests-on-one-sitting.md)** The unstyled probe carries half the square's answer and has one sitting behind it (vision). Its claim was re-derived from the code on 2026-09-09.
 - **[R-606](tasks/606-the-alt-reports-the-dialogs-rule-in-grammar-the-tail-reading-sorts-as-applied.md)** The alt reports the dialog's rule in grammar the tail reading sorts as applied (vision). Its claim was re-derived from the code on 2026-09-09.
@@ -80,7 +79,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-611](tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md)** Nothing reads the build the engine names on every response (inference). Its claim was re-derived from the code on 2026-09-09.
 - **[R-612](tasks/612-the-plain-cells-obeyed-direction-is-unmeasured-at-280-draws-an-arm.md)** The plain cell's obeyed direction is unmeasured at 280 draws an arm (vision). Its claim was re-derived from the code on 2026-09-09.
 - **[R-613](tasks/613-the-engine-budgets-deep-row-is-drawn-for-one-rendering-of-three.md)** The engine budget's deep row is drawn for one rendering of three (vision). Its claim was re-derived from the code on 2026-09-09.
-- **[R-615](tasks/615-nothing-reads-a-subagent-result-back-from-the-store.md)** Nothing reads a subagent result back from the store (resource-governance).
+- **[R-615](tasks/615-nothing-reads-a-subagent-result-back-from-the-store.md)** Nothing reads a subagent result back from the store (resource-governance). Its claim was re-derived from the code on 2026-09-09.
 - **[R-617](tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md)** The pick's published CPU row was drawn before the memory cap (inference). Its claim was re-derived from the code on 2026-09-09.
 
 ### Actionable, once a seam or port changes (7)
@@ -93,7 +92,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)** A turn that goes quiet for an hour is indistinguishable from a brain that died (seam-transport).
 - **[R-466](tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md)** Nothing holds a cap sized on the answer to a tier whose trace is bounded (inference).
 
-### Fix when it bites (121)
+### Fix when it bites (122)
 
 - **[R-011](tasks/011-stylesheet-outside-line-cap.md)** The overlay stylesheet outside the line cap (repo-gates). Reopens when: An edit landing in the wrong cascade position, or a second stylesheet appearing.
 - **[R-013](tasks/013-couplings-widened-registry-cannot-hold.md)** The couplings the widened registry cannot hold (repo-gates). Reopens when: A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
@@ -210,6 +209,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-581](tasks/581-the-six-line-attacks-have-no-written-hand-rule.md)** The six line attacks have no written hand rule (inference). Reopens when: a printed reply on one of the six whose sort is argued rather than read off the line, which is any reply carrying the token on a line with the model's own words that a sitting wants to count as obedience.
 - **[R-584](tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md)** The uid rows are measured where the listing answers the ask (email). Reopens when: a second sitting of `test_uid_reading_live.py`, whether for another tier, another model pick, or a reworded `UID_HELP` or `NOT_FOUND`.
 - **[R-591](tasks/591-an-ok-audit-line-carries-a-size-where-the-correction-is.md)** An ok audit line carries a size where the correction is (tools-mcp). Reopens when: a reading over the tool audit that asks how often a turn was corrected, or an operator reading a failed turn's trail to see what a tool told the model before it gave up.
+- **[R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md)** No workflow in this repository has ever run (repo-gates). Reopens when: the first run this repository records under either workflow, which needs Actions enabled for the whole repository and is therefore a setting on the account rather than a change in this tree.
 - **[R-596](tasks/596-the-payload-sweeps-resisted-print-argument-is-unrun.md)** The payload sweep's resisted-print argument is still unrun on a live row (vision). Reopens when: the next sitting that draws the payload-size sweep on the GPU.
 - **[R-599](tasks/599-the-shells-windows-clippy-waits-on-a-resource-step.md)** The shell's Windows clippy waits on a resource step (repo-gates). Reopens when: a `tauri-build` or `embed-resource` release that lets a build for a target it never links skip the resource step, or the first `cfg(windows)` red in the shell that reaches master because the check that would have caught it does not run at the hook.
 - **[R-609](tasks/609-a-declared-mime-type-may-now-disagree-with-the-bytes-it-labels.md)** A declared mime type may now disagree with the bytes it labels (tools-mcp). Reopens when: a picture reaches the model under a mime type its bytes are not, either because a sidecar declared the wrong one or because an inference backend refuses a `data:` URI whose label and payload disagree.
@@ -670,7 +670,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - [R-553](tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md) Which condition a printed audit sample stands for is prose beside the fence. open, fix when it bites.
 - [R-554](tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md) A whole line asserted through an f-string or a helper is not read as proven. open, fix when it bites.
 - [R-593](tasks/593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md) The body's bind port can be declared now the shell compiles. satisfied 2026-09-07.
-- [R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md) No workflow in this repository has ever run. open, actionable.
+- [R-594](tasks/594-no-workflow-in-this-repository-has-ever-run.md) No workflow in this repository has ever run. open, fix when it bites.
 - [R-595](tasks/595-no-gate-compiles-the-tauri-shells-windows-half.md) No gate compiles the Tauri shell's Windows half. landed 2026-09-07.
 - [R-599](tasks/599-the-shells-windows-clippy-waits-on-a-resource-step.md) The shell's Windows clippy waits on a resource step. open, fix when it bites.
 - [R-610](tasks/610-the-descent-obligation-stops-at-the-suites.md) The descent obligation stops at the suites. open, fix when it bites.

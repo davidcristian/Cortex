@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-17 by the pass that put the shuffle sweep on a clock
 ([R-288](288-nothing-schedules-the-shuffle-sweep.md), [ADR-0002 sweep-schedule

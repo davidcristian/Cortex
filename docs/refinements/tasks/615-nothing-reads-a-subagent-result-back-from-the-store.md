@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-08 by the close of
 [R-614](614-a-refused-spawn-reaches-no-log-line.md), which re-derived the task record's lifetime and
@@ -14,7 +15,15 @@ rather than from Redis, so `put_result` writes a document that only a test and a
 `redis-cli` ever read. The port's own docstring in
 `brain/packages/core/src/cortex_core/ports_stores.py` says `get_result` "returns it for the cortex
 to read", and [brain-core.md](../../modules/brain-core.md) repeats the port. Both describe a read
-that does not happen.
+that does not happen, and so do three comments in the core suite, on
+`test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception` and
+`test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too` in
+[test_runner.py](../../../brain/packages/core/tests/test_runner.py) and on
+`test_a_subagent_that_never_stops_talking_is_stopped_at_its_deadline` in
+[test_subagent_bounds.py](../../../brain/packages/core/tests/test_subagent_bounds.py). Each reads a
+result out of the fake store and says `the cortex reads it back from the store`, which is the same
+claim the docstring makes and is the sharper instance of it: the assertion is real and the sentence
+beside it names a caller that does not exist.
 
 `get_task` is in better shape but narrower than it reads: one production call site, in
 `SubagentRunner.run`, taken once before `admit`, after which the task rides the coroutine's frame
@@ -29,8 +38,8 @@ result half is unexercised, and an operator's `cortex:task:{id}:result` key at a
 only consumer either the docs or the design has.
 
 **What would close it.** Two candidates, and the entry does not choose. The smaller is to repair
-the port's contract and the module doc to say what the store is actually for, which costs a
-paragraph and leaves the port as it is. The larger is to give the result half its reader: a
+the port's contract, the module doc and those three comments to say what the store is actually
+for, which costs a paragraph and three lines and leaves the port as it is. The larger is to give the result half its reader: a
 delegating turn that survives an orchestrator restart would find its subtasks' results in the store
 and finish rather than re-spawn, which is the resume path the docstrings already describe and
 nothing implements. The second subsumes the first, so the cheap repair is worth doing only if the
@@ -42,3 +51,9 @@ resume path is not being built soon.
   [R-614](614-a-refused-spawn-reaches-no-log-line.md), recorded in the
   [ADR-0012](../../adr/ADR-0012-resource-governance.md) record-lifetime addendum, which traced
   every read path either key has while settling whether the record outlives its own admission wait.
+- 2026-09-09: claims held to the tree and every one of them stands. `get_result` still has no
+  production call site, `get_task` still has the one in `SubagentRunner.run` taken before `admit`,
+  the spawn tool still aggregates the list `asyncio.gather` returns, and `_TASK_TTL_SECONDS` is
+  still 3600. What the entry undercounted is where the absent read is written down: three comments
+  in the core suite say it as well as the port docstring and the module doc, so the cheap repair
+  costs three test lines beyond the paragraph.
