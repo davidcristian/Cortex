@@ -6,6 +6,7 @@
 mail and reads back `the mailbox could not run that search` rather than
 `(no matching messages)`, which taints the turn.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-05 by the close of
 [548](548-an-empty-folder-read-raises-instead-of-answering-not-found.md), which moved the read
@@ -40,3 +41,12 @@ holds nothing is a change to the other call.
 - 2026-09-05: opened by the close of
   [548](548-an-empty-folder-read-raises-instead-of-answering-not-found.md), which measured the
   refusal at the protocol level and routed the read by uid around it without touching the search.
+- 2026-09-09: claims held against the code and the refusal read again live, and the trigger has
+  not fired. `SEARCH_QUERY_HELP` in `brain/packages/email/src/cortex_email/values.py` still names
+  no `UID` criterion, and `search` still classifies only what imaplib raises, so imap-tools'
+  `MailboxUidsError` still reaches `_translated`. On the Bridge today, five of its nineteen folders
+  hold no mail, and `UID SEARCH CHARSET US-ASCII UID 999` in two of them answers
+  `('NO', [b'no such message'])` where the same key in a folder holding mail answers `OK` with the
+  uid; through the port, `ImapMailbox.search("INBOX", "UID 999", 1)` raises the base `MailboxError`
+  with that answer's words, unchanged from the record above. The EXAMINE the same reading takes
+  answers the message count this entry proposes short-circuiting on.
