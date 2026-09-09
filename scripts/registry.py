@@ -31,6 +31,9 @@ to the order the tuple reads them in:
 - `subagentcouplings` ties the subagent tier's admission budgets to the container limits that are
   their hard twins.
 - `modelhostcouplings` ties the model-host sidecar's tier settings to the override that ships them.
+- `imagecouplings` ties the two llama.cpp images this repo starts servers from to the harnesses
+  that type one, which is the pair of spellings the gate over the recorded image rows does not
+  reach.
 - `emailcouplings` ties the email sidecar's shipped answers to the override that spells them again,
   and what the sidecar writes for the brain, its four own texts, the key it declares a sender
   under, the kind word that declaration carries and the two field names it is written under, to
@@ -66,6 +69,7 @@ from couplings import Constant
 from emailcouplings import EMAIL_COUPLINGS
 from endpointcouplings import ENDPOINT_COUPLINGS
 from fixturecouplings import FIXTURE_COUPLINGS
+from imagecouplings import IMAGE_COUPLINGS
 from logcouplings import LOG_COUPLINGS
 from modelhostcouplings import MODELHOST_COUPLINGS
 from overlaycouplings import OVERLAY_COUPLINGS
@@ -82,6 +86,7 @@ CONSTANTS: tuple[Constant, ...] = (
     *BOUNDS_COUPLINGS,
     *SUBAGENT_COUPLINGS,
     *MODELHOST_COUPLINGS,
+    *IMAGE_COUPLINGS,
     *EMAIL_COUPLINGS,
     *FIXTURE_COUPLINGS,
     *OVERLAY_COUPLINGS,

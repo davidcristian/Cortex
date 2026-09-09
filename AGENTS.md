@@ -331,15 +331,17 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                     needles.py      how a rendered needle is searched for, and what a miss reports
                     seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
                     capturecouplings.py, boundscouplings.py, subagentcouplings.py,
-                    modelhostcouplings.py, emailcouplings.py, fixturecouplings.py,
-                    overlaycouplings.py, logcouplings.py, trailcouplings.py
-                                    the registry itself, in twelve parts (nine split off at the
-                                    line cap, three added as subjects): the other tree's code,
+                    modelhostcouplings.py, imagecouplings.py, emailcouplings.py,
+                    fixturecouplings.py, overlaycouplings.py, logcouplings.py,
+                    trailcouplings.py
+                                    the registry itself, in thirteen parts (nine split off at the
+                                    line cap, four added as subjects): the other tree's code,
                                     the address each side answers on, the brain's shipped
                                     defaults, one capture's numbers, a delegated run's bounds,
-                                    the subagent tier's budgets, the model host's tiers, the
-                                    email sidecar's answers, a measurement fixture, the overlay
-                                    stylesheet, work-identity names, and the per-line trails
+                                    the subagent tier's budgets, the model host's tiers, the two
+                                    engine images, the email sidecar's answers, a measurement
+                                    fixture, the overlay stylesheet, work-identity names, and the
+                                    per-line trails
                   bindcheck.py      no compose bind default lands unignored in the tree
                     composemounts.py    reads mounts out of a compose file
                   defaultcheck.py   one variable, one default, in every compose file spelling it
