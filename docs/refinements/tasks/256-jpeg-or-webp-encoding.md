@@ -3,22 +3,38 @@
 **Status:** open, fix when it bites
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 **Trigger:** A screen someone owns firing the capture policy's halving ladder at the
-shipped 2048 px edge, which is the four realistic frames of `capture_bytes.rs` no longer
-fitting inside `CORTEX_BODY_MAX_IMAGE_BYTES`.
+shipped 2048 px edge, which is either of the two ladder assertions in `capture_bytes.rs` failing:
+the four realistic frames on a 4K display, or the same grainy photograph on the three display sizes
+the second one draws it at, no longer fitting inside `CORTEX_BODY_MAX_IMAGE_BYTES`.
 
 Measurement puts JPEG q80 at roughly a quarter of
 PNG's bytes on incompressible content (0.97 MB vs 4.33 MB at 1600x900). It is a **body-side
 swap behind an unchanged seam**: `ImageBlob.mime_type` already carries the format, the brain's
 allow-list already lists both, and nothing in the brain decodes. Worth doing when bytes on the
 wire start mattering; PNG's losslessness is worth more while legibility is the open risk. The
-2048 px default edge moved the numbers without moving the trigger: a photographic screen costs
-3.59 MB there against 2.05 MB at 1600 px, and 4.67 MB with heavy grain, which is still inside
-the ceiling with room to spare (measured 2026-08-06,
+2048 px default edge moved the numbers without moving the trigger, and the margin behind it is
+narrower than a 4K measurement alone reports. On a 4K display a photographic screen costs 3.59 MB
+at 2048 px against 2.05 MB at 1600 px, and 4.67 MB with heavy grain. The costliest display is the
+middle one rather than the biggest, because how much grain survives is set by the ratio between the
+display and the requested edge: the same heavy-grain photograph is 5016491 B on a 2560x1440 desktop,
+79% of the ceiling, against 74% at 4K and 71% at 1920x1080. So the worst screen a person owns sits a
+fifth below the ceiling rather than a quarter (measured 2026-08-06,
 [`capture_bytes.rs`](../../../body/crates/core/tests/capture_bytes.rs)).
 
 ## Trail
 
+- 2026-09-09: claims re-derived from the code. Still not fired, and every structural claim holds:
+  `ImageBlob.mime_type` carries the format
+  ([proto/body.proto](../../../proto/body.proto)), `ALLOWED_MIME_TYPES` in
+  [images.py](../../../brain/packages/core/src/cortex_core/images.py) lists PNG, JPEG and WebP, and
+  that module's own docstring says the core never decodes an image. What was stale is the margin.
+  Both this entry and the restatement below read the 4K table only, where the ADR narrowed that
+  table on the day it was measured: `capture_bytes.rs` has a second ladder assertion,
+  `a_display_nearer_the_requested_edge_is_the_expensive_one`, and the costliest display in it is
+  2560x1440 at 79% of the ceiling rather than the 4K frame at 74%. The trigger above now names both
+  assertions, and the body carries the display numbers.
 - 2026-09-06: **Not fired**, and the trigger above is restated, because "bytes starting to
   matter" is a judgement rather than a count. The number that decides it is already in the tree:
   the capture policy halves the requested edge when the encoded frame is over

@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 **Trigger:** the first thing a user asks the assistant to remember during a capture turn and later finds it has forgotten.
 
 Opened 2026-08-16 by the per-source memory rules decline
