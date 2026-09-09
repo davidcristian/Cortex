@@ -2,9 +2,12 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Trigger:** a module the log-vocabulary registry does not list attaching a work identity under a
-name of its own, or a sixth identity arriving with nowhere to be registered
+**Trigger:** a module the log-vocabulary registry does not list attaching one of the five
+identities `log_fields.py` declares under a spelling of its own, or a sixth such identity arriving
+with nowhere to be registered. An id naming a process, a daemon's boot or one exchange with the
+body is not one of the five and does not fire this.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-24 by the close of
 [R-339](339-two-spellings-of-one-conversation.md) and
@@ -23,15 +26,15 @@ The two ways out are different in kind. The cheap one is a rule with nobody enfo
 sentence in `log_fields.py` and in the module contracts saying that a line naming work takes one of
 the five names and that adding a module means adding a mention. The real one is a scan that reads
 every `extra=` in the brain and holds each key that looks like an identity to the vocabulary, which
-is a seventh cross-tree gate with an ADR of its own, and which has to solve the indirection three
+is a twelfth cross-tree gate with an ADR of its own, and which has to solve the indirection three
 sinks already use: `converse_stream.py`, `cortex_memory/audit.py` and `cortex_tools/audit.py` all
 build a `fields` dict and pass it by name, so a scan that reads only `extra={...}` literals would
 miss exactly the lines with the most identities on them.
 
 **Why it was left.** The close it came out of was a rename plus the registry rows that hold it, and
-the rows are proved able to fail twelve ways. A seventh gate is a bigger decision than the defect
-that prompted it: AGENTS.md names six cross-tree scans and says all six run unconditionally, so
-adding one is a change to the contract and not to a data file. It also needs a real answer to what
+the rows are proved able to fail twelve ways. Another gate is a bigger decision than the defect
+that prompted it: AGENTS.md names eleven cross-tree scans and says all eleven run
+unconditionally, so adding one is a change to the contract and not to a data file. It also needs a real answer to what
 "looks like an identity" means, since the Redis codecs spell four of the five as hash keys of their
 own and must not be held to the log vocabulary at all.
 
@@ -57,3 +60,18 @@ its blind spot.
   adding a scan is still a change to the contract rather than to a data file, and the harder half
   of this entry, what "looks like an identity" means when the Redis codecs spell four of the five
   as hash keys of their own, is untouched by either.
+- 2026-09-09: trigger checked and not fired, read off every `extra=` dict literal in
+  `brain/packages/*/src`. Thirteen modules attach one of the five names that way and the registry
+  lists all thirteen, `cortex_memory/audit.py` reaching them through its `fields` dict instead.
+  The five declarations, the runbook far sides and the three indirect sinks are all as this entry
+  describes them.
+- 2026-09-09: the nearest thing to a firing, recorded so the next reader does not re-derive it.
+  Four `extra=` keys outside the vocabulary end in `id`: `pid` in the model host's supervisor and
+  its children, `boot_id` in `residency_watch.py` and the model-host adapter, and
+  `extra={"id": confirm_id}` in `cortex_orchestrator/confirm.py`. None is a work identity under
+  the dispatch stamp's reading, and the confirm line has been there since 2026-07-08, so it is
+  not an arrival either. The trigger now says that in as many words, because "a work identity"
+  was decidable only by argument.
+- 2026-09-09: the arithmetic has moved again and the argument still has not. AGENTS.md names
+  eleven cross-tree scans, so the gate this entry weighs would be the twelfth, and the body says
+  eleven rather than the six it was written against.

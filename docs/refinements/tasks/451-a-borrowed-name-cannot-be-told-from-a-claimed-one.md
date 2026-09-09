@@ -7,6 +7,7 @@ so the gate passes the bullet and only a person reading the sentence catches it.
 comparing each bullet against what the module it opens with imports.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-26 by the close of
 [R-448](448-the-module-listing-is-held-whole-and-not-in-halves.md), which split one paragraph of
@@ -41,8 +42,8 @@ libraries after it, so the rule is that a borrowed name is accepted only as a bu
 span, and a borrowed name anywhere else in a bullet is a claim about a library rather than a
 reference to its reader. That is the inverse of the rule this entry first proposed, which would
 now reject all eleven bullets, and it is the inversion the rewrite caused. It leaves the trailing
-paragraph on the three shared modules unheld, that one being prose rather than bullets, which is
-tolerable while it carries no borrowed name.
+paragraph on the shared modules unheld, five of them today, that one being prose rather than
+bullets, which is tolerable while it carries no borrowed name.
 
 ## Trail
 
@@ -73,3 +74,11 @@ tolerable while it carries no borrowed name.
   bullet, since reversing it moves the borrowed name out of the first position. Left open and not
   actionable, because writing the rule is a gate change owing a mutation table, and the entry's
   own alternative, arguing that the existing bound is far enough, is still unanswered.
+- 2026-09-09: trigger checked and not fired again, over a listing that has grown since. The
+  borrowing half still runs to eleven bullets and eleven borrowed names, each one its bullet's
+  first code span, and no bullet carries a borrowed name anywhere else, read by matching every
+  code span in the passage against the eighteen names the no-CLI half's sibling roster owns. The
+  inverse rule this entry proposes would therefore still pass the whole passage. One count was
+  wrong: the trailing paragraph names five shared modules and not three, `composefiles.py`,
+  `gitenv.py`, `treewalk.py`, `skippeddirs.py` and `gatecalls.py`, and it still carries no
+  borrowed name.
