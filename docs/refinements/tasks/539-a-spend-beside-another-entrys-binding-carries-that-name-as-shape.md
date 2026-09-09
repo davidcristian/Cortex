@@ -7,6 +7,7 @@ reader to the wrong constant, or a second registry entry whose needle spells ano
 name in its literal shape, which is countable by rendering every mention and searching its shape
 for the site names the registry declares.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-02 by the close of
 [537](537-the-declaration-field-names-are-bare-literals-on-both-sides.md), whose fifth mutation
@@ -51,3 +52,12 @@ gate fault the field entry alone.
   the entry was opened changes the count: the one mention added in the meantime,
   `SHIPPED_BUDGET = Budget({value})` in the injection harness, spells the far file's own binding
   and no other entry's.
+- 2026-09-09: measured again, and the one instance is unchanged: the server still writes
+  `{_SOURCE_META_KEY: {_KIND_FIELD: _SENDER_KIND, _VALUE_FIELD: sender}}` on one line, and the
+  kind word's spend is still the only needle whose literal shape carries a site name belonging to
+  another entry. The two numbers beside it both moved. The registry renders 296 mentions rather
+  than 288, and the coincidences number seven rather than two, because a site named `_IMAGE` was
+  registered for the CUDA engine image and that name falls inside `CORTEX_IMAGE_MAX_TOKENS` and
+  `CORTEX_BODY_MAX_IMAGE_BYTES`, which five further needles spell. A short site name matching
+  inside a longer env var is what this measurement will keep turning up, so the count of
+  coincidences is worth re-deriving rather than reading off the bullet above.

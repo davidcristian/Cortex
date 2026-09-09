@@ -7,6 +7,7 @@ is not an artifact path, reporting the mount on `GET /health` or checking that i
 startup, which nothing in the sidecar does today. That is countable by reading every method of
 `ModelHostConfig` and asking which of them name `self.models_root`
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-02 by the close of
 [R-515](515-the-artifact-domain-rests-on-a-field-name-convention.md), which made
