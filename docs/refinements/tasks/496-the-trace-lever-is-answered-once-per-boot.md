@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 **Trigger:** a llama.cpp image upgraded under a brain that keeps running, where the new build
 answers the lever question differently from the answer the running brain cached, which is a
 `docker compose pull`, a recreate of the model host alone, and the GPU runbook's own curl returning
