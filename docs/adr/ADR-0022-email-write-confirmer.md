@@ -2605,3 +2605,54 @@ container was started, because every question asked of that server is recorded a
 The record is the six task files, four carrying a `Verified` date, one re-aimed and one closed,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
 addendum. No source file and no gate changed, so no mutation table is owed.
+
+## Addendum (2026-09-09): the four unreadable-folder deferrals are read, and one had the wrong mechanism
+
+Four refinements deferred at this record are about what the IMAP adapter does with a folder or a
+message it cannot read. They were held to the tree in one sweep, three came back as written, and
+the fourth described a mechanism imap-tools does not have.
+
+**The search of a folder holding an unreadable message loses its messages here, not on the wire.**
+[R-570](../refinements/tasks/570-a-search-of-a-folder-holding-one-unreadable-message-is-refused-whole.md)
+said that Dovecot delivers the readable messages inside one FETCH and answers a tagged `NO` after
+them, and that imap-tools drops what was delivered. imap-tools 1.13.0 does not send that command:
+`fetch` at its default `bulk=False` goes through `_fetch_by_one`, which sends one `UID FETCH` per
+uid and checks each command's status on its own. So the declined message is refused by a command
+of its own and the readable messages are fetched successfully; they are lost because `search`
+builds `list(box.fetch(...))` and the exception discards what the generator had already yielded.
+The outcome the entry is named for is unchanged, and two limits come with the corrected mechanism:
+the search is refused whole only when the declined uid is among the first `limit` matches, since
+the uid list is cut to the limit before any FETCH is sent, and the alternative of reading the
+delivered items off the `NO` is not available, because the status is checked before the data is
+looked at and one uid per command leaves nothing beside the declined message to recover. The entry
+stays open with its own fix narrowed to one shape: send the header fetches from `ImapMailbox`, the
+way `uidfetch.py` already sends the read by uid, and skip a declined uid while reporting the skip.
+
+**The Bridge still refuses a UID search key in a folder holding no mail**, which is
+[R-550](../refinements/tasks/550-a-uid-search-key-in-a-folder-holding-no-mail-is-refused-by-the-bridge-and-stays-untyped.md),
+and the reading was taken again today rather than quoted. Five of the account's nineteen folders
+hold no mail; `UID SEARCH CHARSET US-ASCII UID 999` in two of them answers
+`('NO', [b'no such message'])`, and the same key in a folder holding 1249 messages answers `OK`
+with the uid. Through the port, `ImapMailbox.search("INBOX", "UID 999", 1)` raises the base
+`MailboxError` carrying those words, so the classification is where the entry left it. The trigger
+needs a model to write a `UID` criterion, and `SEARCH_QUERY_HELP` still names none.
+
+**Neither of the other two triggers has fired.** The dropped read under Dovecot's default,
+[R-569](../refinements/tasks/569-the-dropped-read-under-dovecots-default-is-measured-by-hand-and-driven-by-no-live-row.md),
+is still scripted by hand in `imap_stub.py` and driven by no live row: the probe still sets
+`imap_fetch_failure = no-after`, `docker/docker-compose.imap-probe.yml` still declares one service,
+and the adapter still reads an abort's type and never its words. The uid rows,
+[R-584](../refinements/tasks/584-the-uid-rows-are-measured-where-the-listing-answers-the-ask.md),
+still describe the sitting recorded above: the ask still names a listing line almost word for word,
+`UID_HELP` and `NOT_FOUND` are unchanged since the counts were taken, and no second sitting has
+been run. The trigger reading for R-570 was taken live beside R-550's: the account lists nineteen
+folders and every one of them answers a search, none refused, so no message it holds is one the
+server cannot open.
+
+### Records
+
+The record is the four task files, all four carrying a `Verified` date and one repaired,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No source file and no gate changed, so no mutation table is owed. The live readings were
+taken through `ImapMailbox` and through imaplib against the Bridge on loopback; no probe container
+was started, and nothing was written to the account.

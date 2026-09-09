@@ -6,6 +6,7 @@
 message it cannot open with words other than `DROPPED_READ`'s, or the adapter starts reading an
 abort's words rather than only its type.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-05 by the close of
 [551](551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md), which

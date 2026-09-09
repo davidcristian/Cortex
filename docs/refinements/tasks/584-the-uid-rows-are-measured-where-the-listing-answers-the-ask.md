@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
+**Verified:** 2026-09-09
 **Trigger:** a second sitting of `test_uid_reading_live.py`, whether for another tier, another
 model pick, or a reworded `UID_HELP` or `NOT_FOUND`.
 
