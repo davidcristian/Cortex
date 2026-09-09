@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
+**Verified:** 2026-09-09
 **Trigger:** `docker/docker-compose.imap-probe.yml` naming an image other than
 `dovecot/dovecot:2.3.21`, or that tag resolving to a digest other than the one the ADR-0022
 trigger-sweep addendum records
@@ -46,3 +47,11 @@ value is entirely in being reproducible.
   trigger-sweep addendum records. The old clause read the text of the pin alone, which a re-push
   of the same tag leaves untouched, and a re-push is the way this particular pin can move without
   anyone editing anything, so the clause now names the digest as well.
+- 2026-09-09: claims held against the code and the trigger read again on both limbs, neither
+  fired. `docker/docker-compose.imap-probe.yml` still names `dovecot/dovecot:2.3.21`, and that tag
+  still resolves to the recorded
+  `sha256:1c18c756f20d03867077a1b509a6e2e3008ab1eafa56377b6f2eca12dc1ba581`, in the registry
+  (`docker manifest inspect --verbose`) and in the copy cached on this host
+  (`docker image inspect`). The probe stack still ships one configuration: `docker/dovecot/` holds
+  `probe.conf` and `probe-mailboxes.sh` and nothing else, and the table of the two rejected
+  configurations is still prose in the ADR-0022 flagged-name-that-opens addendum.

@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
+**Verified:** 2026-09-09
 **Trigger:** a second server this repo can reach starts flagging a name in a plain LIST and opening
 it, or the Bridge account whose two flagged parents are the current proof stops being reachable.
 Both limbs come off one reading, a plain `LIST "" "*"` taken past the port with every listed name
@@ -64,3 +65,10 @@ stand-in already does.
   every offered name. The suite's own comment records an exact reading being written, passing on the
   container that built it, and failing on the rerun. Recorded in the ADR-0022 addendum of the same
   day.
+- 2026-09-09: claims held against the code and both limbs read again, neither fired. The Bridge
+  account is reachable and is still the only live proof: read live today it lists 19 names, offers
+  19, opens 19, and flags `Folders` and `Labels` `('\Noselect', '\Unmarked')`, both of which open,
+  so the keep branch is taken twice there and nowhere else live. No second server has started
+  flagging a name in a plain LIST and opening it, the one IMAP server image any compose file names
+  being unmoved at the digest recorded for it. The stand-in's `OPEN_NODE_FLAGS` is still the
+  Bridge's own pair, in `brain/packages/email/tests/imap_stub.py`.
