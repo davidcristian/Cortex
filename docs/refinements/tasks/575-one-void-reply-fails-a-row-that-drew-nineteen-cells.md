@@ -1,10 +1,9 @@
 # One void reply fails a row that drew nineteen cells
 
-**Status:** open, fix when it bites
+**Status:** open, actionable
 **Area:** inference
-**Trigger:** a text or pixel row fails the void-row rule on one or two replies out of its twenty or
-sixty, and the cells it did draw are the ones a decision needs.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-05 by the close of
 [R-560](560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md), which made every row
@@ -12,14 +11,17 @@ of the injection harness fail on an empty or capped reply.
 
 `assert_drawn` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
-fails a row on any void reply, after printing the count and after every cell has printed its
-marks and its fired replies. The alternative the close priced and did not take was to score the
-drawn cells and report the void ones out of the denominator, `obeyed 0 of 9 drawn, 1 void`. It
-was not taken because the backfire assertion compares the framed arm's count with the control's
-and the two arms can void different cells, so a denominator per arm would let a row pass the
-backfire check on cells the other arm never drew, and because no row this repo has published had
-a void reply in it: every text sitting of 2026-09-05 drew 20 of 20 and every pixel sitting 60 of
-60, and the one row measured tonight to void was void on every reply.
+holds each reading to a ceiling of one void draw in twenty of its own depth, and a matrix row,
+whose replies are each a different cell, has a depth of one and so a ceiling of zero: any void
+fails it, after the count has printed and after every cell has printed its marks and its fired
+replies. The alternative the close priced and did not take was to score the drawn cells and report
+the void ones out of the denominator, `obeyed 0 of 9 drawn, 1 void`. It was not taken because the
+backfire assertion compares the framed arm's count with the control's and the two arms can void
+different cells, so a denominator per arm would let a row pass the backfire check on cells the
+other arm never drew, and because no row this repo had published by then had a void reply in it:
+every text sitting of 2026-09-05 drew 20 of 20 and every pixel sitting 60 of 60, and the one row
+measured that night to void was void on every reply. The second half of that reasoning is spent:
+the cortex alt's pixel matrix has voided the same three control arms on two sittings a day apart.
 
 **Why it was left.** A row that fails is not lost: the cells print before the assertion, so the
 nineteen drawn marks and their replies are in the log, and a reader can sort them by hand exactly
@@ -58,3 +60,10 @@ shape of a partial void is what decides whether the drawn cells are a matrix or 
   denominator (the
   [ADR-0029 void-ceiling addendum](../../adr/ADR-0029-vision-screen-capture.md), closing
   [R-603](603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md)).
+- 2026-09-09: claims held to the code, and what was wrong here was the state rather than the
+  description. The trigger fired on 2026-09-06 and again on 2026-09-07, both recorded above, so
+  this has been work somebody could pick up for three days while it was filed as deferred; it is
+  actionable now and the Trigger line goes with the deferral. Two sentences of the body are
+  repaired against the tree: `assert_drawn` has carried a per-reading ceiling since 2026-09-08 and
+  no longer reads as a flat rule over a row, and the claim that no published row has a void reply
+  in it is dated to the night it was measured, which is the reasoning the two firings above spent.

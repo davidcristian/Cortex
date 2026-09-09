@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 **Trigger:** a pick entering the lineup whose chat template writes a thought marker
 `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes
 the marker it writes. Both are countable by the struct walk over each GGUF header's

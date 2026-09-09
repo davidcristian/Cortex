@@ -6,6 +6,7 @@
 the placement column of the lineup-tails record is typed by hand again for eleven rows; or a row
 whose verdict moves between placements, which the record so far says does not happen.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-02 by the close of
 [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), which
