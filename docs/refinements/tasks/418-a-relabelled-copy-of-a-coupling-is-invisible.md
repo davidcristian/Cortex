@@ -8,6 +8,7 @@ collection the registry does not hold. Grouping the registry by
 trail records what that grouping returned when it was last run.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-24 by the close of
 [R-412](412-nothing-holds-the-registry-to-its-parts.md), which held the registry's entry count by

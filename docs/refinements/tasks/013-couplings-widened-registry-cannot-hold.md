@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 **Trigger:** A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
 
 Opened 2026-08-08 behind the landing above, in the same shape its own parent had: a registry that
@@ -45,8 +46,10 @@ strings, reduced to its members so that the writer's order and spacing decide no
 both within twenty lines of 300, so the value forms and the relation comparators moved into
 `scripts/values.py` (what a value reduces to, and how a constant's readings must stand, with no
 file reading at all) and the overlay's half of the registry into `scripts/overlaycouplings.py`,
-which is where the entries had been accumulating anyway. `crosscheck.CONSTANTS` is the two halves
-read as one and nothing in the scan asks which half an entry is in.
+which is where the entries had been accumulating anyway. `crosscheck.CONSTANTS` was the two halves
+read as one; it is thirteen parts today, named by `scripts/registry.py`, and `values.py` split
+again into `scripts/readings.py` for how a constant's readings must stand. Nothing in the scan asks
+which part an entry is in.
 **Proved able to fail before it was trusted**, twice and in both directions: the body producing
 `"image/gif"` and the allow-list dropping `"image/png"` each exit 1 naming both files, both
 values and the reason, and the scan as it stood at the previous commit exits 0 over the second of
@@ -131,9 +134,9 @@ while dropping the value it was supposed to tie.
 written down.** `var(--roll)` is pinned at 2, those two rules being the set the entry's own
 reason names (the section share caps' handover and the thoughts marker's turn), so losing one is
 the drift rather than a design change and a third rule joining them is a registry line to
-correct. `var(--ease)` is a presence check, 52 transitions across unrelated features riding that
-curve, where a count would fail on the next one added and make a retune of one feature depend
-on another. That is the same division the `[data-morphing` rules got.
+correct. `var(--ease)` is a presence check, the transitions riding that curve across unrelated
+features numbering 52 on the day this closed and 49 today, where a count would fail on every one
+of those moves and make a retune of one feature depend on another. That is the same division the `[data-morphing` rules got.
 **Proved able to fail three times before it was trusted**, each restored: one of the two roll
 spends mistyped to `var(--rol)` exits 1 with `found 1, pinned 2`; the declaration renamed to
 `--cadence` on `:root` while the spends stand exits 1 saying the sheet does not spell
@@ -173,9 +176,11 @@ the other half, the two hand-written enums against the proto's. This is the firs
 generated code on **both** sides of the coupling, which is why it is structurally out of reach
 rather than merely awkward: `crosscheck.py` reads declarations out of source, and a protobuf enum
 becomes a serialized descriptor in one tree and a `#[derive]`d Rust enum in the other, with no
-literal in either place for a template to match. Registering it would mean reading the `.proto`
-itself, which is a parser this repo does not have and a fifth kind of place for the registry to
-cover. What holds it today is the compiler on the Rust side (a `match` over
+literal in either place for a template to match. Registering it would mean reading declarations out
+of the `.proto` itself, which is a parser this repo does not have. The file is not a new kind of
+place: one entry already searches `proto/body.proto` for a rendered needle, the body's own default
+edge, which is a mention rather than a declaration and needs no parser. What holds it today is the
+compiler on the Rust side (a `match` over
 `PbCaptureTarget` is exhaustive, so a new proto value fails the build) and nothing at all on the
 Python side, where a new value would never be produced. **Trigger:** the third value on
 this enum, which is also the first one whose addition the Rust side cannot catch for the Python
@@ -234,3 +239,17 @@ side, or a `.proto` reader arriving in the scan for another reason.
   been satisfied since 2026-08-22 rather than on the day it was struck. Its remedy closed as
   [R-593](593-the-bodys-bind-port-can-be-declared-now-the-shell-compiles.md), satisfied, and the
   count line at the head of this entry records the two that remain.
+- 2026-09-09: both remaining couplings re-read and neither trigger fired. `CaptureTarget` still
+  carries `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS` and nothing else in
+  [body.proto](../../../proto/body.proto), the `match PbCaptureTarget::try_from` in
+  `body/crates/rpc/src/screen.rs` is still the Rust side's whole defence, and the status pair is
+  still spelled in two modules, five sites inside `body/crates/rpc` and one table in
+  `cortex_body_client/failures.py` that `gateway.py` alone reads.
+- 2026-09-09: what this entry said about the registry itself had gone stale three ways, all in
+  the accounts of closes rather than in the two couplings that remain. `crosscheck.CONSTANTS` was
+  described as two halves and is thirteen parts named by `scripts/registry.py`; `values.py` was
+  described as holding both the value forms and the comparators, which split again into
+  `scripts/readings.py`; and the ease spends the presence check was argued from were counted at 52,
+  where the stylesheet spells `var(--ease)` 49 times today. The capture-target paragraph also
+  called the `.proto` a kind of place the registry does not cover, when one entry already searches
+  it for a rendered needle; what is missing is a reader for declarations in it, not the file.

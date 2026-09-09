@@ -7,6 +7,7 @@ count dropping is not by itself the trigger: that happened two and a half hours 
 was opened, in a commit whose own subject was the exclusion.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-24 by the close of
 [R-409](409-a-gates-success-line-names-no-collection.md), which gave the four remaining cross-tree
@@ -65,3 +66,10 @@ suite makes about the tree it ships in.
   written two weeks apart against two different collections and neither has been revisited since,
   which is what a floor set well under the real count and never maintained looks like after a
   while.
+- 2026-09-09: the readings again, the clause being written against the last one recorded here.
+  `linecap OK: 426 non-test source file(s) under .. are within 300 lines, over 60859 line(s)
+  counted`. `dashcheck OK: 1551 text file(s) under .. use no banned dash, over 296960 line(s)
+  read`. Both compose gates still walk 10 files, at 11 bind mounts and 8 variables spelled twice
+  or more. Every count is at or above the reading above it, so the trigger has not fired, and the
+  two `MIN_FILES = 1` floors, the raising compose walk and the two suite floors of 6 all still
+  stand as this entry describes them.

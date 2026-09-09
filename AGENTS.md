@@ -298,7 +298,7 @@ docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbook
                   refinements/ (deferred-refinements backlog: one file per task under tasks/
                   + a generated index, ADR-0039),
                   host/ (work only the host's hardware can do: a Win32 desktop session or a
-                  24 GB GPU, same shape), assets/ (logo)
+                  24 GB GPU, same shape), design/ (the overlay's visual language), assets/ (logo)
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore +
@@ -421,5 +421,7 @@ docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose 
                   (Postgres+pgvector + CPU embedder, ADR-0008), tools + email (MCP sidecars: filesystem,
                   read-only email, ADR-0009), subagents (CPU llama-server, ADR-0010) + subagents-roster
                   (a second CPU model as an ADR-0018 roster alternate), body (points the brain at the
-                  host-native body's BodyService, ADR-0023); + postgres/init.sql
+                  host-native body's BodyService, ADR-0023), imap-probe (a local Dovecot that says
+                  both things a refused SELECT can mean, ADR-0022, configured by dovecot/);
+                  + postgres/init.sql
 ```
