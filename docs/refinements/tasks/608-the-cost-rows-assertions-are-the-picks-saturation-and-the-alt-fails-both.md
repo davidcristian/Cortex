@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-07 by the close of
 [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), which drew the
@@ -26,7 +27,7 @@ one budget and of the alt at the other.
 **Why it was left.** The sitting that drew the rows had the card for fifty minutes and spent it on
 the readings the two candidates could be compared on. Deciding what this row asserts is a decision
 about what the frame axis means per candidate, which is the same decision the alt's four undrawn
-frame rows need
+rows at the doubled frame need, the matrix and the rate at each budget
 ([R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)), and taking it from one sitting
 of one candidate would fix the row to the first artifact that broke it.
 
@@ -42,3 +43,8 @@ already published in the
 - 2026-09-07: opened by the close of
   [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), which drew
   both of the alt's cost rows and recorded both failures.
+- 2026-09-09: claims held to the tree. The row still asserts `large > base` at the shipped budget
+  and `large == base` at the engine's own, over every frame it renders, and both published cost
+  tables are the ones quoted here. What was loose is the pointer to the rows this decision blocks:
+  it read as a count of undrawn frame rows, where the rows the decision is about are the four at
+  the doubled frame.

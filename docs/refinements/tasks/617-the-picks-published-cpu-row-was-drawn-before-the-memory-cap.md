@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-09 by the close of
 [R-559](559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md), which gave the injection
