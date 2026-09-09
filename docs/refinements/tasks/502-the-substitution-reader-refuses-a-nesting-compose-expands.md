@@ -5,6 +5,7 @@
 **Trigger:** a change wants a compose value that falls back through two variables, which is what an
 env-var rename with a compatibility shim needs and what nothing in this tree needs today
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Verified:** 2026-09-09
 
 Opened 2026-08-30 by the close of
 [R-492](492-the-embedder-names-its-artifact-outside-the-family.md), which wanted exactly this
@@ -13,7 +14,7 @@ shape for a rename's shim and measured that it was unavailable.
 `scripts/composedefaults.py` raises `SubstitutionReadError` on a nested expansion, and until that
 close its docstring gave the reason as "which compose does not expand". That is false:
 `${A:-${B:-x}}` resolves to `B`'s value and then to `x` on compose v2.39.1, measured against the
-real binary. The sentence is corrected, and the refusal is kept with the true reason written in
+real binary. The docstring is corrected, and the refusal is kept with the true reason written in
 its place: every rule over these spends compares a default as a value, and a default that is
 itself a variable has no value until a deployment supplies one, so a reader that returned
 something for it would hand `defaultcheck.py`, `bindcheck.py` and `volumecheck.py` a comparison
@@ -53,3 +54,13 @@ than two is worth reading at all, since compose allows it and no honest use of i
   addendum](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-30-a-non-chat-artifact-names-itself-in-the-family-and-the-exclusion-retires)
   records the measurement that falsified the docstring and the reason the shim was declined
   anyway.
+- 2026-09-09: claims re-derived, and the correction the entry reports had reached one of three
+  places. `composedefaults.py` still refuses a nesting, and its docstring carries the true reason,
+  but the message it raises still ended `which compose does not expand`, and so did the sentence
+  describing the refusal in [repo-gates.md](../../modules/repo-gates.md). Both are corrected here,
+  so the reason an operator reads on a fault now matches the reason the module gives. The
+  measurement is re-taken against the same binary rather than quoted: on Docker Compose v2.39.1,
+  `docker compose config` over `OUT: "${A:-${B:-fallback}}"` prints `OUT: fallback` with neither
+  set, `OUT: frominner` with `B` set, and `OUT: fromouter` with `A` set. The suite pins only the
+  words `nested substitution`, so the tail was free to move. The trigger has not fired: no compose
+  file in `docker/` spells a nested substitution, over 76 spends read.

@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Verified:** 2026-09-09
 **Trigger:** A fenced block one gate reads and another does not, or a fourth reader arriving.
 
 Opened 2026-08-26 by the close of
@@ -25,6 +26,13 @@ is the same shape of question and has three answers.
 Nothing is wrong today: the three patterns are identical, and the suite for each gate holds its
 own reader. What a shared module would buy is that they stay identical, and that the next reader
 of markdown here starts from an answer rather than from a fourth copy.
+
+One reader has since started from this entry instead. `rosternames.py` reads a roster out of a
+passage that may contain a fenced block, and its module doc says fences are not read there because
+doing so "would add a fourth markdown-fence parser to this tree, which the backlog records as
+something to unify rather than to grow". So the cost of three copies is already being paid by a
+reader that declined to answer the question at all, and priced its own behaviour against this
+entry.
 
 **Why it was left.** The close that added the third copy was about log samples, and extracting a
 shared markdown reader means editing `commitlint.py` and `headingshapes.py`, two gates that close
@@ -50,3 +58,10 @@ independent by design rather than by accident.
   The clause is checkable in one search and can come out false, so it stays as written. Left open:
   what the entry asks for is still that the three stay identical by construction rather than by
   inspection, and nothing about today's reading changes that argument either way.
+- 2026-09-09: counted again across all of `scripts/`, since the scan roster has grown to eleven
+  and a new gate is where a fourth copy would appear. Still three, still character for character
+  `r"^\s*(?:```|~~~)"`, and none of the readers added since answers the question for itself:
+  `backloganchors.py` imports `headingshapes`, `rostermembers.py` reads the directory rather than
+  the page and so meets no fence at all, and `rosternames.py`, which does read a page whose
+  passages carry fenced blocks, declines to read fences and names this entry as the reason. That declination is added to the body above, because it is the strongest evidence
+  the entry has and it was not written down.

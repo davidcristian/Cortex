@@ -93,7 +93,10 @@ def _braced(number: int, text: str, start: int) -> tuple[Substitution, int]:
         raise SubstitutionReadError(msg)
     body = text[start + 2 : end]
     if "{" in body:
-        msg = f"line {number}: nested substitution ${{{body}}}, which compose does not expand"
+        msg = (
+            f"line {number}: nested substitution ${{{body}}}, whose default is itself a variable "
+            "and so has no value for a rule over these spends to compare"
+        )
         raise SubstitutionReadError(msg)
     name = _NAME.match(body)
     if name is None:
