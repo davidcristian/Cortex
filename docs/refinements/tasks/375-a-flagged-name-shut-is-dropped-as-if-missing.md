@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
+**Verified:** 2026-09-09
 **Trigger:** a server this repo can reach lists a name that is both flagged unselectable and refused
 in words other than the ones that prove a folder missing. The reading is a plain `LIST "" "*"` taken
 past the port, with every flagged name opened and its refusal kept: on the probe after
@@ -73,3 +74,10 @@ finding above is that the servers here cannot give one.
   that shuts a name is the same file that stops this server calling the name unselectable. The
   store is a tmpfs, so `just down-imap-probe` put the fixture back. Recorded in the ADR-0022
   addendum of the same day.
+- 2026-09-09: claims held against the code and the trigger read again on both servers, neither
+  fired. `_opens` in `brain/packages/email/src/cortex_email/imap.py` still returns False for every
+  `MailboxFolderSelectError` alike, `_select` still reads `_FOLDER_MISSING_ANSWERS`, and
+  `docker/dovecot/probe-mailboxes.sh` still writes its one `dovecot-acl` under `Guarded`, which the
+  plain LIST does not flag. The Bridge was read live today: 19 names listed, `Folders` and `Labels`
+  flagged `('\Noselect', '\Unmarked')` and opening, and all 19 opening, so it refuses nothing and
+  the combination has no producer here.

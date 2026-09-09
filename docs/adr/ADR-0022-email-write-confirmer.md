@@ -2553,3 +2553,55 @@ which stay open with a dated trail entry and a trigger that now says how it is r
 addendum. No source file and no gate changed, so no mutation table is owed. The probe was started
 and taken down again, and it builds its store fresh on every start, so the two mailboxes added by
 hand left nothing behind.
+
+## Addendum (2026-09-09): the confirmer's own deferrals are read, and the trust overlay is found built
+
+Six refinements deferred at this record were held to the tree in one sweep. Four are the folder
+triggers the two addenda above already answer, and they came back unchanged. The other two are
+about the confirmer itself, and both were wrong about the tree: one waits on a consumer that
+arrived a week ago, and one describes a fatigue surface narrower than the one that ships.
+
+**The trust overlay for remote tools exists.** Decision 4 above ends by saying trust overlays stay
+deferred because nothing needs a trusted remote tool yet, and
+[R-213](../refinements/tasks/213-trust-overlays-remote-tools.md) is that deferral. The thing it
+waited on arrived on 2026-09-02. Four answers the email sidecar composes without reading a message,
+its two refusals and its two empty results, needed to reach the model unfenced rather than framed
+as hostile, and the ADR-0013 own-text addendum decided the rule that lets them:
+`OwnTextToolRegistry` re-stamps a result `Trust.TRUSTED` only when its whole content is byte-equal
+to text this repo holds, rendered from the arguments the brain itself put on the call. It is wired
+once over the shared root in `build_tool_registry`, beside `GatedToolRegistry`, and its own
+docstring names it the composition-root trust overlay for remote tools. So R-213 is satisfied, and
+its twin in the untrusted-content area,
+[R-079](../refinements/tasks/079-per-remote-tool-trust-overrides.md), was declined on the same day
+for the half this does not do: trust is keyed by the bytes the brain holds and never by the name of
+the tool that returned them. The pair the 2026-07-19 index note called one piece of work counted
+twice is now closed on both sides, in the two shapes the rule leaves available.
+
+**Confirmation fatigue is no longer only about sends.**
+[R-214](../refinements/tasks/214-batching-session-allowlists.md) proposes batching or a per-tool
+session allowlist, and fires when sends become frequent enough to matter. Sends were the whole
+gated set when it was filed. The shipped `CORTEX_TOOLS_GATED` default is two names now,
+`escalate_to_brain` beside `send_email` (decision 1 of ADR-0030), so a turn that sends no mail can
+still put a card in front of the user, with its own reason text. The entry keeps its shape, because
+`ToolDispatcher._confirmed` still builds one `ConfirmationRequest` per call and remembers nothing
+between calls, but its trigger now names gated confirmations rather than sends and points at two
+readings a person can take without a deployment: the shipped gated default, and
+`MAX_TOOL_DISPATCHES`. The within-turn direction needs nothing from it, since `dispatch` checks the
+caller's refusal ahead of the gate, so a spent budget or a recognized repeat returns before the
+confirmer is consulted.
+
+**The four folder entries stand as written**, and each now records the day its claims were held to
+the code. The two readings that answer their triggers were taken again today rather than read off
+yesterday's record. The Bridge, read live through `ImapMailbox`, lists 19 names, flags `Folders`
+and `Labels` `('\Noselect', '\Unmarked')`, opens both, and opens all 19, so it still refuses
+nothing at all. The probe's image is unmoved: `docker/docker-compose.imap-probe.yml` names
+`dovecot/dovecot:2.3.21` and the tag resolves to
+`sha256:1c18c756f20d03867077a1b509a6e2e3008ab1eafa56377b6f2eca12dc1ba581` in the registry and in
+the copy cached on this host, which is the digest the trigger-sweep addendum records. No probe
+container was started, because every question asked of that server is recorded against that image.
+
+### Records
+
+The record is the six task files, four carrying a `Verified` date, one re-aimed and one closed,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. No source file and no gate changed, so no mutation table is owed.

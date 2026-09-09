@@ -7,6 +7,7 @@ the name it refused. The first limb is read off the compose files, which name ev
 this repo runs (`grep -n 'image:' docker/*.yml`); the second by shutting a mailbox on a server this
 repo reaches and reading the refusal verbatim. This entry's trail records both readings.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
+**Verified:** 2026-09-09
 
 `_select` in `brain/packages/email/src/cortex_email/imap.py` classifies a refused SELECT by
 lower-casing `str(err)` and looking for a measured phrase or an RFC 5530 code in it. That string is
@@ -74,3 +75,11 @@ is the one position RFC 5530 lets a code appear in.
   command's `(status, data)` as `command_result` and renders it into `__str__` as `Data: ...`, so
   the raw tuple really is on the exception the adapter already catches. Recorded in the ADR-0022
   addendum of the same day.
+- 2026-09-09: claims held against the code and the trigger read again on both limbs, neither
+  fired. `grep -n 'image:' docker/*.yml` still returns one IMAP server image,
+  `dovecot/dovecot:2.3.21`, so this repo still reaches two servers and no third. The Bridge was read
+  live today and refuses no listed name, 19 listed and 19 opening, so it produces no shut refusal to
+  echo a name. The library claim was rechecked in the installed imap-tools 1.13.0:
+  `MailboxFolderSelectError` inherits `UnexpectedCommandStatusError`, whose `__init__` binds the
+  refused command's `(status, data)` as `command_result` and whose `__str__` renders it as
+  `Data: ...`.
