@@ -1138,3 +1138,58 @@ which stays open with a sharpened trigger; the new
 addendum. No source file and no gate changed, so no mutation table beyond the gate proof above is
 owed. The server readings were taken in a container against the mount and the cgroup, the tier tails
 against the working tree through `brain/.venv`, and the image digests out of the local cache.
+
+## Addendum (2026-09-09): the engine image is one value the harnesses declare and the stack spends
+
+The addendum above measured that `scripts/volumecheck.py` already holds the deployment's image
+spellings to the rows `scripts/imagevolumes.py` records, and that four spellings float outside it:
+the builder stage of `brain/Dockerfile.modelhost` and the three live harnesses that type an image
+and run `docker run` on it. This is the coupling
+[R-557](../refinements/tasks/557-the-engine-image-names-are-typed-in-five-places.md) asked for.
+
+**What landed.** A new registry part, `scripts/imagecouplings.py`, holding two entries. The CUDA
+image is declared three times, by `_GPU_IMAGE` in the injection harness and by `_IMAGE` in
+`test_unfenced_correction_live.py` and `test_uid_reading_live.py`, and spent by both `FROM` lines of
+the model host's Dockerfile. The CPU image is declared once, by `_CPU_IMAGE` in the injection
+harness, and spent by the three compose services that run it, the two subagent servers and the
+embedder. The declaring side is a measurement harness in both entries, which is the argument
+`fixturecouplings.py` makes for its own subject: an `integration`-marked suite runs when somebody
+chooses to measure, so nothing else would report the drift until a matrix came back describing a
+build the stack had stopped running. The registry is a part larger for it, thirteen rather than
+twelve, and `crosscheck.py` now reads 91 entries over 109 declaring sites and 296 mentions, 25 of
+them pinned to a count, where before this it read 89 over 105 and 292.
+
+**A tag's hyphen is not a word boundary, which the first draft of this entry failed on.** The
+needle `FROM ghcr.io/ggml-org/llama.cpp:server-cuda`, pinned to two occurrences, went on matching a
+line retagged to `server-cuda-b10680`: a rendered needle is required to appear as a token of its
+own, and the guard at a word edge is `(?!\w)`, which a hyphen satisfies. So the entry passed the
+exact retag it exists to report. Each `FROM` line now carries a needle that closes it, the stage
+name after the builder's base and the line break after the final one, and the pinned count is gone
+with them.
+
+The mutation table below is over the constant registry as `crosscheck.py` reads it, meaning all 91
+entries and 405 places, with one edit applied at a time and reverted before the next. Every row
+was run as `python3 scripts/crosscheck.py`.
+
+| edit | reported |
+| --- | --- |
+| injection harness `_GPU_IMAGE` to `:server-cuda-b10680` | fails: `the CUDA engine image: sites are not identical` |
+| injection harness `_CPU_IMAGE` to `:server-b10680` | fails: `docker/docker-compose.subagents.yml does not spell 'image: "ghcr.io/ggml-org/llama.cpp:server-b10680"' as a token of its own` |
+| `test_uid_reading_live.py` `_IMAGE` to `:server-cuda-b10680` | fails: `sites are not identical` |
+| `test_unfenced_correction_live.py` `_IMAGE` to `:server-cuda-b10680` | fails: `sites are not identical` |
+| `Dockerfile.modelhost` builder `FROM` to `:server-cuda-b10680` | fails: `does not spell 'FROM ghcr.io/ggml-org/llama.cpp:server-cuda AS builder' as a token of its own` |
+| `Dockerfile.modelhost` final `FROM` to `:server-cuda-b10680` | fails: `does not spell 'FROM ghcr.io/ggml-org/llama.cpp:server-cuda\n' as a token of its own` |
+| `docker-compose.subagents.yml` image to `:server-b10680` | fails, and names the shape as the likely mover, the value still being spelled on that line |
+| `docker-compose.subagents-roster.yml` image to `:server-b10680` | fails the same way |
+| `docker-compose.memory.yml` image to `:server-b10680` | fails the same way |
+| unedited | passes |
+
+The two `FROM` rows are the ones that matter to the entry, since both passed under the bare needle.
+The three compose rows are held twice over now, here and by `volumecheck.py`, and they read
+differently in each: this gate reports the harness that has not moved, and that one reports a
+record with no row.
+
+**What this does not do.** The prose spellings stay uncoupled and should: four files name an image
+in a sentence, and ten documents name one inside a dated measurement, where the tag is part of what
+was read rather than a value that must track the stack. A digest pin on the stack would close this
+the other way, the pin becoming the declaration, and nothing here forecloses it.

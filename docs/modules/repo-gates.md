@@ -32,8 +32,8 @@ each named for what it holds. Grouped by the gate that reads them:
   values must stand, and `needles.py` for how a rendered needle is searched for and what a file
   missing one is told. The parts themselves are `seamcouplings.py`, `endpointcouplings.py`,
   `shippedcouplings.py`, `boundscouplings.py`, `subagentcouplings.py`, `modelhostcouplings.py`,
-  `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`, `overlaycouplings.py`,
-  `logcouplings.py` and `trailcouplings.py`.
+  `imagecouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`,
+  `overlaycouplings.py`, `logcouplings.py` and `trailcouplings.py`.
 - `bindcheck.py` reads `composemounts.py` for the mounts a compose file declares.
 - `defaultcheck.py` reads `composedefaults.py` for shell substitutions.
 - `volumecheck.py` reads `composeservices.py` for what each service runs, covers and is built
@@ -137,20 +137,22 @@ and the obligation over the descent each recognize a caller.
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
   `SEAM_COUPLINGS`, then `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`,
   `BOUNDS_COUPLINGS`, `SUBAGENT_COUPLINGS`,
-  `MODELHOST_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, `OVERLAY_COUPLINGS`, then
-  `LOG_COUPLINGS` and `TRAIL_COUPLINGS`. Each part is named for its subject: couplings whose
+  `MODELHOST_COUPLINGS`, `IMAGE_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`,
+  `OVERLAY_COUPLINGS`, then `LOG_COUPLINGS` and `TRAIL_COUPLINGS`. Each part is named for its subject: couplings whose
   far side is another tree's code across the language boundary; the address and port each side
   answers on, with every file that dials or states one; the brain container's own shipped
   defaults, restated by a compose default, a runbook row or a module contract; one capture's
   own edge, byte budget and deadlines, which are that same kind narrowed to a single request;
   the four bounds one delegated run stands between, each held to the runbook and the module
   contract that quote it and to no stack at all, since nothing under `docker/` ships one of
-  them; the subagent tier's
-  admission budgets with the cgroup limits that are their hard twins,
-  and the reasoning-off flag pair every server in that tier starts with, held as one
-  needle whose value is the budget's count and whose shape is the two flag names around it; the model-host tier settings
-  and the
-  override that ships them; the email sidecar's three safety answers and the override that spells
+  them; the subagent tier's admission budgets with the cgroup limits that are their hard twins,
+  and the reasoning-off flag pair every server in that tier starts with, held as one needle whose
+  value is the budget's count and whose shape is the two flag names around it; the model-host
+  tier settings and the override that ships them; the two llama.cpp images a server here is
+  started from, declared by the live harnesses that type one and spent by the model host's two
+  build stages and by the three compose services running the CPU build, which are the places
+  `volumecheck.py` reaches at the deployment and nowhere else, leaving a builder stage and three
+  harnesses to be held here; the email sidecar's three safety answers and the override that spells
   each again, with the four texts it composes without reading a message, the `_meta` key it
   declares a sender under, the kind word that declaration carries and the two field names it is
   written under, each held to the brain package that restates or reads it; a stack
