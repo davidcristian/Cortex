@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** A legitimate call on one sidecar that a bound sized for another cuts, or a deployment
 that wants a tight bound on the fast sidecar without loosening the slow one. Neither has happened:
 the only two sidecars this repo ships are a filesystem server measured at 154 ms a call and an
