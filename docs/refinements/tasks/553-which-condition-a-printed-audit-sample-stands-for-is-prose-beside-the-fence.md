@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** a rendered sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a shape other than the one its fields spell, or a whole-line assertion
 added to `brain/packages/tools/tests/test_audit.py` with a field set the runbook's fence does not
@@ -20,17 +21,29 @@ sentence before the fence says the second line is a failure and the fifth a sche
 nothing compares that sentence to the fields on the line it introduces: a fence whose failure line
 and fire line swapped places would pass, with the prose pointing a reader at the wrong shape. Nor
 does anything hold the fence to printing every shape the suite asserts, or the suite to asserting
-every branch the sink has; today the five match by construction, and a sixth whole-line assertion
-added to the suite for a new shape would leave the runbook one short with every gate green, which
-is the coverage question the sample-membership addendum filed as
+every branch the sink has; today the shapes match, and a whole-line assertion added to the suite
+for a new shape would leave the runbook one short with every gate green, which is the coverage
+question the sample-membership addendum filed as
 [R-444](444-nothing-says-which-log-lines-a-runbook-should-print.md) for lines generally.
+
+The two sides do not match one for one, which constrains the coverage rule.
+`scripts/assertedlines.proven` returns six lines for the sink and the fence prints five samples,
+because the suite asserts the plain success shape twice, once for a call carrying an argument and
+once for a dispatch whose caller minted no id, and both lines carry the same field set. So the
+comparison has to be
+between the two sets of field lists, as the trigger above states it, and a rule counting assertions
+against samples would report a shortfall on a tree where nothing is missing.
 
 What a close would cost. The which-shape half wants a grammar for the clause introducing a sample,
 which is the prose-reading the sample gate declined at its founding. The coverage half is a set
 comparison over two readings the tree already makes, the fence's field lists against the suite's,
 and is a few lines in `samplecheck.py` if the rule is that a sink held to its suite has every
 asserted shape printed; whether that rule is right is the question, since a suite may assert a
-line for a reason that is not an operator's.
+line for a reason that is not an operator's. A second question arrives with
+[R-554](554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md): the
+set the suite asserts is the set `assertedlines.py` can read, so widening that reader would grow
+the set a coverage rule compares against, and a runbook printing every shape today would begin
+failing on shapes the reader had not been able to see.
 
 ## Trail
 
@@ -38,3 +51,12 @@ line for a reason that is not an operator's.
   [R-523](523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md),
   whose mutation table holds membership and order per sample and says nothing about which sample
   is which.
+- 2026-09-09: verified against the code, with one count in the body repaired. Neither clause of the
+  trigger has fired. `docs/runbooks/tools-mcp.md` prints five samples of `cortex.tools.audit`, and
+  reading each one's field names against the clause introducing it puts the success first, the
+  failure carrying `error` second, the cortex call carrying `call_id` and `turn_id` third, the
+  delegated call carrying `task_id` fourth and the schedule fire carrying `item_id` fifth, which is
+  the order the sentence above the fence states. The body said the five sides matched one for one;
+  `assertedlines.proven` returns six lines for the sink, over the five distinct field sets the
+  fence prints, and that duplicate is now described above along with what it costs a coverage
+  rule.

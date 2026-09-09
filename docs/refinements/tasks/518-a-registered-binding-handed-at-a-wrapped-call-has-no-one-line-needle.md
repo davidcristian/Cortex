@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** registering a message binding whose call the formatter wraps, which is what
 `cortex_orchestrator/abandon.py` and the no-reading call in `cortex_core/brain_phase.py` would be.
 That is countable by reading every brain log call `logcalls.handed` reports, keeping the ones whose

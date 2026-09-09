@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** A retune of `DEFAULT_TOOL_CALL_TIMEOUT_S` or `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` that
 inverts the shipped pair, which nothing would catch until a deployment turned both tools and
 delegation on. Neither number has moved since it was declared.

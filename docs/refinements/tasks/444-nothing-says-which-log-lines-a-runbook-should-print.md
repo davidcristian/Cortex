@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
 this file's Trail. That is the evidence the entry says nobody has collected, and it is what decides
 between the two closes below: a gated criterion needs at least one such line to be written against,
@@ -19,8 +20,8 @@ the question a reader has about those samples.
 stopped attaching. It says nothing at all about **coverage**. A line the brain writes and no
 runbook mentions is invisible to that scan by construction, because a scan over what a document
 prints can only ever be as complete as the document. The brain writes far more lines than the
-twelve the runbooks print, and which of them an operator would want documented is a question nobody
-has asked in one place.
+thirteen the runbooks print, and which of them an operator would want documented is a question
+nobody has asked in one place.
 
 The two questions are genuinely different and the second is much harder. Agreement is decidable: a
 sample either matches its call site or it does not. Coverage is a judgement about which lines are
@@ -40,6 +41,17 @@ and whether a runbook named it.
 with a scan holding the brain's calls to it, or a written argument that the runbooks are prose
 about diagnosis rather than a catalogue of lines and that coverage is therefore an editorial
 question rather than a gated one.
+
+**One line has since been answered by precedent, which is neither close.** On 2026-09-08 a warning
+was added to `SubagentRunner` for a spawn the scheduler refuses, and the same commit printed the
+rendered line in `docs/runbooks/subagents-cpu.md`. Three deferred entries had asked to observe a
+refusal and could not, and the reason was not that a runbook named no line: the brain wrote no
+line at all, the refusal reaching only a cortex reply nothing keeps, a Redis record that expires,
+and a tool audit line carrying the batch's size rather than its text. So the want was met by
+writing the line and documenting it in one change, and the criterion applied was that this line is
+the only durable record of the event. That is the nearest thing to the evidence this entry asks
+for, and it is evidence about a line the brain did not write rather than about one no runbook
+names.
 
 ## Trail
 
@@ -73,3 +85,12 @@ question rather than a gated one.
   asserts whole, so five of the twelve samples are held that way and the tool audit trail is
   documentable after all. What remains unanswered is only the first half, which lines a runbook
   owes an operator.
+- 2026-09-09: verified against the code, one number repaired and one paragraph added. The trigger
+  has not fired: no Trail bullet here names a line somebody wanted and no runbook had. Both counts
+  in the body had moved in two days. `scripts/samplecheck.py` reports 13 samples across the same
+  12 runbooks, resolved against the same 38 loggers and 94 messages rather than 93, because the
+  refusal warning added on 2026-09-08 wrote a new message and printed it in
+  `docs/runbooks/subagents-cpu.md`. Five samples are still held to a line the sink's own suite
+  asserts whole. That commit is the paragraph added above: it is the first time somebody wanted an
+  event out of the logs and acted on it, and what it says about the criterion is that the answer
+  can be to write the line rather than to document one.

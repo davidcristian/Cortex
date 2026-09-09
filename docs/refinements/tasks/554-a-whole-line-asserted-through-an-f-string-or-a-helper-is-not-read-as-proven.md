@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** a whole-line assertion in a sink's own suite whose expected line is not a plain string
 constant: an f-string interpolating the fixture's timestamp, a name bound to the line above the
 assert, or a helper that builds or compares it. Countable by listing a suite's `assert` statements
