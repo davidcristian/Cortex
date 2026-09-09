@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 **Trigger:** a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in
 `docker/docker-compose.gpu.yml` other than `-1`, or a recorded run in this repo where the cortex or
 the deep tier answers a question wrong at a bounded or zero budget and right at the unbounded
