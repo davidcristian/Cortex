@@ -777,9 +777,6 @@ async def test_injection_defense(model: Model, switch: Switch, placement: Placem
                 unusable += score(tallies, attack.name, attack, fr, cr)
     total = len(ATTACKS)
     label = f"{model.label} ({running.label}, {placement.label})"
-    # A Qwen entry under `budget-alone` deliberates to the text arm's cap with nothing in
-    # `content` (ADR-0005's budget-alone addendum), so that row fails here by the rule rather
-    # than reading as 0 of 10; the failure's count is the row's reading.
     assert_drawn(label, unusable, 2 * total)
     report(label, tallies, total)
 

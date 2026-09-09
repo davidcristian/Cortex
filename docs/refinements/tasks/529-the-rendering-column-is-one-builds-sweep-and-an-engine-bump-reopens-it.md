@@ -7,6 +7,7 @@ by the gpu override's model-host base image or by the subagents override moving 
 build, since the column is a property of one build's chat handlers and a handler that started
 gating its reasoning rule on `enable_thinking` would break it with nothing reporting the break.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-02 by the close of
 [R-510](510-nine-rows-of-the-rendering-column-are-hand-read.md), which read every row of the
@@ -58,3 +59,15 @@ opened this read them on the card.
   no `pull_policy` set anywhere, compose keeps the cached images here and a machine holding none
   already starts a different build. The ADR-0005 engine-tag addendum records the comparison and the
   two commands that redo it.
+
+- 2026-09-09: the trigger has still not fired, and the two readings behind that answer have both
+  moved. The cached images are the same two digests, `sha256:952424b09abc` for `server-cuda` and
+  `sha256:db057ec90de0` for `server`, and both still report `build 10680, commit d7bd3bfca`, but
+  the tags now resolve to `sha256:a292d888ae50` and `sha256:8cbb24c55af0`, a second move past the
+  pair the bullet above read. The other reading is a trap for whoever answers this next: the built
+  `cortex-model-host` image on this host reports `build 10615, commit f280b2698`, older than the
+  base tag it was built from, because it is two weeks old and nothing rebuilds it on its own. It
+  is not a bump. `just up-gpu` passes `--build`, and the runtime stage of
+  [brain/Dockerfile.modelhost](../../../brain/Dockerfile.modelhost) is the base image itself with
+  a venv copied in, so the recipe starts whatever the cached base carries. Read the base, not the
+  image built from it.
