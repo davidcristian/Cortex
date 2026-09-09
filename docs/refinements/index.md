@@ -65,7 +65,7 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-5 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+9 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (13)
 
@@ -75,13 +75,13 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-604](tasks/604-the-advisory-probes-arms-part-by-fourteen-draws.md)** The dialog probe's two arms part by fourteen draws, in the direction the defence is not for (vision). Its claim was re-derived from the code on 2026-09-09.
 - **[R-605](tasks/605-the-bare-probe-rests-on-one-sitting.md)** The unstyled probe carries half the square's answer and has one sitting behind it (vision). Its claim was re-derived from the code on 2026-09-09.
 - **[R-606](tasks/606-the-alt-reports-the-dialogs-rule-in-grammar-the-tail-reading-sorts-as-applied.md)** The alt reports the dialog's rule in grammar the tail reading sorts as applied (vision). Its claim was re-derived from the code on 2026-09-09.
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Eighteen of the cortex alt's twenty-three pixel rows are undrawn (inference).
-- **[R-608](tasks/608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md)** The cost row's assertions are the pick's saturation and the alt fails both (inference).
-- **[R-611](tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md)** Nothing reads the build the engine names on every response (inference).
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Twenty of the cortex alt's twenty-five pixel rows are undrawn (inference). Its claim was re-derived from the code on 2026-09-09.
+- **[R-608](tasks/608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md)** The cost row's assertions are the pick's saturation and the alt fails both (inference). Its claim was re-derived from the code on 2026-09-09.
+- **[R-611](tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md)** Nothing reads the build the engine names on every response (inference). Its claim was re-derived from the code on 2026-09-09.
 - **[R-612](tasks/612-the-plain-cells-obeyed-direction-is-unmeasured-at-280-draws-an-arm.md)** The plain cell's obeyed direction is unmeasured at 280 draws an arm (vision). Its claim was re-derived from the code on 2026-09-09.
 - **[R-613](tasks/613-the-engine-budgets-deep-row-is-drawn-for-one-rendering-of-three.md)** The engine budget's deep row is drawn for one rendering of three (vision). Its claim was re-derived from the code on 2026-09-09.
 - **[R-615](tasks/615-nothing-reads-a-subagent-result-back-from-the-store.md)** Nothing reads a subagent result back from the store (resource-governance).
-- **[R-617](tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md)** The pick's published CPU row was drawn before the memory cap (inference).
+- **[R-617](tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md)** The pick's published CPU row was drawn before the memory cap (inference). Its claim was re-derived from the code on 2026-09-09.
 
 ### Actionable, once a seam or port changes (7)
 
@@ -442,7 +442,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - [R-586](tasks/586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md) The cortex alt's pixel rows are undrawn now that its artifact loads. landed 2026-09-07.
 - [R-587](tasks/587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md) One cell reads differently in the two rows of one sitting. landed 2026-09-06.
 - [R-598](tasks/598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md) The leak's denominator is 53 in the runbook and 58 in the three other places that publish it. landed 2026-09-08.
-- [R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md) Eighteen of the cortex alt's twenty-three pixel rows are undrawn. open, actionable.
+- [R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md) Twenty of the cortex alt's twenty-five pixel rows are undrawn. open, actionable.
 - [R-608](tasks/608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md) The cost row's assertions are the pick's saturation and the alt fails both. open, actionable.
 - [R-611](tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md) Nothing reads the build the engine names on every response. open, actionable.
 - [R-617](tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md) The pick's published CPU row was drawn before the memory cap. open, actionable.
