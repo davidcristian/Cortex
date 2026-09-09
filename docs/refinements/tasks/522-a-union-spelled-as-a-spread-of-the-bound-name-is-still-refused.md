@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-09
 **Trigger:** a brain log call spelling its union as `{**extra, "shortfall": ...}` over a name
 bound above it, rather than as `extra | {...}`, which is the spelling the deep phase writes today.
 That is countable by reading the `extra=` of every log call in the brain's source and sorting them
