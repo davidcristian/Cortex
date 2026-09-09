@@ -3,6 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-09
 
 Opened 2026-09-08 by the close of
 [R-600](600-the-plain-cells-application-rate-is-measured-and-its-direction-is-not.md), which drew
