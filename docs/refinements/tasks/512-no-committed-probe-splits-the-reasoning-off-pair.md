@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-10
 
 Opened 2026-08-30 by the close of
 [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), which is the second sitting in
@@ -48,7 +48,10 @@ reason `scripts/contrast.py`, `scripts/envelopefloor.py` and `scripts/switchtail
 arithmetic behind a published claim: a number a document quotes should come out of something a gate
 runs. `brain/packages/inference/tests/test_thinking_switch_live.py` is **not** the home for the
 request half: its control asserts that the no-switch arm deliberated, which a correctly flagged
-server will not do.
+server will not do. The seed half is a decision before it is a knob, and the 2026-09-10 trail
+entry below says which: a field on `GenerationBounds` no deployment sets, or a request the harness
+posts beside the runner's, which costs the property that harness exists for. Closing this means
+picking one and writing down why, not adding a knob to both halves.
 
 ## Trail
 
@@ -73,3 +76,15 @@ server will not do.
   `b10666-4e97ac86e` to `b10680-d7bd3bfca` and the rates were re-derived on the newer build by two
   scratch files, which is the cost the trigger named and the bullet above records without noticing
   it was the trigger.
+- 2026-09-10: held to the code again, and the seam half is wrong. Two committed live probes have
+  sent llama.cpp a `seed` since 2026-09-06, `_draw` in
+  [test_uid_reading_live.py](../../../brain/packages/orchestrator/tests/test_uid_reading_live.py)
+  and the same shape in `test_unfenced_correction_live.py`, and the first of them runs two arms over
+  the same twenty seeds, which is exactly the pairing this entry says no committed file can report.
+  So what survives is narrower than "nothing here sends a seed": it is that the **envelope** harness
+  cannot send one without leaving the shipped path. It runs the real `SubagentRunner`, `PlacedAttempt`
+  builds the request, and `GenerationBounds` has no seed field, so seeding it is either a port
+  change on a field no deployment would set, or a request the harness posts itself, which costs the
+  one property that harness exists for. The request half is unchanged: `GenerationBounds.trace_tokens`
+  exists and `_Recording.substitute` already rewrites the schema on the way past, so
+  `CORTEX_ENVELOPE_TRACE_TOKENS` is the same instrument aimed at a second field.
