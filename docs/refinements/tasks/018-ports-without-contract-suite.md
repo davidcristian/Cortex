@@ -4,6 +4,7 @@
 **Area:** repo-gates
 **Origin:** [ADR-0001](../../adr/ADR-0001-architecture.md)
 **Trigger:** The next port to gain a shared check list, or the first drift caught in the wild.
+**Verified:** 2026-09-11
 
 Opened 2026-08-10 by the sweep that followed the `MemoryStore` contract
 fix out to every port in both languages, recorded with its full inventory in the
@@ -26,8 +27,9 @@ run one.
 
 **The Rust workspace has no shared check list for any port**, and the shape there is worse
 than a restated list, being a restated fake: `FakeAudio`, `FakeNotify`, `FakeScreen` and
-`FakeBrain` are each hand-written twice with independent expectations, once under
-`body/crates/core/tests/` and again under `body/crates/rpc/tests/`. The generic helpers that
+`FakeBrain` are each hand-written twice with independent expectations, the first three once
+under `body/crates/core/tests/` and again under `body/crates/rpc/tests/`, and `FakeBrain` twice
+within `body/crates/rpc/tests/`, in `converse.rs` and in `client.rs`. The generic helpers that
 look like the missing driver (`register_via`, `get_via`, `show_via`, `capture_via`, `probe`)
 hold no assertions at all; they prove the trait is usable as a bound. The real OS adapters
 are `cfg(windows)` and so are neither compiled nor run by CI, which is gate 3 and not a
@@ -259,13 +261,13 @@ serves, where the adapter rejects one its manager cannot lease. The whole accoun
 seven breaks that proved the list able to fail and the eighth that deliberately did not, is the
 [ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day.
 
-**The trigger below counts nine and the tree now holds sixteen**, which is the entry's own text
-aging rather than a defect in it: fifteen in Python, fourteen named `*_contract.py` plus
+**The trigger below counts nine and the tree now holds seventeen**, which is the entry's own text
+aging rather than a defect in it: sixteen in Python, fifteen named `*_contract.py` plus
 `session/tests/contract.py`, and the overlay's `bridgeContract.ts`. The trigger keeps its
 wording because the arrangement it points at is unchanged and the number was true when it was
 written; the count that matters to the next reader is here and in the ADR tables.
 
-**What is left is every Rust row**, and nothing else: the four OS ports whose fakes are
+**What is left is every Rust row**, and nothing else: the four OS ports, three of whose fakes are
 hand-written twice in two crates, `BrainTransport` with three independent suites over one
 eleven-method trait, and the two small ones beside them. The Python half and the overlay are
 done, so this entry is now one language wide.
@@ -338,3 +340,20 @@ shared list would have named.
   opened [R-280](280-twin-answers-for-any-model-id.md). The Python half of this entry and the
   overlay are now done, so what remains is every Rust row, where the fakes themselves are still
   hand-written twice in two crates.
+- 2026-09-11: read against the tree, and the first arm of the trigger has fired a second time
+  without the entry closing. `Mailbox`, the email package's port, gained
+  `brain/packages/email/tests/mailbox_contract.py` on 2026-08-19, and its driver runs the list
+  over `FakeMailbox` and over `ImapMailbox` on a stand-in box through `pytest.mark.parametrize`,
+  which is the arrangement the trigger asks for. A second list over `ToolRegistry`, the own-text
+  rule in `tools/tests/test_own_text_contract.py`, followed on 2026-09-02 over the fake and the
+  real MCP registry. So the count is seventeen, sixteen in Python and the overlay's, and the body
+  above now says so. The inventory table at the origin decision does not carry the `Mailbox`
+  row; whoever lands the Rust half should add it. Every Rust claim was re-read: `FakeAudio`,
+  `FakeNotify` and `FakeScreen` are still written once under `core/tests/` and once in
+  `rpc/tests/body_server.rs`, `FakeHotkey` once, and both copies of `FakeBrain` have sat in
+  `rpc/tests/` since 2026-07-01, in `converse.rs` and `client.rs`, so the sentence placing one of
+  them under `core/tests/` was wrong on the day it was written and is repaired above; the core's
+  own stand-in there is `FakeTransport`. `BrainTransport` still has eleven methods and three
+  suites, the five generic helpers are still where they were, no file under `body/crates/` is
+  named for a contract, and the overlay's coverage exclude still names `main.tsx` and
+  `tauriBridge.ts` as its only source files.
