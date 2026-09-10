@@ -4,6 +4,7 @@
 **Area:** resource-governance
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 **Trigger:** a user asking why they were asked to approve a deep task that then did not happen, or a deployment configuring escalation without a deep artifact for long enough that the card becomes a nuisance.
+**Verified:** 2026-09-10
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
@@ -29,3 +30,16 @@ question the tier-sweep close settled about what that record is for, or the wrap
 conductor's own answer for the turn that follows it, which is a cache with the same invalidation
 problem the close argued its way out of. Neither is obviously right, and both cost more than the
 one confirm card they save.
+
+## Trail
+
+- 2026-09-10: read against the tree and still not fired. The advertisement is still config alone:
+  `build_builtin_tools` appends `EscalateToBrainTool()` on an `escalation` flag the composition
+  root sets from `CORTEX_ESCALATION`, nothing there asks the model host which tiers it carries, and
+  `config_tools.gate_reason_map` still merges one static `ESCALATE_GATE_REASON` into the card's
+  reasons. So a deployment with escalation on and no deep artifact still advertises the tool, still
+  shows the card, and still gets the conductor's refusal after the approval. Nothing has fired,
+  because the handoff is off unless `CORTEX_ESCALATION` is set and no compose file here sets it;
+  `docker/docker-compose.gpu.yml` carries the setting only as a comment telling an operator what to
+  add, and it says in the same block that a tier with no artifact file answers 404 rather than
+  spawning a doomed process.

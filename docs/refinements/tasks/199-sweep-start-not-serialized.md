@@ -4,6 +4,7 @@
 **Area:** resource-governance
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 **Trigger:** A handoff refused at its fit check with a peer a retry pass had just started.
+**Verified:** 2026-09-10
 
 The sweep's start is fenced against a handoff but not serialized with one.
 Opened 2026-08-11 by the close above, which owns the fence and says plainly what the
@@ -29,3 +30,8 @@ evidence that the window is wide enough to reach.
   does not cover. The residual was taken because nothing is lost and no record is corrupted, and the
   obvious primitive is refused for a reason that has not changed, taking the GPU lease for the start
   parking a user's turn behind a control call.
+- 2026-09-10: read against the tree and still not fired. `residency_sweep.py` still calls
+  `fence()` synchronously and returns when it answers false, immediately before the one
+  `await host.start(model)` in the module, so the start is fenced and nothing orders it against a
+  handoff that begins after the check. The trigger asks for an observed refusal in a deployment,
+  and the handoff is off unless `CORTEX_ESCALATION` is set, which no compose file here sets.

@@ -4,6 +4,7 @@
 **Area:** seam-transport
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 **Trigger:** a real deployment where a disconnect during a swap holds a teardown long enough to matter.
+**Verified:** 2026-09-10
 
 A disconnect mid handoff blocks the stream's teardown until the cortex is back.
 Opened 2026-07-17 by the brain-handoff conductor sub-slice
@@ -39,3 +40,10 @@ in-flight-turn lifecycle above, not on its own.
   trigger as a deployment where that wait holds a teardown long enough to matter.
 - 2026-08-09: a trigger sweep of the fix-when-it-bites bucket ran against the tree and fired
   nothing.
+- 2026-09-10: read against the tree and still not fired. Both halves of the mechanism are where
+  this entry left them: `ResidencyController.swap_scope` still ends in a `finally` that awaits
+  `restore_uninterruptibly(self._restore(model))`, and `ConverseStream._cancel_turn` still ends in
+  `await asyncio.wait([turn])`, so a cancellation during a swap still holds the RPC's teardown for
+  the length of the restore. The trigger asks for a deployment, and this repo has none: the handoff
+  is off unless `CORTEX_ESCALATION` is set, no compose file sets it, and the only place it is
+  written is a comment in `docker/docker-compose.gpu.yml` telling an operator what to add.
