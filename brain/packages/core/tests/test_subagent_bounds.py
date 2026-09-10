@@ -319,7 +319,7 @@ async def test_a_subagent_that_never_stops_talking_is_stopped_at_its_deadline() 
     assert "still generating after 0.25s" in result.detail
     assert "narrow it before delegating it again" in result.detail
     assert backend.chunks > 0  # it really did run away rather than failing to start
-    assert await store.get_result("t1") == result  # the cortex reads it back from the store
+    assert await store.get_result("t1") == result  # the stop is persisted, not only returned
 
 
 async def test_the_cortex_can_tell_a_stopped_run_from_a_short_answer() -> None:

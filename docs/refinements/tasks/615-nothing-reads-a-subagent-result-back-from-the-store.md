@@ -1,9 +1,8 @@
 # Nothing reads a subagent result back from the store
 
-**Status:** open, actionable
+**Status:** landed 2026-09-10
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-08 by the close of
 [R-614](614-a-refused-spawn-reaches-no-log-line.md), which re-derived the task record's lifetime and
@@ -45,6 +44,24 @@ and finish rather than re-spawn, which is the resume path the docstrings already
 nothing implements. The second subsumes the first, so the cheap repair is worth doing only if the
 resume path is not being built soon.
 
+**What closed it: the repair, because the resume path is not a slice.** Nothing resumes a turn at
+all. `handle_turn` holds the conversation in its own frame, the overlay's `Converse` stream dies
+with the process, and a restarted brain has no record that a turn was in flight, so a subtask
+result read back out of Redis would have nowhere to go. Two entries already carry that half,
+[R-023](023-converse-reconnect-first-event.md) and
+[R-112](112-resume-crashed-handoff.md), and both wait on request identity, which the brain spells
+nowhere. The resume path is filed on its own terms as
+[R-621](621-a-delegating-turn-cannot-be-resumed-from-the-store.md), which also records the two
+things it needs that do not exist: a turn's record of the ids it spawned, and a record lifetime
+re-decided for a read taken after the queue rather than before it.
+
+The repair reached one more place than this entry counted and one fewer. `SubagentResult`'s own
+docstring in [subagents.py](../../../brain/packages/core/src/cortex_core/subagents.py) opened
+"persisted for the cortex to read", which the entry missed.
+[brain-core.md](../../modules/brain-core.md) does not repeat the port's sentence, listing the four
+signatures without it, so what it gained instead is the uneven pair: `get_task` has one caller,
+`SubagentRunner.run`, taken once before it admits, and `get_result` has none.
+
 ## Trail
 
 - 2026-09-08: opened by the close of
@@ -57,3 +74,13 @@ resume path is not being built soon.
   still 3600. What the entry undercounted is where the absent read is written down: three comments
   in the core suite say it as well as the port docstring and the module doc, so the cheap repair
   costs three test lines beyond the paragraph.
+- 2026-09-10: landed as the repair. The port docstring in
+  [ports_stores.py](../../../brain/packages/core/src/cortex_core/ports_stores.py), the
+  `SubagentResult` docstring, the two comments in
+  [test_runner.py](../../../brain/packages/core/tests/test_runner.py) and the one in
+  [test_subagent_bounds.py](../../../brain/packages/core/tests/test_subagent_bounds.py) now say the
+  result is persisted as well as returned; [brain-core.md](../../modules/brain-core.md) states
+  which of the two reads has a caller; and the
+  [ADR-0010](../../adr/ADR-0010-subagents.md) addendum on decision 5's last clause records why the
+  decision text stays as written. Opened
+  [R-621](621-a-delegating-turn-cannot-be-resumed-from-the-store.md).

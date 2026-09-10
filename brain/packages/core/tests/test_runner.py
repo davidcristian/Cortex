@@ -600,7 +600,7 @@ async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception(
     assert " task_id=t1" in line
     assert "exceeds the whole budget" in line  # the operator reads what the cortex was told
     assert not backend.seen  # refused before running means no inference was ever issued
-    assert await store.get_result("t1") == result  # the cortex reads it back from the store
+    assert await store.get_result("t1") == result  # the refusal is persisted, not only returned
     # Placement is inside admission, so a refusal reserved no VRAM either: headroom is intact.
     assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
 
@@ -661,7 +661,7 @@ async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too(
     # hour after a spawn may have queued for two, so the log is what outlives the wait.
     assert "outlasts the deployment's admission bound" in _refusal_line(caplog)
     assert not backend.seen  # refused before running means no inference was ever issued
-    assert await store.get_result("t1") == result  # the cortex reads it back from the store
+    assert await store.get_result("t1") == result  # the refusal is persisted, not only returned
     # Placement is inside admission, so a wait refused at the bound reserved no VRAM either.
     assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
 

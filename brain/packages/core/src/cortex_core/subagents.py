@@ -161,7 +161,7 @@ ATTEMPTS_PER_ADMISSION = 2
 
 @dataclass(frozen=True, slots=True)
 class SubagentResult:
-    """A subagent's outcome, persisted for the cortex to read.
+    """A subagent's outcome, handed back to the spawning turn and persisted by task id.
 
     ``output`` is the answer text. ``ok`` is False when the subagent could not complete (e.g.
     its inference failed or the task vanished), ``detail`` carrying the reason. This mirrors

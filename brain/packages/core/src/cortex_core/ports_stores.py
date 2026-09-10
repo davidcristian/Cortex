@@ -99,9 +99,11 @@ class TaskStore(Protocol):
 
     A subagent is a stateless function over this store: ``put_task`` persists the delegated
     task, ``get_task`` loads it by id (the runner reads only the store, never cortex memory),
-    ``put_result`` persists the outcome, and ``get_result`` returns it for the cortex to read
-    (``None`` until the subagent has finished). Task state lives here, never in a model process, per
-    the one hard rule, for delegation. Failures surface as ``TaskStoreError``.
+    ``put_result`` persists the outcome, and ``get_result`` reads one back by id (``None``
+    until the subagent has finished). Nothing in the brain calls ``get_result``: the spawning turn
+    is handed its batch in memory, so the result key is the operator's record and what a resume
+    path would read (ADR-0012 record-lifetime addendum). Task state lives here, never in a model
+    process, per the one hard rule, for delegation. Failures surface as ``TaskStoreError``.
     """
 
     async def put_task(self, task: SubagentTask) -> None: ...

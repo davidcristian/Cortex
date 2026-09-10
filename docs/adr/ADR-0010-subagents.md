@@ -424,3 +424,29 @@ a cost-denominated cap.
 
 Both readings are recorded in
 [docs/refinements/index.md#tools-mcp](../refinements/index.md#tools-mcp).
+
+## Addendum (2026-09-10): decision 5's last clause describes a read nothing performs
+
+Decision 5 says the runner "persists a `SubagentResult` (task id, output, ok, detail) back, and the
+cortex reads the result from the store". The first half is what `SubagentRunner._persist` does. The
+second half has never been built. `TaskStore.get_result` has no production call site:
+`SpawnSubagentsTool.invoke` builds the batch's aggregate from the `SubagentResult` list
+`asyncio.gather` returns and formats that, so the result key is written and then read only by a
+test and by an operator with `redis-cli`. The record-lifetime addendum in
+[ADR-0012](ADR-0012-resource-governance.md) already said so while tracing the TTL. What it did not
+do is repair the places that stated the design as though it described the code.
+
+Four of them did, and their repair lands here. `TaskStore`'s docstring in `ports_stores.py` said
+`get_result` "returns it for the cortex to read"; `SubagentResult`'s docstring in `subagents.py`
+opened "persisted for the cortex to read"; and three assertions, two in `test_runner.py` and one in
+`test_subagent_bounds.py`, carried the comment "the cortex reads it back from the store" beside a
+read the fake store answers. Each now says what the store holds rather than who reads it: the
+result is persisted as well as returned, and `get_result` reads one back by id.
+[docs/modules/brain-core.md](../modules/brain-core.md) listed the port's signatures without the
+claim, so it gained the uneven pair instead, that `get_task` has one caller and `get_result` none.
+
+The decision text stays as written. It records the design that was decided rather than a report on
+the code, and the resume path it names is still worth building: a delegating turn that survived an
+orchestrator restart would find its subtasks' results in the store and finish rather than re-spawn,
+which is the reader the result half has never had. What was missing is a task for it, filed now
+under [docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance).
