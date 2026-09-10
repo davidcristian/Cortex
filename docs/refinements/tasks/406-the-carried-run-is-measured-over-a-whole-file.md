@@ -5,6 +5,7 @@
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** A reader acting on the quoted run and editing the wrong line, or a mention whose
 template has to span more than one line, which would make a per line run the only kind there is.
+**Verified:** 2026-09-10
 
 Opened 2026-08-23 by the close of
 [R-403](403-a-needles-literal-reddens-the-wrong-entry.md), which measured this while writing the
@@ -34,3 +35,12 @@ built to reject one either. So the change needs a decision about whether a menti
 file or about a line, and that decision reaches `Mention.occurrences`, which counts over a file
 today. Re-derive before starting: this description is a reading of `scripts/needles.py` and
 `scripts/crosscheck.py` as they stood the day it was written.
+
+## Trail
+
+- 2026-09-10: re-derived, as the paragraph above asks, and still not fired. `needles.carried` still
+  grows the run one character at a time against the whole of `text` and takes no line number, and a
+  `Mention` still names a path rather than a line, so both halves of the limitation stand as
+  written. No mention in the registry renders a multi-line template, which is the other half of the
+  trigger. Nobody has been misled by a quoted run either, there being no recorded instance of one
+  being acted on.

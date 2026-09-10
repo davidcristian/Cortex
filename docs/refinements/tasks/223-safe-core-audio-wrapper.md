@@ -8,6 +8,7 @@
 `grep -n unsafe body/crates/os_windows/src/audio.rs`: four `unsafe` blocks, one `unsafe fn`, and the
 module's scoped allow, six sites as of 2026-09-08. The trigger has fired when a crate can carry all
 six and still resolve the default render endpoint on every call.
+**Verified:** 2026-09-10
 
 Body gateway & OS actions in Slice 9 ([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)): each
 behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
@@ -54,3 +55,10 @@ deleted, and the result validated on a Windows desktop the way the backend itsel
 - 2026-09-08: Trigger rechecked and not fired. The claim that a safe crate would retire the
   exception was repaired: it would retire one of four scoped allows, not the crate-level opt-out.
   The stale three-module count was fixed in the manifest and the module doc.
+- 2026-09-10: the prescribed grep was run again and every count it names is unchanged, so this
+  entry now carries the date on its own field. `audio.rs` is still 113 lines with four `unsafe`
+  blocks, one `unsafe fn` and one scoped allow; the four modules carrying an allow are still
+  `audio`, `notify`, `screen` and `focus`; and the two levels are still `forbid` in
+  `body/Cargo.toml` and `deny` in the crate's own. Nothing safe has been adopted for Core Audio:
+  the crate's only dependencies under `cfg(windows)` are `body-core`, `global-hotkey` and the
+  `windows` crate whose `Win32_Media_Audio` features are what the `unsafe` calls into.

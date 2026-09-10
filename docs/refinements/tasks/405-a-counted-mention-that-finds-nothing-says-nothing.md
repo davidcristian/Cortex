@@ -5,6 +5,7 @@
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** A mention pinning an occurrence count going to zero found, which is a counted
 far side losing every one of its occurrences at once rather than one of them.
+**Verified:** 2026-09-10
 
 Opened 2026-08-23 by the close of
 [R-403](403-a-needles-literal-reddens-the-wrong-entry.md), which made an unfound needle's
@@ -33,3 +34,13 @@ The care it needs is that the two facts must not be run together into a sentence
 needle was found some number of times when it was found none: the count is what the registry asked
 for, and zero is what the file said. A branch there needs a test that drives it, and the suite
 already builds a counted mention that finds nothing.
+
+## Trail
+
+- 2026-09-10: read against the tree and still not fired. `check_mention` still splits on
+  `wanted is None`, still sends only the uncounted branch through `needles.unfound`, and the
+  counted branch still raises the sentence this entry quotes, with no reading of which literal
+  moved. The two counted mentions over `docs/runbooks/body-volume.md` are still pinned at two
+  occurrences in `scripts/endpointcouplings.py`, and three more counted mentions sit beside them
+  there. Nothing has gone to zero: `crosscheck` passed today over 91 constants, 109 declaring
+  sites and 296 mentions, 25 of them pinned to a count.
