@@ -1,5 +1,3 @@
-"""Behavior tests for SubagentRunner: a stateless function over the TaskStore (ADR-0010/0018)."""
-
 import asyncio
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
@@ -44,20 +42,18 @@ from cortex_core import (
 from cortex_core.subagent_reply import REPLY_INSTRUCTION
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
-# The logger the runner's own module owns, named here so the refusal tests pin the line's logger
-# the way an operator greps for it.
 _RUNNER_LOGGER = "cortex_core.runner"
 
 
 class FixedClock:
-    """A clock pinned to one instant. The runner only needs it to stamp tool messages."""
+    """A clock fixed at one instant."""
 
     def now(self) -> datetime:
         return _AT
 
 
 class TextBackend:
-    """Yields fixed text deltas and records the messages it was handed."""
+    """Yields fixed text deltas and keeps the messages it was handed."""
 
     def __init__(self, deltas: Sequence[str]) -> None:
         self._deltas = deltas
@@ -79,7 +75,7 @@ class TextBackend:
 
 
 class ScriptedBackend:
-    """Replays a per-step list of events (text deltas and/or tool calls)."""
+    """Replays a per-step list of events: text deltas, tool calls, or both."""
 
     def __init__(self, steps: Sequence[Sequence[InferenceEvent]]) -> None:
         self._steps = list(steps)
@@ -120,7 +116,7 @@ class FailingBackend:
 
 
 class SchemaRecordingBackend:
-    """Records the schema and the messages it was handed and yields fixed text (ADR-0028)."""
+    """Records the schema and the messages it was handed, and yields fixed text."""
 
     def __init__(self, deltas: Sequence[str]) -> None:
         self._deltas = deltas
@@ -175,7 +171,6 @@ def _runner(
     tools: ToolDispatcher | None = None,
     constrain_output: bool = False,
 ) -> SubagentRunner:
-    # Both targets route to the one backend; the placer picks GPU (headroom 14 - 11 = 3 >= 2).
     placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
     roster = _roster(_resources(backend, backend, placer))
     return SubagentRunner(
@@ -189,19 +184,14 @@ async def test_runs_a_plain_task_and_persists_the_result() -> None:
     backend = TextBackend(["sum", "mary"])
     result = await _runner(store, backend).run("t1")
     assert (result.task_id, result.ok, result.output) == ("t1", True, "summary")
-    assert result.tainted is False  # a tool-less subagent reads no untrusted content
-    # The cortex reads the outcome back from the store, not from the runner's return.
+    assert result.tainted is False
     assert await store.get_result("t1") == result
-    # No context -> a single user message carrying the instruction.
     (messages,) = backend.seen
     assert [m.role for m in messages] == [Role.USER]
     assert messages[0].text == "summarize"
 
 
 async def test_reasoning_deltas_are_dropped_from_the_subagent_output() -> None:
-    """A reasoning delta (ADR-0020) is ephemeral status rather than the answer. The subagent
-    tier runs with thinking off, and the runner drops any reasoning that arrives anyway rather
-    than folding it into the output."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="add", context="", at=_AT))
     backend = ScriptedBackend([[ReasoningChunk("thinking..."), TextChunk("42")]])
@@ -231,7 +221,7 @@ async def test_inference_failure_becomes_a_failed_result_with_partial_text() -> 
     await store.put_task(SubagentTask(id="t3", instruction="go", context="", at=_AT))
     result = await _runner(store, FailingBackend()).run("t3")
     assert result.ok is False
-    assert result.output == "partial "  # text produced before the failure is kept
+    assert result.output == "partial "
     assert "backend exploded" in result.detail
     assert await store.get_result("t3") == result
 
@@ -253,8 +243,7 @@ async def test_tools_enabled_subagent_dispatches_and_audits_its_calls() -> None:
     result = await _runner(store, backend, tools=dispatcher).run("t4")
     assert result.ok is True
     assert result.output == "looking... done"
-    assert result.tainted is True  # it read an untrusted tool result -> the result is tainted
-    # The subagent's own tool call went through the same audited dispatcher.
+    assert result.tainted is True
     (audit,) = sink.records
     assert (audit.name, audit.ok, audit.detail) == ("read", True, "read /x")
 
@@ -263,9 +252,6 @@ _DESCRIBED_READ = ToolSpec(name="read", description="Read a file", parameters={}
 
 
 async def test_a_tools_enabled_subagents_tool_steps_reach_the_progress_sink() -> None:
-    # Each audited step the subagent runs surfaces onto the spawning stream's sink as a
-    # ToolActivity (ADR-0010 progress addendum), so the overlay's chip shows the delegated
-    # work. Both fields are the matched ToolSpec's, never the model's call or its arguments.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t", instruction="read x", context="", at=_AT))
     backend = ScriptedBackend(
@@ -286,9 +272,6 @@ async def test_a_tools_enabled_subagents_tool_steps_reach_the_progress_sink() ->
 
 
 async def test_a_tainted_subagents_progress_carries_only_the_registry_summary() -> None:
-    # The read tool returns UNTRUSTED content, so the result taints, but the surfaced step is the
-    # spec's own name/description, never the untrusted bytes: the sink is not a laundering channel
-    # the ADR-0015 guardrail never inspects, the exact argument the cortex's ToolActivity makes.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t", instruction="read x", context="", at=_AT))
     backend = ScriptedBackend(
@@ -304,16 +287,14 @@ async def test_a_tainted_subagents_progress_carries_only_the_registry_summary() 
     )
     progress = RecordingProgressSink()
     result = await _runner(store, backend, tools=dispatcher).run("t", progress=progress)
-    assert result.tainted is True  # it consumed untrusted content
+    assert result.tainted is True
     (step,) = progress.events
     assert isinstance(step, ToolActivity)
     assert step == ToolActivity(tool_name="read", summary="Read a file")
-    assert "secret" not in step.summary  # the untrusted result never reached the chip
+    assert "secret" not in step.summary
 
 
 async def test_a_tool_less_subagent_emits_no_progress_even_with_a_sink() -> None:
-    # A tool-less subagent yields no ToolStep, so a handed sink stays empty: only real audited
-    # steps surface, never the reply text or a phantom activity.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT))
     progress = RecordingProgressSink()
@@ -325,7 +306,7 @@ async def test_a_tool_less_subagent_emits_no_progress_even_with_a_sink() -> None
 def _reading_runner(
     store: InMemoryTaskStore, backend: InferenceBackend, sink: RecordingAuditSink
 ) -> SubagentRunner:
-    """A tools-enabled runner over one `read` tool, sharing the caller's audit sink."""
+    """A runner with one ``read`` tool, sharing the caller's audit sink."""
     registry = InMemoryToolRegistry(
         {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
     )
@@ -344,24 +325,18 @@ def _two_call_backend() -> ScriptedBackend:
 
 
 async def test_a_handed_budget_is_what_the_subagents_dispatches_come_out_of() -> None:
-    # The turn-wide property at the runner (ADR-0009 turn-wide addendum): a subagent spawned by
-    # a cortex turn spends that turn's pool, so its calls stop when the turn's allowance does
-    # rather than when a private count of its own would have.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t9", instruction="read x", context="", at=_AT))
     sink = RecordingAuditSink()
     pool = DispatchBudget(limit=1)
     result = await _reading_runner(store, _two_call_backend(), sink).run("t9", budget=pool)
     assert result.ok is True
-    assert pool.spent == 1  # charged against the caller's pool, not a private one
+    assert pool.spent == 1
     assert [record.ok for record in sink.records] == [True, False]
     assert sink.records[1].detail == BUDGET_EXHAUSTED_MSG
 
 
 async def test_a_run_with_no_spawning_turn_gets_its_own_allowance() -> None:
-    # The ticker's fire (ADR-0025) dispatches spawn_subagents directly, outside any tool loop,
-    # so its stamp carries no pool. That run is its own root and must still be able to dispatch,
-    # while a run handed an exhausted pool must not: both branches of the same fallback.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="rooted", instruction="read x", context="", at=_AT))
     await store.put_task(SubagentTask(id="starved", instruction="read x", context="", at=_AT))
@@ -370,7 +345,7 @@ async def test_a_run_with_no_spawning_turn_gets_its_own_allowance() -> None:
     dispatched_by_the_root = [record.ok for record in sink.records]
     starved = _reading_runner(store, _two_call_backend(), sink)
     await starved.run("starved", budget=DispatchBudget(limit=0))
-    assert dispatched_by_the_root == [True, True]  # its own allowance covered both calls
+    assert dispatched_by_the_root == [True, True]
     assert [record.ok for record in sink.records[2:]] == [False, False]
 
 
@@ -383,24 +358,20 @@ _ENVELOPE: JsonSchema = {
 
 
 async def test_constrained_tool_less_subagent_passes_the_envelope_and_unwraps_the_reply() -> None:
-    # ADR-0028: a tool-less subagent with constrain_output on gets the fixed envelope schema, and
-    # the runner unwraps the reply so the cortex sees an answer, never raw JSON.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
     backend = SchemaRecordingBackend(['{"reply": "blue', '"}'])
     result = await _runner(store, backend, constrain_output=True).run("t1")
     assert (result.ok, result.output) == (True, "blue")
-    assert backend.schemas == [_ENVELOPE]  # the envelope was threaded to the backend
+    assert backend.schemas == [_ENVELOPE]
 
 
 def _user_text(backend: SchemaRecordingBackend) -> str:
-    """What the one user message of the first call asked, the sentence included."""
+    """The text of the single user message in the first call."""
     return next(m.text for m in backend.asked[0] if m.role is Role.USER)
 
 
 async def test_a_constrained_ask_carries_the_envelopes_own_sentence_on_the_instruction() -> None:
-    # ADR-0028 instruction addendum: a schema constrains this engine's next token and never
-    # describes a contract, so what the envelope means travels in the subtask text or nowhere.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
     backend = SchemaRecordingBackend(['{"reply": "blue"}'])
@@ -409,8 +380,6 @@ async def test_a_constrained_ask_carries_the_envelopes_own_sentence_on_the_instr
 
 
 async def test_an_unconstrained_ask_carries_the_instruction_and_nothing_else() -> None:
-    # The sentence is the envelope's, so a run with no envelope must be asked exactly what the
-    # cortex wrote: a tools-enabled subagent composes its own reply shape around its dispatches.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
     backend = SchemaRecordingBackend(["blue"])
@@ -419,8 +388,6 @@ async def test_an_unconstrained_ask_carries_the_instruction_and_nothing_else() -
 
 
 async def test_a_tools_enabled_subagent_is_asked_without_the_sentence_too() -> None:
-    # The sentence rides with the grammar, and the grammar is gated to the tool-less path
-    # (ADR-0028 decision 3), so the knob being on cannot reach a subagent that has tools.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
     backend = SchemaRecordingBackend(["blue"])
@@ -433,8 +400,6 @@ async def test_a_tools_enabled_subagent_is_asked_without_the_sentence_too() -> N
 
 
 async def test_a_malformed_constrained_reply_is_a_failed_result_carrying_the_raw_text() -> None:
-    # A weak model that slips the grammar (or a partial stream) degrades to ok=False, and the
-    # raw payload rides as the output for debugging rather than being persisted as the answer.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
     backend = SchemaRecordingBackend(["not a JSON envelope"])
@@ -445,7 +410,6 @@ async def test_a_malformed_constrained_reply_is_a_failed_result_carrying_the_raw
 
 
 async def test_a_constrained_reply_missing_the_key_is_a_failed_result() -> None:
-    # Valid JSON but the wrong shape (no string ``reply``) is also malformed.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
     result = await _runner(
@@ -456,7 +420,6 @@ async def test_a_constrained_reply_missing_the_key_is_a_failed_result() -> None:
 
 
 async def test_output_is_unconstrained_when_the_knob_is_off() -> None:
-    # With constrain_output off, the tool-less path gets no schema and the raw text is the answer.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
     backend = SchemaRecordingBackend(["plain answer"])
@@ -466,9 +429,6 @@ async def test_output_is_unconstrained_when_the_knob_is_off() -> None:
 
 
 async def test_a_tools_enabled_subagent_is_never_constrained() -> None:
-    # The constraint is gated to the tool-less path (ADR-0028 decision 3): a tools-enabled
-    # subagent gets no schema even with the knob on, so the JSON envelope never fights the
-    # tool-calling grammar.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
     backend = SchemaRecordingBackend(["ok"])
@@ -478,7 +438,7 @@ async def test_a_tools_enabled_subagent_is_never_constrained() -> None:
     dispatcher = ToolDispatcher(registry, RecordingAuditSink(), FixedClock())
     result = await _runner(store, backend, tools=dispatcher, constrain_output=True).run("t1")
     assert (result.ok, result.output) == (True, "ok")
-    assert backend.schemas == [None]  # tool-enabled -> unconstrained
+    assert backend.schemas == [None]
 
 
 def _routed_runner(
@@ -491,12 +451,11 @@ async def test_a_fitting_subagent_runs_on_the_gpu_backend_and_its_vram_is_releas
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
     gpu, cpu = TextBackend(["on-gpu"]), TextBackend(["on-cpu"])
-    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)  # headroom 3.0
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)  # 3.0 GiB headroom
     result = await _routed_runner(store, gpu, cpu, placer).run("g")
     assert result.output == "on-gpu"
     assert gpu.seen
     assert not cpu.seen
-    # The placement's 2 GB was released in the finally, so the whole 3 GB headroom is free again.
     assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
 
 
@@ -504,7 +463,7 @@ async def test_an_overflowing_subagent_runs_on_the_cpu_backend() -> None:
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="c", instruction="hi", context="", at=_AT))
     gpu, cpu = TextBackend(["on-gpu"]), TextBackend(["on-cpu"])
-    placer = VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0)  # headroom 0.0
+    placer = VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0)  # no headroom
     result = await _routed_runner(store, gpu, cpu, placer).run("c")
     assert result.output == "on-cpu"
     assert cpu.seen
@@ -512,7 +471,7 @@ async def test_an_overflowing_subagent_runs_on_the_cpu_backend() -> None:
 
 
 def _refusal_line(caplog: pytest.LogCaptureFixture) -> str:
-    """The one refusal warning the runner wrote, rendered the way the operator reads it."""
+    """The one refusal warning the runner logged, rendered the way an operator sees it."""
     (record,) = [line for line in caplog.records if line.name == _RUNNER_LOGGER]
     return PlainFormatter().format(record)
 
@@ -520,16 +479,14 @@ def _refusal_line(caplog: pytest.LogCaptureFixture) -> str:
 async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The budget's wall reaches the cortex as a value (ADR-0012 admission-wall addendum)."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="do", context="", at=_AT))
     backend = TextBackend(["never runs"])
-    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)  # headroom 3.0
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
     resources = SubagentResources(
         backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
         scheduler=ResourceBudgetScheduler(4.0, 8.0),
         placer=placer,
-        # 8 cpus against a whole budget of 4: no peer releasing anything could ever admit it.
         request=PlacementRequest("subagent", vram_gb=2.0, cpus=8.0, memory_gb=2.0),
     )
     with caplog.at_level(logging.WARNING, logger=_RUNNER_LOGGER):
@@ -541,10 +498,9 @@ async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception(
     assert line.startswith(f"WARNING:{_RUNNER_LOGGER}:a spawn was refused before it ran ")
     assert " model=subagent " in line
     assert " task_id=t1" in line
-    assert "exceeds the whole budget" in line  # the operator reads what the cortex was told
-    assert not backend.seen  # refused before running means no inference was ever issued
-    assert await store.get_result("t1") == result  # the cortex reads it back from the store
-    # Placement is inside admission, so a refusal reserved no VRAM either: headroom is intact.
+    assert "exceeds the whole budget" in line
+    assert not backend.seen
+    assert await store.get_result("t1") == result
     assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
 
 
@@ -552,7 +508,7 @@ async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception(
 async def _peer_holding_the_whole_budget(
     scheduler: ResourceBudgetScheduler,
 ) -> AsyncGenerator[None]:
-    """Occupy the whole budget in another task for the block, so any spawn has to queue."""
+    """Hold the whole budget in another task for the block, so any spawn has to queue."""
     holding, release = asyncio.Event(), asyncio.Event()
 
     async def peer() -> None:
@@ -572,11 +528,10 @@ async def _peer_holding_the_whole_budget(
 async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The third refusal takes the same road as the wall (ADR-0012 bounded-admission-wait)."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t1", instruction="do", context="", at=_AT))
     backend = TextBackend(["never runs"])
-    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)  # headroom 3.0
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
     scheduler = ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=0.0)
     resources = SubagentResources(
         backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
@@ -591,12 +546,9 @@ async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too(
     assert (result.ok, result.output) == (False, "")
     assert "refused before running" in result.detail
     assert "outlasts the deployment's admission bound" in result.detail
-    # The bound's own refusal is the one this line exists for: the persisted result expires an
-    # hour after a spawn may have queued for two, so the log is what outlives the wait.
     assert "outlasts the deployment's admission bound" in _refusal_line(caplog)
-    assert not backend.seen  # refused before running means no inference was ever issued
-    assert await store.get_result("t1") == result  # the cortex reads it back from the store
-    # Placement is inside admission, so a wait refused at the bound reserved no VRAM either.
+    assert not backend.seen
+    assert await store.get_result("t1") == result
     assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
 
 
@@ -607,7 +559,7 @@ def _two_model_runner(
     *,
     tools: ToolDispatcher | None = None,
 ) -> SubagentRunner:
-    """A roster with the robust default plus a 'fast' alternate, each on its own backend."""
+    """A roster with the ``robust`` default plus a ``fast`` alternate, each on its own backend."""
     placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
     roster = SubagentRoster(
         entries={
@@ -637,8 +589,6 @@ async def test_a_clean_tool_less_spawn_runs_on_the_requested_model() -> None:
 
 
 async def test_a_tainted_spawn_is_forced_onto_the_robust_default() -> None:
-    # ADR-0017 rule 2a: the spawning turn read untrusted content, so the requested cheap
-    # model is overridden. The instruction itself may be hostile.
     store = InMemoryTaskStore()
     await store.put_task(
         SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast", tainted=True)
@@ -651,8 +601,6 @@ async def test_a_tainted_spawn_is_forced_onto_the_robust_default() -> None:
 
 
 async def test_a_tools_enabled_spawn_is_forced_onto_the_robust_default() -> None:
-    # ADR-0017 rule 2b: a tools-enabled subagent can fetch untrusted content itself, so the
-    # model choice is pinned regardless of the turn's taint.
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast"))
     robust, fast = TextBackend(["robust says"]), TextBackend(["fast says"])
@@ -670,12 +618,11 @@ async def test_an_unknown_model_fails_closed_as_a_failed_result() -> None:
     result = await _runner(store, backend).run("t")
     assert (result.ok, result.output) == (False, "")
     assert "unknown subagent model 'ghost'" in result.detail
-    assert not backend.seen  # nothing was admitted, placed, or run
+    assert not backend.seen
     assert await store.get_result("t") == result
 
 
 async def test_the_runner_exposes_its_roster_and_tool_enablement() -> None:
-    # The spawn tool advertises from these (ADR-0018), so they must reflect the wiring.
     store = InMemoryTaskStore()
     runner = _runner(store, TextBackend(["x"]))
     assert runner.roster.default == "subagent"
@@ -685,11 +632,7 @@ async def test_the_runner_exposes_its_roster_and_tool_enablement() -> None:
 
 
 class CountingFailure:
-    """Fails every call with the typed inference error, counting how often it was asked.
-
-    The count is what makes "one re-run, never a loop" observable: a retry the runner repeated
-    would show as a third call on the same object.
-    """
+    """Fails every call with the typed inference error and counts how often it was asked."""
 
     def __init__(self, reason: str) -> None:
         self.calls = 0
@@ -711,11 +654,7 @@ class CountingFailure:
 
 
 class ToolThenFailBackend:
-    """Dispatches one tool call, then dies on the next round: taint read before the backend went.
-
-    The shape a real GPU-placed failure takes mid task rather than at load: the subagent already
-    consumed an untrusted tool result when its ``llama-server`` stopped answering.
-    """
+    """Dispatches one tool call, then fails on the next round."""
 
     def __init__(self) -> None:
         self.calls = 0
@@ -739,7 +678,7 @@ class ToolThenFailBackend:
 
 
 class HeadroomProbingBackend:
-    """Answers, and records the headroom the placer had while it was answering."""
+    """Answers, and records the headroom the placer had while it answered."""
 
     def __init__(self, placer: SubagentPlacer) -> None:
         self._placer = placer
@@ -762,16 +701,11 @@ class HeadroomProbingBackend:
 
 
 def _gpu_placer() -> VramBudgetPlacer:
-    """Headroom 3.0 against the 2.0 GB request, so every spawn lands on the GPU."""
+    """3.0 GiB of headroom against the 2.0 GiB request, so every subagent fits the GPU."""
     return VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
 
 
 async def test_a_gpu_placed_backend_that_did_not_answer_is_re_run_once_on_the_cpu() -> None:
-    """ADR-0012's deferred re-place: one CPU re-run, and the detail records that it happened.
-
-    The GPU attempt's partial text is dropped with the context that produced it, so the answer
-    the cortex reads is the re-run's alone.
-    """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
     gpu, cpu = CountingFailure("the gpu server is down"), TextBackend(["on-cpu"])
@@ -785,7 +719,6 @@ async def test_a_gpu_placed_backend_that_did_not_answer_is_re_run_once_on_the_cp
 
 
 async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorded() -> None:
-    """One re-run, never a loop: the same backend on both targets is asked exactly twice."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
     backend = CountingFailure("nothing is serving")
@@ -795,7 +728,7 @@ async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorde
     result = await runner.run("g")
     assert backend.calls == ATTEMPTS_PER_ADMISSION == 2
     assert result.ok is False
-    assert result.output == "partial "  # the re-run's own parts-so-far, per the runner's discipline
+    assert result.output == "partial "
     assert result.detail == (
         "the GPU attempt failed (nothing is serving); the CPU re-run failed too "
         "(nothing is serving)"
@@ -803,11 +736,10 @@ async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorde
 
 
 async def test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_better() -> None:
-    """A re-place is only worth making from the GPU, so the GPU backend is never asked here."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="c", instruction="hi", context="", at=_AT))
     gpu, cpu = TextBackend(["on-gpu"]), CountingFailure("the cpu server is down")
-    placer = VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0)  # headroom 0.0
+    placer = VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0)  # no headroom
     result = await _routed_runner(store, gpu, cpu, placer).run("c")
     assert (cpu.calls, gpu.seen) == (1, [])
     assert result.ok is False
@@ -815,9 +747,6 @@ async def test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_bette
 
 
 async def test_a_malformed_constrained_reply_is_not_re_placed() -> None:
-    """A malformed constrained reply is not re-placed, because re-loading the model elsewhere
-    would produce the same answer (ADR-0028's envelope).
-    """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="m", instruction="go", context="", at=_AT))
     backend = TextBackend(["not json at all"])
@@ -828,9 +757,6 @@ async def test_a_malformed_constrained_reply_is_not_re_placed() -> None:
 
 
 async def test_the_gpu_reservation_is_released_before_the_cpu_re_run() -> None:
-    """The GPU reservation is released before the re-run, because holding it would misreport
-    headroom to a concurrent spawn.
-    """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
     placer = _gpu_placer()
@@ -841,9 +767,6 @@ async def test_the_gpu_reservation_is_released_before_the_cpu_re_run() -> None:
 
 
 async def test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_result() -> None:
-    """The two attempts' taint ledgers are unioned, because under-reporting taint costs safety
-    (ADR-0013).
-    """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="read x", context="", at=_AT))
     dispatcher = ToolDispatcher(
@@ -861,7 +784,6 @@ async def test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_resu
 
 
 async def test_both_attempts_spend_from_the_spawning_turns_one_pool() -> None:
-    """A re-run that reset the budget would hand a turn a second allowance per failed placement."""
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="read x", context="", at=_AT))
     dispatcher = ToolDispatcher(
@@ -879,5 +801,4 @@ async def test_both_attempts_spend_from_the_spawning_turns_one_pool() -> None:
     budget = DispatchBudget()
     result = await runner.run("g", budget=budget)
     assert result.output == "done"
-    # One dispatch in the attempt that died, one in the re-run, charged to the same pool.
     assert budget.spent == 2

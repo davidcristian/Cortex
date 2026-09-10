@@ -1,5 +1,3 @@
-"""Behavior tests for the total generation cap on a delegated run (ADR-0005 total-cap addendum)."""
-
 import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
@@ -39,24 +37,23 @@ from cortex_core import (
 from cortex_core.inference import InferenceEvent
 
 _AT = datetime(2026, 8, 11, 12, 0, tzinfo=UTC)
-# Every wait in this file sits under this, so a regression that reintroduces the unbounded run
-# fails the check instead of hanging the suite.
+# Every wait here runs under _SUITE_BOUND_S, so a change that brought back the unbounded run
+# fails instead of hanging the suite. _DEADLINE_S is small enough to stop a runaway in
+# milliseconds and large enough for a few scripted chunks to finish on any machine.
 _SUITE_BOUND_S = 10.0
-# Small enough that a runaway is stopped in milliseconds, large enough that a scripted stream of a
-# handful of chunks always finishes inside it on any machine this suite runs on.
 _DEADLINE_S = 0.25
 _REQUEST = PlacementRequest("subagent", vram_gb=3.0, cpus=2.0, memory_gb=2.0)
 
 
 class FixedClock:
-    """A clock pinned to one instant. The attempt only needs it to stamp tool messages."""
+    """A clock fixed at one instant."""
 
     def now(self) -> datetime:
         return _AT
 
 
 class RunawayBackend:
-    """The failure a stall detector cannot see: never silent, never finished."""
+    """A backend that streams forever, so it is never silent and never finishes."""
 
     def __init__(self, *, chunk: str = "and also, ") -> None:
         self._chunk = chunk
@@ -81,13 +78,11 @@ class RunawayBackend:
                 await asyncio.sleep(0)
                 yield TextChunk(self._chunk)
         finally:
-            # The lease discipline `LlamaCppBackend` really has: whatever it holds for the stream
-            # is released here, so this flag is "the lease is back" said in a fake's terms.
             self.closed = True
 
 
 class LeasedRunawayBackend:
-    """A runaway that holds a real model lease for its stream, as ``LlamaCppBackend`` does."""
+    """A backend that streams forever while holding a model lease, as ``LlamaCppBackend`` does."""
 
     def __init__(self, manager: SingleResidentModelManager) -> None:
         self._manager = manager
@@ -109,7 +104,7 @@ class LeasedRunawayBackend:
 
 
 class RecordingBackend:
-    """Replays one event list per call and records the ``bounds`` each request carried."""
+    """Replays one event list per call and records the ``bounds`` of each request."""
 
     def __init__(self, steps: Sequence[Sequence[InferenceEvent]]) -> None:
         self._steps = list(steps)
@@ -134,7 +129,7 @@ class RecordingBackend:
 
 
 class FailingBackend:
-    """Fails the way a wedged server does once its stall ceiling has fired, and no faster."""
+    """Fails only after the stall deadline has passed, as a stuck server does."""
 
     async def stream(
         self,
@@ -152,11 +147,7 @@ class FailingBackend:
 
 
 class InnerTimeoutBackend:
-    """Raises a bare ``TimeoutError`` from below: a socket that timed out, not our deadline.
-
-    ``TimeoutError`` is an ``OSError`` in Python, so a real transport can raise one that never
-    passed through an adapter's translation, and `asyncio.timeout` raises the very same class.
-    """
+    """Raises a bare ``TimeoutError`` from below, as a timed-out socket does."""
 
     async def stream(
         self,
@@ -176,7 +167,7 @@ _LOOKUP = ToolSpec(name="lookup", description="look something up", parameters={}
 
 
 class HangingToolRegistry:
-    """A tool that is dispatched and never answers: a sidecar that took the call and stopped."""
+    """A tool that is dispatched and never answers, as a stopped sidecar would."""
 
     def __init__(self) -> None:
         self.dispatched = asyncio.Event()
@@ -186,12 +177,12 @@ class HangingToolRegistry:
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         self.dispatched.set()
-        await asyncio.Event().wait()  # never set: the dispatch outlives the attempt
+        await asyncio.Event().wait()
         return ToolResult(call_id=call.id, content="", trust=Trust.TRUSTED)
 
 
 class AnsweringToolRegistry:
-    """The same tool, answering at once, so a loop reaches its second completion."""
+    """The same tool, answering at once, so the loop reaches its second completion."""
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         return (_LOOKUP,)
@@ -207,7 +198,7 @@ def _resources(
     placer: VramBudgetPlacer,
     cpu: InferenceBackend | None = None,
 ) -> SubagentResources:
-    """One roster entry over ``backend``, with ``cpu`` as the overflow target when given."""
+    """One roster entry over ``backend``, with ``cpu`` as the overflow target if given."""
     return SubagentResources(
         backends={
             PlacementTarget.GPU: backend,
@@ -244,11 +235,7 @@ async def _stored_task(store: InMemoryTaskStore, task_id: str = "t1") -> None:
     await store.put_task(SubagentTask(id=task_id, instruction="summarize", context="", at=_AT))
 
 
-# --- the deadline ----------------------------------------------------------------------------
-
-
 async def test_a_subagent_that_never_stops_talking_is_stopped_at_its_deadline() -> None:
-    """The defect itself: without the bound this call never returns and the suite hangs."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RunawayBackend()
@@ -264,12 +251,11 @@ async def test_a_subagent_that_never_stops_talking_is_stopped_at_its_deadline() 
     assert result.ok is False
     assert "still generating after 0.25s" in result.detail
     assert "narrow it before delegating it again" in result.detail
-    assert backend.chunks > 0  # it really did run away rather than failing to start
-    assert await store.get_result("t1") == result  # the cortex reads it back from the store
+    assert backend.chunks > 0
+    assert await store.get_result("t1") == result
 
 
 async def test_the_cortex_can_tell_a_stopped_run_from_a_short_answer() -> None:
-    """A cap that reported a fragment as an answer would have traded a hang for a wrong answer."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     scheduler = ResourceBudgetScheduler(4.0, 8.0)
@@ -286,14 +272,13 @@ async def test_the_cortex_can_tell_a_stopped_run_from_a_short_answer() -> None:
         )
     assert "FAILED:" in aggregate.content
     assert "still generating after" in aggregate.content
-    assert "lorem lorem" not in aggregate.content  # the fragment is not read back as an answer
+    assert "lorem lorem" not in aggregate.content
     stored = await store.get_result("t1")
     assert stored is not None
-    assert stored.output.startswith("lorem ")  # but it is kept where an operator can read it
+    assert stored.output.startswith("lorem ")
 
 
 async def test_a_stopped_run_releases_its_admission_and_its_placement() -> None:
-    """Both live-resource ledgers are back the instant the deadline reports, not eventually."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     scheduler = ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=0.0)
@@ -306,12 +291,11 @@ async def test_a_stopped_run_releases_its_admission_and_its_placement() -> None:
     async with asyncio.timeout(_SUITE_BOUND_S):
         assert (await runner.run("t1")).ok is False
         async with scheduler.admit(PlacementRequest("peer", 1.0, 4.0, 8.0)):
-            pass  # admitted at the whole budget: the stopped run charges nothing any more
+            pass
     assert placer.place(PlacementRequest("peer", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
 
 
 async def test_a_stopped_run_has_already_released_the_model_lease_when_it_returns() -> None:
-    """The lease is back before ``run`` returns, rather than at some later moment."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RunawayBackend()
@@ -331,7 +315,6 @@ async def test_a_stopped_run_has_already_released_the_model_lease_when_it_return
 
 
 async def test_the_real_lease_a_stopped_run_held_can_be_taken_again() -> None:
-    """The same property through the object that actually serializes the GPU: the lease lock."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     manager = SingleResidentModelManager("subagent", "http://llama-subagent:8082")
@@ -351,11 +334,6 @@ async def test_the_real_lease_a_stopped_run_held_can_be_taken_again() -> None:
 
 
 async def test_the_deadline_covers_a_tool_dispatch_the_subagent_is_waiting_on() -> None:
-    """It bounds the attempt, not the stream: a sidecar that took a call and stopped is inside it.
-
-    A subagent suspended in a dispatch holds exactly what one suspended in a generation holds, so
-    a deadline that only covered decoding would leave the pool's worst case where it was.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     registry = HangingToolRegistry()
@@ -375,11 +353,10 @@ async def test_the_deadline_covers_a_tool_dispatch_the_subagent_is_waiting_on() 
         result = await runner.run("t1")
     assert result.ok is False
     assert "still generating after" in result.detail
-    assert registry.dispatched.is_set()  # the wait it was cut out of was a real dispatch
+    assert registry.dispatched.is_set()
 
 
 async def test_a_deadline_that_lands_mid_envelope_is_reported_as_the_deadline() -> None:
-    """A cut envelope is malformed by construction, and saying so would name the wrong cause."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     runner = _runner(
@@ -400,11 +377,6 @@ async def test_a_deadline_that_lands_mid_envelope_is_reported_as_the_deadline() 
 
 
 async def test_a_stopped_gpu_attempt_is_not_re_run_on_the_cpu() -> None:
-    """The re-place exists for a backend that did not answer, and a runaway answered.
-
-    Sending it to the slower tier would spend a second whole deadline to be told the same thing,
-    and on the tier where a token budget is worth minutes rather than seconds.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     gpu, cpu = RunawayBackend(), RunawayBackend()
@@ -422,11 +394,10 @@ async def test_a_stopped_gpu_attempt_is_not_re_run_on_the_cpu() -> None:
         result = await runner.run("t1")
     assert result.ok is False
     assert gpu.calls == ["subagent"]
-    assert cpu.calls == []  # never re-placed
+    assert cpu.calls == []
 
 
 async def test_a_wedged_stream_is_still_the_retryable_failure_under_a_generous_deadline() -> None:
-    """The stated precedence, in the case where the two bounds cannot race."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     gpu, cpu = FailingBackend(), RecordingBackend([[TextChunk("the re-run answered")]])
@@ -444,11 +415,10 @@ async def test_a_wedged_stream_is_still_the_retryable_failure_under_a_generous_d
         result = await runner.run("t1")
     assert result.ok is True
     assert result.output == "the re-run answered"
-    assert "within its ceiling" in result.detail  # the wedge, named, and re-run rather than cut
+    assert "within its ceiling" in result.detail
 
 
 async def test_a_timeout_from_below_the_deadline_is_the_backend_failing_not_a_truncation() -> None:
-    """`TimeoutError` is an `OSError`, so it can arrive from a socket rather than from our bound."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     gpu, cpu = InnerTimeoutBackend(), RecordingBackend([[TextChunk("the re-run answered")]])
@@ -460,7 +430,7 @@ async def test_a_timeout_from_below_the_deadline_is_the_backend_failing_not_a_tr
             placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
             cpu=cpu,
         ),
-        bounds=AttemptBounds(),  # unbounded, which is where the misreport would have crashed
+        bounds=AttemptBounds(),
     )
     async with asyncio.timeout(_SUITE_BOUND_S):
         result = await runner.run("t1")
@@ -469,11 +439,7 @@ async def test_a_timeout_from_below_the_deadline_is_the_backend_failing_not_a_tr
     assert "timed out below the delegated run's own deadline" in result.detail
 
 
-# --- the token cap ---------------------------------------------------------------------------
-
-
 async def test_the_token_cap_rides_every_completion_of_a_delegated_loop() -> None:
-    """Per completion, because that is the unit ``n_predict`` bounds; rounds bound the rest."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend(
@@ -497,7 +463,6 @@ async def test_the_token_cap_rides_every_completion_of_a_delegated_loop() -> Non
 
 
 async def test_an_unbounded_attempt_sends_the_request_this_repo_has_always_sent() -> None:
-    """Both knobs unset is the byte-for-byte prior behaviour, which is what makes them opt-in."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend([[TextChunk("a short answer")]])
@@ -517,11 +482,6 @@ async def test_an_unbounded_attempt_sends_the_request_this_repo_has_always_sent(
 
 
 async def test_a_capped_completion_is_reported_as_cut_rather_than_answered() -> None:
-    """The trigger itself: a reply the server stopped must not read as one the model finished.
-
-    The fragment is still persisted, exactly as the deadline's is, so an operator can read what
-    was produced; what the cortex gets is the refusal.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend(
@@ -547,7 +507,6 @@ async def test_a_capped_completion_is_reported_as_cut_rather_than_answered() -> 
 
 
 async def test_a_completion_that_finished_is_still_an_answer() -> None:
-    """The other half, without which the check above passes on a backend that fails everything."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend([[TextChunk("blue."), DecodeStop(StopReason.FINISHED)]])
@@ -567,11 +526,6 @@ async def test_a_completion_that_finished_is_still_an_answer() -> None:
 
 
 async def test_a_backend_that_reports_no_reason_at_all_still_answers() -> None:
-    """Silence is a legal answer at the port, so it must not become a refusal here.
-
-    A build that says nothing about why it stopped is the world this repo shipped before the
-    reason crossed the port, and it keeps behaving exactly as it did.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend([[TextChunk("a quiet answer.")]])
@@ -591,8 +545,6 @@ async def test_a_backend_that_reports_no_reason_at_all_still_answers() -> None:
 
 
 async def test_an_unbounded_run_that_a_server_capped_quotes_no_bound_of_its_own() -> None:
-    """The context window can cut a run this deployment never capped, and the wire cannot tell
-    the two apart, so the refusal names the limit it saw and no number nobody chose."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend([[TextChunk("cut by the context"), DecodeStop(StopReason.CAPPED)]])
@@ -613,11 +565,6 @@ async def test_an_unbounded_run_that_a_server_capped_quotes_no_bound_of_its_own(
 
 
 async def test_a_cap_that_lands_mid_envelope_is_reported_as_the_cap() -> None:
-    """The precedence the deadline already keeps, in the other unit.
-
-    A constrained reply cut by the server leaves an envelope that will not parse, and calling that
-    a malformed grammar sends the reader to the model instead of to the limit.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend(
@@ -641,10 +588,6 @@ async def test_a_cap_that_lands_mid_envelope_is_reported_as_the_cap() -> None:
 
 
 async def test_a_capped_gpu_attempt_is_not_re_run_on_the_cpu() -> None:
-    """A tier that filled its token budget will fill it again, and the slower one is worse.
-
-    Same argument the deadline's own re-place case makes, keyed on the same failure kind.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     capped = [[TextChunk("cut"), DecodeStop(StopReason.CAPPED)]]
@@ -663,11 +606,10 @@ async def test_a_capped_gpu_attempt_is_not_re_run_on_the_cpu() -> None:
         result = await runner.run("t1")
     assert result.ok is False
     assert gpu.bounds_seen == [GenerationBounds(max_tokens=64)]
-    assert cpu.bounds_seen == []  # never re-placed
+    assert cpu.bounds_seen == []
 
 
 async def test_one_capped_round_of_a_tool_loop_cuts_the_whole_attempt() -> None:
-    """The ledger folds across completions, so a later clean round cannot bury an earlier cut."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = RecordingBackend(
@@ -693,8 +635,11 @@ async def test_one_capped_round_of_a_tool_loop_cuts_the_whole_attempt() -> None:
     assert "stopped at a token limit" in result.detail
 
 
+# The adapter builds the model's tool calls only once the stream is over, so a cap that falls
+# mid arguments leaves a JSON fragment and raises. Measured against a real server: a cap of 20 to
+# 160 tokens on a long-argument call left 71 to 899 characters of fragment.
 class CutToolCallBackend:
-    """Reports the stop the way the real adapter does, then fails assembling the model's call."""
+    """Reports the stop the way the real adapter does, then fails to build the model's call."""
 
     def __init__(self, *, stop: DecodeStop | None, error: InferenceError) -> None:
         self._stop = stop
@@ -737,11 +682,6 @@ def _cut_runner(
 
 
 async def test_a_cap_inside_a_tool_call_is_reported_as_the_cap_not_a_dead_backend() -> None:
-    """The entry itself: the ledger has already seen the cap when the fragment fails to parse.
-
-    Before this arm the run came back as an inference failure quoting a JSON error, which reads
-    as a backend that did not answer and costs a second model load.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     backend = CutToolCallBackend(
@@ -760,7 +700,6 @@ async def test_a_cap_inside_a_tool_call_is_reported_as_the_cap_not_a_dead_backen
 
 
 async def test_a_cut_tool_call_is_not_re_run_on_the_cpu() -> None:
-    """What the reporting buys: this shape no longer spends a second model load."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     error = MalformedToolCallError('malformed tool-call arguments: \'{"path":"no\'')
@@ -773,11 +712,6 @@ async def test_a_cut_tool_call_is_not_re_run_on_the_cpu() -> None:
 
 
 async def test_an_unparsable_tool_call_with_no_cap_reported_is_still_the_backends_fault() -> None:
-    """Half the pairing, and the half that keeps a quiet build behaving exactly as it did.
-
-    A model that broke its own grammar with nothing said about a limit is not something this
-    attempt can vouch for, so it stays the retryable failure and the re-place still fires.
-    """
     store = InMemoryTaskStore()
     await _stored_task(store)
     error = MalformedToolCallError("malformed tool-call arguments: '{oops'")
@@ -792,7 +726,6 @@ async def test_an_unparsable_tool_call_with_no_cap_reported_is_still_the_backend
 
 
 async def test_a_dead_backend_after_a_capped_round_is_still_a_dead_backend() -> None:
-    """The other half, and the ambiguity that kept the entry open."""
     store = InMemoryTaskStore()
     await _stored_task(store)
     gpu = CutToolCallBackend(
@@ -804,10 +737,7 @@ async def test_a_dead_backend_after_a_capped_round_is_still_a_dead_backend() -> 
         result = await _cut_runner(store, gpu, cpu).run("t1")
     assert result.ok is True
     assert result.output == "the cpu answered."
-    assert "sent nothing" in result.detail  # the GPU attempt's own reason, kept by the fold
-
-
-# --- the value ------------------------------------------------------------------------------
+    assert "sent nothing" in result.detail
 
 
 def test_unbounded_is_what_a_deployment_that_asked_for_nothing_gets() -> None:
@@ -826,6 +756,5 @@ def test_unbounded_is_what_a_deployment_that_asked_for_nothing_gets() -> None:
 def test_a_bound_that_could_never_admit_an_answer_is_refused(
     kwargs: Mapping[str, float], message: str
 ) -> None:
-    """A zero deadline is not "never queue" the way a zero admission wait is; it is "never run"."""
     with pytest.raises(ValueError, match=message):
         AttemptBounds(**kwargs)  # pyright: ignore[reportArgumentType]

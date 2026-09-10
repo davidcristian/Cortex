@@ -1114,7 +1114,12 @@ unchanged):
 - `TaskStore` has `async put_task(task) -> None`, `async get_task(task_id) -> SubagentTask | None`,
   `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
   hot store (Redis) a subagent is a stateless function over: task and result live here, never in
-  a model process (ADR-0010). Unknown ids return `None`.
+  a model process (ADR-0010). Unknown ids return `None`. The two reads are used unevenly:
+  `get_task` has one production caller, `SubagentRunner.run`, taken once before it admits, and
+  `get_result` has none, the spawning turn being handed its batch in memory by
+  `SpawnSubagentsTool`. So the result key is the operator's record and what a resume path would
+  read, and the store's promise is that a result is re-readable rather than that anything re-reads
+  it (ADR-0012 record-lifetime addendum).
 - `HandoffStore` holds the one in-flight brain handoff (ADR-0030): `async put(record) -> None`
   (persist a `HandoffRecord` snapshot), `async get(handoff_id) -> HandoffRecord | None`,
   `async transition(handoff_id, state, *, failure=None) -> bool` (rewrite the state and the
