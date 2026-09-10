@@ -328,7 +328,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   configured, moves by a factor of seven with the host's load, and applies to a cap spent per
   completion against a deadline armed once around the attempt. Both bounds refuse honestly
   whichever fires and nothing downstream branches on which did, so what a check would buy is a
-  diagnosis rather than a behaviour.
+  diagnosis rather than a behaviour. The pair is also one per deployment rather than per roster
+  entry or per placement (ADR-0005 roster-bounds addendum): `SubagentRosterEntry` carries no
+  bounds, the flat `max_tokens` and `run_timeout_s` reach every entry, and the three orderings
+  above stay relations between one deadline and three pool-wide numbers.
   `attempt_bounds` (property) is the two as the core's `AttemptBounds`,
   which is what reaches the `SubagentRunner`.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default

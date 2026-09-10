@@ -1936,7 +1936,11 @@ Use-case:
   legal zero, because a zero deadline is "never run" rather than a policy). Both `None`
   (`UNBOUNDED_ATTEMPT`, the runner's own default) is the behaviour this repo shipped before the
   cap. `DEFAULT_SUBAGENT_MAX_TOKENS` / `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` are the shipped numbers,
-  declared here and imported by `SubagentsConfig` rather than restated there.
+  declared here and imported by `SubagentsConfig` rather than restated there. One pair reaches
+  every roster entry and both placements of each, by decision (ADR-0005 roster-bounds addendum):
+  a placement moves an entry between the two regimes and so changes which bound binds, while the
+  cap is sized from the reply, which is the model's, and the deadline from the slow placement's
+  whole subtask, so neither number is the placement's or the entry's to vary.
 - `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False,
   bounds=UNBOUNDED_ATTEMPT)` is a subagent's
   body (ADR-0010/0012/0018),

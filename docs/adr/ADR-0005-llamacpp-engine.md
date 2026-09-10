@@ -4827,3 +4827,80 @@ independence addendum decided.
 
 Nothing executable. The entry closes declined, its title's premise having been headroom over a trace,
 and the correction to the ceilings addendum is recorded here rather than edited into it.
+
+## Roster-bounds addendum (2026-09-11): one pair of run bounds reaches every entry and both placements, by decision
+
+**Status:** Accepted. Closes
+[R-494](../refinements/tasks/494-one-pair-of-run-bounds-for-a-roster-of-tiers.md), which the
+independence addendum above opened by leaving the operator a conversion that is per tier while the
+config holds one pair of bounds for the whole roster. It records a decision and moves no number.
+
+### Re-derived first
+
+`SubagentsConfig.attempt_bounds` still builds one `AttemptBounds` from the flat `max_tokens` and
+`run_timeout_s`; `build_subagents` still hands it to the one `SubagentRunner`, which holds one
+`PlacedAttempt`; `SubagentRosterEntry` (`cortex_orchestrator/config_subagents.py`) and
+`SubagentProfile` (`cortex_core/roster.py`) still carry an endpoint pair, the resource asks and a
+description and no bounds; every entry still shares the one generation client `build_subagents`
+opens with `config.stall_timeout_s`, so the stall ceiling is one number for the pool; and the three
+orderings refused at boot are still the two validators in `config_subagents.py` and
+`check_tool_call_deadline` in `cortex_orchestrator/bounds.py`, each between one deadline and one
+pool-wide number.
+
+The rates the entry quotes hold. The delegation runbook reads the default entry at 0.18 to 1.35
+tok/s on the CPU and the roster alternate at about 1 tok/s; the GPU-placed tier was read at 96.96
+tok/s alone and 63.50 beside a generating cortex on 2026-08-04, and the margin addendum above read
+the same model alone on the card at 115 to 148 tok/s. The entry's own correction stands: the widest
+gap is between the two placements one `SubagentRosterEntry` already carries, `endpoint` and
+`gpu_endpoint`, a factor of about fifty to eight hundred, where the two CPU entries are within a
+factor of about one of each other.
+
+### The pair is one bound per regime, and a placement only decides the regime
+
+`AttemptBounds` says what each half is for: the cap is what binds a fast tier, where a deadline's
+worth of decoding is a very long reply, and the deadline is what binds a slow one, where a small
+token budget is minutes of held admission. A placement moves an entry from one regime to the other,
+so it changes which of the two fires. It does not change what either is sized to. The cap is sized
+from the reply, and the reply is the model's: the same E4B weights at `-ngl 99` write 250 to 373
+decoded tokens on the shipped shape, the band the ceilings addendum read. The deadline is sized from
+the whole subtask on the slow placement, four times the 623.8 s the batch addendum measured, and a
+faster placement has no whole subtask of its own to size it from.
+
+### What a per-placement pair could set, and what it would change
+
+A deadline of its own for the GPU placement would still have to outlast the stall ceiling, 600 s on
+the one client the pool shares, and its hold would still have to fit under the admission wait. On
+that placement the whole cap decodes in 7 to 9 s, 1024 tokens at 115 to 148 tok/s, and the margin
+addendum's one capped run took 7.6 s of wall clock, so no tool-less run there can reach any deadline
+the validators accept. What the deadline bounds on the fast placement is the tool dispatches between
+completions, and `check_tool_call_deadline` already orders one wedged dispatch under it. A cap of its
+own would be the same number, the reply being the model's.
+
+A pair per entry, the shape the entry proposed and then found short of the gap, would cover the two
+CPU entries with numbers nothing measured asks for: the alternate's rate sits inside the default's
+interval, and the instruction addendum read the cap margin on the alternate and on gemma-4-E2B with
+no reply past 721 decoded tokens on either. Its cost is the one the entry priced: three orderings
+that are each a relation between one deadline and a pool-wide number would become a relation per
+entry, and the one against the admission wait would put one entry's hold against a wait every other
+entry is queued behind, so each would be taken over the longest deadline and a shorter one would be
+checked against nothing.
+
+### Decision
+
+**One pair of run bounds per deployment, reaching every roster entry and both placements of each.**
+The bounds are not the entry's or the placement's to vary because neither is sized from a fact the
+entry or the placement owns. The conversion between them stays the operator's, as the independence
+addendum decided, and it is taken per entry with the ceilings addendum's table.
+
+Two readings would reopen this, and both are that table's arithmetic taken for one entry: a roster
+entry whose measured longest reply on the shipped shape exceeds the flat cap, or a CPU entry whose
+slow-end decode rate under the flat deadline admits fewer tokens than its own longest reply. Neither
+holds for an entry this repo ships.
+
+### What moves
+
+Nothing executable. A sentence lands in the `AttemptBounds` bullet of
+[docs/modules/brain-core.md](../modules/brain-core.md), in the `SubagentsConfig` bullet of
+[docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md), and in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) beside the knobs an operator retunes,
+so a reader who finds one pair on a roster of several rates learns it is one by decision.
