@@ -559,3 +559,23 @@ This change is recorded in:
 - [docs/index.md](../index.md), which was two scans short and is repaired;
 - [modules/repo-gates.md](../modules/repo-gates.md), which documents the new module;
 - and this addendum.
+
+## Addendum (2026-09-11): the workflow header's description of the scans drifted, and the entry that predicted it is re-filed
+
+The scan-roster addendum above held the three copies of the cross-tree scan list that spell module
+names and left the two written as descriptions, the header comment of `.github/workflows/ci.yml`
+and the Purpose paragraph of [modules/repo-gates.md](../modules/repo-gates.md), recording in
+[R-452](../refinements/tasks/452-a-roster-written-in-descriptions-is-held-by-nobody.md) that the
+next scan added would show whether a description can be left to the eye. It showed that it cannot.
+The change that added `flagcheck.py` on 2026-08-27, one day after that entry was filed, edited the
+held roster comment beside the job, the Purpose paragraph and AGENTS.md, and left the header
+running through ten scans. Every gate run for fifteen days passed over a header one scan short,
+which is the same drift that was found on the day nine scans ran and eight were listed, and it was
+found this time by a sweep reading the entry's own trigger rather than by anyone reading the header.
+
+The header is repaired to name the flag check. The entry is re-filed as actionable, since the
+decision it defers now has a measured cost on one side: a description that carries a claim about
+membership went stale within a day of being trusted and stayed stale for two weeks. The two
+closures it names are unchanged, a roster whose members are read as registered descriptions, or a
+written reason that a description is not a roster with the two passages left to the eye, and the
+choice between them is what the entry now asks for.

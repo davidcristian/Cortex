@@ -6,6 +6,7 @@ happens to carry no name, at which point the roster silently compares a bigger r
 one it describes.
 **Area:** repo-gates
 **Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Verified:** 2026-09-11
 
 Opened 2026-08-26 by the close of
 [R-442](442-nothing-holds-the-live-check-roster-to-the-suite.md), which made a roster's boundaries
@@ -38,5 +39,16 @@ paragraph's page and one opens with a fenced command.
 **What would close it.** Probably a registry-health test rather than a gate rule: assert that each
 passage is the smallest run containing all of its names, which is checkable without asserting any
 number, and which a widened boundary breaks by definition. Check first whether that is true of the
-three registered passages today, since two of them deliberately open at a heading several
-sentences above the first name.
+registered passages: measured on 2026-09-11 over all eight, it is true of none, since every one
+deliberately opens or closes some distance from its nearest name.
+
+## Trail
+
+- 2026-09-11: not fired. No `opens` or `closes` phrase registered in `scripts/rosters.py` has
+  been edited since the day this was filed: the registry's history since then adds five rosters
+  and moves no phrase, and `rostercheck` passes today over 8 rosters in 5 documents naming 196
+  members. The registry-health test proposed above was measured against every registered passage
+  rather than the three named when this was written, and none of the eight is the smallest run
+  containing its names. Each carries prose before its first name, from 29 characters on the
+  registry's parts to 1132 on the live seam checks, and after its last, from 3 to 409, so the
+  test would fail every roster as it stands and cannot close this without a looser bound.

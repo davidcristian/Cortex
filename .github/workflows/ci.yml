@@ -5,10 +5,10 @@
 # determined we run them all too. The cross-tree scans (the 300-line cap, the
 # punctuating-dash ban, the cross-language constant check, the compose bind check, the
 # compose defaults check, the image-volume check, the seam-stub comment check, the
-# documented-log-sample check, the document-roster check, and the backlog check) are
-# exempt from the filter and always
-# run. Every action is pinned to a full commit SHA
-# with a version comment; dependabot (.github/dependabot.yml) keeps the pins fresh.
+# documented-log-sample check, the document-roster check, the subagent-server flag
+# check, and the backlog check) are exempt from the filter and always run. Every action
+# is pinned to a full commit SHA with a version comment; dependabot
+# (.github/dependabot.yml) keeps the pins fresh.
 name: CI
 
 on:

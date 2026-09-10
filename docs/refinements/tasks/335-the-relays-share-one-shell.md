@@ -4,6 +4,7 @@
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
 **Trigger:** the `check-body` line stops filling both toolchain relays from two command substitutions in one shell, whether by splitting them across shells or by sourcing either from an environment variable, a file, or a CI step's output; or `.github/workflows/ci.yml` stops reaching that line through `just check-body` and runs `coverage_gate.py` itself, which is the one place a CI step's output could arrive without the recipe changing at all.
+**Verified:** 2026-09-11
 
 Opened 2026-08-20 by the decline of [R-313](313-a-relay-can-be-required-and-empty.md), which asked
 for a non-blank validator on `--rustc` and `--llvm-cov` in `scripts/coverage_gate.py` and was
@@ -41,3 +42,8 @@ rule for the export's own fields. It is three lines and the decline was never ab
   are not independent. The trigger gains the CI half as a second place to look, since a workflow
   that called the gate directly would restore the quiet relay without touching the recipe the
   clause was written about.
+- 2026-09-11: not fired. The `check-body` recipe still fills both relays from two command
+  substitutions on the one line that runs `coverage_gate.py`, the two standing probes are still
+  their own lines above it, and `.github/workflows/ci.yml` still reaches that line through
+  `just check-body`, naming `coverage_gate.py` only in the comment saying why `uv` is installed.
+  `_require_version` still spells the non-blank rule the remedy would copy.
