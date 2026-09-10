@@ -1,12 +1,14 @@
-"""The vision probe (ADR-0029): what a live /props says, and what CORTEX_VISION builds."""
+import logging
 
 import httpx
 import pytest
 
-from cortex_core import CaptureBounds, InMemoryBodyGateway
+from cortex_core import CaptureBounds, InMemoryBodyGateway, record_fields
 from cortex_orchestrator.config import InferenceConfig
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.vision import PROBE_TIMEOUT_S, PropsVisionProbe, build_vision
+
+_LOGGER = "cortex_orchestrator.vision"
 
 
 def _client(handler: object) -> httpx.AsyncClient:
@@ -58,13 +60,44 @@ async def test_a_trailing_slash_on_the_endpoint_does_not_double_up() -> None:
     ],
 )
 async def test_any_other_props_shape_counts_as_no_vision(body: object) -> None:
-    # A live server's JSON is that server's to change between versions; a strict read would
-    # lose vision on an upgrade, and a lenient one only ever fails closed.
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=body)
 
     async with _client(handler) as client:
         assert await PropsVisionProbe("http://llama:8080", client).can_see() is False
+
+
+async def test_the_answered_line_names_the_engine_that_answered_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"modalities": {"vision": True}, "build_info": "b10680-d7bd3bfca"}
+        )
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        async with _client(handler) as client:
+            assert await PropsVisionProbe("http://llama:8080", client).can_see() is True
+    (record,) = caplog.records
+    assert record_fields(record) == {
+        "endpoint": "http://llama:8080/props",
+        "vision": True,
+        "build": "b10680-d7bd3bfca",
+    }
+
+
+@pytest.mark.parametrize("body", [{"modalities": {"vision": True}}, {"build_info": 10680}, "b1068"])
+async def test_a_server_naming_no_build_still_gets_its_verdict_read(
+    body: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        async with _client(handler) as client:
+            await PropsVisionProbe("http://llama:8080", client).can_see()
+    (record,) = caplog.records
+    assert record_fields(record)["build"] is None
 
 
 async def test_a_non_2xx_props_counts_as_no_vision() -> None:
@@ -95,20 +128,16 @@ def _configs(monkeypatch: pytest.MonkeyPatch, mode: str) -> tuple[InferenceConfi
 async def test_auto_builds_a_live_probe_over_the_configured_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """In `auto` mode the builder returns capture bounds for the tool and a live probe the
-    registry asks again on every call."""
     inference, body_config = _configs(monkeypatch, "auto")
     bounds, probe, close = build_vision(inference, body_config, InMemoryBodyGateway())
 
     assert bounds == CaptureBounds(max_edge=1280, max_bytes=4_000_000)
     assert isinstance(probe, PropsVisionProbe)
-    # Nothing listens at that endpoint, so the probe answers False over a real HTTP client.
     assert await probe.can_see() is False
     await close()
 
 
 async def test_on_fixes_the_answer_without_a_probe(monkeypatch: pytest.MonkeyPatch) -> None:
-    """In `on` mode the tool is registered with no probe, so no server is consulted."""
     inference, body_config = _configs(monkeypatch, "on")
     bounds, probe, close = build_vision(inference, body_config, InMemoryBodyGateway())
 
@@ -128,8 +157,6 @@ async def test_off_registers_no_capture_tool_at_all(monkeypatch: pytest.MonkeyPa
 async def test_without_a_body_there_is_nothing_to_probe_for(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Without a body gateway there is no capture to take, so the builder returns neither bounds
-    nor a probe."""
     inference, body_config = _configs(monkeypatch, "auto")
     bounds, probe, close = build_vision(inference, body_config, None)
 
@@ -138,7 +165,4 @@ async def test_without_a_body_there_is_nothing_to_probe_for(
 
 
 def test_the_probes_leash_is_short_enough_to_sit_inside_a_turn() -> None:
-    """The probe runs once per advertisement and once per call, so its timeout has to be short
-    enough not to hold a turn open.
-    """
     assert 0 < PROBE_TIMEOUT_S <= 2.0
