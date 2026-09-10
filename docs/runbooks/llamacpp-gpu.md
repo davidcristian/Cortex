@@ -714,16 +714,20 @@ than failing: three is under the six a reading of that depth may lose, and the a
 `37/117 (mentioned 56/117), 3 void of 120` (the ADR-0029 void-ceiling addendum). The one rendering
 that sitting reached, hand tallied, is `plain` framed 37 of 120 obeyed against 119 of 120 in the
 control, which is the framing reading protective at this budget and harmful at the shipped one.
-Two rows draw the `plain` cell alone and deeper still, and both match `-k drawn_deep` as well, so
-select them by their own names. `-k "direction_drawn_deeper and 12B"` is 280 draws per arm at the
-corpus frame and the shipped budget, about twelve minutes, which is the depth that would measure
-whether the framing is what makes that cell apply the rule; it drew 4 of 280 against a silent
-control, one chance in sixteen, while its mention count of 7 of 280 against none does separate the
-arms. `-k "third_frame_drawn_deep and 12B"` is 120 draws per arm at `4800x2700` at the engine's own
-budget, about thirty-one minutes, and it is the row that reads a cell two five-draw rows drew 1 of
-5 and 4 of 5: the cell is at 56 of 120, a rate near a half, and the control is silent in 120 there
-against 119 of 120 at the corpus frame. Expect the second one to lose a draw, as it did once in 240
-(ADR-0029's two-pre-registered-rows addendum); one is under the ceiling, so it reports
+Three rows draw the `plain` cell alone and deeper still, and two of them match `-k drawn_deep` as
+well, so select all three by their own names. `-k "direction_drawn_deeper and 12B"` is 280 draws per
+arm at the corpus frame and the shipped budget, about twelve minutes, which is the depth that would
+measure whether the framing is what makes that cell apply the rule; it drew 4 of 280 against a
+silent control, one chance in sixteen, while its mention count of 7 of 280 against none does
+separate the arms. `-k "obeyed_direction and 12B"` is that cell at that frame and budget at 560
+draws per arm, **about twenty-three minutes**, the depth at which five applications against a silent
+control is one chance in thirty-two; it drew 7 of 560 against a control silent in 560, one chance in
+a hundred and thirty, which is where that question was answered (ADR-0029's obeyed-direction
+addendum). `-k "third_frame_drawn_deep and 12B"` is 120 draws per arm at `4800x2700` at the engine's
+own budget, about thirty-one minutes, and it is the row that reads a cell two five-draw rows drew 1
+of 5 and 4 of 5: the cell is at 56 of 120, a rate near a half, and the control is silent in 120
+there against 119 of 120 at the corpus frame. Expect the third-frame row to lose a draw, as it did
+once in 240 (ADR-0029's two-pre-registered-rows addendum); one is under the ceiling, so it reports
 `56/119 (mentioned 78/119), 1 void of 120` where it failed on the day it ran.
 `-k "drawn_twenty and 12B"` leaves those axes behind too: it draws the dialog rendering's laundering
 cell twenty times framed in one server, prints all twenty replies, and takes about ninety seconds.
