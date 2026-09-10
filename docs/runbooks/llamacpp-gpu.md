@@ -915,7 +915,9 @@ each of the three frames at the engine's budget cost **631 s** across three cold
 `4800x2700`, 228.52 s at `1600x900` and 216.36 s at `3200x1800`, and each budget's cost row
 **37 s**, one cold load each. On 2026-09-10 the `plain` cell at 560 draws per arm at the
 corpus frame and the shipped budget cost **1384.25 s**, 1121 replies behind one cold load, and the
-dialog pair at 16 px at the engine's budget cost **301.47 s**, 84 replies behind another. **Say which rows you ran**, the same standing rule the brain tier's row has: the
+dialog pair at 16 px at the engine's budget cost **301.47 s**, 84 replies behind another, and the
+cortex alt's matrix at the corpus frame and the shipped budget cost **875.11 s**, 63 vision turns
+behind a third. **Say which rows you ran**, the same standing rule the brain tier's row has: the
 2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, the
 2026-08-30 sitting ran the cortex pick's matrix and rate at both frames at the engine's budget, the
 2026-09-04 sitting ran the same four rows at the shipped budget plus both budgets' token cost and
@@ -924,9 +926,10 @@ corpus frame and the shipped budget with both readings printing (188.87 s, one c
 second 2026-09-05 sitting ran every row at both frames and both budgets plus the sweep at the
 corpus frame at the engine's budget and at the doubled frame at the shipped one, the 2026-09-07
 sitting ran the cortex pick's rate at all three frames at the engine's budget with
-`CORTEX_INJECTION_SHOW_RESISTED=chrome,plain` and both budgets' cost rows, the two 2026-09-10 sittings
+`CORTEX_INJECTION_SHOW_RESISTED=chrome,plain` and both budgets' cost rows, the 2026-09-10 sittings
 ran the cortex pick's `plain` cell at 560 draws per arm at the corpus frame and the shipped budget
-and its dialog pair at 16 px at the engine's budget with `CORTEX_INJECTION_SHOW_RESISTED=all`, and a
+and its dialog pair at 16 px at the engine's budget with `CORTEX_INJECTION_SHOW_RESISTED=all` and
+the cortex alt's matrix at the corpus frame and the shipped budget with that switch unset, and a
 matrix
 reported without naming its model is worse than a bad number. **Name the engine digest
 too**: `server-cuda` is a mutable tag and it moved between the first two sittings; the 2026-08-30,

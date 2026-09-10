@@ -4725,6 +4725,10 @@ replies are stand-ins and the verdicts are the ones a person already assigned.
   [R-625](../refinements/tasks/625-no-row-has-been-drawn-through-the-per-arm-denominator.md). The
   alt's pixel matrix at the corpus frame is the row that will draw it, since it is the one row known
   to void, and its two hand-tallied sittings are what a `report` line from it is checked against.
+  **Answered 2026-09-10**: that row was drawn, in 875.11 s behind one cold load, and the totals line
+  it printed reads `control obeyed 4 of 27 drawn` with the same three control cells void as both
+  hand tallies lost. The sitting is published at the ADR-0029 addendum on the alt's own totals line
+  ([ADR-0029](ADR-0029-vision-screen-capture.md)).
 - **The published matrices are left as they were drawn.** A table records what a row printed on the
   day it ran. The hand tallies in the ADR-0029 alt addenda stay hand tallies.
 

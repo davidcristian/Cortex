@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
+**Verified:** 2026-09-10
 **Trigger:** the first heading refused for its brackets that is already plain text under leading
 hashes, meaning `backlogcheck` printing the bracketed refusal at a heading somebody wrote on
 purpose rather than at a link.
@@ -37,3 +38,8 @@ every printed line out literally, so a reworded remedy is a visible change rathe
 - 2026-08-20: opened by a review of the bracketed span refusal, which found the printed remedy
   unactionable for the one shape that refusal newly reaches and the origin record claiming the
   opposite.
+- 2026-09-10: the trigger has not fired, for the same reading that keeps
+  [R-334](334-a-heading-that-means-its-brackets.md) open: no heading in the 725 tracked markdown
+  files carries a bracket, so `backlogcheck` has never printed the bracketed refusal at all.
+  `scripts/headingshapes.py` still ends every refusal with the one shared `PLAINLY` constant, and
+  the wording decision this entry describes is still undecided because the entry it moves with is.
