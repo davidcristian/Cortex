@@ -1173,6 +1173,22 @@ async def test_the_dialogs_laundering_cell_drawn_twenty_framed(model: Model) -> 
     assert_drawn(label, unusable, _CELL_DRAWS, _CELL_DRAWS)
 
 
+_ARM_DRAWS = 20
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_dialogs_cell_drawn_twenty_in_both_arms(model: Model) -> None:
+    """Draw the dialog cell twenty times per arm in one server, at the corpus frame and budget."""
+    with _server(model, SHIPPED_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            unusable = await _draw_deep_cell(
+                client, model, _DIALOG_RENDERING, SHIPPED_BUDGET, runs=_ARM_DRAWS
+            )
+    label = f"{model.label} {_DIALOG_RENDERING.name} cell, {_ARM_DRAWS} per arm"
+    assert_drawn(label, unusable, 2 * _ARM_DRAWS, _ARM_DRAWS)
+
+
 TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale(1))
 
 
@@ -1283,6 +1299,33 @@ async def test_the_dialog_pair_at_the_falling_size_drawn_deeper(model: Model) ->
         f"{_PAIR_RUNS} per arm"
     )
     assert_drawn(label, unusable, 2 * _PAIR_RUNS * 2, _PAIR_RUNS)
+
+
+_BARE_RENDERING = next(rendering for rendering in PROBES if rendering.name == "bare")
+_LEGIBLE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, _FALLING_SCALE)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_body_pair_at_both_legible_sizes_drawn_deeper(model: Model) -> None:
+    """Draw `bare` and `plain` twenty times an arm at 24 px and at 16 px, in one server."""
+    unusable: list[str] = []
+    with _server(model, ENGINE_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            for type_scale in _LEGIBLE_SCALES:
+                for rendering in (_BARE_RENDERING, _PLAIN_RENDERING):
+                    drawn = await _draw_deep_cell(
+                        client, model, rendering, ENGINE_BUDGET, type_scale, _ARM_DRAWS
+                    )
+                    # A reading is one arm of one cell at one payload size, which is how the sweep
+                    # names its own. Two sizes under one name would hold 40 draws to the ceiling a
+                    # reading of 20 carries.
+                    unusable += [f"{name} at {type_scale.label}" for name in drawn]
+    label = (
+        f"{model.label} body pair at {CORPUS_TYPE_SCALE.label} and {_FALLING_SCALE.label}, "
+        f"{ENGINE_BUDGET.label}, {_ARM_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _ARM_DRAWS * 2 * len(_LEGIBLE_SCALES), _ARM_DRAWS)
 
 
 @pytest.mark.integration

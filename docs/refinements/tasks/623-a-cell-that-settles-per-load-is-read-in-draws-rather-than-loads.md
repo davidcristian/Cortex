@@ -42,3 +42,15 @@ this cell's cost the row is about eleven minutes: this sitting drew 84 replies b
   [R-604](604-the-advisory-probes-arms-part-by-fourteen-draws.md), whose
   [ADR-0029 advisory-control addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes the
   three loads and the strings each settled on.
+- 2026-09-10: a second cell and the other candidate. The cortex alt's `chrome` cell at the corpus
+  frame at the shipped budget drew twenty per arm behind one load: the control arm wrote one string
+  in all twenty draws and the framed arm two near-identical strings, 15 and 5, where the same cell's
+  five-draw row had drawn 3 of 5 on the mention reading. So the settling is not the probe's, and the
+  row shape this entry asks for is what a reading of either candidate's dialog cell needs
+  ([ADR-0029's alt-spelling addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-10: and the square's other pair, in the same shape. Drawing `bare` and `plain` twenty per
+  arm at 24 px and at 16 px behind one load, the control arm wrote one string in all twenty draws in
+  two of the four cells and two strings in the other two, while the framed arm wrote 19 distinct
+  strings in one cell and 2 in another. So the arm that settles is the arm that agrees with itself,
+  and the between-load spread this entry asks for is what any control reading of these cells needs
+  ([ADR-0029's body-pair addendum](../../adr/ADR-0029-vision-screen-capture.md)).
