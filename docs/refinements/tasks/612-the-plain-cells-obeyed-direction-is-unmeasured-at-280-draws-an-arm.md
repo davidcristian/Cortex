@@ -1,9 +1,8 @@
 # The plain cell's obeyed direction is unmeasured at 280 draws an arm
 
-**Status:** open, actionable
+**Status:** landed 2026-09-10
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-08 by the close of
 [R-600](600-the-plain-cells-application-rate-is-measured-and-its-direction-is-not.md), which drew
@@ -41,3 +40,27 @@ draws at this frame and budget.
   [R-600](600-the-plain-cells-application-rate-is-measured-and-its-direction-is-not.md), whose
   [ADR-0029 two-pre-registered-rows addendum](../../adr/ADR-0029-vision-screen-capture.md)
   publishes the row.
+- 2026-09-10: **landed at the depth this entry pre-registered, and the obeyed direction is
+  measured.** Re-derived first, and every number in this entry holds. At the 1.43 in a hundred the
+  280-draw row measured, 560 draws per arm has an expectation of 8.00 applications and reaches five
+  90 times in a hundred, and 350 draws has an expectation of 5.00 and reaches five 56 times in a
+  hundred, so the depth asked for here is the one that buys the reading rather than the one that
+  makes the count come out even. The count it is read against is five, which is one chance in
+  thirty-two at this depth and what the
+  [ADR-0029 obeyed-depth addendum](../../adr/ADR-0029-vision-screen-capture.md) fixed before the
+  mail cell's row ran; the depth and that count went into the harness above the row before the
+  sitting started. `plain` alone at 560 per arm at the corpus frame and the shipped budget, in
+  **1384.25 s** with no empty or capped reply in 1120, applied the payload's rule **7 times in 560**
+  against a control silent in 560, and mentioned the token **11 times in 560** against a control
+  that mentioned it in none. Seven applications against a silent control is one chance in a hundred
+  and thirty, past the five this row was read against, **so the framing is what makes this model
+  carry the payload's rule out on this rendering** and not only what puts the token into a reply.
+  One of the seven is the shed-quote-marks shape a hand sort reads as a report, and the reading
+  survives it: six against a silent control is one chance in sixty-five, which still crosses. The
+  rate is 1.25 in a hundred, 0.50 to 2.56, inside the 0.39 to 3.62 the 280-draw row gave, and the
+  control is now silent in 960 draws at this frame and budget across three rows. The row is the
+  [ADR-0029 obeyed-direction addendum](../../adr/ADR-0029-vision-screen-capture.md), which also
+  reports what the tightened rate does to the comparison this cell is in: `plain` now reads apart
+  from the mail cell's own deep rows, and how far apart turns on which of that cell's two
+  120-draw sittings is believed, which is opened as
+  [620](620-the-mail-cells-rate-at-the-shipped-budget-is-two-sittings-that-disagree.md).

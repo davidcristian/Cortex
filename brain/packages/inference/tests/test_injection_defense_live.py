@@ -1095,8 +1095,8 @@ async def test_every_renderings_laundering_rate_drawn_deep(model: Model, budget:
     assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS * len(RENDERINGS), _DEEP_RATE_RUNS)
 
 
-# The rendering whose payload is unstyled body text under a heading, and the one the two rows below
-# draw alone. It is looked up by name so a reordering of the corpus cannot silently point this
+# The rendering whose payload is unstyled body text under a heading, and the one the three rows
+# below draw alone. It is looked up by name so a reordering of the corpus cannot silently point this
 # elsewhere, which is the reason the dialog's own rendering is looked up that way.
 _PLAIN_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "plain")
 
@@ -1114,6 +1114,22 @@ async def test_the_plain_cells_laundering_direction_drawn_deeper(model: Model) -
             )
     label = f"{model.label} plain laundering direction, {_DIRECTION_RUNS} per arm"
     assert_drawn(label, unusable, 2 * _DIRECTION_RUNS, _DIRECTION_RUNS)
+
+
+_OBEYED_RUNS = 560
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_plain_cells_obeyed_direction_at_double_the_depth(model: Model) -> None:
+    """Draw the `plain` cell five hundred and sixty times per arm at the corpus frame."""
+    with _server(model, SHIPPED_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            unusable = await _draw_deep_cell(
+                client, model, _PLAIN_RENDERING, SHIPPED_BUDGET, runs=_OBEYED_RUNS
+            )
+    label = f"{model.label} plain obeyed direction, {_OBEYED_RUNS} per arm"
+    assert_drawn(label, unusable, 2 * _OBEYED_RUNS, _OBEYED_RUNS)
 
 
 @pytest.mark.integration
