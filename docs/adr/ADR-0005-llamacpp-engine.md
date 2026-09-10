@@ -4742,3 +4742,88 @@ opened by it, `brain/packages/inference/tests/test_injection_defense_live.py`, w
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), whose brain-tier section and
 switch-row bullet say what a void reply does to a row, and
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from the task files.
+
+## Margin addendum (2026-09-11): the cap's margin read on the shipped wording, and the long answer was a trace
+
+**Status:** Accepted. Closes
+[R-477](../refinements/tasks/477-the-caps-margin-over-an-answering-run.md), which the ceilings
+addendum above opened on a 912-token finished answer and two draws cut at the cap under the probe
+wording. It moves no number, and it corrects one sentence of that addendum.
+
+### Re-derived first
+
+`DEFAULT_SUBAGENT_MAX_TOKENS` is still 1024 and `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` still 2400.0 in
+`cortex_core/subagents.py`. `REPLY_INSTRUCTION` in `cortex_core/subagent_reply.py` still names the
+answer, and `instruct_reply` still appends it on the constrained path alone. The entry's three
+numbers, 912 finished and two cut at 1024, were drawn under the probe wording that named the
+summary, and the instruction addendum above re-measured the shipped wording at 288 runs and published
+rates, saying of the cap only that no answering run came near it. The per-run samples behind that
+sentence are written to `measurements/`, which git ignores, and no checkout on this box holds them,
+so the band the entry asked for needed a sitting of its own.
+
+The entry stated its own condition: only a run whose decoded tokens went to `reply` argues for more
+room, and the remedies it named, a cap above the tail or an instruction that shortens the answer,
+both wait on an answering tail near 900 tokens with no trace under it.
+
+### What ran
+
+One `llama-server` on `ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`, reporting
+`build_info` `b10680-d7bd3bfca`, serving `gemma-4-E4B_q4_0-it.gguf` with the subagents compose
+file's own flags (`--jinja`, `--chat-template-kwargs '{"enable_thinking": false}'`,
+`--reasoning-budget 0`, `--ctx-size 8192`, `--parallel 2`, so `n_ctx_slot = 4096`) at `-ngl 99`,
+the same substitution the answer and instruction addenda argue. The container carried no cgroup cap
+(`docker inspect` reads `NanoCpus`, `Memory` and `MemorySwap` back as 0) and nothing else ran on the
+box: `docker ps` listed no other container, the load average was 0.02 before the run and 0.70 after
+it, and `nvidia-smi` read 1757 MiB used before the server loaded and 5061 to 5114 MiB with it up.
+
+`test_envelope_cost_live.py` with `CORTEX_ENVELOPE_ARMS=constrained` and `CORTEX_ENVELOPE_DRAWS=10`
+over its four bodies, at the shipped cap and deadline: **40 runs in 95.65 s**, decoding at 115 to
+148 tok/s, prompts of 289 to 310 tokens on a body's first draw off the server's own `prompt eval`
+lines. The arm is the shipped path, so the instruction on the wire was the harness's summarization
+ask with `REPLY_INSTRUCTION` appended by the runner.
+
+### The two populations
+
+| population | runs | decoded tokens | reply characters | reasoning characters |
+| --- | --- | --- | --- | --- |
+| finished, tokens in `reply` alone | 38 | **250 to 373**, median 278 | 906 to 1340 | 0 |
+| finished, a trace and then a reply | 1 | 904 | 1003 | 2320 |
+| cut at the cap, a trace alone | 1 | 1024 | 0 | 3079 |
+
+`scripts/envelopejudges.py`, at the readings the floor publishes under (comma charitable, refusal
+strict, naming strict), judges **39 of 40** delivered; the one non-delivery is the capped run.
+
+Four readings.
+
+1. **Every reply this tier writes under the shipped sentence is inside 250 to 373 decoded tokens.**
+   The longest is 36% of the cap, so the cap holds about 2.7 times the longest answer, against the
+   12% of headroom the entry was titled on. The band is where the probe wording put it too, 248 to
+   323 for 38 of that arm's 40, so the shipped sentence neither lengthened nor shortened an answer.
+2. **The one run past that band is a trace with an answer under it.** Its reasoning channel opens
+   with "Here's a thinking process to arrive at the desired summary" and runs 2320 characters, and
+   the reply after it is 1003 characters, inside the band of the other 38. The 912-token draw of
+   2026-08-28 had the same shape: the answer-rate measurement recorded it among the three draws that
+   moved 2282 to 3692 characters into the reasoning channel, the only three above 323 decoded tokens
+   on that arm. **The ceilings addendum's sentence calling 912 a finished, correct answer at 89% of
+   the cap is corrected here**: 912 counted a trace and an answer together, and the margin that
+   sentence names was headroom over the trace.
+3. **What reaches the cap is the trace population and nothing else.** One run in forty, and it wrote
+   3079 characters into the reasoning channel and nothing into `reply`, the shape the instruction
+   addendum counted at 6 of 96. The residue rate here is 2 of 40 against that addendum's 8 of 96,
+   which is one reading.
+4. **Neither of the entry's remedies has a population to act on.** A cap above the tail would raise
+   a bound no reply approaches, and the run it would admit further is the trace, which the deadline
+   and the cap are both meant to cut. An instruction that shortens the answer would shorten replies
+   already at a quarter of the cap.
+
+### Decision
+
+The cap stays at 1024, and its sentence stands as the ceilings addendum states it: reaching this cap
+on the shipped shape is a trace or a narration and never a long answer, now measured on the wording a
+subagent is sent. The conversion between the cap and the deadline stays the operator's, as the
+independence addendum decided.
+
+### What moves
+
+Nothing executable. The entry closes declined, its title's premise having been headroom over a trace,
+and the correction to the ceilings addendum is recorded here rather than edited into it.

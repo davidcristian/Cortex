@@ -1,9 +1,8 @@
 # The token cap has 12% of headroom over a delegated answer that is doing its job
 
-**Status:** open, actionable
+**Status:** declined 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
 
 Opened 2026-08-28 by the close of
 [R-457](457-the-caps-derivation-on-the-shape-that-ships.md), which confirmed
@@ -57,3 +56,22 @@ be a single number for both.
   ships. Every number here still holds against the ceilings addendum: 1024 in
   `cortex_core/subagents.py`, 38 of 40 inside 248 to 323, one finished answer at 912, two cut at the
   cap, and 3351 and 3692 characters of reasoning under those two.
+- 2026-09-11: **Declined, on the reading it asked for, which says the long answer was a trace.**
+  The distribution was re-read on the shipped wording at this entry's own conditions, the same four
+  bodies at ten draws, through `test_envelope_cost_live.py` with the `constrained` arm alone, so the
+  sentence on the wire was the one `instruct_reply` appends, on the E4B pick at `-ngl 99` on
+  llama.cpp `b10680-d7bd3bfca` (40 runs, 95.65 s, decode 115 to 148 tok/s). The two populations
+  separate and neither argues for more room. 39 of 40 runs delivered a summary under
+  `scripts/envelopejudges.py` at the floor's own readings, and every one of those 39 replies is
+  **250 to 373 decoded tokens** (906 to 1340 characters, median 278), so the longest answer this tier
+  writes under the shipped sentence is 36% of the cap. The one run that finished at 904 decoded
+  tokens wrote 2320 characters of a thinking process into the reasoning channel first and then a
+  1003-character reply inside that band, and the one run cut at 1024 wrote 3079 characters into
+  that channel and nothing into `reply`. The 912-token draw this entry was opened on had the same
+  shape: [R-476](476-the-envelopes-answer-rate-is-an-instruction.md) records it among the three
+  draws that moved 2282 to 3692 characters into the reasoning channel, so the 12% in this title was
+  headroom over a trace and an answer counted together, and the ceilings addendum's sentence calling
+  912 a finished answer at 89% of the cap is corrected in the ADR-0005 margin addendum. What reaches
+  the cap on the shipped wording is the residue the instruction addendum counted, 2 of 40 here
+  against its 8 of 96, and neither a bigger cap nor a shorter instruction would move it. The cap
+  stays at 1024. The sitting's box state and the full table are in that addendum.
