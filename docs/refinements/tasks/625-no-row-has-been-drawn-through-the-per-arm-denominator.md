@@ -22,7 +22,10 @@ It is the one row known to void: it lost the same three control arms, `chrome/da
 `app/refusal-suppression` and `app/payload-splitting`, on two sittings a day apart on the same
 digest, and it cost **867.50 s** of card time the second time (the ADR-0029 corpus-frame addendum).
 Both of those sittings were hand tallied, so their numbers are what a `report` line off the third
-sitting is checked against: 1 of 30 applied framed, 4 of 27 applied in the control.
+sitting is checked against: 1 of 30 applied framed, 4 of 27 applied in the control. Those recorded
+marks have been replayed through `score` and `report` with stand-in replies, and the line they print
+is in the per-arm-denominator addendum, so what is missing is a server's own replies rather than the
+shape of the line.
 
 **What would close it.** Draw that row and publish what it printed at the ADR-0029 addendum that
 reads the alt's matrix, against the two hand tallies: the per-arm denominators, the three named
