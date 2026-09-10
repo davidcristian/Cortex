@@ -1,9 +1,8 @@
 # The alt reports the dialog's rule in grammar the tail reading sorts as applied
 
-**Status:** open, actionable
+**Status:** landed 2026-09-10
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-07 by the close of
 [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), which drew the
@@ -49,3 +48,26 @@ priced.
   in the rate row's two arms and the eighth in the matrix's control cell. And the row named as the
   shape to copy, `test_the_dialogs_laundering_cell_drawn_twenty_framed`, draws twenty framed draws
   and no control arm; the pair row is the one that draws twenty per arm.
+- 2026-09-10: **landed, and the spelling is the candidate's.** Re-derived first: every count reads
+  as the corpus-frame addendum published it, and no row drew this cell in both arms, so
+  `test_the_dialogs_cell_drawn_twenty_in_both_arms` was written for it and the bands went into its
+  docstring before the card ran. More than half of the replies carrying the rule written bare says
+  the spelling is the candidate's, fewer than a quarter says the first sitting's eight were one
+  load's answer, and a pooled mention count under 27 of 40 says the cell stopped reporting the rule
+  and none of the bands is read. The row drew the alt's `chrome` cell twenty per arm at the corpus
+  frame at the shipped budget, 41 replies in **649.51 s** with none empty or capped, and the control
+  arm came back **20 of 20 applied and 20 of 20 mentioned, every draw the same string, bare**. So
+  the alt's applied counts on this cell are counts of a report the tail reading cannot tell from an
+  application, over a denominator two and a half times the eight this entry asked about. The pooled
+  guard did fire, at 20 of 40, and what put it there is the framed arm: it carried the rule in none
+  of its twenty draws where the rate row drew 3 of 5, writing two near-identical sentences that name
+  the rule without its content. So the share is read on the control arm and the guard is reported
+  rather than passed over, and the framed arm's two readings are another instance of the per-load
+  settling in [623](623-a-cell-that-settles-per-load-is-read-in-draws-rather-than-loads.md). The
+  measurement covers `output-laundering` alone; what this entry says about `conditional-trigger`
+  carries over as reasoning rather than as a count, and that cell's reply was printed in a sitting
+  and never written into the tree, which is
+  [624](624-the-alts-conditional-trigger-reply-was-never-printed-into-the-tree.md). The row is the
+  [ADR-0029 alt-spelling addendum](../../adr/ADR-0029-vision-screen-capture.md), and the control
+  arm's reply is now held to its hand sort in
+  [test_reply_readings.py](../../../brain/packages/inference/tests/test_reply_readings.py).
