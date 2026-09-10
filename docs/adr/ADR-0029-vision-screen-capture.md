@@ -10796,7 +10796,10 @@ readings of 120, and a share taken over 720 could fall entirely in one arm of on
 keeps the rule it has had since 2026-09-05. That is not a special case bolted on. A matrix has no
 second draw of that cell to read in place of the lost one, and `report` compares the two arms'
 totals to each other, so a hole in one arm is a hole in a comparison rather than a smaller
-denominator.
+denominator. **Superseded 2026-09-10 by the per-arm-denominator addendum at
+[ADR-0005](ADR-0005-llamacpp-engine.md)**: a matrix row now counts each arm over the cells that arm
+drew and holds the comparison to the cells both drew, so the two matrix rows no longer call
+`assert_drawn` and `runs` is required of every caller that does.
 
 One in twenty is set from three numbers.
 
@@ -10849,7 +10852,8 @@ day it ran; this one is the re-reading.
   are any, and fails naming the readings that are over. Every call site passes its own depth:
   `_RATE_RUNS` for the rate rows and the payload sweep, `_DEEP_RATE_RUNS`, `_DIRECTION_RUNS`,
   `_CELL_DRAWS`, `_PAIR_RUNS` and `_ARM_DRAWS` for the deep rows, and nothing for the two matrix
-  rows.
+  rows. **Since 2026-09-10 the matrix rows close through `report` instead and `runs` has no
+  default**, per the per-arm-denominator addendum at [ADR-0005](ADR-0005-llamacpp-engine.md).
 - `rate` counts a void draw out of its denominator and names it: `56/119 (mentioned 78/119), 1 void
   of 120`. An arm with no void prints exactly the string it printed before, which is what keeps the
   published rows readable against the new ones.

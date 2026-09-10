@@ -1,9 +1,8 @@
 # One void reply fails a row that drew nineteen cells
 
-**Status:** open, actionable
+**Status:** landed 2026-09-10
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-05 by the close of
 [R-560](560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md), which made every row
@@ -67,3 +66,13 @@ shape of a partial void is what decides whether the drawn cells are a matrix or 
   repaired against the tree: `assert_drawn` has carried a per-reading ceiling since 2026-09-08 and
   no longer reads as a flat rule over a row, and the claim that no published row has a void reply
   in it is dated to the night it was measured, which is the reasoning the two firings above spent.
+- 2026-09-10: **landed.** `Tally` carries `drawn` and `void`, `score` records an empty or capped
+  arm as a void cell and marks it `void` in the printed matrix, `report` counts each arm over the
+  cells that arm drew and names the ones it did not, the backfire assertion runs over the cells both
+  arms drew, and `assert_measured` fails a row whose void cells outnumber its drawn ones, which is
+  the deep candidate that answers nothing. The two matrix rows no longer call `assert_drawn` and its
+  `runs` is required of the rows that do. Proved by eight mutants over
+  `test_reply_readings.py`, eight red of 158 (the ADR-0005 per-arm-denominator addendum). The one
+  clause of the close not met is the log: no row has been drawn through the new rule, since it needs
+  the alt's pixel matrix and this was a desk sitting. That is
+  [R-625](625-no-row-has-been-drawn-through-the-per-arm-denominator.md).
