@@ -1,4 +1,4 @@
-"""Whether the daemon under this brain is the one its state was formed against (ADR-0030)."""
+"""Whether the daemon under this brain is the one its state was built against."""
 
 import logging
 
@@ -15,9 +15,12 @@ from cortex_core.swap_recovery import converge_residency
 
 _logger = logging.getLogger(__name__)
 
+_NOT_CONVERGED = "the model host was replaced and residency could not be converged onto the cortex"
+_WORST_STOP_UNCLEARED = "the fresh model host's worst stop is no longer cleared by the deadline"
+
 
 class BootWatch:
-    """The daemon this brain last spoke to, and what speaking to a different one costs."""
+    """The daemon this brain last spoke to, and what changes when a different one answers."""
 
     def __init__(
         self,
@@ -71,7 +74,7 @@ class BootWatch:
             return None
 
     async def _converge(self, publish: ResidencyPublisher) -> None:
-        """Put the machine back into the standing shape, and publish what that actually found."""
+        """Put the machine back into its usual residency, and publish what that actually found."""
         if await converge_residency(
             self._host, self._plan, self._tiers, clock=self._clock, sleeper=self._sleeper
         ):
@@ -83,11 +86,11 @@ class BootWatch:
             f"{self._plan.cortex_model!r} again, so the handoff was not started and nothing was "
             "unloaded (docs/runbooks/model-swap.md)"
         )
-        _logger.error(msg, extra={"model": self._plan.cortex_model})
+        _logger.error(_NOT_CONVERGED, extra={"model": self._plan.cortex_model})
         raise SwapFailedError(msg)
 
     async def _recheck_deadline(self) -> None:
-        """Raise when the fresh sidecar can outlast the deadline this brain bounds a stop with."""
+        """Raise when the new sidecar's slowest stop is longer than the deadline this brain sets."""
         deadline_s = self._plan.control_deadline_s
         bounds = await self._bounds()
         if bounds is None or deadline_s <= 0 or bounds.clears(deadline_s):
@@ -99,7 +102,7 @@ class BootWatch:
             "longer clears, so an eviction that was working would time out mid handoff; the "
             "handoff was not started and nothing was unloaded (docs/runbooks/model-swap.md)"
         )
-        _logger.error(msg, extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s})
+        _logger.error(_WORST_STOP_UNCLEARED, extra=bounds.pairing_fields(deadline_s))
         raise SwapFailedError(msg)
 
     async def _bounds(self) -> ControlBounds | None:

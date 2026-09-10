@@ -1,5 +1,3 @@
-"""The boot watch: telling one supervisor daemon from its replacement, and paying for it once."""
-
 import logging
 
 import pytest
@@ -16,11 +14,12 @@ from cortex_core import (
     ScriptedModelHost,
     StandingTiers,
     SwapFailedError,
+    record_fields,
 )
 from cortex_core.residency_watch import BootWatch
 
-# The shipped pair, and a sidecar retuned past it: 5 + 20 + 35 reaches exactly the 60 s deadline,
-# which is the tuning ADR-0030 measured somebody reaching by adding up two terms instead of three.
+# The shipped bounds, and a sidecar retuned past them: 5 + 20 + 35 comes to exactly the 60 s
+# control deadline, which is the mistuning these tests check for.
 _SHIPPED = ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
 _RETUNED = ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0)
 
@@ -36,7 +35,7 @@ def _plan(**overrides: object) -> ResidencyPlan:
 
 
 class _Published:
-    """The manager's one residency writer, recorded rather than performed."""
+    """The manager's one residency writer, recording what it was asked to publish."""
 
     def __init__(self) -> None:
         self.writes: list[tuple[str | None, ResidencyReport]] = []
@@ -58,7 +57,6 @@ def _watch(
 
 
 def test_a_first_answer_is_a_seed_and_never_a_change() -> None:
-    """Nothing was believed against anything yet, so there is nothing a first answer invalidates."""
     watch = _watch(ScriptedModelHost())
     assert watch.observe("daemon-a") is False
     assert watch.observe("daemon-a") is False
@@ -66,33 +64,26 @@ def test_a_first_answer_is_a_seed_and_never_a_change() -> None:
 
 
 def test_a_host_that_will_not_say_is_no_evidence_in_either_direction() -> None:
-    """A silent answer must neither claim a restart nor erase the daemon already remembered."""
     watch = _watch(ScriptedModelHost())
     assert watch.observe(None) is False
     assert watch.observe("daemon-a") is False
     assert watch.observe(None) is False
-    # The discriminating line: a watch that had cleared what it remembered would read this as a
-    # first answer and reconcile nothing, so a silent read between two daemons would hide a
-    # restart entirely. Remembering across the silence is what makes it a replacement.
     assert watch.observe("daemon-b") is True
 
 
 async def test_the_boot_seed_records_who_answered_without_converging_anything() -> None:
-    """Boot recovery has just converged, so the seed only ever writes down which daemon it was."""
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a")
     watch = _watch(host)
     published = _Published()
     await watch.seed()
     assert host.calls == [("boot_id", "")]
     assert published.writes == []
-    # And the seed is what the first handoff compares against: the same daemon is not a change.
     await watch.reconcile(published)
     assert host.calls == [("boot_id", ""), ("boot_id", "")]
     assert published.writes == []
 
 
 async def test_the_same_daemon_answering_again_costs_one_read_and_changes_nothing() -> None:
-    """The normal path through every handoff: one GET, no decision, no move on the machine."""
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"], boot_id="daemon-a")
     watch = _watch(host, _plan(evict_models=("subagent-gpu",)))
     published = _Published()
@@ -107,9 +98,6 @@ async def test_the_same_daemon_answering_again_costs_one_read_and_changes_nothin
 async def test_a_replaced_daemon_is_converged_and_the_finding_is_published(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A replaced daemon is converged, so the machine is put back into the standing shape and
-    the beliefs follow.
-    """
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a")
     watch = _watch(host, _plan(evict_models=("subagent-gpu",)))
     published = _Published()
@@ -123,7 +111,6 @@ async def test_a_replaced_daemon_is_converged_and_the_finding_is_published(
 
 
 async def test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_proceeds() -> None:
-    """A replacement rebuilds the peer record too, and a peer is never a reason to refuse."""
     host = ScriptedModelHost(
         running=["cortex"], boot_id="daemon-a", fail={("start", "subagent-gpu"): "no such device"}
     )
@@ -138,7 +125,6 @@ async def test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_
 
 
 async def test_one_restart_is_reconciled_once_however_many_handoffs_follow() -> None:
-    """The new daemon is remembered the instant it is noticed, so the cost is per restart."""
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a")
     watch = _watch(host)
     published = _Published()
@@ -153,7 +139,6 @@ async def test_one_restart_is_reconciled_once_however_many_handoffs_follow() -> 
 async def test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Beliefs known to be false are dropped: nothing is resident until something observes it."""
     host = ScriptedModelHost(
         running=["cortex"],
         boot_id="daemon-a",
@@ -169,11 +154,15 @@ async def test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff(
     ):
         await watch.reconcile(published)
     assert published.writes == [(None, RESIDENCY_LOST)]
-    assert "nothing was unloaded" in caplog.text
+    refused = caplog.records[-1]
+    assert refused.name == "cortex_core.residency_watch"
+    assert refused.message == (
+        "the model host was replaced and residency could not be converged onto the cortex"
+    )
+    assert record_fields(refused) == {"model": "cortex"}
 
 
 async def test_a_daemon_that_came_back_with_bounds_the_deadline_cannot_clear_refuses() -> None:
-    """A restart also invalidates the pairing the composition root checked at boot."""
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a", control_bounds=_SHIPPED)
     watch = _watch(host)
     published = _Published()
@@ -182,13 +171,11 @@ async def test_a_daemon_that_came_back_with_bounds_the_deadline_cannot_clear_ref
     host.bounds = _RETUNED
     with pytest.raises(SwapFailedError, match=r"worst stop of 60\.0 s"):
         await watch.reconcile(published)
-    # Residency was still reconciled: the mispairing refuses this handoff, not the convergence.
     assert published.writes == [("cortex", RESIDENCY_SERVING)]
     assert host.running == {"cortex"}
 
 
 async def test_a_daemon_that_came_back_within_the_deadline_runs_the_handoff() -> None:
-    """The boundary in the direction that must not refuse: a sum under the deadline still clears."""
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a", control_bounds=_RETUNED)
     watch = _watch(host)
     published = _Published()
@@ -200,7 +187,6 @@ async def test_a_daemon_that_came_back_within_the_deadline_runs_the_handoff() ->
 
 
 async def test_a_daemon_that_states_no_bounds_leaves_the_pairing_with_nothing_to_check() -> None:
-    """The scripted backend CI runs stops no process, so it declares no stop bound to compare."""
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a")
     watch = _watch(host)
     published = _Published()
@@ -211,7 +197,6 @@ async def test_a_daemon_that_states_no_bounds_leaves_the_pairing_with_nothing_to
 
 
 async def test_a_plan_that_declared_no_deadline_states_no_rule_to_check() -> None:
-    """A deployment that bounds no control call has not made the claim this would falsify."""
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a", control_bounds=_RETUNED)
     watch = _watch(host, _plan(control_deadline_s=0.0))
     published = _Published()
@@ -224,7 +209,6 @@ async def test_a_plan_that_declared_no_deadline_states_no_rule_to_check() -> Non
 async def test_bounds_that_cannot_be_read_after_a_restart_leave_the_pairing_unchecked(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A host that answered one question and not the next is not evidence of a mispairing."""
     host = ScriptedModelHost(
         running=["cortex"],
         boot_id="daemon-a",
@@ -243,9 +227,6 @@ async def test_bounds_that_cannot_be_read_after_a_restart_leave_the_pairing_unch
 async def test_a_host_that_cannot_be_asked_leaves_every_belief_where_it_was(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An unreachable host is tolerated exactly as the boot check tolerates it: nothing was
-    observed, so nothing is rebuilt.
-    """
     host = ScriptedModelHost(
         running=["cortex"], fail={("boot_id", ""): "connection refused"}, control_bounds=_RETUNED
     )

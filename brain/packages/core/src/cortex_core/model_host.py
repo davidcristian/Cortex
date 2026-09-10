@@ -51,6 +51,16 @@ class ControlBounds:
         """Whether ``deadline_s`` sits strictly above that worst case."""
         return self.worst_case_stop_s < deadline_s
 
+    def pairing_fields(self, deadline_s: float) -> dict[str, float]:
+        """The pairing's five numbers as log-record fields, so a line about it carries each one."""
+        return {
+            "deadline_s": deadline_s,
+            "worst_s": self.worst_case_stop_s,
+            "probe_timeout_s": self.probe_timeout_s,
+            "stop_grace_s": self.stop_grace_s,
+            "reap_timeout_s": self.reap_timeout_s,
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class ResidencyPlan:

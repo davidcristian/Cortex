@@ -1,5 +1,4 @@
-"""The host-facing half of a residency swap: what the host is asked, in which order (ADR-0030 d4).
-"""
+"""The host-facing half of a residency swap: what the host is asked, in which order."""
 
 import logging
 from collections.abc import Awaitable, Callable
@@ -9,15 +8,18 @@ from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
 from cortex_core.residency_tiers import StandingTiers
 
-# A readiness gate: poll one model until it settles or the plan's bound elapses. Passed in so
-# both moves are gated by the same policy their caller uses everywhere else.
 type ReadinessGate = Callable[[str], Awaitable[ModelHostState]]
 
 _logger = logging.getLogger(__name__)
 
+_NO_DEVICE_MEMORY = (
+    "the model host reports no device memory, so the fit check has nothing to compare against"
+)
+_CARD_TOO_SHORT = "the card has too little free memory for the deep model, so it was not started"
+
 
 async def is_unhosted(host: ModelHost, model: str) -> bool:
-    """Whether this host says it carries no such logical model at all."""
+    """Whether this host says it has no such logical model at all."""
     try:
         await host.status(model)
     except ModelNotHostedError:
@@ -68,7 +70,7 @@ async def _refuse_a_load_the_card_cannot_hold(
             f"{model!r} fits in the {plan.brain_vram_mib} MiB it was declared to need; the "
             "handoff is refused rather than run unchecked"
         )
-        _logger.error(msg, extra={"model": model, "needed_mib": plan.brain_vram_mib})
+        _logger.error(_NO_DEVICE_MEMORY, extra={"model": model, "needed_mib": plan.brain_vram_mib})
         raise SwapFailedError(msg)
     if memory.free_mib < plan.brain_vram_mib:
         msg = (
@@ -78,7 +80,7 @@ async def _refuse_a_load_the_card_cannot_hold(
             "half the decode rate (docs/runbooks/model-swap.md)"
         )
         _logger.error(
-            msg,
+            _CARD_TOO_SHORT,
             extra={
                 "model": model,
                 "needed_mib": plan.brain_vram_mib,
@@ -101,7 +103,7 @@ async def _refuse_a_load_the_card_cannot_hold(
 async def restore_standing(
     host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: StandingTiers
 ) -> str | None:
-    """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up."""
+    """One attempt to restore the usual set: stop ``model``, start the cortex and its peers."""
     try:
         await _stop_what_was_swapped_in(host, model)
     except ModelHostError:
@@ -125,11 +127,7 @@ async def restore_standing(
 
 
 async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
-    """Take the scope's own resident off the card, unless this host never had such a tier.
-
-    Every other failure propagates to the caller's ``except``, because a model that is resident
-    and will not stop is exactly the state the retry exists for.
-    """
+    """Take the scope's own resident off the card, unless this host never had such a tier."""
     try:
         await host.stop(model)
     except ModelNotHostedError as err:
@@ -140,14 +138,14 @@ async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
 
 
 async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
-    """Put back every tier a swap or a crash left evicted, so the standing residency is whole."""
+    """Put back every tier a swap or a crash left evicted, so the usual set is complete."""
     for evicted in plan.evict_models:
         try:
             await host.start(evicted)
         except ModelNotHostedError:
             # A different fault from a host that failed to start it: the id is not in this
-            # daemon's roster, which is env it read once at its own boot, so the retry pass stops
-            # asking about it rather than spending a control call an interval on a fixed answer.
+            # daemon's roster, which it read once at its own boot, so the retry pass stops
+            # asking about it instead of spending a control call every interval.
             _logger.exception(
                 "a tier named for eviction is not in the model host's roster at all",
                 extra={"model": evicted},

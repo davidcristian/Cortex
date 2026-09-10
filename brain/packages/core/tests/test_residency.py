@@ -1,5 +1,3 @@
-"""SwappingModelManager: the unchanged lease, plus the one scope that changes residency."""
-
 import asyncio
 import logging
 from datetime import UTC, datetime
@@ -38,7 +36,7 @@ _ENDPOINTS = {"cortex": _CORTEX_URL, "brain": _BRAIN_URL}
 
 
 class _FixedClock:
-    """A clock that never advances: an elapsed bound is one that was already expired."""
+    """A clock that never advances, so a deadline is reached only if it had already passed."""
 
     def now(self) -> datetime:
         return datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
@@ -91,7 +89,7 @@ def _manager(host: ModelHost, plan: ResidencyPlan | None = None) -> SwappingMode
 
 
 async def _settle(turns: int = 5) -> None:
-    """Yield the event loop a few turns so spawned tasks reach their next suspension point."""
+    """Yield the event loop a few times so spawned tasks reach their next suspension point."""
     for _ in range(turns):
         await asyncio.sleep(0)
 
@@ -102,7 +100,7 @@ async def _lease(manager: SwappingModelManager, model: str) -> str:
 
 
 class _HeldLease:
-    """One in-flight inference round, holding the GPU lease until told to finish."""
+    """One inference round in progress, holding the GPU lease until told to finish."""
 
     def __init__(self, manager: SwappingModelManager, model: str) -> None:
         self._manager = manager
@@ -150,7 +148,6 @@ class _OpenScope:
 
 
 async def test_acquire_leases_the_resident_model_unchanged() -> None:
-    """v1's contract survives the swap: the resident leases, anything else is unavailable."""
     manager: ModelManager = _manager(ScriptedModelHost(running=["cortex"]))
     async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL
@@ -163,7 +160,6 @@ async def test_acquire_leases_the_resident_model_unchanged() -> None:
 
 
 async def test_acquire_serializes_callers_on_the_one_gpu() -> None:
-    """The lease is still a single lock: a second caller waits for the first to leave."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     held = _HeldLease(manager, "cortex")
     await held.started()
@@ -175,11 +171,10 @@ async def test_acquire_serializes_callers_on_the_one_gpu() -> None:
 
 
 async def test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it() -> None:
-    """Decision 4 step 3's ordering, read straight off the host's op log."""
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
     manager = _manager(host, _plan(evict_models=("subagent-gpu",)))
     async with manager.swap_scope("brain"):
-        assert host.running == {"brain"}  # while the brain is resident it is alone on the GPU
+        assert host.running == {"brain"}
         async with manager.acquire("brain") as lease:
             assert lease.endpoint == _BRAIN_URL
     assert host.calls == [
@@ -194,16 +189,13 @@ async def test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it(
         ("start", "subagent-gpu"),
     ]
     assert host.running == {"cortex", "subagent-gpu"}
-    async with manager.acquire("cortex") as lease:  # the cortex serves again, unchanged
+    async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL
 
 
 async def test_a_tier_that_will_not_restart_does_not_make_the_cortex_look_gone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The evicted tier's restart is best effort, because a failed-restore note would be
-    inaccurate here.
-    """
     host = ScriptedModelHost(
         running=["cortex", "subagent-gpu"], fail={("start", "subagent-gpu"): "no such device"}
     )
@@ -220,14 +212,13 @@ async def test_a_tier_that_will_not_restart_does_not_make_the_cortex_look_gone(
 
 
 async def test_the_swap_waits_for_the_in_flight_round_to_fall_free() -> None:
-    """v1 never preempts a mid-stream round: nothing is evicted while a lease is held."""
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host)
     held = _HeldLease(manager, "cortex")
     await held.started()
     scope = _OpenScope(manager)
     await _settle()
-    assert host.calls == []  # the swap is queued behind the round, not preempting it
+    assert host.calls == []
     await held.finish()
     await scope.start()
     assert ("stop", "cortex") in host.calls
@@ -235,24 +226,18 @@ async def test_the_swap_waits_for_the_in_flight_round_to_fall_free() -> None:
 
 
 async def test_an_acquire_of_another_model_waits_out_the_scope_instead_of_failing() -> None:
-    """A queued cortex turn on a second stream blocks until restoration, then runs."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     scope = _OpenScope(manager)
     await scope.start()
     waiting = asyncio.create_task(_lease(manager, "cortex"))
     await _settle()
-    assert not waiting.done()  # waiting, not raising ModelUnavailableError
+    assert not waiting.done()
     await scope.finish()
     async with asyncio.timeout(5.0):
         assert await waiting == _CORTEX_URL
 
 
 async def test_a_queued_acquire_is_woken_even_when_the_swap_back_failed() -> None:
-    """The queue is released by the scope ENDING, not by the restore succeeding.
-
-    Otherwise the one failure the design cannot recover from would also strand every waiter: a
-    turn on another stream would sleep forever instead of hearing that nothing is resident.
-    """
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _manager(_YieldingHost(host))
     scope = _OpenScope(manager)
@@ -269,7 +254,6 @@ async def test_a_queued_acquire_is_woken_even_when_the_swap_back_failed() -> Non
 
 
 async def test_the_restore_waits_for_the_new_resident_s_own_round() -> None:
-    """The swap back is a lease-free boundary too: a brain round in flight is not preempted."""
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host)
     scope = _OpenScope(manager)
@@ -278,7 +262,7 @@ async def test_the_restore_waits_for_the_new_resident_s_own_round() -> None:
     await held.started()
     scope.leave.set()
     await _settle()
-    assert not scope.task.done()  # the restore is queued behind the brain's round
+    assert not scope.task.done()
     assert ("stop", "brain") not in host.calls
     await held.finish()
     await scope.task
@@ -286,11 +270,6 @@ async def test_the_restore_waits_for_the_new_resident_s_own_round() -> None:
 
 
 async def test_a_second_scope_is_refused_because_there_is_one_gpu() -> None:
-    """A second scope is refused as a handoff already in flight rather than as a swap that broke.
-
-    The distinction is what the user is told: a broken swap means nothing is loaded and the
-    cortex is back, which is the opposite of what is true while another handoff holds the GPU.
-    """
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     scope = _OpenScope(manager)
     await scope.start()
@@ -301,13 +280,11 @@ async def test_a_second_scope_is_refused_because_there_is_one_gpu() -> None:
 
 
 async def test_the_precondition_reads_the_roster_of_the_daemon_answering_right_now() -> None:
-    """The port's three answers, and the tolerance that makes only one of them a refusal."""
     host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
     manager = _manager(host)
     assert await manager.unhosted("brain") is True
-    host.unhosted.discard("brain")  # an operator named the artifact and the daemon came back
+    host.unhosted.discard("brain")
     assert await manager.unhosted("brain") is False
-    # A reading and nothing more: the question must never change what the card is holding.
     assert host.calls == [("status", "brain")] * 2
     assert host.running == {"cortex"}
     unreachable = ScriptedModelHost(running=["cortex"], fail={("status", "brain"): "refused"})
@@ -315,24 +292,20 @@ async def test_the_precondition_reads_the_roster_of_the_daemon_answering_right_n
 
 
 async def test_the_handoff_claim_refuses_a_second_holder_without_touching_the_host() -> None:
-    """The claim is taken before anything is drained, so losing it costs nothing at all."""
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host)
     async with manager.handoff_claim():
         with pytest.raises(HandoffInProgressError, match="one GPU"):
             async with manager.handoff_claim():
                 pass  # pragma: no cover - entering raises before the body runs
-        # The cortex is untouched and still leasable: a refused claim is not a swap window.
         assert host.calls == []
         async with manager.acquire("cortex") as lease:
             assert lease.endpoint == _CORTEX_URL
-    # And the claim is released on the way out, so the next handoff can take it.
     async with manager.handoff_claim():
         pass
 
 
 async def test_a_claim_is_released_even_when_its_holder_is_cancelled() -> None:
-    """A killed turn must not leave the machine unable to escalate ever again."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     holding = asyncio.Event()
     release = asyncio.Event()
@@ -353,7 +326,6 @@ async def test_a_claim_is_released_even_when_its_holder_is_cancelled() -> None:
 
 
 async def test_a_failed_swap_in_still_restores_the_cortex() -> None:
-    """The brain will not start: the scope's finally puts the cortex back before raising."""
     host = ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM at load"})
     manager = _manager(host)
     with pytest.raises(SwapFailedError, match="CUDA OOM at load"):
@@ -366,7 +338,6 @@ async def test_a_failed_swap_in_still_restores_the_cortex() -> None:
 
 
 async def test_a_swap_into_a_tier_the_host_never_had_says_so_rather_than_blaming_the_host() -> None:
-    """A handoff asking for an unrostered tier is a configuration fault, and the note says which."""
     host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
     manager = _manager(host)
     with pytest.raises(SwapFailedError, match="does not serve 'brain' at all"):
@@ -379,7 +350,6 @@ async def test_a_swap_into_a_tier_the_host_never_had_says_so_rather_than_blaming
 
 
 async def test_a_brain_that_never_becomes_ready_fails_the_swap_at_the_gate() -> None:
-    """The health gate's bound is the swap's, so a stuck load aborts instead of hanging."""
     host = ScriptedModelHost(running=["cortex"], status_override={"brain": ModelHostState.LOADING})
     manager = _manager(host, _plan(load_timeout_s=0.0))
     with pytest.raises(SwapFailedError, match="did not become ready in time"):
@@ -397,23 +367,36 @@ async def test_a_brain_that_dies_at_load_fails_the_swap_with_its_state() -> None
     assert host.running == {"cortex"}
 
 
-async def test_a_swap_is_refused_when_the_card_has_no_room_for_the_deep_model() -> None:
-    """The fit check, on the numbers measured 2026-08-07: 13165 MiB free against 19125 wanted."""
+async def test_a_swap_is_refused_when_the_card_has_no_room_for_the_deep_model(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     host = ScriptedModelHost(
         running=["cortex"], device_memory=DeviceMemory(free_mib=13165, total_mib=24463)
     )
     manager = _manager(host, _plan(brain_vram_mib=19125))
-    with pytest.raises(SwapFailedError, match="needs 19125 MiB of free device memory"):
+    with (
+        caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"),
+        pytest.raises(SwapFailedError, match="needs 19125 MiB of free device memory"),
+    ):
         async with manager.swap_scope("brain"):
             pass  # pragma: no cover - entering raises before the body runs
     assert ("start", "brain") not in host.calls
     assert host.running == {"cortex"}
+    (refused,) = caplog.records
+    assert refused.message == (
+        "the card has too little free memory for the deep model, so it was not started"
+    )
+    assert record_fields(refused) == {
+        "model": "brain",
+        "needed_mib": 19125,
+        "free_mib": 13165,
+        "total_mib": 24463,
+    }
     async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL
 
 
 async def test_the_card_is_read_after_the_evictions_and_before_the_load() -> None:
-    """The one instant the reading means anything, asserted as its place in the op log."""
     host = ScriptedModelHost(
         running=["cortex", "subagent-gpu"],
         device_memory=DeviceMemory(free_mib=20033, total_mib=24463),
@@ -431,7 +414,6 @@ async def test_the_card_is_read_after_the_evictions_and_before_the_load() -> Non
 
 
 async def test_a_card_with_exactly_the_room_is_a_fit_and_one_mib_short_is_not() -> None:
-    """The boundary itself, because either side of it is a different deployment's answer."""
     exact = ScriptedModelHost(
         running=["cortex"], device_memory=DeviceMemory(free_mib=19125, total_mib=24463)
     )
@@ -445,20 +427,27 @@ async def test_a_card_with_exactly_the_room_is_a_fit_and_one_mib_short_is_not() 
             pass  # pragma: no cover - entering raises before the body runs
 
 
-async def test_a_host_that_can_see_no_card_refuses_a_swap_that_asked_for_a_fit() -> None:
-    """The swap fails closed: a deployment that asked to be checked and cannot be is refused
-    rather than run."""
+async def test_a_host_that_can_see_no_card_refuses_a_swap_that_asked_for_a_fit(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host, _plan(brain_vram_mib=19125))
-    with pytest.raises(SwapFailedError, match="reports no device memory"):
+    with (
+        caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"),
+        pytest.raises(SwapFailedError, match="reports no device memory"),
+    ):
         async with manager.swap_scope("brain"):
             pass  # pragma: no cover - entering raises before the body runs
     assert ("start", "brain") not in host.calls
     assert host.running == {"cortex"}
+    (refused,) = caplog.records
+    assert refused.message == (
+        "the model host reports no device memory, so the fit check has nothing to compare against"
+    )
+    assert record_fields(refused) == {"model": "brain", "needed_mib": 19125}
 
 
 async def test_a_plan_with_no_measured_figure_never_asks_the_host_about_the_card() -> None:
-    """The shipped default: no figure, no question, and the swap runs exactly as it always did."""
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host)
     async with manager.swap_scope("brain"):
@@ -467,7 +456,6 @@ async def test_a_plan_with_no_measured_figure_never_asks_the_host_about_the_card
 
 
 async def test_a_host_that_fails_the_reading_fails_the_swap_rather_than_skipping_it() -> None:
-    """A control call that broke is not permission to load: it is the swap's own failure."""
     host = ScriptedModelHost(
         running=["cortex"], fail={("device_memory", ""): "the model host did not answer"}
     )
@@ -494,7 +482,6 @@ async def test_an_exception_inside_the_scope_still_restores_the_cortex() -> None
 
 
 async def test_cancelling_the_scope_still_restores_the_cortex() -> None:
-    """The process-death analogue on the consumer side: teardown still converges."""
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host)
     scope = _OpenScope(manager)
@@ -507,11 +494,6 @@ async def test_cancelling_the_scope_still_restores_the_cortex() -> None:
 
 
 async def test_a_cancelled_scope_cannot_abandon_the_restore_halfway() -> None:
-    """The swap back is the recovery path, so a cancellation waits for it instead of aborting.
-
-    Killing the turn while the cortex is coming back would otherwise leave the GPU serving
-    nothing this process can lease again, and every later turn would fail until a restart.
-    """
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
     manager = _manager(host)
     scope = _OpenScope(manager)
@@ -524,8 +506,6 @@ async def test_a_cancelled_scope_cannot_abandon_the_restore_halfway() -> None:
     with pytest.raises(asyncio.CancelledError):
         await scope.task
     assert host.running == {"cortex"}
-    # And the manager knows it: the next turn leases the cortex rather than being told that
-    # nothing is resident.
     async with asyncio.timeout(5.0):
         assert await _lease(manager, "cortex") == _CORTEX_URL
 
@@ -533,14 +513,13 @@ async def test_a_cancelled_scope_cannot_abandon_the_restore_halfway() -> None:
 async def test_a_restore_that_fails_once_retries_and_succeeds(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Decision 4 step 3's retry: the second attempt brings the cortex back, loudly noted."""
     host = ScriptedModelHost(running=["cortex"], fail_once={("start", "cortex"): "device busy"})
     manager = _manager(host)
     with caplog.at_level(logging.WARNING):
         async with manager.swap_scope("brain"):
             pass
     assert host.running == {"cortex"}
-    assert host.calls.count(("start", "cortex")) == 2  # the failed attempt, then the retry
+    assert host.calls.count(("start", "cortex")) == 2
     assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
         (
             "cortex_core.residency_moves",
@@ -558,14 +537,13 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
 async def test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_cortex(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The other model a restore can fail about, and the reason its ``try`` is its own."""
     host = ScriptedModelHost(running=["cortex"], fail_once={("stop", "brain"): "still reaping"})
     manager = _manager(host)
     with caplog.at_level(logging.WARNING):
         async with manager.swap_scope("brain"):
             pass
     assert host.running == {"cortex"}
-    assert host.calls.count(("stop", "brain")) == 2  # the refused eviction, then the retry
+    assert host.calls.count(("stop", "brain")) == 2
     assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
         (
             "cortex_core.residency_moves",
@@ -583,7 +561,6 @@ async def test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_c
 async def test_a_restore_that_never_succeeds_raises_loudly_and_leaves_nothing_resident(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Past the retry only the runbook helps, so the failure is typed, logged, and honest."""
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _manager(host)
     with (
@@ -600,7 +577,6 @@ async def test_a_restore_that_never_succeeds_raises_loudly_and_leaves_nothing_re
         for record in caplog.records
         if record.levelno == logging.ERROR and record.name == "cortex_core.residency_restore"
     ] == [{"model": "cortex", "failed_model": "cortex", "attempts": 2}]
-    # Nothing is resident, so an acquire says so rather than leasing a dead endpoint.
     with pytest.raises(ModelUnavailableError, match="resident: None"):
         async with manager.acquire("cortex"):
             pass  # pragma: no cover - acquire raises before the body runs
@@ -609,7 +585,6 @@ async def test_a_restore_that_never_succeeds_raises_loudly_and_leaves_nothing_re
 async def test_a_restore_that_can_never_evict_gives_up_naming_the_model_that_refused(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The give-up an operator carries to the runbook, on a restore that failed somewhere else."""
     host = ScriptedModelHost(running=["cortex"], fail={("stop", "brain"): "still reaping"})
     manager = _manager(host)
     with (
@@ -620,8 +595,8 @@ async def test_a_restore_that_can_never_evict_gives_up_naming_the_model_that_ref
     ):
         async with manager.swap_scope("brain"):
             pass
-    assert ("start", "cortex") not in host.calls  # the cortex was never asked for at all
-    assert host.running == {"brain"}  # and the deep model is what is really on the card
+    assert ("start", "cortex") not in host.calls
+    assert host.running == {"brain"}
     refused = (
         "cortex_core.residency_moves",
         "the model host failed while taking the swapped-in model off the card",
@@ -640,7 +615,6 @@ async def test_a_restore_that_can_never_evict_gives_up_naming_the_model_that_ref
 
 
 async def test_a_restore_whose_gate_never_reports_ready_also_gives_up() -> None:
-    """The restore's failure is not only a raising host: a cortex stuck loading counts too."""
     host = ScriptedModelHost(running=["cortex"], status_override={"cortex": ModelHostState.LOADING})
     manager = _manager(host, _plan(load_timeout_s=0.0))
     with pytest.raises(ResidencyRestoreError, match=r"the last of which failed on 'cortex'"):
@@ -650,11 +624,6 @@ async def test_a_restore_whose_gate_never_reports_ready_also_gives_up() -> None:
 
 
 async def test_the_report_tracks_the_swap_window_from_load_to_deep_work_and_back() -> None:
-    """What ``Health`` shows a human, read at each boundary the swap actually crosses.
-
-    The load is observed from inside the host's own paused ``start``, so the reported state is
-    the one the manager published on its way there rather than one this test arranged.
-    """
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "brain")])
     manager = _manager(host)
     assert manager.residency() == RESIDENCY_SERVING
@@ -670,8 +639,6 @@ async def test_the_report_tracks_the_swap_window_from_load_to_deep_work_and_back
 
 
 async def test_the_report_says_the_usual_assistant_is_coming_back_while_it_restores() -> None:
-    """The swap back publishes a report of its own: nothing is resident either way, and the two
-    reports read differently."""
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
     manager = _manager(host)
     scope = _OpenScope(manager)
@@ -686,11 +653,6 @@ async def test_the_report_says_the_usual_assistant_is_coming_back_while_it_resto
 
 
 async def test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring() -> None:
-    """A restore that gave up reports that nothing is resident and no retry is left.
-
-    Reporting the restore as still under way would tell the user to wait for a thing that
-    already stopped happening, and the runbook's manual recovery is what clears it.
-    """
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _manager(host)
     with pytest.raises(ResidencyRestoreError):
@@ -700,7 +662,6 @@ async def test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring() -> 
 
 
 async def test_the_report_answers_at_an_instant_when_the_gpu_cannot_be_leased() -> None:
-    """A probe must not queue behind the swap it reports on (ADR-0030 decision 6)."""
     host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "brain")])
     manager = _manager(host)
     scope = _OpenScope(manager)
@@ -718,16 +679,14 @@ async def test_the_report_answers_at_an_instant_when_the_gpu_cannot_be_leased() 
 
 
 async def test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_serves() -> None:
-    """The drain window still reports serving: nothing is unloaded and turns still run."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     async with manager.handoff_claim():
         assert manager.residency() == RESIDENCY_SERVING
-        async with manager.acquire("cortex") as lease:  # and it really is still leasable
+        async with manager.acquire("cortex") as lease:
             assert lease.endpoint == _CORTEX_URL
 
 
 def test_every_published_report_says_what_the_seam_and_the_human_actually_read() -> None:
-    """The two fields, pinned against literals, because every case above pins them to themselves."""
     published = [
         RESIDENCY_SERVING,
         RESIDENCY_LOADING,
@@ -756,8 +715,6 @@ def test_every_published_report_says_what_the_seam_and_the_human_actually_read()
 
 
 async def test_boot_recovery_s_observation_replaces_the_seed_a_fresh_manager_started_with() -> None:
-    """A constructor cannot know what is on the GPU, so the first probe answers what recovery saw.
-    """
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     await manager.publish_boot_residency(serving=False)
     assert manager.residency() == RESIDENCY_BOOT_FAILED
@@ -766,7 +723,6 @@ async def test_boot_recovery_s_observation_replaces_the_seed_a_fresh_manager_sta
 
 
 async def test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one() -> None:
-    """The boot report is display only: it must not refuse turns on a GPU that may be fine."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     await manager.publish_boot_residency(serving=False)
     async with manager.acquire("cortex") as lease:
@@ -774,7 +730,6 @@ async def test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_o
 
 
 async def test_a_co_resident_plan_keeps_its_peers_through_a_handoff() -> None:
-    """The ordinary handoff reconciles nothing, which is what a co-resident deployment needs."""
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"], boot_id="daemon-a")
     manager = _manager(host, _plan(evict_models=("subagent-gpu",), coresident=True))
     await manager.publish_boot_residency(serving=True)
@@ -786,7 +741,6 @@ async def test_a_co_resident_plan_keeps_its_peers_through_a_handoff() -> None:
 async def test_a_boot_that_could_not_reach_the_host_leaves_the_first_handoff_reconciling_nothing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The seed can fail, and the rule that it is a seed is what covers the failure."""
     host = ScriptedModelHost(
         running=["cortex", "subagent-gpu"],
         boot_id="daemon-a",
@@ -804,11 +758,9 @@ async def test_a_boot_that_could_not_reach_the_host_leaves_the_first_handoff_rec
 async def test_a_sidecar_that_restarted_since_the_boot_publish_is_reconciled_before_the_swap(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The case the backlog entry described: a fresh daemon under a brain that never restarted."""
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"], boot_id="daemon-a")
     manager = _manager(host, _plan(evict_models=("subagent-gpu",), coresident=True))
     await manager.publish_boot_residency(serving=True)
-    # The sidecar is killed and revived: a new process, its own boot default, no peer tier.
     host.running = {"cortex"}
     host.boot = "daemon-b"
     with caplog.at_level(logging.WARNING, logger="cortex_core.residency_watch"):
@@ -821,7 +773,6 @@ async def test_a_sidecar_that_restarted_since_the_boot_publish_is_reconciled_bef
 async def test_a_restarted_sidecar_whose_bounds_outlast_the_deadline_refuses_before_evicting(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The pairing the composition root checked at boot, re-read on the one event that moves it."""
     shipped = ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
     host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a", control_bounds=shipped)
     manager = _manager(host, _plan(control_deadline_s=60.0))
@@ -836,14 +787,22 @@ async def test_a_restarted_sidecar_whose_bounds_outlast_the_deadline_refuses_bef
             pass  # pragma: no cover - entering raises before the body runs
     assert ("stop", "cortex") not in host.calls
     assert host.running == {"cortex"}
-    assert "nothing was unloaded" in caplog.text
-    # And the machine is still the one it was: the next turn leases the cortex as usual.
+    (refused,) = caplog.records
+    assert refused.message == (
+        "the fresh model host's worst stop is no longer cleared by the deadline"
+    )
+    assert record_fields(refused) == {
+        "deadline_s": 60.0,
+        "worst_s": 60.0,
+        "probe_timeout_s": 5.0,
+        "stop_grace_s": 20.0,
+        "reap_timeout_s": 35.0,
+    }
     async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL
 
 
 def test_the_manager_satisfies_every_port_it_is_composed_behind() -> None:
-    """One object, three segregated protocols: the lease is unchanged, residency and its report."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     leasing: ModelManager = manager
     residency: ResidencyController = manager

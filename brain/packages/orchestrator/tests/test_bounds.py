@@ -1,6 +1,3 @@
-"""The boot check over two settings classes: a delegated dispatch inside the run that contains it.
-"""
-
 import asyncio
 import logging
 from collections.abc import AsyncGenerator
@@ -40,6 +37,8 @@ _CPU = "http://subagent-cpu:8082"
 _GPU = "http://subagent-gpu:8083"
 
 _WEDGED_BOUND_S = 0.02
+# The wedged sidecar answers late rather than never, so deleting a bound fails a test here
+# instead of hanging the suite.
 _WEDGED_ANSWER_S = _WEDGED_BOUND_S * 3
 
 
@@ -51,11 +50,7 @@ def _tools(
 
 
 def _two_sidecars(*, call_timeout_s: float = DEFAULT_TOOL_CALL_TIMEOUT_S) -> ToolsConfig:
-    """The same, with two endpoints, which is the shipped filesystem and email pair.
-
-    A second sidecar is not a second copy of the same deployment: it puts an aggregate over the
-    two, and the aggregate re-lists to route, so every walk costs more and there is one more walk.
-    """
+    """The same, with two endpoints, which is the shipped filesystem and email pair."""
     return ToolsConfig(
         backend="mcp",
         endpoints={"files": _ENDPOINT, "email": _EMAIL},
@@ -83,60 +78,49 @@ def _only(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
 def test_a_call_bounded_above_the_run_it_sits_inside_refuses_to_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The misconfiguration is static while its failure is not, so the check rejects it at boot,
-    where an operator typed it.
-    """
     with caplog.at_level(logging.ERROR), pytest.raises(ToolCallDeadlineError) as excinfo:
         check_tool_call_deadline(_subagents(run_timeout_s=900.0), _tools(call_timeout_s=3000.0))
-    # Each knob beside its own value, which is what an operator needs to know which one to move,
-    # and the multiple between them, which is what says why 3000 and 900 are further apart than
-    # they look. Spelled out rather than interpolated from the config the check was handed.
     assert "CORTEX_TOOLS_CALL_TIMEOUT_S is 3000.0 s" in str(excinfo.value)
     assert "spend it 3 times over across 1 configured sidecar(s), so 9000.0 s" in str(excinfo.value)
     assert "CORTEX_SUBAGENTS_RUN_TIMEOUT_S is 900.0 s" in str(excinfo.value)
+    rendered = PlainFormatter().format(_only(caplog))
+    assert (
+        "one wedged tool dispatch can outlast the delegated run that has to contain it" in rendered
+    )
     assert (
         "call_bounds_per_dispatch=3 call_timeout_s=3000.0 dispatch_timeout_s=9000.0 "
-        "run_timeout_s=900.0" in PlainFormatter().format(_only(caplog))
+        "run_timeout_s=900.0 sidecars=1" in rendered
     )
 
 
 def test_a_dispatch_allowed_the_whole_of_the_run_is_refused_too() -> None:
-    """An equal pair is a race between two bounds, and when the run's deadline fires first a
-    wedged sidecar is reported as a subagent that would not stop.
-    """
     with pytest.raises(ToolCallDeadlineError):
         check_tool_call_deadline(_subagents(run_timeout_s=900.0), _tools(call_timeout_s=300.0))
 
 
 def test_a_call_bound_the_bare_pair_admits_is_still_refused() -> None:
-    """A pair that passes a comparison of the two numbers alone still wedges a run, and is refused.
-    """
     with pytest.raises(ToolCallDeadlineError, match=r"so 2100\.0 s"):
         check_tool_call_deadline(_subagents(run_timeout_s=900.0), _tools(call_timeout_s=700.0))
 
 
 def test_the_shipped_pair_is_wired_and_says_so(caplog: pytest.LogCaptureFixture) -> None:
-    """The two shipped defaults are compared as the running pair, since a check that refused them
-    would refuse every stack.
-    """
     subagents = _subagents()
     with caplog.at_level(logging.INFO):
         assert check_tool_call_deadline(subagents, _tools()) is subagents
     assert "outlasts one wedged tool dispatch" in caplog.text
     assert (
         "call_bounds_per_dispatch=3 call_timeout_s=60.0 dispatch_timeout_s=180.0 "
-        "run_timeout_s=2400.0" in PlainFormatter().format(_only(caplog))
+        "run_timeout_s=2400.0 sidecars=1" in PlainFormatter().format(_only(caplog))
     )
 
 
 def test_a_second_sidecar_costs_the_same_bound_more(caplog: pytest.LogCaptureFixture) -> None:
-    """The headroom is a property of the whole deployment rather than of the two numbers alone."""
     subagents = _subagents()
     with caplog.at_level(logging.INFO):
         assert check_tool_call_deadline(subagents, _two_sidecars()) is subagents
     assert (
         "call_bounds_per_dispatch=7 call_timeout_s=60.0 dispatch_timeout_s=420.0 "
-        "run_timeout_s=2400.0" in PlainFormatter().format(_only(caplog))
+        "run_timeout_s=2400.0 sidecars=2" in PlainFormatter().format(_only(caplog))
     )
 
 
@@ -148,20 +132,12 @@ def test_a_second_sidecar_costs_the_same_bound_more(caplog: pytest.LogCaptureFix
 def test_the_multiple_counts_every_walk_a_delegated_dispatch_makes(
     config: ToolsConfig, bounds: int
 ) -> None:
-    """The expected counts are written as literals rather than derived from the expression under
-    test.
-    """
     assert delegated_call_bounds(config) == bounds
 
 
 def test_a_deployment_with_no_tool_sidecars_has_no_pairing_to_check(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Without ``mcp`` no ``BoundedToolRegistry`` is built, so the knob bounds nothing at all.
-
-    The pair is inverted on purpose, so what makes the check accept this deployment is the backend
-    setting and not the numbers.
-    """
     subagents = _subagents(run_timeout_s=900.0)
     with caplog.at_level(logging.INFO):
         assert (
@@ -174,7 +150,6 @@ def test_a_deployment_with_no_tool_sidecars_has_no_pairing_to_check(
 def test_a_deployment_that_never_delegates_has_no_pairing_to_check(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A cortex turn announces no deadline, so its own tool calls have nothing to be under."""
     subagents = _subagents(backend="none", run_timeout_s=900.0)
     with caplog.at_level(logging.INFO):
         assert check_tool_call_deadline(subagents, _tools(call_timeout_s=3000.0)) is subagents
@@ -184,7 +159,6 @@ def test_a_deployment_that_never_delegates_has_no_pairing_to_check(
 async def test_run_from_env_refuses_a_call_bounded_above_the_run_that_contains_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The composition root calls the check, which is what puts a correct check on the boot path."""
     monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
     monkeypatch.setenv("CORTEX_TOOLS_ENDPOINT", _ENDPOINT)
     monkeypatch.setenv("CORTEX_TOOLS_CALL_TIMEOUT_S", "3000")
@@ -208,7 +182,7 @@ async def test_run_from_env_refuses_a_call_bounded_above_the_run_that_contains_i
 
 
 class _WedgedSession:
-    """An MCP session that opens and then answers each verb three bounds late: a wedged sidecar."""
+    """An MCP session that opens and then answers each call three bounds late: a wedged sidecar."""
 
     def __init__(self, spends: list[str], url: str) -> None:
         self._spends = spends
@@ -229,7 +203,7 @@ class _WedgedSession:
 
 
 async def _spends_of(config: ToolsConfig, monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Every bound one delegated run spends before its first dispatch answers, through the root."""
+    """Every call one delegated run makes before its first dispatch answers, through the root."""
     spends: list[str] = []
 
     @asynccontextmanager
@@ -255,7 +229,6 @@ async def _spends_of(config: ToolsConfig, monkeypatch: pytest.MonkeyPatch) -> li
 async def test_no_wedged_delegated_dispatch_outspends_the_multiple(
     endpoints: dict[str, str], spends: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The arithmetic above, tied to the composition it describes rather than argued from it."""
     config = ToolsConfig(
         backend="mcp",
         endpoints=endpoints,

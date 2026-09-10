@@ -9,14 +9,18 @@ __all__ = ["ToolCallDeadlineError", "check_tool_call_deadline", "delegated_call_
 
 _logger = logging.getLogger(__name__)
 
+_REFUSED = "one wedged tool dispatch can outlast the delegated run that has to contain it"
+
 
 class ToolCallDeadlineError(RuntimeError):
     """The bound on one tool call does not fit inside the delegated run that has to contain it."""
 
 
 def delegated_call_bounds(tools: ToolsConfig) -> int:
-    """How many whole call bounds one delegated dispatch can spend, the run's own listing included.
-    """
+    """How many whole call bounds one delegated dispatch can spend, its listing included."""
+    # Every walk of the tool set reaches the bound separately: the run's advertisement, the live
+    # strip of the tools needing confirmation, and, past one endpoint, the walk that finds which
+    # registry owns the name. Then the call itself.
     sidecars = len(tools.named_endpoints)
     walks = 2 if sidecars == 1 else 3
     return walks * sidecars + 1
@@ -27,9 +31,6 @@ def check_tool_call_deadline(subagents: SubagentsConfig, tools: ToolsConfig) -> 
     if tools.backend != "mcp" or subagents.backend != "llamacpp":
         return subagents
     if _dispatch_cost(tools) < subagents.run_timeout_s:
-        # The numbers are attached to the record alone, the shipped formatter appending whatever a
-        # record carries; the failure message below is the one place they stay in the prose, being
-        # read where no formatter runs.
         _logger.info(
             "the delegated run's deadline outlasts one wedged tool dispatch",
             extra=_pairing(subagents, tools),
@@ -45,7 +46,7 @@ def check_tool_call_deadline(subagents: SubagentsConfig, tools: ToolsConfig) -> 
         "transport failure earns is skipped. Lower the call bound, or raise the run bound above "
         "the dispatch (docs/runbooks/tools-mcp.md)"
     )
-    _logger.error(msg, extra=_pairing(subagents, tools))
+    _logger.error(_REFUSED, extra=_pairing(subagents, tools))
     raise ToolCallDeadlineError(msg)
 
 
@@ -55,10 +56,11 @@ def _dispatch_cost(tools: ToolsConfig) -> float:
 
 
 def _pairing(subagents: SubagentsConfig, tools: ToolsConfig) -> dict[str, float]:
-    """The numbers as record fields, built once so both lines carry the same set."""
+    """The numbers as record fields, built once so both lines have the same set."""
     return {
         "call_timeout_s": tools.call_timeout_s,
         "call_bounds_per_dispatch": delegated_call_bounds(tools),
         "dispatch_timeout_s": _dispatch_cost(tools),
         "run_timeout_s": subagents.run_timeout_s,
+        "sidecars": len(tools.named_endpoints),
     }

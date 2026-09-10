@@ -1,4 +1,4 @@
-"""Brain-handoff wiring: build the swap's runtime, or nothing at all (ADR-0030)."""
+"""Brain-handoff wiring: build the swap's runtime, or nothing at all."""
 
 import logging
 from collections.abc import Awaitable, Callable
@@ -28,6 +28,8 @@ from cortex_orchestrator.config_swap import SwapConfig
 from cortex_session import RedisHandoffStore
 
 _logger = logging.getLogger(__name__)
+
+_REFUSED = "the control deadline does not clear the model host's worst stop"
 
 
 class ControlDeadlineError(RuntimeError):
@@ -123,7 +125,7 @@ async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None
         "Raise the brain's deadline above that sum, or lower the sidecar's own bounds "
         "(docs/runbooks/model-swap.md)"
     )
-    _logger.error(msg, extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s})
+    _logger.error(_REFUSED, extra=bounds.pairing_fields(deadline_s))
     await swap.close()
     raise ControlDeadlineError(msg)
 
@@ -153,6 +155,9 @@ def _release_all(*releases: Callable[[], Awaitable[None]]) -> Callable[[], Await
     """Run every release in the order given, each one even if an earlier one failed."""
 
     async def close() -> None:
+        # The order is the reverse of what the runtime acquired: the retry loop is stopped
+        # before the store and the client it spends are closed, or a pass in flight would find
+        # a closed client.
         async with AsyncExitStack() as stack:
             for release in reversed(releases):
                 stack.push_async_callback(release)
