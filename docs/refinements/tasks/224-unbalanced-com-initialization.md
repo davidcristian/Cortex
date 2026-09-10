@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
+**Verified:** 2026-09-10
 **Trigger:** any COM failure or thread growth the user sees on Windows after a long session. Only a
 Win32 desktop can show it, and the standing observation is the `windows-desktop` watch item in
 `docs/host/`. The code half is rechecked with
@@ -64,3 +65,9 @@ COM-initialized thread the OS calls are funnelled through.
   uninitialization, three of four blocking-pool call sites reaching an initializing backend. The
   description names the two initializing backends instead of saying both of them, the crate having
   grown from three modules to five.
+- 2026-09-10: the recheck the description prescribes was run again and every count it names is
+  unchanged, so this entry now carries the date on its own field. The grep reports the same two
+  initializations at `audio.rs:43` and `notify.rs:61`, no `CoUninitialize` anywhere, and the crate
+  still holds five modules beside `lib.rs`. `off_worker` still has four call sites, three of them
+  reaching an initializing backend. The observation half is still out of reach here, there being no
+  Win32 desktop session on this machine.
