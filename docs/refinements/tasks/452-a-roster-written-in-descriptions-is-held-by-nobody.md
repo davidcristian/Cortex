@@ -1,9 +1,6 @@
 # A roster written in descriptions rather than names is held by nobody
 
-**Status:** open, fix when it bites
-**Trigger:** a cross-tree scan is added and one of the two descriptive passages keeps running
-through the set that ran before it, which is what happened the last time one was added and cost a
-reader the knowledge that a gate exists.
+**Status:** open, actionable
 **Area:** repo-gates
 **Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
 
@@ -11,13 +8,16 @@ Opened 2026-08-26 by the close of
 [R-446](446-the-scan-roster-is-spelled-in-seven-places.md), which held the three copies of the
 cross-tree scan list that spell module names and left the two that spell phrases.
 
-Two passages describe the same ten scans without naming one of them. The header comment of
+Two passages describe the cross-tree scans without naming one of them. The header comment of
 `.github/workflows/ci.yml` runs through them as "the 300-line cap, the punctuating-dash ban, the
 cross-language constant check" and so on, and the Purpose paragraph of
-[modules/repo-gates.md](../../modules/repo-gates.md) does the same in its own words. Both are
-complete today. The workflow header is the copy that was found listing eight scans on a day nine
-had been running, which is the drift the whole roster mechanism exists to catch, and it is the one
-copy of the list the mechanism still cannot see.
+[modules/repo-gates.md](../../modules/repo-gates.md) does the same in its own words. Both were
+complete the day this was filed. The workflow header is the copy that was found listing eight
+scans on a day nine had been running, which is the drift the whole roster mechanism exists to
+catch, and it is the one copy of the list the mechanism still cannot see. It was filed as waiting
+for the next scan to be added, and that happened the next day: the flag check landed on
+2026-08-27, the Purpose paragraph picked it up, and the header kept running through ten scans
+while eleven ran, until this entry was read on 2026-09-11.
 
 **Why it was left.** The roster reader holds names, and these passages carry none. The only way to
 hold them with what exists is to rewrite both into lists of file names, and that trade is bad in
@@ -40,3 +40,11 @@ a day.
   [R-446](446-the-scan-roster-is-spelled-in-seven-places.md), which held the three copies spelling
   names and argued the tallies away under the standing decision, leaving these two. Recorded under
   what the ADR-0003 scan-roster addendum defers.
+- 2026-09-11: **the trigger fired on 2026-08-27, the day after this was filed, and nobody read it
+  as a firing.** The change that added `flagcheck.py` edited the workflow's held roster comment,
+  the Purpose paragraph of the gate tree's contract and AGENTS.md, and left the workflow header
+  running through ten scans. It stayed that way for fifteen days through every gate run, which
+  is the exposure this entry describes. The header is repaired in this pass so it reads true
+  today, and the entry is re-filed as actionable: the decision it defers, a roster read as
+  descriptions or a written reason that a description is not one, now has a measured cost to
+  weigh. Recorded in the ADR-0003 addendum of this date.

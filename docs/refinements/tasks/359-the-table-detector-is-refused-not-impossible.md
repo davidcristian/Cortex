@@ -6,6 +6,7 @@
 repository tracks and name the suite their counts are over, at which point the refusal rate that
 refused the gate is zero
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Verified:** 2026-09-11
 
 Opened 2026-08-21 by the close of [R-349](349-a-mutation-table-nobody-replayed.md), which weighed
 making replayability a requirement `commitlint.py` enforces and declined it on a census rather than
@@ -33,3 +34,17 @@ never its relevance. That is a weak check and it should be landed as one, with i
 what it checks, or not landed at all. The stronger half, that the table names the suite its counts
 are over, has no machine form: a suite is prose, spelled `just check-brain` one day and "the
 orchestrator's own cases" the next, and prescribing the spelling is prescribing the register.
+
+## Trail
+
+- 2026-09-11: not fired, and the population the trigger counts over has moved. The census was
+  re-taken over all 797 commit bodies with the close's three words and the shapes a count is
+  written in, `makes N cases fail` and its variants: 28 bodies carry any of it, so the whole
+  record holds fewer than the fifty bodies the trigger asks for, and of those 28, 20 name no
+  tracked path, 21 name no suite, and 2 name both. The count fell from 138 of 624 because the
+  plain-language rewrite of every commit message on 2026-08-31, with the commit rule that keeps a
+  body under about 120 words, moved the tables out of the bodies: since then a mutation table is
+  written into the decision record's addendum, where the ADR-0003 scan-roster table is, and a
+  body says in one sentence that the change was proved by mutation. A rule in `commitlint.py`
+  would now read the place the tables have left, which is a second reason for the decline on top
+  of the refusal rate.

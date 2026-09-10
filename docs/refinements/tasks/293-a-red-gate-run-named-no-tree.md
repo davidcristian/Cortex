@@ -4,6 +4,7 @@
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
 **Trigger:** the next red `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a pass can reproduce from.
+**Verified:** 2026-09-11
 
 **What was observed.** Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a
 tree that passed on both sides of it with nothing changed in between. The first was on the commit
@@ -70,3 +71,11 @@ only that the rate is not negligible.
   ([R-594](594-no-workflow-in-this-repository-has-ever-run.md)). The trigger now names only the
   capture, which is the occurrence that gives somebody something to work on, and the procedural
   remedy the entry already states, keep the whole of a failing hook run, is what produces it.
+- 2026-09-11: read against the tree and not fired. No red run of the gate has been kept since the
+  reading above: the repo records none, and no task file or decision record dated after
+  2026-09-06 describes one. The mechanism the trigger relies on is where it was written. `just
+  check` still runs the four trees in parallel, buffers each, and prints
+  `=== check-<tree>: OK|FAILED ===` ahead of every log, and every suite still runs shuffled under
+  a fixed seed it prints in its own header: 9973 for the brain, 7919 for the gate tree, 104729
+  for the body's coverage run and 65537 for the overlay. The two files describing an intermittent
+  failure are still this one and [R-115](115-stop-bounds-deadline-check.md).
