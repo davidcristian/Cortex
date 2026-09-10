@@ -4542,3 +4542,79 @@ addendum, [R-611](../refinements/tasks/611-nothing-reads-the-build-the-engine-na
 opened by it, the five citations named above,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from the task files, and
 this addendum.
+
+## Addendum (2026-09-10): the vision probe's line names the build that answered it
+
+`llama-server` names its own build on everything it answers, as `system_fingerprint` on a
+completion and as `build_info` at `GET /props`, and until this addendum nothing in this tree read
+either. The build-provenance addendum above measured both fields, repaired five prose citations by
+hand, and left the recording shape unbuilt. What that costs is that every figure this stack
+produces is attributed to a build in a sentence somebody wrote at the time, and a sentence nobody
+updates goes on naming a build that has not run here for weeks.
+
+The reading lands in `PropsVisionProbe.can_see`
+([vision.py](../../brain/packages/orchestrator/src/cortex_orchestrator/vision.py)). It already
+issues `GET /props` at `config.endpoint` on every capture decision and already parses the body
+`build_info` sits in, so the build costs a second key off a body the process is holding and a
+second field on a line it already writes. `vision probe answered` now renders `build`, `endpoint`
+and `vision`, and [the vision runbook](../runbooks/vision.md) shows the rendered line, which puts
+that field list under `samplecheck.py`. A body naming no build, or naming one that is not a string,
+renders `build=None`, on the same tolerant reading the vision verdict is taken under: a `/props`
+shape this adapter has not seen costs the line a field rather than the whole line.
+
+**Why not the other three places.** The trace-lever probe
+([lever.py](../../brain/packages/inference/src/cortex_inference/lever.py)) asks its question once
+at the composition root, which is the better cadence, but a build that parses the key answers 400
+and that body carries no fingerprint, so the probe would need a second request to learn anything.
+The model host's readiness probe
+([probe.py](../../brain/packages/model_manager/src/cortex_model_manager/probe.py)) covers every
+tier rather than one endpoint, and it is a `HealthProbe` returning a boolean over `GET /health`:
+reading a build there is a port change plus a second request per poll, and a load is polled for
+minutes. A port arm on `InferenceEvent` reaches per-completion provenance, which no probe's line
+can, and it is a contract change needing the fake, the contract test and the seam's own wording.
+None of the three is refused here. What is refused is waiting for one of them while nothing records
+a build at all.
+
+**What this does not cover, and it is most of the stack.** The probe is built only for
+`CORTEX_VISION=auto`, so a deployment that fixed the answer with `on` or `off` records no build.
+It asks one endpoint, the cortex's, so the subagent servers and the deep model go unrecorded. And
+it says which build answered a capture decision rather than which build produced a given
+completion, which is the half only a port arm reaches. That residue is
+[R-622](../refinements/tasks/622-only-one-endpoint-in-one-mode-records-its-engine-build.md).
+
+### Decision
+
+1. **A running stack records the build it talks to, on the line it already writes.** The field is
+   `build`, the server's own `build_info`, read off the `/props` body the vision probe parses. The
+   runbook shows the rendered line, so the field list is gated rather than described.
+2. **The reading is tolerant, like the verdict beside it.** Absent or non-string reads as `None`.
+   A strict read would cost a capture decision its whole line over a field that only records which
+   build answered.
+3. **Per-completion provenance stays open.** A `system_fingerprint` arm on `InferenceEvent` is
+   still the only way a figure carries the build that produced it, and this addendum neither builds
+   nor forecloses it.
+
+### Proved able to fail
+
+Over `brain/packages/orchestrator/tests/test_vision.py`, 19 tests, each mutation applied alone to
+`vision.py` with the file restored afterwards:
+
+| mutation | result |
+| --- | --- |
+| the `build` field dropped from the line | 4 failed, 15 passed |
+| an unreadable build rendered as text instead of `None` | 2 failed, 17 passed |
+| the build read off the `model_path` key | 1 failed, 18 passed |
+
+The second mutation fails two of the three shapes rather than all three, which is the reading the
+table is worth keeping for: a body that is not an object at all returns `None` from the first
+branch and never reaches the one being mutated.
+
+### Records
+
+[R-611](../refinements/tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md),
+closed against this addendum,
+[R-622](../refinements/tasks/622-only-one-endpoint-in-one-mode-records-its-engine-build.md), opened
+by it, [vision.py](../../brain/packages/orchestrator/src/cortex_orchestrator/vision.py) and its
+suite, [brain-orchestrator.md](../modules/brain-orchestrator.md),
+[the vision runbook](../runbooks/vision.md), and
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from the task files.

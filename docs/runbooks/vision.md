@@ -133,11 +133,20 @@ should fail in.
    ```
    `{"vision": true, ...}` is what the brain's probe reads. A `false` here means the argv did
    not get the `--mmproj` pair; check `docker compose logs model-host` for the child's flags.
-3. The brain logs the probe's own answer (`vision probe answered`, with the endpoint and the
-   verdict) each time it asks, which is once when a turn lists its tools and once more when the
-   model actually calls the screen. There is no longer a boot-time line: the first one appears on
-   the first turn. A failure logs `vision probe failed` and counts as no vision, so the tool is
-   simply not advertised and any capture already in flight is refused.
+3. The brain logs the probe's own answer each time it asks, which is once when a turn lists its
+   tools and once more when the model actually calls the screen:
+   ```
+   INFO:cortex_orchestrator.vision:vision probe answered build=<what /props named> endpoint=<the endpoint asked> vision=<true or false>
+   ```
+   There is no longer a boot-time line: the first one appears on the first turn. A failure logs
+   `vision probe failed` and counts as no vision, so the tool is simply not advertised and any
+   capture already in flight is refused.
+
+   `build` is the engine that answered, `build_info` off the same `/props` body and the same
+   string llama-server puts on every completion as `system_fingerprint`. It is the only place a
+   running stack records which build an endpoint is on, so a figure measured against this server
+   can be attributed from the log rather than from whoever was watching. A server naming no build
+   logs `build=None`.
 4. To check what a **forgotten projector** looks like, which is the failure the inference
    adapter's bounded error excerpt exists for, start a second server on the same weights with the
    cortex tier's flags minus the `--mmproj` pair and run the canary against it:

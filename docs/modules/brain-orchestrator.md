@@ -663,6 +663,13 @@ The service:
   of a screen read on an image nothing can read, and hiding vision the server has silently
   removes the capability. Every failure (unreachable, non-2xx, unparseable, an unexpected
   `/props` shape) counts as **no vision** and logs a structured warning.
+- The answered line also names the engine. `/props` reports the running build as `build_info`,
+  which is the string llama-server puts on every completion it answers as `system_fingerprint`,
+  and `vision probe answered` carries it as `build` beside the endpoint and the verdict. This is
+  the only place a running stack records which build an endpoint is on (ADR-0005 build-provenance
+  addendum): before it, every figure measured here was attributed to a build by hand, in prose. A
+  body naming no build, or naming one that is not a string, logs `build=None`, on the same
+  tolerant reading the vision verdict is taken under.
 - The probe is **asked per advertisement and per call**, never remembered (ADR-0029 live-probe
   addendum). It used to be asked once at startup and frozen into the built-in set, which left a
   `llama-server` recreated without `--mmproj` mid-session still advertising the tool: reproduced

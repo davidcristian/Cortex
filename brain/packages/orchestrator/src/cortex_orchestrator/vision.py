@@ -22,6 +22,14 @@ all, which is what makes them free of the network.
 A probe failure counts as no vision. Failing closed here is the safe default: the tool is not
 advertised, the user is never asked to pay a privacy cost for a picture nothing can read, and the
 warning names the endpoint so the cause is visible in the log.
+
+The same body names the engine, so the answered line carries that too. ``/props`` reports the
+running build as ``build_info``, which is the string llama-server also puts on every completion it
+answers as ``system_fingerprint``, and before this read nothing in a running stack recorded it:
+every figure measured here was attributed to a build by hand, in prose, by whoever was watching,
+and a sentence nobody updated went on naming a build that had not run for weeks (ADR-0005
+build-provenance addendum). It costs no second request, the body being parsed already, and a
+server that names no build logs ``build=None`` rather than dropping the field.
 """
 
 import logging
@@ -62,6 +70,19 @@ def _reports_vision(props: object) -> bool:
     return cast("dict[str, object]", modalities).get("vision") is True
 
 
+def _build_name(props: object) -> str | None:
+    """Read ``build_info`` out of a ``/props`` body: the engine's own name for its binary.
+
+    Absent or non-string reads as ``None``, on the same ground as the vision read beside it: the
+    shape is the server's to change, and a strict read would cost a capture decision its whole
+    line over a field that only records which build answered.
+    """
+    if not isinstance(props, dict):
+        return None
+    build: object = cast("dict[str, object]", props).get("build_info")
+    return build if isinstance(build, str) else None
+
+
 class PropsVisionProbe:
     """A ``VisionProbe`` over one ``GET /props``, asked afresh every time.
 
@@ -86,7 +107,10 @@ class PropsVisionProbe:
             _log.warning("vision probe failed", extra={"endpoint": self._url, "error": str(err)})
             return False
         vision = _reports_vision(props)
-        _log.info("vision probe answered", extra={"endpoint": self._url, "vision": vision})
+        _log.info(
+            "vision probe answered",
+            extra={"endpoint": self._url, "vision": vision, "build": _build_name(props)},
+        )
         return vision
 
 

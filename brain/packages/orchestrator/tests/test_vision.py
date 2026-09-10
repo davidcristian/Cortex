@@ -10,13 +10,17 @@ the core fake alike. What is left here is this adapter's reading of one particul
 JSON, and what `build_vision` hands the composition root for each mode.
 """
 
+import logging
+
 import httpx
 import pytest
 
-from cortex_core import CaptureBounds, InMemoryBodyGateway
+from cortex_core import CaptureBounds, InMemoryBodyGateway, record_fields
 from cortex_orchestrator.config import InferenceConfig
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.vision import PROBE_TIMEOUT_S, PropsVisionProbe, build_vision
+
+_LOGGER = "cortex_orchestrator.vision"
 
 
 def _client(handler: object) -> httpx.AsyncClient:
@@ -75,6 +79,49 @@ async def test_any_other_props_shape_counts_as_no_vision(body: object) -> None:
 
     async with _client(handler) as client:
         assert await PropsVisionProbe("http://llama:8080", client).can_see() is False
+
+
+async def test_the_answered_line_names_the_engine_that_answered_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`/props` carries the running build beside the modalities, so the probe's line carries it.
+
+    Until this read, every figure measured against a server here was attributed to a build in
+    prose by whoever was watching, and a sentence nobody updated went on naming a build that had
+    not run for weeks (ADR-0005 build-provenance addendum).
+    """
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"modalities": {"vision": True}, "build_info": "b10680-d7bd3bfca"}
+        )
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        async with _client(handler) as client:
+            assert await PropsVisionProbe("http://llama:8080", client).can_see() is True
+    (record,) = caplog.records
+    assert record_fields(record) == {
+        "endpoint": "http://llama:8080/props",
+        "vision": True,
+        "build": "b10680-d7bd3bfca",
+    }
+
+
+@pytest.mark.parametrize("body", [{"modalities": {"vision": True}}, {"build_info": 10680}, "b1068"])
+async def test_a_server_naming_no_build_still_gets_its_verdict_read(
+    body: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    # A body with no `build_info`, one whose `build_info` is not a string, and one that is not an
+    # object at all. The build read fails the same way the vision read beside it does, so a shape
+    # this adapter has not seen costs the line a field rather than the whole line.
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        async with _client(handler) as client:
+            await PropsVisionProbe("http://llama:8080", client).can_see()
+    (record,) = caplog.records
+    assert record_fields(record)["build"] is None
 
 
 async def test_a_non_2xx_props_counts_as_no_vision() -> None:

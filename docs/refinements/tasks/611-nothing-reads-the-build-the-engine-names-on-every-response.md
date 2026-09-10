@@ -1,9 +1,8 @@
 # Nothing reads the build the engine names on every response
 
-**Status:** open, actionable
+**Status:** landed 2026-09-10
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-08 by the close of
 [R-299](299-prose-cites-an-engine-build-nothing-pins.md), which repaired five citations by hand and
@@ -51,6 +50,28 @@ does not; it is a contract change, so it needs the fake, the contract test and t
 wording, and this entry does not choose between them. Either way a runbook stops asking an operator
 to remember which build they were on.
 
+**What closed it: the vision probe's `/props` read, which was already parsing the body.**
+`PropsVisionProbe.can_see` now takes `build_info` off the same body it reads `modalities.vision`
+out of and puts it on `vision probe answered` as `build`, so the line carries the endpoint, the
+verdict and the engine that gave it. The vision runbook shows the rendered line, which puts the
+field list under `samplecheck.py`. A body naming no build renders `build=None` rather than losing
+the line, on the same tolerant reading the verdict is taken under.
+
+The other two candidates were weighed and neither was refused outright. The trace-lever probe asks
+once at the composition root, which is the better cadence, but a build that parses the key answers
+400 and that body carries no fingerprint, so it would need a second request to learn anything. A
+`system_fingerprint` arm on `InferenceEvent` is still the only shape under which a measured figure
+carries the build that produced it, and it is a contract change. What the entry left unweighed is
+the model host's readiness probe, which covers every tier rather than one endpoint and would have
+been the better home if it were not a boolean over `GET /health`: a build there is a port change
+plus a second request per poll.
+
+The reading covers one endpoint in one mode, and the residue is filed on its own terms as
+[R-622](622-only-one-endpoint-in-one-mode-records-its-engine-build.md): a deployment that fixed
+`CORTEX_VISION` by hand records nothing, the subagent servers and the deep model are never asked,
+and a capture decision's line says which build answered that probe rather than which build produced
+a completion.
+
 ## Trail
 
 - 2026-09-08: opened by the close of
@@ -65,3 +86,11 @@ to remember which build they were on.
   entry's subject, that no path a running stack takes records the build. The closing paragraph
   described the trace lever probe as model-free and per endpoint, where it names the cortex model,
   runs once against one endpoint, and runs at all only in `auto`.
+- 2026-09-10: landed on the vision probe. `PropsVisionProbe.can_see`
+  ([vision.py](../../../brain/packages/orchestrator/src/cortex_orchestrator/vision.py)) reads
+  `build_info` off the `/props` body it already parses and renders it as `build`; the rendered line
+  is in [the vision runbook](../../runbooks/vision.md), the contract in
+  [brain-orchestrator.md](../../modules/brain-orchestrator.md), and the reasoning, the three
+  rejected placements and the mutation table in the
+  [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) addendum on the vision probe's build field.
+  Opened [R-622](622-only-one-endpoint-in-one-mode-records-its-engine-build.md).
