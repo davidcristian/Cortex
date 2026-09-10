@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
+**Verified:** 2026-09-10
 **Trigger:** the first heading somebody wants to write with a literal pair of brackets in it, which the shape rule now refuses whatever follows them.
 
 Opened 2026-08-20 by the close of [R-307](307-shortcut-reference-link-in-a-heading.md), which made
@@ -31,3 +32,8 @@ it makes the source say what it means instead of adding an exemption the gate ha
 - 2026-08-20: opened by the close of [R-307](307-shortcut-reference-link-in-a-heading.md), whose
   wider refusal bans a shape it does not aim at, and by the same argument that entry used for
   refusing outright rather than collecting each document's link reference definitions.
+- 2026-09-10: the trigger has not fired. The sweep this entry rests on was re-run over today's
+  tree, 725 tracked markdown files against the 431 it was written over, and no heading in any of
+  them carries a bracket at all, in or out of a code span. `BRACKETED` in
+  `scripts/headingshapes.py` still refuses a bracketed span with or without a target after it, so
+  the price named when the rule landed is still a price nobody has paid.

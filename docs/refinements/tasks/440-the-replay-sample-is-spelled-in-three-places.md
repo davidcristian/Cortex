@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Verified:** 2026-09-10
 **Trigger:** a change to either number, since the copies drift the moment one of them moves.
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
@@ -40,3 +41,8 @@ recipe for them, which costs the addendum its argument and is probably the wrong
   registers the numbers in `crosscheck.py` yet, so the argument for leaving them unregistered also
   stands as written. The title says four now; the file name keeps the count it was opened under,
   being an identifier other documents already link to rather than a claim.
+- 2026-09-10: still not fired, and all four copies of each number are where the last reading left
+  them. The recipe's defaults line reads `count="5" window="25"`, the comment above it says five
+  commit bodies out of the twenty five most recent, the runbook says a pass is due once twenty
+  five candidate bodies have landed and that a draw takes five, and the cadence addendum still
+  argues for both. `crosscheck.py` registers neither number.

@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
+**Verified:** 2026-09-10
 **Trigger:** fifty or more candidate bodies have landed since the last row of the ledger, meaning a pass was due for two windows or more before anybody counted. `just replay "" <the last row's date>` reports that number in its header.
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
@@ -39,3 +40,9 @@ module; the second is the one that could be read by something other than a perso
   measurement rather than an expectation. The nine is the first standing count this entry has, and
   it is evidence for the entry rather than against it, since it took a person running the recipe by
   hand to produce a number nothing else was keeping.
+- 2026-09-10: still not fired, and the standing count has grown by six.
+  `just replay "" 2026-08-25` reports fifteen candidate bodies since the ledger's last row,
+  sixteen days after it, against a cadence of twenty five and a trigger of fifty. The rate over
+  the nine days since the last reading is under one candidate body a day, so the entry's own
+  evidence keeps accumulating in the same direction: the count is easy to produce and nothing
+  produces it unless a person runs the recipe.
