@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-10
 **Trigger:** an inner runner that completes under an id other than the one it was handed, meaning a
 second `TurnRunner` behind `make_inner` or a change that gives an engine back its own id factory.
 
@@ -36,3 +37,9 @@ runner behind that factory reads the constraint before it breaks it.
 
 - 2026-08-20: opened by a review of the turn id move, which fixed the escalating arm of this wrapper
   and left the transparent arm reading its identity out of the runner it wraps.
+- 2026-09-10: the trigger has not fired and the agreement still holds between the same two files.
+  `EscalatingTurnEngine.handle_turn` still ends its unescalated arm with a bare `yield completed`,
+  and the only runner behind `make_inner` is the `TurnEngine` the orchestrator's `engines.py`
+  builds, whose own completion is `TurnCompleted(turn_id=turn_id, ...)` with the id it was handed.
+  So there is still one runner on that path and it still echoes the id, which is the agreement this
+  entry says nothing enforces.

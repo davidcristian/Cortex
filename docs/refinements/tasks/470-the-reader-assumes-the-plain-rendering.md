@@ -5,6 +5,7 @@
 **Trigger:** a capture taken from a deployment running `CORTEX_LOG_FORMAT=packed`, which the same
 runbook paragraph offers as the way to read a trail line without slicing it
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-10
 
 Opened 2026-08-27 by the close of
 [R-454](454-the-readers-needles-are-not-tied-to-the-sink.md), which held the two words
@@ -32,3 +33,9 @@ number of characters on the same record.
 - 2026-08-27: opened by the close of
   [R-454](454-the-readers-needles-are-not-tied-to-the-sink.md), which made the reader's words
   answerable to the sink and left the layout it reads them in answerable to nothing.
+- 2026-09-10: the trigger has not fired and the reader is unchanged. `scripts/trailwidth.py` still
+  cuts the field out with a pattern anchored on ` dropped=` and still finds a record by
+  `[A-Z]+:[^\s:]+:memory.recall`, which is `PlainFormatter`'s layout, so a packed capture is
+  rejected rather than measured. The memory runbook still offers `CORTEX_LOG_FORMAT=packed` as the
+  way to read a trail line without slicing it, and the local-dev runbook still names it for a
+  deployment that collects lines, so the two documents still point in different directions.
