@@ -33,7 +33,9 @@ from test_injection_defense_live import (
     SQUARE,
     TYPE_SCALES,
     VISION_MODELS,
+    FrameAxis,
     capture_result,
+    frame_axis,
     image_messages,
     server_argv,
 )
@@ -362,6 +364,44 @@ def test_a_text_only_row_is_started_without_the_image_budget_pair() -> None:
         if model.mmproj is None:
             assert server_argv(model, SHIPPED_BUDGET) == server_argv(model, ENGINE_BUDGET)
             assert "--ubatch-size" not in server_argv(model, SHIPPED_BUDGET), model.label
+
+
+def _costs(spent: tuple[int, int, int]) -> dict[str, int]:
+    """One cost row, as the live row builds it: a frame label per delivered frame."""
+    return dict(zip((frame.label for frame in RENDERED_FRAMES), spent, strict=True))
+
+
+# What one corpus screen cost in image tokens at each frame, per candidate and per budget, as
+# ADR-0029's frame-axis addendum publishes it: the pick's rows from 2026-09-04 and 2026-09-07, the
+# alt's from 2026-09-07. They are dated readings rather than a contract, and they are here because
+# the sort is what the live row's only assertion rests on. A candidate is in a different reading
+# at each budget and the two candidates are in opposite readings at both, so a classifier that
+# sorted on the pick alone would put two of these four rows in neither.
+_PUBLISHED_COSTS: tuple[tuple[str, tuple[int, int, int], FrameAxis], ...] = (
+    ("the pick at the shipped budget", (629, 1010, 1010), FrameAxis.MORE_PICTURE),
+    ("the pick at the engine's own budget", (266, 266, 266), FrameAxis.ONE_PICTURE),
+    ("the alt at the shipped budget", (1010, 1010, 1010), FrameAxis.ONE_PICTURE),
+    ("the alt at the engine's own budget", (1402, 4082, 4082), FrameAxis.MORE_PICTURE),
+)
+
+
+def test_every_published_cost_row_reads_as_one_of_the_two_frame_axes() -> None:
+    """Each of the four published cost rows falls in a reading, and in the one it was read as."""
+    for label, spent, axis in _PUBLISHED_COSTS:
+        assert frame_axis(_costs(spent)) is axis, label
+
+
+def test_a_row_whose_larger_frames_disagree_falls_in_neither_frame_axis() -> None:
+    """A row that saturates between two larger frames is the shape the live row's assertion fails.
+
+    The frame axis is a variable between one pair of frames there and not between another, so no
+    account of what the rows drawn across it varied covers the row. A larger frame that cost less
+    than the corpus frame is in neither reading too, since the readings are about what the encoder
+    kept and not about the costs merely differing.
+    """
+    assert frame_axis(_costs((629, 629, 1010))) is None
+    assert frame_axis(_costs((629, 1010, 629))) is None
+    assert frame_axis(_costs((1010, 629, 629))) is None
 
 
 def _axes(row: object) -> dict[object, tuple[object, ...]]:

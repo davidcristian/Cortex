@@ -755,8 +755,12 @@ runs at the corpus frame at the engine's own budget alone, the row the dialog's 
 in, and takes about nine minutes. Draw it with `CORTEX_INJECTION_SHOW_RESISTED=all`, since what a
 summary said is the reading and the count is a summary of it. `-k "dialog_pair and 12B"` draws the
 two dialog corners twenty times an arm at the payload size the fall happens at, prints all eighty
-replies and takes about six minutes; it is what separates that pair beyond the five draws a
-sweep cell has (ADR-0029's body-and-chrome addendum). The two probes are deliberately not corpus
+replies and takes about five minutes, 301.47 s on 2026-09-10; it is what separates that pair beyond
+the five draws a sweep cell has (ADR-0029's body-and-chrome addendum). **Run it more than once
+before reading its probe's arms.** The `advisory` control arm has drawn 4 of 5, 1 of 20 and 19 of 20
+across three loads, drawing one string 19 times in 20 in each deep load and a different string in
+each, so a count from one load is that load's answer rather than the cell's (ADR-0029's
+advisory-control addendum). The two probes are deliberately not corpus
 members, so no published count is taken over them.
 The port advice above applies unchanged: this arm runs the same
 `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model host down first.
@@ -866,8 +870,10 @@ Twelve things this arm adds that the text arm does not have.
   both frames and each glyph is carried by twice the pixels. No cell is dark at both frames.
 - **The budget decides whether the frames are two pictures, and it moves the count on its own.**
   One `plain` screen costs 266 prompt tokens at both frames at the engine's own budget and 629 and
-  1010 at the shipped 1024, which `-k costs` measures in four posts before you spend an hour on a
-  matrix. The shipped budget's own matrix count is *higher* than the engine budget's and every
+  1010 at the shipped 1024, which `-k costs` measures in six posts, one pair per frame, before you
+  spend an hour on a matrix. That row prints which of the two readings the frame axis is in for the
+  candidate and budget it ran at, one picture at every frame or more picture at every larger frame,
+  and asserts only that it is in one of them (ADR-0029's frame-axis addendum). The shipped budget's own matrix count is *higher* than the engine budget's and every
   cell it is higher by is a `chrome` description, because a model that reads the dialog reports its
   instruction verbatim, which the structural reading marks `desc`. Compare budgets on the obeyed
   count and the rate row, never on the mention total. The rate row's `chrome` control is the
@@ -888,7 +894,9 @@ engine budget's five **917.43 s**, the payload sweep at the corpus frame at the 
 the tier holding 10391 to 10393 MiB against an idle 1826 to 1830 MiB. On 2026-09-07 the rate row at
 each of the three frames at the engine's budget cost **631 s** across three cold loads, 182.79 s at
 `4800x2700`, 228.52 s at `1600x900` and 216.36 s at `3200x1800`, and each budget's cost row
-**37 s**, one cold load each. **Say which rows you ran**, the same standing rule the brain tier's row has: the
+**37 s**, one cold load each. On 2026-09-10 the `plain` cell at 560 draws per arm at the
+corpus frame and the shipped budget cost **1384.25 s**, 1121 replies behind one cold load, and the
+dialog pair at 16 px at the engine's budget cost **301.47 s**, 84 replies behind another. **Say which rows you ran**, the same standing rule the brain tier's row has: the
 2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, the
 2026-08-30 sitting ran the cortex pick's matrix and rate at both frames at the engine's budget, the
 2026-09-04 sitting ran the same four rows at the shipped budget plus both budgets' token cost and
@@ -897,10 +905,13 @@ corpus frame and the shipped budget with both readings printing (188.87 s, one c
 second 2026-09-05 sitting ran every row at both frames and both budgets plus the sweep at the
 corpus frame at the engine's budget and at the doubled frame at the shipped one, the 2026-09-07
 sitting ran the cortex pick's rate at all three frames at the engine's budget with
-`CORTEX_INJECTION_SHOW_RESISTED=chrome,plain` and both budgets' cost rows, and a matrix
+`CORTEX_INJECTION_SHOW_RESISTED=chrome,plain` and both budgets' cost rows, the two 2026-09-10 sittings
+ran the cortex pick's `plain` cell at 560 draws per arm at the corpus frame and the shipped budget
+and its dialog pair at 16 px at the engine's budget with `CORTEX_INJECTION_SHOW_RESISTED=all`, and a
+matrix
 reported without naming its model is worse than a bad number. **Name the engine digest
 too**: `server-cuda` is a mutable tag and it moved between the first two sittings; the 2026-08-30,
-2026-09-04, 2026-09-05 and 2026-09-07 rows all ran on
+2026-09-04, 2026-09-05, 2026-09-07 and 2026-09-10 rows all ran on
 `sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, which is what makes the
 budgets comparable. The alt is the
 expensive row and the reason is its projector, measured on 2026-09-07 rather than estimated:
@@ -908,7 +919,13 @@ Qwen3.5-9B's F32 `mmproj` puts 1402 prompt tokens of one corpus screen in front 
 engine's own budget against the pick's 266, and 1010 against 629 at the shipped one, where the alt
 is already at the cap on the corpus frame. Its turns cost about 12 s each against the pick's 2.3, so
 budget a quarter of an hour for a matrix row, five minutes for a rate row, and over two hours for
-either deep row.
+either deep row. **An alt frame row measures the opposite of the pick's at each budget.** At the
+shipped budget the alt is at the cap on the corpus frame already, at 1010 tokens at all three
+frames, so a row drawn at a larger frame there is not a frame comparison at all: it differs from the
+corpus frame's row only in the resampling behind the same picture. At the engine's own budget the
+alt's frames are three pictures, 1402 tokens against 4082, where the pick's are one. Read an alt
+frame row against that rather than against the sentence the pick's rows carry at the budget with the
+same name.
 
 ## Does the cortex act on the email sidecar's correction (ADR-0013 own-text addenda, agent-runnable)
 

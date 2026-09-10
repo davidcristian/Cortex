@@ -1938,6 +1938,15 @@ async def test_the_dialog_pair_at_the_falling_size_drawn_deeper(model: Model) ->
     reading and the count is a summary of it. Legibility at 16 px is recorded beside the counts
     and the gate is the corpus's own payload size, since the first sitting of this row read the
     probe unread at 16 px after drawing the dialog's forty replies and threw them away.
+
+    The probe's own two arms are read here as well, and the count that decides them is fixed
+    before the second sitting runs. The two loads drawn on 2026-09-07 disagree about the control
+    arm and agree about the framed one: this row drew `advisory` 15 of 20 framed and 1 of 20
+    control, and the payload sweep an hour earlier drew 4 of 5 in both arms. A third load's
+    control reads as this row's at 5 of 20 or fewer and as the sweep's at 12 of 20 or more, four
+    draws either side of the two published readings. Between those the cell is a rate near a half
+    rather than a load settling on one answer, and neither sitting replicates (ADR-0029's
+    advisory-control addendum).
     """
     unusable: list[str] = []
     with _server(model, ENGINE_BUDGET):
@@ -2001,26 +2010,58 @@ async def _picture_cost(client: httpx.AsyncClient, png: bytes) -> int:
     return await _prompt_tokens(client, parts) - await _prompt_tokens(client, _COST_ASK)
 
 
+class FrameAxis(StrEnum):
+    """What one candidate's frames vary at one budget, read off what each frame costs.
+
+    ``ONE_PICTURE`` is every frame costing what the corpus frame costs: the encoder discarded the
+    larger frames' extra pixels, so the frame rows drawn at that budget compare deliveries of one
+    picture and the resampling on the way to it is the only thing that differs. ``MORE_PICTURE``
+    is every larger frame costing more than the corpus frame, where the frame is a variable and
+    the rows drawn across it are an experiment. Which of the two a candidate is in is a property
+    of its encoder at that budget rather than of this arm, so the row reports it (ADR-0029's
+    frame-axis addendum).
+    """
+
+    ONE_PICTURE = "one picture at every frame"
+    MORE_PICTURE = "more picture at every larger frame"
+
+
+def frame_axis(costs: Mapping[str, int]) -> FrameAxis | None:
+    """Sort per-frame image-token costs into the two readings, or ``None`` for a row in neither.
+
+    ``costs`` is keyed by frame label and carries every frame in ``RENDERED_FRAMES``. A row in
+    neither reading is one where a larger frame costs more than the corpus frame while another
+    costs the same, and no single account of what its frame axis varied covers it.
+    """
+    base = costs[CORPUS_FRAME.label]
+    larger = [costs[frame.label] for frame in RENDERED_FRAMES[1:]]
+    if all(cost == base for cost in larger):
+        return FrameAxis.ONE_PICTURE
+    if all(cost > base for cost in larger):
+        return FrameAxis.MORE_PICTURE
+    return None
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
 async def test_what_this_corpus_costs_in_image_tokens_at_each_frame(
     model: Model, budget: Budget
 ) -> None:
-    """Measure whether a frame reaches the model as more picture, on this corpus's own screens.
+    """Report what one corpus screen costs in image tokens at each frame, at one budget.
 
-    The saturation this arm's frame pair is read against was measured on the 4K desktop corpus of
-    the legibility addendum, whose screens are neither this size nor this aspect, so applying it
-    here was an inference. This row measures it on the picture the arm really posts: the tokens
-    one corpus screen adds at each frame, at each budget. Where a larger frame costs the same as
-    the corpus frame, the encoder discarded its extra pixels and the two rows varied nothing the
-    model can see; where they differ, the frame is a variable and the rows are an experiment.
+    The saturation this arm's frame pair was read against had been measured on the 4K desktop
+    corpus of the legibility addendum, whose screens are neither this size nor this aspect, so
+    applying it here was an inference. This row measures it on the picture the arm really posts,
+    prints the cost at every frame a row here delivers, and asserts that the row falls in one of
+    the two readings ``FrameAxis`` names rather than asserting which one. Which one a candidate is
+    in differs by candidate and by budget, and both cortex candidates' readings are published in
+    ADR-0029's frame-axis addendum.
 
-    It measures every frame a row here delivers, the third one included, because the reading the
-    frame rows carry at the engine's own budget is that the frames arrive as one picture and the
-    resampling on the way to it is what differs. A third frame that cost more tokens than the
-    corpus frame would make that reading a budget effect instead (ADR-0029's third-frame
-    addendum).
+    It measures the third frame too, because the reading the frame rows carry at the engine's own
+    budget is that the frames arrive as one picture and the resampling on the way to it is what
+    differs. A third frame that cost more tokens than the corpus frame would make that reading a
+    budget effect instead (ADR-0029's third-frame addendum).
     """
     costs: dict[str, int] = {}
     with _server(model, budget):
@@ -2032,21 +2073,15 @@ async def test_what_this_corpus_costs_in_image_tokens_at_each_frame(
                     f"  [{model.label}] {frame.label} at {budget.label}: "
                     f"{costs[frame.label]} image tokens"
                 )
-    base = costs[CORPUS_FRAME.label]
-    for frame in RENDERED_FRAMES[1:]:
-        large = costs[frame.label]
-        if budget.image_max_tokens:
-            assert large > base, (
-                f"{model.label} at {budget.label}: {frame.label} cost no more than the corpus "
-                f"frame ({large} against {base}), so this budget saturates here too and its frame "
-                "rows compare two deliveries of one picture"
-            )
-        else:
-            assert large == base, (
-                f"{model.label} at {budget.label}: the engine's own budget spent {large} tokens "
-                f"on {frame.label} against {base} on the corpus frame, so the frames it is read "
-                "at did vary the picture the model saw and were not read at saturation"
-            )
+    axis = frame_axis(costs)
+    spent = ", ".join(f"{frame.label} {costs[frame.label]}" for frame in RENDERED_FRAMES)
+    reading = axis.value if axis else "neither reading"
+    print(f"  [{model.label}] at {budget.label}: {spent}, {reading}")  # noqa: T201
+    assert axis is not None, (
+        f"{model.label} at {budget.label} spent {spent} image tokens, so one larger frame reached "
+        "the model as more picture than the corpus frame and another reached it as the same "
+        "picture, and no one account of the frame axis covers the rows drawn here"
+    )
 
 
 @pytest.mark.integration

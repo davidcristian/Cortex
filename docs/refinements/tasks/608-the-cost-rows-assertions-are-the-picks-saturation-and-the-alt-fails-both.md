@@ -1,9 +1,8 @@
 # The cost row's assertions are the pick's saturation and the alt fails both
 
-**Status:** open, actionable
+**Status:** landed 2026-09-10
 **Area:** inference
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-07 by the close of
 [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), which drew the
@@ -48,3 +47,24 @@ already published in the
   tables are the ones quoted here. What was loose is the pointer to the rows this decision blocks:
   it read as a count of undrawn frame rows, where the rows the decision is about are the four at
   the doubled frame.
+- 2026-09-10: **landed, and the row is held to the property both candidates share.** Re-derived
+  first. The two assertions read as this entry describes them and all four published cost tables
+  hold, and one thing this entry says is loose: the pick's shipped row is not three costs that all
+  differ, it is 629 at the corpus frame and 1010 at both larger frames, which are the cap. So "all
+  different" is a property of each larger frame against the corpus frame rather than of the three
+  costs pairwise, and that is also the only comparison the frame rows make, since a row at one frame
+  is read against the row at the corpus frame and no row compares the doubled frame with the third.
+  The row now prints every frame's cost and sorts them with `frame_axis` into one of two readings,
+  one picture at every frame or more picture at every larger frame, and asserts only that the row is
+  in one of them. The shape that fails is a row where one larger frame is more picture and another
+  is the same picture, which no account of the frame axis covers. Which reading each candidate is in
+  is recorded in the
+  [ADR-0029 frame-axis addendum](../../adr/ADR-0029-vision-screen-capture.md): the pick is more
+  picture at the shipped budget and one picture at the engine's own, the alt the reverse of that at
+  each, so the two candidates are in opposite readings at both budgets. What an alt frame row
+  measures at each budget is written there and in the
+  [llamacpp-gpu runbook](../../runbooks/llamacpp-gpu.md)'s image-arm section, where an operator
+  reads it: at the shipped budget it is not a frame comparison, since the alt is at the cap on the
+  corpus frame and its larger frames differ only in the resampling behind the same 1010 tokens. The
+  sort is held CI-side to the four published tables and to a saturating pair, and three mutants over
+  it fail those rows.
