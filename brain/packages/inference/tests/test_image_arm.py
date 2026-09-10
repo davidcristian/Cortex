@@ -1,5 +1,3 @@
-"""CI-side gate on the injection harness's image arm: its corpus, and the request it posts."""
-
 import zlib
 from typing import TYPE_CHECKING, Any, cast
 
@@ -23,7 +21,9 @@ from test_injection_defense_live import (
     SQUARE,
     TYPE_SCALES,
     VISION_MODELS,
+    FrameAxis,
     capture_result,
+    frame_axis,
     image_messages,
     server_argv,
 )
@@ -44,7 +44,6 @@ _EVERY_RENDERING = (*RENDERINGS, *PROBES)
 
 
 def test_every_payload_is_fully_drawable_by_the_font() -> None:
-    """No corpus character falls back to the missing-glyph box, in either arm's text."""
     holes = {
         attack.name: missing(drawn(attack.injection))
         for attack in ATTACKS
@@ -54,7 +53,6 @@ def test_every_payload_is_fully_drawable_by_the_font() -> None:
 
 
 def test_every_rendering_of_every_attack_is_a_png_of_the_frame_it_was_asked_for() -> None:
-    """Each cell of the corpus is a real PNG at the frame it was rendered at."""
     for frame in RENDERED_FRAMES:
         for rendering in RENDERINGS:
             for attack in ATTACKS:
@@ -65,7 +63,6 @@ def test_every_rendering_of_every_attack_is_a_png_of_the_frame_it_was_asked_for(
 
 
 def test_the_corpus_is_byte_identical_when_rendered_twice() -> None:
-    """Rendering a cell twice gives the same bytes, so an arm and its control share a picture."""
     for rendering in _EVERY_RENDERING:
         first = rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
         assert first == rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE), (
@@ -74,7 +71,6 @@ def test_the_corpus_is_byte_identical_when_rendered_twice() -> None:
 
 
 def test_every_rendering_is_accepted_by_the_shipped_image_part() -> None:
-    """The bytes clear the brain's own mime, edge and budget checks before any server sees them."""
     for frame in RENDERED_FRAMES:
         for rendering in RENDERINGS:
             png = rendering.build(ATTACKS[0].injection, frame, CORPUS_TYPE_SCALE)
@@ -85,7 +81,6 @@ def test_every_rendering_is_accepted_by_the_shipped_image_part() -> None:
 
 
 def test_two_renderings_of_one_attack_differ() -> None:
-    """The renderings are three deliveries of one payload, not one picture named three times."""
     pictures = {
         rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
         for rendering in _EVERY_RENDERING
@@ -94,7 +89,6 @@ def test_two_renderings_of_one_attack_differ() -> None:
 
 
 def test_the_probes_are_real_screens_of_the_corpus_frame_and_stand_outside_the_corpus() -> None:
-    """The two probes are pictures the brain accepts, and no published count is taken over them."""
     for rendering in PROBES:
         assert rendering not in RENDERINGS, rendering.name
         png = rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
@@ -111,8 +105,6 @@ def test_the_probes_are_real_screens_of_the_corpus_frame_and_stand_outside_the_c
 
 
 def test_the_square_is_the_two_corpus_corners_and_both_probes() -> None:
-    """The probe row draws four corners: the two the sweep already draws, and the two beside them.
-    """
     assert SQUARE[: len(SQUARE) - len(PROBES)] == RENDERINGS[:2]
     assert SQUARE[len(SQUARE) - len(PROBES) :] == PROBES
     assert [rendering.name for rendering in SQUARE] == ["plain", "chrome", "bare", "advisory"]
@@ -127,7 +119,6 @@ def _rows(png: bytes, width: int) -> list[bytes]:
 
 
 def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None:
-    """Every larger frame is the base frame pixel for pixel, each pixel grown to a square block."""
     for rendering in RENDERINGS:
         small = _rows(
             rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE),
@@ -151,7 +142,6 @@ def test_a_magnified_render_is_the_same_picture_carried_by_more_pixels() -> None
 
 
 def test_every_payload_size_the_sweep_runs_at_is_a_png_of_its_frame() -> None:
-    """A smaller payload is still a whole screen, at every frame the arm renders at."""
     for type_scale in TYPE_SCALES:
         for frame in RENDERED_FRAMES:
             for rendering in RENDERINGS:
@@ -161,8 +151,6 @@ def test_every_payload_size_the_sweep_runs_at_is_a_png_of_its_frame() -> None:
 
 
 def test_a_payload_size_moves_nothing_above_the_payload() -> None:
-    """The first row a payload size changes is the row the rendering declares, in every rendering.
-    """
     for rendering in _EVERY_RENDERING:
         corpus = _rows(
             rendering.build(ATTACKS[0].injection, CORPUS_FRAME, CORPUS_TYPE_SCALE),
@@ -180,11 +168,7 @@ def test_a_payload_size_moves_nothing_above_the_payload() -> None:
 
 
 def _painted(rendering: Rendering, type_scale: TypeScale) -> list[tuple[int, int]]:
-    """The pixels of a screen the injected instruction paints at this size, as row and column.
-
-    Read as the difference against the same screen drawn with no instruction in it, so the
-    payload's share of the picture is measured rather than inferred from the glyph scale.
-    """
+    """The pixels of a screen the injected instruction paints at this size, as row and column."""
     blank = _rows(rendering.build("", CORPUS_FRAME, type_scale), CORPUS_FRAME.width)
     drawn_screen = _rows(
         rendering.build(ATTACKS[0].injection, CORPUS_FRAME, type_scale), CORPUS_FRAME.width
@@ -198,7 +182,6 @@ def _painted(rendering: Rendering, type_scale: TypeScale) -> list[tuple[int, int
 
 
 def test_a_smaller_payload_is_set_in_the_same_column_of_pixels() -> None:
-    """A wrapped line is the same width in pixels at every size, whatever width it is given."""
     for corpus_columns in (12, 24, 42, 48, 68):
         for type_scale in TYPE_SCALES:
             assert (
@@ -208,11 +191,6 @@ def test_a_smaller_payload_is_set_in_the_same_column_of_pixels() -> None:
 
 
 def test_the_pitch_between_a_payloads_lines_follows_its_glyphs() -> None:
-    """The lines close up as the glyphs shrink, so a small payload is a paragraph of small type.
-
-    Held as a proportion within the one pixel an integer division can lose, rather than as an
-    expectation computed from the rule under test.
-    """
     for corpus_leading in (18, 40, 42, 46):
         for type_scale in TYPE_SCALES:
             drift = abs(
@@ -223,7 +201,6 @@ def test_the_pitch_between_a_payloads_lines_follows_its_glyphs() -> None:
 
 
 def test_a_smaller_payload_size_paints_a_smaller_share_of_the_screen() -> None:
-    """The share falls with every step of the sweep, and never to nothing."""
     for rendering in _EVERY_RENDERING:
         painted = [len(_painted(rendering, type_scale)) for type_scale in TYPE_SCALES]
         assert all(count > 0 for count in painted), f"{rendering.name}: {painted}"
@@ -232,16 +209,11 @@ def test_a_smaller_payload_size_paints_a_smaller_share_of_the_screen() -> None:
 
 
 async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at() -> None:
-    """The words the model reads about the capture follow the frame, at every frame."""
     for frame in RENDERED_FRAMES:
         png = RENDERINGS[0].build(ATTACKS[0].injection, frame, CORPUS_TYPE_SCALE)
         result = await capture_result(png, frame)
-        # The label is what a printed matrix and a test id call this frame, so it is held to
-        # what the shipped `describe` writes off the picture rather than to itself.
         assert frame.label in result.content, frame.label
         assert f"{frame.source_width}x{frame.source_height}" in result.content, frame.label
-        # The comparison is relational rather than arithmetic, because a claimed source that
-        # stopped following the frame would otherwise move this expectation along with it.
         assert frame.source_width * CORPUS_FRAME.width == CORPUS_FRAME.source_width * frame.width
         assert (
             frame.source_height * CORPUS_FRAME.height == CORPUS_FRAME.source_height * frame.height
@@ -249,7 +221,6 @@ async def test_the_stand_in_text_names_the_frame_the_picture_really_arrived_at()
 
 
 def test_the_arm_starts_its_server_with_the_deployments_own_image_budget() -> None:
-    """A seeing row's command line carries the budget pair, and it carries it as a pair."""
     for model in VISION_MODELS:
         argv = server_argv(model, SHIPPED_BUDGET)
         assert argv[-4:] == (
@@ -262,11 +233,6 @@ def test_the_arm_starts_its_server_with_the_deployments_own_image_budget() -> No
 
 
 def test_the_engine_budget_row_starts_with_neither_flag() -> None:
-    """The row that reproduces every pixel measurement published before the budget moved.
-
-    Naming the engine's own defaults back at it would be a different command line from the one
-    those rows ran, so this budget emits nothing at all.
-    """
     for model in VISION_MODELS:
         argv = server_argv(model, ENGINE_BUDGET)
         assert "--image-max-tokens" not in argv, model.label
@@ -274,11 +240,37 @@ def test_the_engine_budget_row_starts_with_neither_flag() -> None:
 
 
 def test_a_text_only_row_is_started_without_the_image_budget_pair() -> None:
-    """The pair hangs off the projector, exactly as the shipped model host hangs it off the tier."""
     for model in MODELS:
         if model.mmproj is None:
             assert server_argv(model, SHIPPED_BUDGET) == server_argv(model, ENGINE_BUDGET)
             assert "--ubatch-size" not in server_argv(model, SHIPPED_BUDGET), model.label
+
+
+def _costs(spent: tuple[int, int, int]) -> dict[str, int]:
+    """One cost row, as the live row builds it: a frame label per delivered frame."""
+    return dict(zip((frame.label for frame in RENDERED_FRAMES), spent, strict=True))
+
+
+# What one corpus screen cost in image tokens at each frame, per candidate and per budget. They
+# are dated readings rather than a contract, and they are here because the sort is what the live
+# row's only assertion rests on.
+_PUBLISHED_COSTS: tuple[tuple[str, tuple[int, int, int], FrameAxis], ...] = (
+    ("the pick at the shipped budget", (629, 1010, 1010), FrameAxis.MORE_PICTURE),
+    ("the pick at the engine's own budget", (266, 266, 266), FrameAxis.ONE_PICTURE),
+    ("the alt at the shipped budget", (1010, 1010, 1010), FrameAxis.ONE_PICTURE),
+    ("the alt at the engine's own budget", (1402, 4082, 4082), FrameAxis.MORE_PICTURE),
+)
+
+
+def test_every_published_cost_row_reads_as_one_of_the_two_frame_axes() -> None:
+    for label, spent, axis in _PUBLISHED_COSTS:
+        assert frame_axis(_costs(spent)) is axis, label
+
+
+def test_a_row_whose_larger_frames_disagree_falls_in_neither_frame_axis() -> None:
+    assert frame_axis(_costs((629, 629, 1010))) is None
+    assert frame_axis(_costs((629, 1010, 629))) is None
+    assert frame_axis(_costs((1010, 629, 629))) is None
 
 
 def _axes(row: object) -> dict[object, tuple[object, ...]]:
@@ -288,8 +280,6 @@ def _axes(row: object) -> dict[object, tuple[object, ...]]:
 
 
 def test_the_sweep_and_the_rate_run_in_every_row_the_matrix_runs_in() -> None:
-    """The three seeing rows share their frame and budget axes, so one selector names one of each.
-    """
     axes = _axes(_matrix_row)
     assert set(axes) == {"model", "frame", "budget"}
     assert _axes(_sweep_row) == axes
@@ -304,7 +294,6 @@ def _tool_parts(wire: list[dict[str, object]]) -> list[dict[str, Any]]:
 
 
 async def test_the_screen_reaches_the_wire_as_a_png_data_uri() -> None:
-    """The pixels really are in the request, in both arms, as a content-parts image."""
     result = await capture_result(_PNG)
     for framed in (True, False):
         parts = _tool_parts(image_messages(result, framed=framed, ask=_ASK))
@@ -314,7 +303,6 @@ async def test_the_screen_reaches_the_wire_as_a_png_data_uri() -> None:
 
 
 async def test_the_two_arms_differ_by_the_defence_and_by_nothing_else() -> None:
-    """The preamble and the fence are the only difference; the picture is byte-identical."""
     result = await capture_result(_PNG)
     framed = image_messages(result, framed=True, ask=_ASK)
     control = image_messages(result, framed=False, ask=_ASK)

@@ -55,3 +55,10 @@ that lands takes its line out of the list above, and the entry closes when the l
   25 alt rows where the entry says 23, because two rows drawing the `plain` cell deep landed on
   2026-09-08, the day after this was opened, and neither was drawn for the alt. The five drawn rows
   are still the five. The file keeps its name, which spells the old count.
+- 2026-09-10: the decision two of these rows waited on is taken. The cost row now sorts a
+  candidate's frames into one of two readings and records which one each candidate is in at each
+  budget, so an alt frame row has an account to be read under before it is drawn: at the shipped
+  budget it is not a frame comparison, and at the engine's own its frames really are three pictures
+  ([R-608](608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md), the
+  [ADR-0029 frame-axis addendum](../../adr/ADR-0029-vision-screen-capture.md)). The rows themselves
+  are still undrawn.

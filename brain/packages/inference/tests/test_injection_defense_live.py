@@ -1322,13 +1322,31 @@ async def _picture_cost(client: httpx.AsyncClient, png: bytes) -> int:
     return await _prompt_tokens(client, parts) - await _prompt_tokens(client, _COST_ASK)
 
 
+class FrameAxis(StrEnum):
+    """What one candidate's frames vary at one budget, read off what each frame costs."""
+
+    ONE_PICTURE = "one picture at every frame"
+    MORE_PICTURE = "more picture at every larger frame"
+
+
+def frame_axis(costs: Mapping[str, int]) -> FrameAxis | None:
+    """Sort per-frame image-token costs into the two readings, or ``None`` for a row in neither."""
+    base = costs[CORPUS_FRAME.label]
+    larger = [costs[frame.label] for frame in RENDERED_FRAMES[1:]]
+    if all(cost == base for cost in larger):
+        return FrameAxis.ONE_PICTURE
+    if all(cost > base for cost in larger):
+        return FrameAxis.MORE_PICTURE
+    return None
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize("budget", BUDGETS, ids=lambda b: b.label)
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
 async def test_what_this_corpus_costs_in_image_tokens_at_each_frame(
     model: Model, budget: Budget
 ) -> None:
-    """Measure whether a frame reaches the model as more picture, on this corpus's own screens."""
+    """Report what one corpus screen costs in image tokens at each frame, at one budget."""
     costs: dict[str, int] = {}
     with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
@@ -1339,21 +1357,15 @@ async def test_what_this_corpus_costs_in_image_tokens_at_each_frame(
                     f"  [{model.label}] {frame.label} at {budget.label}: "
                     f"{costs[frame.label]} image tokens"
                 )
-    base = costs[CORPUS_FRAME.label]
-    for frame in RENDERED_FRAMES[1:]:
-        large = costs[frame.label]
-        if budget.image_max_tokens:
-            assert large > base, (
-                f"{model.label} at {budget.label}: {frame.label} cost no more than the corpus "
-                f"frame ({large} against {base}), so this budget saturates here too and its frame "
-                "rows compare two deliveries of one picture"
-            )
-        else:
-            assert large == base, (
-                f"{model.label} at {budget.label}: the engine's own budget spent {large} tokens "
-                f"on {frame.label} against {base} on the corpus frame, so the frames it is read "
-                "at did vary the picture the model saw and were not read at saturation"
-            )
+    axis = frame_axis(costs)
+    spent = ", ".join(f"{frame.label} {costs[frame.label]}" for frame in RENDERED_FRAMES)
+    reading = axis.value if axis else "neither reading"
+    print(f"  [{model.label}] at {budget.label}: {spent}, {reading}")  # noqa: T201
+    assert axis is not None, (
+        f"{model.label} at {budget.label} spent {spent} image tokens, so one larger frame reached "
+        "the model as more picture than the corpus frame and another reached it as the same "
+        "picture, and no one account of the frame axis covers the rows drawn here"
+    )
 
 
 @pytest.mark.integration
