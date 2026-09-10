@@ -540,22 +540,41 @@ async def test_a_brain_that_dies_at_load_fails_the_swap_with_its_state() -> None
     assert host.running == {"cortex"}
 
 
-async def test_a_swap_is_refused_when_the_card_has_no_room_for_the_deep_model() -> None:
+async def test_a_swap_is_refused_when_the_card_has_no_room_for_the_deep_model(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """The fit check, on the numbers measured 2026-08-07: 13165 MiB free against 19125 wanted.
 
     What the deep model would otherwise do is start anyway and be paged to system memory, which
     is why the assertion is on ``calls``: no ``start`` for the deep model at all. A refusal that
     merely raised after loading would be worse than none.
+
+    The three numbers are on the log line as fields and in the exception's text as prose, which
+    is the split every refusal here makes: the message a grep matches stays constant, and the
+    self-contained sentence goes where no formatter runs.
     """
     host = ScriptedModelHost(
         running=["cortex"], device_memory=DeviceMemory(free_mib=13165, total_mib=24463)
     )
     manager = _manager(host, _plan(brain_vram_mib=19125))
-    with pytest.raises(SwapFailedError, match="needs 19125 MiB of free device memory"):
+    with (
+        caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"),
+        pytest.raises(SwapFailedError, match="needs 19125 MiB of free device memory"),
+    ):
         async with manager.swap_scope("brain"):
             pass  # pragma: no cover - entering raises before the body runs
     assert ("start", "brain") not in host.calls
     assert host.running == {"cortex"}
+    (refused,) = caplog.records
+    assert refused.message == (
+        "the card has too little free memory for the deep model, so it was not started"
+    )
+    assert record_fields(refused) == {
+        "model": "brain",
+        "needed_mib": 19125,
+        "free_mib": 13165,
+        "total_mib": 24463,
+    }
     async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL
 
@@ -600,16 +619,30 @@ async def test_a_card_with_exactly_the_room_is_a_fit_and_one_mib_short_is_not() 
             pass  # pragma: no cover - entering raises before the body runs
 
 
-async def test_a_host_that_can_see_no_card_refuses_a_swap_that_asked_for_a_fit() -> None:
+async def test_a_host_that_can_see_no_card_refuses_a_swap_that_asked_for_a_fit(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """The swap fails closed: a deployment that asked to be checked and cannot be is refused
-    rather than run."""
+    rather than run.
+
+    The other half of the same split: the log line's message is constant and carries the tier
+    and the figure as fields, while the exception's text names both in a sentence.
+    """
     host = ScriptedModelHost(running=["cortex"])
     manager = _manager(host, _plan(brain_vram_mib=19125))
-    with pytest.raises(SwapFailedError, match="reports no device memory"):
+    with (
+        caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"),
+        pytest.raises(SwapFailedError, match="reports no device memory"),
+    ):
         async with manager.swap_scope("brain"):
             pass  # pragma: no cover - entering raises before the body runs
     assert ("start", "brain") not in host.calls
     assert host.running == {"cortex"}
+    (refused,) = caplog.records
+    assert refused.message == (
+        "the model host reports no device memory, so the fit check has nothing to compare against"
+    )
+    assert record_fields(refused) == {"model": "brain", "needed_mib": 19125}
 
 
 async def test_a_plan_with_no_measured_figure_never_asks_the_host_about_the_card() -> None:
@@ -1092,7 +1125,19 @@ async def test_a_restarted_sidecar_whose_bounds_outlast_the_deadline_refuses_bef
             pass  # pragma: no cover - entering raises before the body runs
     assert ("stop", "cortex") not in host.calls
     assert host.running == {"cortex"}
-    assert "nothing was unloaded" in caplog.text
+    # The line logs a constant message and carries every term of the comparison as a field, so
+    # the five numbers the exception spells are read once here rather than twice.
+    (refused,) = caplog.records
+    assert refused.message == (
+        "the fresh model host's worst stop is no longer cleared by the deadline"
+    )
+    assert record_fields(refused) == {
+        "deadline_s": 60.0,
+        "worst_s": 60.0,
+        "probe_timeout_s": 5.0,
+        "stop_grace_s": 20.0,
+        "reap_timeout_s": 35.0,
+    }
     # And the machine is still the one it was: the next turn leases the cortex as usual.
     async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL

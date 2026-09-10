@@ -42,6 +42,12 @@ from cortex_session import RedisHandoffStore
 
 _logger = logging.getLogger(__name__)
 
+# What the refused pairing logs, which is not what it raises (ADR-0038 logged-and-raised
+# addendum). The log call's message stays constant so a grep matches every instance and the five
+# numbers are read once, off the fields beside it; the exception's text spells them, being read
+# in a traceback where no formatter runs.
+_REFUSED = "the control deadline does not clear the model host's worst stop"
+
 
 class ControlDeadlineError(RuntimeError):
     """The control deadline this brain was given does not clear its model host's worst stop."""
@@ -190,11 +196,6 @@ async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None
             extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s},
         )
         return swap
-    # The three readings above are attached to the record alone, because the process entry's
-    # formatter appends whatever a record carries and a second copy in the message would print each
-    # of them twice. This failure is the one place the numbers stay in the prose: the same string
-    # is the exception's text, read where no formatter runs, and a caller told only that the
-    # pairing failed would have to go back to the logs to learn by how much.
     msg = (
         f"CORTEX_MODELHOST_TIMEOUT_S is {deadline_s} s and the model host's worst stop is "
         f"{bounds.worst_case_stop_s} s (probe {bounds.probe_timeout_s} s, grace "
@@ -203,7 +204,9 @@ async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None
         "Raise the brain's deadline above that sum, or lower the sidecar's own bounds "
         "(docs/runbooks/model-swap.md)"
     )
-    _logger.error(msg, extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s})
+    # Wider than the passing line above, which carries the deadline and the sum: a pairing that
+    # holds needs no breakdown, while on a refusal the three terms are what say which knob moves.
+    _logger.error(_REFUSED, extra=bounds.pairing_fields(deadline_s))
     await swap.close()
     raise ControlDeadlineError(msg)
 

@@ -23,6 +23,12 @@ __all__ = ["ToolCallDeadlineError", "check_tool_call_deadline", "delegated_call_
 
 _logger = logging.getLogger(__name__)
 
+# What the refusal logs, which is not what it raises (ADR-0038 logged-and-raised addendum). The
+# log call's message stays constant so a grep matches every instance and the four numbers are
+# read once, off the fields ``_pairing`` builds; the exception's text spells them, being read in
+# a traceback where no formatter runs.
+_REFUSED = "one wedged tool dispatch can outlast the delegated run that has to contain it"
+
 
 class ToolCallDeadlineError(RuntimeError):
     """The bound on one tool call does not fit inside the delegated run that has to contain it."""
@@ -123,9 +129,6 @@ def check_tool_call_deadline(subagents: SubagentsConfig, tools: ToolsConfig) -> 
     if tools.backend != "mcp" or subagents.backend != "llamacpp":
         return subagents
     if _dispatch_cost(tools) < subagents.run_timeout_s:
-        # The numbers are attached to the record alone, the shipped formatter appending whatever a
-        # record carries; the failure message below is the one place they stay in the prose, being
-        # read where no formatter runs.
         _logger.info(
             "the delegated run's deadline outlasts one wedged tool dispatch",
             extra=_pairing(subagents, tools),
@@ -141,7 +144,7 @@ def check_tool_call_deadline(subagents: SubagentsConfig, tools: ToolsConfig) -> 
         "transport failure earns is skipped. Lower the call bound, or raise the run bound above "
         "the dispatch (docs/runbooks/tools-mcp.md)"
     )
-    _logger.error(msg, extra=_pairing(subagents, tools))
+    _logger.error(_REFUSED, extra=_pairing(subagents, tools))
     raise ToolCallDeadlineError(msg)
 
 
@@ -155,11 +158,17 @@ def _pairing(subagents: SubagentsConfig, tools: ToolsConfig) -> dict[str, float]
 
     The multiple is attached alongside the two bounds, because it is the term that makes the
     comparison say something a reader cannot recompute from the pair: the same 60 s under the same
-    2400 s is a different amount of headroom with a second sidecar configured.
+    2400 s is a different amount of headroom with a second sidecar configured. The sidecar count
+    is attached for the same reason one place further on, being what the multiple is derived from
+    and the thing an operator changes when a second endpoint is configured.
+
+    Every number the refusal's text spells is in here, so the constant message the failing line
+    logs withholds nothing the exception says (ADR-0038 logged-and-raised addendum).
     """
     return {
         "call_timeout_s": tools.call_timeout_s,
         "call_bounds_per_dispatch": delegated_call_bounds(tools),
         "dispatch_timeout_s": _dispatch_cost(tools),
         "run_timeout_s": subagents.run_timeout_s,
+        "sidecars": len(tools.named_endpoints),
     }

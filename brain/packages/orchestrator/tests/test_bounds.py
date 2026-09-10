@@ -157,9 +157,16 @@ def test_a_call_bounded_above_the_run_it_sits_inside_refuses_to_boot(
     assert "CORTEX_TOOLS_CALL_TIMEOUT_S is 3000.0 s" in str(excinfo.value)
     assert "spend it 3 times over across 1 configured sidecar(s), so 9000.0 s" in str(excinfo.value)
     assert "CORTEX_SUBAGENTS_RUN_TIMEOUT_S is 900.0 s" in str(excinfo.value)
+    # The log line says the same failure in the shape a log line wants: a constant message a
+    # grep matches every instance of, and every number the exception spells as a field, so the
+    # rendered line reads each of them once.
+    rendered = PlainFormatter().format(_only(caplog))
+    assert (
+        "one wedged tool dispatch can outlast the delegated run that has to contain it" in rendered
+    )
     assert (
         "call_bounds_per_dispatch=3 call_timeout_s=3000.0 dispatch_timeout_s=9000.0 "
-        "run_timeout_s=900.0" in PlainFormatter().format(_only(caplog))
+        "run_timeout_s=900.0 sidecars=1" in rendered
     )
 
 
@@ -200,7 +207,7 @@ def test_the_shipped_pair_is_wired_and_says_so(caplog: pytest.LogCaptureFixture)
     assert "outlasts one wedged tool dispatch" in caplog.text
     assert (
         "call_bounds_per_dispatch=3 call_timeout_s=60.0 dispatch_timeout_s=180.0 "
-        "run_timeout_s=2400.0" in PlainFormatter().format(_only(caplog))
+        "run_timeout_s=2400.0 sidecars=1" in PlainFormatter().format(_only(caplog))
     )
 
 
@@ -216,7 +223,7 @@ def test_a_second_sidecar_costs_the_same_bound_more(caplog: pytest.LogCaptureFix
         assert check_tool_call_deadline(subagents, _two_sidecars()) is subagents
     assert (
         "call_bounds_per_dispatch=7 call_timeout_s=60.0 dispatch_timeout_s=420.0 "
-        "run_timeout_s=2400.0" in PlainFormatter().format(_only(caplog))
+        "run_timeout_s=2400.0 sidecars=2" in PlainFormatter().format(_only(caplog))
     )
 
 

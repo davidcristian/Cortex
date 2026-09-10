@@ -59,6 +59,7 @@ from cortex_core import (
     ScriptedModelHost,
     StandingTiers,
     SwapFailedError,
+    record_fields,
 )
 from cortex_core.residency_watch import BootWatch
 
@@ -237,7 +238,14 @@ async def test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff(
     ):
         await watch.reconcile(published)
     assert published.writes == [(None, RESIDENCY_LOST)]
-    assert "nothing was unloaded" in caplog.text
+    # A constant message and the tier as a field, while the sentence naming the tier and saying
+    # nothing was unloaded is the exception's, read where no formatter runs.
+    refused = caplog.records[-1]
+    assert refused.name == "cortex_core.residency_watch"
+    assert refused.message == (
+        "the model host was replaced and residency could not be converged onto the cortex"
+    )
+    assert record_fields(refused) == {"model": "cortex"}
 
 
 async def test_a_daemon_that_came_back_with_bounds_the_deadline_cannot_clear_refuses() -> None:

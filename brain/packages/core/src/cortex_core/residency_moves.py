@@ -35,6 +35,14 @@ type ReadinessGate = Callable[[str], Awaitable[ModelHostState]]
 
 _logger = logging.getLogger(__name__)
 
+# What the fit check's two refusals log, which is not what they raise (ADR-0038
+# logged-and-raised addendum): a constant message, with every number the exception spells
+# attached as a field beside it rather than read twice off one line.
+_NO_DEVICE_MEMORY = (
+    "the model host reports no device memory, so the fit check has nothing to compare against"
+)
+_CARD_TOO_SHORT = "the card has too little free memory for the deep model, so it was not started"
+
 
 async def is_unhosted(host: ModelHost, model: str) -> bool:
     """Whether this host says it carries no such logical model at all.
@@ -140,7 +148,7 @@ async def _refuse_a_load_the_card_cannot_hold(
             f"{model!r} fits in the {plan.brain_vram_mib} MiB it was declared to need; the "
             "handoff is refused rather than run unchecked"
         )
-        _logger.error(msg, extra={"model": model, "needed_mib": plan.brain_vram_mib})
+        _logger.error(_NO_DEVICE_MEMORY, extra={"model": model, "needed_mib": plan.brain_vram_mib})
         raise SwapFailedError(msg)
     if memory.free_mib < plan.brain_vram_mib:
         msg = (
@@ -150,7 +158,7 @@ async def _refuse_a_load_the_card_cannot_hold(
             "half the decode rate (docs/runbooks/model-swap.md)"
         )
         _logger.error(
-            msg,
+            _CARD_TOO_SHORT,
             extra={
                 "model": model,
                 "needed_mib": plan.brain_vram_mib,

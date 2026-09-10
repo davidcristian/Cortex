@@ -1,9 +1,12 @@
 # A red sweep leaves no trace in the repo
 
-**Status:** open, actionable
+**Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-09
+**Trigger:** the first run this repository records under `shuffle.yml`, since every remedy below
+needs a run to exist and none can. Actions is off for the whole repository, which is a setting on
+the account rather than a change in this tree, and R-594 is the entry that waits on the setting.
+**Verified:** 2026-09-10
 
 Opened 2026-08-17 by the pass that put the shuffle sweep on a clock
 ([R-288](288-nothing-schedules-the-shuffle-sweep.md), [ADR-0002 sweep-schedule
@@ -53,3 +56,26 @@ cost of reading it late is bounded by how long the pair it names has already bee
   this entry to actionable and changes what it is for: not a channel for a red, but evidence that
   the sweep ran. The repository setting behind it is a separate piece of work and is filed as
   [R-594](594-no-workflow-in-this-repository-has-ever-run.md) rather than started here.
+
+- 2026-09-10: re-derived, and re-aimed to wait on the event its two siblings wait on. The three
+  API readings were taken again with the account's token. `shuffle.yml` reports `total_count` 0
+  and so does `ci.yml`; the repository's whole run history is now three entries rather than one,
+  all of them Dependabot updates (2026-09-01, 2026-09-08 and 2026-09-09); both workflows are still
+  listed `active`. The permissions endpoint answers 403 to this token now, so `enabled: false`
+  could not be re-read directly, and the two zero counts are the reading that stands. Monday
+  2026-09-07 03:41 UTC has since passed, which was the cron's first scheduled opportunity, and it
+  produced no run: the entry's second failure mode is now observed rather than predicted.
+
+  The 2026-09-06 pass moved this to actionable on the reasoning that a committed record of each
+  run's seed is the one remedy that surfaces a schedule which never fires, so it could be built
+  now. It cannot. A step that commits a seed record only writes one when a run executes, and no
+  run can, so nothing built here would be exercised or provable. The remedy also needs a bot
+  author in a history that is deliberately one person's, which is a decision for the maintainer
+  and not a change this tree may make on its own. The other two remedies, a badge and a
+  failure step that opens an issue, both need a run before they say anything at all. All three
+  therefore wait on the same event, and this entry is filed the way
+  [R-594](594-no-workflow-in-this-repository-has-ever-run.md) and
+  [R-300](300-shell-job-never-ran-on-a-runner.md) are rather than as work somebody could pick up.
+  Nothing in reach is left over: the one in-reach half of this situation, the two lines of
+  [docs/index.md](../../index.md) that describe CI as a thing that has run, belongs to
+  [R-594](594-no-workflow-in-this-repository-has-ever-run.md) and is named there.

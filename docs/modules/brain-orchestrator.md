@@ -719,8 +719,11 @@ The service:
   addendum) refuses a deployment whose whole delegated dispatch,
   `delegated_call_bounds(tools) * tools.call_timeout_s`, does not sit strictly under its
   `CORTEX_SUBAGENTS_RUN_TIMEOUT_S`, raising `ToolCallDeadlineError` with both knobs, both values,
-  the multiple and the product in one sentence, and logging the passing set at info with the same
-  four on the record. Comparing the two **bounds** rather than the dispatch under-protects the path
+  the multiple and the product in one sentence. Both outcomes log a constant message with the
+  same five fields from `_pairing` (the two bounds, the multiple, the product and the configured
+  sidecar count): the pass at info, the refusal at error, so the line a `grep` matches carries
+  every number the exception spells rather than repeating it (ADR-0038 logged-and-raised
+  addendum). Comparing the two **bounds** rather than the dispatch under-protects the path
   by at least twice, `CORTEX_TOOLS_CALL_TIMEOUT_S=700` under a 900 s run passing while a wedged
   sidecar spends 1400 s. The relation spans two settings classes, so neither can express it and the
   composition root is where it can be checked, the `check_control_deadline` argument for a pairing
@@ -851,7 +854,10 @@ The service:
   against two different numbers. Only an **answered** mismatch refuses: a host that cannot be asked
   is logged at warning and let through, since boot recovery already argues a brain must start
   beside a sidecar that is merely down, and a host that reports no bounds at all is the scripted
-  one, which stops no process. `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown
+  one, which stops no process. The refusal's `ERROR` carries a constant message and the pairing's
+  five terms from `ControlBounds.pairing_fields`, wider than the passing line's two, while the
+  exception's text spells the same five for the traceback nothing here guards (ADR-0038
+  logged-and-raised addendum). `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown
   `finally` (the client even when the store's own release raises, so one refused close cannot leak
   the other resource), or is a clean no-op when nothing was built. `build_subagents` returns its `ResourceBudgetScheduler` alongside
   the spawn tool for the same reason: the conductor must quiesce that very pool before a swap

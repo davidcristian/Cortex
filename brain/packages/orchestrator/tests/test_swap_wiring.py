@@ -540,7 +540,15 @@ async def test_a_deadline_the_hosts_worst_stop_can_outlast_refuses_to_boot(
         await check_control_deadline(runtime)
     # Every term, so the operator can see which knob to move without reading two containers' env.
     assert "worst stop is 60.0 s (probe 5.0 s, grace 20.0 s, reap 35.0 s)" in str(excinfo.value)
-    assert "CORTEX_MODELHOST_TIMEOUT_S is 60.0 s" in caplog.text
+    assert "CORTEX_MODELHOST_TIMEOUT_S is 60.0 s" in str(excinfo.value)
+    # The log line says the same thing in the shape a log line wants: one constant message a
+    # grep matches every instance of, and the same five terms as fields in the printed order.
+    rendered = PlainFormatter().format(_only(caplog))
+    assert "the control deadline does not clear the model host's worst stop" in rendered
+    assert (
+        "deadline_s=60.0 probe_timeout_s=5.0 reap_timeout_s=35.0 stop_grace_s=20.0 worst_s=60.0"
+        in rendered
+    )
 
 
 async def test_a_refused_pairing_releases_what_the_runtime_already_holds(

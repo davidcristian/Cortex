@@ -3997,7 +3997,7 @@ the same three shapes. Two needed more than a date.
 ### The sixth site arrived the day after the entry was filed
 
 The entry counting messages that are both logged and raised was filed waiting for a sixth site,
-because a sixth is what makes a rule worth writing. `check_dispatch_bounds`
+because a sixth is what makes a rule worth writing. `check_tool_call_deadline`
 (`brain/packages/orchestrator/src/cortex_orchestrator/bounds.py`) is that site and it landed
 2026-08-21, one day later. It spells four numbers in its refusal message, logs the message, and
 attaches the same four as fields built by `_pairing`, which exists so that both of its lines carry
@@ -4027,3 +4027,100 @@ way, [docs/refinements/index.md](../refinements/index.md), which is regenerated 
 addendum. No source file and no gate changed, so no mutation table is owed. The readings that
 needed a run were taken against the working tree through `brain/.venv`: the formatter's output for
 each shape, and an AST walk over `brain/packages/*/src` for the count of logged-and-raised sites.
+
+## Logged-and-raised addendum (2026-09-10): one message becomes two, and the fields carry the numbers
+
+Six places in the brain built one string, logged it, and raised it as a typed error's text, so the
+line an operator read spelled every varying value twice: once in the prose and once in the field
+run the formatter appends. The deferred entry that counted them was waiting for a sixth site before
+a rule was worth writing, the sixth arrived on 2026-08-21, and this is the rule.
+
+**Decision: a message that is logged and raised is written as two strings.** The log call takes a
+constant message, so a `grep` matches every instance of it and `logcalls.py` can read it; the
+`raise` takes the self-contained sentence, which names the knobs, spells the numbers and points at
+the runbook, because it is read in a traceback and on a settled record where no formatter runs.
+**What holds the pair together is an invariant on the fields: every value the exception's text
+spells is attached to the log call as a field.** That is checkable by eye at the call, and at the
+four sites where two lines describe one comparison it is enforced by building the fields once,
+`ControlBounds.pairing_fields` for the deadline pairing and `_pairing` for the dispatch pairing.
+
+### What re-deriving the entry found, which reverses its stated blocker
+
+The entry ruled out the cheaper shape, dropping the log and letting the catch print the exception,
+on the ground that the four `SwapFailedError` sites "share one catch that answers a fixed
+user-facing note and never reads the error's text". That was true when the entry was filed on
+2026-08-20 and stopped being true two days later. `swap_conductor._swap` now catches
+`ModelManagerError` and calls `self._settle.fail(record, str(err))`, which writes the whole
+sentence to the handoff record and logs it as the `reason` field of a `WARNING` from
+`cortex_core.swap_settle`. The swap runbook's own table of six `reason` sentences describes exactly
+that. The two remaining sites raise into `run_from_env`, which `__main__` runs under `asyncio.run`
+with nothing guarding it, so the sentence is printed in the traceback.
+
+So at all six sites the self-contained sentence already reaches a reader through a second channel
+that is not the site's own log call, which is what makes a constant message there lose nothing. The
+entry's conclusion, two strings per site, survives its argument being wrong; what changes is the
+cost, which is lower than it recorded.
+
+### What each of the six now writes
+
+`residency_moves` logs `the model host reports no device memory, so the fit check has nothing to
+compare against` with the tier and the declared figure, and `the card has too little free memory
+for the deep model, so it was not started` with those two plus what is free and what the card
+holds.
+`residency_watch` logs `the model host was replaced and residency could not be converged onto the
+cortex` with the tier, and `the fresh model host's worst stop is no longer cleared by the deadline`
+with the pairing's five terms. `swap_builders` logs `the control deadline does not clear the model
+host's worst stop` with the same five. `bounds` logs `one wedged tool dispatch can outlast the
+delegated run that has to contain it` with the two bounds, the multiple, the product and the
+sidecar count.
+
+Two field sets grew to satisfy the invariant. The deadline refusals carried the deadline and the
+sum and now carry the three terms as well, since those are what say which knob to move, and their
+passing lines are deliberately left at two. `_pairing` gained the configured sidecar count, which
+the refusal's prose already named and no field carried.
+
+### The rendered line, measured
+
+`check_tool_call_deadline` under `CORTEX_TOOLS_CALL_TIMEOUT_S=700` and
+`CORTEX_SUBAGENTS_RUN_TIMEOUT_S=900`, rendered through `PlainFormatter` in the working tree, used
+to print a 643-character line carrying 700.0, 3, 2100.0 and 900.0 in the prose and again in the
+field run. The same refusal now prints 215 characters: a 77-character message and five fields,
+each number once. The exception's text is unchanged at 516 characters, and it is what the
+traceback and the settled record carry.
+
+### Distrust green
+
+Nine mutations, each applied alone to the working tree and measured over the four suites that
+cover these modules (`test_residency.py`, `test_residency_watch.py`, `test_bounds.py` and
+`test_swap_wiring.py`, 98 tests). Every one was caught.
+
+| Mutation | Tests failed |
+| --- | --- |
+| `residency_moves` no-device-memory message reworded | 1 |
+| `residency_moves` card-too-short message reworded | 1 |
+| `residency_watch` not-converged message reworded | 1 |
+| `residency_watch` worst-stop message reworded | 1 |
+| `bounds` refusal message reworded | 1 |
+| `swap_builders` refusal message reworded | 1 |
+| `ControlBounds.pairing_fields` drops `probe_timeout_s` | 2 |
+| `_pairing` drops `sidecars` | 3 |
+| `bounds` logs the raised message again instead of the constant | 1 |
+
+### Deferred by this addendum
+
+Two of the four refusals now attach their fields through a method call,
+`bounds.pairing_fields(deadline_s)`, which joins the two `_pairing(subagents, tools)` calls already
+in `bounds.py` as an `extra=` that `logfields.py` refuses to read. No runbook quotes any of the
+four, so nothing fails today, and none of them can be quoted as a fenced sample until its field
+list is readable or the line is proven the way the tool audit's is
+([R-619](../refinements/tasks/619-four-refusal-lines-attach-their-fields-by-a-call.md)).
+
+### Records
+
+The change is six constant messages across `residency_moves.py`, `residency_watch.py`,
+`swap_builders.py` and `bounds.py`, the new `ControlBounds.pairing_fields`, the widened `_pairing`,
+their tests, `docs/modules/brain-core.md`, `docs/modules/brain-orchestrator.md`,
+[R-331](../refinements/tasks/331-five-raised-messages-keep-their-numbers-in-prose.md), the entry it
+opened, and this addendum. The trigger-sweep addendum above named the sixth site
+`check_dispatch_bounds`; no such function exists and the name is corrected there to
+`check_tool_call_deadline`. The brain suite is 3183 tests at 100% line and branch coverage.

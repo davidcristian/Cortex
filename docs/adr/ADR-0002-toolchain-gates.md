@@ -1177,3 +1177,39 @@ prose, and this record's argument.
 The fourth copy is the least dangerous of them. It sits in the `justfile` on the same screen as the
 default an editor would be retuning, where the two documents in `docs/` are the ones a retuned
 default leaves behind unread. So the entry keeps its shape and gains an accurate count.
+
+## Addendum (2026-09-10): the sweep's own trace waits on a run, and so is filed that way
+
+The sweep-schedule addendum above ends by naming what it left open: nothing in the repo records
+that a sweep ran or what seed it drew, so a red that goes unread and a schedule that stopped
+firing look the same from inside the tree. A pass on 2026-09-06 read the account's API and found
+the sharper of those two, that the schedule had never fired at all, and moved the entry to
+actionable on the reasoning that a committed record of each run's seed is the only one of its
+three remedies that would have surfaced it.
+
+**The three readings were taken again today and the entry is re-aimed to wait.** `shuffle.yml`
+reports `total_count` 0 and so does `ci.yml`. The repository's whole run history is three entries,
+all Dependabot updates, on 2026-09-01, 2026-09-08 and 2026-09-09. Both workflows are still listed
+`active`. The permissions endpoint answers 403 to this token now, so `enabled: false` could not be
+re-read directly, and the two zero counts are the reading that stands. Monday 2026-09-07 03:41 UTC
+has passed, which was the cron's first scheduled opportunity since it landed, and it produced no
+run.
+
+**Why actionable was the wrong state, and it is the remedy rather than the diagnosis that is
+blocked.** A step that commits each run's seed writes nothing until a run executes, so building it
+against a repository where Actions is off produces an unexercised step and no evidence. The same
+remedy also needs a bot author in a history that is deliberately one person's, which is the
+maintainer's decision rather than a change this tree makes on its own. The badge and the
+issue-opening failure step both need a run before they say anything. All three therefore wait on
+the first run this repository records, which is the trigger the entry now carries and the same
+event two neighbouring entries already wait on. Filing it as actionable while its own text says
+the close is a setting nobody here may flip is the mislabel the premise sweep corrected on those
+two, and this is the third of the trio.
+
+### Records
+
+[R-291](../refinements/tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md) changes state, gains a
+trigger and records the readings above;
+[docs/refinements/index.md](../refinements/index.md) is regenerated from it. No source file, no
+workflow and no gate changed, so no mutation table is owed. The readings are three `gh api` calls
+against this repository, taken 2026-09-10 00:58 UTC.

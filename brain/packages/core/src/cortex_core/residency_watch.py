@@ -44,6 +44,12 @@ from cortex_core.swap_recovery import converge_residency
 
 _logger = logging.getLogger(__name__)
 
+# What the two refusals log, which is not what they raise (ADR-0038 logged-and-raised addendum):
+# a constant message, with every number or name the exception spells attached as a field beside
+# it rather than read twice off one line.
+_NOT_CONVERGED = "the model host was replaced and residency could not be converged onto the cortex"
+_WORST_STOP_UNCLEARED = "the fresh model host's worst stop is no longer cleared by the deadline"
+
 
 class BootWatch:
     """The daemon this brain last spoke to, and what speaking to a different one costs.
@@ -163,7 +169,7 @@ class BootWatch:
             f"{self._plan.cortex_model!r} again, so the handoff was not started and nothing was "
             "unloaded (docs/runbooks/model-swap.md)"
         )
-        _logger.error(msg, extra={"model": self._plan.cortex_model})
+        _logger.error(_NOT_CONVERGED, extra={"model": self._plan.cortex_model})
         raise SwapFailedError(msg)
 
     async def _recheck_deadline(self) -> None:
@@ -190,7 +196,7 @@ class BootWatch:
             "longer clears, so an eviction that was working would time out mid handoff; the "
             "handoff was not started and nothing was unloaded (docs/runbooks/model-swap.md)"
         )
-        _logger.error(msg, extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s})
+        _logger.error(_WORST_STOP_UNCLEARED, extra=bounds.pairing_fields(deadline_s))
         raise SwapFailedError(msg)
 
     async def _bounds(self) -> ControlBounds | None:

@@ -162,6 +162,9 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   probe's deadline first (measured at 15.70 s against 10.89 s with the lock free). Reported by a
   host that supervises processes and absent from one that supervises none, which is what makes the
   port's verb answer `None` as readily as it answers this (ADR-0030's deadline-pairing addendum).
+  `pairing_fields(deadline_s)` is the five numbers of that comparison as log-record fields, and it
+  lives here rather than at either refusal so the composition root's line and the replaced
+  sidecar's carry one set (ADR-0038 logged-and-raised addendum).
 - `ResidencyPlan(cortex_model, brain_model, evict_models=(), coresident=False,
   brain_vram_mib=0, brain_decode_tps=0.0, drain_timeout_s=60.0, load_timeout_s=300.0,
   poll_interval_s=1.0, control_deadline_s=0.0)` is the
@@ -2506,7 +2509,12 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   is the only instant free memory means anything: everything the handoff means to unload is gone
   and nothing is allocated yet. Under a plan with `brain_vram_mib` set, a card short of that
   figure, or a host that can see no card at all, raises `SwapFailedError` there with both figures
-  in the message and starts nothing; with the figure at zero the host is never asked.
+  in the message and starts nothing; with the figure at zero the host is never asked. Each of
+  those two refusals also writes an `ERROR`, and the line and the exception are deliberately
+  different strings: the line's message is constant so a `grep` matches every instance, with the
+  tier and every figure attached as fields, while the exception's text spells them in prose,
+  being read on the settled handoff record where no formatter runs (ADR-0038 logged-and-raised
+  addendum).
   The optional `placer` the manager takes is not asked anything either: it is **told**, at the same
   two edges, which model holds the card, so its fit-test stops naming a cortex the handoff evicted
   (`residency_charge.py`, ADR-0030 handoff-window addendum). The handoff charge is written before
@@ -2613,7 +2621,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `plan.control_deadline_s` no longer clears them, a restart being the only event that can change
   either side of that pairing under a brain that never restarted. Both refusals happen with the
   cortex still serving and nothing unloaded, and the scope's own `finally` is the recovery path
-  either way. A host that cannot be asked, one that names no boot, one that states no bounds, and
+  either way. Both also write an `ERROR` under the same split the fit check makes: a constant
+  message with the tier, or the pairing's five terms from `ControlBounds.pairing_fields`, as
+  fields, beside an exception whose text spells them (ADR-0038 logged-and-raised addendum). A
+  host that cannot be asked, one that names no boot, one that states no bounds, and
   a plan that declared no deadline are all tolerated in the same direction: nothing observed,
   nothing rebuilt.
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,

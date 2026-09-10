@@ -107,6 +107,23 @@ class ControlBounds:
         """
         return self.worst_case_stop_s < deadline_s
 
+    def pairing_fields(self, deadline_s: float) -> dict[str, float]:
+        """The pairing's five numbers as log-record fields, so a line about it carries each one.
+
+        Written here rather than at either refusal because both of them, the composition root's
+        and the one a replaced sidecar triggers, describe the same comparison and must attach
+        the same set. Each spells all five in its exception's text as well, that text being read
+        where no formatter runs (ADR-0038 logged-and-raised addendum), so the two agree by
+        reading one mapping instead of by two call sites happening to list the same keys.
+        """
+        return {
+            "deadline_s": deadline_s,
+            "worst_s": self.worst_case_stop_s,
+            "probe_timeout_s": self.probe_timeout_s,
+            "stop_grace_s": self.stop_grace_s,
+            "reap_timeout_s": self.reap_timeout_s,
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class ResidencyPlan:
