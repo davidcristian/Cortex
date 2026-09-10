@@ -5,6 +5,7 @@
 **Trigger:** a deployment that injects a `MemoryRecaller` `id_factory` minting anything other than
 a 36-character uuid4, or a `MemoryStore` that mints ids of its own
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-10
 
 Opened 2026-08-26 by the close of
 [R-358](358-the-widest-value-was-never-a-real-line.md), whose strongest result is an arithmetic
@@ -29,3 +30,12 @@ field the store round-trips and would want an argument of its own, or a line in
 candidates, so the next person to inject a factory meets the number rather than discovering it. The
 second is the cheap one and probably the right one: the id is the store's identity, and narrowing it
 to buy log headroom would let a logging bound dictate a storage identity.
+
+## Trail
+
+- 2026-09-10: neither half of the trigger has fired. `MemoryRecaller.__init__` still defaults
+  `id_factory` to `_uuid4_memory_id`, which returns `str(uuid4())`, and the one construction in
+  `brain/packages/orchestrator/src/cortex_orchestrator/memory_builders.py` passes store, embedder,
+  clock, scope, policy and audit and no factory. The store mints nothing either: `memories.id` is
+  `text PRIMARY KEY` in `docker/postgres/init.sql` with no default, so every id the trail renders
+  is 36 characters and the arithmetic ceiling holds as written.
