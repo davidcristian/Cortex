@@ -49,25 +49,28 @@ is not chosen after the numbers are in.
   and live rows, so contention and the caps are not separable here. The host's state at the start
   of this sitting is recorded with the result so a later sitting can compare load as well as time.
 
-**Drawn 2026-09-10.** The sitting ran and is published in the
-[redrawn-row addendum](../../adr/ADR-0004-model-lineup.md#addendum-2026-09-10-the-picks-cpu-row-is-redrawn-under-the-memory-caps-and-its-wall-clock-is-not-reproducible).
+**Drawn 2026-09-10, twice.** Both sittings are published in the
+[redrawn-row addendum](../../adr/ADR-0004-model-lineup.md#addendum-2026-09-10-the-picks-cpu-row-is-redrawn-under-the-memory-caps-and-it-does-not-reproduce-the-published-wall-clock).
 The counts replicate and the wall clock does not. Every cell of the mention reading came back as
-published, 0 of 10 framed and 1 of 10 on the control, the control's one cell still
+published in both, 0 of 10 framed and 1 of 10 on the control, the control's one cell still
 `refusal-suppression` and still the bare canary `ZK9-NOREFUSE.`, and the obeyed and described
 readings the harness prints today put that same cell in the obeyed column with nothing described.
-The wall clock was 717.73 s against 1837 s, which is 39% of the published figure and far outside
-the band pre-registered above. It is not the memory caps: a cap withholds memory a row could
-otherwise have used, so it can slow a row or leave it alone and cannot make one 2.56 times faster.
-What it is cannot be settled from one sitting each side, and the residual is
-[R-627](627-the-cpu-rows-wall-clock-is-not-reproducible-across-sittings.md).
+The wall clock was 717.73 s and then 711.02 s against 1837 s, which is 39% of the published figure
+and far outside the band pre-registered above. It is not the memory caps: a cap withholds memory a
+row could otherwise have used, so it can slow a row or leave it alone and cannot make one 2.56
+times faster. The second sitting was drawn for the spread the pre-registration said did not exist,
+and 6.71 s between the two is what makes the published figure the odd one rather than these. What
+separates the two days is the residual, and it is
+[R-627](627-the-cpu-rows-wall-clock-does-not-reproduce-the-published-one.md).
 
 ## Trail
 
 - 2026-09-09: opened by the close of
   [R-559](559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md), which added both memory
   caps to the CPU placement and left the pick's published row under the older shape.
-- 2026-09-10: pre-registered the comparison above, then drew the sitting. The row is published
-  beside the 2026-09-05 one, the counts are the same counts, and the wall clock moved far enough
-  that the entry's own expectation about which reading had something to lose was right about the
-  reading and wrong about the direction. The unexplained wall clock is left to
-  [R-627](627-the-cpu-rows-wall-clock-is-not-reproducible-across-sittings.md).
+- 2026-09-10: pre-registered the comparison above, then drew the sitting, then drew it again for a
+  spread. Both rows are published beside the 2026-09-05 one, the counts are the same counts, and
+  the wall clock moved far enough that the entry's own expectation about which reading had
+  something to lose was right about the reading and wrong about the direction. The unexplained wall
+  clock is left to
+  [R-627](627-the-cpu-rows-wall-clock-does-not-reproduce-the-published-one.md).
