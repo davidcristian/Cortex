@@ -498,3 +498,20 @@ measured rather than aimed at. The suite is 1741 passing tests at the fixed seed
 No task file was given a `Verified` date here. The field is the mechanism; filling it in is a
 reading somebody has to take, one entry at a time, and a date written without one would be the
 defect this addendum is about.
+
+## Addendum (2026-09-11): the host backlog already held the failure the widening waited for
+
+The addendum above left host tasks without the `Verified` field and filed the question as
+[R-618](../refinements/tasks/618-the-verified-date-reaches-only-one-of-the-two-backlogs.md), to
+wait until a host task was found wrong about the built code it describes. A reading on 2026-09-11
+found that one had been, before the field existed:
+[H-005](../host/tasks/005-session-read-commands.md) quotes a description of the overlay's cold
+start that calls auto-restore deferred and marks the clause stale because auto-restore landed on
+2026-07-12, which is a host task's account of built code going stale under it, the failure the
+field was added to date. A second host task,
+[H-002](../host/tasks/002-core-audio-volume-action.md), records a 2026-07-19 correction of a false
+VRAM clause that had mistagged its capability, which is the hardware half the addendum above said
+no date can record, corrected from a measurement that lives in this repo. The entry is re-filed as
+actionable. What it asks is the choice it deferred, widening `KIND_FIELDS` to give host tasks the
+field or recording that the host grammar stops at `attempted`, and the reading above is the
+evidence that was missing: the code half of a host claim drifts, and has.

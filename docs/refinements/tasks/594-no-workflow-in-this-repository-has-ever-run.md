@@ -66,3 +66,10 @@ tree, and it is what this entry can deliver while the setting stays off.
   three API readings above are the maintainer's standing answer of 2026-09-06 rather than a fresh
   one, so this entry carries no verified date: a claim about a remote service is not held to the
   code.
+- 2026-09-11: the tree half was read again and stands, and the remote half was not read, since
+  Actions being off is a setting on the account and this sweep held the check to the tree. Both
+  workflows are still in `.github/workflows/`, `ci.yml` still describes the gate mirror, and the
+  two entries waiting on a run are both still filed as fix when it bites. The two lines of
+  `docs/index.md` this entry names still read as verdicts, at lines 27 and 78, and no document
+  outside this backlog says the workflows have never run, so the half that is in reach is still
+  not started. No verified date, for the reason the previous bullet gives.

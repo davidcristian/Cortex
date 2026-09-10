@@ -710,3 +710,20 @@ refused for a wrong id is exactly that error, so a mis-wiring there produces no 
 Instead every recalling turn is ranked the way `CORTEX_MEMORY_RECALL=raw` ranks, with one warning
 logged per recall that nobody is reading. That is recorded as its own entry rather than settled
 here, since pinning it costs the memory wiring a fixture the other three did not need.
+
+## Addendum (2026-09-11): two more configured callers, neither pinned, and the judge's entry re-filed
+
+The addendum above counted the configured callers of a model id at four, pinned three, and left
+the recall judge to
+[R-332](../refinements/tasks/332-the-recall-judge-asks-for-an-unpinned-model.md), whose trigger
+was the next such caller arriving without a pin of its own. A reading on 2026-09-11 found six.
+The recap summarizer, wired by `window_builders.py` since 2026-08-06, takes `runtime.cortex_model`
+and spends it on every `drain_text` call, catching `InferenceError`, writing a warning and
+returning the plain window; it was in the tree when the four were counted and was missed. The
+trace-lever probe, `resolve_trace_lever` in `builders.py` since 2026-08-29, posts the same id in
+its one request and reads any refusal that does not quote the budget key as a build without the
+lever. It is the caller the trigger described, so the entry is re-filed as actionable, and the
+work it names is three pins rather than one: the judge, the recap and the lever, each driven under
+a renamed tier against a backend that serves only the renamed one, with the assertion on the
+judged ranking, on the recap delivered, and on the lever read as present. The three pins that
+landed here are unchanged.
