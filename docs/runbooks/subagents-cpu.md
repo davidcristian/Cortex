@@ -558,7 +558,10 @@ than its slowest
 member, and a run's length is bounded but generously (`CORTEX_SUBAGENTS_MAX_TOKENS` per completion
 and `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` on the whole run, both sized to cut a model that is talking
 rather than one that is slow), so a three subtask batch on the default entry runs 10 to 15 minutes
-on the low reading and a chatty one runs longer. The
+on the low reading and a chatty one runs longer. The pair is one for the whole roster and for
+both placements of every entry, by decision (ADR-0005 roster-bounds addendum): a GPU placement
+decodes the whole cap in seconds and its deadline bounds tool dispatches alone, and the two CPU
+entries decode inside one interval, so no bound a run is held to is the entry's own number. The
 first request after boot also pays first-touch paging of the GGUF off the models mount. If all you
 want is the **choice**, it is made before the batch is dispatched: intercept `SpawnSubagentsTool`
 and end the turn there, and a sample costs 5 to 8 seconds instead.

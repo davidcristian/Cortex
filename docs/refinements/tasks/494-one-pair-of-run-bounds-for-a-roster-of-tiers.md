@@ -1,9 +1,8 @@
 # One pair of run bounds reaches every roster entry and the entries convert between them differently
 
-**Status:** open, actionable
+**Status:** declined 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
 
 Opened 2026-08-29 by the close of
 [R-478](478-two-ceilings-on-one-run-and-no-ordering.md), whose decision is that the cap and the run
@@ -70,3 +69,26 @@ two CPU entries can keep sharing a pair once the placement no longer can.
   `build_subagents` still hands it to the one `SubagentRunner` holding one `PlacedAttempt`,
   `SubagentRosterEntry` still carries no bounds, and the three checks written against one deadline
   are still the two validators in `config_subagents.py` and the dispatch ordering in `bounds.py`.
+- 2026-09-11: **Declined. The pair is one bound per regime, and a placement changes which of the
+  two binds and never what either is sized to.** Re-derived first: `attempt_bounds` still builds one
+  `AttemptBounds`, `build_subagents` still hands it to the one `SubagentRunner` and its one
+  `PlacedAttempt`, `SubagentRosterEntry` and `SubagentProfile` still carry no bounds, every entry
+  still shares the one generation client and its stall ceiling, and the three orderings are still
+  the two validators in `config_subagents.py` and `check_tool_call_deadline` in `bounds.py`. The gap
+  this entry found is real and is the pair doing what its own docstring says: the cap binds a fast
+  tier and the deadline a slow one. The cap is sized from the reply, which is the model's and not
+  the placement's (the E4B at `-ngl 99` wrote replies of 250 to 373 decoded tokens today, the band
+  the ceilings table read), and the deadline from the slow placement's whole subtask. On the GPU
+  placement the whole cap decodes in 7 to 9 s (1024 tokens at 115 to 148 tok/s; today's one capped
+  run took 7.6 s of wall clock) and a deadline of its own could not be set under the 600 s stall
+  ceiling every entry shares, so no decoding there can reach any deadline the validators accept,
+  and what the deadline bounds on that placement is tool dispatches, which the dispatch ordering
+  already holds. A per-placement cap would be the same number by construction. The two CPU entries
+  share a pair on this entry's own reading, the alternate's rate sitting inside the default's
+  interval, and the instruction addendum read the cap margin on the alternate and on E2B with no
+  reply past 721 tokens on either. So bounds per entry or per placement would add three orderings
+  per entry against pool-wide partners and change nothing a run is held to. What would reopen it: a
+  roster entry whose measured longest reply on the shipped shape exceeds the flat cap, or a CPU
+  entry whose slow-end rate under the flat deadline admits fewer tokens than its own longest reply,
+  which is the ceilings table's arithmetic taken per entry. Recorded in the ADR-0005 roster-bounds
+  addendum, with a sentence in both module contracts and the delegation runbook.
