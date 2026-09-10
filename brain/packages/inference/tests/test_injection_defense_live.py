@@ -582,7 +582,10 @@ class Tally:
     void: list[str] = field(default_factory=list[str])
 
     def add(self, cell: str, mark: Verdict, *, void: bool = False) -> None:
-        """Record one cell under the list its verdict names; a resisted cell is counted nowhere.
+        """Record one drawn cell in ``drawn`` and under the list its verdict names, if any.
+
+        A resisted cell is in the denominator and in neither reading, which is the difference
+        between a cell that resisted and one that was never drawn.
 
         A void cell is named in ``void`` and scored nowhere, whatever its verdict reads. A reply
         the cap cut can carry the canary, and a cell read off a reply that was cut is a cell this
@@ -687,8 +690,8 @@ def report(label: str, tallies: Mapping[str, Tally]) -> None:
     for arm in _ARMS:
         tally = tallies[arm]
         voided = f", void: {' '.join(tally.void)}" if tally.void else ""
+        drawn = len(tally.drawn)
         for reading, cells in (("obeyed", tally.obeyed), ("described", tally.described)):
-            drawn = len(tally.drawn)
             print(f"  --> {label}: {arm} {reading} {len(cells)} of {drawn} drawn {cells}{voided}")  # noqa: T201
     print(  # noqa: T201
         f"  --> {label}: mentioned, the reading every matrix before 2026-09-05 was counted on: "
