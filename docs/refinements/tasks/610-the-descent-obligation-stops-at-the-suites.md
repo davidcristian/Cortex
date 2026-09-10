@@ -7,6 +7,7 @@ tool cache. Both suites that descend one today do filter, so this is one search 
 answer.
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Verified:** 2026-09-10
 
 Opened 2026-09-08 by the close of
 [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), which made `treewalk.py` the one
@@ -39,3 +40,10 @@ the boundary is a decision rather than the edge of what the first version happen
   [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), whose
   [ADR-0026 shaped-obligation addendum](../../adr/ADR-0026-prose-style-gates.md) records the
   descent's new home and the set the obligation is compared over.
+- 2026-09-10: still not fired, and one of the two descents named here has moved to a plain glob.
+  `test_loggernames.py` still walks the brain's packages with `rglob("*.py")` and still drops any
+  module whose parts meet `SKIPPED_DIRS`. `test_treewalk.py` reads `scripts/` with a
+  non-recursive `GATES.glob("*.py")`, which enters no subdirectory at all, so it has nothing to
+  filter. The other suites that glob (`test_gitenv.py`, `test_composeservices.py`,
+  `test_flagcheck.py`, `test_crosscheck.py`, `test_logsamples.py`) all take one named directory
+  with a non-recursive pattern. No suite under `scripts/tests/` descends unfiltered.

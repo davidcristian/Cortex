@@ -8,6 +8,7 @@ disagreement is not the trigger, because the two collections already disagree ab
 directories that exist today.
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Verified:** 2026-09-10
 
 Opened 2026-08-24 by the close of
 [R-420](420-the-skipped-dirs-list-restates-what-git-ignores.md), which measured the overlap
@@ -60,3 +61,10 @@ fault over a tree it should not have read.
   has yet counted or reported over a tree it should not have read. The entry stays open with the
   same two branches, and the narrowed clause is checkable in one command rather than being true
   already.
+- 2026-09-10: still not fired, and the tree is where the last reading left it.
+  `git ls-files --others --ignored --directory --exclude-standard` now reports 45 entries, three of
+  which are files rather than directories (`body/coverage.json`, `brain/.coverage`,
+  `scripts/.coverage`), so the directory set is the same five the last reading named:
+  `body/app/src-tauri/gen/`, `measurements/`, `models/`, `pgdata/` and `sandbox/`. None of them
+  holds a `.py`, `.rs`, `.ts`, `.tsx`, `.md` or compose file, so none of the three walks has a file
+  to read there. `.gitignore` itself has not been edited since 2026-08-09.
