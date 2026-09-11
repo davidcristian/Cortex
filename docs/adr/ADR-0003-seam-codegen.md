@@ -579,3 +579,46 @@ membership went stale within a day of being trusted and stayed stale for two wee
 closures it names are unchanged, a roster whose members are read as registered descriptions, or a
 written reason that a description is not a roster with the two passages left to the eye, and the
 choice between them is what the entry now asks for.
+
+## Addendum (2026-09-11, later): a description is not a roster, and the header stops describing
+
+The addendum above re-filed
+[R-452](../refinements/tasks/452-a-roster-written-in-descriptions-is-held-by-nobody.md) with a
+measured cost on one side of the choice it defers: the workflow header's description of the scans
+went stale within a day of the entry being filed and stayed stale for fifteen days. The choice is
+made here, and it is neither of the two the entry named outright.
+
+**A description is not a roster.** The roster scan compares names with names, and a description
+carries none. Holding one would mean registering a phrase per member per document, since the two
+passages spell the same scan differently (the 300-line cap against the cross-tree line cap, the
+compose bind check against the compose bind-mount check, the backlog check against the backlog
+gate), and that registry entry would be a hand-written copy of a sentence's wording, failing the
+gate whenever the sentence is reworded. Row 13 of the scan-roster table above keeps a reworded
+description free on purpose. Counting the phrases instead would give a rule that is right by
+cancellation, which the backlog decision record shows is the failure a count cannot see, and one
+that names nothing when it fails.
+
+**The header's inventory was a restatement, so it is removed rather than held.** Sixty lines below
+it in the same file, the comment above the `cross-tree` job names every scan with the trees it
+spans, and that comment is the held roster the scan-roster addendum registered. The header ran
+through the same set a second time as phrases, and it was that second copy, held by nobody, that
+drifted both times this list has been found short. The header now keeps its argument, that the
+scans are exempt from the path filter and always run, and says where the list is and what holds it.
+Removing a restatement is what the backlog decision record chose over gating one, and the reason is
+the same here: a gate over two copies leaves two places to edit, and one copy leaves one.
+
+**The Purpose paragraph of the gate tree's contract stays as prose, and this records that it is
+left to the eye.** Its descriptions are what a purpose paragraph is for, a sentence about what the
+tree is rather than which files are in it, and the next paragraph names every module and is held.
+It sits in the document every scan addition already edits twice, for the module bullet and the two
+held rosters, and it picked up the flag check on the day that scan landed while the header did not.
+The residual is that a description carrying a claim about membership is still making the claim,
+and that is filed as
+[R-631](../refinements/tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md) with the
+trigger that would show the reasoning wrong: the paragraph found describing a set of scans other
+than the one the gate runs.
+
+The header is not a roster, so no roster gained a mutation table. The one guard worth stating is
+the phrase the held roster opens on: the rewritten header does not carry it, and the roster scan
+raises when a bounding phrase appears twice, so the rewrite was run against `rostercheck.py` before
+it was trusted.

@@ -1,6 +1,6 @@
 # A roster written in descriptions rather than names is held by nobody
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** repo-gates
 **Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
 
@@ -48,3 +48,13 @@ a day.
   today, and the entry is re-filed as actionable: the decision it defers, a roster read as
   descriptions or a written reason that a description is not one, now has a measured cost to
   weigh. Recorded in the ADR-0003 addendum of this date.
+- 2026-09-11: landed, by neither of the two closures named above. A description is not a roster:
+  holding one means a registered phrase per member per document, which pins a sentence's wording
+  in the registry, and the two passages spell the same scans differently. The workflow header's
+  inventory was a restatement of the held roster sixty lines below it in the same file, and it
+  was the copy that drifted both times, so it is removed and the header now says where the list
+  is and what holds it. The Purpose paragraph of the gate tree's contract stays as prose, left to
+  the eye and recorded as such, since it is what a purpose paragraph is for and sits in the file
+  every scan addition edits twice; the residual is filed as
+  [R-631](631-the-purpose-paragraph-describes-the-scans-by-eye.md). Recorded in the origin
+  decision's addendum of the same day, the later of the two.
