@@ -36,3 +36,15 @@ per-fire id.
   nothing. The index records the scheduling entries behind this one as live-observation shaped,
   their trigger being a deployment doing something rather than a file saying something, so no
   reading of the code settles them.
+- 2026-09-11: every claim this entry makes about the tree was read against it and holds, and
+  the trigger is the one claim only a live desktop can settle. `NotifyRequest.reminder_id`
+  (`proto/body.proto:382`) is still handed the item id, `reminder_id=item_id` at
+  `brain/packages/orchestrator/src/cortex_orchestrator/ticker.py:210`, and a `BodyGatewayError`
+  there still logs "push failed; pull will deliver" and returns (lines 212 to 217), so the next
+  poll's pull is still the only retry, which the method's own docstring says in the same words
+  as this entry. No `delivery_id`, `fire_id` or `occurrence_id` is spelled anywhere in the
+  proto, the brain or the body, and [242](242-occurrence-history.md) is still declined, so the
+  per-fire record this would be built on is still absent. The trigger is a frequency, a body
+  reconnecting between a failed push and the next overlay open, that only a Win32 desktop
+  running the body can show, and no file in the tree records one, so this entry carries no
+  verified date.

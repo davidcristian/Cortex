@@ -4,10 +4,11 @@
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 **Trigger:** a deployment that sets `CORTEX_ESCALATION`, which is the switch that builds a swap
-scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:97` returns
+scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:103` returns
 `None` without it), together with turns costly enough that a silent re-run beats paying for dedup.
 Recheck with `grep -rn CORTEX_ESCALATION docker/`: one hit, inside a comment, means nothing swaps
 and this has not fired.
+**Verified:** 2026-09-11
 
 The transport retry entry costed this at one line, "a replayable request and a signature
 change", which was right about the shape and said nothing about the size.
@@ -35,7 +36,7 @@ this sharpening explains why, and does not change it.
 Read again on 2026-09-08, one level above the knob the previous reading checked. An empty
 `CORTEX_SWAP_EVICT_MODELS` says no peer tier is evicted, but the switch that decides whether any
 handoff machinery exists is `CORTEX_ESCALATION`: with it off, `build_swap_scope` returns `None`
-(`swap_builders.py:97`), so no conductor, no model host, and no swap of any kind is constructed,
+(`swap_builders.py:103`), so no conductor, no model host, and no swap of any kind is constructed,
 whatever the eviction list holds. `grep -rn CORTEX_ESCALATION docker/` reports exactly one hit
 today, a comment at `docker/docker-compose.gpu.yml:25` describing what an operator would set to
 turn escalation on. The shipped defaults agree: `escalation` is `False` and `modelhost_backend` is
@@ -64,3 +65,17 @@ the mid-turn eviction the trigger waits for cannot occur yet.
   identity (`proto/body.proto:93-104`). Left open with the trigger rewritten to name that switch
   and the command that reports it, recorded in the ADR-0024 addendum on what the two seam-transport
   triggers read on this date.
+- 2026-09-11: the prescribed grep still reports one hit, the comment at
+  `docker/docker-compose.gpu.yml:25`, and the switch it names still returns `None` from
+  `build_swap_scope`, now at `swap_builders.py:103-104` (the line the entry cited had moved by
+  six, repaired above). The shipped defaults are unchanged at `config_swap.py:108-109`. On the
+  seam side `ClientEvent` and `UserTurn` still carry no request identity
+  (`proto/body.proto:93-105`), the user message is still appended before inference at
+  `engine.py:118`, and the turn still runs on its own task from `converse_stream.py:208`. Where
+  this touches the read-deadline entry
+  ([360](360-a-read-that-will-not-fit-declines-early.md)): both sit in
+  `body/crates/core/src/retry/plan.rs`. `Converse` is the one method `repeatable` answers false
+  for by design (line 157) and the one `deadline_for` answers `None` for (line 252), so it
+  announces no deadline and the grace margin that entry turns on never reaches a turn; a request
+  id here would leave the read handlers' clock untouched. The two entries agree, and neither lies
+  on the other's path.

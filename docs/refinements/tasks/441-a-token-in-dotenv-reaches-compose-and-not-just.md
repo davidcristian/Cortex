@@ -5,6 +5,7 @@
 is the first moment the two readers of that file disagree about what is configured.
 **Area:** seam-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-seam-token.md)
+**Verified:** 2026-09-11
 
 Opened 2026-08-25 by the pass that gave `just seam-health` a checked precondition
 ([ADR-0016 addendum on the checked precondition](../../adr/ADR-0016-seam-token.md)).
@@ -30,3 +31,16 @@ either the justfile reads the file under a rule narrow enough that the gate cann
 it, or the documentation stops offering `.env` as a way to configure anything except the compose
 stack and says the environment is where the body-side checks read from. The second costs nothing to
 implement and something to write, which is the trade to make deliberately rather than by default.
+
+## Trail
+
+- 2026-09-11: both readers were run against a throwaway `.env` holding
+  `CORTEX_SEAM_TOKEN=probe-token-441`, written into the checkout for the length of the check and
+  removed after it. `docker compose --project-directory . -f docker/docker-compose.yml config`
+  rendered `CORTEX_SEAM_TOKEN: probe-token-441` into the brain service's environment, and
+  `just seam-health`, run with the variable unset in the environment and that same `.env` in
+  place, stopped at its guard with "CORTEX_SEAM_TOKEN is unset". The justfile carries no `set`
+  line, so no `dotenv-load` has been added since. No `.env` exists in this checkout, so the
+  trigger has not fired here. The split is now stated in two places, the guard's own message and
+  `docs/runbooks/local-dev-wsl.md`, and the runbook offers `.env` for the compose stack alone,
+  which is the half of the operator's reading that is true.
