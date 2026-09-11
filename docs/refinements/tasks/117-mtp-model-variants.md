@@ -4,6 +4,7 @@
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** an MTP or draft artifact on the mount for the file a shipped tier is actually started on, which is a narrower set than the candidates the lineup names at that tier, together with a start of the pinned engine on that file that loads.
+**Verified:** 2026-09-11
 
 Deferred until the latency they save justifies the memory they cost, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
@@ -59,3 +60,16 @@ Deferred until the latency they save justifies the memory they cost, per
   sentence in a fake saying there are no speculative knobs, and nothing else. The typed field on
   `TierArgs`, the second artifact path per tier and the VRAM budget row are still the work, and the
   reason to wait is now the pick rather than the engine.
+- 2026-09-11: read against the mount, the cached engine and the tree, and not fired. The mount
+  holds the same six MTP directories as on 2026-09-06, the three under `unsloth/` and the three
+  under `llmfan46/`, and no MTP or draft artifact under `google/`, whose seven directories hold
+  the QAT files of the 12B, 26B-A4B, 31B, E2B and E4B and two `-assistant` variants. The two
+  MTP and non-MTP `Qwen3.5-9B-UD-Q4_K_XL.gguf` files still read 6135034208 and 5966095584
+  bytes. Both shipped picks are unchanged in their compose files and present on the mount, the
+  cortex file at 6975879296 bytes and the subagent file at 5154941280. Both cached tags,
+  `:server` at `db057ec90de0` and `:server-cuda` at `952424b09abc`, still report build 10680 at
+  commit `d7bd3bfca`, and `:server`'s `--help` still lists `--spec-draft-model, -md,
+  --model-draft FNAME`. The grep for `model-draft`, `spec-draft`, `--draft` and `speculative`
+  over every `.py`, `.yml`, `.rs` and `.toml` still returns the one sentence in
+  `fakes_model_host.py`, and `ModelHostConfig.tiers()` still fills `TierArgs.extra` from
+  `_vision()` and `_reasoning()` alone.

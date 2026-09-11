@@ -10,6 +10,7 @@ halves are countable inside the repo: list every place the tree names either var
 and compare the strings, and count the tiers `ModelHostConfig.tiers()` declares whose artifact
 field is aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
+**Verified:** 2026-09-11
 
 Opened 2026-09-02 by the close of
 [R-508](508-a-roster-entry-names-an-endpoint-and-not-a-model.md), which declined reading an entry's
@@ -66,3 +67,18 @@ catch.
   the second pick is not here either. The premise holds unchanged: `_entry_profile` still builds
   one entry two backends over two endpoints, and nothing in `scripts/` compares the three
   spellings. The ADR-0018 addendum of the same date records the count.
+- 2026-09-11: re-derived and still open, neither half of the trigger having fired. The tree
+  names either variable with a file in the same three places, and all three still spell
+  `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`: line 116 of
+  `docker/docker-compose.subagents.yml`, line 393 of `docs/runbooks/subagents-cpu.md` and line
+  1214 of `docs/runbooks/llamacpp-gpu.md`. There is still no `.env` in the checkout and
+  `subagent_gpu_file` still defaults to `""`. The tier count in the bullet above reads more
+  than the shipped wiring declares: `ModelHostConfig().tiers()` declares one tier at the
+  shipped default, the cortex, because the brain and subagent tiers are opt-in behind an empty
+  file name, and three once both files are named, of which one has its artifact field aliased
+  to a `CORTEX_MODEL_FILE_SUBAGENT` variable. The compose config rendered over the base,
+  subagents and roster files still points `CORTEX_SUBAGENTS_ENDPOINT` and
+  `CORTEX_SUBAGENTS_GPU_ENDPOINT` at `http://llama-subagent:8082`, `_entry_profile` still
+  builds the default entry two backends over `entry.gpu_endpoint` and `entry.endpoint`, and the
+  two modules under `scripts/` that name the variable, `subagentservers.py` and
+  `hostedtiers.py`, read its prefix and compare no two spellings of it.

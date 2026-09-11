@@ -8,6 +8,7 @@
 that tier's lever rows as it runs them. Read it with `grep -n 'CORTEX_REASONING_BUDGET'
 docker/docker-compose.gpu.yml`, which names both variables and defaults both to `-1` today, and
 confirm what a tier's tail then holds with `ModelHostConfig(...).tiers()`.
+**Verified:** 2026-09-11
 
 Opened 2026-09-05 by the close of
 [R-546](546-the-harness-takes-the-tiers-reasoning-flags-and-not-its-placement.md), which made a
@@ -59,3 +60,13 @@ hold the two readings to each other.
   the tails at zero and at the default were measured through `ModelHostConfig` and the trigger now
   says how to take that reading. Recorded in the
   [ADR-0004 lineup-trigger addendum](../../adr/ADR-0004-model-lineup.md#addendum-2026-09-08-three-lineup-triggers-re-read-and-a-memory-cap-already-at-90-of-its-limit).
+- 2026-09-11: read against the tree and not fired. The prescribed grep names both variables,
+  at lines 139 and 160 of `docker/docker-compose.gpu.yml`, and defaults both to `-1`.
+  `ModelHostConfig().tiers()` under `brain/.venv` rendered the table above cell for cell: `()`
+  for the cortex and brain tails at the default, `('--reasoning-budget', '0')` for both with the
+  budgets at zero, the reasoning-off pair for the subagent tier in both columns, and a budget
+  of `128` rendering `('--reasoning-budget', '128')`. `Model.thinking` is still
+  `self.tier != SUBAGENT_TIER`, at line 212 of the harness. One reading the table leaves out:
+  at the shipped default the config declares one tier, the cortex, because the brain and
+  subagent tiers are opt-in behind an empty file name, so the second and third rows are read
+  with `CORTEX_MODEL_FILE_BRAIN` and `CORTEX_MODEL_FILE_SUBAGENT_GPU` set.

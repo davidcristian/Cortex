@@ -52,3 +52,11 @@ runbook's band re-measured under it.
   [R-627](627-the-cpu-rows-wall-clock-does-not-reproduce-the-published-one.md). The pair that entry
   asked for is published in the origin record's pinned-thread addendum; the compose file is
   unchanged because its default is the owner's.
+- 2026-09-11: the trigger sweep over the roster alternate's uncapped server, recorded in
+  [R-616](616-the-roster-alternates-cpu-server-carries-neither-cgroup-cap.md), read the two
+  entries against each other. The alternate runs the same unpinned 24 threads as the pick's
+  server with no quota to throttle against, so the factor of 13.7 measured above is a cost only
+  the capped server pays today, and capping the alternate without pinning its count would hand
+  it that cost. The caps and the pin therefore belong in one change carrying one constant, the
+  alternate's caps landing first or beside the pin; this entry's compose default stays the
+  owner's.

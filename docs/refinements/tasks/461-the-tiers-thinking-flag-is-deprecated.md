@@ -5,6 +5,7 @@
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
 **Trigger:** a llama.cpp image whose `--chat-template-kwargs` no longer parses, or a subagent
 server that fails to start after an image bump; either arrives as a tier that will not come up.
+**Verified:** 2026-09-11
 
 Opened 2026-08-26 by the close of
 [R-456](456-a-constrained-request-loses-the-thinking-lever.md), whose live runs put the warning in
@@ -46,3 +47,14 @@ the same way; the rendering column above says the behaviour follows the spelling
 - 2026-09-02: the per-family probe this entry asked for was drawn by the close of
   [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) and is recorded above. The
   trigger is unchanged.
+- 2026-09-11: read against the cached image and the tree, and not fired. The image the stack
+  pulls is the one the probe above ran on, `ghcr.io/ggml-org/llama.cpp:server` at
+  `sha256:db057ec90de0`, reporting build 10680 at commit `d7bd3bfca`. Started against a missing
+  model file with the shipped pair, it printed the deprecation line quoted above at 5.8 ms and
+  then failed on the model file and nothing else, so the kwarg still parses; started with
+  `--reasoning off` in the kwarg's place it printed no warning and failed the same way. Its
+  `--help` lists the successor as `-rea, --reasoning [on|off|auto]`, default `auto`. The pair
+  is still on both compose servers, in `docker/docker-compose.subagents.yml` and
+  `docker/docker-compose.subagents-roster.yml`, still the hosted tier's `_REASONING_OFF` in
+  `cortex_model_manager/config.py`, and still what `scripts/flagcheck.py` requires at lines 94
+  and 95.
