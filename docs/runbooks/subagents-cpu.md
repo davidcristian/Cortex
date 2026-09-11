@@ -43,7 +43,10 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   artifact on one engine build at one cap under one appended sentence, judged by hand once per
   sweep, and four things move it: the GGUF the variable above names, the llama.cpp build serving it
   (each measurement names its image by digest), `CORTEX_SUBAGENTS_MAX_TOKENS`, since a run cut at
-  the cap counts as a non-delivery whatever its text held, and `REPLY_INSTRUCTION` itself. Re-measure
+  the cap counts as a non-delivery whatever its text held, and `REPLY_INSTRUCTION` itself. On the
+  smallest entry a full sweep read by a person beside the machine column agreed on 250 of 288 runs,
+  and the 38 that differ are the body handed back and a lookup reply that names a month the body
+  never states, which neither rate sees (ADR-0028 sweep-columns addendum). Re-measure
   with `brain/packages/orchestrator/tests/test_envelope_cost_live.py` and publish with
   `just envelope-floor`, whose own metric is deliberately weaker than the rates tabled here
   ([R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)). Set

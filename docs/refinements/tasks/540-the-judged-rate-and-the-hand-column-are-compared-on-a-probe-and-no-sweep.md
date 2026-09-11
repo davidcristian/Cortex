@@ -1,9 +1,8 @@
 # The judged rate and the hand column are compared on a probe and no sweep
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-04 by the close of
 [R-507](507-the-floor-sees-only-the-failures-a-machine-can-name.md), which moved the delivered
@@ -53,3 +52,15 @@ the record needs a second column of its own.
   was named twice over: the roster alternate is `Qwen3.5-2B`, while the 12 of 32 extraction cell
   belongs to `Qwen3.5-0.8B`, which is the pick the argument wants. What stands is the subject: five
   picks at 288 runs each are tabled and no pick has a sweep with both columns.
+- 2026-09-11: landed. One full seeded sweep of `Qwen3.5-0.8B`, 288 runs on the current image, read
+  whole by a person beside `just envelope-floor`: the two columns agree on 250 of 288, and the 38
+  that differ are three kinds, each named run by run in the ADR-0028 sweep-columns addendum. The
+  answer to the question this entry asked is that the tabled rows keep their meaning under the
+  machine judge, which reproduces the hand rule the tables were written under; what neither rule
+  sees is the body handed back, 16 runs, filed as
+  [R-634](634-the-body-handed-back-passes-both-rates.md), and a lookup reply that quotes the
+  body's phrase beside an invented month, 16 runs, filed as
+  [R-635](635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md). The
+  remaining six are right answers the strict naming column fails, which the tool already has a
+  column for. Two cells moved on the new build and the tabled row stays, being a dated reading on
+  the older digest.
