@@ -5,6 +5,7 @@
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md)
 **Trigger:** the panel's width ceasing to be derived from the viewport, whether by a user-resizable
 panel, a width read from the appearance record, or a layout that gives the log a width of its own.
+**Verified:** 2026-09-11
 
 Opened 2026-08-18 by the close of [159](159-streamed-bubble-wrap-width.md), which taught the
 whisper to re-measure its wrap width and re-lay the letter DOM when it changes. The trigger it
@@ -34,3 +35,14 @@ function with one caller, so the change is contained to `watchWrap`.
 - 2026-08-18: opened by the close of [159](159-streamed-bubble-wrap-width.md), whose fix is
   complete under an assumption about the panel's width that is true today and is written down here
   rather than trusted silently.
+- 2026-09-11: read against the tree and not fired. `.panel` is still `width: min(560px, 92vw)`
+  (`overlay.css` line 269) and `watchWrap` in `whisper/metrics.ts` still subscribes to the window's
+  `resize` and nothing else. The three candidates the trigger names are all absent: no drag handle or
+  resizable panel exists under `body/app/src` (the composer's comment names a resizable window as a
+  hypothetical), the preferences record in `overlay/usePreferences.ts` and `overlay/overlayState.ts`
+  carries no width, and the log is still inset by the panel rule alone. Two `ResizeObserver`s do run
+  in the overlay, `overlay/measured.ts` publishing a watched element's height as a custom property
+  and `components/PanelEdge.tsx` measuring the edge box, and both read a size rather than set one,
+  so neither can move the wrap. `overlay/panelWatch.ts` still carries the undelivered-notifications
+  lesson the body points at. The 16 tests in `useWhisperClock.test.ts`, one of which resizes the
+  window mid-stream and asserts the letters re-lay, pass.

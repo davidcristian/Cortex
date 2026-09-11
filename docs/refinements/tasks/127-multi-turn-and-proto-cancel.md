@@ -3,7 +3,10 @@
 **Status:** open, fix when it bites
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Trigger:** The same real model swap the reconnect and streamed-status entries wait on, which is what makes mid-turn compute expensive enough for a real abort to earn its keep.
+**Trigger:** A live deployment on which mid-turn compute is expensive enough that muting the sink
+stops being adequate, meaning a report of a turn somebody wanted aborted rather than hidden. The
+brain-side model swap this once waited on has landed, so that half of the trigger has fired.
+**Verified:** 2026-09-11
 
 One turn per `Converse`
 call; drop-to-cancel covers v1 (ADR-0011 decision 1 / risks). The interleaving half was
@@ -23,7 +26,7 @@ When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri
     (`brain/packages/seam/tests/test_facade.py`).
   - **The server carries multiple turns per stream and handles `Cancel` end to end.** A
     `UserTurn` arriving mid-turn is queued and starts when the running turn finishes
-    (`_enqueue_turn`/`_start_next_turn`/`_drain_turns`, `converse.py`); a `Cancel` stops the
+    (`_enqueue_turn`/`_start_next_turn`/`_drain_turns`, `converse_stream.py`); a `Cancel` stops the
     in-flight turn and drops the queue and the stream stays open (`_cancel_turn`, dispatched from
     the pump on `kind == "cancel"`). Pinned by `test_cancel_behind_a_queued_turn_stops_current_and_drops_queued`
     (A dies mid-stream, B never runs, A's user message persisted with no partial reply) and
@@ -78,3 +81,16 @@ When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri
   is confirmed absent, `body/crates/rpc/src/converse.rs` carrying no `Cancel` at all, while the
   economic half of the trigger, compute expensive enough that muting the sink stops being adequate,
   still wants a live deployment.
+- 2026-09-11: read against the tree and still not fired. `proto/body.proto` still carries
+  `Cancel cancel = 3` and `body/crates/rpc/src/converse.rs` still carries no `Cancel`, its
+  `turn_request` sending exactly one `UserTurn` and its stream-end mapping still the `Protocol`
+  error the body quotes. The brain's handlers moved to `converse_stream.py` when the module split,
+  the path now written above, and every test named here still exists under the name given. The
+  lease is still `SingleResidentModelManager._lock` (`cortex_core/model.py`) taken by
+  `LlamaCppBackend.stream` around the whole SSE loop (`backend.py`). The Tauri `converse` command
+  still streams the turn to completion: its loop leaves early only when `channel.send` fails,
+  which is the webview going away rather than Stop, and that exit has been there since the shell
+  was wired. The two sibling entries this trigger used to name have moved on their own: the
+  reconnect entry now waits on a deployment that sets `CORTEX_ESCALATION`, and the streamed-status
+  entry waits on a seam change, so the trigger line now says what remains here rather than pointing
+  at them.
