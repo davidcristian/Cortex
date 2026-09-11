@@ -4,6 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
 **Trigger:** the first design that needs a persisted per-turn taint or provenance marker.
+**Verified:** 2026-09-11
 
 Measured over the full corpus 2026-08-06, the standing rule split and landed ([ADR-0013
 replayed-quotation addendum](../../adr/ADR-0013-untrusted-content.md)). Opened
@@ -78,3 +79,19 @@ both rules rides the standing obligation every injection measurement here carrie
 - 2026-08-08: Got its line in the index's recommended order. It had been counted in the area's
   cell from the day it opened, so until then a reader following the order saw eleven of the
   twelve.
+- 2026-09-11: **Not fired.** No design has needed a persisted per-turn taint or provenance marker:
+  `Message` in `conversation.py` still carries `role`, `text`, `at`, `turn_id`, `tool_calls`,
+  `tool_call_id` and `images` and no taint bit, and the one design that weighed such a marker since
+  this entry was written, the summarizing window's recap fence, rejected it as a `SessionStore`
+  schema change bought for a narrowing rather than a protection (ADR-0038 untrusted-recap
+  addendum). The mechanism reads as described: `PLAIN_SECURITY_PREAMBLE` stands beside
+  `SECURITY_PREAMBLE` in `untrusted.py`; `assemble_inference_messages` in `turn_context.py`
+  prepends exactly one of them, the full preamble on `caps.tools is not None or
+  context.taint.tainted`; `REDACTED_LINK` in `guardrail.py` still reads
+  `[link removed: untrusted source]`; and `HandoffRecord` in `handoff.py` still serializes the
+  whole `TaintLedger` as `tainted`, `opaque`, `sources` and `untrusted_urls`. The two entries this
+  trigger is shared with, [R-077](077-provenance-across-stores.md) and
+  [R-074](074-per-provenance-eviction.md), are both still dead until a consumer. The same marker is
+  what a precise version of the recall fence in
+  [R-073](073-fence-without-block-recall.md) would need, so the two entries wait on one design. The
+  GPU measurements were not rerun.

@@ -10,7 +10,11 @@ four call sites: `extract_urls` in `brain/packages/core/src/cortex_core/urls.py`
 the trailing-punctuation trim in `brain/packages/core/src/cortex_core/guardrail.py`, and the
 `last.start()` read in `brain/packages/core/src/cortex_core/url_holdback.py`. One
 `grep -rn 'URL_RE\.\|rstrip(TRAILING_PUNCTUATION)\|last\.end()' brain/packages/core/src/cortex_core/`
-reports all four in five lines. The body records what the relaxation cost when it was last measured.
+prints six lines, five of them the four sites; the sixth is the trim `normalize_url` performs
+inside the identity reduction in `url_identity.py`, which reads one matched string and assumes
+nothing about how many readings its span has. The body records what the relaxation cost when it
+was last measured.
+**Verified:** 2026-09-11
 
 Opened by the pass that declined the mixed dot-and-gap host, and opened because that decline is a
 symptom rather than the cause. `extract_urls` reduces each `URL_RE` match to exactly one identity
@@ -60,3 +64,13 @@ call sites are unchanged, so the decline stands on the reading it was made on.
 - 2026-08-17: Opened by the ADR-0015 addendum that priced the mixed dot-and-gap host (281) and
   declined it, naming the one-identity assumption as what actually blocks it rather than leaving
   the decline to read as a dead end.
+- 2026-09-11: **Not fired.** The grep the trigger prescribes was run against `HEAD` and prints six
+  lines rather than the five recorded here: `guardrail.py` twice, `urls.py` once and
+  `url_holdback.py` twice are the four sites, and the sixth line is `url_identity.py`'s
+  `rstrip(TRAILING_PUNCTUATION)` inside `normalize_url`. The same grep over the tree as it stood
+  when the bullet above was written printed six as well, so the count was wrong the day it was
+  written and the trigger sentence is corrected. None of the four files has changed since
+  2026-09-07, no second two-reading spelling has appeared, and the mixed host has not reached a
+  reply here. The relaxation was not rebuilt today: its 22 is a reading over the 2,997 spans of
+  2026-09-08, and the corpus [R-284](284-the-lookalike-policy-as-the-shipped-default.md) re-read
+  today carries 3,007.

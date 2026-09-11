@@ -10,8 +10,9 @@ is one binding, so
 whether it is still `redact`. The corpus arm is the count of distinct non-ASCII hosts `URL_RE` finds
 across every tracked file, each read as
 `host_of(normalize_url(match.group(), confusables=False))`, which is the expression
-`_UrlRedactingFilter._flagged` spends on the lookalike ground; it stood at 12 on 2026-09-08. The
-body records what both answered when they were last taken.
+`_UrlRedactingFilter._flagged` spends on the lookalike ground; it stood at 12 on 2026-09-08 and
+again on 2026-09-11. The body records what both answered when they were last taken.
+**Verified:** 2026-09-11
 
 The pass that added the third `OutputGuardrail` policy shipped the answer without imposing it:
 `CORTEX_OUTPUT_GUARDRAIL` still defaults to `redact`, so the gap that pass closed is closed only
@@ -61,3 +62,13 @@ phishing link harms the user.
   [R-283](283-a-chosen-homoglyph-outlives-any-table.md), which landed the lookalike policy as an
   opt-in and recorded the default question as the residue rather than answering it from a corpus
   that cannot see this deployment's turns.
+- 2026-09-11: **Not fired**, and both readings were taken again. `config.py` binds
+  `output_guardrail` to `"redact"`, so no turn here has yet run under the lookalike ground and there
+  is nothing to count. The corpus arm over `git ls-files` at `HEAD`: 1,589 tracked files, 1,563
+  readable, 2,374,614 words, 3,007 matched spans reducing to 1,200 distinct identities, and **12**
+  distinct non-ASCII hosts, the same twelve in the same four files, three of them still the
+  backtick and arrow artifacts. The corpus grew by 15 tracked files and 10 spans since 2026-09-08
+  and the count did not move, which is what the paragraph above predicts: the count follows how
+  often a homoglyph example is written down, and none was. The same span count is the corpus
+  [R-294](294-one-match-yields-one-identity.md)'s relaxation figure was drawn over, so its 22 is a
+  reading over 2,997 spans and today's corpus carries 3,007.
