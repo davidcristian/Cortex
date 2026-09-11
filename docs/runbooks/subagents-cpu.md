@@ -46,7 +46,11 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   the cap counts as a non-delivery whatever its text held, and `REPLY_INSTRUCTION` itself. Re-measure
   with `brain/packages/orchestrator/tests/test_envelope_cost_live.py` and publish with
   `just envelope-floor`, whose own metric is deliberately weaker than the rates tabled here
-  ([R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)). **This
+  ([R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)). Set
+  `CORTEX_ENVELOPE_SEED` when you do, so the arms of each draw pair and the run can be drawn again
+  by number; a seed reproduces a completion only against the same prompt-cache state, so a body's
+  first draw on a freshly loaded server pairs with a run started the same way and not with a warm
+  one (ADR-0005 paired-arms addendum). **This
   table is on purpose the only place those rates live.** The description the cortex picks a roster
   entry by carries a speed and a hazard and no rate, because a rate advertised there would be read
   by a chooser that can see none of the four conditions above and cannot check which artifact the

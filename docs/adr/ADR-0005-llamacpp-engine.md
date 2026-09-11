@@ -4904,3 +4904,133 @@ Nothing executable. A sentence lands in the `AttemptBounds` bullet of
 [docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md), and in
 [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) beside the knobs an operator retunes,
 so a reader who finds one pair on a roster of several rates learns it is one by decision.
+
+## Paired-arms addendum (2026-09-11): the envelope harness pairs its arms at a seed and carries the request key, below the port
+
+**Status:** Accepted. Closes
+[R-512](../refinements/tasks/512-no-committed-probe-splits-the-reasoning-off-pair.md), which the
+marker addendum above opened on the readings no committed probe took and which two verifications
+had narrowed to the two things no committed harness could send: the request's own trace budget,
+and a seed so that two arms draw the same completion. Opens
+[R-633](../refinements/tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md). It
+changes one integration-marked file and no shipped code.
+
+### Re-derived first
+
+Held against the tree before anything was built, and the entry's narrowed claim held, with one
+thing it did not name. `PlacedAttempt` in `cortex_core/subagent_attempt.py` still builds
+`GenerationBounds(max_tokens=...)` and names no count, by the request-lever addendum's decision 7.
+`build_payload` in `cortex_inference/request.py` renders no `seed`, and `GenerationBounds` has no
+field for one; the two committed probes that do send a seed, `_draw` in `test_uid_reading_live.py`
+and its twin in `test_unfenced_correction_live.py`, post a request of their own rather than running
+the runner. What the entry did not name is that the harness builds its `LlamaCppBackend` with
+`trace_lever` at its default of off, so a count substituted into the bounds would have been dropped
+by `build_payload` before it reached the wire. The request knob therefore needed the substitution
+and the flag together, and since a build that does not parse the key drops it without reporting
+anything, the run asks `reads_a_trace_budget` first and fails when the answer is no.
+
+### The decision the entry deferred: where the seed goes
+
+Three shapes were open. **A field on `GenerationBounds`** is a port change for a value no
+deployment sets: that value is what a caller may ask of any engine, and a seed is a sampler
+identity only a measurement wants, spelled `seed` by this engine's OpenAI-compatible server and by
+nothing the core knows. **A request the harness posts itself** pairs the arms and loses the runner,
+which is the one property this harness exists for, since every rate in the ADR-0028 tables is a
+rate of the shipped `SubagentRunner`. **The seed written onto the body the shipped adapter built,
+on the transport**, is what landed. `_Wire` subclasses `httpx.AsyncHTTPTransport`; on a chat
+completion it parses the body the adapter posted, adds `seed` when one is set, and posts the
+rebuilt request, and on an unseeded run it posts the bytes it was handed. Every line above the wire
+is the shipped one, the runner, the attempt, the adapter and `build_payload` included. This is the
+instrument `_Recording.substitute` already is for the schema, applied one layer lower because the
+port has no field to substitute into and gains none for a measurement.
+
+The trace budget is that same instrument aimed at a second field: `_Recording.stream` writes
+`CORTEX_ENVELOPE_TRACE_TOKENS` into the bounds the runner built as `trace_tokens`, and the backend
+is built with `trace_lever` on.
+
+Both are read back off the body that went out, not off the knob. Each turn records `seed` and
+`trace_budget` as the wire carried them, and the run fails when either differs from what was asked,
+so a sample says what was sent and a request that lost a key cannot report the shipped request
+under another name. The seed is per draw: `CORTEX_ENVELOPE_SEED` is the first draw's, every arm of
+a draw sends the same one, and each later draw sends the next integer, which is the pairing the
+marker and budget-alone addenda drew by hand. The end-of-run assertion that every arm saw the same
+bodies now compares seeds as well.
+
+### What ran
+
+One `llama-server` on `ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`, reporting
+`build_info` `b10680-d7bd3bfca`, serving `gemma-4-E4B_q4_0-it.gguf` with the subagents compose
+file's own flags (`--jinja`, `--chat-template-kwargs '{"enable_thinking": false}'`,
+`--reasoning-budget 0`, `--ctx-size 8192`, `--parallel 2`, so `n_ctx_slot = 4096`) at `-ngl 99`,
+the margin addendum's substitution. The container carried no cgroup cap (`docker inspect` reads
+`NanoCpus`, `Memory` and `MemorySwap` back as 0), nothing else ran on the box (`docker ps` listed
+no other container), the load average stayed between 0.46 and 0.72 across the runs, and
+`nvidia-smi` read 5078 MiB used with the server up on the 24 GB card. Every run is the
+`constrained` arm at the shipped cap over the first two bodies, warehouse and clinic, which are the
+two the firm-prompt addendum's traces fell on, at two draws, seeded 1 and 2. Pre-registered before
+the first run: two runs at one seed identical on 4 of 4 cells, the key on top of the flags changing
+nothing on 4 of 4, and an unseeded run recording no seed and no key.
+
+| run | knobs | server state | what it read |
+| --- | --- | --- | --- |
+| A | seed 1 | freshly loaded | warehouse seed 1 finished at 942 tokens, a 2373-character trace then a reply; clinic seed 1 finished at 254 tokens with no trace; both seed 2 cells cut at the cap with an empty reply, the channel opening `t</channell>` and `h</cha>` |
+| B | seed 1 | warm, after A | both seed 2 cells identical to A's to the character; both seed 1 cells cut at the cap, the channel opening `</channels>` and `</chaann>` |
+| C | seed 1, trace budget 0 | warm, after B | every turn records `trace_budget` 0 off the wire; identical to B on 4 of 4 |
+| D | none | warm | `seed` and `trace_budget` recorded as null; finished at 289 tokens with no trace |
+| E | seed 1 | restarted, freshly loaded | identical to A on 4 of 4 |
+
+Five readings.
+
+1. **The seed pairs to the character, within one prompt-cache state.** A against E and B against
+   C are each 4 of 4, output and decoded count identical. A against B is 2 of 4, and the two cells
+   that differ are the ones run A drew first for each body on a freshly loaded server, where every
+   later draw of the same prompt hit the server's prompt cache. So a seed reproduces a completion
+   between two runs whose prompt cache stands the same, and not across a cold first request and its
+   warm twin: the cold clinic draw finished in 254 tokens with no trace where the warm one at the
+   same seed was cut at the cap with 2993 characters of it. This was pre-registered as 4 of 4, read
+   at 2 of 4, and attributed by the restart rather than explained after the fact. It is also the
+   reading the firm-prompt addendum's own 33 of 38 character identity at one seed never had.
+2. **The key on top of the flags is the sampler zero set a second time.** Run C is run B with
+   `reasoning_budget_tokens: 0` on every request, and it is identical on 4 of 4 cells, traces and
+   marker fragments included, which is the firm-prompt addendum's reading 2 reproduced by a
+   committed file: the key closes nothing on a tier whose flag already set the sampler.
+3. **An unset knob leaves the shipped request.** Run D records null for both fields, and its
+   transport rewrote nothing.
+4. **The marker reproduces from a committed file, by number.** Seed 2 opened the channel with
+   `t</channell>` on warehouse and `h</cha>` on clinic on every run that drew it, and seed 1 warm
+   opened it with `</channels>` and `</chaann>`. Those are spellings the marker addendum recorded
+   from a scratch file, and the request that draws them can now be re-drawn by seed.
+5. **A capped run may still hand text back.** Clinic seed 1 warm was cut at the cap with 762
+   characters in `output` and 2993 in the channel, so a reader of these samples takes `stop` and
+   `ok` before `output_chars`, as `envelopesamples.py` already does.
+
+### What this does not do
+
+- **The identity counts above were made by a scratch script** over the samples the harness wrote,
+  and the entry's own rule is that a number a document quotes should come out of something a gate
+  runs. The samples carry `question`, `draw`, `seed`, `output` and `tokens`, which is all the
+  comparison reads, and `envelopesamples.py` reads four fields of a turn and none of those. Filed
+  as [R-633](../refinements/tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md).
+- **One pick, one build, one placement, two bodies.** The cache reading is `--parallel 2` on this
+  card, and whether a CPU placement or `--parallel 1` pairs across a cold start is unmeasured.
+- **The seed pairs the arms of a draw by number and not by prompt.** `raw` and `constrained` differ
+  in their instruction and their grammar, so a pair is one sampler draw over two prompts, which is
+  what the hand runs paired too; the identity claims here are between runs of one arm.
+
+### Distrust green
+
+No gate changed, so there is no mutation table, and the run's controls are what carried it. **The
+restart** is what separated a seed that fails to pair from a cache state that differs; without it
+reading 1 would have been a 2 of 4 with two explanations. **The unseeded run** is what says the
+transport is inert when no knob is set. And the harness holds its own two claims on every run:
+`seed` and `trace_budget` are read back off the body that went out and asserted equal to what was
+asked, so a request that lost either fails the run rather than writing a sample.
+
+### What moves
+
+`test_envelope_cost_live.py` gains the two knobs, the `_Wire` transport, the lever probe on a trace
+run, the two recorded fields and the seed in its pairing assertion, and its docstring says what
+each is for. A sentence lands in [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md)
+beside the re-measurement instruction and in [docs/modules/repo-gates.md](../modules/repo-gates.md)
+where the sample format is described. No shipped code moves: the runner still names no count, and
+no request this repo sends carries a seed.

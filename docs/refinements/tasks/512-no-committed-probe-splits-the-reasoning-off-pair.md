@@ -1,9 +1,8 @@
 # No committed probe sends the request's own trace budget, or pairs two arms at a seed
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-10
 
 Opened 2026-08-30 by the close of
 [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), which is the second sitting in
@@ -88,3 +87,15 @@ picking one and writing down why, not adding a knob to both halves.
   one property that harness exists for. The request half is unchanged: `GenerationBounds.trace_tokens`
   exists and `_Recording.substitute` already rewrites the schema on the way past, so
   `CORTEX_ENVELOPE_TRACE_TOKENS` is the same instrument aimed at a second field.
+- 2026-09-11: landed. Both knobs are in `test_envelope_cost_live.py`. `CORTEX_ENVELOPE_TRACE_TOKENS`
+  is written into the runner's bounds on the way past, with `trace_lever` on and the engine asked
+  first whether it reads the key, which is a second half this entry never named: the harness built
+  its backend with the lever off, so a count in the bounds alone would have been dropped by
+  `build_payload`. `CORTEX_ENVELOPE_SEED` is written onto the body the shipped adapter built, on the
+  transport, a third shape between the two the 2026-09-10 bullet named and the reason it was chosen:
+  the port gains no field for a measurement and the runner is still what runs. Drawn on the default
+  pick over the two bodies the traces fall on: identical on 4 of 4 cells between two runs at one
+  seed in the same prompt-cache state, 2 of 4 across a cold start, the key on top of the flags
+  changing nothing on 4 of 4, and the marker fragments re-drawn by seed. The ADR-0005 paired-arms
+  addendum publishes the rows; the identity count was made by a scratch script, filed as
+  [R-633](633-the-paired-arm-identity-is-counted-by-a-scratch-script.md).
