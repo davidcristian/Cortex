@@ -80,10 +80,16 @@ def test_cells_are_matched_on_their_place_rather_than_their_order(tmp_path: Path
         ([run("warehouse", 1), run("warehouse", 1)], "constrained", "holds one cell twice"),
         (two(), "raw", "is arm raw and"),
         ([run("warehouse", 1), run("fleet", 1)], "constrained", "does not hold the cells"),
+        ([run("warehouse", 1, seed=5), run("clinic", 1)], "constrained", "does not hold the cells"),
         (
             [run("warehouse", 1), run("clinic", 1, context="another body")],
             "constrained",
             "another instruction or body at clinic draw 1 seed 1",
+        ),
+        (
+            [run("warehouse", 1, instruction="Extract every number."), run("clinic", 1)],
+            "constrained",
+            "another instruction or body at warehouse draw 1 seed 1",
         ),
     ],
 )

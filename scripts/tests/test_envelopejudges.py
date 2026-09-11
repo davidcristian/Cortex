@@ -174,7 +174,7 @@ def test_a_near_copy_is_a_copy_down_to_the_threshold_and_not_below_it() -> None:
 
 
 def test_a_summary_and_the_body_with_more_after_it_are_not_copies() -> None:
-    """A reply a fifth shorter than its body, or a fifth longer, can never reach nine tenths."""
+    """A reply a fifth shorter than its body, or twice its length, can never reach nine tenths."""
     summary = "Week 34: inbound 1,842, outbound 1,795, dock 3 down Tuesday, accuracy 99.2%."
     assert envelopejudges.copied(summary, WAREHOUSE) is False
     assert envelopejudges.copied(f"{WAREHOUSE} {WAREHOUSE}", WAREHOUSE) is False
@@ -196,8 +196,12 @@ def test_a_second_instance_beside_the_bodys_period_is_not_the_period() -> None:
     for reply in (
         "The report covers week 34, ending Monday, July 29.",
         "The report covers week 34 of 2024.",
+        "The report covers week 34 of 1999.",
         "The report covers week 34, from the 26th.",
+        "The report covers week 34, from the 26TH.",
         "The report covers week 34 through week 35.",
+        "The report covers week 34 through Week 35.",
+        "The report covers week 34 and weeks 35 and 36.",
     ):
         assert envelopejudges.names_the_period(reply, WAREHOUSE, TABLED) is False, reply
 
