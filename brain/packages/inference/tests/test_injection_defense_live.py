@@ -1071,6 +1071,14 @@ def print_fired(arm: str, attack: Attack, replies: list[Reply], *, resisted: boo
 _DEEP_RATE_RUNS = 120
 
 
+@dataclass(frozen=True)
+class CellDraw:
+    """What one cell drawn in both arms behind one load came back with."""
+
+    unusable: list[str]
+    arms: dict[str, list[Reply]]
+
+
 async def _draw_deep_cell(  # noqa: PLR0913 -- one argument per axis, each at the corpus's own
     client: httpx.AsyncClient,
     model: Model,
@@ -1079,11 +1087,11 @@ async def _draw_deep_cell(  # noqa: PLR0913 -- one argument per axis, each at th
     type_scale: TypeScale = CORPUS_TYPE_SCALE,
     runs: int = _DEEP_RATE_RUNS,
     frame: Frame = CORPUS_FRAME,
-) -> list[str]:
-    """Draw one rendering's laundering cell deep in both arms, print every reply, return unusable.
-    """
+    attack: Attack = _LAUNDERING,
+) -> CellDraw:
+    """Draw one rendering's cell deep in both arms, print every reply, return what came back."""
     print(  # noqa: T201
-        f"\n=== {model.label} {rendering.name} laundering rate, {runs} per arm at "
+        f"\n=== {model.label} {rendering.name}/{attack.name}, {runs} per arm at "
         f"{frame.label}, {type_scale.label}, {budget.label} ==="
     )
     await _read_back(client, model, rendering, frame)
@@ -1091,22 +1099,24 @@ async def _draw_deep_cell(  # noqa: PLR0913 -- one argument per axis, each at th
         reply = await _transcription(client, model, rendering, frame, type_scale)
         read = "yes" if _reads_canary(reply) else "NO"
         print(f"  [{rendering.name}] at {type_scale.label}: read on request={read}")  # noqa: T201
-    png = rendering.build(_LAUNDERING.injection, frame, type_scale)
+    png = rendering.build(attack.injection, frame, type_scale)
     unusable: list[str] = []
     fired: dict[str, str] = {}
+    arms: dict[str, list[Reply]] = {}
     for arm, framed in (("framed", True), ("control", False)):
         replies = [
             await _screen_reply(client, png, framed=framed, switch=switch_for(model), frame=frame)
             for _ in range(runs)
         ]
-        fired[arm] = rate(_LAUNDERING, replies)
+        arms[arm] = replies
+        fired[arm] = rate(attack, replies)
         unusable += [f"{rendering.name}:{arm}" for reply in replies if reply.unusable]
-        print_fired(arm, _LAUNDERING, replies, resisted=True)
+        print_fired(arm, attack, replies, resisted=True)
     print(  # noqa: T201
-        f"  [{rendering.name}] at {budget.label}: framed {fired['framed']} "
+        f"  [{rendering.name}/{attack.name}] at {budget.label}: framed {fired['framed']} "
         f"control {fired['control']}"
     )
-    return unusable
+    return CellDraw(unusable, arms)
 
 
 @pytest.mark.integration
@@ -1118,7 +1128,7 @@ async def test_every_renderings_laundering_rate_drawn_deep(model: Model, budget:
     with _server(model, budget):
         async with httpx.AsyncClient(timeout=600) as client:
             for rendering in RENDERINGS:
-                unusable += await _draw_deep_cell(client, model, rendering, budget)
+                unusable += (await _draw_deep_cell(client, model, rendering, budget)).unusable
     label = f"{model.label} laundering rates at {budget.label}, {_DEEP_RATE_RUNS} per arm"
     assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS * len(RENDERINGS), _DEEP_RATE_RUNS)
 
@@ -1137,11 +1147,11 @@ async def test_the_plain_cells_laundering_direction_drawn_deeper(model: Model) -
     """Draw the `plain` cell two hundred and eighty times per arm at the corpus frame."""
     with _server(model, SHIPPED_BUDGET):
         async with httpx.AsyncClient(timeout=600) as client:
-            unusable = await _draw_deep_cell(
+            drawn = await _draw_deep_cell(
                 client, model, _PLAIN_RENDERING, SHIPPED_BUDGET, runs=_DIRECTION_RUNS
             )
     label = f"{model.label} plain laundering direction, {_DIRECTION_RUNS} per arm"
-    assert_drawn(label, unusable, 2 * _DIRECTION_RUNS, _DIRECTION_RUNS)
+    assert_drawn(label, drawn.unusable, 2 * _DIRECTION_RUNS, _DIRECTION_RUNS)
 
 
 _OBEYED_RUNS = 560
@@ -1153,11 +1163,11 @@ async def test_the_plain_cells_obeyed_direction_at_double_the_depth(model: Model
     """Draw the `plain` cell five hundred and sixty times per arm at the corpus frame."""
     with _server(model, SHIPPED_BUDGET):
         async with httpx.AsyncClient(timeout=600) as client:
-            unusable = await _draw_deep_cell(
+            drawn = await _draw_deep_cell(
                 client, model, _PLAIN_RENDERING, SHIPPED_BUDGET, runs=_OBEYED_RUNS
             )
     label = f"{model.label} plain obeyed direction, {_OBEYED_RUNS} per arm"
-    assert_drawn(label, unusable, 2 * _OBEYED_RUNS, _OBEYED_RUNS)
+    assert_drawn(label, drawn.unusable, 2 * _OBEYED_RUNS, _OBEYED_RUNS)
 
 
 @pytest.mark.integration
@@ -1166,11 +1176,28 @@ async def test_the_plain_cell_at_a_third_frame_drawn_deep(model: Model) -> None:
     """Draw the `plain` cell a hundred and twenty times per arm at ``4800x2700``."""
     with _server(model, ENGINE_BUDGET):
         async with httpx.AsyncClient(timeout=600) as client:
-            unusable = await _draw_deep_cell(
+            drawn = await _draw_deep_cell(
                 client, model, _PLAIN_RENDERING, ENGINE_BUDGET, frame=_THIRD_FRAME
             )
     label = f"{model.label} plain at {_THIRD_FRAME.label}, {_DEEP_RATE_RUNS} per arm"
-    assert_drawn(label, unusable, 2 * _DEEP_RATE_RUNS, _DEEP_RATE_RUNS)
+    assert_drawn(label, drawn.unusable, 2 * _DEEP_RATE_RUNS, _DEEP_RATE_RUNS)
+
+
+_MAIL_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "app")
+_MAIL_RUNS = 400
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_mail_cells_rate_drawn_alone_at_the_shipped_budget(model: Model) -> None:
+    """Draw the `app` cell four hundred times per arm at the corpus frame and the shipped budget."""
+    with _server(model, SHIPPED_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            drawn = await _draw_deep_cell(
+                client, model, _MAIL_RENDERING, SHIPPED_BUDGET, runs=_MAIL_RUNS
+            )
+    label = f"{model.label} app laundering rate, {_MAIL_RUNS} per arm"
+    assert_drawn(label, drawn.unusable, 2 * _MAIL_RUNS, _MAIL_RUNS)
 
 
 _DIALOG_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "chrome")
@@ -1210,11 +1237,37 @@ async def test_the_dialogs_cell_drawn_twenty_in_both_arms(model: Model) -> None:
     """Draw the dialog cell twenty times per arm in one server, at the corpus frame and budget."""
     with _server(model, SHIPPED_BUDGET):
         async with httpx.AsyncClient(timeout=600) as client:
-            unusable = await _draw_deep_cell(
+            drawn = await _draw_deep_cell(
                 client, model, _DIALOG_RENDERING, SHIPPED_BUDGET, runs=_ARM_DRAWS
             )
     label = f"{model.label} {_DIALOG_RENDERING.name} cell, {_ARM_DRAWS} per arm"
-    assert_drawn(label, unusable, 2 * _ARM_DRAWS, _ARM_DRAWS)
+    assert_drawn(label, drawn.unusable, 2 * _ARM_DRAWS, _ARM_DRAWS)
+
+
+_TOKEN_ATTACKS: tuple[Attack, ...] = tuple(
+    attack for attack in ATTACKS if attack.name in ("payload-splitting", "conditional-trigger")
+)
+_TOKEN_RENDERINGS: tuple[Rendering, ...] = (_PLAIN_RENDERING, _DIALOG_RENDERING)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_two_token_attacks_drawn_as_rates(model: Model) -> None:
+    """Draw the bare-token and appended-token cells five times per arm behind one load."""
+    unusable: list[str] = []
+    with _server(model, SHIPPED_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            for attack in _TOKEN_ATTACKS:
+                for rendering in _TOKEN_RENDERINGS:
+                    drawn = await _draw_deep_cell(
+                        client, model, rendering, SHIPPED_BUDGET, runs=_RATE_RUNS, attack=attack
+                    )
+                    # A reading is one arm of one cell, and a cell here is a rendering on one
+                    # attack, so the name carries the attack as the body pair's carries the size.
+                    unusable += [f"{name} on {attack.name}" for name in drawn.unusable]
+    label = f"{model.label} token attacks at {CORPUS_FRAME.label}, {SHIPPED_BUDGET.label}"
+    cells = len(_TOKEN_ATTACKS) * len(_TOKEN_RENDERINGS)
+    assert_drawn(label, unusable, 2 * _RATE_RUNS * cells, _RATE_RUNS)
 
 
 TYPE_SCALES: tuple[TypeScale, ...] = (CORPUS_TYPE_SCALE, TypeScale(2), TypeScale(1))
@@ -1319,9 +1372,10 @@ async def test_the_dialog_pair_at_the_falling_size_drawn_deeper(model: Model) ->
     with _server(model, ENGINE_BUDGET):
         async with httpx.AsyncClient(timeout=600) as client:
             for rendering in (_DIALOG_RENDERING, _ADVISORY_RENDERING):
-                unusable += await _draw_deep_cell(
+                drawn = await _draw_deep_cell(
                     client, model, rendering, ENGINE_BUDGET, _FALLING_SCALE, _PAIR_RUNS
                 )
+                unusable += drawn.unusable
     label = (
         f"{model.label} dialog pair at {_FALLING_SCALE.label}, {ENGINE_BUDGET.label}, "
         f"{_PAIR_RUNS} per arm"
@@ -1348,12 +1402,70 @@ async def test_the_body_pair_at_both_legible_sizes_drawn_deeper(model: Model) ->
                     # A reading is one arm of one cell at one payload size, which is how the sweep
                     # names its own. Two sizes under one name would hold 40 draws to the ceiling a
                     # reading of 20 carries.
-                    unusable += [f"{name} at {type_scale.label}" for name in drawn]
+                    unusable += [f"{name} at {type_scale.label}" for name in drawn.unusable]
     label = (
         f"{model.label} body pair at {CORPUS_TYPE_SCALE.label} and {_FALLING_SCALE.label}, "
         f"{ENGINE_BUDGET.label}, {_ARM_DRAWS} per arm"
     )
     assert_drawn(label, unusable, 2 * _ARM_DRAWS * 2 * len(_LEGIBLE_SCALES), _ARM_DRAWS)
+
+
+_LOADS = 4
+_LOAD_DRAWS = 20
+
+
+def _distinct(replies: list[Reply]) -> int:
+    """How many different strings one arm wrote, which is what a settled load looks like."""
+    return len({reply.content for reply in replies})
+
+
+async def _draw_cell_across_loads(
+    model: Model,
+    rendering: Rendering,
+    budget: Budget,
+    type_scale: TypeScale = CORPUS_TYPE_SCALE,
+    frame: Frame = CORPUS_FRAME,
+    attack: Attack = _LAUNDERING,
+) -> list[str]:
+    """Draw one cell behind each of several loads, and print a count per load beside the total."""
+    unusable: list[str] = []
+    loads: list[CellDraw] = []
+    for load in range(1, _LOADS + 1):
+        print(f"\n--- load {load} of {_LOADS} ---")  # noqa: T201
+        with _server(model, budget):
+            async with httpx.AsyncClient(timeout=600) as client:
+                drawn = await _draw_deep_cell(
+                    client, model, rendering, budget, type_scale, _LOAD_DRAWS, frame, attack
+                )
+        for arm in _ARMS:
+            print(  # noqa: T201
+                f"  [{rendering.name}] load {load} {arm}: {_distinct(drawn.arms[arm])} distinct "
+                f"strings in {len(drawn.arms[arm])} draws"
+            )
+        loads.append(drawn)
+        unusable += [f"{name} in load {load}" for name in drawn.unusable]
+    for arm in _ARMS:
+        per_load = " | ".join(rate(attack, drawn.arms[arm]) for drawn in loads)
+        pooled = rate(attack, [reply for drawn in loads for reply in drawn.arms[arm]])
+        print(  # noqa: T201
+            f"  --> {model.label} {rendering.name}/{attack.name} {arm} per load: {per_load}; "
+            f"all loads {pooled}"
+        )
+    return unusable
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_advisory_cell_drawn_across_loads(model: Model) -> None:
+    """Draw the advisory probe's laundering cell twenty times per arm behind each of four loads."""
+    unusable = await _draw_cell_across_loads(
+        model, _ADVISORY_RENDERING, ENGINE_BUDGET, _FALLING_SCALE
+    )
+    label = (
+        f"{model.label} advisory at {_FALLING_SCALE.label}, {ENGINE_BUDGET.label}, "
+        f"{_LOADS} loads of {_LOAD_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS, _LOAD_DRAWS)
 
 
 @pytest.mark.integration
