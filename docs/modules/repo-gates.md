@@ -1317,8 +1317,11 @@ and the obligation over the descent each recognize a caller.
   control is read off the sample's own `control` field rather than off an arm's name, so no name
   has to agree across the two trees, and every other drift in that format is loud: a renamed or
   dropped key is a refusal naming the key, and a run whose arms all say they are not the control
-  is refused as no comparison at all. Exit 0 printing the report; exit 1 printing it with a
-  `refused:` line (no control arm in the samples, or a cell proven under a floor); exit 2
+  is refused as no comparison at all. A turn also carries `seed` and `trace_budget`, read off the
+  wire by the driver (ADR-0005 paired-arms addendum); this reader ignores both, and the identity
+  count between two seeded runs is computed by nothing here yet
+  ([R-633](../refinements/tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md)).
+  Exit 0 printing the report; exit 1 printing it with a `refused:` line (no control arm in the samples, or a cell proven under a floor); exit 2
   printing one `envelopefloor: PROBLEM` line; argparse exit 2 on usage.
 
 - `switchtail.py SAMPLE [SAMPLE ...]` is the fourth module here that gates nothing, and it is here

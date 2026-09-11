@@ -1,5 +1,3 @@
-"""Integration: what the reply envelope costs a narrow subtask, measured paired (ADR-0028)."""
-
 import json
 import os
 import time
@@ -7,7 +5,7 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -41,7 +39,8 @@ from cortex_core import (
     VramBudgetPlacer,
 )
 from cortex_core.subagent_reply import REPLY_ENVELOPE, REPLY_INSTRUCTION
-from cortex_inference import LlamaCppBackend
+from cortex_inference import LlamaCppBackend, reads_a_trace_budget
+from cortex_inference.request import TRACE_BUDGET_KEY
 
 _ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_ENDPOINT")
 _MODEL = os.environ.get("CORTEX_SUBAGENTS_MODEL", "subagent")
@@ -49,18 +48,15 @@ _OUT = Path(os.environ.get("CORTEX_ENVELOPE_OUT", "."))
 _LIMIT = int(os.environ.get("CORTEX_ENVELOPE_BODIES", "4"))
 _MAX_TOKENS = int(os.environ.get("CORTEX_ENVELOPE_MAX_TOKENS", str(DEFAULT_SUBAGENT_MAX_TOKENS)))
 _ARMS = tuple(os.environ.get("CORTEX_ENVELOPE_ARMS", "raw,constrained").split(","))
-# How many times each arm of each body is drawn. One, so every recipe written before this knob
-# existed still means what it said. Above one is what a quality reading needs: this tier samples,
-# and a cell read once is a draw that a reader will quote as a rule.
 _DRAWS = int(os.environ.get("CORTEX_ENVELOPE_DRAWS", "1"))
-# Named where the sample is written as well as where the run is configured, so a diagnostic at a
-# raised cap cannot silently overwrite the shipped-cap sample it is meant to sit beside.
 _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
-# How much of each half is kept verbatim. A count says the tokens went somewhere other than
-# the reply and cannot say where, and where is the whole of what a retune would rest on.
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
-# The fields the sample keeps whole and the per-run line drops: all three are long and two of them
-# are the same string on every run of an arm, so printing any buries the numbers a reader watches.
+# Every variant of one draw sends the same seed and each later draw sends the next integer, so
+# the variants of a draw can be compared and a second run at the same base draws the same replies.
+_SEED = os.environ.get("CORTEX_ENVELOPE_SEED")
+_SEED_BASE = int(_SEED) if _SEED is not None else None
+_TRACE = os.environ.get("CORTEX_ENVELOPE_TRACE_TOKENS")
+_TRACE_TOKENS = int(_TRACE) if _TRACE is not None else None
 _UNPRINTED = frozenset({"instruction", "context", "output"})
 
 _REPLY_DESCRIPTION = "The answer to the instruction, written out in full as plain text."
@@ -82,8 +78,6 @@ _PREFACED_ENVELOPE: JsonSchema = {
     "additionalProperties": False,
 }
 
-# Which schema each arm's request carries, and therefore what the arm is. `None` is the raw shape,
-# which is also the shape that tells the runner not to unwrap anything.
 _SCHEMAS: dict[str, JsonSchema | None] = {
     "raw": None,
     "constrained": REPLY_ENVELOPE,
@@ -158,6 +152,37 @@ _BODIES: dict[str, str] = {
 }
 
 
+class _Wire(httpx.AsyncHTTPTransport):
+    """The shipped request with a seed added below the port, and a copy of what went out."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.seed: int | None = None
+        self.sent: dict[str, object] | None = None
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path != "/v1/chat/completions":
+            return await super().handle_async_request(request)
+        body = cast("dict[str, object]", json.loads(request.content))
+        if self.seed is not None:
+            body["seed"] = self.seed
+        self.sent = body
+        if self.seed is None:
+            return await super().handle_async_request(request)
+        # Rebuilt rather than patched: the new body changes content-length, which httpx writes
+        # from the content it is handed.
+        length = b"content-length"
+        headers = [(key, value) for key, value in request.headers.raw if key.lower() != length]
+        seeded = httpx.Request(
+            request.method,
+            request.url,
+            headers=headers,
+            content=json.dumps(body).encode("utf-8"),
+            extensions=request.extensions,
+        )
+        return await super().handle_async_request(seeded)
+
+
 class _Recording:
     """An ``InferenceBackend`` that passes everything through and keeps the server's own numbers."""
 
@@ -175,9 +200,6 @@ class _Recording:
         self.stop: DecodeStop | None = None
         self.ttft_s: float | None = None
         self.instruction = ""
-        # Both halves of what the model wrote, kept apart. A delegated run drops a reasoning
-        # delta unread, so a tier that reasons spends its cap on text the cortex never sees and
-        # a reading that counted only the reply would call that a short answer.
         self.text = ""
         self.reasoning = ""
 
@@ -196,7 +218,12 @@ class _Recording:
         asks = [message.text for message in sent if message.role is Role.USER]
         assert len(asks) == 1, f"one user message is the subtask, got {len(asks)}"
         self.instruction = asks[0]
-        events = self._inner.stream(model, sent, tools=tools, schema=asked, bounds=bounds)
+        held = (
+            bounds
+            if _TRACE_TOKENS is None
+            else replace(bounds or GenerationBounds(), trace_tokens=_TRACE_TOKENS)
+        )
+        events = self._inner.stream(model, sent, tools=tools, schema=asked, bounds=held)
         async for event in events:
             if isinstance(event, TextChunk):
                 if self.ttft_s is None:
@@ -212,8 +239,9 @@ class _Recording:
 
     @staticmethod
     def _without_instruction(messages: Sequence[Message]) -> list[Message]:
-        """``messages`` with the runner's appended sentence taken back off, and a check that it
-        was there: an arm that silently stripped nothing would report the shipped path twice."""
+        """``messages`` with the runner's appended sentence taken back off, and a check that it was
+        there: a variant that silently stripped nothing would report the shipped path twice.
+        """
         stripped = [
             replace(message, text=message.text.replace(f" {REPLY_INSTRUCTION}", ""))
             for message in messages
@@ -223,11 +251,7 @@ class _Recording:
 
 
 def _roster(backend: InferenceBackend) -> SubagentRoster:
-    """Build a roster from the shipped entry's own numbers, with every spawn kept on the CPU path.
-
-    A zero-headroom placer is what a closed GPU tier leaves, and it is what the batch behind the
-    whole-subtask interval used, so these readings sit beside that one.
-    """
+    """Build a roster from the shipped entry's numbers, with every spawn kept on the CPU path."""
     resources = SubagentResources(
         backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
         scheduler=ResourceBudgetScheduler(4.0, 8.0),
@@ -238,12 +262,16 @@ def _roster(backend: InferenceBackend) -> SubagentRoster:
 
 
 async def _one(
-    client: httpx.AsyncClient, name: str, body: str, *, arm: str, draw: int
+    client: httpx.AsyncClient, wire: _Wire, name: str, body: str, *, arm: str, draw: int
 ) -> dict[str, Any]:
     """Run one body on one shape through the real runner and report what came back."""
     schema = _SCHEMAS[arm]
     recorder = _Recording(
-        LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client),
+        LlamaCppBackend(
+            SingleResidentModelManager(_MODEL, _ENDPOINT or ""),
+            client,
+            trace_lever=_TRACE_TOKENS is not None,
+        ),
         substitute=schema,
         strip_instruction=arm in _STRIPPING_ARMS,
     )
@@ -259,13 +287,23 @@ async def _one(
     await store.put_task(
         SubagentTask(id=task_id, instruction=_INSTRUCTION, context=body, at=datetime.now(UTC))
     )
+    wire.sent = None
     started = time.monotonic()
     result = await runner.run(task_id)
     wall = time.monotonic() - started
+    assert wire.sent is not None, "no completion went out on the wire"
+    seed = wire.sent.get("seed")
+    trace_budget = wire.sent.get(TRACE_BUDGET_KEY)
+    assert seed == wire.seed, f"the wire carried seed {seed!r} where {wire.seed!r} was asked"
+    assert trace_budget == _TRACE_TOKENS, (
+        f"the wire carried {TRACE_BUDGET_KEY} {trace_budget!r} where {_TRACE_TOKENS!r} was asked"
+    )
     turn = {
         "question": name,
         "arm": arm,
         "draw": draw,
+        "seed": seed,
+        "trace_budget": trace_budget,
         "cap": _MAX_TOKENS,
         "ttft": recorder.ttft_s if recorder.ttft_s is not None else wall,
         "wall": wall,
@@ -289,7 +327,7 @@ async def _one(
 
 
 def _write(arm: str, turns: list[dict[str, Any]]) -> None:
-    """Rewrite one arm's sample, so a run cut short still leaves the draws it finished."""
+    """Rewrite one variant's sample file, so a run cut short still leaves the draws it finished."""
     _OUT.mkdir(parents=True, exist_ok=True)
     path = _OUT / f"envelope-{arm}{_TAG}.json"
     sample = {"arm": arm, "control": _SCHEMAS[arm] is None, "turns": turns}
@@ -299,16 +337,18 @@ def _write(arm: str, turns: list[dict[str, Any]]) -> None:
 @pytest.mark.integration
 @pytest.mark.skipif(not _ENDPOINT, reason="set CORTEX_SUBAGENTS_ENDPOINT to a live subagent server")
 async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None:
-    """Every shape over each body, raw first, writing after every completed run."""
     turns: dict[str, list[dict[str, Any]]] = {arm: [] for arm in _ARMS}
-    # No request timeout: a CPU subtask streams for minutes and the stall ceiling is per read.
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
+    wire = _Wire()
+    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None), transport=wire) as client:
+        if _TRACE_TOKENS is not None:
+            assert await reads_a_trace_budget(_ENDPOINT or "", _MODEL, client), (
+                f"this engine does not read {TRACE_BUDGET_KEY}, so no trace arm can be drawn on it"
+            )
         for name, body in list(_BODIES.items())[:_LIMIT]:
-            # Draws inside a body and arms inside a draw, so a run cut short loses whole draws of
-            # a whole body rather than one arm of one, which is the unit the pairing is over.
             for draw in range(1, _DRAWS + 1):
+                wire.seed = None if _SEED_BASE is None else _SEED_BASE + draw - 1
                 for arm in _ARMS:
-                    turns[arm].append(await _one(client, name, body, arm=arm, draw=draw))
+                    turns[arm].append(await _one(client, wire, name, body, arm=arm, draw=draw))
                     _write(arm, turns[arm])
     written = " ".join(str((_OUT / f"envelope-{arm}{_TAG}.json").resolve()) for arm in _ARMS)
     print(  # noqa: T201 -- the report is the point
@@ -317,9 +357,9 @@ async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None
         f"  just envelope-floor {written}",
         flush=True,
     )
-    # The measurement is the numbers printed and written above. What has to hold whatever the
-    # model decides is that every arm answered over the same bodies, which is what pairs them.
-    asked = [[(turn["question"], turn["draw"]) for turn in seen] for seen in turns.values()]
+    asked = [
+        [(turn["question"], turn["draw"], turn["seed"]) for turn in seen] for seen in turns.values()
+    ]
     assert all(seen == asked[0] for seen in asked), f"the arms asked different bodies: {asked}"
     everything = [turn for seen in turns.values() for turn in seen]
     assert all(turn["tokens"] is not None for turn in everything), "a run reported no timings"
