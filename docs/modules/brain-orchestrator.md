@@ -36,12 +36,23 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 - `BrainRuntimeConfig` holds runtime wiring knobs, read only by the composition root:
   `redis_url: str = "redis://127.0.0.1:6379/0"` (`CORTEX_REDIS_URL`);
   `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id (ADR-0004), never a
-  file path, and the root reads it twice, into the turn engine's request and into the backend
-  whose manager grants the lease, which is why `test_wiring` drives one turn over a **renamed**
-  tier (ADR-0001 configured-caller addendum): under the shipped id a root reaching for
-  `DEFAULT_CORTEX_MODEL` reads identically to one reading this, and nothing below the root compares
-  the two. The deep tier's id and the subagent roster's default are pinned the same way and for the
-  same reason, in `test_swap_wiring` and `test_wiring`; and the GPU-budget facts the
+  file path, and the root reads it into the turn engine's request, into the backend whose manager
+  grants the lease, into the residency plan a handoff swaps around, into the recall judge
+  (`build_memory`), into the recap summarizer (`build_history_window`) and into the trace-lever
+  probe (`resolve_trace_lever`), which is why `test_wiring` drives each of them over a **renamed**
+  tier against a backend that serves the renamed one alone (ADR-0001 configured-caller addenda):
+  under the shipped id a root reaching for `DEFAULT_CORTEX_MODEL` reads identically to one reading
+  this, and nothing below the root compares the two. The turn's pin asserts a failure, since a
+  wrong id there refuses the turn. The other three assert the outcome, because none of them fails
+  on a wrong id: the judge and the recap catch the `InferenceError` a refused lease arrives as, on
+  the first recall and the first fold, and fall back to the unjudged ranking and to the plain
+  window on one warning each, and the probe reads a refusal that does not quote the budget key as
+  a build without the lever, at boot, on one info line. A mis-wiring at any of the three costs the
+  deployment that capability for the whole run with nothing failing, and it is a test at the root
+  rather than a boot check because every one of these reads is of this one field, so a check at
+  boot would compare the value with itself. The deep tier's id and the subagent roster's default
+  are pinned the same way and for the same reason, in `test_swap_wiring` and `test_wiring`; and
+  the GPU-budget facts the
   `SubagentPlacer` fit-tests against (ADR-0012):
   `vram_soft_cap_gb: float = 14.0` (`CORTEX_VRAM_SOFT_CAP_GB`, the deliberate soft cap, ADR-0004) and
   `cortex_reservation_gb: float = 8.6` (`CORTEX_VRAM_CORTEX_GB`, the resident cortex's footprint,

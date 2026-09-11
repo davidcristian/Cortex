@@ -1,6 +1,6 @@
 # The recall judge asks for a model id nothing pins
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** memory
 **Origin:** [ADR-0001](../../adr/ADR-0001-architecture.md)
 
@@ -55,3 +55,11 @@ lever, are the work.
   handing `cortex_model` to `JudgeRecallPolicy` through `recall_policy_from_config`, `select`
   catching `InferenceError` and falling back on a warning, and the one wiring test asserting the
   type it builds and no id. Recorded in the origin decision's addendum of the same day.
+- 2026-09-11: landed as three pins in `test_wiring`, each driving the builder under a renamed
+  tier over a backend that serves the renamed one alone: `build_memory` recalling over a
+  scripted verdict, `build_history_window` folding a recap, and `build_inference_backend` against
+  a loopback server that routes by id, with the budget asserted on the wire. Proved by five
+  mis-wirings over the orchestrator, core and inference suites, the two pass-through rows having
+  caught a first draft that pinned the seams beneath the builders. A boot check was weighed and
+  not built, since every caller reads the one config field. Recorded in the ADR-0001 addendum of
+  the same day.

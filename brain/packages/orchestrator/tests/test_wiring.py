@@ -1,6 +1,7 @@
 """run_from_env composes env config + Redis store + echo backend and serves the seam."""
 
 import asyncio
+import json
 import logging
 import os
 import signal
@@ -18,10 +19,12 @@ from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from redis.asyncio import Redis
 
 import cortex_orchestrator.builders as builders_module
+import cortex_orchestrator.memory_builders as memory_builders_module
 import cortex_orchestrator.subagent_builders as subagent_builders_module
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
+    DEFAULT_CORTEX_MODEL,
     DENIED_MSG,
     GET_VOLUME_TOOL_NAME,
     RAW_RECALL_POLICY,
@@ -33,6 +36,7 @@ from cortex_core import (
     EchoInferenceBackend,
     GenerationBounds,
     GlobalMemoryScope,
+    HashEmbedder,
     InferenceError,
     InferenceEvent,
     InMemoryBodyGateway,
@@ -43,6 +47,7 @@ from cortex_core import (
     JudgeRecallPolicy,
     LookalikeUrlRedactingGuardrail,
     MemoryRecaller,
+    MemoryRecord,
     Message,
     MmrRecallPolicy,
     PlacementRequest,
@@ -55,6 +60,8 @@ from cortex_core import (
     Role,
     ScheduledItem,
     ScheduleKind,
+    ScoredMemory,
+    ScriptedInferenceBackend,
     SessionMemoryCascade,
     SessionMemoryScope,
     SpawnSubagentsTool,
@@ -65,6 +72,7 @@ from cortex_core import (
     SubagentRoster,
     SubagentRunner,
     SystemClock,
+    TextChunk,
     ToolCall,
     ToolDispatcher,
     ToolNotFoundError,
@@ -76,6 +84,7 @@ from cortex_core import (
 from cortex_core.summarizing import SummarizingHistoryWindow
 from cortex_core.windowing import HistoryWindow
 from cortex_inference import LlamaCppBackend
+from cortex_inference.request import TRACE_BUDGET_KEY
 from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator import (
     BodyConfig,
@@ -327,6 +336,94 @@ async def test_the_two_fixed_modes_answer_without_asking_anything() -> None:
     assert await builders_module.resolve_trace_lever(off, "cortex") is False
 
 
+@asynccontextmanager
+async def _routing_llama_server(
+    serves: str,
+) -> AsyncGenerator[tuple[str, list[dict[str, object]]]]:
+    """A loopback server that answers by the ``model`` a request names, as a router does.
+
+    The canned server above answers whatever is posted at it, which is what one llama-server
+    child does: it ignores the id and answers out of the one model it holds. A deployment whose
+    endpoint routes by id answers a request naming an id it does not host with a refusal of its
+    own, and that refusal never quotes the budget key, so the probe reads it as a build without
+    the lever. This server is that deployment, hosting ``serves`` alone and range-checking the
+    budget the way a build that reads the key does: a request naming another id gets the
+    router's not-found, one carrying an out-of-range budget gets the refusal that names the key,
+    and any other gets a one-delta completion. Every body posted at it is recorded, so a test
+    can read what the built backend sent.
+    """
+    refusal = json.dumps({"error": {"message": f"Field '{TRACE_BUDGET_KEY}': out of range"}})
+    not_found = json.dumps({"error": {"message": "model not found"}})
+    completion = 'data: {"choices":[{"delta":{"content":"."}}]}\n\ndata: [DONE]\n\n'
+    requests: list[dict[str, object]] = []
+
+    async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        length = 0
+        while (line := await reader.readline()) not in (b"\r\n", b""):
+            name, _, value = line.decode().partition(":")
+            if name.lower() == "content-length":
+                length = int(value)
+        request = cast("dict[str, object]", json.loads(await reader.readexactly(length)))
+        requests.append(request)
+        budget = request.get(TRACE_BUDGET_KEY)
+        if request["model"] != serves:
+            status, kind, body = 404, "application/json", not_found
+        elif isinstance(budget, int) and budget < -1:
+            status, kind, body = 400, "application/json", refusal
+        else:
+            status, kind, body = 200, "text/event-stream", completion
+        payload = body.encode()
+        writer.write(
+            f"HTTP/1.1 {status} x\r\nContent-Type: {kind}\r\n"
+            f"Content-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode()
+            + payload
+        )
+        await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(serve, "127.0.0.1", 0)
+    port = cast("int", server.sockets[0].getsockname()[1])
+    try:
+        yield f"http://127.0.0.1:{port}", requests
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+async def test_the_lever_probe_asks_about_the_tier_the_deployment_named() -> None:
+    """A deployment that renamed its resident tier still measures its lever, then spends it.
+
+    The probe posts the configured id, and a deployment that routes by id answers a request
+    naming an id it does not host with a refusal that never quotes the budget key, which the
+    probe reads as no lever (ADR-0001 configured-caller addendum). A root posting the constant
+    instead of `CORTEX_MODEL_CORTEX` would therefore send every request of the run without a
+    budget, on one info line. The one llama-server child this repo ships ignores the id, which
+    is why the canned server above cannot see this and the routing one is needed.
+
+    Driven through the builder rather than through the probe alone, with the assertion on the
+    request the built backend then sends: the lever it holds is what the probe answered, and a
+    budget on the wire is the one place that answer shows from outside. Renamed on purpose,
+    because the shipped id makes the constant and the config indistinguishable: under
+    `CORTEX_MODEL_CORTEX` left alone every request below names the same id either way.
+    """
+    async with _routing_llama_server(serves="cortex-alt") as (endpoint, requests):
+        config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
+        backend, close = await build_inference_backend(config, "cortex-alt")
+        try:
+            turn = Message(role=Role.USER, text="hello", at=datetime.now(UTC), turn_id="t-1")
+            bounds = GenerationBounds(max_tokens=8, thinking=False, trace_tokens=0)
+            events = [event async for event in backend.stream("cortex-alt", [turn], bounds=bounds)]
+        finally:
+            await close()
+        assert [request["model"] for request in requests] == ["cortex-alt", "cortex-alt"]
+        # The probe read the lever as present, so the completion after it carries the budget.
+        assert requests[1][TRACE_BUDGET_KEY] == 0
+        assert any(isinstance(event, TextChunk) for event in events)
+        # The same deployment asked about a tier it does not host, which is what the mis-wiring
+        # would post: the server does discriminate, so nothing above passes by default.
+        assert await builders_module.resolve_trace_lever(config, DEFAULT_CORTEX_MODEL) is False
+
+
 async def test_the_generation_client_bounds_every_phase_including_the_read() -> None:
     """The founding client passed ``read=None``, which is the wait nothing else bounded.
 
@@ -473,6 +570,69 @@ def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
     judge = _policy(MemoryConfig(recall="judge"))  # the model rank (ADR-0038)
     assert isinstance(judge, JudgeRecallPolicy)
     assert judge.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
+
+
+async def test_the_judge_asks_the_tier_the_deployment_named_to_rank(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deployment that renamed its resident tier still gets its recall judged.
+
+    The judge is the caller where a wrong id is not a failed turn: `select` catches the
+    `InferenceError` a refused lease arrives as and falls back to the unjudged ranking, so a
+    root handing it the constant instead of `CORTEX_MODEL_CORTEX` would rank every recall of the
+    run the way `CORTEX_MEMORY_RECALL=raw` does, on one warning per recall. Driven through
+    `build_memory`, with the store and the embedder the builder opens stood in for at those two
+    seams, and the assertion is on the order a recall comes back in: the scripted verdict
+    reverses the pool, and the fallback the mis-wiring lands on returns it as the store ranked
+    it, over a backend that serves the renamed tier alone (ADR-0001 configured-caller addendum).
+    """
+    at = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
+    pool = [
+        ScoredMemory(
+            record=MemoryRecord(id=rid, text=rid, embedding=(1.0, 0.0), at=at), score=score
+        )
+        for rid, score in (("first", 0.9), ("second", 0.8))
+    ]
+
+    class PoolStore:
+        """The one read a recall makes, answering the pool above, plus the closer."""
+
+        async def search(
+            self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+        ) -> Sequence[ScoredMemory]:
+            del embedding, k, scopes
+            return pool
+
+        async def aclose(self) -> None:
+            return None
+
+    async def connect_pool(dsn: str) -> PoolStore:
+        del dsn
+        return PoolStore()
+
+    def hash_embedder(client: httpx.AsyncClient, endpoint: str, *, model: str) -> HashEmbedder:
+        del client, endpoint, model
+        return HashEmbedder()
+
+    monkeypatch.setattr(PgVectorMemoryStore, "connect", connect_pool)
+    monkeypatch.setattr(memory_builders_module, "LlamaCppEmbedder", hash_embedder)
+    backend = ScriptedInferenceBackend(
+        [[TextChunk(text='{"order": [1, 0]}')]], serves=["cortex-alt"]
+    )
+    config = MemoryConfig(
+        backend="pgvector",
+        recall="judge",
+        dsn="postgresql://cortex@db/cortex",
+        embedder_endpoint="http://llama-embed:8081",
+    )
+    memory, _cascade, close = await build_memory(config, SystemClock(), backend, "cortex-alt")
+    assert memory is not None
+    try:
+        recalled = await memory.recall("which?", k=2, session_id="renamed")
+    finally:
+        await close()
+    assert [hit.record.id for hit in recalled] == ["second", "first"]
+    assert backend.calls == ["cortex-alt"]
 
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:
@@ -1139,6 +1299,35 @@ async def test_build_history_window_never_lets_the_floor_exceed_the_budget() -> 
     assert isinstance(window, SummarizingHistoryWindow)
     await window.select(_forty_char_turns(4), session_id="clamped")
     assert backend.calls == 1  # the floor was clamped to the budget, so the fold was paid for
+
+
+async def test_the_recap_is_folded_by_the_tier_the_deployment_named() -> None:
+    """A deployment that renamed its resident tier still gets its dropped turns recapped.
+
+    The recap is the other caller where a wrong id is not a failed turn: the window catches the
+    `InferenceError` a refused lease arrives as, writes a warning and returns the plain window,
+    so a root handing it the constant instead of `CORTEX_MODEL_CORTEX` would ship the budget
+    window alone on every turn of the run, with `CORTEX_HISTORY_SUMMARY` reading as on. The
+    assertion is therefore on the recap arriving, the one message only a model that was asked
+    can put in front of the kept turns, over a backend that serves the renamed tier alone
+    (ADR-0001 configured-caller addendum).
+    """
+    backend = ScriptedInferenceBackend(
+        [[TextChunk(text="The user and the assistant exchanged four lines of x.")]],
+        serves=["cortex-alt"],
+    )
+    window = build_history_window(
+        BrainRuntimeConfig(cortex_model="cortex-alt", history_char_budget=80, history_summary=True),
+        sessions=InMemorySessionStore(),
+        backend=backend,
+        clock=SystemClock(),
+    )
+    assert isinstance(window, SummarizingHistoryWindow)
+    selected = await window.select(_forty_char_turns(4), session_id="renamed")
+    plain = await CharBudgetHistoryWindow(80).select(_forty_char_turns(4), session_id="renamed")
+    assert len(selected) == len(plain) + 1  # the recap, prepended to the plain selection
+    assert selected[0].role is Role.SYSTEM
+    assert backend.calls == ["cortex-alt"]
 
 
 def test_build_cortex_tools_none_when_nothing_is_enabled() -> None:

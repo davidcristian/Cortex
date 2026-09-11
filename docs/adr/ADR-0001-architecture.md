@@ -727,3 +727,60 @@ work it names is three pins rather than one: the judge, the recap and the lever,
 a renamed tier against a backend that serves only the renamed one, with the assertion on the
 judged ranking, on the recap delivered, and on the lever read as present. The three pins that
 landed here are unchanged.
+
+## Addendum (2026-09-11): the judge, the recap and the lever, pinned through their builders
+
+The addendum above re-filed the judge's entry as three pins, and this records them landed, with
+the one decision the entry left open settled: what shape a pin takes for a caller that never
+fails on a wrong id. The three pins that landed first each catch a loud failure, a turn refused,
+a swap unable to lease, a roster that will not build. These three catch a quiet one.
+`JudgeRecallPolicy.select` and `SummarizingHistoryWindow.select` both catch the `InferenceError`
+a refused lease arrives as and fall back, to the unjudged ranking and to the plain window, on one
+warning apiece, and `reads_a_trace_budget` reads any refusal that does not quote the budget key
+as a build without the lever, on one info line. So a root handing any of them the module constant
+in place of `CORTEX_MODEL_CORTEX` would cost the deployment that capability for the whole run
+with nothing failing, and the pin has to assert the outcome only a model that was asked can
+produce: the judged order, the recap in front of the kept turns, the budget on the wire.
+
+**The shape is a test at the root, and a boot check was weighed and not built.** A boot check
+would compare the id each caller holds with the id the manager serves, and today every one of
+them is read out of the one field `BrainRuntimeConfig.cortex_model`, so the check would compare
+a value with itself and could fail only after the refactor a test catches before it is
+committed. It would also need a question the port does not offer, since `InferenceBackend` says
+an implementation answers only for the ids it serves and deliberately leaves who checks and when
+to the implementation, and it could not cover the echo backend, which serves any id. The test
+costs no boot time and no port change, which is the reason the three earlier pins took the same
+shape.
+
+**Each pin drives the builder rather than the seam beneath it**, which the first draft of these
+did not, and the mutation table is what said so: a draft pinning `recall_policy_from_config` and
+`resolve_trace_lever` directly caught the constant at those two functions and passed clean when
+`build_memory` and `build_inference_backend` handed it down instead. The judge pin now runs
+`build_memory` under `pgvector` with the store's `connect` and the embedder class stood in for at
+the two seams the builder opens, recalls over a two-hit pool, and asserts the order the scripted
+verdict reverses, which the fallback returns as the store ranked it. The recap pin runs
+`build_history_window` over a budget that drops six of eight forty-character messages and asserts
+the recap arrived in front of the kept turns. The lever pin runs `build_inference_backend`
+against a loopback server that routes by id, hosting the renamed tier alone and range-checking
+the budget the way a build that reads the key does, then streams one bounded request through the
+built backend and asserts the budget on the wire, since the bool the adapter holds shows nowhere
+else. Every one of them renames the tier and runs over a backend that serves the renamed one
+alone: `ScriptedInferenceBackend(serves=["cortex-alt"])` for the two that use the port, and the
+routing server for the one that posts before any backend exists.
+
+**Proven able to fail**, each mis-wiring applied to production code alone, measured over the
+orchestrator, core and inference suites together (2418 tests) and restored:
+
+| Mis-wiring | Test that fails |
+| --- | --- |
+| `recall_policy_from_config` builds the judge for the literal `"cortex"` | the judge pin alone |
+| `build_memory` hands `recall_policy_from_config` the literal | the judge pin alone |
+| `build_history_window` builds the summarizer for the literal | the recap pin alone |
+| `resolve_trace_lever` posts the literal | the lever pin alone |
+| `build_inference_backend` resolves the lever for the literal | the lever pin alone |
+
+**What this leaves.** The count of configured callers stands at six, all pinned. The two heavier
+shapes the served-ids entry weighed stay unchosen, and the reason has not moved: a twin told
+nothing about a deployment states nothing a call could contradict. The session title is
+generated inside the turn engine with the id the turn ran on rather than read out of the config
+a further time, so it rides the resident-tier pin.
