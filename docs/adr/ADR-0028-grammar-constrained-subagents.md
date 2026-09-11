@@ -1813,7 +1813,8 @@ taken on did not hold.
 Each pick's constrained arm in `measurements/envelope-retable-2026-09-11/`, classified by the
 corrected machine judge and then read. On the 2B, the five quiet runs that are not copies and every
 delivered run were read by eye, and the 27 copies by their likeness to the body over letters and
-digits, 0.86 to 1.00, against 0.66 to 0.79 for the four delivered summaries. The reading agreed
+digits as `copied` in `scripts/envelopejudges.py` measures it, 0.917 to 1.000, against 0.862 to
+0.897 for the four delivered summaries. The reading agreed
 with the machine on all 91 accepted 2B runs. Two delivered lookups name the
 body's phrase "month ending" and run on into its first sentence; they stay delivered, as the
 machine counts them, and counting them the other way moves neither of the bar's first two lines
@@ -1914,9 +1915,10 @@ moves where the judge says `no` and not whether it can tell the two apart.
 
 ### What this decides
 
-- **The judge is not built, on any pick.** Neither the roster alternate nor any other entry of the
-  row clears the bar's first or second line under either wording, and the Qwen family, where the
-  quiet failure is the ordinary one, shows no separation at all. The instruction addendum's fifth
+- **The judge is not built, on any pick.** No entry of the row, the roster alternate included,
+  clears both the bar's first and second lines under either wording: every one fails the second,
+  and the one first-line pass, the 0.8B's 49 of 50, comes from answering `no` to nearly every run.
+  The Qwen family, where the quiet failure is the ordinary one, shows no separation at all. The instruction addendum's fifth
   decision stands, and the sentence of its argument calling another completion on the same tier
   the only honest judge is corrected: that judge was measured here, and its verdicts do not
   separate answers from non-answers.
