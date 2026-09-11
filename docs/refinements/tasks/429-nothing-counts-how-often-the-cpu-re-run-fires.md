@@ -5,6 +5,7 @@
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 **Trigger:** The first deployment observed refused at the admission bound, or any retune of the run
 deadline or the admission wait.
+**Verified:** 2026-09-11
 
 Opened 2026-08-25 by the close of
 [R-392](392-a-re-runs-second-deadline-outlasts-the-queue.md), which made the admission wait outlast
@@ -43,3 +44,14 @@ re-run, rather than against whether the path fires at all.
   [R-392](392-a-re-runs-second-deadline-outlasts-the-queue.md), whose decision raised the admission
   wait above `ATTEMPTS_PER_ADMISSION` whole run deadlines and could size that window only from
   reading the code.
+- 2026-09-11: read against the tree and the trigger has not fired. `_placed` in
+  `cortex_core/runner.py` still writes one warning per re-run, carrying `task_id`, `model` and the
+  first attempt's `detail`, and `reran_on_cpu` in `subagent_outcome.py` still folds that detail
+  into the one result's `detail` string; `SubagentResult` still holds `task_id`, `output`, `ok`,
+  `detail` and `tainted` and no field naming a placement or an attempt count, and the tool audit
+  still records `result_chars` for the batch and nothing per attempt. No runbook shows the re-run
+  line, so it sits under no sample gate either. `DEFAULT_ADMISSION_WAIT_S` is 7200.0 since
+  2026-08-25 and `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` is 2400.0, and neither has moved since this entry
+  opened, so no retune has fired the second half of the trigger. The first half became observable
+  on 2026-09-08, when the runner gained a warning at the refusal itself, `a spawn was refused
+  before it ran`, shown in the delegation runbook; no deployment has been recorded refused on it.

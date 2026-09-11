@@ -132,3 +132,15 @@ backend* or *per placement target*, were never wrong and were not touched.
   observation that bucket owed ran 2026-08-04 and what is left is the fix, which is
   fix-when-it-bites, plus an observation only the host's hardware can make: real use over months
   rather than 36 scripted turns, listed at [docs/host/](../../host/index.md).
+- 2026-09-11: every claim the tree can answer was read against it, and the trigger is the one
+  thing it cannot answer. `build_spawn_spec` in `spawn_spec.py` still publishes the `model`
+  property and the spread sentence only when `not tools_enabled and len(roster.entries) > 1`;
+  `tools_enabled` on the runner is `self._tools is not None`, and `build_subagent_tools` returns
+  `None` only when no tool registry is configured, so a tools-enabled deployment still gets the
+  pinned note. The probe file, the runbook's section 3c and the two pins in
+  `packages/core/tests/test_spawn.py` are where this entry says. The admission wait the 2026-08-09
+  paragraph above describes at 3600 s was raised to 7200 s on 2026-08-25, three run deadlines, so
+  that it outlasts both attempts one admission can hold; the sentence a model reads is unchanged.
+  No addendum on the origin record since 2026-08-04 reports an unprompted delegation, and the
+  trigger is a deployment behaviour over real use, listed at [docs/host/](../../host/index.md), so
+  this entry carries no verified date.

@@ -4,6 +4,7 @@
 **Area:** memory
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Trigger:** A score-delta calibration over a corpus with realistic topic spread.
+**Verified:** 2026-09-11
 
 Exact cosine now; an approximate index would need a migration, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
@@ -27,7 +28,8 @@ about nine buffers a row. A session-scoped read never had the problem at all, 40
 search in 5.5 ms, a factor of 268, and costs two things. It costs the dimension: both index types
 need a typmod, so the column becomes `vector(768)` and stops being the dimension-agnostic thing
 [ADR-0004](../../adr/ADR-0004-model-lineup.md) decided it should be, which turns changing
-`CORTEX_EMBED_MODEL_FILE` from a redeployment into a migration this repo has no runner for. And it
+`CORTEX_MODEL_FILE_EMBED` (spelled `CORTEX_EMBED_MODEL_FILE` until 2026-08-30) from a
+redeployment into a migration this repo has no runner for. And it
 costs recall: **mean overlap with the exact answer is 0.550 at k=20, and the worst single query
 kept none of the twenty**. That number is not yet trustworthy in either direction, which is the
 finding this entry now turns on. The corpus was 256 topic centres over 220,000 rows, so roughly
@@ -55,3 +57,12 @@ answer to a slow scan is scoping or retention rather than approximation.
   answer only 0.550. The entry survives because set overlap punishes a reordering among the roughly
   860 near-tied neighbours the corpus put around each query, so the trigger is now a score-delta
   calibration and the old "when it bites" is struck as unfireable.
+- 2026-09-11: read against the tree and the trigger has not fired. `docker/postgres/init.sql` still
+  declares `embedding vector NOT NULL` with no typmod and indexes only `scope`, with a btree;
+  `cortex_memory/store.py` still ranks by `embedding <=> $1::vector` under `LIMIT $2`, and the width
+  it ships is still 20, from `DEFAULT_RECALL_K = 5` in `turn_context.py`, `recall_pool_factor: int
+  = 4` in the orchestrator's `config.py` and `GlobalMemoryScope.read_scopes` returning `None`. No
+  compose file or brain source spells `maintenance_work_mem`. No score-delta calibration has run:
+  the only mentions of one are the 2026-08-11 addendum's, and no addendum on that record since
+  names `hnsw` or `ivfflat`. One name in the body had gone stale, the embedder's variable, which was
+  renamed to `CORTEX_MODEL_FILE_EMBED` on 2026-08-30, and it is corrected above.

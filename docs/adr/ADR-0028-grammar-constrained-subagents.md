@@ -1337,3 +1337,25 @@ run and missed on two of its three counts, both reported above rather than revis
 Nothing executable. The entry closes landed, two entries open, and a sentence lands in
 [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) beside the note on what the tabled
 numbers depend on.
+
+## Re-filing addendum (2026-09-11): the quiet-failure trigger had fired on the day it was written
+
+**Status:** Accepted. Re-files
+[R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md) from fix-when-it-bites
+to actionable. It changes no code.
+
+The lineup addendum above amended that entry's trigger from an answer rate to a failure kind: a
+roster pick measured whose constrained non-deliveries come back `ok=True` more often than they
+come back refused. The number that prompted the amendment already met it, 8 of 13 on the roster
+alternate against 5 refused, and the entry's Trail read that as short of firing. Two readings since
+say the same of the smallest pick: the row addendum's 26 of 30, and the sweep-columns addendum's
+constrained arm, which stood 83 of 96 and delivered 53, so at least 30 of its 43 non-deliveries
+came back `ok=True` and at most 13 were refused. A condition met three times on two picks has
+fired, and the entry now carries no trigger.
+
+What the firing does not change is decision 5 of the instruction addendum: nothing in the core can
+tell a plan from an answer without judging prose, and on the default pick the quiet count is still
+0 of 6. So the work the entry now names is the cheap test its body always proposed, a second
+completion on the tier asked whether the reply it just wrote answered, run over seeded samples
+before any runner change. Whether a delegated run should pay a second completion at all is the
+owner's call, and it is recorded in the entry's Trail rather than decided here.
