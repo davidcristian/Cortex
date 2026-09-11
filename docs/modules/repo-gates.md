@@ -1063,7 +1063,10 @@ and the obligation over the descent each recognize a caller.
   restating its own status, a number already used, one of the two waiting states not naming
   its trigger, or a `Verified` line that is not a date or sits on a task that has closed or is
   standing). A
-  relative link in a task file or an index that does not resolve. **A fragment
+  relative link in a task file or an index that does not resolve, where the index is judged on
+  the spliced text the run requires on disk, as its anchors are, and never on the file a write
+  run replaces: a write run's verdict is about the index it leaves behind (ADR-0039 write-run
+  link addendum). **A fragment
   aimed at a heading a backlog index does not render**, which is the same link's other half and
   the half a rename breaks silently, checked since the ADR-0039 anchor addendum. An index whose
   generated block is stale, missing or hand-edited. A `tasks/` directory holding anything that is

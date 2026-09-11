@@ -570,3 +570,38 @@ corrected index, after which `just check-backlog` passed: `check_links` reads th
 before the rewrite, while the anchor half of the same link is judged against the spliced text, the
 rule the repo-wide anchor addendum set. Filed as
 [R-632](../refinements/tasks/632-the-write-run-judges-the-links-of-the-index-it-replaces.md).
+
+## Addendum (2026-09-11, latest): the write run judges the links of the index it writes
+
+The addendum above filed
+[R-632](../refinements/tasks/632-the-write-run-judges-the-links-of-the-index-it-replaces.md) on
+the sequence it describes. Re-deriving the entry against the tree, by running that sequence in a
+scratch backlog, showed a second face of the same cause that the entry did not name: the write run
+that rendered the trigger's link into the index exited 0, because the file on disk, an index whose
+block did not carry the link yet, was the text judged. So both verdicts were reversed: a pass for
+the run that wrote the broken link, and a failure for the run that removed it.
+
+`check_links` in `scripts/backlogcheck.py` now takes each source as a path and the text judged as
+that document, and `run_one` hands it the task files' own text before the splice and the spliced
+index after it, which is the rule the anchor addendum set for the fragment half of the same link.
+An index whose markers are missing has no spliced text, so its links go unjudged that run, as its
+anchors do, and the run is already failing on the markers. The task files' links are read off disk
+and stay so, since nothing rewrites them. The entry closes as landed.
+
+**A link in a `Trigger` stays allowed.** The entry set aside whether the field may carry one,
+given that the index renders it at a depth its author did not write it for. The gate answers that
+question on its own: the write run that renders such a link into the index reports it and exits 1
+on that same run, which is the loud answer the entry called the working form, so no rule on what
+the field may contain is added.
+
+**Proved before it was trusted.** Four mutations, each applied to `scripts/backlogcheck.py` alone
+with `__pycache__` purged and the whole `scripts/tests` suite re-run, which is 1746 passing tests at
+the fixed seed (1745 before this change). The file was restored between mutations from a copy of
+the edited version, because a `git checkout` there would have discarded the change under test.
+
+| Mutation | Tests failed | Which |
+| --- | --- | --- |
+| the index judged on the file on disk, `existing` handed in place of `wanted` | 1 | `test_main_judges_the_index_links_on_the_text_the_write_run_puts_on_disk` |
+| the index dropped from the link sources | 1 | the same test, on its first run exiting 0 |
+| the task files dropped from the link sources | 1 | `test_run_one_reports_a_link_that_stopped_resolving` |
+| links resolved from the root instead of the document they are written in | 13 | every `check_links`, `run_one` and `main` case whose backlog carries a link, the new one included |

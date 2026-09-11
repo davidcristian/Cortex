@@ -66,24 +66,29 @@ def test_check_links_passes_when_every_relative_link_resolves(tmp_path: Path) ->
     task.write_text(REFINEMENT + "\nSee [the sibling](002-a-sibling.md).\n", encoding="utf-8")
     index = _write(tmp_path, "index.md", INDEX + "\n[the first](tasks/002-a-sibling.md)\n")
     tasks = backlog.load(tmp_path / "tasks", "refinements")
-    assert backlogcheck.check_links(tmp_path, tasks, index) == []
+    sources = [*backlogcheck.task_texts(tasks), (index, index.read_text(encoding="utf-8"))]
+    assert backlogcheck.check_links(tmp_path, sources) == []
 
 
-def test_check_links_reads_the_index_alongside_the_tasks(tmp_path: Path) -> None:
-    _write(tmp_path, "tasks/001-wire-the-memory-port.md", REFINEMENT)
-    index = _write(tmp_path, "index.md", INDEX + "\nSee [the gone one](tasks/002-gone.md).\n")
-    tasks = backlog.load(tmp_path / "tasks", "refinements")
-    assert backlogcheck.check_links(tmp_path, tasks, index) == [
-        "index.md: link 'tasks/002-gone.md' does not resolve"
+def test_check_links_resolves_each_link_from_its_own_document(tmp_path: Path) -> None:
+    """The same target is one link that resolves and one that does not, by where it is written."""
+    task = _write(tmp_path, "tasks/001-wire-the-memory-port.md", REFINEMENT)
+    _write(tmp_path, "tasks/002-a-sibling.md", REFINEMENT)
+    text = "See [the sibling](002-a-sibling.md).\n"
+    assert backlogcheck.check_links(tmp_path, [(task, text), (tmp_path / "index.md", text)]) == [
+        "index.md: link '002-a-sibling.md' does not resolve"
     ]
 
 
-def test_check_links_skips_an_index_that_is_not_there(tmp_path: Path) -> None:
-    """The index is an optional source for this check, and whether it exists is the caller's
-    finding."""
-    _write(tmp_path, "tasks/001-wire-the-memory-port.md", REFINEMENT)
-    tasks = backlog.load(tmp_path / "tasks", "refinements")
-    assert backlogcheck.check_links(tmp_path, tasks, tmp_path / "index.md") == []
+def test_check_links_judges_the_text_it_is_handed_and_not_the_file(tmp_path: Path) -> None:
+    """The caller says what text a document is judged as, which for an index is the text a
+    write run is about to put on disk rather than the file it replaces."""
+    index = _write(tmp_path, "index.md", INDEX + "\nSee [the gone one](tasks/002-gone.md).\n")
+    assert backlogcheck.check_links(tmp_path, [(index, INDEX)]) == []
+    fresh = INDEX + "\nSee [the other gone one](tasks/003-gone.md).\n"
+    assert backlogcheck.check_links(tmp_path, [(index, fresh)]) == [
+        "index.md: link 'tasks/003-gone.md' does not resolve"
+    ]
 
 
 # ── one backlog at a time ──────────────────────────────────────────────────────
@@ -218,6 +223,33 @@ def test_main_fails_on_a_stale_index_then_writes_it_then_passes(
     assert backlogcheck.main(["--root", str(root), "--write"]) == 0
     assert (root / REFINEMENTS / "index.md").read_bytes() == refinements
     assert (root / HOST / "index.md").read_bytes() == host
+
+
+def test_main_judges_the_index_links_on_the_text_the_write_run_puts_on_disk(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A trigger's link resolves from the task file and not from the index that renders it.
+
+    The write run that puts the link into the index reports it, once, and the write run that
+    takes it out again passes: each verdict is about the file the run leaves behind. Judging
+    the file on disk before the rewrite gave the opposite pair, a pass for the run that wrote
+    the broken link and a failure for the run that removed it.
+    """
+    root = _repo(tmp_path)
+    _write(root, "docs/refinements/tasks/002-a-sibling.md", REFINEMENT)
+    task = root / REFINEMENTS / "tasks" / "001-wire-the-memory-port.md"
+    waiting = REFINEMENT.replace("open, actionable", "open, fix when it bites")
+    task.write_text(waiting + "**Trigger:** [the sibling](002-a-sibling.md) lands.\n")
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 1
+    reported = capsys.readouterr().err
+    assert reported.count("does not resolve") == 1
+    assert "docs/refinements/index.md: link '002-a-sibling.md' does not resolve" in reported
+    assert "[the sibling](002-a-sibling.md)" in (root / REFINEMENTS / "index.md").read_text()
+
+    task.write_text(waiting + "**Trigger:** the sibling lands.\n")
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 0
+    assert "does not resolve" not in capsys.readouterr().err
+    assert backlogcheck.main(["--root", str(root)]) == 0
 
 
 def test_main_reports_a_new_task_as_a_stale_index(
