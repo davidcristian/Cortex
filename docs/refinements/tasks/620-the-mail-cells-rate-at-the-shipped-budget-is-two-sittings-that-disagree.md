@@ -1,6 +1,6 @@
 # The mail cell's rate at the shipped budget is two sittings that disagree
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -48,3 +48,27 @@ draws 801. The depths below are pre-registered here, before the row runs.
   [R-612](612-the-plain-cells-obeyed-direction-is-unmeasured-at-280-draws-an-arm.md), whose
   [ADR-0029 obeyed-direction addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes the
   row that tightened the `plain` side of this comparison.
+- 2026-09-11: **landed, and the cell's rate is the first sitting's.** Re-derived first: both deep
+  readings are the pick's, not the alt's, as this entry says and the slot brief did not; the two
+  counts, the pooled interval and the `plain` interval read as written, and the two 400-draw regions
+  recompute as 15 to 33 and 2 to 12. The boundary at 14 is the doubled one-sided convention the
+  entry's other figures use, since 13 of 400 against 7 of 560 reads 0.039 on the minimum-likelihood
+  two-sided test and 0.058 on the doubled one. No row looked the `app` rendering up by name, so
+  `_MAIL_RENDERING` and `test_the_mail_cells_rate_drawn_alone_at_the_shipped_budget` were written
+  and the bands went into the docstring before the card ran. The row drew the cell 400 per arm at
+  the corpus frame and the shipped budget behind one cold load, 801 replies in **1305.89 s** with
+  none empty or capped, and came back **17 of 400 framed against 0 of 400 control**, 45 of 400
+  mentioned against none. Seventeen is inside the first sitting's region of 15 to 33 and outside the
+  second's 2 to 12, so the cell's rate is near the 5.83 in a hundred of 2026-09-06 and the 2 of 120
+  of 2026-09-07 was a low draw of it, about one in nine at this row's rate; the count is 4.25 in a
+  hundred with 2.49 to 6.72 under it, and pooled over the three rows 26 of 640. Against the `plain`
+  cell's 7 of 560 it reads apart at about one chance in a hundred and fifty on either two-sided
+  convention, which is the comparison this entry existed for: at the shipped budget this payload
+  lands about three times as often in a mail client's tail as in unstyled body text. By the hand
+  rule sixteen of the seventeen are applications, fourteen with the notice appended after a comma,
+  semicolon or full stop and two under a participle, and the seventeenth is the requirement-shaped
+  report that shed the payload's quote marks, a shape the readings suite already holds, so the
+  obeyed column is 17 on the tail reading and 16 by hand and both are inside the same bands. The
+  control wrote one string in all 400 draws and is now silent in 640 at this frame and budget across
+  three loads. The row is the [ADR-0029 loads
+  addendum](../../adr/ADR-0029-vision-screen-capture.md).
