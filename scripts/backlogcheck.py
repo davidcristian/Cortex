@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 import backloganchors
@@ -15,20 +16,19 @@ BACKLOGS = (
 )
 
 
-def check_links(root: Path, tasks: list[Task], extra: Path) -> list[str]:
-    """Return one problem per relative link that does not resolve to a file on disk."""
-    problems: list[str] = []
-    sources = [task.path for task in tasks]
-    if extra.is_file():
-        sources.append(extra)
-    for path in sources:
-        text = path.read_text(encoding="utf-8")
-        problems.extend(
-            f"{path.relative_to(root)}: link {target!r} does not resolve"
-            for target in local_links(text)
-            if not (path.parent / target).resolve().exists()
-        )
-    return problems
+def check_links(root: Path, sources: Iterable[tuple[Path, str]]) -> list[str]:
+    """Return one problem per relative link in ``sources`` that does not resolve to a file."""
+    return [
+        f"{path.relative_to(root)}: link {target!r} does not resolve"
+        for path, text in sources
+        for target in local_links(text)
+        if not (path.parent / target).resolve().exists()
+    ]
+
+
+def task_texts(tasks: list[Task]) -> list[tuple[Path, str]]:
+    """Return each task file with its text, the sources the link check reads off disk."""
+    return [(task.path, task.path.read_text(encoding="utf-8")) for task in tasks]
 
 
 def check_stray(directory: Path) -> list[str]:
@@ -55,13 +55,17 @@ def run_one(
         tasks = load(directory, kind)
     except TaskFileError as err:
         return [*problems, str(err)], None
-    problems.extend(check_links(root, tasks, index))
+    problems.extend(check_links(root, task_texts(tasks)))
     block = backlogindex.render(tasks, group_word)
     existing = index.read_text(encoding="utf-8")
     try:
         wanted = backlogindex.splice(existing, block)
     except ValueError as err:
         return [*problems, f"{base}/index.md: {err}"], None
+    # The index's links are judged after the splice and on its result, never on the file: a
+    # write run replaces that file, so a link only the stale file carries would fail the run
+    # that removes it, and one only the fresh block carries would pass the run that writes it.
+    problems.extend(check_links(root, [(index, wanted)]))
     if wanted != existing:
         if write:
             index.write_text(wanted, encoding="utf-8")

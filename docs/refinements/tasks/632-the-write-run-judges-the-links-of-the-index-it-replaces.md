@@ -1,6 +1,6 @@
 # The write run judges the links of the index it replaces
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
 
@@ -38,3 +38,15 @@ code span is the working form.
 
 - 2026-09-11: opened after the sequence above, during the slot that landed the entry about a
   roster written in descriptions. Recorded in the origin decision's addendum of the same day.
+- 2026-09-11: landed. Re-derived first by running the sequence above in a scratch backlog, which
+  showed a second face the entry did not name: the write run that rendered the trigger's link into
+  the index exited 0, and the write run that removed it exited 1 while writing the corrected
+  index, so both verdicts were about the file on disk before the rewrite rather than the file
+  left behind. `check_links` in `scripts/backlogcheck.py` now takes each source as a path with the
+  text judged as that document, and `run_one` hands it the task files' own text before the splice
+  and the spliced index after it, the rule the anchor half already followed.
+  `test_main_judges_the_index_links_on_the_text_the_write_run_puts_on_disk` pins the pair of runs
+  and fails on the old ordering in both directions. The mutation table, with counts over
+  `scripts/tests`, is in the origin decision's addendum of the same day, which also decides the
+  question set aside above: a link in a `Trigger` stays allowed, and the gate answers it by
+  reporting the index's link on the run that renders it.
