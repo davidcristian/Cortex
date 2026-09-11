@@ -12,7 +12,7 @@ BODY = "Site report, north warehouse, week 34. Inbound pallets 1,842."
 
 
 def run(question: str = "warehouse", draw: int = 1, **fields: object) -> Run:
-    """One run as the driver writes it, seeded by its draw unless ``fields`` says otherwise."""
+    """Return one run as the driver writes it, with ``fields`` replacing any default."""
     base: Run = {
         "question": question,
         "draw": draw,
@@ -32,7 +32,7 @@ def write(path: Path, turns: list[Run], arm: str = "constrained") -> Path:
 
 
 def two() -> list[Run]:
-    """The two cells every sample here holds unless a test says otherwise."""
+    """Return the two cells every sample here uses unless a test passes its own."""
     return [run("warehouse", 1), run("clinic", 1)]
 
 
@@ -80,17 +80,22 @@ def test_cells_are_matched_on_their_place_rather_than_their_order(tmp_path: Path
         ([run("warehouse", 1), run("warehouse", 1)], "constrained", "holds one cell twice"),
         (two(), "raw", "is arm raw and"),
         ([run("warehouse", 1), run("fleet", 1)], "constrained", "does not hold the cells"),
+        ([run("warehouse", 1, seed=5), run("clinic", 1)], "constrained", "does not hold the cells"),
         (
             [run("warehouse", 1), run("clinic", 1, context="another body")],
             "constrained",
             "another instruction or body at clinic draw 1 seed 1",
+        ),
+        (
+            [run("warehouse", 1, instruction="Extract every number."), run("clinic", 1)],
+            "constrained",
+            "another instruction or body at warehouse draw 1 seed 1",
         ),
     ],
 )
 def test_samples_that_do_not_pair_are_refused(
     capsys: pytest.CaptureFixture[str], tmp_path: Path, second: list[Run], arm: str, reason: str
 ) -> None:
-    """A seed claims one completion per prompt, so nothing else is counted as a pair."""
     left = write(tmp_path / "a.json", two())
     right = write(tmp_path / "b.json", second, arm)
     assert envelopepairs.main([str(left), str(right)]) == 1
