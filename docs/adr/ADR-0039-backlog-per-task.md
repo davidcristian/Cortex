@@ -515,3 +515,48 @@ no date can record, corrected from a measurement that lives in this repo. The en
 actionable. What it asks is the choice it deferred, widening `KIND_FIELDS` to give host tasks the
 field or recording that the host grammar stops at `attempted`, and the reading above is the
 evidence that was missing: the code half of a host claim drifts, and has.
+
+## Addendum (2026-09-11, later): the host backlog carries the Verified date too
+
+The addendum above re-filed
+[R-618](../refinements/tasks/618-the-verified-date-reaches-only-one-of-the-two-backlogs.md) as
+actionable on the reading that a host task's account of built code had already gone stale. The
+choice it deferred is made here: `KIND_FIELDS` in `scripts/backlog.py` now gives host tasks the same
+optional `Verified` field, and the entry closes as landed.
+
+**What the date records on a host task is the code half of its claim, and only that.** The argument
+for stopping at `attempted` was that a host claim is half a hardware fact no date in this repo can
+record, which is true and decides nothing: `attempted <date>, inconclusive:` already records the
+hardware half, and the code half is the one that drifts while the hardware stays out of reach.
+H-005's stale parenthetical is that drift. A `Verified` line on a host task therefore says exactly
+what it says on a refinement, that the description was held against the tree on that day, and a
+reader planning a sitting learns how far behind the tree the description may be before they sit
+down.
+
+**A standing item may not carry one.** The closed-task rule rejects any task that is not open, and a
+standing item is neither, so widening the field made it reachable by one. It stays refused, and the
+message now names it as standing rather than calling it closed: a standing item never closes, so no
+single reading of its claim is the one a bring-up would start from, and an obligation on every
+change is re-read on every change.
+
+**Nothing in the renderer changed.** `backlogindex.py` never read the kind when rendering the
+field, so a host task's date renders on its entry line and in the count paragraph under `What
+remains` exactly as a refinement's does, and the sentence "re-derived from the code" reads true of
+the half a host date covers. The host index's working instructions say what the line means there,
+and the gate tree's contract doc says both kinds carry it.
+
+**Proved before it was trusted.** Four mutations, each applied to `scripts/backlog.py` or
+`scripts/backlogindex.py` alone with `__pycache__` purged and the whole `scripts/tests` suite
+re-run, which is 1745 passing tests at the fixed seed (1741 before this change).
+
+| Mutation | Tests failed | Which |
+| --- | --- | --- |
+| `Verified` dropped from the host optional fields | 4 | the two host acceptance cases, the `done` closed case and the standing case, the last two on `unknown field(s) ['Verified']` in place of the rule they test |
+| the standing refusal worded as closed | 1 | `test_a_standing_task_may_not_carry_a_verified_date` |
+| the entry-line clause dropped | 3 | the host rendering test and the two refinement rendering tests |
+| the count paragraph unwired from `render` | 3 | the host rendering test, `..._counts_the_claims_somebody_has_re_derived`, `..._is_counted_in_the_singular` |
+
+No host task was given a date here, on the rule the re-derivation addendum set: the field is the
+mechanism, and a date written without the reading behind it would be the defect the field exists
+to date. The two host tasks read for the re-filing were read for their Trail claims, not held whole
+against the tree.

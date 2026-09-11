@@ -1061,7 +1061,8 @@ and the obligation over the descent each recognize a caller.
   task file and regenerate. Five things fail. A task file outside the layout (a name that is not
   `NNN-slug.md`, a missing, duplicated or unknown field, a status outside the grammar, a title
   restating its own status, a number already used, one of the two waiting states not naming
-  its trigger, or a `Verified` line that is not a date or sits on a task that has closed). A
+  its trigger, or a `Verified` line that is not a date or sits on a task that has closed or is
+  standing). A
   relative link in a task file or an index that does not resolve. **A fragment
   aimed at a heading a backlog index does not render**, which is the same link's other half and
   the half a rename breaks silently, checked since the ADR-0039 anchor addendum. An index whose
@@ -1076,12 +1077,14 @@ and the obligation over the descent each recognize a caller.
   ends at a blank line, the rule markdown uses to end a paragraph, so a long value cannot render
   truncated mid-sentence in the index. Inside that block a line starting with `**` is a field or
   an error, never a continuation, which is what keeps a field line missing its colon from being
-  absorbed into the value above it (ADR-0039 wrapped-field addendum). A refinements task may
+  absorbed into the value above it (ADR-0039 wrapped-field addendum). A task of either kind may
   also carry a `Verified` date, the day somebody last held its claim against the code, which is
   parsed by the same helper the status line's date is and refused on a task that has closed, for
-  the reason a `Trigger` is (ADR-0039 re-derivation addendum). No clock is read: a date in the
-  future passes, since a gate that compared one to today would need an injectable today in its
-  suite and would answer differently on different days.
+  the reason a `Trigger` is, and on a standing item, which never closes and so has no single
+  reading a bring-up would start from (ADR-0039 re-derivation and host-field addenda). On a host
+  task the date covers the code half of the claim alone; the hardware half is what `attempted`
+  records. No clock is read: a date in the future passes, since a gate that compared one to today
+  would need an injectable today in its suite and would answer differently on different days.
 - `backlogindex.py` renders the generated half of an index and has no CLI. `render(tasks,
   group_word)` returns the whole block, markers included: the counted headline, the open set
   under one heading per bucket, the standing items, then the roll call under one `### <group>`

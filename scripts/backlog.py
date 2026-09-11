@@ -15,7 +15,8 @@ The two backlogs hold different kinds of not-done and so carry different fields,
   trigger; and a `Verified` date once somebody has held its claim against the code, which is a date
   rather than a flag because the tree moves under a reading and a reader has to judge its age.
 - **host** is built code waiting on hardware this repo is not developed on. It carries the
-  `Sitting` one bring-up covers and the `Capability` that bring-up needs.
+  `Sitting` one bring-up covers, the `Capability` that bring-up needs, and the same `Verified`
+  date, which dates the code half of its claim; the hardware half is what `attempted` records.
 """
 
 import re
@@ -61,7 +62,7 @@ STANDING = "standing"
 
 KIND_FIELDS = {
     "refinements": (("Status", "Area", "Origin"), ("Trigger", "Verified")),
-    "host": (("Status", "Sitting", "Capability", "Origin"), ()),
+    "host": (("Status", "Sitting", "Capability", "Origin"), ("Verified",)),
 }
 CAPABILITIES = ("W", "G", "W+G")
 
@@ -240,7 +241,9 @@ def _check_consistency(kind: str, title: str, status: Status, fields: dict[str, 
         raise TaskFileError(msg)
     verified = fields.get("Verified")
     if verified is not None and not status.is_open:
-        msg = "a closed task may not carry a Verified date"
+        # A standing item reaches here too, now the host kind carries the field, and is named.
+        state = "standing" if status.is_standing else "closed"
+        msg = f"a {state} task may not carry a Verified date"
         raise TaskFileError(msg)
     if verified is not None:
         _parse_date(verified, f"the Verified line {verified!r}")

@@ -349,3 +349,19 @@ def test_the_first_dated_claim_is_counted_in_the_singular() -> None:
 def test_nothing_is_said_when_no_task_records_a_reading() -> None:
     block = backlogindex.render([_task(1, "open, actionable")], "area")
     assert "re-derived from the code" not in block
+
+
+def test_a_host_task_renders_its_dated_claim_and_is_counted() -> None:
+    """The host index reads the same field, so a bring-up starts from the day the code half of
+    the claim was last read rather than from scratch."""
+    tasks = [
+        _task(7, "never attempted", kind="host", group="hotkey bring-up", title="Bring it up"),
+        _task(8, "never attempted", kind="host", group="hotkey bring-up", verified="2026-09-11"),
+    ]
+    block = backlogindex.render(tasks, "sitting")
+    entry = (
+        "- **[H-008](tasks/008-a-slug.md)** Wire the memory port (hotkey bring-up). "
+        "Its claim was re-derived from the code on 2026-09-11."
+    )
+    assert entry in block
+    assert "One of these records the day its claim was last re-derived from the code." in block

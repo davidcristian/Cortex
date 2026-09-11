@@ -224,7 +224,6 @@ def test_a_missing_required_field_is_rejected(
         ("refinements", REFINEMENT_PATH, {**REFINEMENT_FIELDS, "Capability": "W"}, "Capability"),
         ("host", HOST_PATH, {**HOST_FIELDS, "Trigger": "a card arrives"}, "Trigger"),
         ("host", HOST_PATH, {**HOST_FIELDS, "Area": "brain"}, "Area"),
-        ("host", HOST_PATH, {**HOST_FIELDS, "Verified": "2026-09-09"}, "Verified"),
     ],
 )
 def test_a_field_the_kind_does_not_carry_is_rejected(
@@ -320,12 +319,38 @@ def test_a_date_in_the_future_is_accepted() -> None:
     assert task.fields["Verified"] == "2099-01-01"
 
 
-def test_a_closed_task_may_not_carry_a_verified_date() -> None:
+@pytest.mark.parametrize(
+    ("kind", "path", "source", "closed"),
+    [
+        ("refinements", REFINEMENT_PATH, REFINEMENT_FIELDS, "landed 2026-03-04"),
+        ("host", HOST_PATH, HOST_FIELDS, "done 2026-03-04"),
+    ],
+)
+def test_a_closed_task_may_not_carry_a_verified_date(
+    kind: str, path: Path, source: dict[str, str], closed: str
+) -> None:
     """A closed task's own record says what was found, so a Verified line on one would advertise
     an open question that is settled."""
-    fields = {**REFINEMENT_FIELDS, "Status": "landed 2026-03-04", "Verified": "2026-03-04"}
+    fields = {**source, "Status": closed, "Verified": "2026-03-04"}
     with pytest.raises(backlog.TaskFileError, match="a closed task may not carry a Verified date"):
-        backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
+        backlog.parse_task(kind, path, _file(fields, title="Bring the hotkey up"))
+
+
+@pytest.mark.parametrize("status", ["never attempted", "attempted 2026-03-04, inconclusive: busy"])
+def test_a_host_task_carries_the_day_the_code_half_of_its_claim_was_read(status: str) -> None:
+    """A host task describes built code that keeps moving while the hardware stays out of reach,
+    so the date records the half of its claim a reading of the code can settle."""
+    fields = {**HOST_FIELDS, "Status": status, "Verified": "2026-09-11"}
+    task = backlog.parse_task("host", HOST_PATH, _file(fields, title="Bring the hotkey up"))
+    assert task.fields["Verified"] == "2026-09-11"
+
+
+def test_a_standing_task_may_not_carry_a_verified_date() -> None:
+    """A standing item never closes, so no single reading of its claim is the one a bring-up
+    would start from, and the refusal names it as standing rather than calling it closed."""
+    fields = {**HOST_FIELDS, "Status": "standing: watched over months", "Verified": "2026-09-11"}
+    with pytest.raises(backlog.TaskFileError, match="a standing task may not carry a Verified"):
+        backlog.parse_task("host", HOST_PATH, _file(fields, title="Bring the hotkey up"))
 
 
 @pytest.mark.parametrize("capability", backlog.CAPABILITIES)
