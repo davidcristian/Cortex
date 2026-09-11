@@ -1186,3 +1186,154 @@ envelope-floor` gains three flags that move columns and never a verdict, and the
 body each run was given. Nothing about the grammar, the sentence, the unwrap or any pick moves, and
 no table above changes. What changes is what the next sweep has to do by hand, which is now the
 reading of the replies rather than the counting of them.
+
+## Sweep-columns addendum (2026-09-11): the machine column and a reader's column over one full sweep of the smallest pick
+
+**Status:** Accepted. Closes
+[R-540](../refinements/tasks/540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md),
+which the judged-delivery addendum above opened by comparing the two columns on a 72-run probe of
+the default pick and on no sweep. Opens
+[R-634](../refinements/tasks/634-the-body-handed-back-passes-both-rates.md) and
+[R-635](../refinements/tasks/635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md).
+It changes no code and no pick, and moves no tabled row.
+
+### Re-derived first
+
+The entry's claims held against the tree. The five picks are tabled at 288 runs each in the row
+addendum above, no pick has a sweep with both columns, the 0.8B's constrained extraction cell reads
+12 of 32 and the 2B's 23 of 32, and the machine judge in `scripts/envelopejudges.py` reads number
+recall at a half threshold and the body's own reporting period. One thing decides the shape of what
+follows. The hand judging the tables were written under was that same rule, the judged-delivery
+addendum having written the judge from the addenda's descriptions of it, so a hand column drawn
+under the tabled rule would compare the rule with itself. The column recorded here is therefore a
+reader's verdict on whether each reply did what its instruction asked: an extraction lists the
+body's numbers, a summary is the body made shorter, and a lookup names the period the body states
+and no other. Where the reader's rule and the tabled rule part is the finding.
+
+### What ran
+
+One `llama-server` on `ghcr.io/ggml-org/llama.cpp:server-cuda` at `sha256:952424b09abc`,
+reporting `build_info` `b10680-d7bd3bfca`, serving `Qwen3.5-0.8B-Q8_0.gguf` with the subagents
+compose file's own flags (`--jinja`, `--chat-template-kwargs '{"enable_thinking": false}'`,
+`--reasoning-budget 0`, `--ctx-size 8192`, `--parallel 2`, so `n_ctx_slot = 4096`) at `-ngl 99`,
+the substitution the row addendum argues. The container carried no cgroup cap (`docker inspect`
+reads `NanoCpus`, `Memory` and `MemorySwap` back as 0), no other container ran, `nvidia-smi` read
+3016 MiB used with the server up on the 24 GB card, and the load average was 0.18 before the first
+shape and 0.40 and 0.70 between shapes; it read 3.82 after the last because the repo gate ran on
+the CPU during the last thirty seconds of the lookup shape, which moves a wall clock and no reply.
+The harness ran the row addendum's design, arms `raw`, `bare` and `constrained` over the four
+bodies at eight draws for each of the three shapes through `CORTEX_ENVELOPE_INSTRUCTION`, at the
+shipped cap, seeded from 1 (the ADR-0005 paired-arms addendum) so the 288 runs can be drawn again
+by number: 107 s for the summarization, 84 s for the extraction and 45 s for the lookup.
+
+Pre-registered before the first run: the machine column lands inside the Wilson intervals of the
+tabled 0.8B cells; the reader agrees with the machine on all but 0 to 5 of 288, any disagreement
+sitting in the extraction shape or a numbered narration; and no run writes to the reasoning
+channel.
+
+### The two columns
+
+`just envelope-floor` published the comparison at the tabled reading (comma charitable, refusal
+strict, naming strict), every floor held, the control arm at 32, 32 and 31 of 32. The reader's
+column was taken over a listing of every run carrying the machine verdict and recall count beside
+the whole reply, all 288 read.
+
+| shape | arm | stood | delivered, machine | delivered, reader | machine yes, reader no | machine no, reader yes |
+| --- | --- | --- | --- | --- | --- | --- |
+| summarization | raw | 32/32 | 32/32 | 32/32 | 0 | 0 |
+| summarization | bare | 29/32 | 27/32 | 21/32 | 6 | 0 |
+| summarization | constrained | 31/32 | 28/32 | 26/32 | 2 | 0 |
+| extraction | raw | 32/32 | 32/32 | 32/32 | 0 | 0 |
+| extraction | bare | 18/32 | 12/32 | 6/32 | 6 | 0 |
+| extraction | constrained | 20/32 | 7/32 | 5/32 | 2 | 0 |
+| one-fact lookup | raw | 32/32 | 31/32 | 22/32 | 9 | 0 |
+| one-fact lookup | bare | 32/32 | 25/32 | 24/32 | 3 | 2 |
+| one-fact lookup | constrained | 32/32 | 18/32 | 18/32 | 4 | 4 |
+| **all three** | raw | 96/96 | **95/96** | **86/96** | 9 | 0 |
+| **all three** | bare | 79/96 | **64/96** | **51/96** | 15 | 2 |
+| **all three** | constrained | 83/96 | **53/96** | **49/96** | 8 | 4 |
+
+The two columns agree on **250 of 288** runs. Every one of the 38 that differ is one of three
+kinds, and each is named here by body and draw so the reading can be checked against the seeded
+samples.
+
+**The body handed back, machine delivered and reader not, 16 runs.** A verbatim or near-verbatim
+copy of the report passes `stood`, being neither empty nor the ask, and passes `delivered`, since
+it carries every number the body states. Extraction, `bare`: warehouse 2 and 4, clinic 3, 5 and 6,
+network 8. Extraction, `constrained`: clinic 6, a paragraph of the body, and network 3, a summary
+where an extraction was asked. Summarization, `bare`: clinic 1, 2, 3, 4 and 6, network 5.
+Summarization, `constrained`: clinic 1 and 4. On this pick's `bare` arm that is 6 of its 12
+machine deliveries on the extraction and 6 of 27 on the summarization.
+
+**The lookup shape, the body's phrase quoted beside a different answer, machine delivered and
+reader not, 16 runs.** The clinic body says `month ending` and names no month, and the reply
+quotes the phrase while asserting December, February 26th to 30th, October 2016, January 2010, or
+the second half of the month; the fleet and network bodies produce a fiscal year and a span of
+fortnights 18 through 19 beside their own phrase. `raw`: clinic 1, 2, 3, 4, 5, 6 and 8, fleet 4,
+network 6. `bare`: clinic 5 and 6, network 7. `constrained`: clinic 2, 3 and 6, fleet 1.
+
+**A right answer the strict naming fails, machine not and reader delivered, 6 runs.** `bare`:
+fleet 3 (`the third quarter (Q3)`) and fleet 5 (`the third quarter of the fiscal year`).
+`constrained`: warehouse 4 (`the week ending the week of 34`), clinic 1 (`from the beginning of the
+month to the end of the month`), network 6 and 8 (`the fortnight of 18`). The `--naming charitable`
+column exists for this kind, and it is the one kind the tool already has a column for.
+
+Five runs the reader kept with the machine are named too, since a stricter reader would part on
+them: extraction `bare` fleet 8, a labelled run of every number in one sentence; extraction
+`constrained` network 4, the numbers stated one to a sentence; lookup `raw` warehouse 5 and
+`constrained` network 4, the right period beside an invented date; summarization `raw` fleet 4, a
+correct summary headed `the first quarter`.
+
+### Six readings
+
+1. **The tabled rows keep their meaning under the machine judge, which is the question the entry
+   asked.** Nothing the reader marked delivered the machine marked otherwise except the six naming
+   cases, and the machine reproduces the tabled rule by construction, so a row read off the tool
+   is the row a hand would have written under that rule.
+2. **What the rule never saw is the body handed back, and it is not rare on this pick.** Sixteen
+   runs, half of them on the `bare` extraction and summarization cells, are the report copied, and
+   both rates count each as an answer. It is the mirror of the `echo` lapse: the floor catches the
+   ask handed back and nothing catches the body handed back. That is
+   [R-634](../refinements/tasks/634-the-body-handed-back-passes-both-rates.md).
+3. **The lookup judge passes an invented instance beside the body's phrase.** The strict naming
+   reads whether the body's unit and instance appear in the reply, and a reply that quotes them on
+   its way to naming a month the body does not state passes; the clinic body, which names no month,
+   draws that from every arm. That is
+   [R-635](../refinements/tasks/635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md).
+4. **The pre-registered disagreement count was wrong by an order of magnitude**, 38 against 0 to
+   5, and the shape it predicted was wrong too: the extraction is where the first kind concentrates,
+   and the lookup, which the prediction never named, holds 22 of the 38.
+5. **Two cells moved on this build, and the tabled row does not.** The constrained lookup reads 18
+   of 32 against the tabled 26 (0.65 to 0.91), and the constrained extraction 7 against 12, just
+   under that cell's 0.23 floor; every other cell reproduces inside its interval, the bare
+   extraction's 12 against 16 (0.34 to 0.66) included. The tabled row is a dated reading on
+   `sha256:9f0a986a` and this sweep is on `sha256:952424b09abc`, so the row stays, and a re-tabling
+   on the current image is a different task from the one closed here.
+6. **No run wrote to the reasoning channel**, 0 of 288, which is the row addendum's reading for
+   every Qwen entry, reproduced on the new build.
+
+### What this does not do
+
+- **One pick, one build, one reader.** The reader's column is one person's reading on one day
+  under the rule stated above, and the rule is written down so the next reader can apply it to the
+  same seeded samples rather than to their memory of these.
+- **The listing the reader read was produced by a scratch script** over the samples, the machine
+  verdict and recall count beside each reply, and the samples live in the session's scratch
+  directory rather than in the tree, as every sample of this arc does (`measurements/` is ignored).
+  Nothing here is a number a gate computes except the machine column itself.
+- **No column is added to the tool.** The two kinds the machine cannot see are lapses the rule
+  never had rather than readings of an arbitration it has, and each is filed with the remedy it
+  wants rather than added tonight.
+
+### Distrust green
+
+No gate changed, so there is no mutation table. The controls are the ones the harness and the tool
+already carry: the control arm stood and delivered at 95 of 96 under the floor, the sweep is seeded
+so any cell above can be re-drawn by number, and the pre-registration was written before the first
+run and missed on two of its three counts, both reported above rather than revised.
+
+### What moves
+
+Nothing executable. The entry closes landed, two entries open, and a sentence lands in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) beside the note on what the tabled
+numbers depend on.
