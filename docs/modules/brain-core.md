@@ -2060,7 +2060,11 @@ Use-case:
   `docs/runbooks/subagents-cpu.md` where the override is documented. **The sentence is not a detector**: a
   plan that still arrives in `reply` is `ok=True`, because nothing in the core can tell a plan from
   an answer without judging prose, and a judge that misfires costs an answer the cortex had
-  ([R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md)).
+  ([R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md)). The one judge
+  left, a second completion on the tier asked whether its own reply answered, was measured on all
+  five picks and is not built: under the wording fixed before the run it calls between one answer
+  in five and nearly every answer a non-answer, and on the Qwen picks it says `no` to answers as
+  often as to non-answers (ADR-0028 self-judge addendum).
   `settle_reply(text,
   *, capped, max_tokens, constrain, tainted)` is the ordered reading a finished run gets: capped
   first (`TRUNCATED` with `cap_detail(max_tokens)`, which quotes this deployment's cap only when it

@@ -48,3 +48,11 @@ answer the exemption the lapse addendum names, a subtask that asks for the body 
 
 - 2026-09-11: opened by the re-table addendum at the origin, whose seeded samples are under
   `measurements/envelope-retable-2026-09-11/` (ignored, one directory per pick).
+- 2026-09-11: the close of [R-480](480-a-narrated-reply-arrives-as-an-answer.md) measured a second
+  completion on the same tier as the other candidate detector, and it does not reach the copy: asked
+  whether the reply it wrote answered, the roster alternate passed 18 of its 27 copies as answers
+  while calling 40 of its 59 delivered answers non-answers, and the default passed 5 of its 14
+  copies while calling 16 of 77 answers non-answers
+  ([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) self-judge addendum). So the two
+  remedies this entry names, a wording and a runner-side comparison with the context, are the only
+  ones left for the copy.

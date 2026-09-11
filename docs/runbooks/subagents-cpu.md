@@ -269,7 +269,9 @@ one thread per hardware thread (ADR-0004 thread-pin landing addendum).
 > 33 of 40 replies were the thinking process itself. So a trace in the channel on this pick is a
 > correctly flagged server behaving as measured, and the argv to compare against is still the pair.
 > A plan arriving in `reply` as an `ok=True` answer is rarer but still possible and still silent,
-> which is [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md).
+> which is [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md), declined
+> because the tier asked to judge its own reply cannot tell an answer from a non-answer (ADR-0028
+> self-judge addendum), so reading the delegated answer stays the operator's check.
 > **Every number in this note is the default pick's**, and the pick is one env var away from being a
 > different one (ADR-0028 lineup addendum). On the Qwen roster alternate the quiet failure never
 > went away, 8 of its 13 constrained non-deliveries still arriving `ok=True`, and 32 of its 37 on
