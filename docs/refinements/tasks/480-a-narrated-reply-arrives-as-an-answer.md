@@ -1,9 +1,8 @@
 # A reply that is a plan still arrives as an answer, and nothing says so
 
-**Status:** open, actionable
+**Status:** declined 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-09-11
 
 Opened 2026-08-28 by the close of
 [R-476](476-the-envelopes-answer-rate-is-an-instruction.md), which decided against detecting this
@@ -36,6 +35,36 @@ summarization, and if some cheap in-core signal separated them as well on every 
 asked for, this stops needing a model at all. The reason to doubt that is in the same reading:
 the proxy is instruction-specific, and it is the *instruction's* checkable meaning that makes it
 work, not anything about the reply.
+
+## The bar, written 2026-09-11 before the judge ran
+
+The judge is the tier that wrote the reply, on the same image and flags, handed the run's own
+prompt with its reply as the assistant turn and asked one closed question, its answer held to
+`yes` or `no` by a schema. It is scored over one pick's constrained arm in the re-table samples,
+each run classified first by the corrected machine judge and read by eye. On the pick it would
+protect it must do both of these:
+
+1. **Catch at least 80% of the quiet non-deliveries**, the runs that came back `ok=True` and are
+   not an answer, by answering `no`. On Qwen3.5-2B that is at least 26 of its 32.
+2. **Call at most one delivered answer in fifty a non-answer.** On Qwen3.5-2B that is at most 1 of
+   its 59, since 59 is short of the 100 that would allow a second.
+3. **Catch at least 80% of the quiet non-deliveries that are not copies**, on its own. A copy of
+   the report has a detector that costs no completion, a comparison against the context the runner
+   already holds, so a judge that clears the first line only by catching copies is paying a second
+   completion on every run for what a string comparison does free. On Qwen3.5-2B that is 4 of its 5.
+
+A judge completion that does not parse, or is cut at the cap, is scored as `yes`, since a runner
+whose judge did not answer can only pass the reply on as it stood.
+
+**Why these numbers.** The two halves are priced by what each error costs the cortex. A missed
+quiet failure leaves the cortex where it is today, holding a non-answer it believes, which is the
+state this entry exists to reduce and not a new harm. A false call is a new harm: it turns an
+answer the cortex had into a refusal, so the judge would destroy work to report it. The first half
+is therefore a floor on usefulness and the second a ceiling on damage, and the ceiling is the strict
+one. One in fifty is read as a count on the sample, not as an interval: the upper Wilson bound of
+0 of 59 is 0.06, so an interval bar at 0.02 is one no sample in these directories could clear, and
+a bar that cannot be passed decides nothing. A pick whose judge makes two false calls on 59 has
+made them at 3.4%, which already fails the count.
 
 ## Trail
 
@@ -87,3 +116,17 @@ work, not anything about the reply.
   a copy, unlike a plan, is a string comparison against the context the runner already holds.
   Filed as [R-641](641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md), which
   says where the two disagree.
+- 2026-09-11: **declined on the measurement**
+  ([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) self-judge addendum of this
+  date). The bar above was written before the first judge request. Each pick's server was started
+  on the re-table's image, argv and caps, and the tier was handed its own prompt with its reply as
+  the assistant turn and asked the question the addendum quotes, seeded, over every accepted run of
+  its constrained arm. No pick clears either the first or the second line. On Qwen3.5-2B the judge
+  answers `no` to 13 of its 32 quiet non-deliveries and to 40 of its 59 delivered answers; the
+  lowest false-call count on any pick is the default's 16 of 77, against a ceiling of one in fifty.
+  On the three Qwen picks the judge says `no` to answers as often as to non-answers. A second
+  wording without the copy clause, run after the first was read, fails on every pick too. The
+  entry's premise about the roster alternate was also wrong: none of its 32 quiet failures is a
+  plan or a narration, and 27 are the report handed back, which
+  [R-641](641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md) holds. No judge is
+  built. Samples are under `measurements/self-judge-2026-09-11/`, which git ignores.

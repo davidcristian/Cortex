@@ -1775,3 +1775,179 @@ share of both losses is the copy, which is the sentence's on every pick. The fir
 names is the sentence
 ([R-641](../refinements/tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md)),
 and the picks are worth comparing again only once a wording has been drawn that stops the copy.
+
+## Self-judge addendum (2026-09-11): the tier cannot tell its own non-answer from its answer
+
+**Status:** Accepted. Closes
+[R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md) as declined, on the
+measurement below. It changes no code and no pick.
+
+The re-filing addendum above left one test before any runner change: ask the tier that wrote a reply
+whether it answered, over seeded samples, against a bar written down first. The decision this run
+implements had already settled the shipped path, which pays no second completion, and left the
+roster alternates to the measurement, a judge being built only as a per-entry opt-in and only if it
+cleared the bar.
+
+### Re-derived first
+
+At HEAD, `settle_reply` in `cortex_core/subagent_reply.py` returns `ok=True` for any envelope that
+unwraps, and `SubagentRunner` holds one `PlacedAttempt` and nothing that reads a reply after it
+settles, so a judge would be new code in the runner, as the entry said. Two facts the decision was
+taken on did not hold.
+
+- **The default pick's "0 of 6" is false on this image**, as the re-table addendum above found: its
+  constrained arm has 19 non-deliveries, and 14 of them come back `ok=True`, every one a copy of the
+  report. So the shipped path's decision cannot rest on the default having no quiet failures. It
+  rests on the reading below instead, where the default's own judge calls 16 of its 77 answers
+  non-answers.
+- **The roster alternate's quiet failures are not this entry's kind.** Read by eye, none of the 2B's
+  32 is a plan or a narration: 27 are the report handed back, three are lookups naming a date the
+  clinic body does not state ("Month ending 30 June 2024", "2024 March", "the month ending 24th"),
+  one is an extraction that is the single number 47, and one is a summarization that is the single
+  character `{`. The plans, narrations and instruction echoes this entry was opened for are the
+  smallest pick's: nine of its extractions hand the instruction back, and several describe the task
+  ("The text contains no numbers, only text").
+
+### What was classified
+
+Each pick's constrained arm in `measurements/envelope-retable-2026-09-11/`, classified by the
+corrected machine judge and then read. On the 2B, the five quiet runs that are not copies and every
+delivered run were read by eye, and the 27 copies by their likeness to the body over letters and
+digits, 0.86 to 1.00, against 0.66 to 0.79 for the four delivered summaries. The reading agreed
+with the machine on all 91 accepted 2B runs. Two delivered lookups name the
+body's phrase "month ending" and run on into its first sentence; they stay delivered, as the
+machine counts them, and counting them the other way moves neither of the bar's first two lines
+across its threshold.
+
+| pick | delivered | quiet, `ok=True` and not an answer | of them copies | refused |
+| --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | 77 | 14 | 14 | 5 |
+| Qwen3.5-2B (the roster alternate) | 59 | 32 | 27 | 5 |
+| gemma-4-E2B | 54 | 31 | 31 | 11 |
+| Qwen3.5-0.8B | 42 | 50 | 4 | 4 |
+| Qwen3.5-4B | 70 | 25 | 24 | 1 |
+
+### The bar, written into the entry before the first judge completion
+
+On the pick it would protect, the judge must answer `no` on at least 80% of the quiet
+non-deliveries, answer `no` on at most one delivered answer in fifty, and answer `no` on at least
+80% of the quiet non-deliveries that are not copies, because a copy has a detector that costs no
+completion. A verdict that does not parse, or a judge cut at the cap, scores as `yes`. The entry
+argues the numbers from what each error costs: a missed quiet failure leaves the cortex where it is
+today, while a false call turns an answer it had into a refusal.
+
+### What ran
+
+The judge is the run's own prompt replayed with its reply as the assistant turn and one question
+after it, so the tier is asked about the reply it wrote with the context it wrote it from:
+
+1. system: the report body, as `task_messages` places it;
+2. user: the constrained instruction, `REPLY_INSTRUCTION` included;
+3. assistant: the unwrapped reply, which is what `settle_reply` hands the cortex;
+4. user, verbatim: "Is your reply above the answer the task asked for? Answer no if it repeats the
+   text you were given, describes the task, or plans an approach instead of answering. Answer yes
+   or no."
+
+The request carried the shipped shape: `max_tokens` 1024, `chat_template_kwargs` with thinking off,
+the run's own seed, and a strict `response_format` holding the answer to
+`{"verdict": "yes" | "no"}`. Every server was the re-table's: `ghcr.io/ggml-org/llama.cpp:server-cuda`
+at `sha256:952424b09abc`, `build_info` `b10680-d7bd3bfca`, the subagent compose file's argv with
+`-ngl 99`, `--threads 4.0`, and the compose file's cgroup caps read back with `docker inspect`
+(`NanoCpus` 4000000000, `Memory` 8589934592), the 4B without the memory cap as in the re-table. One
+server at a time, no other container, the card back at 2812 to 2900 MiB before each start, load
+average 0.02 to 0.94, and no CPU period throttled on any server. Samples are under
+`measurements/self-judge-2026-09-11/`, one file per pick and wording, which git ignores.
+
+### What the judge answered
+
+Each cell is the count answered `no`. The bar's first line reads the first column, its third line
+the second column, and its second line the third column.
+
+| pick | quiet non-deliveries | of them not copies | delivered answers | judge cut at the cap |
+| --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | 9 of 14 | none to read | **16 of 77** | 0 of 91 |
+| Qwen3.5-2B (the roster alternate) | **13 of 32** | 4 of 5 | **40 of 59** | 0 of 91 |
+| gemma-4-E2B | 22 of 31 | none to read | **26 of 54** | 7 of 85 |
+| Qwen3.5-0.8B | 49 of 50 | 45 of 46 | **41 of 42** | 0 of 92 |
+| Qwen3.5-4B | **6 of 25** | 1 of 1 | **16 of 70** | 0 of 95 |
+
+**No pick clears the bar, and the line that fails everywhere is the strict one.** The ceiling is
+one delivered answer in fifty; the lowest false-call count is the default's 16 of 77, one in five,
+and the roster alternate's is 40 of 59. The 0.8B answers `no` to nearly everything, which is how it
+reaches 49 of 50 on the first line.
+
+**The judge does not separate the two populations on any Qwen pick.** The share answered `no` among
+delivered answers is 0.68, 0.98 and 0.23 on the 2B, the 0.8B and the 4B, against 0.41, 0.98 and
+0.24 among the quiet ones: equal, or on the 2B higher for the answers. Only the gemma picks carry a
+signal, 0.64 against 0.21 on the default and 0.71 against 0.48 on the E2B, and on both the
+false-call line fails by a factor of ten or more.
+
+**The 2B's false calls fall where the answer is drawn verbatim from the report**: 21 of 26 delivered
+extractions and 16 of 29 delivered lookups, whose correct reply does repeat the text it was given.
+Its copies, the quiet kind that dominates that pick, pass as answers 18 times in 27.
+
+**The judge is repeatable, and on one pick it does not always answer.** The 2B's judge was run on two server starts and returned the same
+verdict on 91 of 91. On the E2B, 7 of 85 judge completions ran to the 1024 cap writing into the
+reasoning channel with an empty reply, the residue
+[R-479](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md) names, now
+on a request whose whole answer is one word. A Qwen judge that answered the first wording spent 7
+to 53 generated tokens, a median of 11 to 13 per pick, over a prompt of 340 to 671.
+
+### A second wording, run after the first was read
+
+To learn whether the decline rests on one clause, the same servers answered a second question with
+the copy clause removed: "Is your reply above the answer itself, rather than a description of the
+task or a plan for it? Answer yes or no." It was run after the pre-registered result was read, so a
+pass could only have re-filed the entry, never cleared the bar.
+
+| pick | quiet non-deliveries | of them not copies | delivered answers |
+| --- | --- | --- | --- |
+| gemma-4-E4B (the default) | 2 of 14 | none to read | 6 of 77 |
+| Qwen3.5-2B (the roster alternate) | 9 of 32 | 1 of 5 | 17 of 59 |
+| gemma-4-E2B | 9 of 31 | none to read | 29 of 54 |
+| Qwen3.5-0.8B | 25 of 50 | 23 of 46 | 24 of 42 |
+| Qwen3.5-4B | 6 of 25 | 0 of 1 | 15 of 70 |
+
+Dropping the clause lowers the false calls and the catches together, and on no pick does the share
+answered `no` among quiet runs exceed the share among answers by more than 0.07. So the wording
+moves where the judge says `no` and not whether it can tell the two apart.
+
+### What this decides
+
+- **The judge is not built, on any pick.** Neither the roster alternate nor any other entry of the
+  row clears the bar's first or second line under either wording, and the Qwen family, where the
+  quiet failure is the ordinary one, shows no separation at all. The instruction addendum's fifth
+  decision stands, and the sentence of its argument calling another completion on the same tier
+  the only honest judge is corrected: that judge was measured here, and its verdicts do not
+  separate answers from non-answers.
+- **The shipped path's decision holds on this reading rather than on the default's quiet count.**
+  The default's own judge would destroy 16 of its 77 answers to catch 9 of its 14 copies.
+- **The copy is what a remedy for the roster alternate has to reach**, 27 of its 32 quiet failures,
+  and the judge passes most of them. Both remedies left are
+  [R-641](../refinements/tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md)'s:
+  a wording that stops the copy, and a runner-side comparison of the reply with the context it was
+  given.
+- [R-485](../refinements/tasks/485-a-roster-description-never-says-whether-the-entry-answers.md),
+  the entry about a roster description never saying whether the entry answers, was declined on
+  2026-08-30 and is not reopened: these numbers are one more per-pick reading the runbook table
+  carries and a description does not.
+
+### Distrust green
+
+- **The bar was written before the judge ran.** The entry's bar section was on disk before the
+  first judge request, and every threshold was read off it afterwards, not revised.
+- **The instrument answers on every Qwen completion.** All 647 Qwen judge completions, both
+  wordings over three picks and the 2B's repeated run, parsed as `yes` or `no`, so no Qwen verdict
+  above is a default. The repeated run is kept beside the others as `qwen3.5-2b-first-start.jsonl`.
+- **The populations were read, not only counted**, which is how the entry's premise about plans on
+  the roster alternate was found false before any threshold was scored.
+- No gate changed, so there is no mutation table.
+
+### What moves
+
+No code. The entry closes as declined. The sentences in
+[docs/modules/brain-core.md](../modules/brain-core.md) and
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) that point at the entry now say
+what the measurement found, and
+[R-641](../refinements/tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md)
+records that the judge does not reach the copy.
