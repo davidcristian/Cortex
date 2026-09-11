@@ -77,3 +77,13 @@ work, not anything about the reply.
   [R-634](634-the-body-handed-back-passes-both-rates.md) and
   [R-635](635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md); this entry
   keeps the plan and the narration.
+- 2026-09-11: **the default pick's quiet count is no longer 0 on the current image, and the kind
+  that moved it is not this entry's.** The re-table addendum at the origin drew the default pick
+  seeded on `sha256:952424b09abc` and read it under the corrected rules: its constrained arm has 19
+  non-deliveries in 96, 14 of them `ok=True`, and all 14 are the report body handed back on the
+  summarization shape, 12 of them identical to it in letters and digits. None is a plan or a
+  narration, so this entry's own kind still reads 0 on the default pick. The sentence above that
+  rests on "0 of 6" therefore holds for plans and does not hold for quiet failures as a whole, and
+  a copy, unlike a plan, is a string comparison against the context the runner already holds.
+  Filed as [R-641](641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md), which
+  says where the two disagree.

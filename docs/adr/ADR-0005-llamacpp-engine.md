@@ -1772,7 +1772,10 @@ of 288 each, on every arm and every subtask shape, which puts the Qwen entries o
 864** against 22 of 192 for the two gemma-4-E entries. The prediction was written down before either
 server was started and it could have failed on either pick. What the column still says nothing about
 is the answer rate: these two sit in the same cell of it and are 28 draws apart on the shipped
-constrained path, 66 and 94 of 96. The full reading is the ADR-0028 row addendum.
+constrained path, 66 and 94 of 96. The full reading is the ADR-0028 row addendum. Re-drawn on the
+current image on 2026-09-11, the Qwen entries again write nothing to that channel, 0 of 864, and
+the two gemma-4-E entries 18 of 192; under the corrected rules the 0.8B and the 4B deliver 42 and
+70 of 96 on the shipped path (the ADR-0028 re-table addendum).
 
 **Where the residue went.** The prediction is a set of readings of one engine build rather than a
 theorem, and nothing in the stack reads the rendering it turns on, though a loaded server answers in

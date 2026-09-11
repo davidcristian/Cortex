@@ -156,7 +156,8 @@ services:
       # measurement's unflagged control never produced. Adding the engine's per-request key on top
       # of these flags does not close it either, so a cap refusal on narrow work is these flags
       # first and this second, and the lever that does hold on this shape is the pick: no Qwen
-      # entry of the lineup writes to that channel at all (ADR-0028 row addendum).
+      # entry of the lineup writes to that channel at all (ADR-0028 row addendum, re-read on the
+      # current image in its re-table addendum).
       #
       # AND THE TWO FLAGS INTERACT (ADR-0005 marker addendum). The kwarg is what drops the
       # <|think|> this family's template injects, and the budget is a sampler that watches for a

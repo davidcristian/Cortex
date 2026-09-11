@@ -616,7 +616,12 @@ lineup section. Three readings belong here, where picks are chosen.
    two, with only the default pick's gain large. Both entries a deployment ships stay on the paying
    side. The
    selection reading for a chooser is that this row is a spread and not a tier, and the runbook
-   names the two entries to override to last.
+   names the two entries to override to last. (Those are the 2026-08-28 build's readings under the
+   rule of that day. Re-tabled on 2026-09-11 on the current image and under the corrected rules,
+   the five deliver between **42 and 77 of 96** on the shipped path, the default first and the 4B
+   second at 70, and most of the fall is the report handed back on a summarization, which the
+   sentence the path appends draws on every entry: the ADR-0028 re-table addendum. The residue
+   column still predicts all five.)
 
 **What this does not change.** No pick moves. The subagent tier's two reasoning-off flags stay
 exactly as they are: `--reasoning-budget 0` covers the gemma-4-E entries on the shape their template

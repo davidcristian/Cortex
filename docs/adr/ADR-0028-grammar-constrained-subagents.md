@@ -1562,3 +1562,216 @@ module doc in [docs/modules/repo-gates.md](../modules/repo-gates.md) and the swe
 [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) say both. The two entries close as
 landed and one opens. The re-tabling of the five picks reads under these rules, and the samples it
 draws are kept under `measurements/` so a later rule change re-reads them without the GPU.
+
+## Re-table addendum (2026-09-11): the five picks on the current image, read under the corrected rules
+
+**Status:** Accepted. Closes
+[R-640](../refinements/tasks/640-the-five-pick-envelope-table-is-on-an-image-the-stack-no-longer-pulls.md),
+opened the same day on the sweep-columns addendum's reading that no row of the row addendum's table
+describes the image the stack pulls. Opens
+[R-641](../refinements/tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md)
+and [R-642](../refinements/tasks/642-the-engines-prompt-cache-may-grow-to-the-whole-memory-cap.md).
+It changes no code and no pick. The row addendum's table stays as the dated reading of
+`sha256:9f0a986a`; the table below is the one a sentence quoting a cell as current now points at.
+
+### Re-derived first
+
+The local `server-cuda` tag resolved to `sha256:952424b09abc`, `build_info` `b10680-d7bd3bfca`,
+which is the image the sweep-columns addendum drew the smallest pick on, and neither
+`brain/packages/orchestrator/tests/test_envelope_cost_live.py` nor the orchestrator package had
+changed since the seed was added. So that sweep's 288 samples are the smallest pick's here. They
+were also drawn again, on a server carrying the compose file's `--threads 4.0` and its three cgroup
+caps, neither of which the sweep's server carried, and `just envelope-pairs` matched the two runs on
+**288 of 288** cells, identical in output and tokens. That reading settles three things: a seeded
+sweep started on a fresh server reproduces across a restart, the thread count and the caps reach no
+reply when every layer is on the card, and the reused samples are this re-tabling's own.
+
+### What ran
+
+Each pick on one `llama-server` from `ghcr.io/ggml-org/llama.cpp:server-cuda` at
+`sha256:952424b09abc`, started with the subagent compose file's argv (`--jinja`,
+`--chat-template-kwargs '{"enable_thinking": false}'`, `--reasoning-budget 0`, `--ctx-size 8192`,
+`--parallel 2`, so `n_ctx_slot = 4096`, and `--threads 4.0`, which the engine logged as
+`n_threads = 4`) with `-ngl 99` in place of `-ngl 0`, the substitution the row addendum argues. The
+compose file's caps were set on each container, and `docker inspect` read `NanoCpus` 4000000000 and
+`Memory` and `MemorySwap` 8589934592 back. One server at a time, the one before it removed and the
+card back at 2800 to 2969 MiB before the next started, no other container running. The harness ran
+the row addendum's design: arms `raw`, `bare` and `constrained`, the four report bodies, eight
+draws, the three subtask shapes through `CORTEX_ENVELOPE_INSTRUCTION`, the shipped 1024-token cap,
+and seeds from 1. The samples are under `measurements/envelope-retable-2026-09-11/`, one directory
+per pick, which git ignores.
+
+| pick | artifact under the models mount | card used, server up | load average at first shape | wall clock, summarization, extraction, lookup | CPU periods throttled | memory peak |
+| --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf` | 6165 MiB | 0.61 | 235, 88, 43 s | 0 of 3876 | 8.00 GiB, the cap |
+| Qwen3.5-2B (the roster alternate) | `unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf` | 4483 MiB | 0.92 | 115, 120, 25 s | 0 of 2692 | 7.71 GiB |
+| gemma-4-E2B | `google/gemma-4-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf` | 4645 MiB | 0.98 | 162, 90, 56 s | 0 of 3311 | 5.40 GiB |
+| Qwen3.5-0.8B, the redraw | `unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf` | 4200 MiB | 0.09 | 99, 77, 41 s | 0 of 2245 | 6.37 GiB |
+| Qwen3.5-4B, without the memory cap | `unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf` | 6142 MiB | 0.36 | 227, 141, 51 s | 0 of 4333 | 11.54 GiB |
+
+**The 4B ran without the memory cap, and that is a decision taken on evidence.** Its first server
+carried the cap and the kernel killed it 174 seconds in, exit 137 with an `oom` event, after 67
+completions. With every layer on the card, what grows in host memory is the engine's own prompt
+cache, which `--cache-ram` sizes at 8192 MiB by default on this build, the same 8 GiB as the cap;
+the E4B's peak had touched the cap without being killed. The second 4B server dropped the memory cap
+and kept the CPU cap and the thread count, and all 67 cells the killed run had finished pair with it
+identically, so the cap moves no reply and only decides whether the server survives. The shipped CPU
+servers carry that cap and that default together, which is
+[R-642](../refinements/tasks/642-the-engines-prompt-cache-may-grow-to-the-whole-memory-cap.md).
+
+Pre-registered in the entry before the first server started, and scored below.
+
+### The table
+
+`delivered` at the tabled reading (comma charitable, refusal strict, naming strict), with a Wilson
+95% interval, under the rule the row addendum was read under and under the corrected rules of the
+lapse addendum above, which add the body handed back as a lapse and refuse a lookup reply naming an
+instance its body does not state. `just envelope-floor` published every corrected cell one shape at
+a time; the old column is the same samples read by the reader as it stood before that change. An
+arrow marks an old-rule cell outside the interval the row addendum prints beside the same cell,
+pointing the way it moved.
+
+| pick | subtask shape | raw, old rule | raw, corrected | bare, old rule | bare, corrected | constrained, old rule | constrained, corrected |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | summarization | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 13/32 (0.26 to 0.58) | 11/32 (0.20 to 0.52) | 29/32 (0.76 to 0.97) | 15/32 (0.31 to 0.64) |
+| gemma-4-E4B (the default) | extraction | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) ↑ | 32/32 (0.89 to 1.00) |
+| gemma-4-E4B (the default) | one-fact lookup | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 28/32 (0.72 to 0.95) | 28/32 (0.72 to 0.95) | 30/32 (0.80 to 0.98) | 30/32 (0.80 to 0.98) |
+| gemma-4-E4B (the default) | **all three** | **96/96** (0.96 to 1.00) | **96/96** (0.96 to 1.00) | **73/96** (0.67 to 0.83) | **71/96** (0.64 to 0.82) | **91/96** (0.88 to 0.98) | **77/96** (0.71 to 0.87) |
+| Qwen3.5-2B (the roster alternate) | summarization | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) ↑ | 25/32 (0.61 to 0.89) | 31/32 (0.84 to 0.99) | 4/32 (0.05 to 0.28) |
+| Qwen3.5-2B (the roster alternate) | extraction | 29/32 (0.76 to 0.97) | 29/32 (0.76 to 0.97) | 23/32 (0.55 to 0.84) | 22/32 (0.51 to 0.82) | 26/32 (0.65 to 0.91) | 26/32 (0.65 to 0.91) |
+| Qwen3.5-2B (the roster alternate) | one-fact lookup | 32/32 (0.89 to 1.00) | 27/32 (0.68 to 0.93) | 28/32 (0.72 to 0.95) | 23/32 (0.55 to 0.84) | 31/32 (0.84 to 0.99) ↑ | 29/32 (0.76 to 0.97) |
+| Qwen3.5-2B (the roster alternate) | **all three** | **93/96** (0.91 to 0.99) | **88/96** (0.84 to 0.96) | **83/96** (0.78 to 0.92) | **70/96** (0.63 to 0.81) | **88/96** (0.84 to 0.96) | **59/96** (0.51 to 0.71) |
+| gemma-4-E2B | summarization | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) ↑ | 27/32 (0.68 to 0.93) | 31/32 (0.84 to 0.99) | 0/32 (0.00 to 0.11) |
+| gemma-4-E2B | extraction | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 28/32 (0.72 to 0.95) | 28/32 (0.72 to 0.95) |
+| gemma-4-E2B | one-fact lookup | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 30/32 (0.80 to 0.98) | 30/32 (0.80 to 0.98) | 26/32 (0.65 to 0.91) | 26/32 (0.65 to 0.91) |
+| gemma-4-E2B | **all three** | **96/96** (0.96 to 1.00) | **96/96** (0.96 to 1.00) | **93/96** (0.91 to 0.99) | **89/96** (0.86 to 0.96) | **85/96** (0.81 to 0.93) | **54/96** (0.46 to 0.66) |
+| Qwen3.5-0.8B | summarization | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 27/32 (0.68 to 0.93) | 20/32 (0.45 to 0.77) | 28/32 (0.72 to 0.95) | 25/32 (0.61 to 0.89) |
+| Qwen3.5-0.8B | extraction | 32/32 (0.89 to 1.00) ↑ | 32/32 (0.89 to 1.00) | 12/32 (0.23 to 0.55) | 6/32 (0.09 to 0.35) | 7/32 (0.11 to 0.39) ↓ | 6/32 (0.09 to 0.35) |
+| Qwen3.5-0.8B | one-fact lookup | 31/32 (0.84 to 0.99) | 21/32 (0.48 to 0.80) | 25/32 (0.61 to 0.89) | 16/32 (0.34 to 0.66) | 18/32 (0.39 to 0.72) ↓ | 11/32 (0.20 to 0.52) |
+| Qwen3.5-0.8B | **all three** | **95/96** (0.94 to 1.00) | **85/96** (0.81 to 0.93) | **64/96** (0.57 to 0.75) | **42/96** (0.34 to 0.54) | **53/96** (0.45 to 0.65) | **42/96** (0.34 to 0.54) |
+| Qwen3.5-4B | summarization | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) | 27/32 (0.68 to 0.93) | 32/32 (0.89 to 1.00) | 8/32 (0.13 to 0.42) |
+| Qwen3.5-4B | extraction | 29/32 (0.76 to 0.97) | 29/32 (0.76 to 0.97) | 30/32 (0.80 to 0.98) ↑ | 30/32 (0.80 to 0.98) | 30/32 (0.80 to 0.98) | 30/32 (0.80 to 0.98) |
+| Qwen3.5-4B | one-fact lookup | 32/32 (0.89 to 1.00) | 27/32 (0.68 to 0.93) | 30/32 (0.80 to 0.98) | 29/32 (0.76 to 0.97) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) |
+| Qwen3.5-4B | **all three** | **93/96** (0.91 to 0.99) | **88/96** (0.84 to 0.96) | **91/96** (0.88 to 0.98) | **86/96** (0.82 to 0.94) | **94/96** (0.93 to 0.99) | **70/96** (0.63 to 0.81) |
+
+**The floor.** Every control cell held on every pick and shape but one: the smallest pick's lookup
+control delivers 21 of 32 (0.48 to 0.80) under the corrected rules, so that comparison is printed as
+refused, as the lapse addendum found. The 2B's and the 4B's lookup controls read 27 of 32 (0.68 to
+0.93), one run above the lowest count of 32 that still publishes, and both comparisons publish.
+
+### What the correction moved
+
+The copy lapse, as runs that stood or delivered under the old rule and are the body handed back
+under the corrected one:
+
+| pick | summarization, bare | summarization, constrained | anywhere else |
+| --- | --- | --- | --- |
+| gemma-4-E4B (the default) | 2 | **14**, 12 of them identical to the body in letters and digits | none |
+| Qwen3.5-2B (the roster alternate) | 7 | **27**, 17 identical | 1 bare extraction, 1 bare lookup |
+| gemma-4-E2B | 4 | **31** | none |
+| Qwen3.5-0.8B | 7 | 3 | 6 bare extractions, 1 constrained |
+| Qwen3.5-4B | 4 | **24** | none |
+
+No raw run of any pick is a copy. The invented-instance refusal reads only lookup cells, as raw,
+bare and constrained: none on either gemma-4-E pick, 5, 4 and 2 on the 2B, 10, 9 and 7 on the 0.8B,
+and 5, 1 and 0 on the 4B, most of them on the clinic body, which names no month.
+
+### Six readings
+
+1. **The build moved the smallest pick and no other.** Under the old rule the shipped path reads 91,
+   88, 85, 53 and 94 of 96 on the E4B, the 2B, the E2B, the 0.8B and the 4B, against the table's 90,
+   83, 84, 66 and 94. Of the 45 cells, two fall outside the tabled intervals and both are the 0.8B's
+   constrained cells the sweep-columns addendum found; six rise outside, all by one to four runs
+   over a tabled cell below the ceiling, and three of the six are 32 of 32 set beside a tabled 30 or
+   31, whose printed interval stops short of 32 of 32. That addendum's sentence that every other
+   cell of the 0.8B reproduced inside its interval missed one of these, its raw extraction at 32
+   against a tabled 31 whose interval ends at 0.99.
+2. **The corrected rules move the table far more than the build did, and almost all of it is one
+   cell on each pick.** The shipped path now reads **77, 59, 54, 42 and 70 of 96**, a span of 42 to 77 where the
+   old table's was 66 to 94, and 99 of the 109 runs the correction takes off the five constrained
+   arms are the body handed back on the summarization.
+3. **The copy is the sentence's, on every pick.** No raw summarization is a copy, the bare arm
+   copies 2 to 7 times in 32, and the constrained arm, which is the bare arm plus
+   `REPLY_INSTRUCTION`, copies 14 to 31 times on four picks. So on this image the sentence the
+   instruction addendum shipped to repair a narration hands the report back instead. Under the
+   corrected rules bare against constrained reads 71 to 77 on the default, 70 to 59 on the 2B, 89 to
+   54 on the E2B, 42 to 42 on the 0.8B and 86 to 70 on the 4B, so the sentence gains six runs on the
+   default, costs 11 to 35 on three picks and is even on the fourth. The instruction addendum's
+   headline, 9 to 29 of 32 on the default's summarization, reads 11 to 15 here. Whether the
+   2026-08-28 rows carried the same copies cannot be read, since their samples were not kept.
+   [R-641](../refinements/tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md).
+4. **The quiet failure is now the ordinary one on every pick, the default included.** Of the
+   constrained non-deliveries under the corrected rules, 14 of 19 come back `ok=True` on the
+   default, 32 of 37 on the 2B, 31 of 42 on the E2B, 50 of 54 on the 0.8B and 25 of 26 on the 4B. On
+   the default every one of the 14 is a copy, so the "0 of 6" the instruction addendum's fifth
+   decision and [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md) lean on
+   still holds for plans and narrations and no longer holds for quiet failures as a whole.
+5. **The order of the picks changed with the rule and not with the build.** Under the old rule the
+   4B led at 94; under the corrected rules the default leads at 77 and the 4B follows at 70, the
+   difference being 14 copies against 24.
+6. **The reasoning channel reads as it did.** Counted as a rate over draws, raw, bare and
+   constrained:
+
+   | pick | its template's answer to "do not think" | raw | bare | constrained, here | constrained, 2026-08-28 |
+   | --- | --- | --- | --- | --- | --- |
+   | gemma-4-E4B (the default) | drops the block, adds nothing | 0/96 | 1/96 | 7/96 (0.04 to 0.14) | 8/96 (0.04 to 0.16) |
+   | Qwen3.5-2B (the roster alternate) | closes an empty think | 0/96 | 0/96 | 0/96 (0.00 to 0.04) | 0/96 |
+   | gemma-4-E2B | drops the block, adds nothing | 0/96 | 0/96 | 11/96 (0.07 to 0.19) | 14/96 (0.09 to 0.23) |
+   | Qwen3.5-0.8B | closes an empty think | 0/96 | 0/96 | 0/96 (0.00 to 0.04) | 0/96 |
+   | Qwen3.5-4B | closes an empty think | 0/96 | 0/96 | 0/96 (0.00 to 0.04) | 0/96 |
+
+   The Qwen entries write nothing to that channel on this build either, 0 of 864 again, and both
+   gemma-4-E entries write to it at a rate inside the interval of 2026-08-28.
+
+### Against the pre-registration
+
+1. The smallest pick kept its two cells outside, and a third sits outside above, the raw extraction
+   in reading 1, which the expectation did not foresee. The redraw paired on 288 of 288 against a
+   floor of 280. The pairing held and the cell count missed by one.
+2. Five of the other 36 cells fall outside against 1 to 4 expected, all on cells off the ceiling as
+   expected, and all above, where no direction was predicted. The 2B's and 4B's constrained lookups
+   did not fall, as expected. The count missed by one.
+3. **Missed by an order of magnitude.** The copy lapse was expected at 0 or 1 a cell on the E4B, the
+   E2B and the 4B and 1 to 4 on the 2B's bare cells; it took 14, 31 and 24 off their constrained
+   summarizations and 27 off the 2B's, and one copy landed on a lookup, a shape the expectation
+   excluded.
+4. Held on 13 of the 15 lookup cells it named. The refusal read lookup cells only and none on the
+   gemma-4-E picks; the 2B's constrained cell lost 2 against 3 to 8 expected, and the 4B's raw cell
+   lost 5 against 0 to 4.
+5. Held: only the smallest pick's lookup comparison is refused, and the two nearest controls stood
+   one run above the 26 the expectation named.
+6. Held on every pick.
+
+### Distrust green
+
+- **Two pairings stand behind the substitutions.** The 0.8B redraw against the reused sweep, 288 of
+  288, and the killed 4B run against its uncapped redraw, 67 of 67 finished cells, both counted by
+  `just envelope-pairs`.
+- **The reader was checked on samples whose answer is known.** Over the reused 0.8B samples it
+  reproduces the lapse addendum's before and after columns cell for cell and names the same runs.
+- **A copy was read by eye before any was counted.** The default pick's constrained summarization of
+  the fleet body at draw 1 is the body, character for character.
+- **The expectations were written first**, and three of the six missed in part or whole while a
+  fourth held on 13 of 15 cells, each reported above rather than revised. No gate changed, so there
+  is no mutation table.
+
+### What moves
+
+No code and no pick. The table above replaces the row addendum's wherever a sentence quotes a cell
+as current: the override table and the notes beside it in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md), the control-arm sentence in
+[docs/modules/repo-gates.md](../modules/repo-gates.md), the subagent row of
+[ADR-0004](ADR-0004-model-lineup.md), the residue paragraph of
+[ADR-0005](ADR-0005-llamacpp-engine.md), the cost paragraph of
+[ADR-0018](ADR-0018-heterogeneous-subagents.md)'s description addendum, and the reasoning-channel
+comment in `docker/docker-compose.subagents.yml`. Each keeps its dated reading and gains a pointer
+here.
+
+**Recommendation on the picks, not a change to one.** The table does not argue for a different
+default: under the corrected rules the default answers the most of the five on the shipped path, 77
+of 96, and it was picked for injection robustness, which this table does not measure. Nor does it
+argue for a different roster alternate yet: the 4B reads 70 against the 2B's 59, and the largest
+share of both losses is the copy, which is the sentence's on every pick. The first lever the table
+names is the sentence
+([R-641](../refinements/tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md)),
+and the picks are worth comparing again only once a wording has been drawn that stops the copy.

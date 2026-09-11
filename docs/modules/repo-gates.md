@@ -1291,7 +1291,9 @@ and the obligation over the descent each recognize a caller.
   carrying no grammar and no appended sentence, and a comparison read against a control that failed
   the subtask prices the pick and not the envelope.** That arm answered 96 of 96 on three picks of
   the subagent row and then 93 and 92 on two more, so it is a reading and not the constant the
-  record had begun quoting. **Two rates describe one run and both are published.** What a run
+  record had begun quoting; re-tabled on the current image under the corrected rules it reads 96,
+  88, 96, 85 and 88, and the smallest pick's lookup cell is refused (ADR-0028 re-table addendum).
+  **Two rates describe one run and both are published.** What a run
   **stood** is the weaker of them: the runner accepted it, the reply is not empty, and it is not
   the instruction handed back, which are the three failures visible without knowing the subtask,
   and on a shape a judge is declared for it is not the report body handed back either, a fourth

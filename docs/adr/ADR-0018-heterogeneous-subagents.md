@@ -420,6 +420,11 @@ shipped two-entry roster the gap is the default's 90 of 96 against the alternate
 is smaller than the row's spread, and points the same way the advertised text already points, the
 alternate being described as the one to reach for when robustness matters less. The gap that would
 justify a field, the 66 of the smallest entry, belongs to a pick no shipped roster advertises.
+(Those are the 2026-08-28 build's readings under the rule of that day. Re-tabled on 2026-09-11 on
+the current image and under the corrected rules, the default reads 77 of 96, the alternate 59 and
+the smallest entry 42, most of the fall being the report handed back on a summarization; the gap
+is wider and points the same way, and the first reason above, that a rate names an entry and not a
+model, is untouched. [ADR-0028](ADR-0028-grammar-constrained-subagents.md)'s re-table addendum.)
 
 ### What moves
 
