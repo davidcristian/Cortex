@@ -121,8 +121,10 @@ made them at 3.4%, which already fails the count.
   date). The bar above was written before the first judge request. Each pick's server was started
   on the re-table's image, argv and caps, and the tier was handed its own prompt with its reply as
   the assistant turn and asked the question the addendum quotes, seeded, over every accepted run of
-  its constrained arm. No pick clears either the first or the second line. On Qwen3.5-2B the judge
-  answers `no` to 13 of its 32 quiet non-deliveries and to 40 of its 59 delivered answers; the
+  its constrained arm. No pick clears both the first and the second line, and every pick fails the
+  second; the 0.8B clears the first only by answering `no` to 41 of its 42 answers as well. On
+  Qwen3.5-2B the judge answers `no` to 13 of its 32 quiet non-deliveries and to 40 of its 59
+  delivered answers; the
   lowest false-call count on any pick is the default's 16 of 77, against a ceiling of one in fifty.
   On the three Qwen picks the judge says `no` to answers as often as to non-answers. A second
   wording without the copy clause, run after the first was read, fails on every pick too. The
