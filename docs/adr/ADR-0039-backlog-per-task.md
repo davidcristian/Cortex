@@ -560,3 +560,13 @@ No host task was given a date here, on the rule the re-derivation addendum set: 
 mechanism, and a date written without the reading behind it would be the defect the field exists
 to date. The two host tasks read for the re-filing were read for their Trail claims, not held whole
 against the tree.
+
+## Addendum (2026-09-11, later still): the write run reads the links of the file it replaces
+
+Filing an entry tonight put a markdown link inside a `Trigger` field, which the index renders
+verbatim at a depth the link was not written for. The gate reported it, which is right. The
+rerun after the trigger was rewritten reported the same link again, exited 1, and wrote the
+corrected index, after which `just check-backlog` passed: `check_links` reads the index off disk
+before the rewrite, while the anchor half of the same link is judged against the spliced text, the
+rule the repo-wide anchor addendum set. Filed as
+[R-632](../refinements/tasks/632-the-write-run-judges-the-links-of-the-index-it-replaces.md).
