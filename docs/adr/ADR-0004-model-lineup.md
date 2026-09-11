@@ -1438,3 +1438,123 @@ at 3.19 GB against 2.58 on 2026-09-08, and file pages were refaulted through the
 in the unpinned sitting and 842 in the pinned one, about 72 MB and 3 MB. That is a cap that binds
 rather than one that does nothing, it cost little tonight, and it is
 [R-629](../refinements/tasks/629-the-picks-cpu-server-reaches-its-memory-cap-under-the-harnesss-budget.md).
+
+## Addendum (2026-09-11, later): the CPU subagent servers' thread count is pinned to their quota
+
+The addendum above recommended pinning `--threads` to the quota in
+`docker/docker-compose.subagents.yml` and left the compose default open as the owner's. That
+default was decided on the pair's evidence, 114.08 s and 114.86 s pinned against 1560.15 s unpinned
+on counts identical to the reply, and this is its landing, which closes
+[R-628](../refinements/tasks/628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md)
+as landed. The roster alternate's server gained its caps in the same change, recorded at
+[ADR-0018](ADR-0018-heterogeneous-subagents.md) because that entry's origin is there.
+
+**How the engine reads a float.** `cpus:` takes the budget as the brain prints it, `4.0`, and the
+entry expected `--threads` to need an integer spelling. Measured on
+`ghcr.io/ggml-org/llama.cpp:server` at `sha256:db057ec90de0` (build `b10680-d7bd3bfca`), each
+container under `--cpus 4.0` with the pick's artifact: `--threads 4.0` logged `llama threadpool
+init, n_threads = 4` and `--threads 2.5` logged `n_threads = 2`. The parse stops at the point, so
+both servers now pass `"${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"` verbatim, the substitution their
+`cpus` cap reads, and a deployment cannot move the count without moving the cap. The floor is the
+safe direction, since a fractional quota never gets more threads than it has CPUs. It has one hole:
+`--threads 0.5` logged `n_threads = 24`, the engine taking a count of 0 as its own default, so a
+budget under one CPU starts the unpinned shape. Nothing ships such a budget and the brain refuses
+one unless every ask is lowered with it; filed as
+[R-636](../refinements/tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md).
+No `--threads-batch` is added. The server logs one thread count and not a batch count, so the entry's
+reading that the batch count follows `--threads` is read here off the prompt rate instead: the first
+draw below evaluated its 233-token prompt at 77.6 tok/s, beside the pair's 66 to 71 pinned and 5.6
+to 8.5 unpinned.
+
+**What changed.** `llama-subagent` and `llama-subagent-qwen` both pass the count, and the compose
+comment beside the first says why in one sentence with the numbers. The injection harness's CPU row
+passes the same count from the same constant: `Placement.threads` is `("--threads",
+str(DEFAULT_CPU_BUDGET))` on the CPU and nothing on the card, appended to the row's argv after the
+switch's flags, so the row starts the shape both compose servers start. The subagent runbook says
+what the count reads and that a budget under one floors to the engine default, and its 3b probe
+passes `--threads 4` beside its `--cpus 4`.
+
+**Where the count is held, and why not in the flag gate.** The constant scan counts the budget's
+substitution per file: three in the subagents file (the brain's passthrough, the `cpus` cap, the
+count) and two in the roster file (the cap, the count), so a count dropped from either server is
+its file's total falling by one. `scripts/flagcheck.py` was considered and does not carry it. Its
+requirements run over every subagent server of both placements, and the model host's hosted
+subagent tier is a GPU tier inside one container whose caps cover all three tiers, with no per-tier
+quota a count could equal. The count's right value is also not a tier constant but the service's
+own `cpus` substitution, a relation between two keys of one service, and the compose reader under
+the flag gate reads a command and an environment and no `cpus` key. What neither scan holds is a
+CPU subagent server started by a third compose file, which the flag gate would find and not
+require the count of; filed as
+[R-638](../refinements/tasks/638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md).
+`scripts/defaultcheck.py` needed no change, and now reads the roster file's new spellings beside
+the subagents file's.
+
+**Proved able to fail.** Each edit was applied to one compose file alone, the three compose-facing
+scans run against the real tree, and the file restored from a copy before the next.
+
+| edit | `crosscheck.py` | `defaultcheck.py` | `flagcheck.py` |
+| --- | --- | --- | --- |
+| unedited | exit 0 | exit 0 | exit 0 |
+| the roster server's `--threads` pair dropped | exit 1, 1 problem | exit 0 | exit 0 |
+| `llama-subagent`'s `--threads` pair dropped | exit 1, 1 problem | exit 0 | exit 0 |
+| the roster server's `cpus` cap dropped | exit 1, 1 problem | exit 0 | exit 0 |
+| the roster server's `memswap_limit` dropped | exit 1, 1 problem | exit 0 | exit 0 |
+| the roster count's default spelled `4` | exit 1, 1 problem | exit 0 | exit 0 |
+| the roster count read from another variable | exit 1, 1 problem | exit 0 | exit 0 |
+| both roster memory caps defaulted to `6` | exit 1, 1 problem | exit 1, 1 problem | exit 0 |
+| the roster `cpus` cap defaulted to `2.0` | exit 1, 1 problem | exit 1, 1 problem | exit 0 |
+
+The default spelled `4` passes `defaultcheck.py`, which compares values and reads 4 and 4.0 as one,
+and fails the constant scan, whose needle is the spelling. The harness edit's table is over
+`brain/packages/inference/tests/test_switch_rows.py`, 16 tests, each edit applied to the harness
+alone with `__pycache__` purged.
+
+| edit | `pytest packages/inference/tests/test_switch_rows.py` | failing |
+| --- | --- | --- |
+| unedited | 16 passed | none |
+| the count left off the argv | 1 failed, 15 passed | `test_the_cpu_row_offloads_no_layer_pins_its_threads_and_changes_nothing_else` |
+| the count on the card row as well | 5 failed, 11 passed | the CPU row test, `test_a_shipped_row_is_its_tiers_own_command_line`, `test_a_shipped_row_starts_its_server_with_the_tiers_reasoning_off_pair`, `test_the_budget_alone_row_carries_the_budget_half_and_not_the_kwarg`, `test_the_switch_rows_differ_by_the_lever_and_by_nothing_else` |
+| the count spelled as an integer | 1 failed, 15 passed | the CPU row test |
+| the count placed ahead of the switch's flags | 1 failed, 15 passed | the CPU row test |
+| the count read off the memory budget | 1 failed, 15 passed | the CPU row test |
+
+**The band, re-measured under the pin.** What was fixed before the draws: the pair's pinned decode
+of 11.9 to 12.4 tok/s for one quiet slot, and no expectation for the saturated arm, since the
+pinned shape had never been drawn under load. The server is the compose stack's own, brought up by
+`docker compose ... -f docker/docker-compose.subagents.yml up -d llama-subagent` on the edited file,
+and read back before the first draw: `docker inspect` gave `4000000000` nanocpus and `8589934592`
+for both memory limits, the cgroup `cpu.max` `400000 100000`, `memory.max` `8589934592` and
+`memory.swap.max` `0`, `nproc` 24, the argv ending `--parallel 2 --threads 4.0`, and the server's
+own line `n_threads = 4`. The box has 24 hardware threads and 31 GiB, and no other container was
+up. Each draw posts one summarization request of a 233-token site report at `max_tokens` 400 and
+reads the server's `timings`; every reply finished on `stop`, 298 to 350 tokens. The saturated arm
+is the ADR-0005 control's shape, one busy shell loop per hardware thread on the host.
+
+| arm | slots decoding | draws | decode tok/s, per slot | load average at start |
+| --- | --- | --- | --- | --- |
+| idle | 1 | 3 | 12.24 to 12.44 | 0.48 to 2.24 |
+| idle | 2 | 2 | 8.53 to 9.23 | 2.76 to 3.31 |
+| saturated | 1 | 2 | 4.89 to 5.03 | 16.22 to 24.75 |
+| saturated | 2 | 1 | 3.02 and 3.07 | 27.58 |
+
+The idle one-slot reading lands inside the pair's band, as expected. Under load the pinned server
+loses a factor of about 2.5 on one slot, where the unpinned one lost a factor of seven, and the
+runbook's 0.18 to 1.35 tok/s is replaced by 3.0 to 12.4 with the four cells named. The container's
+`cpu.stat`, read after the saturated one-slot draws and counting everything since it started, read
+2,153 throttled periods of 3,159 and 25.8 s throttled against 1,118 s of usage, where the unpinned
+sitting of the pair had been throttled for 13,051 s against 5,729 s of usage on an idle host.
+
+**The ceilings do not move.** The stall ceiling, the run deadline and the admission wait were sized
+on whole-subtask readings of the unpinned shape, and this sitting drew decode rates rather than
+subtasks. The new rates make every one of them looser than its derivation asked for, which cuts
+nothing a bound meant to allow, so none is re-sized on numbers it was not derived from. The runbook
+now says its subtask readings predate the pin, and that in decoded tokens the deadline admits at
+least 7200 on a saturated host, so the cap binds first at either load. Re-sizing the three is
+[R-637](../refinements/tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md).
+
+**The memory cap, read in passing.** After the seven draws the pick's server read `memory.events`
+`max 0` and `oom_kill 0`, `workingset_refault_file` 0, `pgmajfault` 279, `anon` at 3.10 GB and
+`memory.peak` at 8,326,414,336, 97% of the limit. That is neither a harness sitting nor a delegated
+run, and it reads neither half of
+[R-629](../refinements/tasks/629-the-picks-cpu-server-reaches-its-memory-cap-under-the-harnesss-budget.md)'s
+trigger, so that entry stands as it was.

@@ -1013,8 +1013,8 @@ class Placement:
         The card for the model host's tier. For the CPU server, all three cgroup caps the
         subagents override sets on it, the brain's own CPU budget and its memory budget as both
         `mem_limit` and `memswap_limit`, each held to that compose spelling by the constant scan.
-        Without the quota a CPU row runs one thread per hardware thread of whatever host draws it,
-        and without the caps it runs against the whole host's memory where the shipped pick's
+        Without the quota a CPU row runs on every CPU of whatever host draws it, and without the
+        memory caps it runs against the whole host's memory where the shipped pick's
         server sits at 90% of the 8 GiB limit, so a row drawn without them measures a shape no
         deployment runs (ADR-0004's placement-row and memory-cap addenda).
         """
@@ -1025,6 +1025,18 @@ class Placement:
         # giving the swap limit the memory limit's value, which is what the compose file does.
         memory = f"{DEFAULT_MEM_BUDGET_GB}g"
         return ("--cpus", str(DEFAULT_CPU_BUDGET), "--memory", memory, "--memory-swap", memory)
+
+    @property
+    def threads(self) -> tuple[str, ...]:
+        """The server flags that pin this placement's thread count to its quota, if it has one.
+
+        Nothing on the card, whose tier the model host starts without a count. On the CPU, the
+        brain's CPU budget as the compose file passes it to both CPU subagent servers, from the
+        variable their `cpus` cap reads, which the engine floors to a whole count. Without it the
+        server runs one thread per hardware thread inside the quota, and the pick's row took
+        1560 s against 114 s pinned (ADR-0004's pinned-thread addendum).
+        """
+        return () if self.on_card else ("--threads", str(DEFAULT_CPU_BUDGET))
 
     def ngl(self, tier: TierArgs) -> int:
         """The layer count this placement starts one tier with."""
@@ -1074,8 +1086,9 @@ def server_argv(
     Built by the sidecar's own ``llama_server_argv`` over the row's tier, so the head of the
     command line is the tier's rather than this file's, with four things substituted: the
     artifact, the probe's port, the placement's layer count, and the tail, which is the projector
-    and the image budget where the model has a projector plus whatever the switch puts on the
-    argv. The binary is dropped because the image's entrypoint is the server.
+    and the image budget where the model has a projector, whatever the switch puts on the argv,
+    and the placement's thread count. The binary is dropped because the image's entrypoint is the
+    server.
 
     Public, like ``capture_result`` and ``image_messages``, because
     [test_image_arm.py](test_image_arm.py) and [test_switch_rows.py](test_switch_rows.py) assert
@@ -1091,7 +1104,7 @@ def server_argv(
         model_path=f"{_MOUNT}/{model.gguf}",
         port=_PORT,
         ngl=placement.ngl(tier),
-        extra=(*projector, *budgeted, *switch.argv),
+        extra=(*projector, *budgeted, *switch.argv, *placement.threads),
     )
     return llama_server_argv(_CONFIG.llama_bin, row)[1:]
 

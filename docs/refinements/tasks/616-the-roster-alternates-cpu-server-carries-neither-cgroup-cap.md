@@ -1,16 +1,8 @@
 # The roster alternate's CPU server carries neither cgroup cap
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Trigger:** a deployment running the roster override alongside the default subagent server on a
-box where the two together would exceed the memory the default one is capped at, or any reading
-that attributes a roster-alternate measurement to the caps the default service sets. Read it with
-`grep -n '^    cpus:\|^    mem_limit:\|^    memswap_limit:' docker/docker-compose.subagents-roster.yml`,
-which matches nothing today; the same grep over `docker/docker-compose.subagents.yml` matches
-the three cap lines. A wider `grep -n cpus` also matches the `"cpus": 2.0` of the entry's
-declared ask on the brain's roster line, which is what the scheduler charges and not a cap.
-**Verified:** 2026-09-11
 
 Opened 2026-09-08 by the re-reading of
 [R-559](559-the-cpu-row-carries-the-cpu-quota-and-not-the-memory-cap.md), which measured the default
@@ -57,3 +49,16 @@ single-executor stance, and answering that would close this differently.
   The caps and a pinned thread count read from one constant therefore belong in one change,
   and that entry's pin has nothing to be pinned to on this server until these caps exist. Both
   entries now say so.
+- 2026-09-11: landed in one change with the thread count, which closed
+  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md).
+  `llama-subagent-qwen` now declares `cpus`, `mem_limit` and `memswap_limit` spelled exactly as
+  `llama-subagent` does, and passes `--threads` from its `cpus` substitution; the grep the
+  trigger carried now matches the three cap lines in the roster file. The previous bullet's
+  reasoning was wrong
+  about the alternate, measured: uncapped with 24 threads it decoded at 2.99 to 3.46 tok/s on one
+  slot and 2.75 a slot on two, against 22.56 to 22.66 and 17.18 to 17.28 under the three caps and
+  four threads, so the change made it faster rather than handing it a cost. The constant scan
+  counts the two new CPU spellings and the two memory ones in the roster file. Each server is
+  capped at the whole budget, and the split the last paragraph above names stays ADR-0012's
+  deferred question. Recorded in the
+  [ADR-0018 alternate-caps addendum](../../adr/ADR-0018-heterogeneous-subagents.md#addendum-2026-09-11-the-roster-alternates-server-carries-the-defaults-three-caps-and-its-thread-count).

@@ -183,6 +183,12 @@ services:
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
       - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      # One thread per CPU of the cgroup cap below, read from the same variable so the two cannot
+      # part: left to its default the server ran 24 threads inside that quota, throttled in 14,308
+      # of 14,520 periods, and decoded at 0.43 to 0.54 tok/s against 11.9 to 12.4 pinned. The
+      # engine floors the float the budget prints (ADR-0004 thread-pin landing addendum).
+      - "--threads"
+      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
       - type: bind

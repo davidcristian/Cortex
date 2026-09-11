@@ -3,8 +3,9 @@ running it is given, and the count that says its servers do no thinking at all.
 
 One of the data files `crosscheck.py` reads as a single registry, split off `shippedcouplings.py`
 when the compose survey pushed that file past the 300-line cap. The seam it fell on is the one its
-own comment had already drawn: five knobs declared in one module and restated in one compose file,
-two soft admission budgets each with a hard cgroup twin and the three numbers one spawn is charged.
+own comment had already drawn: five knobs declared in one module and restated in the subagents
+compose file, two soft admission budgets each with a hard cgroup twin and the three numbers one
+spawn is charged. The roster file's server carries the same two twins, so it is read here as well.
 They are one family and the failure is one failure, a container sized against a number the
 scheduler is not admitting against, or a deployment charging a spawn something other than what the
 shipped stack measured.
@@ -29,6 +30,7 @@ every gate still green; a file of its own gives a reader one subject at a time.
 from couplings import Constant, Mention, Site, Spelling
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
+ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 FLAG_GATE = "scripts/flagcheck.py"
@@ -38,11 +40,12 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the subagent memory budget's shipped default",
         why=(
-            "one compose file spells this number four times, once as the soft budget the "
-            "admission scheduler is given and twice as the hard cgroup cap on the container "
-            "running what it admits, so retuning the brain's field alone would cap that "
-            "container at the old number while the scheduler admitted against the new one, "
-            "which is the failure the resource governance exists to prevent (ADR-0012)"
+            "the subagents compose file spells this number four times, once as the soft budget "
+            "the admission scheduler is given and twice as the hard cgroup cap on the container "
+            "running what it admits, and the roster file caps its own server the same way, so "
+            "retuning the brain's field alone would cap those containers at the old number while "
+            "the scheduler admitted against the new one, which is the failure the resource "
+            "governance exists to prevent (ADR-0012)"
         ),
         sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_MEM_BUDGET_GB"),),
         # Four spends of one number, in the two spellings it has to be written in. The
@@ -65,26 +68,37 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
             ),
             Mention(SUBAGENTS_COMPOSE, "MEM_BUDGET_GB {value})"),
             Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", spelling=Spelling.WHOLE),
+            Mention(
+                ROSTER_COMPOSE,
+                '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}g"',
+                occurrences=2,
+                spelling=Spelling.WHOLE,
+            ),
         ),
     ),
     Constant(
         label="the subagent CPU budget's shipped default",
         why=(
-            "the same file spells this number three times, once as the soft budget the admission "
-            "scheduler is given and once as the hard `cpus` cap on the container running what it "
-            "admits, so retuning the brain's field alone would hand that container fewer cores "
-            "than the spawns it is serving were charged against, which is the memory budget's "
-            "failure in the other dimension and reads as a tier that got slow (ADR-0012)"
+            "the subagents compose file spells this number as the soft budget the admission "
+            "scheduler is given, as the hard `cpus` cap on the container running what it admits "
+            "and as that server's `--threads`, and the roster file spells the cap and the thread "
+            "count again for its own server, so retuning the brain's field alone would hand those "
+            "containers fewer cores than the spawns they serve were charged against, which is the "
+            "memory budget's failure in the other dimension and reads as a tier that got slow "
+            "(ADR-0012, and ADR-0004's thread-pin landing addendum for the count)"
         ),
         sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_CPU_BUDGET"),),
-        # Three spends and no second spelling, unlike the memory budget above: docker's `cpus`
-        # takes a float where its size suffix will not, so every place here writes the digits the
-        # field declares. The passthrough and the cgroup limit render identically and are counted
-        # as one set, being the twinning the comment beside them claims: one moving without the
-        # other is the whole of what this entry reports.
+        # No second spelling, unlike the memory budget above: docker's `cpus` takes a float where
+        # its size suffix will not, and llama-server floors the float `--threads` is handed, so
+        # every place here writes the digits the field declares. Each file's spends render
+        # identically and are counted as one set: the passthrough, the cgroup limit and the thread
+        # count in the first, the limit and the count in the second. A server whose count is
+        # dropped runs one thread per hardware thread inside its quota, and one whose cap is
+        # dropped runs uncapped, and either reads here as its file's count falling by one.
         mentions=(
-            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=2),
+            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=3),
             Mention(SUBAGENTS_COMPOSE, "CPU_BUDGET {value},"),
+            Mention(ROSTER_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=2),
         ),
     ),
     Constant(

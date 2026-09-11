@@ -1,6 +1,6 @@
 # The subagent CPU server's thread count is not pinned to its quota
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 
@@ -60,3 +60,27 @@ runbook's band re-measured under it.
   it that cost. The caps and the pin therefore belong in one change carrying one constant, the
   alternate's caps landing first or beside the pin; this entry's compose default stays the
   owner's.
+- 2026-09-11: landed, with the default decided on the pair's evidence. The three spelling
+  questions above were settled by measurement rather than by a rule. llama-server on build
+  `b10680-d7bd3bfca` floors a float `--threads`, logging `n_threads = 4` for `4.0` and 2 for
+  `2.5`, so both CPU servers pass `"${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"` verbatim, the
+  substitution their `cpus` cap reads, and the constant scan needed only its counts raised (three
+  in the subagents file, two in the roster file) with no integer form to accept. `--threads 0.5`
+  logged 24, the engine default, which is
+  [R-636](636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md). No
+  `--threads-batch` was added, the pinned server evaluating a prompt at 77.6 tok/s. The roster
+  alternate got its caps in the same change, closing
+  [R-616](616-the-roster-alternates-cpu-server-carries-neither-cgroup-cap.md). The harness's CPU
+  row passes the same count through `Placement.threads`, from `DEFAULT_CPU_BUDGET`. The flag gate
+  does not carry the count, since its rule covers the hosted GPU tier, which has no per-tier quota
+  to pin to, and the count's value is its own service's `cpus` substitution; a CPU server in a
+  third compose file is therefore held by neither scan, which is
+  [R-638](638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md). The
+  runbook's band was re-measured on the compose stack's own server: 12.24 to 12.44 tok/s for one
+  idle slot, inside the pair's 11.9 to 12.4 as expected, 8.53 to 9.23 a slot with two, 4.89 to
+  5.03 and 3.02 to 3.07 on a host saturated by one busy loop per hardware thread, so the band now
+  reads 3.0 to 12.4. The stall, run and admission-wait ceilings were not re-sized, since they rest
+  on whole-subtask readings of the unpinned shape this sitting did not redraw, which is
+  [R-637](637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md). Recorded in the
+  [ADR-0004 thread-pin landing addendum](../../adr/ADR-0004-model-lineup.md#addendum-2026-09-11-later-the-cpu-subagent-servers-thread-count-is-pinned-to-their-quota),
+  with both mutation tables.

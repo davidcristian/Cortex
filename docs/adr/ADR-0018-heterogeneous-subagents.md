@@ -596,3 +596,59 @@ nothing comparing them. Nothing in `scripts/` holds the three spellings above eq
 constant scan's subagent part carries the tier's budgets and its reasoning-off value and no
 artifact path. The repair remains the compose comment and the runbook sentence, and the entry's two
 proposed shapes are unchanged by this reading.
+
+## Addendum (2026-09-11): the roster alternate's server carries the default's three caps and its thread count
+
+**Status:** Accepted. Closes
+[R-616](../refinements/tasks/616-the-roster-alternates-cpu-server-carries-neither-cgroup-cap.md) as
+landed. It changes no code in the brain and no pick.
+
+Decision 7 above charges every roster entry against one shared budget, and the ADR-0004 lineup
+trigger reading of 2026-09-08 found that nothing on the host enforced that for the second server:
+`llama-subagent-qwen` in `docker/docker-compose.subagents-roster.yml` declared none of the three
+cgroup caps `llama-subagent` carries. It now declares all three, spelled exactly as the default
+service spells them, `cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"` and both memory limits at
+`"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"`, and it passes `--threads` from the same substitution as
+its `cpus` cap, which is the thread-count landing recorded at
+[ADR-0004](ADR-0004-model-lineup.md#addendum-2026-09-11-later-the-cpu-subagent-servers-thread-count-is-pinned-to-their-quota).
+`docker compose config` over the three files renders both servers with `cpus: 4`, both memory
+limits at 8589934592 and `--threads 4.0`.
+
+**Each server is capped at the whole budget, not a share of it.** The two caps together allow twice
+what the scheduler admits against. Splitting the budget between the servers is the question
+ADR-0012 deferred with its single-executor stance, and it stays deferred: the scheduler's soft
+budget is still what bounds the pair, and each cap is what happens if anything admits past it on
+that one server.
+
+**A sentence in the entry was wrong, measured.** Its Trail reasoned that the alternate, running 24
+threads with no quota, was the one CPU server here that did not pay the throttling cost the pick's
+server paid, so capping it without pinning its count would hand it that cost. Both shapes were
+drawn on 2026-09-11 with the same summarization request the ADR-0004 re-measurement used, on
+`ghcr.io/ggml-org/llama.cpp:server` at `sha256:db057ec90de0`, Qwen3.5-2B Q4_K_M off the mount, no
+other container up. The old shape was started by hand with the roster file's previous argv and no
+cap; the new one is the compose stack's own server, read back by `docker inspect` as `4000000000`
+nanocpus and `8589934592` for both memory limits, with the server's own line `n_threads = 4`.
+
+| shape | slots decoding | draws | decode tok/s, per slot |
+| --- | --- | --- | --- |
+| no caps, one thread per hardware thread (24) | 1 | 3 | 2.99 to 3.46 |
+| no caps, one thread per hardware thread (24) | 2 | 1 | 2.75 and 2.75 |
+| the three caps and `--threads 4.0` | 1 | 3 | 22.56 to 22.66 |
+| the three caps and `--threads 4.0` | 2 | 1 | 17.18 and 17.28 |
+
+The uncapped server was the slow one. With no quota to be throttled against, its 24 threads still
+decoded six to seven times slower than four threads under a four-CPU quota, and the load average
+climbed from 3.44 to 23.9 across its draws on its own threads alone. So the caps and the count
+together make the alternate faster and not slower, and the runbook's "about 1 tok/s" for this entry
+is replaced by the capped readings. Its memory peaked at 2,311,053,312 bytes under the 8 GiB cap.
+
+**What the scans hold.** The CPU budget's constant in `scripts/subagentcouplings.py` now counts its
+substitution twice in the roster file, the cap and the count, and the memory budget's counts its
+size spelling twice there, the two limits, so dropping any of the four fails the constant scan;
+`scripts/defaultcheck.py` compares the roster file's new defaults with the subagents file's by value.
+The mutation table is in the ADR-0004 addendum linked above, four of whose rows are this server's.
+
+**What it settles for the injection harness.** Its Qwen3.5-2B CPU row starts under the default
+service's three caps and, since this change, the same `--threads`, which is now the container this
+override starts. The row published on 2026-09-09 was drawn before either change; its counts
+reproduced the card row, and its wall clock is not one this lineup rests on.

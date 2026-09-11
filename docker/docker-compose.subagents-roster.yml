@@ -73,6 +73,9 @@ services:
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
       - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      # Pinned to this server's own cpus cap below, for the reason llama-subagent's is.
+      - "--threads"
+      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
       - type: bind
@@ -93,3 +96,10 @@ services:
       retries: 5
       start_period: 90s
       start_interval: 2s
+    # The same three cgroup caps as llama-subagent, spelled the same way: the scheduler charges
+    # this entry's spawns against the one budget it charges the default entry's, and the caps are
+    # that budget's hard twin. Each server is capped at the whole budget rather than a share of it,
+    # which is the split ADR-0012 left open (ADR-0018 alternate-caps addendum).
+    cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
+    mem_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
+    memswap_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
