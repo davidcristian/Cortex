@@ -9,6 +9,7 @@ aggregate text and reaches the store as a `SubagentResult` whose `detail` carrie
 `outlasts the deployment's admission bound`, under `cortex:task:{id}:result` in Redis at a TTL of
 3600 s, which is half the shipped bound. So the reading is a scan of those keys for that phrase,
 taken within an hour of the refusal, and R-614 is the entry for making it a log line instead.
+**Verified:** 2026-09-11
 
 A queue-depth bound, to refuse a hopeless queue early rather than a whole bound late.
 Opened 2026-08-09 by the close above, which shipped one of the two refusals that entry
@@ -59,3 +60,16 @@ callers wait, and a depth refusal is a caller that does not.
 - 2026-08-09: Opened by the bounded admission wait's close, which shipped one of the two refusals
   that entry asked for and declined this one, because the scheduler holds charges and no durations,
   so any depth number is a guess where the wait number is arithmetic over measurements.
+- 2026-09-11: **Not fired**, and the reading the trigger prescribes was taken rather than skipped.
+  The stack was down when this slot started, so redis was started alone from its persisted
+  append-only volume and scanned: it held 75 keys, every one of them a session key, and
+  `cortex:task:*` matched none, so no `SubagentResult` carrying
+  `outlasts the deployment's admission bound` exists to find, and no brain has been running that
+  could have refused one. Redis was stopped again afterwards. The numbers above were reread from
+  the tree: `DEFAULT_ADMISSION_WAIT_S` is 7200.0 in `scheduler.py`, where the phrase is
+  `ADMISSION_WAIT_MSG`; `_TASK_TTL_SECONDS` is 3600 in `cortex_session/tasks.py`, which also
+  spells the `cortex:task:{id}:result` key; `ATTEMPTS_PER_ADMISSION` is 2 and `MAX_SPAWN_BATCH`
+  is 8; the boot validator is in `config_subagents.py`. `ResourceBudgetScheduler` still holds the
+  seven fields listed above plus the `asyncio.Condition` they wait on, `PlacementRequest` still
+  carries `model`, `vram_gb`, `cpus` and `memory_gb`, and the port's three signatures in
+  `ports.py` are unchanged.
