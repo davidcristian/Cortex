@@ -1,13 +1,13 @@
 # The Verified date reaches only one of the two backlogs
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
 
 Opened 2026-09-09 by the slice that added the `**Verified:**` field to the refinements grammar. The
 field records the day somebody last held a task's claim against the code, so the next reader pays
-for that re-derivation once instead of again. `KIND_FIELDS` in `scripts/backlog.py` gives it to
-refinements alone, and the gate rejects it on a host task as an unknown field.
+for that re-derivation once instead of again. `KIND_FIELDS` in `scripts/backlog.py` gave it to
+refinements alone, and the gate rejected it on a host task as an unknown field.
 
 The argument for widening it is that a host task's claim goes stale by the same mechanism. A host
 task describes code that is written and unrun, and the code keeps moving while the hardware it
@@ -51,3 +51,10 @@ one already had, before the field existed.
   lands it: widen the field, since the code half of a host claim is exactly what the date
   records and the hardware half keeps `attempted`. Recorded in the origin decision's addendum
   of the same day.
+- 2026-09-11: landed. `KIND_FIELDS` in `scripts/backlog.py` gives the host kind the `Verified`
+  field; a host task's date covers the code half of its claim and `attempted` keeps the hardware
+  half; a standing item is refused by name rather than as closed. The renderer needed no change,
+  since it never read the kind. Four mutants over `scripts/tests` (1745 tests) failed 4, 1, 3 and
+  3. The host index and the gate tree's contract say what the line means on a host item. No host
+  task was given a date, since the reading behind one is still to be taken. Recorded in the origin
+  decision's addendum of the same day, the later of the two.

@@ -31,7 +31,7 @@ STANDING = "standing"
 
 KIND_FIELDS = {
     "refinements": (("Status", "Area", "Origin"), ("Trigger", "Verified")),
-    "host": (("Status", "Sitting", "Capability", "Origin"), ()),
+    "host": (("Status", "Sitting", "Capability", "Origin"), ("Verified",)),
 }
 CAPABILITIES = ("W", "G", "W+G")
 
@@ -205,7 +205,9 @@ def _check_consistency(kind: str, title: str, status: Status, fields: dict[str, 
         raise TaskFileError(msg)
     verified = fields.get("Verified")
     if verified is not None and not status.is_open:
-        msg = "a closed task may not carry a Verified date"
+        # A standing item reaches here too, now the host kind carries the field, and is named.
+        state = "standing" if status.is_standing else "closed"
+        msg = f"a {state} task may not carry a Verified date"
         raise TaskFileError(msg)
     if verified is not None:
         _parse_date(verified, f"the Verified line {verified!r}")

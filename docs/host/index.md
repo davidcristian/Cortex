@@ -26,6 +26,13 @@ check can be attempted, inconclusive, and worth retrying. So an item here reads 
 (the default), `attempted <date>, inconclusive: <what happened>`, or `done <date>`. An environment
 problem is not a failed check, and recording it as inconclusive is the honest outcome.
 
+**A `**Verified:**` line means the same here as there.** It holds the day somebody last held an
+item's claim against the code, and on an item here that is the half a reading can settle: the
+built code keeps moving while the hardware it needs stays out of reach, so the description a
+sitting starts from can be months behind the tree, and the date says how far. The hardware half
+is what `attempted <date>, inconclusive:` records. A standing item may not carry one, because it
+never closes and so has no single reading a sitting would start from.
+
 **The exit contract differs too.** An item that completes writes its result back to its origin
 decision record as a dated addendum and into its runbook, then stops being work. A refinement's
 text often corrects its own ADR and so is kept in place; a host check produces a *measurement*,
