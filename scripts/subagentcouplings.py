@@ -5,6 +5,7 @@ running it is given, and the count that says its servers do no thinking at all.
 from couplings import Constant, Mention, Site, Spelling
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
+ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 FLAG_GATE = "scripts/flagcheck.py"
@@ -14,11 +15,12 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the subagent memory budget's shipped default",
         why=(
-            "one compose file spells this number four times, once as the soft budget the "
-            "admission scheduler is given and twice as the hard cgroup cap on the container "
-            "running what it admits, so retuning the brain's field alone would cap that "
-            "container at the old number while the scheduler admitted against the new one, "
-            "which is the failure the resource governance exists to prevent (ADR-0012)"
+            "the subagents compose file spells this number four times, once as the soft budget "
+            "the admission scheduler is given and twice as the hard cgroup cap on the container "
+            "running what it admits, and the roster file caps its own server the same way, so "
+            "retuning the brain's field alone would cap those containers at the old number while "
+            "the scheduler admitted against the new one, which is the failure the resource "
+            "governance exists to prevent (ADR-0012)"
         ),
         sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_MEM_BUDGET_GB"),),
         mentions=(
@@ -31,21 +33,30 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
             ),
             Mention(SUBAGENTS_COMPOSE, "MEM_BUDGET_GB {value})"),
             Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", spelling=Spelling.WHOLE),
+            Mention(
+                ROSTER_COMPOSE,
+                '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}g"',
+                occurrences=2,
+                spelling=Spelling.WHOLE,
+            ),
         ),
     ),
     Constant(
         label="the subagent CPU budget's shipped default",
         why=(
-            "the same file spells this number three times, once as the soft budget the admission "
-            "scheduler is given and once as the hard `cpus` cap on the container running what it "
-            "admits, so retuning the brain's field alone would hand that container fewer cores "
-            "than the spawns it is serving were charged against, which is the memory budget's "
-            "failure in the other dimension and reads as a tier that got slow (ADR-0012)"
+            "the subagents compose file spells this number as the soft budget the admission "
+            "scheduler is given, as the hard `cpus` cap on the container running what it admits "
+            "and as that server's `--threads`, and the roster file spells the cap and the thread "
+            "count again for its own server, so retuning the brain's field alone would hand those "
+            "containers fewer cores than the spawns they serve were charged against, which is the "
+            "memory budget's failure in the other dimension and reads as a tier that got slow "
+            "(ADR-0012, and ADR-0004's thread-pin landing addendum for the count)"
         ),
         sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_CPU_BUDGET"),),
         mentions=(
-            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=2),
+            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=3),
             Mention(SUBAGENTS_COMPOSE, "CPU_BUDGET {value},"),
+            Mention(ROSTER_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=2),
         ),
     ),
     Constant(

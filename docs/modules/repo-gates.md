@@ -328,9 +328,11 @@ and the obligation over the descent each recognize a caller.
   `className` and the
   `aria-label` of one chip), `docker-compose.subagents.yml`'s `mem_limit` pair at 2 (memswap equal
   to memory is what disables the container's swap, so one moving without the other re-enables it in
-  silence) and its `cpus` pair at 2 (the budget passed to the scheduler and the cgroup cap on the
-  container serving what it admits), each logical model id in `docker-compose.gpu.yml` at 2 (passed
-  to the sidecar and probed again in the healthcheck beside it), `overlay.css`'s
+  silence) and its CPU budget at 3 (the budget passed to the scheduler, the cgroup cap on the
+  container serving what it admits, and that server's `--threads`, pinned to the cap since
+  2026-09-11), `docker-compose.subagents-roster.yml`'s memory pair at 2 and its CPU budget at 2
+  (the alternate's own cap and thread count), each logical model id in `docker-compose.gpu.yml`
+  at 2 (passed to the sidecar and probed again in the healthcheck beside it), `overlay.css`'s
   `:not([{value}="0"])` at 2 (the two section share
   caps, whose handover is symmetric or nothing), `overlay.css`'s `var(--roll)` at 2 (the two
   rules that must land WITH a roll, which is the set the entry's own reason names),

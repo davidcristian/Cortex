@@ -278,9 +278,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `DEFAULT_MEMORY_GB`, `DEFAULT_CPU_BUDGET`, `DEFAULT_MEM_BUDGET_GB`) rather than to a literal
   inside `Field(...)`, so `scripts/crosscheck.py` can read the declaration, and that scan holds
   every spelling of each in `docker/docker-compose.subagents.yml` to it: the environment
-  passthroughs, the container's `cpus` cap, and its `mem_limit` and `memswap_limit`, which take the
-  memory budget without its point because docker parses `8g` as a size and refuses `8.0g`
-  (ADR-0012 budget-tie addendum). Retuning a budget here alone used to cap the CPU subagent
+  passthroughs, the container's `cpus` cap and the `--threads` pinned to it, and its `mem_limit`
+  and `memswap_limit`, which take the memory budget without its point because docker parses `8g`
+  as a size and refuses `8.0g` (ADR-0012 budget-tie addendum). The roster file's alternate server
+  carries the same three caps and the same thread count, held the same way (ADR-0018 alternate-caps
+  addendum). Retuning a budget here alone used to cap the CPU subagent
   container against the old number while the scheduler admitted against the new one, and retuning
   an ask left a hand-wired deployment charging a spawn something other than what the shipped stack
   measured. `SubagentRosterEntry` defaults off the same three constants, so an alternate that names

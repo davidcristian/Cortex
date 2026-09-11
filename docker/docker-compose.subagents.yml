@@ -39,6 +39,8 @@ services:
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
       - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      - "--threads"
+      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
       - type: bind

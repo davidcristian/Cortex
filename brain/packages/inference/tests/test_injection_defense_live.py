@@ -681,6 +681,11 @@ class Placement:
         memory = f"{DEFAULT_MEM_BUDGET_GB}g"
         return ("--cpus", str(DEFAULT_CPU_BUDGET), "--memory", memory, "--memory-swap", memory)
 
+    @property
+    def threads(self) -> tuple[str, ...]:
+        """The server flags that pin this placement's thread count to its quota, if it has one."""
+        return () if self.on_card else ("--threads", str(DEFAULT_CPU_BUDGET))
+
     def ngl(self, tier: TierArgs) -> int:
         """The layer count this placement starts one tier with."""
         return tier.ngl if self.on_card else self.target.ngl
@@ -726,7 +731,7 @@ def server_argv(
         model_path=f"{_MOUNT}/{model.gguf}",
         port=_PORT,
         ngl=placement.ngl(tier),
-        extra=(*projector, *budgeted, *switch.argv),
+        extra=(*projector, *budgeted, *switch.argv, *placement.threads),
     )
     return llama_server_argv(_CONFIG.llama_bin, row)[1:]
 

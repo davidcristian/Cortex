@@ -177,8 +177,10 @@ def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
         assert artifact.endswith(model.gguf), model.label
 
 
-def test_the_cpu_row_offloads_no_layer_and_changes_nothing_else() -> None:
-    """The CPU row is the card row with the layer count the core hands the host for that server."""
+def test_the_cpu_row_offloads_no_layer_pins_its_threads_and_changes_nothing_else() -> None:
+    """The CPU row is the card row with the core's layer count for that server and a thread count.
+    """
+    pinned = ("--threads", str(DEFAULT_CPU_BUDGET))
     for model in _THINKING_OFF:
         tier = tier_args(model.tier)
         card = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH, GPU_PLACEMENT)
@@ -186,7 +188,10 @@ def test_the_cpu_row_offloads_no_layer_and_changes_nothing_else() -> None:
         at = card.index("-ngl") + 1
         assert card[at] == str(tier.ngl), model.label
         assert cpu[at] == str(PlacementTarget.CPU.ngl), model.label
-        assert cpu[:at] + cpu[at + 1 :] == card[:at] + card[at + 1 :], model.label
+        assert "--threads" not in card, model.label
+        assert cpu[-len(pinned) :] == pinned, model.label
+        assert cpu[:at] + cpu[at + 1 : -len(pinned)] == card[:at] + card[at + 1 :], model.label
+    assert GPU_PLACEMENT.threads == ()
     assert GPU_PLACEMENT.on_card
     assert not CPU_PLACEMENT.on_card
     assert GPU_PLACEMENT.image != CPU_PLACEMENT.image

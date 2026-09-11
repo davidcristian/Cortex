@@ -34,6 +34,9 @@ services:
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
       - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      # Pinned to this server's own cpus cap below, for the reason llama-subagent's is.
+      - "--threads"
+      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
       - type: bind
@@ -54,3 +57,6 @@ services:
       retries: 5
       start_period: 90s
       start_interval: 2s
+    cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
+    mem_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
+    memswap_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"

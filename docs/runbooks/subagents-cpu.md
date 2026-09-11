@@ -94,7 +94,11 @@ scheduler-admitted subagent a server slot, so keep it ≈ `CORTEX_SUBAGENTS_CPU_
 CORTEX_SUBAGENTS_CPUS`, the effective admission concurrency under the ADR-0012 soft budget
 (which replaced the pre-8.5 `CORTEX_SUBAGENTS_MAX_CONCURRENCY` knob). Set the ask no larger than
 the budget: an entry that could never be admitted now fails the brain at startup rather than at
-delegation time (ADR-0012 admission-wall addendum).
+delegation time (ADR-0012 admission-wall addendum). `--threads` reads `CORTEX_SUBAGENTS_CPU_BUDGET`,
+the variable the container's `cpus` cap reads, so the server runs one thread per CPU of its quota
+rather than one per hardware thread it can see; llama-server floors the float, so a budget of 2.5
+starts 2 threads, and a budget under 1.0 floors to 0, which the engine reads as its own default of
+one thread per hardware thread (ADR-0004 thread-pin landing addendum).
 
 > **A silent delegated stream is bounded, a slow one is not.**
 > `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (default 600 s) is how long a subagent's stream may send
@@ -107,6 +111,10 @@ delegation time (ADR-0012 admission-wall addendum).
 > shape read 222.8 to 324.3 s across a full batch on an idle box and 1736.6 s beside a saturated
 > one. The ceiling is comfortable either way, since what it bounds is one silent gap between chunks
 > and not a whole subtask, and even the saturated arm's slowest stretch put a chunk every 14 s.
+> Every reading in this paragraph and the next was taken before the server's thread count was
+> pinned to its quota. Pinned, the server decodes about ten times faster on an idle host and
+> seventeen to twenty-eight times faster on a saturated one, and none of the bounds was re-sized on
+> the pinned rates (ADR-0004 thread-pin landing addendum).
 
 > **A subagent that keeps talking is bounded too, in both of its units.**
 > `CORTEX_SUBAGENTS_MAX_TOKENS` (default 1024) is how far any one of a run's completions may
@@ -128,18 +136,20 @@ delegation time (ADR-0012 admission-wall addendum).
 > of them on the **tools-enabled** shape, so on a subagents-only stack the cap is confirmed rather
 > than derived: forty draws of the tool-less shape answer in 256 to 429 decoded tokens, and every
 > run measured reaching the cap reached it on a narration or a reasoning trace rather than on a long
-> answer (ADR-0005 ceilings addendum). **Two bounds sit above the cap and the per-slot context is
-> the looser of them.** In decoded tokens the run deadline admits about 425 on a saturated host and
-> about 3200 on an idle one, against the context's 4096 less your prompt, so on a busy box the
-> deadline fires before the cap can and raising `CORTEX_SUBAGENTS_MAX_TOKENS` there buys nothing.
+> answer (ADR-0005 ceilings addendum). **Two bounds sit above the cap, and the per-slot context is
+> now the tighter of them.** In decoded tokens the run deadline admits at least 7200 on a saturated
+> host and about 20,000 to 30,000 on an idle one at the pinned rates in section 3c, against the
+> context's 4096 less your prompt, so the cap binds first at either load and the context is what a
+> raised `CORTEX_SUBAGENTS_MAX_TOKENS` runs into. Before the thread count was pinned the deadline
+> admitted about 425 and 3200, and on a busy box it fired before the cap could.
 > **No check fails a deployment whose cap and deadline disagree, and that is a decision rather
 > than a gap** (ADR-0005 independence addendum). The three orderings the brain does reject at boot
 > all compare seconds with seconds; this pair compares a count with a time, the exchange rate is
 > your own tier's decode rate on the day, and it moved by a factor of seven here between an idle
-> host and a busy one. So the conversion is yours: read the ceilings addendum's table before
-> retuning either, and expect the cap to bind on a quiet box, the deadline on a loaded one, and the
-> deadline on both once your subagents hold tools, since the cap is spent per completion and a
-> tool-using run has several.
+> host and a busy one unpinned and by about four pinned. So the conversion is yours: read the
+> ceilings addendum's table before retuning either, and expect the cap to bind first on a quiet box
+> and a loaded one alike, and the deadline only on a tool-using run, which spends the cap once per
+> completion over several completions and its dispatches besides.
 > The cap
 > is about five times the longest narrow reply (199 tokens, a summarization) and the deadline four
 > times the longest whole subtask (623.8 s, the same one), the extra doubling covering a tool-using
@@ -188,7 +198,8 @@ delegation time (ADR-0012 admission-wall addendum).
 > bounds above it and not just the roomier one: the per-slot context
 > (`CORTEX_SUBAGENT_CTX_SIZE` divided by `CORTEX_SUBAGENTS_PARALLEL`, 4096 at the
 > defaults) less the prompt, and what `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` can decode at your tier's own
-> rate, which is the smaller of the two here and is about 425 tokens on a saturated host. Read the
+> rate, which was the smaller of the two here at about 425 tokens on a saturated host before the
+> thread count was pinned and is at least 7200 since. Read the
 > ADR-0005 envelope and ceilings addenda before retuning anything
 > permanently. The wire is **not** silent while a trace runs: the reasoning arrives as its own
 > deltas, 200 of them over 156.3 s with a longest gap of 3.46 s, so the stall ceiling is nowhere
@@ -484,13 +495,15 @@ audit-logged (ADR-0009/0010).
 
 ## 3b. Validate constrained output kills format-laundering (ADR-0028)
 
-A standalone CPU E4B server is enough (no full stack). Bring one up on loopback 8090:
+A standalone CPU E4B server is enough (no full stack). Bring one up on loopback 8090, its thread
+count pinned to its quota as the compose file pins the stack's own:
 
 ```bash
 docker run -d --name e4b-probe --cpus 4 -p 127.0.0.1:8090:8090 -v /srv/models:/models:ro \
   ghcr.io/ggml-org/llama.cpp:server \
   --model /models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf \
-  --host 0.0.0.0 --port 8090 -ngl 0 --jinja --chat-template-kwargs '{"enable_thinking": false}' \
+  --host 0.0.0.0 --port 8090 -ngl 0 --threads 4 \
+  --jinja --chat-template-kwargs '{"enable_thinking": false}' \
   --reasoning-budget 0
 ```
 
@@ -558,17 +571,23 @@ different subagent models") produced one call naming both entries and one served
 server's log, which is what proves the knob reachable before a silence is read as a decision. The
 full record is in the ADR-0018 addendum of that date.
 
-Budget your time by the CPU tier and not by the cortex. gemma-4-E4B generates at between **0.18
-and 1.35 tok/s** under its 4 CPU cap here, the low end being what a saturated host costs it (the
-cap is a quota, not a reservation), and Qwen3.5-2B at about **1 tok/s**; the batch runs no faster
-than its slowest
-member, and a run's length is bounded but generously (`CORTEX_SUBAGENTS_MAX_TOKENS` per completion
-and `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` on the whole run, both sized to cut a model that is talking
-rather than one that is slow), so a three subtask batch on the default entry runs 10 to 15 minutes
-on the low reading and a chatty one runs longer. The pair is one for the whole roster and for
-both placements of every entry, by decision (ADR-0005 roster-bounds addendum): a GPU placement
-decodes the whole cap in seconds and its deadline bounds tool dispatches alone, and the two CPU
-entries decode inside one interval, so no bound a run is held to is the entry's own number. The
+Budget your time by the CPU tier and not by the cortex. gemma-4-E4B generates at between **3.0
+and 12.4 tok/s** under its 4 CPU cap here with its thread count pinned to that cap: 12.2 to 12.4
+with one slot decoding on an idle host and 8.5 to 9.2 a slot with both, 4.9 to 5.0 and 3.0 to 3.1
+on a host saturated by one busy worker per hardware thread, the cap being a quota and not a
+reservation. Qwen3.5-2B under the same caps and pin decodes at **22.6 tok/s** on one slot and 17.2
+to 17.3 a slot with both, on an idle host. The batch runs no faster than its slowest member, and a
+run's length is bounded but generously (`CORTEX_SUBAGENTS_MAX_TOKENS` per completion and
+`CORTEX_SUBAGENTS_RUN_TIMEOUT_S` on the whole run, both sized to cut a model that is talking rather
+than one that is slow). At those rates three 400-token replies on the default entry, two slots
+then one, decode in about 80 seconds on an idle host and about three and a half minutes on a
+saturated one, before prompt evaluation and any tool rounds. These readings are of 2026-09-11,
+taken off the compose stack's own server; the 0.18 to 1.35 tok/s this paragraph gave before was
+the server running one thread per hardware thread inside its quota (ADR-0004 thread-pin landing
+addendum). That pair of bounds is one for the whole roster and for both placements of every entry,
+by decision (ADR-0005 roster-bounds addendum): a GPU placement decodes the whole cap in seconds and
+its deadline bounds tool dispatches alone, and the two CPU entries decode within a factor of two
+of each other, so no bound a run is held to is the entry's own number. The
 first request after boot also pays first-touch paging of the GGUF off the models mount. If all you
 want is the **choice**, it is made before the batch is dispatched: intercept `SpawnSubagentsTool`
 and end the turn there, and a sample costs 5 to 8 seconds instead.
