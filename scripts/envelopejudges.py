@@ -1,8 +1,8 @@
 """What a reply delivered, judged per subtask shape (ADR-0028 judged-delivery addendum).
 
 `envelopefloor.py` counts a run as having **stood** when the runner accepted it, the reply is not
-empty, and the reply is not the instruction handed back, three failures readable whatever was
-asked. The rate the ADR-0028 tables publish is the other one, **delivered**, judged against the
+empty, and the reply is neither the instruction nor, on a declared shape, the report body handed
+back. The rate the ADR-0028 tables publish is the other one, **delivered**, judged against the
 subtask: number recall against the report body on a summarization and on an extraction, and the
 body's own reporting period named back on a one-fact lookup. That judging was done by hand in a
 scratchpad, once per sweep, until this module.
@@ -34,10 +34,16 @@ These two judges are written here rather than recovered. No record says how the 
 any particular reply, so a machine rate and a tabled rate are the same reading only as far as one
 run measures both. What the recall proxy rests on is the separation the addenda measured: across
 384 replies of one sweep, none scored between 0.07 and 0.53.
+
+Two rules hold under every reading, since neither is an arbitration (ADR-0028 lapse addendum). A
+reply that is the report body handed back delivers nothing on any declared shape, however many of
+its numbers it carries. And a lookup reply that names a month, a year, a day or a numbered period
+the body does not state has not named the body's period, even when it quotes that period too.
 """
 
 import re
 from collections.abc import Callable
+from difflib import SequenceMatcher
 from typing import NamedTuple
 
 # The fraction of a body's distinct numeric literals a reply carries before the recall proxy counts
@@ -66,6 +72,23 @@ WORD = re.compile(r"[a-z0-9]+")
 # whole of the shortest unit (`week`) and the length at which the four units part, so it admits
 # `weeks` and `Fortnite` as the unit inflected and misspelled and admits no other unit.
 STEM = 4
+
+# Three ways a reply names a calendar instance: a month by name, a year of this century or the
+# last, and a day of the month written as an ordinal. A month is matched capitalised because `may`
+# is also a verb.
+MONTH = re.compile(
+    r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b"
+)
+YEAR = re.compile(r"\b(?:19|20)\d\d\b")
+DAY = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)\b", re.IGNORECASE)
+
+# The number a body's period word stands for, where the body writes it as a word.
+NUMERALS = {"one": "1", "two": "2", "three": "3", "four": "4"}
+
+# The share of their combined letters and digits a reply and its body agree on, as `difflib` counts
+# it, at which the reply is the body handed back. Nine tenths is argued from one full sweep in the
+# ADR-0028 lapse addendum; it also means a reply a fifth shorter than its body is never a copy.
+COPIED = 0.9
 
 
 class Reading(NamedTuple):
@@ -117,16 +140,43 @@ def carries_the_numbers(reply: str, body: str, reading: Reading) -> bool | None:
     return found / len(wanted) >= THRESHOLD
 
 
+def copied(reply: str, body: str) -> bool:
+    """Whether ``reply`` is ``body`` handed back, verbatim or nearly, over letters and digits."""
+    matcher = SequenceMatcher(None, reduced(reply), reduced(body), autojunk=False)
+    return matcher.ratio() >= COPIED
+
+
+def instances(text: str, unit: str) -> frozenset[str]:
+    """The calendar instances ``text`` names, with every numbered period of ``unit`` in it."""
+    days = (f"day {canonical(day)}" for day in DAY.findall(text))
+    numbered = re.findall(rf"\b{re.escape(unit)}s?\s+(?:of\s+)?(\d+)\b", text, re.IGNORECASE)
+    periods = (f"{unit} {canonical(number)}" for number in numbered)
+    return frozenset((*MONTH.findall(text), *YEAR.findall(text), *days, *periods))
+
+
+def invents(reply: str, body: str, unit: str, which: str) -> bool:
+    """Whether ``reply`` names an instance ``body`` does not state, its own period's number aside.
+
+    A body's own period number may come back as a day (`the 18th fortnight`), and an instance the
+    body states elsewhere may come back as evidence (`week 31`, `August`), so neither is invented.
+    """
+    own = NUMERALS.get(which, canonical(which))
+    stated = instances(body, unit) | {f"day {own}", f"{unit} {own}"}
+    return bool(instances(reply, unit) - stated)
+
+
 def names_the_period(reply: str, body: str, reading: Reading) -> bool | None:
-    """Whether ``reply`` names the period ``body`` states, or ``None`` when it states none."""
+    """Whether ``reply`` names the period ``body`` states and no other, ``None`` if none."""
     stated = PERIOD.search(body)
     if stated is None:
         return None
     unit, which = stated.group(1).casefold(), stated.group(2).casefold()
     if reading.naming == "strict":
-        return reduced(unit + which) in reduced(reply)
-    words = WORD.findall(reply.casefold())
-    return which in words and any(word.startswith(unit[:STEM]) for word in words)
+        named = reduced(unit + which) in reduced(reply)
+    else:
+        words = WORD.findall(reply.casefold())
+        named = which in words and any(word.startswith(unit[:STEM]) for word in words)
+    return named and not invents(reply, body, unit, which)
 
 
 class Judge(NamedTuple):
@@ -172,5 +222,7 @@ def delivered(
     if judge is None:
         return None
     if not ok and reading.refusal == "strict":
+        return False
+    if copied(output, context):
         return False
     return judge.reads(output, context, reading)

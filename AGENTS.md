@@ -388,12 +388,14 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                   than by how it is spelled). Standalone: coverage_gate.py (Rust branch coverage),
                   ci_paths.py (the CI path classifier), commitlint.py (commit-message style).
 
-                  Seven modules gate nothing and report a measurement: contrast.py (the interval a
+                  Eight modules gate nothing and report a measurement: contrast.py (the interval a
                   live measurement reports) and trailwidth.py (the width the recall trail's widest
                   field renders at, ADR-0038); envelopefloor.py (an envelope measurement's arms
                   and the floors its control arm is published against, ADR-0028) with
                   envelopesamples.py (the sample format it reads) and envelopejudges.py (the judge
                   declared per subtask shape, and the readings a delivered rate is taken under);
+                  envelopepairs.py (the cells two seeded runs of one arm drew identically,
+                  ADR-0005), reading the same sample format;
                   switchtail.py
                   (what a tier's template rendered for the thinking switch, held to the
                   constrained cell the same run drew, ADR-0005) with switchsamples.py (the sample
@@ -401,7 +403,7 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
 .github/          GPU-less CI running the same `just` recipes as local dev: ci.yml is the gate
                   mirror, shuffle.yml the weekly test-order sweep that gates nothing (ADR-0002)
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,
-                  envelope-floor, switch-tail,
+                  envelope-floor, envelope-pairs, switch-tail,
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
@@ -409,7 +411,8 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
                   `turn-cost` is the A/B/A live measurement, where the container restarts
                   between arms live, ADR-0038; `envelope-floor` publishes an envelope
                   measurement's arms and refuses when its control arm fell through the floor,
-                  ADR-0028; `switch-tail` publishes what a tier's template rendered for the
+                  ADR-0028; `envelope-pairs` counts the cells two seeded runs drew identically,
+                  ADR-0005; `switch-tail` publishes what a tier's template rendered for the
                   thinking switch and refuses when that rendering and the cell it predicts
                   disagree, ADR-0005; `image-volumes` is the hand-run docker
                   re-derivation of the record `check-volumecheck` reads, ADR-0011)

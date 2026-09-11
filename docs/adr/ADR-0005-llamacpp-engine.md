@@ -5006,11 +5006,13 @@ Five readings.
 
 ### What this does not do
 
-- **The identity counts above were made by a scratch script** over the samples the harness wrote,
-  and the entry's own rule is that a number a document quotes should come out of something a gate
-  runs. The samples carry `question`, `draw`, `seed`, `output` and `tokens`, which is all the
-  comparison reads, and `envelopesamples.py` reads four fields of a turn and none of those. Filed
-  as [R-633](../refinements/tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md).
+- **The identity counts above are what `just envelope-pairs` prints** over the samples the harness
+  wrote. They were first counted by a scratch script, which is what
+  [R-633](../refinements/tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md)
+  recorded, and the pairs-reader addendum below replaced that label with the reader's output on the
+  same day: over runs A, B, C and E it prints A against B, A against C, B against E and C against E
+  at 2 of 4, each differing on the two seed 1 cells, and A against E and B against C at 4 of 4, and
+  it refuses run D, whose seed is null.
 - **One pick, one build, one placement, two bodies.** The cache reading is `--parallel 2` on this
   card, and whether a CPU placement or `--parallel 1` pairs across a cold start is unmeasured.
 - **The seed pairs the arms of a draw by number and not by prompt.** `raw` and `constrained` differ
@@ -5034,3 +5036,86 @@ each is for. A sentence lands in [docs/runbooks/subagents-cpu.md](../runbooks/su
 beside the re-measurement instruction and in [docs/modules/repo-gates.md](../modules/repo-gates.md)
 where the sample format is described. No shipped code moves: the runner still names no count, and
 no request this repo sends carries a seed.
+
+## Pairs-reader addendum (2026-09-11): the paired-arm identity is counted by a covered reader
+
+**Status:** Accepted. Closes
+[R-633](../refinements/tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md), which
+the paired-arms addendum above opened because its identity counts came from a scratch script. It
+adds one covered module and one recipe, and changes no shipped code.
+
+### Re-derived first
+
+The entry held. `Turn` in `scripts/envelopesamples.py` read `instruction`, `context`, `ok` and
+`output` and none of `question`, `draw`, `seed` or `tokens`; nothing under `scripts/` compared two
+samples; and the scratch script over the five samples of runs A to E reproduced the counts the
+addendum above quotes.
+
+### What landed
+
+`scripts/envelopepairs.py`, beside `envelopefloor.py`, with `just envelope-pairs` beside
+`just envelope-floor`, since the sibling reader has a recipe. It takes two or more sample files and
+prints one line per pair of them: how many cells are identical in `output` and in `tokens`, and
+which cells differ. The pairing fields are read by `envelopesamples.cells`, the format module, so a
+drifted field is refused by name the way the floor's four are; `Turn` is not widened, because the
+floor must keep reading the samples written before the driver recorded a seed.
+
+Three choices the entry left open were decided here.
+
+- **A cell is matched on its place, not its order.** The key is `question`, `draw` and `seed`, so two
+  runs whose turns were written in another order still pair.
+- **A pair is refused rather than counted** when a seed is null, since an unseeded run pairs with
+  nothing; when one sample holds a cell twice; when two samples do not hold the same cells; and when
+  they are two arms or a matched cell was given another instruction or body. The last is not in the
+  entry. Two arms at one seed are one sampler draw over two prompts, as the addendum above says, so
+  a count of identical cells between them would measure nothing a seed claims.
+- **`trace_budget` is not part of the match.** Run C is run B with the key set, and comparing the two
+  is how the addendum above showed the key closes nothing on a tier whose flag already set the
+  sampler.
+
+### Reproduced
+
+`just envelope-pairs` over four of the paired-arms addendum's five samples, runs A, B, C and E:
+
+```
+4 samples of arm constrained, 4 cells each, matched on question, draw and seed:
+  envelope-constrained-seedA.json against envelope-constrained-seedB.json: 2 of 4 identical in output and tokens; differ at warehouse draw 1 seed 1, clinic draw 1 seed 1
+  envelope-constrained-seedA.json against envelope-constrained-key.json: 2 of 4 identical in output and tokens; differ at warehouse draw 1 seed 1, clinic draw 1 seed 1
+  envelope-constrained-seedA.json against envelope-constrained-seedE.json: 4 of 4 identical in output and tokens
+  envelope-constrained-seedB.json against envelope-constrained-key.json: 4 of 4 identical in output and tokens
+  envelope-constrained-seedB.json against envelope-constrained-seedE.json: 2 of 4 identical in output and tokens; differ at warehouse draw 1 seed 1, clinic draw 1 seed 1
+  envelope-constrained-key.json against envelope-constrained-seedE.json: 2 of 4 identical in output and tokens; differ at warehouse draw 1 seed 1, clinic draw 1 seed 1
+```
+
+The paths are shortened here to their file names; the reader prints them as given. A against E,
+B against C and A against B are the three counts the addendum above quotes, and the other three
+follow from them. Run D alone beside run A prints `refused: ... carries a null seed, and an unseeded
+run pairs with nothing` and exits 1.
+
+### Distrust green
+
+Each mutation was applied to one file alone, `__pycache__` purged, and the whole `scripts/tests`
+suite run, which is **1770 passing tests at the fixed seed** (`cd scripts && uv run pytest -q
+--no-cov`), the file restored from a copy of the edited version between mutations.
+
+| mutation | file | tests failed | which |
+| --- | --- | --- | --- |
+| the null-seed refusal dropped | `envelopepairs.py` | 1 | the null-seed case of `test_samples_that_do_not_pair_are_refused` |
+| the repeated-cell refusal dropped | `envelopepairs.py` | 1 | its repeated-cell case |
+| the two-arm refusal dropped | `envelopepairs.py` | 1 | its two-arm case |
+| the unaligned-cell refusal dropped | `envelopepairs.py` | 1 | its unaligned case |
+| the other-prompt refusal dropped | `envelopepairs.py` | 1 | its other-body case |
+| `tokens` not compared | `envelopepairs.py` | 1 | `test_a_cell_differing_in_output_or_in_tokens_is_named` |
+| cells matched by order rather than place | `envelopepairs.py` | 1 | `test_cells_are_matched_on_their_place_rather_than_their_order` |
+| one sample accepted as a pairing | `envelopepairs.py` | 1 | `test_one_sample_pairs_with_nothing` |
+| a missing `seed` key read as null | `envelopesamples.py` | 1 | `test_cells_refuses_a_run_written_before_the_driver_recorded_its_seed` |
+| a boolean accepted as a count | `envelopesamples.py` | 1 | `test_cells_refuses_a_count_that_is_not_an_integer` |
+| none, restored | | 0 | 1770 passed |
+
+### What moves
+
+`scripts/envelopepairs.py` and its suite arrive, `scripts/envelopesamples.py` gains `Cell` and
+`cells`, `just envelope-pairs` joins the justfile, and the repo map in `AGENTS.md`, the module doc in
+[docs/modules/repo-gates.md](../modules/repo-gates.md) and the re-measurement paragraph in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) name it. The paired-arms addendum's
+note on its counts now quotes this reader's output.

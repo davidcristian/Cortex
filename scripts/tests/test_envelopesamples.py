@@ -142,3 +142,43 @@ def test_a_turn_that_does_not_say_whether_it_was_accepted_is_refused(tmp_path: P
     broken: Run = {"instruction": ASK, "context": BODY, "output": "a summary, in full"}
     with pytest.raises(envelopesamples.FloorError, match="ok is missing"):
         envelopesamples.load(sample(tmp_path / "raw.json", "raw", [broken], control=True))
+
+
+def test_the_report_body_handed_back_is_a_lapse() -> None:
+    """The body carries every number it states, so only a lapse keeps a copy from standing."""
+    assert envelopesamples.Turn(ASK, BODY, ok=True, output=BODY.upper()).lapse == "copy"
+
+
+def test_a_copy_is_not_read_on_a_shape_no_judge_is_declared_for() -> None:
+    """A hand-typed instruction may ask for the body back, as a proofreading does."""
+    proofread = "Correct the spelling in the report below."
+    assert envelopesamples.Turn(proofread, BODY, ok=True, output=BODY).lapse is None
+
+
+def paired(**fields: object) -> Run:
+    """Return one run as a seeded driver writes it, with ``fields`` replacing its defaults."""
+    return {**turn(), "draw": 1, "seed": 7, "tokens": 90, **fields}
+
+
+def test_cells_reads_where_each_run_sits_and_what_it_drew(tmp_path: Path) -> None:
+    path = sample(tmp_path / "a.json", "raw", [paired(), paired(draw=2, seed=None)], control=True)
+    arm, found = envelopesamples.cells(path)
+    assert arm == "raw"
+    assert found[0] == envelopesamples.Cell(
+        "warehouse", 1, 7, (ASK, BODY), "a summary, in full", 90
+    )
+    assert (found[1].draw, found[1].seed) == (2, None)
+
+
+def test_cells_refuses_a_run_written_before_the_driver_recorded_its_seed(tmp_path: Path) -> None:
+    old = turn() | {"draw": 1, "tokens": 90}
+    with pytest.raises(envelopesamples.FloorError, match="seed is missing"):
+        envelopesamples.cells(sample(tmp_path / "a.json", "raw", [old], control=True))
+
+
+def test_cells_refuses_a_count_that_is_not_an_integer(tmp_path: Path) -> None:
+    """A boolean is an integer to Python and a draw to nobody."""
+    for broken in (paired(seed="7"), paired(draw=True)):
+        path = sample(tmp_path / "a.json", "raw", [broken], control=True)
+        with pytest.raises(envelopesamples.FloorError, match="is not an integer or null"):
+            envelopesamples.cells(path)

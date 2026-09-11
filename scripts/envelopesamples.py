@@ -6,17 +6,19 @@ the same split `switchtail.py` makes with `switchsamples.py`, and it is where ev
 format is made loud: a renamed or dropped key raises naming the file and the key, since the driver
 is integration-marked and no gate ever runs it.
 
-Four fields of a turn are read here. `instruction` is the ask the arm really put on the wire, which
-is what a shape is grouped by and what an echoed reply is compared against; `context` is the report
-body that ask was given, which is what a delivered judge reads a reply against; `ok` and `output`
-are the runner's verdict and the reply it handed the cortex.
+Four fields of a turn are read for a rate. `instruction` is the ask the arm really put on the wire,
+which is what a shape is grouped by and what an echoed reply is compared against; `context` is the
+report body that ask was given, which is what a copied reply and a delivered judge are read
+against; `ok` and `output` are the runner's verdict and the reply it handed the cortex. A paired
+reading (`envelopepairs.py`) also reads `question`, `draw` and `seed`, where a cell sits, and
+`tokens`, how long its completion ran.
 """
 
 import json
 from pathlib import Path
 from typing import NamedTuple, cast
 
-from envelopejudges import reduced
+from envelopejudges import copied, declared, reduced
 
 
 class FloorError(Exception):
@@ -43,6 +45,10 @@ class Turn(NamedTuple):
         is the whole of one recorded reply. The comparison is over letters and digits alone, so
         punctuation, case and wrapping cannot hide an echo, and it is equality rather than
         containment, so a reply that quotes the instruction on its way to answering is not one.
+
+        A copy is the report body handed back, read over the same letters and digits against the
+        near-verbatim threshold `envelopejudges.copied` holds. It is read only on a shape a judge is
+        declared for, since a hand-typed instruction may ask for the body back.
         """
         if not self.ok:
             return "refused"
@@ -50,6 +56,8 @@ class Turn(NamedTuple):
             return "empty"
         if reduced(self.output) == reduced(self.instruction):
             return "echo"
+        if declared(self.instruction) is not None and copied(self.output, self.context):
+            return "copy"
         return None
 
 
@@ -93,8 +101,17 @@ def _turn(entry: object, where: Path) -> Turn:
     )
 
 
-def load(path: Path) -> Arm:
-    """Read one arm's sample file, raising on anything it cannot read as a set of runs."""
+def _number(source: dict[str, object], key: str, where: Path) -> int | None:
+    """One integer field of a sample, which the driver writes as null when it has none."""
+    _require(key in source, f"{where}: {key} is missing")
+    value = source[key]
+    whole = isinstance(value, int) and not isinstance(value, bool)
+    _require(value is None or whole, f"{where}: {key} is not an integer or null")
+    return cast("int | None", value)
+
+
+def _parsed(path: Path) -> tuple[str, bool, list[object]]:
+    """A sample's arm, whether it is the control, and its turns, raising on anything else."""
     try:
         parsed: object = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as err:
@@ -108,4 +125,41 @@ def load(path: Path) -> Arm:
     _require(isinstance(rows, list), f"{path}: turns is missing or is not a list")
     entries = cast("list[object]", rows)
     _require(len(entries) > 0, f"{path}: the sample holds no turns")
+    return name, control, entries
+
+
+def load(path: Path) -> Arm:
+    """Read one arm's sample file, raising on anything it cannot read as a set of runs."""
+    name, control, entries = _parsed(path)
     return Arm(path, name, control, tuple(_turn(entry, path) for entry in entries))
+
+
+class Cell(NamedTuple):
+    """One run as a paired reading matches it: where it sits, what it was asked, what it drew."""
+
+    question: str
+    draw: int | None
+    seed: int | None
+    asked: tuple[str, str]
+    output: str
+    tokens: int | None
+
+
+def _cell(entry: object, where: Path) -> Cell:
+    """One turn read for pairing: its place, its instruction and body, and its completion."""
+    turn = _turn(entry, where)
+    source = cast("dict[str, object]", entry)
+    return Cell(
+        _text(source, "question", where),
+        _number(source, "draw", where),
+        _number(source, "seed", where),
+        (turn.instruction, turn.context),
+        turn.output,
+        _number(source, "tokens", where),
+    )
+
+
+def cells(path: Path) -> tuple[str, tuple[Cell, ...]]:
+    """Read one arm's sample as the cells a paired reading matches, with the arm's name."""
+    name, _, entries = _parsed(path)
+    return name, tuple(_cell(entry, path) for entry in entries)

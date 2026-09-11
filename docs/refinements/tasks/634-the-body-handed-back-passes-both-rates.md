@@ -1,6 +1,6 @@
 # The body handed back passes both rates
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 
@@ -30,3 +30,16 @@ threshold written against no example is a guess.
 - 2026-09-11: opened by the close of
   [R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md), whose
   sweep-columns addendum names the sixteen runs.
+- 2026-09-11: landed. Re-derived against HEAD first: `Turn.lapse` read three lapses and nothing
+  compared a reply with its `context`, and HEAD's reader reproduced the sweep's machine column cell
+  for cell. The plan to catch every run the reader named and none it kept had no threshold, since
+  the reader kept a run at 0.987 of the body and named one at 0.897. `copied` in
+  `scripts/envelopejudges.py` scores a reply against its body over letters and digits with
+  `difflib`, and nine tenths is a copy, argued in the lapse addendum at the origin with the two
+  nearest cases on each side. The lapse is `copy`, read on every declared shape and no other, and
+  `delivered` counts a copy a non-delivery. The lookup is not exempt: a lookup answered with the
+  body passes the period judge, so the rule is right where it fires there. On the 0.8B sweep it
+  reads 17 runs: 14 of the 16 the reader named and 3 the reader kept, each the body at its own
+  length. Of the two it passes, a summary reworded and shortened by a tenth sits under the line by
+  that decision, and an extraction answered as a summary is in
+  [R-639](639-the-envelope-judges-read-no-form.md).

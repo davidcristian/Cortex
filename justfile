@@ -570,6 +570,17 @@ envelope-floor +samples:
     uv sync --locked --project scripts
     uv run --project scripts python scripts/envelopefloor.py {{ samples }}
 
+# How many cells two or more seeded runs of one envelope arm drew identically, in output and in
+# tokens, for every pair of them (ADR-0005 paired-arms addendum). The driver seeds each draw when
+# CORTEX_ENVELOPE_SEED is set, and this is the count a document quotes when it says a seed paired
+# two runs. It refuses rather than counts when a seed is null, when two samples do not hold the
+# same cells, or when a matched cell was a different arm, instruction or body. Runs the tree from
+# where it is like the recipe above, so the sample paths are the driver's own. Gates nothing and
+# needs no GPU.
+envelope-pairs +samples:
+    uv sync --locked --project scripts
+    uv run --project scripts python scripts/envelopepairs.py {{ samples }}
+
 # What a tier's chat template rendered for the thinking switch, held to what the same run then
 # measured (ADR-0005 rendered-tail addendum). The probe
 # (brain/packages/inference/tests/test_thinking_switch_live.py) writes one sample per tier and

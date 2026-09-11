@@ -18,8 +18,9 @@ turns those records into rates, and the refusal therefore lands where the compar
 rather than where it is measured. `envelopesamples.py` answers for the driver's file format.
 
 Two rates describe one run and both are published here. What a run **stood** is the weaker of the
-two: the runner accepted the run, the reply is not empty, and it is not the instruction handed
-back, all three readable whatever was asked. What a reply **delivered** is judged against the
+two: the runner accepted the run, the reply is not empty, it is not the instruction handed back,
+and on a shape a judge is declared for it is not the report body handed back either (ADR-0028
+lapse addendum). What a reply **delivered** is judged against the
 subtask by `envelopejudges.py`, which declares a judge per subtask shape and none for a shape
 nobody declared one for, in which case a cell publishes `stood` alone and names the shape. Under
 the reading the ADR-0028 tables are in, `stood` bounds `delivered` from above, so a narration or an
@@ -198,8 +199,9 @@ def publish(arms: list[Arm], reading: Reading = TABLED) -> tuple[str, int]:
         f"{len(arms)} arm sample(s): {', '.join(sorted({arm.name for arm in arms}))}",
         f"delivered read under: {reading.rendered()}; every floor held under {TABLED.rendered()}",
         "",
-        "the control arm, per subtask shape (stood = accepted, not empty, not the ask handed"
-        " back; delivered = judged against the shape, where a judge is declared for it):",
+        "the control arm, per subtask shape (stood = accepted, not empty, not the ask or the"
+        " body handed back; delivered = judged against the shape, where a judge is declared for"
+        " it):",
     ]
     if not cells:
         lines.append("  none of these samples is the control arm")

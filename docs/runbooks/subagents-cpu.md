@@ -44,16 +44,20 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   sweep, and four things move it: the GGUF the variable above names, the llama.cpp build serving it
   (each measurement names its image by digest), `CORTEX_SUBAGENTS_MAX_TOKENS`, since a run cut at
   the cap counts as a non-delivery whatever its text held, and `REPLY_INSTRUCTION` itself. On the
-  smallest entry a full sweep read by a person beside the machine column agreed on 250 of 288 runs,
-  and the 38 that differ are the body handed back and a lookup reply that names a month the body
-  never states, which neither rate sees (ADR-0028 sweep-columns addendum). Re-measure
-  with `brain/packages/orchestrator/tests/test_envelope_cost_live.py` and publish with
-  `just envelope-floor`, whose own metric is deliberately weaker than the rates tabled here
-  ([R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)). Set
-  `CORTEX_ENVELOPE_SEED` when you do, so the arms of each draw pair and the run can be drawn again
-  by number; a seed reproduces a completion only against the same prompt-cache state, so a body's
-  first draw on a freshly loaded server pairs with a run started the same way and not with a warm
-  one (ADR-0005 paired-arms addendum). **This
+  smallest entry a full sweep read by a person beside the machine column agreed on 250 of 288 runs.
+  Most of the 38 that differed were the body handed back and a lookup reply naming a month the body
+  never states, and the machine now reads both, a copy as a lapse and an invented instance as no
+  naming, which brings it to 263 of 288 against the same reader (ADR-0028 sweep-columns and lapse
+  addenda). Re-measure with `brain/packages/orchestrator/tests/test_envelope_cost_live.py` and
+  publish with `just envelope-floor`, whose own metric is deliberately weaker than the rates tabled
+  here ([R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)).
+  Hand it one subtask shape's arm samples at a time: a control cell refused on one shape withholds
+  the comparison for every shape passed with it, and the smallest entry's lookup control cell is
+  refused under the corrected rules. Set `CORTEX_ENVELOPE_SEED` when you do, so the arms of each
+  draw pair and the run can be drawn again by number, and `just envelope-pairs` counts the cells
+  two seeded runs of one arm drew identically; a seed reproduces a completion only against the
+  same prompt-cache state, so a body's first draw on a freshly loaded server pairs with a run
+  started the same way and not with a warm one (ADR-0005 paired-arms addendum). **This
   table is on purpose the only place those rates live.** The description the cortex picks a roster
   entry by carries a speed and a hazard and no rate, because a rate advertised there would be read
   by a chooser that can see none of the four conditions above and cannot check which artifact the
@@ -274,8 +278,9 @@ one thread per hardware thread (ADR-0004 thread-pin landing addendum).
 > comparison is not a broken run: the samples are still on disk, and what they price is the
 > override you chose. **Since 2026-09-04 it publishes two rates a cell** (ADR-0028 judged-delivery
 > addendum): what a run stood, which is the runner's acceptance and a reply that is neither empty
-> nor the ask handed back, and what a reply delivered, judged against the subtask by the judge
-> declared for that shape. The three shapes in this table have one; a subtask you type yourself
+> nor the ask handed back, nor on those shapes the report body handed back, and what a reply
+> delivered, judged against the subtask by the judge declared for that shape (ADR-0028 lapse
+> addendum). The three shapes in this table have one; a subtask you type yourself
 > through `CORTEX_ENVELOPE_INSTRUCTION` has none, and its cells then publish the first rate alone
 > and say so. Both are held to the floor, and the flags that pick a reading (`--comma`,
 > `--refusal`, `--naming`) move the columns you are shown rather than the verdict.

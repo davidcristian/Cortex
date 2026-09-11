@@ -1359,3 +1359,206 @@ tell a plan from an answer without judging prose, and on the default pick the qu
 completion on the tier asked whether the reply it just wrote answered, run over seeded samples
 before any runner change. Whether a delegated run should pay a second completion at all is the
 owner's call, and it is recorded in the entry's Trail rather than decided here.
+
+## Lapse addendum (2026-09-11): the body handed back is a lapse, and an invented instance is not the period
+
+**Status:** Accepted. Closes
+[R-634](../refinements/tasks/634-the-body-handed-back-passes-both-rates.md) and
+[R-635](../refinements/tasks/635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md),
+the two lapses the sweep-columns addendum above found in the machine column. Opens
+[R-639](../refinements/tasks/639-the-envelope-judges-read-no-form.md). It changes the rules of two
+covered modules, one line of a third, and no shipped code, and it moves the 0.8B sweep's machine
+column, which is published below cell by cell. No tabled row moves; the re-tabling on the current image reads under these
+rules.
+
+### Re-derived first
+
+At HEAD, `Turn.lapse` in `scripts/envelopesamples.py` read three lapses and nothing compared a
+reply with the `context` it was given, and the strict `names_the_period` in
+`scripts/envelopejudges.py` was `reduced(unit + which) in reduced(reply)`. HEAD's reader run over
+the 288 seeded samples of the sweep above reproduced its machine column cell for cell. Two facts the
+work was planned on did not hold, and each changed a decision below.
+
+**No threshold reproduces the reader's copy column.** The plan was a threshold that catches every
+run the reader named a copy and no run the reader kept. On the summarization shape the reader kept
+constrained warehouse 4, which is the body at its full length differing from it in three places
+(`Site report,` dropped, `Report,` and `was` inserted), and named bare clinic 3, a rewording
+shortened by a tenth, while keeping bare warehouse 3 and bare warehouse 1, which are the same kind
+of rewording. Scored as below, the kept run sits at 0.987, higher than eight of the sixteen named
+copies, and the named one at 0.897, higher than three rewordings the reader kept, so no line
+separates the reader's column and the threshold was argued from the replies instead.
+
+**The charitable naming passes the invented instances too.** The entry says that column is
+unaffected because it reads the unit and a nearby number rather than a quotation. It reads the
+period's word anywhere in the reply beside any word opening with the unit's first four letters, so
+`the month of January, 2025 (referred to in the prompt as 'month ending')` passes it, and it
+passes all 16 runs the sweep-columns addendum named. The refusal below therefore holds under both
+naming columns, since which instance a reply asserts is not a question about how it spells the
+body's.
+
+### The body handed back
+
+`copied(reply, body)` scores the two with `difflib.SequenceMatcher` over their letters and digits
+alone, the reading `echo` uses, with its popular-character heuristic off, and a reply scoring at
+least nine tenths (`COPIED = 0.9`) is a copy. The score is twice the matched characters over the
+two lengths, so a reply more than about a fifth shorter or longer than its body can never reach
+the line: a summary that cut a fifth of the report, or a copy with a second answer after it, is
+not what this rule reads.
+
+The scores on the sweep, for the 16 runs the reader named. The six verbatim copies score 1.000.
+The entry's near-verbatim half, a word changed or a clause dropped, scores 0.9271 to 0.9962: the
+bare summarization of clinic 6, the bare extractions of warehouse 2 and 4, clinic 3 and 5 and
+network 8, and the constrained extraction of clinic 6, which is the body without its first two
+sentences. The bare extraction of clinic 6, the body with its small words and punctuation dropped,
+scores 0.9106.
+Two named runs score under the line: bare clinic 3 on the summarization at 0.8968, and constrained
+network 3 on the extraction at 0.736, which is a summary where an extraction was asked and not a
+copy at all.
+
+The two nearest cases on each side of the line:
+
+| side | run | score | what it is | reader |
+| --- | --- | --- | --- | --- |
+| copy | summarization, bare, network 8 | 0.9256 | the body at its own length, thirteen places reworded | kept |
+| copy | extraction, bare, clinic 6 | 0.9106 | the body with its small words dropped | named |
+| answer | summarization, bare, clinic 3 | 0.8968 | the body reworded and shortened by a tenth | named |
+| answer | summarization, bare, warehouse 3 | 0.8904 | the body set out as labelled bullets | kept |
+
+**Why the line is at nine tenths.** Between 0.87 and 0.91 sit four rewordings, three of which the
+reader kept and one of which the reader named, so no line inside that band agrees with the reader
+better than chance, and a line there would be fitted to one reader's leniency. Nine tenths is the
+top of that band. Every run above it is the body at 0.84 to 1.05 of its own length, matched almost
+throughout, and the three the reader kept among them (constrained warehouse 4 at 0.987, bare
+network 1 at 0.958 and bare network 8 at 0.926) are each 0.995 to 1.003 of the body's length. The
+reader's own stated rule was that a summary is the body made shorter, and none of the three is
+shorter, so the rule refuses them and the reader's recorded verdict on them is the lenient one.
+
+**The lapse and the verdict move together.** A copy is the fourth lapse, `copy`, after `refused`,
+`empty` and `echo`, and `delivered` returns a non-delivery for it under every reading, since a
+copy carries every number its body states and would otherwise pass the recall judge. Without the
+second half `stood` would stop bounding `delivered` from above, which the judged-delivery addendum
+says these shapes keep.
+
+**The lookup is not exempt, and an undeclared shape is.** The entry proposed exempting the lookup,
+its body never being an answer to its question. That reason argues the other way under this rule:
+a lookup answered with the whole body names the body's own period and passes `names_the_period`,
+so a copy is exactly the non-answer the rule should read there. It is also inert on the lookup by
+construction, a right answer being a phrase of the body; the highest lookup score on the sweep is
+0.68. The code knows a shape the way the judges do, by `declared(instruction)`, the opening match,
+and the lapse is read on every declared shape and on no other. The exemption that is needed is for
+a hand-typed `CORTEX_ENVELOPE_INSTRUCTION`, which may ask for the body back, as a proofreading
+does.
+
+### The invented instance
+
+**What a right answer to the underspecified body is.** The clinic body says `month ending` and
+names no month, so a right answer names the month-ending period and no month, year or day of its
+own: `the end of the month` and `a monthly reporting period` are right, and `the month ending,
+October 2023` is not, however faithfully it quotes the body's phrase. For the three bodies that
+name an instance, a right answer names that instance and no other.
+
+`invents(reply, body, unit, which)` reads four kinds of instance: a month by its capitalised name,
+a year from 1900 to 2099, a day written as an ordinal, and a numbered period of the body's own unit
+(`fortnight 19`, `the fortnight of 18`, `the month of 30`). An instance is invented when the body
+does not state it. Two exceptions keep right answers right: an instance the body states elsewhere
+may come back as evidence (`week 31` and `August` are in the warehouse and fleet bodies, the 9th
+and fortnight 21 in the network body, the 12th in the clinic body), and the body's own period
+number may come back as a day or as a numbered period (`the 18th fortnight`, `quarter 3` beside
+`quarter three`). `names_the_period` now returns a naming only when the reply also invents nothing,
+under both columns.
+
+**Checked against the named runs.** Of the 16 the sweep-columns addendum named, it refuses 14. The
+two it passes are raw clinic 1 and 6, which answer `the second half of the month`: that span is in
+the clinic body, as the time two clinicians were on leave, so the reply's error is the role it
+gives a span the body does state, and reading a role is reading syntax rather than instances. Of
+the six runs the strict naming fails, none changes verdict under either column: the strict reading
+passes none of them, and the charitable one passes the same three, constrained warehouse 4 and
+network 6 and 8, whose `the week of 34` and `the 9th` are the body's own.
+
+**Twelve runs the reader kept are refused**, each naming an instance its body does not state beside
+the right period. Raw: warehouse 5 (`July 29`), fleet 1 (`Q3 2024`), network 7 (`Fortnight 17`).
+Bare: warehouse 2 (`May 27, 2025`), warehouse 6 (`the 14th`), fleet 7 (`September`), network 3
+(`fortnight 17`), network 5 (`fortnight 19`), network 8 (`Fortnight 17`). Constrained: clinic 5
+(`2024`), network 4 (`February 26 to February 31, 2024`), network 7 (`the 9th of September`). The
+reader's column refused 14 runs of this kind and kept these 12, so it held no one rule on them; this
+rule takes the side the reader's own stated rule and the entry both name. The nearest of the twelve
+to a right answer is bare network 8, which calls the previous fortnight `Fortnight 17`, an inference
+labelled with an instance the body does not write, and refusing it is what reading instances rather
+than syntax costs.
+
+### The 0.8B sweep re-read
+
+The same 288 seeded samples, read by HEAD's reader and by this one, at the tabled reading. The
+reader's column is the sweep-columns addendum's. A run named under `moved` changed verdict, and a
+copy is also a lapse, so it leaves `stood` as well.
+
+| shape | arm | stood, before | stood, after | delivered, before | delivered, after | reader | moved |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| summarization | raw | 32/32 | 32/32 | 32/32 | 32/32 | 32/32 | none |
+| summarization | bare | 29/32 | 22/32 | 27/32 | 20/32 | 21/32 | copies: clinic 1, 2, 4, 6, network 1, 5, 8 |
+| summarization | constrained | 31/32 | 28/32 | 28/32 | 25/32 | 26/32 | copies: warehouse 4, clinic 1, 4 |
+| extraction | raw | 32/32 | 32/32 | 32/32 | 32/32 | 32/32 | none |
+| extraction | bare | 18/32 | 12/32 | 12/32 | 6/32 | 6/32 | copies: warehouse 2, 4, clinic 3, 5, 6, network 8 |
+| extraction | constrained | 20/32 | 19/32 | 7/32 | 6/32 | 5/32 | copy: clinic 6 |
+| one-fact lookup | raw | 32/32 | 32/32 | 31/32 | 21/32 | 22/32 | warehouse 5, clinic 2, 3, 4, 5, 8, fleet 1, 4, network 6, 7 |
+| one-fact lookup | bare | 32/32 | 32/32 | 25/32 | 16/32 | 24/32 | warehouse 2, 6, clinic 5, 6, fleet 7, network 3, 5, 7, 8 |
+| one-fact lookup | constrained | 32/32 | 32/32 | 18/32 | 11/32 | 18/32 | clinic 2, 3, 5, 6, fleet 1, network 4, 7 |
+| **all three** | raw | 96/96 | 96/96 | **95/96** | **85/96** | **86/96** | |
+| **all three** | bare | 79/96 | 66/96 | **64/96** | **42/96** | **51/96** | |
+| **all three** | constrained | 83/96 | 79/96 | **53/96** | **42/96** | **49/96** | |
+
+Under the charitable naming the lookup cells move from 31, 26 and 21 of 32 to 21, 16 and 14, the
+bare cell losing clinic 8 (`October 2016`) as well.
+
+**The floor now refuses this pick's lookup comparison.** Its control cell reads 21 of 32, whose
+interval is 0.48 to 0.80, wholly under nine tenths, so `just envelope-floor` over the three lookup
+samples prints the control arm and a `refused:` line instead of a comparison. The reader's column
+would have been refused too, at 22 of 32. The summarization and extraction control cells are
+unchanged at 32 of 32, and both comparisons still publish.
+
+**Against the reader, 263 of 288 agree**, up from 250. Of the 25 that differ, 6 are the naming kind
+the charitable column exists for; 15 are runs this rule refuses and the reader kept, the three
+copies at the body's own length and the twelve invented instances above; and 4 are runs it passes
+and the reader did not: bare clinic 3 on the summarization, constrained network 3 on the
+extraction, and raw clinic 1 and 6 on the lookup. The last three are a reply's form or role rather
+than its letters and digits, filed as
+[R-639](../refinements/tasks/639-the-envelope-judges-read-no-form.md).
+
+### Distrust green
+
+Each mutation was applied to one file alone, `__pycache__` purged, and the whole `scripts/tests`
+suite run, which is **1770 passing tests at the fixed seed** (`cd scripts && uv run pytest -q
+--no-cov`). The file was restored from a copy of the edited version between mutations, since a
+`git checkout` there would have discarded the change under test.
+
+| mutation | file | tests failed | which |
+| --- | --- | --- | --- |
+| the copy line lowered to 0.85 | `envelopejudges.py` | 1 | `test_a_near_copy_is_a_copy_down_to_the_threshold_and_not_below_it` |
+| the copy line raised to 0.95 | `envelopejudges.py` | 1 | the same test, on its other side |
+| difflib's popular-character heuristic left on | `envelopejudges.py` | 1 | the same test |
+| a copy scored on the raw text rather than letters and digits | `envelopejudges.py` | 2 | the punctuation-and-case copy case and the lapse case |
+| a copy judged by its shape's own judge | `envelopejudges.py` | 1 | `test_a_copy_delivers_nothing_on_any_declared_shape` |
+| the `copy` lapse dropped | `envelopesamples.py` | 1 | `test_the_report_body_handed_back_is_a_lapse` |
+| the `copy` lapse read on an undeclared shape | `envelopesamples.py` | 1 | `test_a_copy_is_not_read_on_a_shape_no_judge_is_declared_for` |
+| the invented-instance refusal dropped | `envelopejudges.py` | 4 | every refusal case, the charitable one included |
+| the refusal held under the strict naming alone | `envelopejudges.py` | 1 | `test_the_charitable_naming_refuses_an_invented_instance_too` |
+| a month by name not read | `envelopejudges.py` | 2 | the second-instance and underspecified-body cases |
+| a year not read | `envelopejudges.py` | 2 | the same two |
+| a day ordinal not read | `envelopejudges.py` | 1 | the second-instance case |
+| a numbered period not read | `envelopejudges.py` | 4 | the second-instance, underspecified, period-word and charitable cases |
+| the body's own instances not subtracted | `envelopejudges.py` | 2 | the evidence case and the underspecified-body case |
+| the period's own number not exempt | `envelopejudges.py` | 2 | the evidence case and the period-word case |
+| a period word not read as its number | `envelopejudges.py` | 1 | `test_a_period_written_as_a_word_is_its_number` |
+| a month matched without its capital | `envelopejudges.py` | 1 | the evidence case, on `It may cover week 34.` |
+| none, restored | | 0 | 1770 passed |
+
+### What moves
+
+`scripts/envelopejudges.py` gains `copied`, `instances` and `invents`, and `names_the_period` refuses
+an invented instance under both columns; `scripts/envelopesamples.py` reads the `copy` lapse; and
+the line heading the report `scripts/envelopefloor.py` prints names the body handed back beside
+the ask. The
+module doc in [docs/modules/repo-gates.md](../modules/repo-gates.md) and the sweep sentence in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) say both. The two entries close as
+landed and one opens. The re-tabling of the five picks reads under these rules, and the samples it
+draws are kept under `measurements/` so a later rule change re-reads them without the GPU.
