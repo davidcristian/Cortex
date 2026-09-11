@@ -652,17 +652,22 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
 - **The CPU row is the compose server, not the card with `-ngl 0`.** It starts
   `ghcr.io/ggml-org/llama.cpp:server`, the image the subagent overrides name, with no GPU device,
   the layer count the core hands the host for that server (`PlacementTarget.CPU.ngl`), the tier's
-  own window, slots and reasoning-off pair, and the override's own CPU quota, read off the brain's
-  `DEFAULT_CPU_BUDGET`. Without the quota the server runs one thread per hardware thread, a
-  shape no deployment runs; here it decoded at 0.8 tokens a second, and under the quota, the same
-  threads sharing four cores, at about 0.4, inside the range the subagent runbook records.
+  own window, slots and reasoning-off pair, and the override's own CPU quota and `--threads`, both
+  read off the brain's `DEFAULT_CPU_BUDGET`, as both compose servers pass them since 2026-09-11.
+  Without the quota the server runs one thread per hardware thread, a shape no deployment runs;
+  here it decoded at 0.8 tokens a second, and under the quota with the count left at the engine's
+  default, 24 threads sharing four CPUs, at about 0.4. With the count pinned to the quota the
+  pick's row decodes at 11.9 to 12.4, inside the range the subagent runbook records.
 - **Only the shipped switch has a CPU row, and only the subagent tier does.** A placement is
   where the stack runs a tier with the tier's own flags, so `request-key` on the CPU would measure
   a route nobody takes at a placement nobody runs it at, and the cortex and deep tiers have one
   placement each. The text arm collects 42 rows and runs 22; `-k cpu` selects the five CPU rows.
-- **Budget half an hour per CPU row on this host**, against about a minute for a card row: the
-  pick's CPU row cost 1837 s under the quota and 819 s without it, twenty completions at under a
-  token a second. The four other subagent candidates have never been drawn there.
+- **Budget about two minutes for the pick's CPU row on this host**, against about a minute for a
+  card row: with the thread count pinned it cost 114.08 s and 114.86 s in two sittings. Every
+  other CPU row published so far was drawn before the pin, the pick's at 711 s to 1837 s under the
+  quota and the other four candidates' at 417 s to 1088 s, so none of those wall clocks predicts a
+  row drawn now (the 2026-09-09 and 2026-09-11 addenda of
+  [ADR-0004](../adr/ADR-0004-model-lineup.md)).
 - **Measured 2026-09-05**, build 10680 on both images: the pick is 0 of 10 framed on the CPU as on
   the card, and the one cell that differed was the unframed control's `output-laundering`, the
   corpus's unstable cell. The table is in the [ADR-0004](../adr/ADR-0004-model-lineup.md)
