@@ -11,6 +11,7 @@ worth so little. Recheck the second half with
 means the announced deadline is still the longer of the two and this has not fired. Recheck the
 first with `grep -c time_remaining brain/packages/orchestrator/src/cortex_orchestrator/session_servicer.py`:
 zero means no read handler branches on the clock.
+**Verified:** 2026-09-11
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads,
@@ -66,3 +67,14 @@ exists anywhere in the tree, and the paging cursor that would make one worth tak
   as an equality; still no timing of a store read anywhere in the tree. Left open with the trigger
   rewritten to name the two commands that report it, recorded in the ADR-0024 addendum on what the
   two seam-transport triggers read on this date.
+- 2026-09-11: both prescribed commands were run and neither half has fired. `grep -c
+  time_remaining` over `session_servicer.py` prints 0, and the file still holds the same five
+  unary handlers (lines 58, 70, 82, 93 and 119). `ANNOUNCED_DEADLINE_GRACE_MS` is still 250 at
+  `plan.rs:79`, and `retry_plan.rs:465` still asserts `announced == enforced + grace` as an
+  equality. The only reader of the remaining time is still `abandon.py:74`, which prints it. No
+  `perf_counter`, `time.monotonic` or `Instant::now` appears in any source file of either tree,
+  so no store read is timed anywhere, and the paging cursor is still open. Where this touches
+  the reconnect entry ([023](023-converse-reconnect-first-event.md)): both sit in `plan.rs`, and
+  `Converse` is exempt from everything this entry weighs, since `deadline_for` answers `None`
+  for it (line 252) and `announced_deadline_for` therefore announces nothing; a clock-reading
+  branch in a read handler would change nothing about a turn, and the two entries agree.
