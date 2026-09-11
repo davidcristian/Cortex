@@ -1,14 +1,9 @@
 # A reply that is a plan still arrives as an answer, and nothing says so
 
-**Status:** open, fix when it bites
+**Status:** open, actionable
 **Area:** subagents
-**Trigger:** a delegated reply that is a plan is seen reaching a cortex turn and shaping it, which
-is what would make this cost something rather than merely be true; or a roster pick is measured
-whose constrained non-deliveries come back `ok=True` more often than they come back refused, which
-is the reading that says the quiet failures are common again on that pick. That second half was
-first written as an answer rate and is now written as a failure kind, because the rate turned out
-not to predict the thing it stood for: see the Trail.
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
+**Verified:** 2026-09-11
 
 Opened 2026-08-28 by the close of
 [R-476](476-the-envelopes-answer-rate-is-an-instruction.md), which decided against detecting this
@@ -64,3 +59,21 @@ work, not anything about the reply.
   narration or a plan and 2 were a thinking process written into `reply` and cut at the cap, against
   0 of 40 on the shipped pair. That arm does not ship and the pair stays, so the trigger has not
   fired; the reading says what the quiet failure looks like when a flag rather than a pick moves it.
+- 2026-09-11: **the trigger's second half had fired on the day it was written, and the entry is
+  re-filed as actionable** ([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
+  re-filing addendum of this date). The trigger, until today, named a roster pick measured whose
+  constrained non-deliveries come back `ok=True` more often than refused, and the bullet above
+  reports the roster alternate at 8 of 13 against 5 refused, which is that condition, while reading
+  it as short of firing. Two later readings on the origin record say the same of the smallest pick:
+  the row addendum's 26 of 30 on 2026-08-28, and the sweep-columns addendum's 288 seeded runs on
+  the current image on 2026-09-11, where the constrained arm stood 83 of 96 and delivered 53, so at
+  least 30 of its 43 non-deliveries came back `ok=True` and at most 13 were refused. On the default
+  pick the count is still 0 of 6, so what the firing changes is which picks a judge would pay for
+  and not whether the default needs one. The recommended first step is the cheap one the body
+  names: ask the tier that wrote each non-delivery whether it answered, over seeded samples the
+  sweep can draw again by number, before any `SubagentRunner` change, and whether a delegated run
+  should pay a second completion at all is the owner's call. The two quiet kinds the 2026-09-11
+  sweep filed on their own, the body handed back and an invented lookup instance, are
+  [R-634](634-the-body-handed-back-passes-both-rates.md) and
+  [R-635](635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md); this entry
+  keeps the plan and the narration.
