@@ -1,4 +1,4 @@
-"""Whether an envelope measurement's control arm still stands, and the comparison it gates."""
+"""Whether an envelope measurement's control condition still holds, and what it allows."""
 
 import argparse
 import math
@@ -9,11 +9,9 @@ from typing import NamedTuple, cast
 from envelopejudges import COMMAS, NAMINGS, REFUSALS, TABLED, Reading, delivered
 from envelopesamples import Arm, FloorError, Turn, load
 
-# The fraction of its own runs a control arm must not be proven to have fallen under. Nine tenths
-# is where a control stops doing better than the arms it exists to explain (ADR-0028).
 FLOOR = 0.9
-# The two-sided 95% normal quantile, which is the interval every rate in the ADR-0028 addenda is
-# published with. Ten of those intervals were recomputed here when this landed and all ten agree.
+# The two-sided 95% normal quantile, which is the interval every rate in the reply-envelope
+# readings is published with.
 Z = 1.959963984540054
 
 
@@ -31,7 +29,7 @@ class Delivery(NamedTuple):
         return self.high < FLOOR
 
     def rendered(self) -> str:
-        """The delivered half of the line a cell or an arm is reported as."""
+        """The delivered half of the line a cell or a condition is reported as."""
         return f"delivered {self.delivered} of {self.judged} ({self.low:.2f} to {self.high:.2f})"
 
 
@@ -51,7 +49,7 @@ class Rate(NamedTuple):
         return self.high < FLOOR
 
     def rendered(self) -> str:
-        """The one line a cell or an arm is reported as."""
+        """The one line a cell or a condition is reported as."""
         seen = ", ".join(f"{kind} {count}" for kind, count in self.lapses)
         judged = (
             self.delivery.rendered()
@@ -99,7 +97,7 @@ def rate(turns: tuple[Turn, ...], reading: Reading = TABLED) -> Rate:
 
 
 def shapes(turns: tuple[Turn, ...]) -> dict[str, tuple[Turn, ...]]:
-    """The runs grouped by the instruction they were given, in the order the sample carried them."""
+    """The runs grouped by the instruction they were given, in the order the sample lists them."""
     grouped: dict[str, list[Turn]] = {}
     for turn in turns:
         grouped.setdefault(turn.instruction, []).append(turn)
@@ -113,11 +111,7 @@ def _control_cells(arms: list[Arm]) -> dict[str, tuple[Turn, ...]]:
 
 
 def _refusals(cells: dict[str, tuple[Turn, ...]], rates: dict[str, Rate]) -> list[str]:
-    """The refusal lines these control cells earned, one per rate that was proven under the floor.
-
-    A verdict is taken under the tabled reading and never under the columns a reader asked for, so
-    the delivered rate a cell is held to is the one the record's own rows are in.
-    """
+    """One refusal line per control cell whose rate was proven under the floor."""
     held = {shape: delivery(turns, TABLED) for shape, turns in cells.items()}
     stood = [shape for shape, found in rates.items() if found.refused]
     short = [shape for shape, found in held.items() if found is not None and found.refused]
@@ -143,14 +137,15 @@ def _refusals(cells: dict[str, tuple[Turn, ...]], rates: dict[str, Rate]) -> lis
 
 
 def publish(arms: list[Arm], reading: Reading = TABLED) -> tuple[str, int]:
-    """The report and the exit code: the control arm first, the comparison only if it stands."""
+    """The report and the exit code: the control first, and the comparison only if it holds."""
     cells = _control_cells(arms)
     lines = [
         f"{len(arms)} arm sample(s): {', '.join(sorted({arm.name for arm in arms}))}",
         f"delivered read under: {reading.rendered()}; every floor held under {TABLED.rendered()}",
         "",
-        "the control arm, per subtask shape (stood = accepted, not empty, not the ask handed"
-        " back; delivered = judged against the shape, where a judge is declared for it):",
+        "the control arm, per subtask shape (stood = accepted, not empty, not the ask or the"
+        " body handed back; delivered = judged against the shape, where a judge is declared for"
+        " it):",
     ]
     if not cells:
         lines.append("  none of these samples is the control arm")

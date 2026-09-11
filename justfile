@@ -341,6 +341,10 @@ envelope-floor +samples:
     uv sync --locked --project scripts
     uv run --project scripts python scripts/envelopefloor.py {{ samples }}
 
+envelope-pairs +samples:
+    uv sync --locked --project scripts
+    uv run --project scripts python scripts/envelopepairs.py {{ samples }}
+
 switch-tail +samples:
     uv sync --locked --project scripts
     uv run --project scripts python scripts/switchtail.py {{ samples }}

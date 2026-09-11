@@ -125,3 +125,120 @@ def test_a_reading_names_its_three_columns() -> None:
     """Every report says which reading produced its rates, since each of the three is a reading
     the addenda took rather than a rule they followed."""
     assert TABLED.rendered() == "comma charitable, refusal strict, naming strict"
+
+
+# The whole warehouse body the harness sends, and the sentences a near copy of it drops.
+WAREHOUSE = (
+    "Site report, north warehouse, week 34. Inbound pallets 1,842, up from 1,610 the week before. "
+    "Outbound 1,795. Dock 3 was out of service Tuesday 09:20 to 14:05 for a hydraulic leveller "
+    "seal replacement; the two spare docks absorbed the traffic and the queue peaked at nine "
+    "trailers against a normal four. Pick accuracy 99.2% over 14,300 lines, with 114 mispicks, 71 "
+    "of them in the small-parts aisle where the new bin labels have not yet been applied. Two "
+    "forklift near-misses were logged, both at the aisle 7 blind corner, and the mirror ordered in "
+    "week 31 has still not arrived. Agency headcount averaged 11 against a planned 8, driven by "
+    "four absences in the night shift. Fuel for the yard tractors cost 1,340 against a budget of "
+    "1,100. The cold store held between 2.1 and 3.4 degrees all week, inside tolerance, though the "
+    "chart recorder in unit 2 dropped six hours of trace on Thursday and the cause is not yet "
+    "known."
+)
+DROPPED = (
+    " Agency headcount averaged 11 against a planned 8, driven by four absences in the night"
+    " shift.",
+    " Fuel for the yard tractors cost 1,340 against a budget of 1,100.",
+)
+CLINIC = "Clinic operations note, month ending. 2,410 offered. The printer failed on the 12th."
+FLEET = "Fleet maintenance summary, quarter three. 47 vehicles, four of them added in August."
+NETWORK = "Network operations report, fortnight 18. A line card failed at 02:14 on the 9th."
+
+
+def without(text: str, *parts: str) -> str:
+    """``text`` with every one of ``parts`` taken out."""
+    for part in parts:
+        text = text.replace(part, "")
+    return text
+
+
+def test_the_body_handed_back_is_a_copy_through_punctuation_and_case() -> None:
+    """The verbatim half: read over letters and digits, as an echo is."""
+    assert envelopejudges.copied(WAREHOUSE, WAREHOUSE) is True
+    assert envelopejudges.copied(WAREHOUSE.upper().replace(",", ";"), WAREHOUSE) is True
+
+
+def test_a_near_copy_is_a_copy_down_to_the_threshold_and_not_below_it() -> None:
+    """Two sentences dropped leave the body at 0.905 of their combined letters and digits, and a
+    clause more takes it to 0.866, one on each side of the nine tenths the lapse addendum argues."""
+    two = without(WAREHOUSE, *DROPPED)
+    assert envelopejudges.copied(two, WAREHOUSE) is True
+    clause = "and the mirror ordered in week 31 has still not arrived"
+    assert envelopejudges.copied(without(two, clause), WAREHOUSE) is False
+
+
+def test_a_summary_and_the_body_with_more_after_it_are_not_copies() -> None:
+    """A reply a fifth shorter than its body, or a fifth longer, can never reach nine tenths."""
+    summary = "Week 34: inbound 1,842, outbound 1,795, dock 3 down Tuesday, accuracy 99.2%."
+    assert envelopejudges.copied(summary, WAREHOUSE) is False
+    assert envelopejudges.copied(f"{WAREHOUSE} {WAREHOUSE}", WAREHOUSE) is False
+
+
+def test_a_copy_delivers_nothing_on_any_declared_shape() -> None:
+    """The body carries every number it states and its own period, so each judge would pass it."""
+    for ask in (SUMMARIZE, EXTRACT, LOOKUP):
+        assert envelopejudges.delivered(ask, WAREHOUSE, WAREHOUSE, ok=True, reading=TABLED) is False
+    charitable = Reading(refusal="charitable")
+    assert (
+        envelopejudges.delivered(EXTRACT, WAREHOUSE, WAREHOUSE, ok=False, reading=charitable)
+        is False
+    )
+
+
+def test_a_second_instance_beside_the_bodys_period_is_not_the_period() -> None:
+    """A month, a year, a day and a second numbered week, each quoted beside `week 34`."""
+    for reply in (
+        "The report covers week 34, ending Monday, July 29.",
+        "The report covers week 34 of 2024.",
+        "The report covers week 34, from the 26th.",
+        "The report covers week 34 through week 35.",
+    ):
+        assert envelopejudges.names_the_period(reply, WAREHOUSE, TABLED) is False, reply
+
+
+def test_an_instance_the_body_states_may_come_back_as_evidence() -> None:
+    """`week 31` and `August` are in the bodies, and `the 18th fortnight` is the body's number."""
+    assert envelopejudges.names_the_period(
+        "Week 34; the mirror dates from week 31.", WAREHOUSE, TABLED
+    )
+    assert envelopejudges.names_the_period("Quarter three, units added in August.", FLEET, TABLED)
+    assert envelopejudges.names_the_period("Fortnight 18, the 18th fortnight.", NETWORK, TABLED)
+    assert envelopejudges.names_the_period(
+        "Fortnight 18; the card failed on the 9th.", NETWORK, TABLED
+    )
+    assert envelopejudges.names_the_period("It may cover week 34.", WAREHOUSE, TABLED)
+
+
+def test_a_period_written_as_a_word_is_its_number() -> None:
+    assert envelopejudges.names_the_period("Quarter three, which is quarter 3.", FLEET, TABLED)
+    assert not envelopejudges.names_the_period("Quarter three and quarter 4.", FLEET, TABLED)
+
+
+def test_the_underspecified_body_is_answered_by_naming_no_instance() -> None:
+    """The clinic body names a unit and no month, so a right answer names none either."""
+    assert envelopejudges.names_the_period("The month ending.", CLINIC, TABLED) is True
+    assert (
+        envelopejudges.names_the_period("The month ending, see the 12th.", CLINIC, TABLED) is True
+    )
+    for reply in (
+        "The month ending, October.",
+        "The month ending, 2025.",
+        "The month of 30, month ending.",
+    ):
+        assert envelopejudges.names_the_period(reply, CLINIC, TABLED) is False, reply
+
+
+def test_the_charitable_naming_refuses_an_invented_instance_too() -> None:
+    """The refusal is not an arbitration of spelling, so both columns hold it."""
+    charitable = Reading(naming="charitable")
+    assert envelopejudges.names_the_period("Fortnite 18", NETWORK, charitable) is True
+    assert (
+        envelopejudges.names_the_period("Fortnite 18 and fortnight 19", NETWORK, charitable)
+        is False
+    )

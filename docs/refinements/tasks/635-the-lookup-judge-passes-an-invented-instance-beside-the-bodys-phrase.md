@@ -1,6 +1,6 @@
 # The lookup judge passes an invented instance beside the body's phrase
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 
@@ -29,3 +29,14 @@ written against one pick's replies would be the guess the judged-delivery addend
 - 2026-09-11: opened by the close of
   [R-540](540-the-judged-rate-and-the-hand-column-are-compared-on-a-probe-and-no-sweep.md), whose
   sweep-columns addendum names the sixteen runs.
+- 2026-09-11: landed. A right answer to the clinic body names the month-ending period and no month,
+  year or day of its own. `invents` in `scripts/envelopejudges.py` reads a capitalised month, a
+  year, a day ordinal and a numbered period of the body's unit, and counts one invented when the
+  body does not state it, the body's own period number aside; `names_the_period` refuses such a
+  reply under both columns. The body's claim that the charitable column is unaffected was wrong: it
+  passes all 16 named runs, so it is held too. The rule refuses 14 of the 16; the two it passes
+  answer with `the second half of the month`, a span the body states in another role, filed in
+  [R-639](639-the-envelope-judges-read-no-form.md). None of the six runs the strict naming fails
+  changes verdict under either column. It also refuses 12 runs the reader kept, each naming an
+  instance its body does not state beside the right period, and the 0.8B lookup control cell falls
+  to 21 of 32, under the floor. Both are in the lapse addendum at the origin.

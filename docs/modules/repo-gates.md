@@ -5,22 +5,24 @@ gates: the cross-tree line cap, the punctuating-dash ban, the cross-language con
 compose bind-mount check, the compose defaults check, the image-volume check, the seam-stub
 comment check, the documented-log-sample check, the document-roster check, the subagent-server
 flag check, the backlog gate, the Rust coverage threshold, the CI path classifier and the
-commit-message style hook. Four more modules gate nothing and report a measurement, added from
+commit-message style hook. Five more modules gate nothing and report a measurement, added from
 2026-08-09: the interval a live measurement reports, the width its widest logged field renders at,
-the two rates an envelope measurement's control arm is published against a floor on, and the
-rendered prompt a tier's constrained verdict is predicted by.
+the two rates an envelope measurement's control arm is published against a floor on, the cells two
+seeded runs of one envelope arm drew identically, and the rendered prompt a tier's constrained
+verdict is predicted by.
 
 Not all of them are gates. What every module here shares is being pure Python that belongs to
 neither the brain nor the body, gated exactly like both. A standalone uv project rather than a
 brain workspace member (ADR-0002).
 
-**Public contract**. Eighteen modules have a command line. `just` recipes invoke `linecap.py`,
+**Public contract**. Nineteen modules have a command line. `just` recipes invoke `linecap.py`,
 `dashcheck.py`, `crosscheck.py`, `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`,
 `stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `backlogcheck.py` and
 `coverage_gate.py`; the CI workflow invokes `ci_paths.py`; the commit-msg pre-commit stage invokes
-`commitlint.py`; and the four measurement reporters run from their own recipes, `contrast.py` from
+`commitlint.py`; and the five measurement reporters run from their own recipes, `contrast.py` from
 `just turn-cost`, `trailwidth.py` from `just recall-width`, `envelopefloor.py` from
-`just envelope-floor` and `switchtail.py` from `just switch-tail`. Each also exposes a pure,
+`just envelope-floor`, `envelopepairs.py` from `just envelope-pairs` and `switchtail.py` from
+`just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
 **The rest have no CLI of their own**, fifty-two modules, most split out under the line cap and
@@ -68,7 +70,8 @@ each named for what it holds. Grouped by the gate that reads them:
   writes.
 - `envelopefloor.py` reads `envelopesamples.py`, the format one arm of the envelope harness
   writes, and `envelopejudges.py`, the judge declared for each subtask shape and the three
-  readings a delivered rate is taken under.
+  readings a delivered rate is taken under. `envelopepairs.py` reads the same format through
+  `envelopesamples.py` for the fields a pairing matches on.
 
 Five are shared rather than owned. `composefiles.py` is which files the four compose gates walk,
 answered once so they cannot drift apart. `gitenv.py` is the environment every git call in this
@@ -1290,14 +1293,20 @@ and the obligation over the descent each recognize a caller.
   the subagent row and then 93 and 92 on two more, so it is a reading and not the constant the
   record had begun quoting. **Two rates describe one run and both are published.** What a run
   **stood** is the weaker of them: the runner accepted it, the reply is not empty, and it is not
-  the instruction handed back, which are the three failures visible without knowing the subtask.
+  the instruction handed back, which are the three failures visible without knowing the subtask,
+  and on a shape a judge is declared for it is not the report body handed back either, a fourth
+  lapse named `copy` (ADR-0028 lapse addendum). A copy is a reply agreeing with its body on nine
+  tenths of their combined letters and digits, and it is not read on an undeclared shape, whose
+  instruction may ask for the body back.
   What a reply **delivered** is judged against the subtask by `envelopejudges.py`, which is where
   the judging the ADR-0028 addenda did by hand now lives (ADR-0028 judged-delivery addendum): a
   judge is declared **per subtask shape**, beside the instruction it belongs to, and a run belongs
   to a declared shape when its instruction opens with that shape's, since the constrained path
   appends its sentence last. A shape no judge is declared for, which is what a hand-typed
   `CORTEX_ENVELOPE_INSTRUCTION` produces, publishes `stood` alone and says so by name rather than
-  being guessed at. Under the tabled reading below, `stood` still bounds `delivered` from above.
+  being guessed at. Two rules hold under every reading: a copy delivers nothing, and a lookup reply
+  naming a month, a year, a day or a numbered period its body does not state has not named the
+  body's period. Under the tabled reading below, `stood` still bounds `delivered` from above.
   **The three arbitrations are stated columns rather than defaults**, `--comma`, `--refusal` and
   `--naming`, each printed in the report beside the rates it produced: how a comma between digits
   reads, whether a refused run is a non-delivery whatever its text held, and whether a garbled
@@ -1321,12 +1330,24 @@ and the obligation over the descent each recognize a caller.
   dropped key is a refusal naming the key, and a run whose arms all say they are not the control
   is refused as no comparison at all. A turn also carries `seed` and `trace_budget`, read off the
   wire by the driver (ADR-0005 paired-arms addendum); this reader ignores both, and the identity
-  count between two seeded runs is computed by nothing here yet
-  ([R-633](../refinements/tasks/633-the-paired-arm-identity-is-counted-by-a-scratch-script.md)).
+  count between two seeded runs is `envelopepairs.py`'s, below.
   Exit 0 printing the report; exit 1 printing it with a `refused:` line (no control arm in the samples, or a cell proven under a floor); exit 2
   printing one `envelopefloor: PROBLEM` line; argparse exit 2 on usage.
 
-- `switchtail.py SAMPLE [SAMPLE ...]` is the fourth module here that gates nothing, and it is here
+- `envelopepairs.py SAMPLE SAMPLE [SAMPLE ...]` is the fourth module here that gates nothing, and
+  it holds the number the ADR-0005 paired-arms addendum quotes: **how many cells two seeded runs
+  of one envelope arm drew identically**, in `output` and in `tokens`, for every pair of the
+  samples it is handed. A cell is matched on `question`, `draw` and `seed`, read through
+  `envelopesamples.cells`, so a drifted field is refused by name there as the floor's four are.
+  It refuses rather than counts when a seed is null, since an unseeded run pairs with nothing;
+  when one sample holds a cell twice; when two samples do not hold the same cells; and when they
+  are two arms, or a matched cell was given another instruction or body, since identity between
+  two prompts is not what a seed claims. `trace_budget` is not matched on, because comparing a
+  run with the key against one without it is what the addendum's run C is for. Exit 0 printing
+  one line per pair, naming the cells that differ; exit 1 printing one `refused:` line; exit 2
+  printing one `envelopepairs: PROBLEM` line; argparse exit 2 on usage.
+
+- `switchtail.py SAMPLE [SAMPLE ...]` is the fifth module here that gates nothing, and it is here
   for the same three reasons (ADR-0005 rendered-tail addendum). It reads the per-tier samples
   `brain/packages/inference/tests/test_thinking_switch_live.py` writes, with `switchsamples.py`
   answering for that format, and it holds one rule two documents carry: **a tier whose chat

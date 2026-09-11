@@ -1,6 +1,6 @@
 # The paired-arm identity is counted by a scratch script rather than a gated reader
 
-**Status:** open, actionable
+**Status:** landed 2026-09-11
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -29,3 +29,12 @@ labelled as one.
 - 2026-09-11: opened by the close of
   [R-512](512-no-committed-probe-splits-the-reasoning-off-pair.md), whose paired-arms addendum
   quotes the counts.
+- 2026-09-11: landed. Re-derived first: `Turn` read none of the pairing fields and nothing under
+  `scripts/` compared two samples. `scripts/envelopepairs.py` and `just envelope-pairs` take two or
+  more samples, match cells on `question`, `draw` and `seed`, print how many are identical in
+  `output` and `tokens` for every pair, and refuse a null seed, a repeated cell, unaligned cells,
+  two arms, or a matched cell given another instruction or body. The fields are read by
+  `envelopesamples.cells`, leaving `Turn` as the floor reads it. Over runs A, B, C and E it
+  reproduces the three counts the paired-arms addendum quotes, whose note on them now quotes the
+  reader's output, and it refuses run D. The pairs-reader addendum at the origin has the mutation
+  table.
