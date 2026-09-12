@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,19 @@ PREFIX = f"{CAPTURED}{RECORD}"
 def trail(dropped: str, *, after: str = " dropped_omitted=0 k=5") -> str:
     """Return one rendered trail line whose `dropped` field carries the given rendering."""
     return f"{PREFIX} basis=verdict dropped={dropped}{after}"
+
+
+def packed(message: str = trailwidth.TRAIL_MESSAGE) -> str:
+    """Return one trail line as `PackedFormatter` writes it, behind the capture's own prefix."""
+    return CAPTURED + json.dumps(
+        {
+            "level": "INFO",
+            "logger": "cortex.memory.recall",
+            "message": message,
+            "fields": {"dropped": [{"id": "a", "score": 0.5}], "k": 5},
+        },
+        sort_keys=True,
+    )
 
 
 def whole(line: str) -> int:
@@ -121,8 +135,38 @@ def test_load_refuses_a_file_it_cannot_read(tmp_path: Path) -> None:
 
 def test_load_refuses_a_capture_holding_no_trail_line(tmp_path: Path) -> None:
     path = capture(tmp_path / "empty.log", "nothing here")
-    with pytest.raises(trailwidth.TrailWidthError, match=r"no memory\.recall line"):
+    with pytest.raises(trailwidth.TrailWidthError, match=r"no memory\.recall line") as refusal:
         trailwidth.load(path)
+    # A capture that is not the other rendering is refused in the words it was always refused in,
+    # which is what two documents quote.
+    assert "packed" not in str(refusal.value)
+
+
+def test_load_names_the_packed_rendering_rather_than_reporting_no_trail(tmp_path: Path) -> None:
+    """A capture from a deployment rendering `packed` holds no line any needle here matches, and
+    saying only that no trail line was found reports a stack that wrote none."""
+    path = capture(tmp_path / "packed.log", packed(), "brain-1  | INFO:uvicorn:started")
+    with pytest.raises(trailwidth.TrailWidthError, match="packed rendering"):
+        trailwidth.load(path)
+
+
+def test_packed_trail_finds_a_line_behind_the_captures_own_prefix() -> None:
+    """`docker compose logs` puts a service prefix in front of the object the process wrote, so the
+    line is not JSON from its first character and reading it from there would answer no."""
+    assert trailwidth.packed_trail(packed()) is True
+
+
+def test_packed_trail_reads_nothing_packed_in_a_plain_capture() -> None:
+    """The plain rendering's own `dropped` list opens with a brace, and what follows it on the line
+    is not JSON, which is the shape that must not be read as the other rendering."""
+    assert trailwidth.packed_trail("\n".join([trail('[{"id":"a"}]'), "nothing here"])) is False
+
+
+def test_packed_trail_reads_nothing_packed_in_another_records_json() -> None:
+    """A JSON line is not a trail line by being JSON: it qualifies by its message, and a line
+    carrying a bare list has no message at all."""
+    assert trailwidth.packed_trail(packed("memory.forgone")) is False
+    assert trailwidth.packed_trail('brain-1  | [{"id":"a"}]') is False
 
 
 def test_shape_reports_the_count_floor_median_and_ceiling() -> None:

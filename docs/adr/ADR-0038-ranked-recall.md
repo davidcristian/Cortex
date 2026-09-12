@@ -4124,3 +4124,54 @@ their tests, `docs/modules/brain-core.md`, `docs/modules/brain-orchestrator.md`,
 opened, and this addendum. The trigger-sweep addendum above named the sixth site
 `check_dispatch_bounds`; no such function exists and the name is corrected there to
 `check_tool_call_deadline`. The brain suite is 3183 tests at 100% line and branch coverage.
+
+## Packed-capture addendum (2026-09-12): the reader names the rendering it does not measure
+
+`scripts/trailwidth.py` finds a record by `[A-Z]+:[^\s:]+:memory.recall` and cuts the field out of
+the line with ` dropped=`. Both are `PlainFormatter`'s layout. Under `CORTEX_LOG_FORMAT=packed` the
+same record is one JSON object per line with the message under its own key, so neither needle matches
+a line of it, and every capture from such a deployment was refused as `no memory.recall line carrying
+a dropped field`, which reads as a stack that wrote no trail. The memory runbook offers that
+rendering two paragraphs above the recipe, as the way to read a trail line without slicing it out,
+and the local-dev runbook names it for a deployment that collects lines, so the reader and those two
+documents pointed in different directions.
+
+**Decision: the refusal names the packed rendering when the capture holds it, and the reader goes on
+measuring the plain one alone.** `packed_trail` reads each line from its first `{` to the end, so a
+capture read back through `docker compose logs` is answered too, that command's service prefix being
+no part of the object the process wrote, and a line qualifies by carrying the trail's message under
+the `message` key. When one does, the refusal adds `; this capture holds one in the packed rendering,
+which this reader does not measure`. The plain refusal keeps the words the tied-needle addendum above
+and [R-454](../refinements/tasks/454-the-readers-needles-are-not-tied-to-the-sink.md) both quote.
+
+Reading the second rendering was the other half on offer, and it is the wrong half for this reader.
+The width reported here is what `cortex_core.VALUE_CHARS` is argued against, and that bound is spent
+in `render_value`, which only the plain rendering passes through
+([R-336](../refinements/tasks/336-packed-values-keep-their-whole-length.md)): a packed line carries
+every value at its whole length. The two layouts also do not spend the same characters on one record.
+Measured in the working tree today, one trail record at its shipped caps, twenty dropped candidates
+and five hits with uuid4 ids, renders at 2,258 characters plain and 2,478 packed. A width read off a
+packed capture is therefore a reading of a different layout and of no bound at all, and printing it
+in the same column as the plain widths would file two measurements under one heading.
+
+### Distrust green
+
+Five mutations, each applied alone to `scripts/trailwidth.py` and measured over
+`scripts/tests/test_trailwidth.py`, 33 tests. Every one was caught.
+
+| Mutation | Tests failed |
+| --- | --- |
+| `packed_trail` always answers no | 2 |
+| `packed_trail` always answers yes | 3 |
+| any JSON object counts as a trail line | 1 |
+| the object is read from the start of the line rather than from its first `{` | 2 |
+| the refusal drops the packed clause | 1 |
+
+### Records
+
+The change is `packed_trail` and the refusal in `scripts/trailwidth.py`, four tests in
+`scripts/tests/test_trailwidth.py`, the reader's paragraph in `docs/modules/repo-gates.md`,
+[R-470](../refinements/tasks/470-the-reader-assumes-the-plain-rendering.md), now closed, and this
+addendum. No runbook changed: both documents already say what the two renderings are for, and it was
+the reader that said nothing. `scripts/trailwidth.py` now stands at 296 lines against the 300-line
+cap, so the next change to it is a split.

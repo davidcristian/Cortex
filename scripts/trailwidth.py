@@ -21,6 +21,11 @@ rendering is taken to the next `name=` pair rather than to the next space, why a
 range and a seeded interval rather than a maximum, why widths are grouped by the candidates one
 line named, and why a cut rendering is counted apart from the cohorts.
 
+This reader measures the plain rendering. Under `CORTEX_LOG_FORMAT=packed` the same record is one
+JSON object per line with its message under its own key, so no needle below matches a line of it,
+and such a capture is refused in those words rather than in the words of a stack that wrote no trail
+(ADR-0038 packed-capture addendum).
+
 A line the container's log driver split is invisible here. Past the cliff where the driver ends a
 message, that message continues in a second piece carrying no newline, so the plainest capture
 reads it back concatenated and the width measured is the width the process wrote. What is lost is
@@ -59,6 +64,11 @@ _CUT = re.compile(r"<cut \d+ chars>$")
 # the five names `logging` ships, which is the claim this actually rests on, and the logger is
 # whatever sits between the two colons, its own name carrying no colon and no space.
 _RECORD = re.compile(rf"[A-Z]+:[^\s:]+:{re.escape(TRAIL_MESSAGE)}(?= |$)")
+
+
+# What the refusal adds for a capture whose trail lines the other rendering wrote. Its own clause,
+# because the refusal alone reads as a stack that wrote no trail at all.
+_PACKED = "; this capture holds one in the packed rendering, which this reader does not measure"
 
 
 class TrailWidthError(Exception):
@@ -148,8 +158,28 @@ def readings(text: str) -> tuple[Reading, ...]:
     return tuple(reading for reading in found if reading is not None)
 
 
+def packed_trail(text: str) -> bool:
+    """Whether ``text`` holds a trail line in the packed rendering, one JSON object per line.
+
+    Read from the first ``{`` rather than from the start of the line, so a capture read back
+    through ``docker compose logs`` is answered too: that prefix is no part of the object.
+    """
+    for line in text.splitlines():
+        opened = line.find("{")
+        if opened < 0:
+            continue
+        try:
+            parsed: object = json.loads(line[opened:])
+        except json.JSONDecodeError:
+            continue
+        record = cast("dict[str, object]", parsed) if isinstance(parsed, dict) else {}
+        if record.get("message") == TRAIL_MESSAGE:
+            return True
+    return False
+
+
 def load(path: Path) -> Block:
-    """Read one capture into a block, raising on a file that holds no trail line at all."""
+    """Read one capture into a block, raising on a file that holds no plain trail line."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as err:
@@ -157,7 +187,8 @@ def load(path: Path) -> Block:
         raise TrailWidthError(msg) from err
     found = readings(text)
     if not found:
-        msg = f"{path}: no {TRAIL_MESSAGE} line carrying a {TRAIL_FIELD} field"
+        rendering = _PACKED if packed_trail(text) else ""
+        msg = f"{path}: no {TRAIL_MESSAGE} line carrying a {TRAIL_FIELD} field{rendering}"
         raise TrailWidthError(msg)
     return Block(path, found)
 
