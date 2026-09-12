@@ -4,6 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** a stuck-until-open outcome becoming a real gap, a body reconnecting that often.
+**Verified:** 2026-09-13
 
 Recorded first inside the grouped line naming the scheduling deferrals that were unblocked when
 the toast landed, then inside the task-outcome delivery entry that sharpened it ([ADR-0025
@@ -48,3 +49,10 @@ per-fire id.
   reconnecting between a failed push and the next overlay open, that only a Win32 desktop
   running the body can show, and no file in the tree records one, so this entry carries no
   verified date.
+- 2026-09-13: the reading above still holds and the entry now carries a verified date, which the
+  reading above withheld. `NotifyRequest.reminder_id` is still handed `item.id` in `_deliver`, a
+  `BodyGatewayError` there still logs "push failed; pull will deliver" and returns, and no
+  `delivery_id`, `fire_id` or `occurrence_id` is spelled in the proto, the brain, the body crates
+  or the overlay. The withheld date was a misreading of the field: it holds the day somebody last
+  held the claim against the code, so an entry whose trigger only a live desktop can settle still
+  carries one, and the trigger stays unfired on the trail rather than in an absent field.

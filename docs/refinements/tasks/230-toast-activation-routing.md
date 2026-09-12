@@ -4,6 +4,7 @@
 **Area:** scheduling
 **Origin:** [ADR-0025](../../adr/ADR-0025-scheduling-reminders.md)
 **Trigger:** a second consumer of toast interaction, such as snooze-from-the-toast.
+**Verified:** 2026-09-13
 
 A shown toast is inert: clicking it does nothing, while the
 overlay's reminder card offers "open the conversation this came from". Closing that asymmetry
@@ -62,3 +63,14 @@ together with the activator that reads them, as one piece. This is the same `Not
 - 2026-07-16: Read against the tree and sharpened rather than built, moving from
   actionable-with-a-seam-change to dead-until-a-consumer with the two-part design and the trigger
   recorded. A sharpened deferral is still open, so the count was unchanged.
+- 2026-09-13: read against the tree again and every claim holds. `NotifyRequest` still carries
+  `title`, `body`, `reminder_id` and `tainted` and no `session_id` (`proto/body.proto`), while
+  `DueReminder` still carries one as field 6, so the body still cannot resolve the origin chat of
+  a toast. `toast_xml` still renders one `ToastGeneric` binding holding a title text node, a body
+  text node and, for an untrusted reminder, the attribution line, with no `launch` attribute and
+  no `<actions>` element (`body/crates/os_windows/src/notify.rs`), and `OsService.notify` still
+  returns `shown` alone (`body/crates/rpc/src/server.rs`). The trigger has not fired. A snooze does
+  now exist in the tree, the `snooze_scheduled` verb a model calls in a chat
+  (`brain/packages/core/src/cortex_core/schedule_verbs.py`), but that verb reaches the store
+  through a tool call and touches no toast, so it is not the second consumer of toast interaction
+  this waits for and it shares none of the COM plumbing's cost.
