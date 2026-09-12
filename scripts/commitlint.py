@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from gitenv import git_env
+from markdownfences import is_fence
 
 MAX_HEADER_LENGTH = 72
 
@@ -78,10 +79,6 @@ _VOLATILE = (
 )
 
 _HEX = re.compile(r"\b[0-9a-f]{7,40}\b")
-
-# A fenced block, spelled the way Markdown spells it, which is how every forge renders a
-# commit body. Either fence character toggles, and an info string (```bash) is still a fence.
-_FENCE = re.compile(r"^\s*(?:```|~~~)")
 
 # A terminal paste the author marked with a shell prompt. This is the only UNFENCED paste the
 # wrap steps over. A leading indent is not a second signal: every indented line in this repo's own
@@ -140,11 +137,6 @@ def too_wide(line: str) -> bool:
         return False
     words = line.split()
     return len(words) > 1 and max(len(word) for word in words) <= MAX_BODY_WIDTH
-
-
-def is_fence(line: str) -> bool:
-    """Whether ``line`` opens or closes a fenced block."""
-    return _FENCE.match(line) is not None
 
 
 def is_pasted_command(line: str) -> bool:

@@ -1131,3 +1131,115 @@ The record is the task file
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
 `scripts/treewalk.py` and `scripts/gatecalls.py` with the suites beside them, the seven readers and
 the two obligation tests, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.
+
+## Addendum (2026-09-12): the markdown fence has one home, and its spelling is held
+
+Three gates here read documents carrying fenced blocks, and each answered the question "is this
+line a fence?" for itself: `headingshapes.FENCE` for the anchor scan, `commitlint._FENCE` for the
+commit-message hook, and `logsamples.FENCE` for the log-sample gate. The three patterns were
+identical and nothing compared them.
+
+### Re-derived first, and the entry was right about its subject
+
+All three were still character for character `r"^\s*(?:```|~~~)"`, which is what the 2026-09-07 and
+2026-09-09 readings recorded, and no fourth reader had arrived. The entry's first clause, a fenced
+block one gate reads and another does not, had therefore not fired, and what closed the entry is
+its other argument: three copies stay identical by inspection, and nothing reports the day one of
+them stops.
+
+The cost the entry recorded was also still being paid. `rosternames.py` reads a roster out of a
+passage that may carry a fenced block, declines to read fences at all, and gave as its reason that
+reading them would add a fourth parser, citing this backlog entry. That reason is retired here and
+the behaviour it was attached to is kept on the reason it actually has: the repo map is a roster
+written **inside** a fenced block, so a reader that stripped fences before cutting a passage out
+would lose that roster's boundary and every name in it, which a planted mutant measured when the
+roster gate landed (the 2026-08-26 addendum at
+[ADR-0029](ADR-0029-vision-screen-capture.md) on the repo map's copy of the module listing). Inside
+a passage a fence changes no answer, and a bullet inside one is read as a bullet, which fails
+loudly. `scripts/rosternames.py` and [modules/repo-gates.md](../modules/repo-gates.md) now say
+that instead.
+
+### What landed
+
+`scripts/markdownfences.py` holds the answer. `MARKERS` is the two markers markdown accepts,
+spelled once; `FENCE` is built from them; `is_fence(line)` is what the three gates call. The
+reading is the one all three copies had: the indent in front of a marker is allowed at any width,
+which is what makes a fence inside a list item work and `docs/host/index.md` writes one, and an
+info string after the marker is part of the opening line. The closing rules markdown adds, a
+closing marker of the same character and at least the opening length, are still not read, since
+every reader here toggles on the marker.
+
+`spelled(module)` is the second half and the reason the first cannot be copied again. It returns
+every line where a fence marker is written into a module's code, read out of the syntax the way
+`gatecalls.py` reads a call, with a marker inside a docstring passed over as prose about a fence:
+a constant standing alone as a statement is a docstring, and `commitlint.py` has one that quotes an
+info string. The obligation beside it, in `scripts/tests/test_markdownfences.py`, compares the set
+of modules that spell a marker against `{markdownfences.py}` as an equality, so a fourth copy and a
+reader that finds nothing at all both fail. It runs over `scripts/*.py` and not over the suites
+beside them, because a test writes the markdown its reader is asked about and a marker there is the
+document under test.
+
+The log-sample suite gained its first claim of its own about the second marker. Dropping tildes
+from the shared answer failed the anchor scan's suite, the heading reader's, the commit hook's and
+this module's, and left `test_logsamples.py` green, which is the shape of hole a shared answer can
+open in a suite that never wrote the case down.
+
+### What did not move
+
+The three gates read the same documents to the same answers. Measured on the tree as it stood
+before this change and again after it: the log-sample gate reads 14 samples in 12 runbooks against
+38 loggers and 100 messages, the backlog gate reads 642 tasks and 166 open ones with every fragment
+landing, and the commit hook passes every message in this repo's history. The backlog numbers then
+move to 644 and 167 on the files this close itself writes, which is the close and not the
+refactoring. The roster gate moves from 198 members to 200, the new module named in the two rosters
+that name every module here, and the line cap from 427 files to 428.
+
+### Proved able to fail, five times over the scripts suite
+
+Five planted mutations over the new module and the obligation it carries. The collection every
+count below is out of is the `scripts/tests` suite, 1793 tests after this change, each mutation
+applied and reverted with a targeted edit, the bytecode caches purged between runs, and the
+1793-passed baseline re-established after the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | `headingshapes.py` gets its own copy of the pattern back, identical to the shared one | the obligation names the module, no behaviour having changed | 1 failed, 1792 passed |
+| 2 | the shared answer drops the tilde marker | every reader that toggles on one fails | 9 failed, 1783 passed |
+| 3 | the shared answer stops allowing an indent | the fence inside a list item, in two suites | 4 failed, 1789 passed |
+| 4 | every literal is read as prose, so a spelling is never reported | the reader's own cases, and the obligation on the empty set | 3 failed, 1790 passed |
+| 5 | the spelling reader looks for one marker instead of both | a tilde-only copy would escape it | 1 failed, 1792 passed |
+
+Row 1 is the defect this close was written for: a copy that agrees with the original is invisible
+to every behaviour test in the tree. Row 4 is why the obligation compares the whole set rather than
+an offender list, and row 5 is the half of it a one-marker reader would let through.
+
+### Proved able to fail on the real tree, once per gate
+
+Each gate was then failed through its fence path on a real input, with the file restored from a
+copy afterwards and the gate re-run green.
+
+| gate | mutation | observed |
+| --- | --- | --- |
+| `backlogcheck.py` | the opening ` ```bash ` of the dead-letter block in `docs/runbooks/scheduling.md` deleted | exit 1: `docs/runbooks/scheduling.md:204: heading 'dead_key=cortex:schedules:dead item_id=<id>' carries angle-bracket markup` |
+| `samplecheck.py` | `dead_key=` renamed to `dead_id=` inside that same fenced sample | exit 1: `the sample prints dead_id, item_id where brain/packages/session/src/cortex_session/schedule_claims.py:133 attaches dead_key, item_id` |
+| `commitlint.py` | a real message from this history with a real pasted `docker compose` command appended, once unfenced and once inside a fence | unfenced exit 1: `line 13 is 96 chars`; the same paste fenced exits 0 |
+
+The commit hook's pair is the one that isolates the fence: the message, the paste and the wrap rule
+are identical in both runs, and the fence is the whole of the difference.
+
+### What this opened
+
+Two entries, both about the boundary of what landed rather than about the answer inside it:
+[R-643](../refinements/tasks/643-a-fence-marker-opening-a-line-inside-another-block-toggles-every-reader.md),
+since the shared reading has no nesting rule and this tree already writes one four-backtick block,
+and [R-644](../refinements/tasks/644-the-fence-obligation-stops-at-the-suites.md), the same
+boundary the descent obligation has and for a different reason.
+
+### Records
+
+The record is the task file
+[R-445](../refinements/tasks/445-three-gates-each-spell-the-markdown-fence-for-themselves.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/markdownfences.py` with the suite beside it, the three gates that read it,
+`scripts/rosternames.py`, [modules/repo-gates.md](../modules/repo-gates.md), the repo map in
+[AGENTS.md](../../AGENTS.md), and this addendum.

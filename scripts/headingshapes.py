@@ -41,8 +41,9 @@ and a shape missed here leaves the old approximation exactly where it was.
 import re
 from typing import NamedTuple
 
+from markdownfences import is_fence
+
 HEADING = re.compile(r"^#{1,6} +(\S.*?) *$")
-FENCE = re.compile(r"^\s*(?:```|~~~)")
 
 # A code span renders as its own literal text, and its backticks are dropped by the slug rule
 # and by a renderer alike, so nothing inside one can make the two disagree. Stripped before the
@@ -95,7 +96,7 @@ def headings(text: str) -> list[tuple[int, str]]:
     found: list[tuple[int, str]] = []
     fenced = False
     for number, line in enumerate(text.splitlines(), start=1):
-        if FENCE.match(line):
+        if is_fence(line):
             fenced = not fenced
             continue
         if not fenced and (match := HEADING.match(line)) is not None:
@@ -129,7 +130,7 @@ def _underlined(text: str) -> list[Unsluggable]:
     previous = ""
     fenced = False
     for number, line in enumerate(text.splitlines(), start=1):
-        if FENCE.match(line):
+        if is_fence(line):
             fenced = not fenced
             previous = ""
             continue

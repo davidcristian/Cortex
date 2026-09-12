@@ -23,10 +23,13 @@ from one list and present in the other would pass; bounding by paragraph cannot 
 opens with a fenced command. A phrase that stops appearing, or starts appearing twice, raises,
 because the boundary of a roster is part of what the roster claims.
 
-Fences are not read. A bullet inside a fenced block in a passage is read as a bullet like any
-other, so a bulleted roster whose passage grows one fails rather than passing quietly. Reading
-fences would add a fourth markdown-fence parser to this tree, which the backlog records as
-something to unify rather than to grow.
+Fences are not read, and the reason is where a roster sits rather than what reading one would
+cost. The repo map is written inside a fenced block, so a reader that stripped fences before
+cutting the passage out would lose that roster's boundary and every name in it, which is what a
+planted mutant measured when this was written. Inside a passage a fence changes no answer, and a
+bullet inside one is read as a bullet like any other, so a bulleted roster whose passage grows a
+fenced block fails rather than passing quietly. `markdownfences.py` is a call away for the day a
+document needs the distinction.
 """
 
 import re

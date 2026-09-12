@@ -385,7 +385,9 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                   skippeddirs.py (the directory names it never enters, deliberately not
                   .gitignore), gatecalls.py (what a module here calls, read out of its syntax, so
                   the two obligations over those shared things hold a caller by its shape rather
-                  than by how it is spelled). Standalone: coverage_gate.py (Rust branch coverage),
+                  than by how it is spelled), markdownfences.py (what a fence is, for the three
+                  gates that read documents carrying one, and where a second spelling of it would
+                  be). Standalone: coverage_gate.py (Rust branch coverage),
                   ci_paths.py (the CI path classifier), commitlint.py (commit-message style).
 
                   Eight modules gate nothing and report a measurement: contrast.py (the interval a

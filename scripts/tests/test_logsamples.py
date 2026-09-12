@@ -128,6 +128,11 @@ def test_the_same_text_in_a_paragraph_is_prose_and_not_a_sample() -> None:
     assert logsamples.samples("Look for INFO:cortex_core.engine:the turn converged.\n") == []
 
 
+def test_a_block_written_with_the_other_marker_is_read_like_any_other() -> None:
+    """Tildes open a block as backticks do, and this reader takes the answer from the shared one."""
+    assert only(BARE.replace("```", "~~~")).logger == "cortex_core.swap_settle"
+
+
 def test_an_ordinary_fenced_line_is_not_mistaken_for_a_rendered_one() -> None:
     assert logsamples.samples("```bash\ndocker compose logs brain\n```\n") == []
 

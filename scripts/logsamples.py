@@ -49,9 +49,7 @@ join stops at a fence, so a backslash on the last line of a block cannot swallow
 import re
 from typing import NamedTuple
 
-# A fenced block, spelled the way markdown spells it. Either fence character toggles, and an info
-# string (```text) is still a fence.
-FENCE = re.compile(r"^\s*(?:```|~~~)")
+from markdownfences import is_fence
 
 # The prefix ``PlainFormatter`` writes in front of every line: the level, the logger's dotted name,
 # and then the message. Searched rather than anchored, so a compose prefix or a shell comment
@@ -124,7 +122,7 @@ def joined(lines: list[str], start: int) -> str:
     """
     text = lines[start]
     at = start
-    while CONTINUED.search(text) and at + 1 < len(lines) and not FENCE.match(lines[at + 1]):
+    while CONTINUED.search(text) and at + 1 < len(lines) and not is_fence(lines[at + 1]):
         at += 1
         text = f"{CONTINUED.sub('', text)} {DECORATION.sub('', lines[at]).strip()}"
     return text
@@ -136,7 +134,7 @@ def samples(text: str) -> list[Sample]:
     fenced = False
     found: list[Sample] = []
     for number, line in enumerate(lines, start=1):
-        if FENCE.match(line):
+        if is_fence(line):
             fenced = not fenced
             continue
         if not fenced:
