@@ -5122,3 +5122,111 @@ suite run, which is **1770 passing tests at the fixed seed** (`cd scripts && uv 
 [docs/modules/repo-gates.md](../modules/repo-gates.md) and the re-measurement paragraph in
 [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) name it. The paired-arms addendum's
 note on its counts now quotes this reader's output.
+
+## Restart addendum (2026-09-12): the cached lever answer is repaired by a restart the runbook now prints, and the pairing rule's hold is declined
+
+Four refinements deferred at this ADR are the per-request trace budget's own family, and all four were
+held to the tree again tonight. One closes as landed, one as declined, two stand open with corrected
+bodies, and three narrower entries are filed.
+
+### The repair that landed
+
+The lever is answered once, inside `build_inference_backend`, and the answer lives as long as the
+brain process. The GPU runbook's request-lever section now says to restart the brain after pulling a
+newer llama.cpp, what each direction of a skipped restart costs, and that the brain is the stale half
+when its boot line and the section's own `curl` disagree. That is the second of the two repairs
+[R-496](../refinements/tasks/496-the-trace-lever-is-answered-once-per-boot.md) offered and the one it
+argued should land first. The first, a re-ask on a boundary that already exists, is
+[R-648](../refinements/tasks/648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md) and is
+narrower than it read: `SwappingModelManager.swap_scope` is the only such boundary, it exists only
+with `CORTEX_ESCALATION` on and that is off by default, and it starts another child of the same
+image, so a re-ask there is blind to the recreate that moves the binary and absent from the stack
+this repo ships.
+
+### What a tag says without starting a server
+
+Which build sits behind a mutable tag is readable off the image's own labels:
+
+```
+docker image inspect ghcr.io/ggml-org/llama.cpp:server-cuda \
+  --format '{{index .Config.Labels "org.opencontainers.image.version"}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
+```
+
+Read tonight, `:server` and `:server-cuda` both answer `b10680` and
+`d7bd3bfcad3e29c7e49fd26f38c79ee3e9a3fd6b`, and `:server-cuda-b10666` answers `b10666` and
+`4e97ac86ebe2c4cb8212d98d2641ad6768810896`. The version label and the revision's first nine
+characters compose the build id the served-by and build-provenance addenda read out of a running
+server's `system_fingerprint`, so the three images cached here are the three builds those addenda
+name and no tag has moved under this host since 2026-09-07. The reading is recorded because it costs
+nothing and needs no card: the `curl` above needs a server, and asking it tonight would have put a
+request into the measurement holding the GPU.
+
+### The two entries that stand open, and the two things they had wrong
+
+[R-497](../refinements/tasks/497-nothing-reports-a-trace-budget-that-went-unread.md) said the tree
+holds no producer of a positive per-request count. It has held one since 2026-09-11:
+`CORTEX_ENVELOPE_TRACE_TOKENS` writes a count into the bounds the envelope harness hands the runner
+(the paired-arms addendum). That producer is a measurement rather than a deployment, and the way it
+satisfies itself is the shape this entry's close wants, asking `reads_a_trace_budget` before it draws
+a trace arm at all and then asserting that the wire carried the count that was asked. The entry also
+called the boot report a few lines, and it is not: the composition root holds the deployment's count
+and not the lever. `resolve_trace_lever` is called inside `build_inference_backend`'s llama.cpp arm,
+which is what keeps an Echo deployment from opening a socket, and its answer reaches only
+`LlamaCppBackend`, so a boot line costs that builder's return shape or an argument carrying the reply
+bounds into it. Nothing else moved: `CORTEX_REPLY_TRACE_TOKENS` is still set by no compose file, `just`
+recipe or workflow, there is still no `.env` at the repo root, and `drain_text` still reads
+`bounds.thinking` alone.
+
+[R-498](../refinements/tasks/498-one-reply-trace-budget-for-two-tiers.md) holds line for line, and one
+reading is added to the split it rests on. The two tier flags express that split, but their default
+does not: `crosscheck` holds the two defaults as one set on the argument that both tiers ship
+unbounded. So the first deployment to set the request count on an escalating stack bounds two traces
+that nothing else bounds, which is a wider first step than the entry's wording implies.
+
+### The pairing rule's hold, declined
+
+[R-466](../refinements/tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md) asked for something to
+hold a cap sized on the wanted answer to a tier whose trace is bounded, at the point the pair is
+written rather than the point it fires. It is declined, on two readings.
+
+The first is a correction. The entry says four shipped bounds pair a cap with `thinking=False`; there
+were three on the day it was written and there are three now, `RECAP_BOUNDS`, `TITLE_BOUNDS` and
+`rank_bounds(k)`, the fourth cap in the tree being `SubagentAttempt`'s, which names no switch and
+rests on the flags its tier is started with. All three have carried `trace_tokens=0` since
+2026-08-29, and that zero is a sampler the engine applies rather than a request a template may
+ignore, so on a deployment whose engine reads the key the rule's precondition is true by
+construction, on the schema-carrying shape included.
+
+The second is what the three candidates would hold. A constructor-level rule is refuted by one caller
+each: `SubagentAttempt` pairs a cap with no switch by decision, and `ReplyBoundsConfig` renders a
+deployment's own cap with the switch it was given, so a `__post_init__` raising on a cap without a
+count would reject one safe caller and one person's configuration. The `crosscheck` candidate and the
+documented-default candidate are refuted together, because both hold the same value: the cortex
+tier's `CORTEX_REASONING_BUDGET`, which ships at llama.cpp's own word for unbounded and is meant to.
+The tier a bound caller runs on is the tier a user's reply runs on, and the reply's trace is the
+thinking status the overlay renders (ADR-0020), so a deployment default that bounded it would blank a
+surface a person reads to pay for a side call the request already bounds. What survives is a fact
+about how a call is written rather than about how a server was started, and it is
+[R-650](../refinements/tasks/650-nothing-holds-a-side-call-to-the-request-level-zero.md): nothing
+holds a fourth side call to the zero the three carry.
+
+### What this corrects above
+
+The request-lever addendum's "What this does not do" list opens on the lever being asked once and
+says nothing notices. That is still true of the brain, and the operator's half is now written down,
+so the bullet's own entry is closed and its remaining half is R-648. The two bullets beside it stand.
+
+### Records
+
+The two closing task files
+[R-496](../refinements/tasks/496-the-trace-lever-is-answered-once-per-boot.md) and
+[R-466](../refinements/tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md), the two that stay open
+with a dated trail,
+[R-497](../refinements/tasks/497-nothing-reports-a-trace-budget-that-went-unread.md) and
+[R-498](../refinements/tasks/498-one-reply-trace-budget-for-two-tiers.md), the three openings
+[R-648](../refinements/tasks/648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md),
+[R-649](../refinements/tasks/649-nothing-holds-the-lever-question-to-the-key-sent.md) and
+[R-650](../refinements/tasks/650-nothing-holds-a-side-call-to-the-request-level-zero.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which carries the restart paragraph and
+the label reading, and this addendum.
