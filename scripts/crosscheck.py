@@ -27,6 +27,10 @@ MIN_PLACES = 2
 # absent, which is the opposite of a coupling, and a negative count asks nothing at all.
 MIN_OCCURRENCES = 1
 
+# The two ways a pinned count stops holding, said once and spent by both counted faults: the one
+# over a count that is wrong and the one over a file holding none of the set at all.
+RECOUNT = "move the whole set, or correct occurrences in the registry"
+
 DECLARATIONS = {
     ".py": (
         r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[ \t]*\([ \t]*(?:#[^\n]*)?\n"
@@ -104,14 +108,15 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
     needle = rendered(mention, value)
     text = _read(root, mention.path)
     found = len(bounded(needle).findall(text))
-    if wanted is None:
-        if not found:
-            msg = unfound(mention, needle, text, spell(value, mention.spelling))
-            raise CrossCheckError(msg)
-    elif found != wanted:
+    if not found:
+        reading = unfound(mention, needle, text, spell(value, mention.spelling))
+        tail = "" if wanted is None else f"; the registry pins {wanted} occurrences, so {RECOUNT}"
+        msg = f"{reading}{tail}"
+        raise CrossCheckError(msg)
+    if wanted is not None and found != wanted:
         msg = (
             f"{mention.path} spells {needle!r} as a token of its own: found {found}, pinned "
-            f"{wanted}; move the whole set, or correct occurrences in the registry"
+            f"{wanted}; {RECOUNT}"
         )
         raise CrossCheckError(msg)
 
