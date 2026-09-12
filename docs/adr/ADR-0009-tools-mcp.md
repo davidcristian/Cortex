@@ -4944,3 +4944,105 @@ consequence of sizing three formats.
 
 [R-609](../refinements/tasks/609-a-declared-mime-type-can-disagree-with-the-bytes-it-labels.md),
 the sized-formats addendum above, and this addendum.
+
+## Trusted-answer addendum (2026-09-12): an `ok` line's `trust` recovers the answers the brain wrote
+
+Four deferred entries this record is the origin of were held to the code again, all four about the
+tool audit's lines and what a runbook prints of them. One is closed by the decision below; the
+other three stay open, two of them with a repaired body.
+
+### Re-derived first, and the closing entry was wrong about its own subject
+
+The entry says that an answer which corrected the model and is recorded `ok` leaves nothing of that
+correction on its audit line, so the trail can be read for the calls a sidecar declined and not for
+the turns a tool corrected. The first half holds and the second does not. `LoggingAuditSink` writes
+`result_chars` and no text for a successful call, and there is no durable elsewhere to read that
+text: the tool loop's `Role.TOOL` results reach a store only inside the handoff record an escalating
+turn writes. What the line does carry is `trust`, and for the answers this question is about that
+field is the answer.
+
+`build_tool_registry` puts `OwnTextToolRegistry` outermost over the shared root, and
+`ToolDispatcher._audited` records `trust=result.trust` off the result the chain handed back, so the
+trust on the line is the overlay's verdict. A remote result is `untrusted` unless the overlay found
+it byte-equal to a sentence `cortex_orchestrator/own_texts.py` renders from the call's own
+arguments. Of the five own texts declared there, three are answered `isError` and reach the trail
+`ok=False` with their whole text under `error`; the two recorded `ok` are `read_email`'s not-found
+answer and `search_emails`'s empty search. So `ok=True` with `trust=trusted` under either tool's
+name is exactly one of the two corrections, and the `arguments` printed on the same line are what
+its text is rendered from, which makes both reconstructible from one line. A reading over `ok`
+alone cannot recover them, which is what the entry measured; a reading that also reads `trust` and
+`tool` can.
+
+### Decision: the trail keeps the size, and what a reading can recover is written down
+
+The trail goes on carrying a size and not the content for a successful call. The three shapes the
+entry offered instead each cost more than they return now that the two answers in question are
+readable: a bounded first line of the content would put part of every file read on the trail to
+serve the few answers that correct the model, a flag a sidecar declares beside its answer would be
+the sidecar's word about itself where the overlay's byte comparison is the brain's own, and a count
+matched against the own-text registry is a reading over the trail rather than a change to it, which
+is what the paragraph above already describes.
+
+`docs/modules/brain-tools.md` now states, in the sink's contract, what logging the size costs and
+what `trust` recovers, and `docs/modules/brain-email.md`'s sentence about a reading over `ok` is
+corrected: it claimed that reading cannot recover the correction from the trail either, which is
+true of `ok` alone and false of the line. No gate reads either sentence; the registry parts naming
+those documents tie constants in them rather than their prose.
+
+### The three entries that stay open, and what moved in them
+
+**Which log lines a runbook should print.** The trigger still has not fired: no trail bullet in that
+entry names a line somebody wanted during a real failure and no runbook had, which is the evidence
+that decides between its gated close and its editorial one. Its counts moved again in three days.
+`samplecheck.py` reports 14 samples across 12 runbooks, resolved against 38 loggers and the 100
+messages the brain logs, 5 of the samples held to a line the sink's own suite asserts whole. The
+fourteenth sample is `docs/runbooks/vision.md`, which began printing the vision probe's line on
+2026-09-10 when that line gained the engine build `/props` names.
+
+**Which condition a printed sample stands for.** Neither trigger clause has fired. The tools
+runbook still prints five samples of `cortex.tools.audit` in the order its introducing sentence
+states, success, failure, cortex call, delegated call, schedule fire, and `assertedlines.proven`
+still returns six lines over those same five distinct field sets. What moved is the entry's cost
+claim: it prices the coverage half at a few lines in `samplecheck.py`, and that file stands at 287
+lines against the 300-line cap, so the rule plus the reading it needs in `check` no longer fits and
+the half now costs a split as well.
+
+**A whole line asserted through an f-string or a helper.** The entry's account of the reader is
+repaired in two places. `_equated` inspects both sides of the equality and `_rendered` accepts
+whichever is a one-line string constant, so only the expected side has to be one; the suite already
+binds the rendered side to a name at the last of its six whole-line assertions, and that line is
+read. The fault is also better than the entry says: it is anchored at the runbook, but it names the
+suite directory and lists the field lists asserted there, which reads `none` for a sink whose
+assertions all moved into an f-string. The reader is per-string and per-line throughout,
+`SAMPLE.match` being anchored at a constant's start and a constant carrying a newline refused, so
+the whole-file matching a rendered needle in the constant registry does is not a property of this
+one and no claim in the entry rests on it.
+
+### Consequences
+
+- What an `ok` audit line says about a corrected answer is documented in the sink's contract, and
+  the email contract's overstatement of it is corrected.
+- The trail's field set is unchanged, so nothing that runs changes and no gate reading moves.
+- Two of the three entries left open carry a repaired body, and the third carries a repaired cost.
+
+### Deferred by this addendum
+
+- The rule is written beside the sink's contract, and the tools runbook, which is the document an
+  operator opens while something is broken, explains every field on the audit line except the one
+  reading that turns a size back into an answer
+  ([R-651](../refinements/tasks/651-the-corrected-answer-reading-is-in-the-contract-and-not-the-runbook.md)).
+
+### Records
+
+[R-591](../refinements/tasks/591-an-ok-audit-line-carries-a-size-where-the-correction-is.md), now
+landed,
+[R-651](../refinements/tasks/651-the-corrected-answer-reading-is-in-the-contract-and-not-the-runbook.md),
+new, [R-444](../refinements/tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md),
+[R-553](../refinements/tasks/553-which-condition-a-printed-audit-sample-stands-for-is-prose-beside-the-fence.md)
+and
+[R-554](../refinements/tasks/554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md),
+all three staying open with a dated trail entry,
+[docs/modules/brain-tools.md](../modules/brain-tools.md),
+[docs/modules/brain-email.md](../modules/brain-email.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from those entries, and
+this addendum.
