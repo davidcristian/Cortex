@@ -923,7 +923,13 @@ answer: a marker written into any other module here is reported by the line it i
   **A name a sibling roster owns is a reference and not an entry**, which is what lets one
   paragraph carry two rosters while saying whose reader each module is; nothing else is let
   through, so a module that gains a command line and stays in the second half is still a member
-  the first half does not name. Exit 0 with a summary stating what the comparison was over, the
+  the first half does not name. **Which direction such a sentence states is deliberately not
+  read** (ADR-0029 borrowed-name addendum): `bindcheck.py` reads `composemounts.py` and the reverse
+  of it name the same two modules, and the positional rule weighed for telling them apart, which
+  accepts a borrowed name only as a bullet's first code span, reports the one bullet where a second
+  gate reads the library the bullet opened with. Reading a sentence's grammar is the one reader this
+  tree has none of, so both sets are held whole and one sentence's direction is held by nobody.
+  Exit 0 with a summary stating what the comparison was over, the
   rosters, the documents and the members; exit 1 printing `DOC: LABEL: DETAIL; WHY` per fault,
   which includes a boundary phrase that stopped appearing or started appearing twice; exit 2 if
   `--root` is not a directory, a document or a described set cannot be read, or either comes back

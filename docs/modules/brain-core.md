@@ -2361,7 +2361,11 @@ Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.
   `item_id`, so a grep for either returned half the evidence. Only `LoggingAuditSink` spends them
   as code, being the one sink that writes the whole vocabulary out as a list; every other line
   keeps the literal an operator greps, and `scripts/logcouplings.py` is what ties those literals
-  and the runbooks quoting them back to here. **Five and not six**: the swap path's `handoff`
+  and the runbooks quoting them back to here. **That registry holds the modules it lists**, so a
+  module that starts naming one of the five is registered there in the same change, which is how
+  every module naming one arrived; a module nobody registered spells an identity however it likes
+  with every gate green. The scan that would close that was declined on a measured rate (ADR-0029
+  unregistered-line addendum). **Five and not six**: the swap path's `handoff`
   looked like an identity the stamp does not carry until the mint was read, and a handoff id is
   the escalating turn's id, so those lines name a turn (ADR-0009 sixth-name addendum). A line
   naming a **second** instance of one identity qualifies the name in front and keeps the family

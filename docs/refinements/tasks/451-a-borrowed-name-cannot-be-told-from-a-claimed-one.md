@@ -1,13 +1,8 @@
 # A name a roster borrows cannot be told from a name it claims
 
-**Status:** open, fix when it bites
-**Trigger:** a bullet in the borrowing half states a reading direction the tree does not have,
-naming a library as the reader of the gate that reads it. Both names are ones the passage accepts,
-so the gate passes the bullet and only a person reading the sentence catches it. Checking it means
-comparing each bullet against what the module it opens with imports.
+**Status:** declined 2026-09-12
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
 
 Opened 2026-08-26 by the close of
 [R-448](448-the-module-listing-is-held-whole-and-not-in-halves.md), which split one paragraph of
@@ -17,9 +12,9 @@ carry names belonging to the other.
 The second half of that listing groups the libraries by the gate that reads them, and it names that
 gate with a name the first half owns: `bindcheck.py` reads `composemounts.py` for the mounts a
 compose file declares, `samplecheck.py` reads `logsamples.py` and `logcalls.py` and three more.
-Eleven such names stand there today, one opening each of the half's eleven bullets. A roster may
-therefore declare the sibling set whose names its passage is allowed to carry, and every name in
-that set is accepted wherever it falls in the passage.
+Twelve such names stand there today, eleven of them opening one of the half's eleven bullets. A
+roster may therefore declare the sibling set whose names its passage is allowed to carry, and every
+name in that set is accepted wherever it falls in the passage.
 
 What that cannot see is the difference between `bindcheck.py` reads `composemounts.py` and
 `composemounts.py` reads `bindcheck.py`. Both sentences name the same two modules and only one of
@@ -34,16 +29,22 @@ accounts for, never a set that has silently drifted.
 which is a different kind of reader from anything in this tree: every reader here answers what a
 document names, and none answers what it says.
 
-**What would close it.** Either a rule narrow enough to be honest, or a written argument that the
-bound above is the right place to stop, since the half that matters is already held twice and the
-residue is prose quality rather than drift. The listing has since been rewritten into a shape one
-such rule can read. Every bullet in the half now opens with the gate's name and names that gate's
-libraries after it, so the rule is that a borrowed name is accepted only as a bullet's first code
-span, and a borrowed name anywhere else in a bullet is a claim about a library rather than a
-reference to its reader. That is the inverse of the rule this entry first proposed, which would
-now reject all eleven bullets, and it is the inversion the rewrite caused. It leaves the trailing
-paragraph on the shared modules unheld, five of them today, that one being prose rather than
-bullets, which is tolerable while it carries no borrowed name.
+**Why it is declined.** The rule this entry ended up proposing was measured against the page and
+rejects a true sentence. That rule is positional: a borrowed name is accepted only as a bullet's
+first code span, since the rewrite that inverted the original proposal left every bullet opening
+with the gate whose libraries it then names. On 2026-09-09 all eleven borrowed names were their
+bullet's first code span and the rule was green. Two days later a twelfth arrived that is not:
+the envelope bullet now reads `envelopefloor.py` reads `envelopesamples.py` and `envelopejudges.py`,
+then `envelopepairs.py` reads the same format through `envelopesamples.py`, which is one bullet
+about the two gates that share one library. Every word of it is true and the positional rule reports
+it.
+
+So the rule is not narrow enough to be honest, and widening it means reading the grammar, which is
+the reader this tree does not have. What stays instead is the bound above, now argued rather than
+assumed: the set is held twice, by membership in both halves, and the residue is one sentence's
+direction about a module both halves already account for. A page describing two gates in one bullet
+is better prose than a page split to suit a positional rule, which is the other thing the rule would
+have cost.
 
 ## Trail
 
@@ -82,3 +83,15 @@ bullets, which is tolerable while it carries no borrowed name.
   wrong: the trailing paragraph names five shared modules and not three, `composefiles.py`,
   `gitenv.py`, `treewalk.py`, `skippeddirs.py` and `gatecalls.py`, and it still carries no
   borrowed name.
+- 2026-09-12: declined, because the reading that was green three days ago is red, and on true
+  prose. Re-derived over the current page: the borrowing half runs to eleven bullets carrying
+  twelve borrowed names, and one of them, `envelopepairs.py` in the envelope bullet, is not its
+  bullet's first code span. The sentence is right, `envelopepairs.py` importing
+  `envelopesamples.py` and carrying a command line of its own, so the positional rule would report
+  a page that says what the tree does. Both halves' membership still holds whole, 19 names in the
+  CLI roster and 54 in this one, all 54 named in the passage and nothing named that is not a
+  member. The other counts moved as well: `scripts/` holds 73 modules where this entry last read
+  68, and the trailing shared paragraph names six modules and not five, `markdownfences.py` having
+  arrived, and it still carries no borrowed name. Recorded in the ADR-0029 borrowed-name addendum,
+  which also states the decline in
+  [modules/repo-gates.md](../../modules/repo-gates.md) beside the allowance it is about.

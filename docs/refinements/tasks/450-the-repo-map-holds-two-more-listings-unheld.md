@@ -1,12 +1,12 @@
 # The repo map names two more trees in the shape now readable, and neither is held
 
 **Status:** open, fix when it bites
-**Trigger:** a crate is added under `body/crates/` or a package under `brain/packages/` and the
-repo map keeps describing the workspace that existed before it, which is the drift the same map's
-`scripts/` entry was just held against, four lines up.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
+**Trigger:** a crate is added under `body/crates/` or a package under `brain/packages/` and the
+repo map keeps describing the workspace that existed before it, which is the drift the same map's
+`scripts/` row is held against by a roster.
 
 Opened 2026-08-26 by the close of
 [R-449](449-the-repo-map-names-every-gate-module-unheld.md), which made the roster reader take a
@@ -29,10 +29,12 @@ words to check what the shape costs the other trees before spending it on them. 
 the mechanism, it is the question of what a member is. A package under `brain/packages/` is a
 directory, but the map's entry for it also names things that are not packages, calling out where
 the subagent runner lives and which package hosts a service, so the pattern that finds a name has
-to exclude those. A crate under `body/crates/` is named in the map as `core`, `rpc`,
-`os_windows` and so on, which is the directory name and not the Cargo package name, and the two
-differ for three of the five: `core` is the `body-core` package, `rpc` is `body-rpc`, and
-`os_windows` is `os-windows`. So the reader has to pick a side and say why.
+to exclude those. It also names one package that is not there, `shared` marked planned, so the
+reader has to take a side on the planned row too. A crate under `body/crates/` is named in the map
+as `core`, `rpc`, `os_windows` and so on, which is the directory name and not the Cargo package
+name, and the two differ for **every one of the five**: `core` is the `body-core` package, `rpc` is
+`body-rpc`, and the three OS crates trade the underscore for a hyphen, `os_windows` being
+`os-windows`. So the reader has to pick a side and say why.
 
 **What would close it.** Two registry entries and one or two readers, plus a decision per tree
 about what its map entry claims to be a complete list of. Read
@@ -60,3 +62,16 @@ borrowed-name allowance was written for and exactly the shape it cannot distingu
   configuration beside it, all three tracked. Both rows were corrected in the same sweep, so the
   drift this entry predicts for the two rows it is about has already happened twice in rows it
   does not cover.
+- 2026-09-12: trigger checked and not fired, and the divergence count repaired again. The eleven
+  directories under `brain/packages/` are the eleven the map names, `body_client`, `core`, `email`,
+  `embedding`, `inference`, `memory`, `model_manager`, `orchestrator`, `seam`, `session` and
+  `tools`, with `shared` named as planned and absent; the five under `body/crates/` are the five it
+  names. The crate divergence is not three of five but five of five, read off each
+  `Cargo.toml`: `body-core`, `body-rpc`, `os-linux`, `os-macos` and `os-windows`, so a reader over
+  that row cannot compare directory names to package names anywhere.
+- 2026-09-12: the count of unheld listings has not moved, and the reason is worth recording.
+  `scripts/markdownfences.py` was added earlier today and `scripts/` now holds 73 modules where it
+  held 68, so the one row of the six that is held gained a name in the same commit that added the
+  module, because the roster over it fails otherwise. The module that arrived landed in the held
+  row, so the two rows this entry is about are still two, and the commit that added it is the
+  clearest evidence yet of what those two lack: the map was edited because a gate demanded it.
