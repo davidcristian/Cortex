@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
 **Trigger:** a rendered sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a shape other than the one its fields spell, or a whole-line assertion
 added to `brain/packages/tools/tests/test_audit.py` with a field set the runbook's fence does not
@@ -37,9 +37,12 @@ against samples would report a shortfall on a tree where nothing is missing.
 What a close would cost. The which-shape half wants a grammar for the clause introducing a sample,
 which is the prose-reading the sample gate declined at its founding. The coverage half is a set
 comparison over two readings the tree already makes, the fence's field lists against the suite's,
-and is a few lines in `samplecheck.py` if the rule is that a sink held to its suite has every
-asserted shape printed; whether that rule is right is the question, since a suite may assert a
-line for a reason that is not an operator's. A second question arrives with
+and the rule it would land is that a sink held to its suite has every asserted shape printed;
+whether that rule is right is the question, since a suite may assert a line for a reason that is
+not an operator's. It is no longer a few lines where it would go: `samplecheck.py` stands at 287
+lines against the 300-line cap, and the rule needs a constant, a function and an accumulation in
+`check` beside the docstring sentence that argues it, so the half costs a split of that file as
+well. A second question arrives with
 [R-554](554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md): the
 set the suite asserts is the set `assertedlines.py` can read, so widening that reader would grow
 the set a coverage rule compares against, and a runbook printing every shape today would begin
@@ -60,3 +63,11 @@ failing on shapes the reader had not been able to see.
   `assertedlines.proven` returns six lines for the sink, over the five distinct field sets the
   fence prints, and that duplicate is now described above along with what it costs a coverage
   rule.
+- 2026-09-12: verified again, with the cost claim repaired. Neither trigger clause has fired.
+  `docs/runbooks/tools-mcp.md` still prints five samples of `cortex.tools.audit` in the order its
+  introducing sentence states, success, failure, cortex call, delegated call, schedule fire, and
+  `assertedlines.proven` still returns six lines for the sink over those same five distinct field
+  sets, the plain success asserted twice. What moved is what the coverage half costs. The entry
+  priced it at a few lines in `samplecheck.py`, and that file is at 287 of the 300-line cap, so the
+  rule no longer fits beside the reading it needs and a split comes with it. The which-shape half is
+  unchanged and still wants a grammar for a sentence.

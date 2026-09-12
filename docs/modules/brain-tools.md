@@ -81,7 +81,18 @@ source of audited, model-callable tools.
   large or sensitive); a failure logs the short error detail; both log the tool name,
   arguments, the result's `trust` provenance (so "did this turn read untrusted content?"
   is answerable from the durable trail alone, per ADR-0013 decision 2), and timestamp (the
-  AGENTS.md audit gate). The logger it writes through is declared in the module as `_LOGGER_NAME`
+  AGENTS.md audit gate). Logging the size and not the content means that an answer which corrected
+  the model and succeeded leaves none of its text on the line, and nowhere durable holds that text
+  either, the tool loop's `Role.TOOL` results reaching a store only inside the handoff record an
+  escalating turn writes. What a line carries about such an answer is `trust`. A remote result
+  reaches the trail `untrusted` unless the composition root's own-text overlay found it byte-equal
+  to a sentence the brain holds (`cortex_orchestrator/own_texts.py`), so on a line naming a tool
+  that set declares, `ok=True` with `trust=trusted` says the answer was one of those sentences,
+  and the `arguments` the same line prints are what it is rendered from, which makes the sidecar's
+  own corrections readable from the trail. Every other successful answer carries its size alone,
+  and that is the decision rather than an omission: a bounded first line of the content would put
+  part of every file read on the trail to serve the few answers that correct the model (ADR-0009
+  trusted-answer addendum). The logger it writes through is declared in the module as `_LOGGER_NAME`
   rather than spelled inside the `getLogger` call, because four places restate that name and none
   of them can import it: the two runbooks that tell an operator to select the trail by it, the
   docstring that fixes the shipped level at INFO because this trail rides on it, and that module's

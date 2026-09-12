@@ -221,8 +221,11 @@ denied outright.
   mailbox holds. The brain negates this flag into the audit trail's `ToolInvocation.ok`, so a
   reading over `ok` counts the calls this server declined and not the answers that corrected the
   model: the not-found answer states a correction and is recorded `ok`, and an `ok` audit line
-  carries the result's size in place of its text, so that reading cannot recover the correction
-  from the trail either. The flag leaves the brain as well, as the `ToolOutcome` that settles the
+  carries the result's size in place of its text. What recovers it is the same line's `trust`,
+  since these are two of the answers the brain's own-text overlay re-stamps trusted: `ok=True`
+  with `trust=trusted` is the not-found answer under `read_email` and the empty search under
+  `search_emails`, and the `arguments` on that line are what the answer's text is rendered from
+  (ADR-0009 trusted-answer addendum). The flag leaves the brain as well, as the `ToolOutcome` that settles the
   dispatch's activity chip, which is read for the screen-capture tool alone. `read_email` adds a
   result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
   (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
