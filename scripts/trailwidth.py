@@ -10,17 +10,19 @@ from typing import NamedTuple, cast
 
 from contrast import DEFAULT_RESAMPLES, DEFAULT_SEED, bootstrap
 
-# The message `LoggingRecallSink` writes, which is what tells a trail line from every other line in
-# a capture. Matched where the formatter puts a message rather than anywhere in the line, by the
-# pattern below, since the logger this sink writes through ends in the same word.
+# The message `LoggingRecallSink` writes, which is what tells a trail line from every other line
+# in a capture. Matched where the formatter puts a message rather than anywhere in the line,
+# since the logger this sink writes through ends in the same word.
 TRAIL_MESSAGE = "memory.recall"
-# The field whose width is the subject. Written once and spent in the pattern below.
 TRAIL_FIELD = "dropped"
 _VALUE = re.compile(rf" {TRAIL_FIELD}=(?P<value>.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|$)")
-# What `cortex_core.CUT` renders as, anchored at the end, since that is the only place it can sit
-# on a value the bound cut.
+# A field bound by the cut ends in a marker with two spaces in it, so `_VALUE` runs to the next
+# `name=` pair rather than to the next space, which would report a cut field as a whole one.
 _CUT = re.compile(r"<cut \d+ chars>$")
 _RECORD = re.compile(rf"[A-Z]+:[^\s:]+:{re.escape(TRAIL_MESSAGE)}(?= |$)")
+
+
+_PACKED = "; this capture holds one in the packed rendering, which this reader does not measure"
 
 
 class TrailWidthError(Exception):
@@ -44,7 +46,7 @@ class Block(NamedTuple):
 
     @property
     def widths(self) -> tuple[int, ...]:
-        """Every reading's field width, in the order the capture carried them."""
+        """Every reading's field width, in the order the capture lists them."""
         return tuple(reading.width for reading in self.readings)
 
     @property
@@ -68,7 +70,7 @@ class Shape(NamedTuple):
 
 
 def read_line(line: str) -> Reading | None:
-    """One line's reading, or ``None`` when the line is not a trail line carrying the field."""
+    """One line's reading, or ``None`` when the line is not a trail line with the field on it."""
     opened = _RECORD.search(line)
     if opened is None:
         return None
@@ -92,13 +94,29 @@ def _entries(value: str) -> int | None:
 
 
 def readings(text: str) -> tuple[Reading, ...]:
-    """Every trail line's reading in ``text``, in the order the capture carried them."""
+    """Every trail line's reading in ``text``, in the order they appear."""
     found = (read_line(line) for line in text.splitlines())
     return tuple(reading for reading in found if reading is not None)
 
 
+def packed_trail(text: str) -> bool:
+    """Whether ``text`` holds a trail line in the packed rendering, one JSON object per line."""
+    for line in text.splitlines():
+        opened = line.find("{")
+        if opened < 0:
+            continue
+        try:
+            parsed: object = json.loads(line[opened:])
+        except json.JSONDecodeError:
+            continue
+        record = cast("dict[str, object]", parsed) if isinstance(parsed, dict) else {}
+        if record.get("message") == TRAIL_MESSAGE:
+            return True
+    return False
+
+
 def load(path: Path) -> Block:
-    """Read one capture into a block, raising on a file that holds no trail line at all."""
+    """Read one capture into a block, raising on a file that holds no plain trail line."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as err:
@@ -106,7 +124,8 @@ def load(path: Path) -> Block:
         raise TrailWidthError(msg) from err
     found = readings(text)
     if not found:
-        msg = f"{path}: no {TRAIL_MESSAGE} line carrying a {TRAIL_FIELD} field"
+        rendering = _PACKED if packed_trail(text) else ""
+        msg = f"{path}: no {TRAIL_MESSAGE} line carrying a {TRAIL_FIELD} field{rendering}"
         raise TrailWidthError(msg)
     return Block(path, found)
 
@@ -153,9 +172,6 @@ def report(blocks: list[Block], *, resamples: int, seed: int) -> str:
     for entries in sorted(grouped):
         cohort = shape([reading.width for reading in grouped[entries]])
         whole = shape([reading.line for reading in grouped[entries]])
-        # A rank that kept the whole pool drops nothing and renders the empty list, which is what
-        # a deployment fetching exactly `k` produces on every recall. It has a width and no
-        # per-candidate reading, so it is described rather than divided by.
         per = (
             f"{cohort.low / entries:.2f} to {cohort.high / entries:.2f} per candidate"
             if entries

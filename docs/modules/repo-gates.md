@@ -1300,8 +1300,11 @@ answer: a marker written into any other module here is reported by the line it i
   renderings were cut. **The cut count is the load-bearing
   line**: any number above zero says the bound bit a value that ships. Refuses rather than guesses
   on a capture it cannot read, one holding no trail line at all, and a non-positive resample count.
-  Exit 0 printing the report; exit 2 printing one `trailwidth: PROBLEM` line; argparse exit 2 on
-  usage.
+  **A capture whose trail lines the packed rendering wrote is refused in a clause naming that
+  rendering**, which writes one JSON object per line with the message under its own key, so neither
+  needle above matches such a line and the refusal alone would report a stack that wrote no trail
+  (ADR-0038 packed-capture addendum). Exit 0 printing the report; exit 2 printing one
+  `trailwidth: PROBLEM` line; argparse exit 2 on usage.
 
 - `envelopefloor.py SAMPLE [SAMPLE ...]` is the third module here that gates nothing, and it is
   here for the same three reasons (ADR-0028 control-arm addendum). It reads the per-arm samples

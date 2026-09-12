@@ -1,23 +1,35 @@
+import json
 from pathlib import Path
 
 import pytest
 
 import trailwidth
 
-# What the process wrote, and what reading the log back put in front of it. The second is the
-# compose service prefix, which never crossed the driver and is therefore no part of any width.
 RECORD = "INFO:cortex.memory.recall:memory.recall"
 CAPTURED = "brain-1  | "
 PREFIX = f"{CAPTURED}{RECORD}"
 
 
 def trail(dropped: str, *, after: str = " dropped_omitted=0 k=5") -> str:
-    """Return one rendered trail line whose `dropped` field carries the given rendering."""
+    """Return one rendered log line whose `dropped` field has the given text."""
     return f"{PREFIX} basis=verdict dropped={dropped}{after}"
 
 
+def packed(message: str = trailwidth.TRAIL_MESSAGE) -> str:
+    """Return one line as `PackedFormatter` writes it, including the capture prefix."""
+    return CAPTURED + json.dumps(
+        {
+            "level": "INFO",
+            "logger": "cortex.memory.recall",
+            "message": message,
+            "fields": {"dropped": [{"id": "a", "score": 0.5}], "k": 5},
+        },
+        sort_keys=True,
+    )
+
+
 def whole(line: str) -> int:
-    """Return the width the line renders at, which is its length without the capture's prefix."""
+    """Return the width the line renders at, which is its length without the capture prefix."""
     return len(line) - len(CAPTURED)
 
 
@@ -37,9 +49,6 @@ def test_read_line_reads_a_field_that_ends_the_line() -> None:
 
 
 def test_read_line_measures_the_line_from_where_the_formatter_starts() -> None:
-    """A capture read back through `docker compose logs` opens every line with a prefix the process
-    never wrote. Counting the file's own characters would measure the reader of the log rather than
-    the line, and the two captures this harness takes carry different prefixes."""
     plain = f"{RECORD} basis=verdict dropped=[] k=5"
     assert trailwidth.read_line(plain) == trailwidth.Reading(2, len(plain), 0, cut=False)
     assert trailwidth.read_line(f"{CAPTURED}{plain}") == trailwidth.read_line(plain)
@@ -50,15 +59,10 @@ def test_read_line_ignores_a_line_that_is_not_the_trail() -> None:
 
 
 def test_read_line_ignores_a_line_whose_message_only_resembles_the_trails() -> None:
-    """The sink logs through `cortex.memory.recall`, so this word sits on every line it writes,
-    message or not. A needle matched anywhere in the line would read a sibling line as a trail
-    line and measure a field that belongs to something else."""
     assert trailwidth.read_line("INFO:cortex.memory.recall:memory.forgone dropped=[] k=5") is None
 
 
 def test_read_line_ignores_a_message_the_trails_own_is_the_opening_of() -> None:
-    """A message ends where the formatter puts a space, so a longer message opening with this one
-    is a different line."""
     assert trailwidth.read_line("INFO:cortex.memory.recall:memory.recalled dropped=[]") is None
 
 
@@ -75,7 +79,6 @@ def test_read_line_keeps_a_cut_markers_own_width_and_counts_no_candidates() -> N
 
 
 def test_read_line_calls_a_marker_inside_the_value_no_cut_at_all() -> None:
-    """A cut marker can only ever sit at the end, so one in the middle is the value's own text."""
     rendering = '[{"id":"a<cut 9 chars>b"}]'
     line = trail(rendering)
     assert trailwidth.read_line(line) == trailwidth.Reading(
@@ -121,8 +124,28 @@ def test_load_refuses_a_file_it_cannot_read(tmp_path: Path) -> None:
 
 def test_load_refuses_a_capture_holding_no_trail_line(tmp_path: Path) -> None:
     path = capture(tmp_path / "empty.log", "nothing here")
-    with pytest.raises(trailwidth.TrailWidthError, match=r"no memory\.recall line"):
+    with pytest.raises(trailwidth.TrailWidthError, match=r"no memory\.recall line") as refusal:
         trailwidth.load(path)
+    assert "packed" not in str(refusal.value)
+
+
+def test_load_names_the_packed_rendering_rather_than_reporting_no_trail(tmp_path: Path) -> None:
+    path = capture(tmp_path / "packed.log", packed(), "brain-1  | INFO:uvicorn:started")
+    with pytest.raises(trailwidth.TrailWidthError, match="packed rendering"):
+        trailwidth.load(path)
+
+
+def test_packed_trail_finds_a_line_behind_the_captures_own_prefix() -> None:
+    assert trailwidth.packed_trail(packed()) is True
+
+
+def test_packed_trail_reads_nothing_packed_in_a_plain_capture() -> None:
+    assert trailwidth.packed_trail("\n".join([trail('[{"id":"a"}]'), "nothing here"])) is False
+
+
+def test_packed_trail_reads_nothing_packed_in_another_records_json() -> None:
+    assert trailwidth.packed_trail(packed("memory.forgone")) is False
+    assert trailwidth.packed_trail('brain-1  | [{"id":"a"}]') is False
 
 
 def test_shape_reports_the_count_floor_median_and_ceiling() -> None:
@@ -162,22 +185,15 @@ def test_report_names_each_block_its_range_and_the_overall_range(tmp_path: Path)
 
 
 def test_report_names_each_blocks_whole_line_beside_its_field(tmp_path: Path) -> None:
-    """The whole line is the reading the per-value bound leaves open, so it is printed per block in
-    the same terms as the field. It carries no interval, because a mean's sampling distribution
-    says nothing about the ceiling this measurement is read for."""
     narrow, wide = trail("[]"), trail('[{"id":"a"}]')
     block = trailwidth.load(capture(tmp_path / "one.log", narrow, wide))
     text = trailwidth.report([block], resamples=50, seed=7)
     middle = (whole(narrow) + whole(wide)) / 2
     assert f"one.log (n=2): {whole(narrow)} to {whole(wide)} chars, median {middle:.1f}" in text
-    # One interval per block, the field's. It is counted over the whole report rather than read
-    # off the row, since a second interval anywhere in the report would be the defect.
     assert text.count("95% CI") == 1
 
 
 def test_report_pools_the_whole_line_over_every_block(tmp_path: Path) -> None:
-    """The last two lines are what a reader opens the report for, so the pooled whole line is
-    printed there beside the pooled field rather than left to be added up per block."""
     narrow, wide = trail("[]"), trail('[{"id":"a"}]')
     first = trailwidth.load(capture(tmp_path / "one.log", narrow))
     second = trailwidth.load(capture(tmp_path / "two.log", wide))
@@ -192,9 +208,6 @@ def test_report_reads_a_cohort_per_candidate(tmp_path: Path) -> None:
 
 
 def test_report_reads_a_cohort_against_the_lines_it_sat_on(tmp_path: Path) -> None:
-    """The whole line is grouped by the candidates the field named, so each cohort gets its own row
-    rather than a pooled reading that happens to print the same numbers. That grouping is what
-    showed the widest field and the widest line are not on the same line."""
     line = trail('[{"id":"a"},{"id":"b"}]')
     block = trailwidth.load(capture(tmp_path / "p.log", line))
     text = trailwidth.report([block], resamples=50, seed=7)
