@@ -25,7 +25,7 @@ brain workspace member (ADR-0002).
 `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, fifty-two modules, most split out under the line cap and
+**The rest have no CLI of their own**, fifty-four modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -73,14 +73,16 @@ each named for what it holds. Grouped by the gate that reads them:
   readings a delivered rate is taken under. `envelopepairs.py` reads the same format through
   `envelopesamples.py` for the fields a pairing matches on.
 
-Five are shared rather than owned. `composefiles.py` is which files the four compose gates walk,
+Six are shared rather than owned. `composefiles.py` is which files the four compose gates walk,
 answered once so they cannot drift apart. `gitenv.py` is the environment every git call in this
 tree runs with, held in one place because a caller that omits it reads the wrong repository
 without reporting an error. `treewalk.py` is the one descent every reader here is handed its files
 by, and `skippeddirs.py` is the directory components it never enters, held apart because one is a
 walk and the other is a list with an argument about `.gitignore` attached to it. `gatecalls.py` is
 what a module here calls, read out of its syntax, which is how the obligation over the git call
-and the obligation over the descent each recognize a caller.
+and the obligation over the descent each recognize a caller. `markdownfences.py` is what a fence
+is, for the three gates that read documents carrying one, and it holds the obligation over its own
+answer: a marker written into any other module here is reported by the line it is on.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
@@ -536,6 +538,18 @@ and the obligation over the descent each recognize a caller.
   by how it was spelled: both had already passed over a real one (ADR-0026 shaped-obligation
   addendum). A shape it was not taught is answered as a read rather than passed over, so the
   failure it can have is a fault somebody has to look at.
+- `markdownfences.py` is what a markdown fence is to every reader here and has no CLI.
+  `is_fence(line)` answers the question the three document-reading gates used to answer for
+  themselves, each with the same pattern written out again: an indent markdown allows, then three
+  backticks or three tildes, an info string after them being part of the opening line. The closing
+  rules markdown adds (a closing marker of the same character, at least as long as the opening
+  one) are not read, since every reader here toggles on the marker and no document in this tree
+  nests a block or closes a long fence with a short one. `spelled(module)` is the other half and
+  the reason the first cannot be copied again: it returns every line where a fence marker is
+  written into a module's code, a marker inside a docstring being prose about a fence and passed
+  over, and the obligation beside it holds `scripts/` to exactly one module spelling one. A module
+  that had to print a fence rather than recognize one would be reported too, which is a fault
+  somebody looks at rather than a reader nobody hears about.
 - `composemounts.py` is `bindcheck.py`'s mount reader and has no CLI. `read_mounts(text)` returns one
   `Mount(line, source)` per bind mount a compose file declares, skipping named volumes (long-form
   `type:` in `NON_BIND_TYPES`, short-form sources without a `PATH_PREFIXES` prefix) and the
@@ -785,7 +799,8 @@ and the obligation over the descent each recognize a caller.
   sample that wraps over a trailing backslash is folded back into the one line it stands for,
   with the continuation's own comment marker dropped, because that marker would otherwise sit
   between the message and the first field; the fold stops at a fence so a backslash on a block's
-  last line cannot swallow the marker that closes it.
+  last line cannot swallow the marker that closes it. A fence is `markdownfences.is_fence`'s
+  answer, shared with the two other gates that read documents carrying one.
 - `logcalls.py` is `samplecheck.py`'s code side and has no CLI. It answers what one call puts on
   its line, and holds the reading of the brain's source that `loggernames.py` answers the other
   half over. It is the one reader here that
@@ -928,9 +943,10 @@ and the obligation over the descent each recognize a caller.
   matching the roster's pattern, and `Bare` taking every whole word matching it, for a passage
   carrying no code spans at all. A bare match is guarded on both edges, since the other two
   shapes get that from their own delimiters and this one would otherwise read a name out of the
-  middle of a longer word. Fences are deliberately not read: a bullet inside one is read as
-  a bullet, which fails loudly, and the alternative is a fourth spelling of the markdown fence in
-  this tree.
+  middle of a longer word. Fences are deliberately not read, and the reason is where a roster
+  sits: the repo map is written inside a fenced block, so a reader that stripped fences before
+  cutting the passage out would lose that roster's boundary and every name in it. Inside a passage
+  a fence changes no answer, and a bullet inside one is read as a bullet, which fails loudly.
 - `scanrecipes.py` is which scans the single gate runs and has no CLI. Every other set a roster is
   held to is a listing of something; a cross-tree scan is not a file, so what makes a module one is
   that `just check` runs it before the per-tree checks and CI's `cross-tree` job runs it too.
@@ -1131,7 +1147,9 @@ and the obligation over the descent each recognize a caller.
   judged and the run is already failing on the heading.
 - `headingshapes.py` is what a heading is to that scan, and the one place the gate says out loud
   what it claims about rendering (ADR-0039 slug-fidelity addendum). `headings(text)` returns every
-  ATX heading outside a fenced block with its line number, which `anchors()` reads. The slug rule
+  ATX heading outside a fenced block with its line number, which `anchors()` reads; the fenced
+  block is `markdownfences.is_fence`'s answer, shared with the log-sample and commit-message
+  gates. The slug rule
   is applied to a heading's **source**; a renderer slugs its **rendered** text, and the two agree
   exactly when every construct in the source is built from characters the rule already drops and
   carries no text away: plain prose, punctuation, code spans and `*` emphasis all qualify.
@@ -1202,8 +1220,9 @@ and the obligation over the descent each recognize a caller.
   would train authors to ignore the gate. Four 73-character lines reached master before this
   landed, which is what it was added for. `classify_lines` is the one walk that decides a
   line's KIND, pairing each line with whether it is a paste and reporting any fence left open
-  (ADR-0026's two 2026-08-09 addenda): a line between two fences (` ``` ` or `~~~`, an info
-  string included, the markers themselves counted as part of the block) and a line whose first
+  (ADR-0026's two 2026-08-09 addenda): a line between two fences (`markdownfences.is_fence`'s
+  answer, shared with the two document-reading gates, so either marker and an info string with it,
+  the markers themselves counted as part of the block) and a line whose first
   token is a bare `$` are pastes, and moving a newline inside one changes what it says. Line 1
   is the header, prose by construction, so no message exempts its own subject. A fence left
   open at the end of the walk is a violation naming the line that opened it, since otherwise
