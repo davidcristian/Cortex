@@ -1213,3 +1213,72 @@ trigger and records the readings above;
 [docs/refinements/index.md](../refinements/index.md) is regenerated from it. No source file, no
 workflow and no gate changed, so no mutation table is owed. The readings are three `gh api` calls
 against this repository, taken 2026-09-10 00:58 UTC.
+
+## Addendum (2026-09-12): the standing count comes off the ledger, and the window is the cadence
+
+The cadence addendum above leaves the count that decides a pass to a person who remembers to ask
+for it with a date ([R-439](../refinements/tasks/439-nothing-counts-the-record-between-passes.md)).
+Three readings of that count have been taken by hand since, nine on 2026-09-07, fifteen on
+2026-09-10 and twenty one today, and each one exists only because somebody ran
+`just replay "" <date>` with the ledger open beside them to supply the date. The recipe now reads
+that date itself.
+
+**What the recipe does now.** With no date, the recipe prints one line before the draw: the date on
+the last dated row of the ledger, how many candidate bodies have landed since it, the cadence, and
+whether the count has reached it. The dated argument is unchanged and keeps the job the parent
+addendum gave it, counting and drawing over a range of the caller's own, which is what a late pass
+samples out of. So the question the runbook opens with is answered by the command a pass starts
+with, rather than by a person holding two facts at once.
+
+**The cadence is spent as the window rather than as a fifth number.** The comparison needs a
+threshold, and a `cadence="25"` default beside `window="25"` would have been a fifth place spelling
+a number four places already spell ([R-440](../refinements/tasks/440-the-replay-sample-is-spelled-in-three-places.md)),
+with the two free to drift apart inside one recipe. The parent addendum argues them as one number
+in two roles: twenty five is roughly one overnight session's output, so the draw's window is the
+work between passes. The recipe spends `{{ window }}` in both roles, which is what that argument
+says it is, and a retune of the window retunes the cadence with it.
+
+**Measured rather than reasoned about**, this being a reading rather than a check, so it carries
+measurements rather than a mutation table. Four arms were run against the real ledger, which was
+restored byte for byte after each one. The standing arm reports 21 candidate bodies since the pass of
+2026-08-25 and no pass due, and 21 is what `just replay "" 2026-08-25` counts, which is the
+comparison saying the new line and the old one read one set. With the ledger's last row dated
+2026-07-01 instead, the line reports 35 and a pass is due, so both verdicts render. With every
+dated row deleted, the line says the ledger carries no dated row, the draw still runs, and the
+recipe exits 0. With the ledger file moved away, the recipe fails at `sed` with exit 2, which is
+the honest answer: the file it could not read carries the procedure a pass is run from.
+
+**Two limits of the count, both filed rather than fixed.** It reads the ledger's last dated row in
+file order and takes that row for the last pass, holding the table to neither an ISO date in its
+first column nor chronological order
+([R-645](../refinements/tasks/645-the-standing-count-takes-the-last-dated-row.md)). And `git log`
+counts from midnight of that date, so the pass's own day is inside the range: two of the 21 above
+are the commits that landed the cadence and recorded the pass, which is a count of unsampled work
+overstated by the pass itself
+([R-646](../refinements/tasks/646-the-standing-count-includes-the-pass-day.md)).
+
+**The entry about the four copies gains a second obstacle and keeps its state.** Its text says the
+coupling is unregistered because every far side spells the numbers as words, which `crosscheck.py`
+reaches through a rendered needle rather than through a literal. That is true and it is not the
+whole cost. The scan reads a declaration by dispatching on the file's suffix, and it knows three,
+`.py`, `.rs` and `.ts`; a justfile has neither a suffix nor a declaration syntax, so the executable
+copy of either number cannot be registered as a site at all until the scan learns one. The word
+spelling is the second obstacle and needs `Spelling` to grow a form rendering 25 as twenty five,
+a spelling being derived from the declared value rather than typed into the registry. Both are
+changes to the scan rather than registry entries, so the entry's estimate of what registering costs
+was low, and the decision to leave the numbers unregistered is better supported than its reasoning
+was. What did move is the standing of one sentence: the runbook's cadence sentence used to state a
+rule only a reader applied, and the recipe applies it now, so the prose states what a tool does.
+
+### Records
+
+The `justfile` grows the standing count and the comment above the recipe says what it reads;
+[docs/runbooks/mutation-replay.md](../runbooks/mutation-replay.md) rewrites the section asking
+whether a pass is due.
+[R-439](../refinements/tasks/439-nothing-counts-the-record-between-passes.md) lands;
+[R-440](../refinements/tasks/440-the-replay-sample-is-spelled-in-three-places.md) records the
+reading above and stays open;
+[R-645](../refinements/tasks/645-the-standing-count-takes-the-last-dated-row.md) and
+[R-646](../refinements/tasks/646-the-standing-count-includes-the-pass-day.md) are the residue;
+[docs/refinements/index.md](../refinements/index.md) is regenerated from all four. The recipe gates
+nothing, so no mutation table is owed and the four arms above are the evidence.

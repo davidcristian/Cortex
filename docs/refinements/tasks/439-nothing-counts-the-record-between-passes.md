@@ -1,10 +1,8 @@
 # Nothing counts the record between replay passes
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-12
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-10
-**Trigger:** fifty or more candidate bodies have landed since the last row of the ledger, meaning a pass was due for two windows or more before anybody counted. `just replay "" <the last row's date>` reports that number in its header.
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
 ([R-357](357-a-replay-pass-has-no-cadence.md), [ADR-0002 replay-cadence
@@ -46,3 +44,18 @@ module; the second is the one that could be read by something other than a perso
   the nine days since the last reading is under one candidate body a day, so the entry's own
   evidence keeps accumulating in the same direction: the count is easy to produce and nothing
   produces it unless a person runs the recipe.
+- 2026-09-12: landed, as the first of the two shapes this file proposed. `just replay` with no date
+  now prints one line ahead of the draw: the date on the ledger's last dated row, the candidate
+  bodies since it, the cadence, and whether the count has reached it. Today's reading is 21 since
+  the pass of 2026-08-25, which is what the dated arm counts too, against a cadence of 25. The
+  threshold is the recipe's own `window` default rather than a new one, the cadence and the draw
+  window being one number in two roles, so the line adds no fifth copy of a number
+  [R-440](440-the-replay-sample-is-spelled-in-three-places.md) is already about. What closes is the
+  asking: the count no longer waits for somebody to hold the ledger's date and the command at the
+  same time. Running a pass still starts with a person, which this file's own text declines to
+  change, a workflow scheduling only the reminder keeping the calendar the cadence rejected. Two
+  residues filed, the ledger's last row being trusted for its format and its order
+  ([R-645](645-the-standing-count-takes-the-last-dated-row.md)) and the count reaching back to
+  midnight of the pass's own day, which puts two of today's 21 inside the pass that drew them
+  ([R-646](646-the-standing-count-includes-the-pass-day.md)). The four arms the line was measured
+  over are in the [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-gates.md).

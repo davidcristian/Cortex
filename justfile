@@ -308,10 +308,13 @@ shuffle seed="":
 # tables most worth replaying are exactly the ones nobody can reconstruct, so the sample is drawn
 # by seed and the seed is printed: `just replay <seed>` draws the same five on any machine, the
 # key being a digest of the seed and the commit rather than a shuffler whose stream is a property
-# of the local coreutils. Hand a date as the second argument to ask the OTHER question this pass
-# needs answered, how many tables have landed since the last one, which is what says whether a
-# pass is due: the cadence is counted in tables and not in days, because this record grows in
-# bursts. Procedure, the rule for a row that does not reproduce, and the ledger of passes:
+# of the local coreutils. The draw also answers the OTHER question this pass needs answered, how
+# many candidate bodies have landed since the last pass, which is what says whether a pass is due:
+# the date comes off the last dated row of the ledger and the count is held against the same
+# window, the window being the work between passes rather than a second number to retune. The
+# cadence is counted in tables and not in days, because this record grows in bursts. Hand a date as
+# the second argument to count and draw over a range of your own, which is what a late pass samples
+# out of. Procedure, the rule for a row that does not reproduce, and the ledger of passes:
 # docs/runbooks/mutation-replay.md. This gates nothing and runs on no clock; a replay needs the
 # judgement to rebuild an edit from a sentence, which is why it is not a workflow.
 replay seed="" since="" count="5" window="25":
@@ -340,6 +343,17 @@ replay seed="" since="" count="5" window="25":
         echo "=== replay draw: seed $seed, over the tables landed since $since ==="
         echo "=== reproduce this draw with: just replay $seed $since ==="
     else
+        ledger="docs/runbooks/mutation-replay.md"
+        last="$(sed -n 's/^| \([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\) |.*/\1/p' "$ledger" | tail -n 1)"
+        if [ -z "$last" ]; then
+            echo "=== $ledger carries no dated row, so there is no standing count ==="
+        else
+            landed="$(git log --since="$last" "${vocabulary[@]}" --format='%H')"
+            behind="$(printf '%s' "$landed" | grep -c . || true)"
+            verdict="no pass due"
+            [ "$behind" -lt {{ window }} ] || verdict="a pass is due"
+            echo "=== $behind candidate bodies since the pass of $last, cadence {{ window }}: $verdict ==="
+        fi
         pool="$(git log --max-count={{ window }} "${vocabulary[@]}" --format='%H%x09%s')"
         echo "=== replay draw: seed $seed, over the {{ window }} most recent tables ==="
         echo "=== reproduce this draw with: just replay $seed ==="
