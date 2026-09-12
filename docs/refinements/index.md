@@ -65,7 +65,7 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-122 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+127 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (7)
 
@@ -216,11 +216,11 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-070](tasks/070-per-task-caller-schema.md)** Per-task caller-supplied schema (untrusted-content). Reopens when: a structured subagent-result feature, which is the only thing this is revisited for.
 - **[R-074](tasks/074-per-provenance-eviction.md)** Per-provenance eviction (untrusted-content). Reopens when: a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they landed in.
 - **[R-077](tasks/077-provenance-across-stores.md)** Provenance across the stores (untrusted-content). Reopens when: the first design that needs a persisted per-turn taint or provenance marker.
-- **[R-084](tasks/084-session-global-union-read.md)** Session and global union read policy (memory). Reopens when: Something writes durable global facts under scoping.
-- **[R-085](tasks/085-per-scope-retention-eviction.md)** Per-scope retention and eviction (memory). Reopens when: A memory-compaction or self-editing feature needs a retention scheduler.
-- **[R-086](tasks/086-cross-scope-recall-ranking.md)** Cross-scope recall ranking (memory). Reopens when: Something writes durable global facts under scoping.
-- **[R-087](tasks/087-tiered-self-editing-memory.md)** Tiered and self-editing memory with summarization (memory). Reopens when: A memory-compaction or self-editing feature needs tiering or update in place.
-- **[R-093](tasks/093-write-salience-policy.md)** Write-salience policy (memory). Reopens when: A memory-compaction or self-editing feature needs a record-time salience decision.
+- **[R-084](tasks/084-session-global-union-read.md)** Session and global union read policy (memory). Reopens when: Something writes durable global facts under scoping. Its claim was re-derived from the code on 2026-09-13.
+- **[R-085](tasks/085-per-scope-retention-eviction.md)** Per-scope retention and eviction (memory). Reopens when: A memory-compaction or self-editing feature needs a retention scheduler. Its claim was re-derived from the code on 2026-09-13.
+- **[R-086](tasks/086-cross-scope-recall-ranking.md)** Cross-scope recall ranking (memory). Reopens when: Something writes durable global facts under scoping. Its claim was re-derived from the code on 2026-09-13.
+- **[R-087](tasks/087-tiered-self-editing-memory.md)** Tiered and self-editing memory with summarization (memory). Reopens when: A memory-compaction or self-editing feature needs tiering or update in place. Its claim was re-derived from the code on 2026-09-13.
+- **[R-093](tasks/093-write-salience-policy.md)** Write-salience policy (memory). Reopens when: A memory-compaction or self-editing feature needs a record-time salience decision. Its claim was re-derived from the code on 2026-09-13.
 - **[R-125](tasks/125-per-role-escape-hatch.md)** The per-role escape hatch (subagents). Reopens when: A role needing a cheap model on a tainted or tool path for a proven-safe reason.
 - **[R-146](tasks/146-reserved-rail-assumed-width.md)** The reserved rail is 6px only on one engine (body-overlay). Reopens when: The body running on an engine that is not Chromium.
 - **[R-180](tasks/180-out-of-window-title.md)** Out-of-window authoritative title (session-read-seam). Reopens when: A consumer that opens an out-of-window chat beside the switcher, such as toast activation routing once `NotifyRequest` carries a `session_id`, or a search or deep-link by id.

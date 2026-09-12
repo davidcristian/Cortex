@@ -4,6 +4,7 @@
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature needs tiering or update in place.
+**Verified:** 2026-09-13
 
 Letta's good ideas, adoptable later without
 the framework, per decision 1. **Cost correction:** not behind the unchanged port. `MemoryStore`
@@ -44,3 +45,11 @@ structured provenance, so `delete_scope` does not serve it and it stays fix-when
   this entry states as a property and not as an argument: search is a stateless top-k scan, so there
   is no in-flight id a tombstone would protect. The session-delete cascade that shipped the same day
   cited that reasoning for its own hard delete.
+- 2026-09-13: Re-derived against the port. The cost correction's inventory is stale: `MemoryStore`
+  is no longer `add` plus `search`, it is `add`, `search`, `count_candidates` and `delete_scope`.
+  Neither added verb serves this entry, because tiering wants promote, demote and expire,
+  self-editing wants an update in place, and the port still has no verb that rewrites a stored
+  record, so the residual cost stands as written. The trigger has not fired. The summarization
+  that landed since is not this entry's half either: `HistoryRecap` folds the turns that fall out
+  of a session's history window and lives behind `SessionStore`, so it summarizes conversation
+  rather than memories and leaves every memory record untouched.

@@ -4,6 +4,7 @@
 **Area:** memory
 **Origin:** [ADR-0008](../../adr/ADR-0008-memory-v1.md)
 **Trigger:** A memory-compaction or self-editing feature needs a retention scheduler.
+**Verified:** 2026-09-13
 
 Recorded inside two landed entries rather than as a bullet of its own. The per-session and
 namespaced scoping entry named it among what stayed behind the same seams:
@@ -38,3 +39,12 @@ and then, once the delete verb landed, against the consumer it does not have:
   left is the retention policy rather than the missing verb. Per-provenance eviction is not this
   entry: it wants a different filter, since a record stores only the taint bit and not the ADR-0027
   structured provenance, and it stays fix when it bites in another area.
+- 2026-09-13: Re-derived, and two of the quoted claims have moved. `MemoryStore` now answers
+  `count_candidates(scopes=...)` with the store's own size of a namespace, which is the reading
+  a retention policy needs besides the record timestamps it already gets, so a policy that
+  evicts a scope once it grows past a cap is now writable over verbs the port has rather than
+  over verbs it lacks. The brain also runs a recurring pass of its own now, the `ScheduleTicker`
+  loop over the `ScheduleStore`, so "nothing drives one" is a statement about this repo having
+  no retention driver and not about the process having no periodic pass to hang one on. What is
+  missing is still the policy and the decision of what drives it. The trigger has not fired:
+  nothing here compacts memory or edits it in place.
