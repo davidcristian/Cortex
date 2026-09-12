@@ -828,7 +828,16 @@ budget, prints a count and a distinct-string count per load beside the pooled on
 **about sixteen minutes**, 942.74 s on 2026-09-11. Read a settled cell there rather than
 deeper: its control arm drew 1 of 20 in each of the four loads, one string in 19 draws of every
 load, where three earlier sittings had drawn it 4 of 5, 1 of 20 and 19 of 20, so four loads drawn
-back to back agree and the spread is between sittings.
+back to back agree and the spread is between sittings. Two more cells are drawn that way, so
+`-k across_loads` now selects three rows and each of the three names its own cell.
+`-k "plain_cell_at_the_shipped_budget and 12B"` is the unstyled cell at the corpus frame and the
+shipped budget, twenty per arm behind each of four loads, and takes **about seven minutes**,
+403.17 s on 2026-09-13: its control arm wrote one string in all twenty draws of every load and the
+same string in all four, and both arms applied the rule in none of their 80 draws.
+`-k "mail_cell_at_the_engine_budget and 12B"` is the mail cell at that frame at the engine's own
+budget, drawn the same way, and takes **about eleven minutes**, 629.16 s on 2026-09-13: both of
+its arms wrote one dominant string in every load and the same one across the four, and the framed
+arm applied the rule in none of its 80 draws where the 120-draw row at that budget drew 1.
 The port advice above applies unchanged: this arm runs the same
 `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model host down first.
 Twelve things this arm adds that the text arm does not have.
@@ -968,7 +977,10 @@ cortex alt's matrix at the corpus frame and the shipped budget cost **875.11 s**
 behind a third. On 2026-09-11 the cortex alt's two token attacks on `plain` and `chrome` cost
 **509.95 s**, 44 replies behind one cold load, the cortex pick's `app` cell at 400 draws per arm at
 the corpus frame and the shipped budget **1305.89 s**, 801 replies behind another, and its
-advisory probe across four loads **942.74 s**, 168 replies behind four. **Say which rows you ran**, the same standing rule the brain tier's row has: the
+advisory probe across four loads **942.74 s**, 168 replies behind four. On 2026-09-13 the cortex
+pick's `plain` cell across four loads at the corpus frame and the shipped budget cost **403.17 s**,
+164 replies behind four, and its `app` cell across four loads at that frame at the engine's own
+budget **629.16 s**, 164 replies behind four more. **Say which rows you ran**, the same standing rule the brain tier's row has: the
 2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, the
 2026-08-30 sitting ran the cortex pick's matrix and rate at both frames at the engine's budget, the
 2026-09-04 sitting ran the same four rows at the shipped budget plus both budgets' token cost and
@@ -983,11 +995,14 @@ and its dialog pair at 16 px at the engine's budget with `CORTEX_INJECTION_SHOW_
 the cortex alt's matrix at the corpus frame and the shipped budget with that switch unset, the
 2026-09-11 sittings ran the cortex alt's two token attacks on `plain` and `chrome`, the cortex
 pick's `app` cell at 400 draws per arm and its advisory probe across four loads, all with
-`CORTEX_INJECTION_SHOW_RESISTED=all`, and a matrix
+`CORTEX_INJECTION_SHOW_RESISTED=all`, the 2026-09-13 sitting ran the cortex pick's `plain` cell
+across four loads at the shipped budget and its `app` cell across four loads at the engine's own
+budget with that switch unset, and a matrix
 reported without naming its model is worse than a bad number. **Name the engine digest
 too**: `server-cuda` is a mutable tag and it moved between the first two sittings; the 2026-08-30,
 2026-09-04, 2026-09-05, 2026-09-07, 2026-09-10 and 2026-09-11 rows all ran on
-`sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, which is what makes the
+`sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, and so did the two
+2026-09-13 loads rows on engine build `b10680-d7bd3bfca`, which is what makes the
 budgets comparable. The alt is the
 expensive row and the reason is its projector, measured on 2026-09-07 rather than estimated:
 Qwen3.5-9B's F32 `mmproj` puts 1402 prompt tokens of one corpus screen in front of the model at the

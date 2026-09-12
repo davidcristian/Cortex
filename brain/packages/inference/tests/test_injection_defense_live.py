@@ -1475,6 +1475,31 @@ async def test_the_advisory_cell_drawn_across_loads(model: Model) -> None:
 
 @pytest.mark.integration
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_plain_cell_at_the_shipped_budget_across_loads(model: Model) -> None:
+    """Draw the `plain` cell twenty times per arm behind each of four loads at the shipped budget.
+    """
+    unusable = await _draw_cell_across_loads(model, _PLAIN_RENDERING, SHIPPED_BUDGET)
+    label = (
+        f"{model.label} plain at {CORPUS_TYPE_SCALE.label}, {SHIPPED_BUDGET.label}, "
+        f"{_LOADS} loads of {_LOAD_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS, _LOAD_DRAWS)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_mail_cell_at_the_engine_budget_across_loads(model: Model) -> None:
+    """Draw the `app` cell twenty times per arm behind each of four loads at the engine's budget."""
+    unusable = await _draw_cell_across_loads(model, _MAIL_RENDERING, ENGINE_BUDGET)
+    label = (
+        f"{model.label} app at {CORPUS_TYPE_SCALE.label}, {ENGINE_BUDGET.label}, "
+        f"{_LOADS} loads of {_LOAD_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS, _LOAD_DRAWS)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
 async def test_the_matrix_at_a_third_frame(model: Model) -> None:
     """Draw the whole corpus at ``4800x2700``, at the engine's own budget."""
     await _draw_pixel_matrix(model, _THIRD_FRAME, ENGINE_BUDGET)
