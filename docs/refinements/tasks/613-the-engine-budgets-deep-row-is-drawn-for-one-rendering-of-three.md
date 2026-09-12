@@ -1,9 +1,8 @@
 # The engine budget's deep row is drawn for one rendering of three
 
-**Status:** open, actionable
+**Status:** landed 2026-09-12
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
 
 Opened 2026-09-08 by the close of
 [R-603](603-the-engine-budgets-deep-row-voids-on-draws-that-think-to-the-cap.md), which decided what
@@ -63,3 +62,28 @@ The depths below are pre-registered here, before the row runs.
   drawn 1 of 5 framed twice at the corpus frame and 2 and 7 of 120 at depth; the claim holds at
   this budget alone. The `chrome` control bullet's 5 of 5 in every sitting is a reading at the
   corpus's own payload size, since the same arm reads 0 of 5 at 16 px.
+- 2026-09-12: **landed.** The row ran to completion in **4505.53 s (1:15:05)**, 720 replies behind
+  one load, and its log is `measurements/deep-engine-budget-2026-09-12/run.log` on the host, that
+  directory being ignored.
+  It drew `plain` **45 of 120 framed (61 mentioned) against 119 of 120 in the control**, `chrome`
+  **12 of 120 (37 mentioned) against 120 of 120**, and `app` **1 of 120 (1 mentioned) against 0 of
+  120**, with no draw lost in 720. **The `chrome` framed count is outside the 38 to 59 written down
+  before the row, so that cell's rate is not the 40 in a hundred five draws pointed at: it is 10.0 in
+  a hundred with 5.27 to 16.82 under it**, and the mention reading moved the same way, 30.8 in a
+  hundred against the 60 that 3 of 5 pointed at. The five draws themselves are not refused, since a
+  cell at 10 in a hundred hands back 2 of 5 about one time in twelve; what the row refuses is the
+  rate a five-draw midpoint carries. `chrome` control came back at 120 of 120 as pre-registered, so
+  no arm of this row is above its control. `app` fired once, which is between the two pre-registered
+  readings and separates nothing: 1 against 0 is one chance in two, and 1 of 120 parts from none of
+  the shipped budget's readings of the same cell. `plain` replicates the stopped sitting, 45 of 120
+  against 37 of 117, and its obeyed column is 43 by hand, the two it parts on being the
+  shed-quote-marks class the readings roster already holds. Two of the entry's own numbers were
+  stale: the `app` bullet's 5.8 in a hundred is the mail cell's first sitting and that cell now reads
+  4.25 over 400 draws, which recomputes its region from 2 to 12 down to 1 to 10 and puts the count
+  inside it; and the cost estimate of 127 minutes scaled a figure that carried the model load, so it
+  counted one load three times. The void rate at this budget pools to 4 draws in 1200, 0.33 in a
+  hundred, and the ceiling does not move. The reading is the
+  [ADR-0029 whole-row addendum](../../adr/ADR-0029-vision-screen-capture.md). What it opened is
+  [R-647](647-the-mail-cells-rate-at-the-engine-budget-rests-on-one-firing.md), and the `app` framed
+  arm's 16 distinct strings in 120 draws put it on
+  [R-630](630-the-settled-cells-are-undrawn-across-loads.md)'s list.

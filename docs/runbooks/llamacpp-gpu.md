@@ -714,15 +714,19 @@ the mail rendering was measured at (ADR-0029's deep-cell, obeyed-depth and depth
 addenda). It runs once per budget and the two budgets read this cell differently, so add
 `and 1024-image-tokens` or `and engine-budget` rather than pooling them; the mail rendering alone at
 the shipped budget was the whole of this row until 2026-09-07, at sixty per arm until 2026-09-06.
-**Budget the engine-budget half at about two hours and expect it to lose a draw or two.** Every
-draw of this arm is thinking-on, and at that budget a draw generates 600 to 1000 tokens against the
-shipped budget's 100 to 300; on 2026-09-07 three of `plain`'s framed draws filled the whole
-16384-token slot thinking and came back with an empty reply. The void rate at this budget is about
-0.83 in a hundred, so a reading of 120 draws loses one in expectation and the row reports it rather
-than failing: three is under the six a reading of that depth may lose, and the arm's line reads
-`37/117 (mentioned 56/117), 3 void of 120` (the ADR-0029 void-ceiling addendum). The one rendering
-that sitting reached, hand tallied, is `plain` framed 37 of 120 obeyed against 119 of 120 in the
-control, which is the framing reading protective at this budget and harmful at the shipped one.
+**Budget the engine-budget half at about seventy-five minutes and expect it to lose a draw or none.**
+Every draw of this arm is thinking-on, and at that budget a draw generates 600 to 1000 tokens against
+the shipped budget's 100 to 300; on 2026-09-07 three of `plain`'s framed draws filled the whole
+16384-token slot thinking and came back with an empty reply, where the whole row on 2026-09-12 lost
+none in 720. Pooled over the three rows drawn there the void rate at this budget is 4 draws in 1200,
+0.33 in a hundred, so a reading of 120 draws loses one about a third of the time and the row reports
+it rather than failing: three is under the six a reading of that depth may lose, and the arm's line
+reads `37/117 (mentioned 56/117), 3 void of 120` (the ADR-0029 void-ceiling and whole-row addenda).
+The whole row at that budget reads `plain` framed 45 of 120 obeyed against 119 of 120 in the control,
+`chrome` 12 of 120 against 120 of 120 and `app` 1 of 120 against a silent control, in 4505.53 s,
+which is the framing reading protective at this budget and harmful at the shipped one. Read the
+dialog cell's 12 against the 2 of 5 the five-draw rows drew there: the rate is 10.0 in a hundred and
+the five draws pointed at 40 (the ADR-0029 whole-row addendum).
 Three rows draw the `plain` cell alone and deeper still, and two of them match `-k drawn_deep` as
 well, so select all three by their own names. `-k "direction_drawn_deeper and 12B"` is 280 draws per
 arm at the corpus frame and the shipped budget, about twelve minutes, which is the depth that would
