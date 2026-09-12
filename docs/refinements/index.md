@@ -65,14 +65,14 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-121 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+122 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (7)
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Twenty of the cortex alt's thirty-one pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-12.
 - **[R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md)** The cells whose published reading is one load's answer are undrawn across loads (vision).
 - **[R-641](tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md)** The shipped sentence hands the report back on a summarization (subagents). Its claim was re-derived from the code on 2026-09-13.
-- **[R-642](tasks/642-the-engines-prompt-cache-may-grow-to-the-whole-memory-cap.md)** The engine's prompt cache may grow to the whole memory cap of the container it runs in (resource-governance).
+- **[R-642](tasks/642-the-engines-prompt-cache-may-grow-to-the-whole-memory-cap.md)** The engine's prompt cache may grow to the whole memory cap of the container it runs in (resource-governance). Its claim was re-derived from the code on 2026-09-13.
 - **[R-647](tasks/647-the-mail-cells-rate-at-the-engine-budget-rests-on-one-firing.md)** The mail cell's rate at the engine budget rests on one firing (vision). Its claim was re-derived from the code on 2026-09-12.
 - **[R-654](tasks/654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md)** The void ceiling is a share the cortex alt's control arm is above (vision). Its claim was re-derived from the code on 2026-09-12.
 - **[R-655](tasks/655-the-canary-rows-ok-cannot-be-told-from-a-void-draw.md)** The canary row's `ok` cannot be told from a void draw (vision). Its claim was re-derived from the code on 2026-09-12.
