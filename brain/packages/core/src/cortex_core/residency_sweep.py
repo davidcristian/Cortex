@@ -26,9 +26,16 @@ restart. So the fence is a callable the manager owns (no handoff claimed, no res
 active, declared as ``Fence`` beside the rest of the residency vocabulary in
 ``residency_state.py``, since the pass's other half reads the same one), it is read at the top of
 the pass, and it is read again immediately before every start, synchronously, with nothing awaited
-in between so no handoff can begin in the gap. A start already in flight when a handoff begins is
-left to the supervisor's own per-model lock: the swap in stops these very tiers first and does not
-return until each child is reaped.
+in between so no handoff can begin in the gap.
+
+A start already in flight when a handoff begins is not closed by construction. The supervisor holds
+one lock per logical model, so a start it has begun serving finishes before the swap in's ``stop``
+of that tier runs, and that stop does not return until the child is reaped. The lock does not order
+the other arrival, a start the daemon serves after that stop, which spawns the peer again beside
+the deep model. The fit check reads the card between the last eviction and the deep load, so it
+reports such a peer only when the peer had already allocated by that reading; a peer that allocates
+afterwards leaves a handoff that succeeds overcommitted, which ``cadence.py`` is the instrument for.
+Ordering the two calls is a recorded refinement (docs/refinements/).
 """
 
 import logging

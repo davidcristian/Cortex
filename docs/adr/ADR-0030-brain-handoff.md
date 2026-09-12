@@ -4033,3 +4033,86 @@ addendum. No source file changed, so no mutation table is owed. The one code ina
 sitting found, the control-call count in `TierHealer.aclose`'s docstring, is recorded in R-310
 rather than repaired here, that docstring being an argument about shutdown cost and this being a
 sitting over the backlog.
+
+## Addendum (2026-09-12): the in-flight start's second arm, and a rejection priced against the wrong route
+
+Three more entries opened against this record were left as `fix when it bites` and swept together.
+None of the three triggers has fired, escalation still being off in every compose file here. Two
+of the three correct this record rather than merely confirming it, and both corrections are about
+a cost this record stated once and then carried forward in a shorter form.
+
+### The residual of an in-flight start ends on two arms, and only one of them is a refusal
+
+The tier-sweep addendum above states the residual twice. Its argument paragraph names both arms,
+"a handoff refused by its own fit check or a peer running beside the deep model until
+`restart_evicted` finds it already up", and its closing bullet names one, "the residual is a
+refused handoff rather than a lost one". The entry filed from that bullet
+([R-199](../refinements/tasks/199-sweep-start-not-serialized.md)) inherited the short form and
+concluded that what the residual costs is bounded.
+
+It is not bounded by the fit check. `swap_in` reads the card once, between its last eviction and
+the deep start, so a peer whose `start` the daemon serves after that reading contributes nothing
+to the figure the check compares, and both models then load. That is exactly the case `cadence.py`
+was written for, in its own words: such a handoff succeeds, both tiers report ready, the fit check
+has already passed on room something took during the load, and free memory afterwards reads the
+same as a genuine fit. What differs is throughput, roughly halved. So the second arm is a spilled
+handoff, and no sentence in this record priced it until now. The claim that stands unchanged is the
+one the argument paragraph actually made, that neither arm loses state or corrupts the record.
+
+Two things follow. The entry's trigger now names a spill as well as a refusal, that arm having
+become observable only after it was opened, when the spill watch and the `Health` spill note
+landed. And `residency_sweep.py`'s module docstring was repaired in the same sitting: it carried
+the half of the argument paragraph that is true, the supervisor's per-model lock ordering a start
+the daemon has begun serving against the stop that follows it, without the half that is not, the
+lock ordering nothing about which of two requests the daemon serves first.
+
+### The rejected non-advertisement was priced against a route nobody has to use
+
+The unrostered-refusal addendum rejects hiding `escalate_to_brain` when the tier is missing, on the
+ground that "the advertisement is built per turn, so keeping it truthful would put a control call
+on the path a user is waiting on for every turn". The per-turn half is right, and it is the only
+half of the sentence that is. The built-in set is assembled once at boot and the dispatcher over it
+once per Converse stream; what runs per turn is the tool loop's single `describe_tools` walk.
+
+The cost half does not survive. `SightedToolRegistry` reads a live answer on that same walk and on
+every call, uncached, for the same shape of fact, a capability of a process this brain does not own
+and that can be replaced under it, at one loopback `GET /props` measured at 1.5 ms idle. That
+landed on 2026-08-06, ten days before the rejection was written, and the rejection does not cite
+it. The reading also need not be the one `unhosted` takes: `status` holds the supervisor's
+per-model lock and was measured at up to 5.80 s queued behind a stop, while `GET /health` already
+returns the roster and takes no per-model lock. The port has no verb for that route today, which is
+a gap rather than an argument.
+
+What does survive is the rejection's second reason, and it is narrower than stated. A tool that is
+quietly absent produces no user-facing sentence, so nobody asks why the handoff did not happen. It
+is not hidden "from everyone", because `swap_recovery._clear_deep` already writes one error per
+boot naming `CORTEX_MODEL_FILE_BRAIN` and `CORTEX_ESCALATION`. What would be lost is the
+conductor's per-attempt line and the sentence the user reads. The entry
+([R-279](../refinements/tasks/279-confirm-card-offers-an-impossible-handoff.md)) now says this,
+and names the third shape a fix could take, a restrict-only registry combinator over a fresh
+reading, which neither of the two shapes it previously surveyed is.
+
+### The placer's one bit is unchanged, and its entry had one stale clause
+
+Nothing about `VramBudgetPlacer` moved: one `_gpu_closed` boolean read before the headroom
+arithmetic, against one `StandingTiers` fault per tier, and a `PlacementRequest` that still carries
+no target. The roster alternate this repo ships omits `gpu_endpoint` and falls back to the CPU one,
+so the mapping the entry wants declared would still have a single value here. Its one stale clause
+was a cross-reference: the placement-aware CPU charging entry does not wait on a second GPU-capable
+executor, it was declined and names that as what would reopen it.
+
+Read together, the two supervisor-side entries are not one defect seen twice, which the sweep was
+asked to decide. One is an ordering residual between two control calls on one loopback client,
+whose fix is a primitive that serializes them; the other is the width of a single boolean, whose
+fix is a declared tier id threaded into `PlacementRequest`. Neither fix touches the other's object.
+
+### Records
+
+The record is the three task files,
+[R-199](../refinements/tasks/199-sweep-start-not-serialized.md),
+[R-200](../refinements/tasks/200-placer-one-bit-per-card.md) and
+[R-279](../refinements/tasks/279-confirm-card-offers-an-impossible-handoff.md), all three of which
+stay open with a dated trail entry and a re-derived body,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. One source file changed and it is a module docstring, so no behaviour moved and no gate
+was wired or altered; no mutation table is owed.

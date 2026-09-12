@@ -4,7 +4,7 @@
 **Area:** resource-governance
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 **Trigger:** A deployment naming more than the subagent tier in `CORTEX_SWAP_EVICT_MODELS`.
-**Verified:** 2026-09-10
+**Verified:** 2026-09-12
 
 The placer carries a single flag for whether the GPU is available, while the residency record holds
 one entry per tier. Opened 2026-08-09 by the same close. Any missing tier closes GPU placement for
@@ -17,8 +17,9 @@ subagent pool never places on and loses GPU placement it did not need, which is 
 than correctness, and the conservative direction is deliberate (refusing too little costs a dead
 load per spawn). The fix is a declared tier id per roster entry, threaded into `PlacementRequest` so
 the placer can skip one target rather than all of them. The trigger is a deployment naming more than
-the subagent tier in `CORTEX_SWAP_EVICT_MODELS`, or a second GPU-capable executor, which is the same
-condition the placement-aware CPU charging entry waits on.
+the subagent tier in `CORTEX_SWAP_EVICT_MODELS`, or a second GPU-capable executor, which is also
+what would reopen the declined placement-aware CPU charging entry
+([R-189](189-placement-aware-cpu-charging.md)).
 
 ## Trail
 
@@ -32,3 +33,16 @@ condition the placement-aware CPU charging entry waits on.
   is the single value the entry says the mapping would have. The coarse flag is unchanged as well,
   and `residency_tiers.py` still carries the paragraph saying it holds one bit for the whole card
   rather than one per tier.
+- 2026-09-12: re-derived and still not fired, and one cross-reference was stale. `VramBudgetPlacer`
+  carries `_gpu_closed`, one boolean read before the headroom arithmetic, against `StandingTiers`'
+  `_faults` dict of one entry per tier, and `PlacementRequest` still carries a model id and three
+  resource figures and no target, so the fix the entry names is still a port change rather than a
+  tweak. The roster's per-entry `gpu_endpoint` (`config_subagents.py`) is still the only address a
+  GPU placement dials, and the roster alternate this repo ships omits it and falls back to the CPU
+  endpoint, so the mapping the entry wants declared would still have one value here. The stale part
+  was the last clause: the placement-aware CPU charging entry does not wait on that condition, it
+  was declined in 2026-07-16 and names a second GPU-capable executor as what would reopen it, so
+  the sentence now says reopen rather than wait.
+  Read against [R-199](199-sweep-start-not-serialized.md) and they are not one defect seen twice.
+  That one is an ordering residual between two control calls; this one is the width of one boolean.
+  Neither fix touches the other's object, and the two triggers can fire independently.
