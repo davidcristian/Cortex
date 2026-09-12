@@ -14,17 +14,29 @@ record that one happened.
 
 The cadence is counted in tables, not in days, because the record grows in bursts: one overnight
 session lands more of them than a quiet fortnight does. **A pass is due once twenty five candidate
-bodies have landed since the last pass in the ledger.** Ask the question with the recipe, handing
-it the last pass's date:
+bodies have landed since the last pass in the ledger.** The recipe answers that question on its
+own, with no date typed in:
 
 ```
-just replay "" 2026-08-21
+just replay
 ```
 
-The header line reports how many candidates that range holds. Under twenty five, there is nothing
-to do. At or over it, that same command has already drawn the sample, and it drew it out of the
-whole range rather than the standing window: on a pass that is on time the two sets are the same,
-and on a late one the wider set is the honest one to sample.
+Its first line reads the date off the ledger's last dated row, counts the candidate bodies that have
+landed since it, and states that count against the cadence. Under twenty five there is nothing to
+do. At or over it, the same run has already drawn a sample out of the standing window.
+
+Once the count is well past the cadence, the standing window and the gap since the last pass are no
+longer the same set, and the gap is the honest one to sample, being what went unsampled. Hand the
+recipe the ledger's date to count and draw over that range instead:
+
+```
+just replay "" 2026-08-25
+```
+
+A ledger carrying no dated row leaves the standing count unavailable, which that first line says in
+place of a number, and the draw still runs. A missing ledger file fails the recipe outright:
+this document is the procedure a pass is run from, so its absence is a fault rather than one
+number going unreported.
 
 ## Drawing the sample
 

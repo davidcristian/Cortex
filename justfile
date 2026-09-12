@@ -173,6 +173,17 @@ replay seed="" since="" count="5" window="25":
         echo "=== replay draw: seed $seed, over the tables landed since $since ==="
         echo "=== reproduce this draw with: just replay $seed $since ==="
     else
+        ledger="docs/runbooks/mutation-replay.md"
+        last="$(sed -n 's/^| \([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\) |.*/\1/p' "$ledger" | tail -n 1)"
+        if [ -z "$last" ]; then
+            echo "=== $ledger carries no dated row, so there is no standing count ==="
+        else
+            landed="$(git log --since="$last" "${vocabulary[@]}" --format='%H')"
+            behind="$(printf '%s' "$landed" | grep -c . || true)"
+            verdict="no pass due"
+            [ "$behind" -lt {{ window }} ] || verdict="a pass is due"
+            echo "=== $behind candidate bodies since the pass of $last, cadence {{ window }}: $verdict ==="
+        fi
         pool="$(git log --max-count={{ window }} "${vocabulary[@]}" --format='%H%x09%s')"
         echo "=== replay draw: seed $seed, over the {{ window }} most recent tables ==="
         echo "=== reproduce this draw with: just replay $seed ==="

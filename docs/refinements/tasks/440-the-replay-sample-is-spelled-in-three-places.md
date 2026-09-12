@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-10
+**Verified:** 2026-09-12
 **Trigger:** a change to either number, since the copies drift the moment one of them moves.
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
@@ -46,3 +46,17 @@ recipe for them, which costs the addendum its argument and is probably the wrong
   commit bodies out of the twenty five most recent, the runbook says a pass is due once twenty
   five candidate bodies have landed and that a draw takes five, and the cadence addendum still
   argues for both. `crosscheck.py` registers neither number.
+- 2026-09-12: still not fired, the copies are unchanged at four of each, and the cost of
+  registering one is higher than this file estimates. `crosscheck.py` reads a declaration by
+  dispatching on the file's suffix and knows three, `.py`, `.rs` and `.ts`, so the `justfile`'s
+  `count="5" window="25"`, which is the executable copy, cannot be a registered site at all until
+  the scan learns a fourth syntax for a file that has no suffix. The word spelling this file names
+  is the second obstacle rather than the only one, and closing it needs `Spelling` to grow a form
+  rendering 25 as twenty five, a spelling being derived from the declared value rather than typed
+  into the registry. Both are edits to the scan rather than registry entries, so the decision to
+  leave the numbers unregistered stands on firmer ground than the reasoning it was written with.
+  What did move is the standing of one sentence: `just replay` now reads the ledger's last date and
+  holds the count against the same twenty five
+  ([R-439](439-nothing-counts-the-record-between-passes.md)), spending the recipe's `window`
+  default in both roles rather than adding a fifth copy, so the runbook's cadence sentence states
+  what a recipe does rather than what a reader should do.
