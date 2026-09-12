@@ -815,6 +815,23 @@ def test_a_half_applied_rename_passes_a_presence_check_and_fails_a_counted_one(
     assert spelling in fault.detail
 
 
+def test_a_counted_mention_that_finds_nothing_reads_like_a_presence_check(tmp_path: Path) -> None:
+    """Zero is the case the unfound reading was written for, so a count does not withhold it.
+
+    The component compares a state under a longer identifier, which is the shape moving out from
+    under a needle: the value is still spelled and nothing of the needle around it is.
+    """
+    (tmp_path / "channels.py").write_text('STATE = "thinking"\n', encoding="utf-8")
+    (tmp_path / "Message.tsx").write_text(
+        '<span\n  aria-label={state === "thinking" ? "x" : undefined}\n/>\n', encoding="utf-8"
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
+    assert "does not spell 's === \"thinking\"' as a token of its own" in fault.detail
+    assert "the file does still spell 'thinking' as a token of its own" in fault.detail
+    assert "the registry pins 2 occurrences, so move the whole set" in fault.detail
+    assert "found 0" not in fault.detail
+
+
 def test_a_counted_mention_fails_on_one_occurrence_too_many(tmp_path: Path) -> None:
     """The count is exact rather than a floor, since a set that grew has a registry line that is
     now stale."""
@@ -1089,7 +1106,8 @@ def test_retuning_the_budget_alone_fails_both_spellings(tmp_path: Path) -> None:
     _budget(tmp_path, declared="12.0", passed="8.0", limit="8")
     written, whole = crosscheck.check_constant(tmp_path, BUDGET)
     assert "does not spell '\"${BUDGET_GB:-12.0}\"'" in written.detail
-    assert "'\"${BUDGET_GB:-12}g\"' as a token of its own: found 0, pinned 2" in whole.detail
+    assert "does not spell '\"${BUDGET_GB:-12}g\"' as a token of its own" in whole.detail
+    assert "the registry pins 2 occurrences" in whole.detail
 
 
 def test_one_of_the_two_limits_moving_alone_is_a_count_short(tmp_path: Path) -> None:

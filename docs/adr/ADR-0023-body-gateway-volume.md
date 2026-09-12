@@ -1174,3 +1174,112 @@ readings above written into them,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
 `body/crates/os_windows/Cargo.toml` and [modules/body-os.md](../modules/body-os.md), whose module
 count was repaired, and this addendum.
+
+## Addendum (2026-09-12): what a counted mention says when it finds none of its set
+
+The misattributed-fault addendum above left two residues and one of them closes here. A mention
+pinning an occurrence count raised a sentence with no reading in it, `found 0, pinned 2; move the
+whole set, or correct occurrences in the registry`, because the reading it could have had was wired
+into the presence check alone ([R-405](../refinements/tasks/405-a-counted-mention-that-finds-nothing-says-nothing.md)).
+Zero is the case that reading was written for. This is a message change and a branch; no registry row
+moved and no value changed. The two other entries this sweep re-derived, the run's own scope and the
+seam's non-loopback posture, stay open with corrected readings and are recorded below.
+
+### What the fault says now, and what the count is allowed to say
+
+`crosscheck.check_mention` tests `found` before it tests the count. A file holding none of the needle
+gets `needles.unfound` whether or not a count is pinned, and the pinned count follows as its own
+clause: `the registry pins 2 occurrences, so move the whole set, or correct occurrences in the
+registry`. The two facts are kept in separate clauses on purpose, because the count is what the
+registry asked for and none is what the file said, and a sentence running them together would report
+a needle found some number of times it was not found at all. A count that is wrong without being
+zero still gets `found N, pinned M`, which is the one answer a run and a still-spelled value cannot
+improve on: the needle is there, and the question is only how many. What both faults end on is now
+one string, `crosscheck.RECOUNT`, rather than two spellings of one sentence.
+
+### Proved able to fail, four times, over the crosscheck registry
+
+Each drift was planted on the real tree one at a time, the gate run under the scan as it stood
+before this change and again after it, the file restored from a copy taken beforehand, and the
+restoration compared by digest. All four exited 1 in both runs and all four restorations matched. The
+counts are over the crosscheck registry as it stands, 91 entries over 109 declaring sites and 300
+mentions, 27 of them pinned to a count, unchanged by this work and not over any test suite: a
+suite's numbers say nothing about the collection this table is about.
+
+| planted drift | before | after |
+|---|---|---|
+| both of the volume runbook's `host.docker.internal:50151` endpoints moved | `found 0, pinned 2` | the run `host.docker.internal:5015` stopping in 2 places, `50151` still spelled in 4 and read back off line 13, then the pinned count |
+| one of those two endpoints moved | `found 1, pinned 2` | unchanged |
+| both of the runbook's `CORTEX_BODY_ADDR=0.0.0.0:50151` exports moved | `found 0, pinned 2` | the run `CORTEX_BODY_ADDR=0.0.0.0:5015` stopping in 2 places, `50151` still spelled in 4 and read back off line 48, then the pinned count |
+| the runbook's stated bind default moved, an uncounted mention | the full reading | unchanged |
+
+Rows two and four are the controls, and they are what makes the change a narrowing rather than a
+rewrite: a short count and a presence check both print exactly what they printed before. Rows one and
+three are the counted mentions this entry named when it was filed, both over the body port declared
+by this ADR's own slice, and both now say which literal stopped matching. Both also draw the weak
+verdict rather than the strong one, the still-spelled port sitting on a different line from where the
+run stops, so neither sends a reader to a neighbouring constant on the strength of a coincidence.
+
+### The run is measured over a file, and on its own case it now names the wrong line
+
+The second residue was re-derived rather than taken on its word, and it is worse than filed
+([R-406](../refinements/tasks/406-the-carried-run-is-measured-over-a-whole-file.md)). The run is the
+longest opening prefix of the needle the whole file carries, and since the run-line addendum it
+names the line it stops on. Replanting the case the misattributed-fault addendum measured, with
+`docker/docker-compose.yml`'s seam publish moved to `0.0.0.0`, the fault reads `carrying no more of
+it than '"127.0.0.1:', which stops on line 100`. Line 100 is the **redis** publish. The line that
+moved is 59, and the message names it nowhere, its value reading pointing at line 82, the healthcheck
+that dials the port. An overstated run was a string a careful reader could discount; an overstated
+run with a line number is a line to open that has nothing to do with the drift.
+
+What that entry was waiting on has also been answered, in the other direction and by a change made
+elsewhere. A mention is a claim about a **file**: five of the registry's 300 mentions now render a
+template that crosses a line boundary, two of them written that way deliberately so that
+`- "--threads"` and the substitution on the line beneath it are one needle rather than a relation
+between two compose keys (ADR-0004's thread-flag addendum). So a per line run cannot be the only kind
+of run, and the fix is two shapes: the best line where a needle holds no newline, and today's
+whole file run where it does. That is a decision about what a reader is better served by, which is
+why the entry stays open with the narrowed statement rather than closing here.
+
+### The seam's non-loopback posture, named place by place
+
+The third entry re-derived here is this ADR's own assumption 5 revisit
+([R-219](../refinements/tasks/219-hardened-non-loopback-posture.md)), and its trigger, the machine
+leaving single-user, has not fired. The posture is still the posture: the shell binds
+`CORTEX_BODY_ADDR`, defaulting to `127.0.0.1:50151` and documented as the setting an operator widens
+to `0.0.0.0:50151`, and the only authentication in front of that socket is one shared
+`x-cortex-seam-token` compared in constant time, passing everything through when the configured
+token is empty. What the entry lacked was the cost, so it now names the places: `aio.insecure_channel`
+in `GrpcBodyGateway.connect`, `Server::builder()` over a plain `TcpListenerStream` in
+`body_server::start`, and the one secret both directions read. The reading worth keeping is the
+dependency. `body/Cargo.toml` pins `tonic = "0.14"` with default features, and tonic 0.14.6 declares
+`default = ["router", "transport", "codegen"]`, so this tree compiles no TLS at all: enabling
+`tls-ring` or `tls-aws-lc` is the first step of an mTLS close rather than a detail of it.
+
+### What this leaves
+
+One residue, and this change is what made it one. A counted mention that loses its whole set now
+names lines and a counted mention that loses one of them still names none, so the rarer drift is the
+better reported one ([R-656](../refinements/tasks/656-a-short-count-names-no-line.md)). The lines
+the needle *was* found on are already in hand and cost one sentence; the line the missing occurrence
+used to sit on is not in the file any more, which is why that entry asks what the candidates are
+worth before offering them.
+
+Three mutation tables published in other decision records quote the old sentence as what the gate
+said on the day they were run, in the resource-governance record and twice in the vision record.
+They are dated readings of a past run and stay as written; a replay of those rows today prints the
+longer reading above.
+
+### Records
+
+The records are the task file
+[R-405](../refinements/tasks/405-a-counted-mention-that-finds-nothing-says-nothing.md), which
+closes, [R-406](../refinements/tasks/406-the-carried-run-is-measured-over-a-whole-file.md) and
+[R-219](../refinements/tasks/219-hardened-non-loopback-posture.md), which stay open with the
+readings above written into them,
+[R-656](../refinements/tasks/656-a-short-count-names-no-line.md), which opens,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from all of them,
+`scripts/crosscheck.py`, which holds the branch and the shared sentence,
+`scripts/tests/test_crosscheck.py`, whose counted-mention part gained the test that drives it,
+[modules/repo-gates.md](../modules/repo-gates.md), which documents what a count may say, and this
+addendum.

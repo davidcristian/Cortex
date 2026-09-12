@@ -363,6 +363,13 @@ answer: a marker written into any other module here is reported by the line it i
   features and `var(--ease)` stays one because 52 transitions across unrelated features ride that
   curve. Every mention that occurs once is left unpinned, a count of one saying nothing a presence
   check does not.
+  **A count does not withhold the unfound reading** (ADR-0023 counted-zero addendum). A file
+  holding none of the set gets both readings above, zero being the case they were written for, and
+  the pinned count follows as its own clause rather than joining them: the count is what the
+  registry asked for and none is what the file said, so no sentence reports a needle found some
+  number of times it was not found. The `found N, pinned M` sentence is what a count that is wrong
+  without being zero still gets, and `crosscheck.RECOUNT` is the one spelling of what either asks
+  of a reader, the far side having moved as a set or the registry's number having gone stale.
   **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
   in registry order, for a bound that must sit under another rather than match it. An ordering
   compares integers only, a signed one included (a string under one is a fault, and so is a
