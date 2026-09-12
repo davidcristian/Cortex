@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
 **Trigger:** the first deployment that sets `CORTEX_REPLY_TRACE_TOKENS` on a stack with
 `CORTEX_ESCALATION` on, which is when one count starts binding two tiers picked on opposite
 arguments.
@@ -55,3 +55,15 @@ honest and cheap; the first is what the trigger above asks for.
   `ReplyBoundsConfig.bounds()` still builds one `GenerationBounds`, and `brain_phase.py` still
   carries `self._caps.bounds` into the deep model's completion, so the first deployment to set both
   gets one count over two tiers.
+- 2026-09-12: the trigger has not fired and the premise holds line for line.
+  `ReplyBoundsConfig.bounds()` builds one `GenerationBounds`; `wiring.py` hands it to
+  `StreamEngines` as `bounds`; `engine.py` puts it on the cortex turn's `ToolLoopContext` and
+  `brain_phase.py` puts the same `self._caps.bounds` on the deep continuation's. Neither setting the
+  trigger names is on: `CORTEX_REPLY_TRACE_TOKENS` is set by no compose file, recipe or workflow and
+  there is no `.env`, and `CORTEX_ESCALATION` is `False` by default in `config_swap.py`, named in a
+  comment in the GPU override, spelled as an operator instruction in the model-swap runbook, and
+  spelled as a setting only in a host task's compose snippet. One reading is worth adding to the
+  split this entry rests on: the two tier flags express it, but their **default** does not, and
+  `crosscheck` holds those two defaults as one set on the argument that both tiers ship unbounded.
+  So the first deployment to set the request count on an escalating stack bounds two traces that
+  nothing else bounds, which is a wider first step than the entry's wording implies.

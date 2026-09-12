@@ -1,13 +1,8 @@
 # The trace lever is answered once per boot and never re-asked
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-12
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
-**Trigger:** a llama.cpp image upgraded under a brain that keeps running, where the new build
-answers the lever question differently from the answer the running brain cached, which is a
-`docker compose pull`, a recreate of the model host alone, and the GPU runbook's own curl returning
-a status that contradicts the boot line.
 
 Opened 2026-08-29 by the close of
 [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), whose decision 5 argues that
@@ -31,11 +26,13 @@ Both are fixed by a restart, and `CORTEX_INFERENCE_TRACE_LEVER=on` fixes the fir
 cost of the alternative is real and was priced: a probe per call adds a round trip to every
 completion and decodes a token on the servers that most need not to.
 
-**What would close it.** Either a cheap re-ask on a boundary that already exists, the model swap
-being the obvious one since the residency scope knows a child was replaced, or a line in the
-`llamacpp-gpu.md` upgrade path saying to restart the brain after pulling llama.cpp. The second is
-a paragraph and the first is a seam, so the second should probably land first and the first only
-if somebody is bitten.
+**What closed it.** The second of the two repairs this entry offered: a paragraph in the GPU
+runbook's own lever section saying to restart the brain after pulling llama.cpp, which direction of
+staleness each skipped restart costs, and that the brain is the stale half when the boot line and
+the `curl` disagree. The first, a re-ask on a boundary that already exists, is the seam half and is
+[R-648](648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md), deferred there on the
+argument this entry opened with: a probe per call is priced and refused, and the swap boundary is
+worth a re-ask only once somebody is bitten.
 
 ## Trail
 
@@ -57,3 +54,14 @@ if somebody is bitten.
   `b10666-4e97ac86e` gave on 2026-08-29, so across the one bump this host has taken the honest
   answer did not move. The runbook line the entry proposes is still unwritten and still the cheap
   half.
+- 2026-09-12: **landed**, as the documented repair. The GPU runbook's request-lever section now
+  carries the restart paragraph, and the trigger is answered once more without having fired. Both
+  mutable tags cached on this host still report build `b10680` at revision `d7bd3bfca`, read off
+  each image's own `org.opencontainers.image.version` and `.revision` labels rather than by starting
+  a server, so no pull has moved either tag since 2026-09-07 and the pinned `:server-cuda-b10666`
+  copy is unchanged beside them. That label reading is the cheap half of this entry's own question
+  and the runbook now prints it: it says which build is behind a tag while a measurement is using
+  the card, which the `curl` cannot do. The running container tonight is one live harness's server
+  on the CUDA tag, not a brain and not a model host, so again nothing was left running across a
+  recreate. The seam half moves to
+  [R-648](648-nothing-re-asks-the-trace-lever-when-the-engine-moves.md).

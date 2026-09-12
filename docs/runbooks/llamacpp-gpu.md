@@ -443,6 +443,25 @@ INFO:cortex_inference.lever:trace lever probe answered endpoint=<the endpoint as
 A server that could not be reached at all logs `trace lever probe failed` instead, at `WARNING`,
 and the request goes on carrying no budget.
 
+**Restart the brain after you pull a newer llama.cpp.** The answer above is asked once and kept for
+the life of the brain process, because what it describes is a binary rather than an argv, so a
+`docker compose pull` that moves the tag this stack names and a recreate of the model host without
+the brain leave the brain sending requests shaped by the previous build's answer. Neither direction
+of that staleness is reported: a brain that booted before the key existed goes on sending the
+request it always sent, which costs it the lever, and a brain that booted against a build that
+reads the key and now talks to one that does not sends a key the engine drops without reporting
+anything. A restart fixes both, and `CORTEX_INFERENCE_TRACE_LEVER=on` fixes the first without one
+on a deployment whose build you know. If the boot line and the `curl` above disagree, the brain is
+the half that is stale. Which build sits behind a tag can be read without starting a server at all:
+
+```
+docker image inspect ghcr.io/ggml-org/llama.cpp:server-cuda \
+  --format '{{index .Config.Labels "org.opencontainers.image.version"}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
+```
+
+The version label and the first nine characters of the revision label compose the build id this
+section names, so both mutable tags cached here read as `b10680-d7bd3bfca` (2026-09-12).
+
 Then check that the count holds on the shape the switch loses, against a server started with
 **neither** reasoning flag:
 
