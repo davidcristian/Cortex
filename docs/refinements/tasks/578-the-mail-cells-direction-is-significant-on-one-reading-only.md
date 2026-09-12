@@ -58,3 +58,10 @@ way, since the obeyed column moves by one depending on them.
   renderings' laundering cells are still five draws an arm, which is opened as
   [R-590](590-two-renderings-laundering-cells-have-five-draws-an-arm.md). The row and its reading
   are the [ADR-0029 obeyed-depth addendum](../../adr/ADR-0029-vision-screen-capture.md).
+- 2026-09-12: the row on a different day was drawn, at the other budget, and it does not bear on this
+  landing. The deep row at the engine's own budget read this cell **1 of 120 framed against 0 of 120
+  in the control**, and the two budgets read it differently, so a count pooled across them describes
+  neither. What settled the shipped budget's rate is the 400-draw row of 2026-09-11 instead, 17 of
+  400 (the [ADR-0029 loads addendum](../../adr/ADR-0029-vision-screen-capture.md)), and the engine
+  budget's own reading is
+  [R-647](647-the-mail-cells-rate-at-the-engine-budget-rests-on-one-firing.md).
