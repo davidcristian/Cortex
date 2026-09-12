@@ -4175,3 +4175,80 @@ The change is `packed_trail` and the refusal in `scripts/trailwidth.py`, four te
 addendum. No runbook changed: both documents already say what the two renderings are for, and it was
 the reader that said nothing. `scripts/trailwidth.py` now stands at 296 lines against the 300-line
 cap, so the next change to it is a split.
+
+## Trigger-sweep addendum (2026-09-12): three bounds on a log line re-read, and a credential that never enters a URL
+
+Three deferred entries about what a log line carries and what it withholds were held to the code for
+the third time, and all three stand. What the sweep added is a reading of the path a credential takes
+to a line, a correction to two live documents, and one number that does not reproduce between runs.
+
+### The two entries about a bound are two entries
+
+The sweep was asked whether the packed rendering's missing bound and the plain rendering's unbounded
+line are one defect seen from two sides. They are not. `PackedFormatter` hands `record_fields`
+straight to `json.dumps`, and `render_value`, where the per-value bound lives, is reached only
+through `render_fields` from `PlainFormatter.formatMessage`: a grep for all three names over the
+brain finds no other caller outside the suites. Neither fix closes the other. A whole-line bound in
+`render_fields` leaves a packed line unbounded, that rendering never calling it, and passing packed
+values through `render_value` would bound each value and leave the packed line's own total unbounded
+exactly as
+[R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md) says the plain one's
+is. Both stay open, each carrying today's reading.
+
+### The widths, and why five of them moved
+
+| Reading | 2026-09-08 | 2026-09-12 |
+| --- | --- | --- |
+| the audit line with four million-character fields, plain | 8,580 | 8,437 |
+| the same record, packed | 4,000,439 | 4,000,296 |
+| the trail at its shipped caps, plain | 2,264 | 2,258 |
+| seven fields at the bound | 14,494 | 14,526 |
+| eight fields at the bound | 16,562 | 16,598 |
+
+Nothing in the formatter moved between those two runs. A rendered width is a function of three
+things each run chooses: the level, logger and message the line opens with, the key names, and the
+digits inside each cut marker, a cut field spending 2,048 characters plus a marker that names how
+many went. So a width of this kind reproduces only within one run's own shape, and the readings that
+carry between runs are the field count (seven fit under the cliff, eight do not), the marker count,
+and how many of the driver's messages one line becomes, 245 packed against 1 plain. The addendum of
+2026-09-08 says that eight-character keys reproduce 14,536 exactly; that holds for its own prefix and
+marker and not for a shape differing in either, and
+[R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md) now states which part
+of the reading carries.
+
+### Two live documents still called the recall trail the widest line
+
+`docs/modules/repo-gates.md` and `docs/runbooks/memory-pgvector.md` both still described the recall
+trail as the widest line the brain writes, which the reading above disproved on 2026-09-08 while
+correcting only this record and the task file. Both now name the tool audit and carry both figures.
+The same repo-gates paragraph sent a reader to `logcouplings.py` for the trail reader's two
+registered needles, which moved to `trailcouplings.py` when that file was split at the line cap, so
+it now names the file that holds them.
+
+### A credential that never enters a URL
+
+The five readings [R-343](../refinements/tasks/343-a-userinfo-the-pattern-cannot-reach.md) records
+reproduce cell for cell, and the compose files are unchanged, so its trigger has not fired. The new
+reading is the path such a URL takes. No log call in the brain attaches either connection URL as a
+field: a grep over every `extra=` in the brain finds one endpoint field, the model host's, and that
+URL carries no credential. A connection URL therefore reaches a line only inside a library's
+exception text or a traceback. Measured today,
+`asyncpg.create_pool("postgresql://cortex:hun/ter@postgres:5432/cortex")` raises `ValueError:
+invalid literal for int() with base 10: 'hun'`, because the `/` ends the authority for that parser
+and what follows the `:` is read as a port. The password's first segment is the whole message, with
+no scheme and no `@` anywhere near it, so `redact_urls`, a rule over URL syntax, cannot withhold it;
+and that call is awaited with no `except` under a `__main__` that runs `asyncio.run` unguarded, so
+the traceback is printed by the interpreter and never passes through the formatter at all. Filed as
+[R-652](../refinements/tasks/652-a-credential-can-leave-the-process-with-no-url-around-it.md) with
+three shapes, because refusing the DSN where it is read covers the measured leak while guarding the
+entry covers every URL-shaped credential in a startup traceback, and neither covers the other.
+
+### Records
+
+The record is the three task files, each with a dated trail entry and a `Verified` of 2026-09-12,
+the new entry R-652, the two corrected documents,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from the files, and this
+addendum. No source file and no gate changed in the sweep itself, so it owes no mutation table; the
+landing of the same day is in the packed-capture addendum above. Every reading was taken against the
+working tree through the brain's venv rather than against a running stack, each being a property of
+the formatter, of a library's parser, or of what the compose files declare.

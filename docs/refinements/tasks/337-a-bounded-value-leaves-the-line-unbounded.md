@@ -9,7 +9,7 @@ the widest line the tree can build is read off the two shipped sinks by renderin
 `LoggingAuditSink`'s eleven fields through `PlainFormatter` with the four a model or a tool server
 writes each past `VALUE_CHARS`. This entry's trail records both when they were last taken.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
 
 `VALUE_CHARS` bounds one field's value at 2,048 rendered characters. A line carries a message and
 as many fields as its call site attached, so **eight** fields at the bound pass the measured 16 KiB
@@ -20,9 +20,12 @@ That the bound is the cliff divided by eight is the argument that this cannot ha
 is an argument rather than a check. It is also a weaker argument than it first read: the addendum
 that landed the bound claimed eight fields at it still leave a line whole, and eight come to 16,384
 characters against a cliff of 16,383, one over before a `key=`, a separator, a marker or the
-message is counted. Measured through the shipped formatter, seven cut fields make a line of 14,536
-characters and eight make one of 16,607, so the real headroom is seven (ADR-0038
-cut-defeats-withholding addendum). Nothing measures the widest line the tree can actually produce,
+message is counted. Measured through the shipped formatter, seven cut fields make a line of about
+14,500 characters and eight one of about 16,600, so the real headroom is seven (ADR-0038
+cut-defeats-withholding addendum). Only that field count carries between runs: the exact widths move
+by tens of characters with the level, logger and message a line opens with and with the digits in
+each cut marker, which is why three runs of this shape have recorded 14,536, 14,494 and 14,526.
+Nothing measures the widest line the tree can actually produce,
 and nothing fails when a new sink attaches an eighth large field. Both shipped sinks carry eleven
 keys at their widest: the recall trail always writes eleven, and the tool audit writes `tool`,
 `ok`, `arguments`, `trust` and `at`, then whichever of the five work identities the dispatch
@@ -83,3 +86,17 @@ day that field is written rather than the day the line is read.
   its cheaper alternative is now the more attractive of the two: a test asserting the widest line a
   shipped sink builds stays under the cliff has two figures to be written against, and the tool
   audit is where it would bite first.
+- 2026-09-12: trigger swept again and not fired, and the two live documents that still carried the
+  claim this entry disproved are corrected. Re-measured through the shipped `PlainFormatter` today,
+  the widest line the tree can build, the audit-shaped record with a million characters in each of
+  its four model-written fields, renders at **8,437 characters, 51.5% of the 16,383 cliff and a
+  headroom factor of 1.94**; the recall trail at its shipped caps renders at 2,258; seven fields at
+  the bound make 14,526 characters and eight make 16,598, so seven is still the headroom in fields.
+  Both sinks were counted again off their own `extra=` dicts and both still carry eleven keys at
+  their widest. `docs/modules/repo-gates.md` and `docs/runbooks/memory-pgvector.md` each still said
+  the recall trail is the widest line the brain writes, which is what the 2026-09-08 reading
+  disproved, so both now name the tool audit and carry both figures. That is the doc half of a
+  reading already recorded here and not a bound: the line is still unbounded, still ungated, and the
+  cheaper alternative still stands. The live half was not re-read, `just recall-width` needing the
+  card that a long measurement was holding all session, so the 1,800-character live reading of
+  2026-08-27 remains the only one taken off a running stack.

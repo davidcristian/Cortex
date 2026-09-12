@@ -8,7 +8,7 @@ it that reads entries rather than lines. Both limbs come off the compose files:
 those files declare are where a collector would be. This entry's trail records what that reading
 answered when it was last taken, and what a packed line of the widest shipped record measures.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
 
 The per-value bound landed in `render_value`, which only the plain rendering spends.
 `PackedFormatter` hands `record_fields(record)` straight to `json.dumps`, so a field of any size
@@ -37,6 +37,25 @@ purpose, which is where it stands today and is only accurate while nobody runs i
 
 ## Trail
 
+- 2026-09-12: trigger swept a third time and not fired, and this entry is not the same defect as
+  [R-337](337-a-bounded-value-leaves-the-line-unbounded.md), which was the question the sweep was
+  asked. The compose files are unchanged, `plain` in both variables and no collector among the
+  eleven services, and `render_value` is still reached only through `render_fields` from
+  `PlainFormatter.formatMessage`: a grep for all three names over the brain finds no other caller
+  outside the suites. Re-measured today, the same audit-shaped record whose four model-written
+  fields each carry a million characters renders at **8,437 characters plain with four cut markers
+  and 4,000,296 packed with none**, 245 of the driver's messages against one. Those are not the
+  8,580 and 4,000,439 of 2026-09-08, and the difference is the record's own names rather than the
+  formatter: a line spends its level, logger and message before the first field, and a cut field
+  spends its marker's own digits, so a width of this kind reproduces only within one run's shape and
+  the portable readings are the marker count and the message count. The two entries are separate
+  because neither fix closes the other: a whole-line bound in `render_fields` leaves a packed line
+  unbounded, since that rendering never calls it, and passing packed values through `render_value`
+  would bound each value and leave the packed line's own total unbounded exactly as R-337 says the
+  plain one is. The measurement [R-470](470-the-reader-assumes-the-plain-rendering.md)'s close
+  needed is this entry's subject at the other end of the scale: one trail record at its shipped caps
+  renders at 2,258 characters plain and 2,478 packed, so on a record carrying no over-long value the
+  packed rendering costs 220 characters more rather than 474 times as much.
 - 2026-09-08: trigger swept and not fired, and one sentence of this entry corrected.
   `docker/docker-compose.yml` ships `CORTEX_LOG_FORMAT: ${CORTEX_LOG_FORMAT:-plain}` and
   `docker/docker-compose.gpu.yml` ships `CORTEX_MODELHOST_LOG_FORMAT` the same way, no `.env` in the

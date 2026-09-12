@@ -9,7 +9,7 @@ and each shape is read by putting the URL through `render_value` and then throug
 twice, as a field and as a message, which is five answers and not one. This entry's trail records
 what the shipped URLs and each shape answered when that was last run.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three shapes of credential:
 
@@ -45,6 +45,23 @@ that was already outside the URL grammar.
 
 ## Trail
 
+- 2026-09-12: trigger swept a third time and not fired, and the sweep found that the pattern is not
+  the only thing standing between the one shipped credential and a log line. The five readings
+  reproduce the 2026-09-08 table cell for cell, and the compose files are unchanged:
+  `CORTEX_MEMORY_DSN` is still the only URL built with a credential and `CORTEX_PG_PASSWORD` still
+  defaults to `cortex`. What is new is the path such a URL takes. No log call in the brain attaches
+  either URL as a field: a grep over every `extra=` in the brain finds one endpoint field, the model
+  host's, and that URL carries no credential. So a connection URL reaches a line only inside a
+  library's exception text or a traceback, which is the one place this entry's table reports a
+  control character exposed. Worse for the first limb, `asyncpg` misparses exactly the shape it is
+  about: `create_pool("postgresql://cortex:hun/ter@postgres:5432/cortex")` raises `ValueError:
+  invalid literal for int() with base 10: 'hun'`, which prints the password's first segment with no
+  URL around it, so no shape rule here could withhold it; and that call is awaited with no `except`
+  under a `__main__` that runs `asyncio.run` unguarded, so the traceback is printed by the
+  interpreter and never passes through the formatter at all. Filed as
+  [R-652](652-a-credential-can-leave-the-process-with-no-url-around-it.md). This entry is unchanged
+  in substance: the three shapes stand, and widening the pattern would still not cover the shipped
+  credential's own path.
 - 2026-09-08: trigger swept and not fired, and the whitespace limb repaired above. The one URL this
   deployment builds with a credential in it is `CORTEX_MEMORY_DSN` in
   `docker/docker-compose.memory.yml`,

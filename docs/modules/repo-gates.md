@@ -1282,12 +1282,14 @@ answer: a marker written into any other module here is reported by the line it i
   reports the rendered width of the recall trail's `dropped` field, which is the widest value the
   tree attaches and therefore the value `cortex_core.VALUE_CHARS` is argued against. A line
   qualifies by carrying the trail's own message and that field, and **both of those words are
-  registered in `logcouplings.py` against the sink that writes them** (ADR-0038 tied-needle
+  registered in `trailcouplings.py` against the sink that writes them** (ADR-0038 tied-needle
   addendum), so a rename in the brain fails `just check` on the day it is made rather than
   surfacing here weeks later as a capture holding no trail line at all. **The whole line that field
   sits on is reported beside it**, in the same cohorts, because the per-value bound leaves the line
-  itself unbounded and the recall trail is the widest line the brain writes (ADR-0038 whole-line
-  addendum). That width is measured from where the shipped formatter's output starts, the level,
+  itself unbounded (ADR-0038 whole-line addendum). It is not the widest line the brain writes: the
+  tool audit's is, four of its fields carrying text a model or a sidecar wrote, and with a million
+  characters in each of those four it renders at 8,437 characters against a trail line's 2,258 at
+  the shipped caps (ADR-0038 trigger-sweep addendum, 2026-09-08). That width is measured from where the shipped formatter's output starts, the level,
   logger and message of `logging.BASIC_FORMAT`, so a capture's own service prefix is not counted
   and the two captures a run takes are comparable; finding that opening is also what qualifies a
   line, which is what tells the message from the logger name ending in the same word. The rendering
