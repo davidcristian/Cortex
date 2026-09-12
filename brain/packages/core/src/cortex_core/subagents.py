@@ -112,15 +112,18 @@ UNBOUNDED_ATTEMPT = AttemptBounds()
 # (ADR-0005 ceilings addendum). Forty draws of it answer in 256 to 429 tokens, the rule's five times
 # would put the cap above the slot's own context, and the sentence above holds on this shape too:
 # every run measured reaching this cap reached it on a narration or a reasoning trace and never on
-# a long answer. Two bounds sit above it rather than the one this comment used to name, and the
-# per-slot context is the looser: the run deadline below admits about 425 decoded tokens on a
-# saturated host and about 3200 on an idle one, so on a busy box it is the deadline that fires
-# first and this cap is out of reach.
+# a long answer. Two bounds sit above it rather than the one this comment used to name, and since
+# the CPU tier's thread count was pinned to its quota the per-slot context is the tighter of them:
+# the run deadline below admits at least 7200 decoded tokens on a saturated host and about 20,000
+# to 30,000 on an idle one, against the context's 4096 less the prompt, so this cap binds first at
+# either load (ADR-0004 thread-pin landing addendum). Before the pin the deadline admitted about
+# 425 and 3200, and on a busy box it fired before the cap could.
 #
 # Which of the two binds is therefore not fixed, and this cap is deliberately ordered against
 # nothing (ADR-0005 independence addendum). Two facts decide it and neither is visible to a
-# validator: what else the host is doing, worth a factor of seven on this tier's measured decode
-# rate, and whether the deployment gives its subagents tools, since this bound is spent per
+# validator: what else the host is doing, worth a factor of about four on this tier's measured
+# decode rate pinned and a factor of seven before the pin, and whether the deployment gives its
+# subagents tools, since this bound is spent per
 # completion where the deadline is armed once around the whole attempt, so a tools-enabled run may
 # spend this one every round. The conversion between a count and a time is the operator's, and the
 # table for it is in that addendum.

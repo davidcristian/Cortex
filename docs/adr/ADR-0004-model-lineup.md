@@ -1608,3 +1608,44 @@ the flag itself. `defaultcheck.py` and `flagcheck.py` are unchanged by this and 
 any row, which is the division of labour the landing addendum describes: one compares a variable's
 defaults across files, the other holds an argv to the flags its tier requires, and neither asks
 what word a value follows.
+
+## Addendum (2026-09-12, later): the CPU tier's four open entries are re-derived, and one comment is corrected
+
+Four backlog entries opened on 2026-09-11 by the thread-pin work carried no **Verified:** line, so
+none had been read back against the tree. All four are re-derived here. Nothing closes, and the
+readings are recorded so the next sweep starts from a date rather than from the opening claim.
+
+**The three declarations are unchanged, and one comment was not.** `DEFAULT_STALL_TIMEOUT_S` is
+600.0, `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` 2400.0 and `DEFAULT_ADMISSION_WAIT_S` 7200.0, so neither
+half of
+[R-637](../refinements/tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)'s
+trigger has fired. The pin's correction reached `docs/runbooks/subagents-cpu.md` in three places
+and did not reach `cortex_core/subagents.py`, whose comment over `DEFAULT_SUBAGENT_MAX_TOKENS` went
+on saying that the deadline admits about 425 decoded tokens on a saturated host and about 3200 on
+an idle one, that the per-slot context is the looser of the two bounds above the cap, and that the
+host's load is worth a factor of seven on this tier. At the pinned rates the deadline admits at
+least 7200 saturated and about 20,000 to 30,000 idle, the 4096 per-slot context is the tighter, and
+the load factor is about four. The comment now says so. The bounds themselves do not move, for the
+reason the addendum above gives: the whole-subtask shapes they are multiples of are still undrawn
+under the pin. The addenda in [ADR-0005](ADR-0005-llamacpp-engine.md) that published the
+pre-pin conversion are dated records of what was measured then and are left as they stand.
+
+**A budget under one CPU cannot reach a dialed server on its own.**
+[R-636](../refinements/tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md)
+reads as one knob and is two. The compose file hands the same substitution to the brain and to both
+containers, so a budget of 0.5 starts each llama-server at 24 threads inside half a CPU and fails
+the brain at boot, `_every_ask_must_fit_the_whole_budget` comparing each entry's `cpus` ask of 2.0
+against the whole budget. The stack is then down at the brain with a server nothing dials. Serving
+a spawn on the floored count needs every ask lowered in the same step, which is why the entry stays
+fix-when-it-bites: its single-knob form announces itself.
+
+**The memory cap did not bind at the pinned count.** The band sitting above read `memory.events`
+`max 0`, `oom_kill 0` and `workingset_refault_file` 0 at 96.9% of the 8 GiB limit, where
+[R-629](../refinements/tasks/629-the-picks-cpu-server-reaches-its-memory-cap-under-the-harnesss-budget.md)'s
+trigger asks for a kill or 262,144 refaulted pages. Beside the harness sittings, which reached the
+limit every time at 1600 tokens over two slots and ten attacks an arm, that says the limit binds on
+how much of the server is decoding at once rather than on the artifact being resident, so the
+delegated reading the entry asks for is still the one that would settle it.
+
+**The flag-name half of the third-file entry is closed and its own subject is not.** That is the
+addendum above this one.

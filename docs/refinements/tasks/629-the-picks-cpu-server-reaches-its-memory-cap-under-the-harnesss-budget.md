@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
+**Verified:** 2026-09-12
 **Trigger:** a sitting of the pick's CPU row, or a delegated run on the shipped CPU server, whose
 `memory.events` reads an `oom_kill`, or whose `workingset_refault_file` reaches 262,144 pages, which
 is a gigabyte of the artifact re-read through the bind. Read both off `/sys/fs/cgroup` inside the
@@ -29,6 +30,15 @@ soft memory budget, which is a design the memory-cap addendum records and a numb
 holds. Raising it changes the deployment's admission arithmetic, and the reading that would justify
 that is one where the reclaim costs wall clock or a kill, which none of tonight's did.
 
+**What the pin changed, and what it did not.** The sitting that pinned the thread count read the
+same counters off the same server afterwards, and the cap did not bind at all: `memory.events` `max
+0` and `oom_kill 0`, `workingset_refault_file` 0, `pgmajfault` 279, `anon` at 3.10 GB and
+`memory.peak` at 8,326,414,336, which is 96.9% of the limit. So the server sits within a tenth of a
+gigabyte of the cap under ordinary summarization draws and never reaches it, and what reached it in
+the harness sittings was that workload's shape rather than the artifact's residency: 1600 tokens
+across two slots and ten attacks an arm against one 400-token request at a time. The reading that
+would settle this entry is therefore still the delegated one below and not another decode sitting.
+
 **What would settle it.** A reading of the shipped CPU server under a delegated run at the brain's
 own 1024-token cap and two slots, with `memory.events`, `workingset_refault_file` and `pgmajfault`
 read off the cgroup at the end, published beside the 2026-09-08 table. If the cap binds there too,
@@ -39,3 +49,11 @@ the entry moves to actionable with the choice between a larger limit and a small
 - 2026-09-11: opened by the close of
   [R-627](627-the-cpu-rows-wall-clock-does-not-reproduce-the-published-one.md), which read the
   counters above while drawing its pair.
+- 2026-09-12: **held to the tree, and the trigger is unfired on the one reading taken since.** The
+  cap is still `mem_limit` and `memswap_limit` at `"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"` in both
+  CPU servers, the hard twin of `DEFAULT_MEM_BUDGET_GB` 8.0, and the constant scan holds every
+  spelling of it. Neither half of the trigger has fired: the pinned band sitting read `oom_kill 0`
+  and `workingset_refault_file` 0, where the trigger asks for a kill or 262,144 refaulted pages.
+  That reading is added to the body above, because it narrows what the entry is about: at 96.9% of
+  the limit with the cap never binding, the limit binds on slot occupancy rather than on the
+  artifact being resident.
