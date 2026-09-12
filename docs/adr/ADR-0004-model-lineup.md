@@ -1563,3 +1563,48 @@ least 7200 on a saturated host, so the cap binds first at either load. Re-sizing
 run, and it reads neither half of
 [R-629](../refinements/tasks/629-the-picks-cpu-server-reaches-its-memory-cap-under-the-harnesss-budget.md)'s
 trigger, so that entry stands as it was.
+
+## Addendum (2026-09-12): the subagent thread flag's name is held beside its count
+
+The addendum above landed `--threads` on both CPU subagent servers and left the flag's own name
+held by nothing. The constant scan counts the budget's substitution per file, three spends in the
+subagents file and two in the roster file, and the word in front of a spend is not part of what it
+counts, so a count moved behind another flag keeps every total. The review of that landing measured
+it: `--threads` renamed to `--threads-batch` on either server, the substitution untouched, left
+`crosscheck.py`, `defaultcheck.py` and `flagcheck.py` all exiting 0. It read that gap as one only
+`flagcheck.py` could close, on the ground that the flag and its value sit on their own argv lines
+and a registry needle reads one line.
+
+**That ground was wrong, and the cheaper remedy exists.** A rendered needle is matched against the
+whole file with `re.finditer`, not against a line of it (`scripts/needles.py`), so a needle may
+carry the newline and the indentation between two argv items and still be the bounded token match
+the scan requires. The CPU budget's entry now carries one such needle per file, `- "--threads"`
+followed by the substitution line, beside the counts it already had. The flag and its value are
+held together by the registry, and no compose reader had to learn a fourth key.
+
+What this does not reach is the entry that opened the question:
+[R-638](../refinements/tasks/638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md)
+is a CPU subagent server started by a compose file neither needle names, and a needle written per
+file cannot be written for a file that does not exist yet. That half stays open and stays the flag
+gate's to close, for the reason the landing addendum gives: the count's right value is the
+service's own `cpus` substitution, which is a relation between two keys of one service.
+
+**Proved able to fail.** Each edit was applied to one compose file alone, the three compose-facing
+scans run against the real tree from `scripts/`, and the file restored from a copy in a scratch
+directory before the next. The first two rows were then replayed against the registry as it stood
+before this change, read out with `git show HEAD:scripts/subagentcouplings.py`, to confirm that
+what fails now passed then.
+
+| edit | `crosscheck.py` | `defaultcheck.py` | `flagcheck.py` | before this change |
+| --- | --- | --- | --- | --- |
+| unedited | exit 0 | exit 0 | exit 0 | exit 0 |
+| `llama-subagent`'s `--threads` renamed `--threads-batch` | exit 1, 1 problem | exit 0 | exit 0 | exit 0 |
+| `llama-subagent`'s flag line dropped, its value kept | exit 1, 1 problem | exit 0 | exit 0 | exit 0 |
+| the roster server's `--threads` renamed `--threads-batch` | exit 1, 1 problem | exit 0 | exit 0 | not replayed |
+| the roster count moved ahead of its own flag | exit 1, 1 problem | exit 0 | exit 0 | not replayed |
+
+The fault names the constant, quotes the needle, and says the run stops at `- "--threads`, which is
+the flag itself. `defaultcheck.py` and `flagcheck.py` are unchanged by this and report nothing on
+any row, which is the division of labour the landing addendum describes: one compares a variable's
+defaults across files, the other holds an argv to the flags its tier requires, and neither asks
+what word a value follows.

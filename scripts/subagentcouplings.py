@@ -95,10 +95,25 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         # count in the first, the limit and the count in the second. A server whose count is
         # dropped runs one thread per hardware thread inside its quota, and one whose cap is
         # dropped runs uncapped, and either reads here as its file's count falling by one.
+        #
+        # The count is held a second time with its flag in front of it, because the counts above
+        # read the substitution and not the word before it: renaming `--threads` to
+        # `--threads-batch` on either server leaves all five spends where they are, and passed this
+        # scan, the defaults scan and the flag gate. A needle is matched against the whole file
+        # rather than a line of it, so the two argv items are one needle here rather than a rule
+        # about a relation between two compose keys (ADR-0004 thread-flag addendum).
         mentions=(
             Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=3),
             Mention(SUBAGENTS_COMPOSE, "CPU_BUDGET {value},"),
             Mention(ROSTER_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=2),
+            Mention(
+                SUBAGENTS_COMPOSE,
+                '- "--threads"\n      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"',
+            ),
+            Mention(
+                ROSTER_COMPOSE,
+                '- "--threads"\n      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"',
+            ),
         ),
     ),
     Constant(

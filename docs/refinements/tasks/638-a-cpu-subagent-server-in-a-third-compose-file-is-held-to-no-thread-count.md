@@ -3,6 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
+**Verified:** 2026-09-12
 **Trigger:** a compose file other than `docker/docker-compose.subagents.yml` and
 `docker/docker-compose.subagents-roster.yml` that starts a subagent server with `-ngl 0`, which
 `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server
@@ -25,7 +26,9 @@ would run one thread per hardware thread inside its quota and pass every gate.
 **What would close it.** Either a conditional requirement in `flagcheck.py`, holding every compose
 server started with `-ngl 0` to a `--threads` that spells the same substitution as its `cpus` key,
 which means `composestarts.py` learning to read that key; or the new file's two spellings added to
-the CPU budget's constant in the registry, which is the shape the roster file's server took.
+the CPU budget's constant in the registry, which is the shape the roster file's server took. The
+second is per file by construction, so it answers a file once it is written and never in advance,
+which is why the first is still what closes this entry.
 
 ## Trail
 
@@ -41,3 +44,16 @@ the CPU budget's constant in the registry, which is the shape the roster file's 
   `flagcheck.py` holds the flag and its value together, because each sits on its own argv line
   and a registry needle reads one line. That remedy is the one to build when the trigger fires,
   and the status stays as it is because a rename of that flag is an edit nobody has made.
+- 2026-09-12: **the reason the entry above gave for choosing that remedy is wrong, and the flag
+  name is now held on both shipped servers.** A rendered needle is matched against the whole file
+  with `re.finditer` (`scripts/needles.py`), so it may carry the newline and the indentation
+  between two argv items. The CPU budget's constant now carries one such needle per file, the
+  `- "--threads"` line and the substitution line under it, and four mutations fail it that passed
+  before: the flag renamed on either server, the flag line dropped with its value kept, and the
+  count moved ahead of its own flag. Recorded in the
+  [ADR-0004 thread-flag addendum](../../adr/ADR-0004-model-lineup.md#addendum-2026-09-12-the-subagent-thread-flags-name-is-held-beside-its-count).
+  This entry's own subject is untouched: a needle is written per file, so a CPU subagent server in
+  a file nobody has written yet is still held to no count, and closing that is still the flag
+  gate's. The trigger is unfired, read out of `uv run python flagcheck.py --root ..` in `scripts/`
+  on this date: three servers in three files, which are the two CPU servers and the model host's
+  hosted GPU tier.
