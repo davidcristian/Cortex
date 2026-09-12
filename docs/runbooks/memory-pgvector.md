@@ -277,9 +277,12 @@ measures the same lines a serving turn writes. `scripts/trailwidth.py` then repo
 range, median and a seeded bootstrap of the mean, and the count of renderings the bound cut.
 
 **The whole line is reported beside the field**, per capture and in the same cohorts, because the
-per-value bound leaves the line unbounded and this is the widest line the brain writes: if anything
-this deployment logs approaches the 16 KiB cliff a container's log driver ends a message at, it is
-one of these (ADR-0038 whole-line addendum). The width counted is the rendering and not the
+per-value bound leaves the line unbounded (ADR-0038 whole-line addendum). These are not the widest
+lines the brain writes: the tool audit's are, four of their fields carrying text a model or a
+sidecar wrote, and one of those renders at 8,437 characters with a million characters in each of the
+four, against a trail line's 2,258 at the shipped caps and the 16 KiB cliff a container's log driver
+ends a message at (ADR-0038 trigger-sweep addendum, 2026-09-08). The width counted is the rendering
+and not the
 captured text, so the `brain-1  |` prefix `docker compose logs` puts in front of a line is left
 out. Read the two ranges together rather than one after the other: the widest field and the widest
 line are not the same line, a rank that keeps three notes writing a narrower `dropped` and a wider

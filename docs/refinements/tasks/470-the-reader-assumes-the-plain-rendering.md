@@ -44,14 +44,14 @@ layout and no bound at all. Five mutations of the reading each fail one to three
 - 2026-08-27: opened by the close of
   [R-454](454-the-readers-needles-are-not-tied-to-the-sink.md), which made the reader's words
   answerable to the sink and left the layout it reads them in answerable to nothing.
-- 2026-09-12: landed. The refusal names the packed rendering when the capture holds a trail line in
-  it, and reading that rendering's widths was declined for the reason above rather than left open.
-  Nothing was opened by the close: what a packed line costs is [R-336](336-packed-values-keep-their-whole-length.md)'s
-  subject and was measured there the same day. `scripts/trailwidth.py` now stands at 296 lines
-  against the 300-line cap, so the next change to it is a split.
 - 2026-09-10: the trigger has not fired and the reader is unchanged. `scripts/trailwidth.py` still
   cuts the field out with a pattern anchored on ` dropped=` and still finds a record by
   `[A-Z]+:[^\s:]+:memory.recall`, which is `PlainFormatter`'s layout, so a packed capture is
   rejected rather than measured. The memory runbook still offers `CORTEX_LOG_FORMAT=packed` as the
   way to read a trail line without slicing it, and the local-dev runbook still names it for a
   deployment that collects lines, so the two documents still point in different directions.
+- 2026-09-12: landed. The refusal names the packed rendering when the capture holds a trail line in
+  it, and reading that rendering's widths was declined for the reason above rather than left open.
+  Nothing was opened by the close: what a packed line costs is [R-336](336-packed-values-keep-their-whole-length.md)'s
+  subject and was measured there the same day. `scripts/trailwidth.py` now stands at 296 lines
+  against the 300-line cap, so the next change to it is a split.
