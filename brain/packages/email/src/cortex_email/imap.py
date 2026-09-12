@@ -45,13 +45,18 @@ _FOLDER_MISSING_ANSWERS = (*_FOLDER_MISSING_PHRASES, *_FOLDER_MISSING_CODES)
 _NOT_A_MAILBOX = frozenset({"\\noselect", "\\nonexistent"})
 
 
+def _says_folder_missing(err: MailboxFolderSelectError) -> bool:
+    """Whether a refused SELECT's own answer proves that no mailbox has the name it refused."""
+    answer = str(err).lower()
+    return any(said in answer for said in _FOLDER_MISSING_ANSWERS)
+
+
 def _select(box: BaseMailBox, folder: str) -> None:
     """Open ``folder`` read-only (EXAMINE), classifying which failure a rejection of it is."""
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
     except MailboxFolderSelectError as err:
-        answer = str(err).lower()
-        if any(said in answer for said in _FOLDER_MISSING_ANSWERS):
+        if _says_folder_missing(err):
             raise FolderUnknownError(folder) from err
         raise
 
@@ -61,12 +66,12 @@ def _flagged_unselectable(flags: Sequence[str]) -> bool:
     return any(flag.lower() in _NOT_A_MAILBOX for flag in flags)
 
 
-def _opens(box: BaseMailBox, folder: str) -> bool:
-    """Whether this server will really open ``folder``, asked only of a name it flagged."""
+def _kept_after_opening(box: BaseMailBox, folder: str) -> bool:
+    """Whether a flagged name stays on the list, asked by opening it once."""
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
-    except MailboxFolderSelectError:
-        return False
+    except MailboxFolderSelectError as err:
+        return not _says_folder_missing(err)
     return True
 
 
@@ -107,7 +112,7 @@ class ImapMailbox:
             return [
                 folder.name
                 for folder in listed
-                if not _flagged_unselectable(folder.flags) or _opens(box, folder.name)
+                if not _flagged_unselectable(folder.flags) or _kept_after_opening(box, folder.name)
             ]
 
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:

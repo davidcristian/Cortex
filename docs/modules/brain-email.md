@@ -23,13 +23,16 @@ denied outright.
   the imap-tools adapter and a fake both satisfy it. It fails in exactly three ways and every
   implementation owes all three, the fake included, which is what the shared contract
   (`tests/mailbox_contract.py`, driven over the fake and the adapter) exists to hold. It also owes
-  one promise about success: every name `list_folders` answers with is a name the other two calls
-  may be given, so a server's bare hierarchy nodes are filtered out by the implementation rather
-  than handed on (ADR-0022 hierarchy-node addendum). Two contract checks hold it, one walking the
-  offered list and one requiring that naming a node anyway still fails. The other direction, that
-  every name the server opens is offered, is not a contract check: it can only be seen beside the
-  server's own LIST, so the adapter's tests and the live Bridge test carry it (ADR-0022
-  flagged-and-refused addendum). The read by uid has its own promise: `fetch` answers `None` for
+  one promise about success: no name `list_folders` answers with is one the other two calls would
+  refuse as a folder no mailbox has, so a server's bare hierarchy nodes are filtered out by the
+  implementation rather than handed on (ADR-0022 hierarchy-node addendum). A listed mailbox that is
+  there and will not open is deliberately outside that promise, and the check walking the offered
+  list says so in its own words: a name that answers with the base error is not its subject, so the
+  list can hold one and does on the probe (ADR-0022 addendum on what the list drops). Two contract
+  checks hold the promise, one walking the offered list and one requiring that naming a node anyway
+  still fails. The other direction, that every name the server opens is offered, is not a contract
+  check: it can only be seen beside the server's own LIST, so the adapter's tests and the live
+  Bridge test carry it (ADR-0022 flagged-and-refused addendum). The read by uid has its own promise: `fetch` answers `None` for
   a uid no message has, in a folder holding mail and in one holding none alike, and for a string
   that is not a uid, and it answers `None` only when the message is shown absent, so a read the
   server declined for a reason of its own stays `MailboxError`. Four contract checks hold that,
@@ -63,10 +66,12 @@ denied outright.
   so the server holds no IMAP state. `list_folders` reads the LIST attributes `folder.list()`
   carries beside each name and treats a name flagged `\Noselect` (RFC 3501) or `\NonExistent`
   (RFC 5258), case-folded, as unproven rather than settled: it opens that name once with
-  EXAMINE and drops it only when the server rejects it too. The two servers disagree about the flag,
-  Dovecot rejecting such a node in the very words that prove a folder missing and the Bridge opening
-  the two parents of its own hierarchy, so opening the name is what is correct on both (ADR-0022
-  flagged-and-refused addendum). Both spellings are measured, in different listings: Dovecot sends
+  EXAMINE and drops it only when that open is refused in the words or the code that prove no mailbox
+  has the name, which is the same reading `FolderUnknownError` is classified by. The two servers
+  disagree about the flag, Dovecot rejecting such a node in the very words that prove a folder
+  missing and the Bridge opening the two parents of its own hierarchy, so opening the name is what
+  is correct on both (ADR-0022 flagged-and-refused addendum and the addendum on what the list
+  drops). Both spellings are measured, in different listings: Dovecot sends
   `\Noselect` with its hierarchy node under every LIST it accepts, and keeps `\NonExistent` for a
   subscribed name no mailbox has, which only a LIST asking for subscriptions returns. The plain
   `LIST "" "*"` that `folder.list()` sends can carry neither that name nor that word, and the

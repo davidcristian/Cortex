@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
 **Trigger:** a second server this repo can reach starts flagging a name in a plain LIST and opening
 it, or the Bridge account whose two flagged parents are the current proof stops being reachable.
 Both limbs come off one reading, a plain `LIST "" "*"` taken past the port with every listed name
@@ -72,3 +72,16 @@ stand-in already does.
   flagging a name in a plain LIST and opening it, the one IMAP server image any compose file names
   being unmoved at the digest recorded for it. The stand-in's `OPEN_NODE_FLAGS` is still the
   Bridge's own pair, in `brain/packages/email/tests/imap_stub.py`.
+- 2026-09-12: claims held against the code, and the probe limb read again rather than quoted. The
+  probe was started and its plain `LIST "" "*"` taken past the port: seven names, one of them
+  flagged, `Parent (\Noselect \HasChildren)`, refused `Mailbox doesn't exist: Parent (0.001 + 0.000
+  secs).`, so this server still produces the drop branch and not the keep, and `just
+  email-folder-probe` passed 9 of 9 against it. The Bridge limb was not read: the slot ruled out a
+  live run against it, so the account's reachability is carried over from 2026-09-09 rather than
+  measured. The stand-in's `OPEN_NODE_FLAGS` is still the Bridge's own pair, in
+  `brain/packages/email/tests/imap_stub.py`. The keep branch itself moved a little and is still the
+  branch this entry is about: `_opens` is now `_kept_after_opening` and drops a flagged name only
+  when the refusal proves no mailbox has it
+  ([375](375-a-flagged-name-shut-is-dropped-as-if-missing.md)), which widens what is kept and
+  leaves the thing with no fixture exactly where it was, since dovecot 2.3.21 flags no name in this
+  listing that it will open at all.
