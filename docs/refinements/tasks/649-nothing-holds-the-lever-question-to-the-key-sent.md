@@ -1,9 +1,8 @@
 # Nothing holds the runbook's lever question to the key the adapter sends
 
-**Status:** open, actionable
+**Status:** landed 2026-09-13
 **Area:** repo-gates
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-12
 
 Opened 2026-09-12 by the sweep that re-derived the trace-budget family
 ([R-496](496-the-trace-lever-is-answered-once-per-boot.md) and its three siblings), which read the
@@ -34,6 +33,17 @@ fails, the way every other coupling's does.
 
 ## Trail
 
+- 2026-09-13: landed. The premise held on every claim: the key is declared once as
+  `TRACE_BUDGET_KEY`, `lever.py` imports it, no `scripts/` module named it, and each far side the
+  entry listed was still there. It went in as one `Constant` in a new registry part,
+  `scripts/levercouplings.py`, the fourteenth `crosscheck.CONSTANTS` is joined from, because the
+  subject belongs under none of the thirteen already there. Four far sides were added to the six
+  this entry listed: the prose beside the code in `request.py`, `lever.py` twice, `backend.py` and
+  the orchestrator's `config.py` each type the name without importing it, and a rename would move
+  the declaration and leave the sentence next to it naming the key that went. Two mutations prove
+  it fails, in the [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) addendum of this date, which
+  also records what stayed out: the leak denominator in both runbooks and every ADR table that
+  names a cell by the key it carried are readings taken on a date.
 - 2026-09-12: opened by the sweep of the trace-budget family, which read the GPU runbook's lever
   `curl` against `TRACE_BUDGET_KEY` and found the two held by nothing. The sweep's readings are in
   the [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) addendum of that date.

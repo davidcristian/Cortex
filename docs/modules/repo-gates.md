@@ -25,7 +25,7 @@ brain workspace member (ADR-0002).
 `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, fifty-four modules, most split out under the line cap and
+**The rest have no CLI of their own**, fifty-five modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -34,8 +34,8 @@ each named for what it holds. Grouped by the gate that reads them:
   values must stand, and `needles.py` for how a rendered needle is searched for and what a file
   missing one is told. The parts themselves are `seamcouplings.py`, `endpointcouplings.py`,
   `shippedcouplings.py`, `boundscouplings.py`, `subagentcouplings.py`, `modelhostcouplings.py`,
-  `imagecouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`,
-  `overlaycouplings.py`, `logcouplings.py` and `trailcouplings.py`.
+  `levercouplings.py`, `imagecouplings.py`, `emailcouplings.py`, `fixturecouplings.py`,
+  `capturecouplings.py`, `overlaycouplings.py`, `logcouplings.py` and `trailcouplings.py`.
 - `bindcheck.py` reads `composemounts.py` for the mounts a compose file declares.
 - `defaultcheck.py` reads `composedefaults.py` for shell substitutions.
 - `volumecheck.py` reads `composeservices.py` for what each service runs, covers and is built
@@ -142,7 +142,8 @@ answer: a marker written into any other module here is reported by the line it i
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
   `SEAM_COUPLINGS`, then `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`,
   `BOUNDS_COUPLINGS`, `SUBAGENT_COUPLINGS`,
-  `MODELHOST_COUPLINGS`, `IMAGE_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`,
+  `MODELHOST_COUPLINGS`, `LEVER_COUPLINGS`, `IMAGE_COUPLINGS`, `EMAIL_COUPLINGS`,
+  `FIXTURE_COUPLINGS`,
   `OVERLAY_COUPLINGS`, then `LOG_COUPLINGS` and `TRAIL_COUPLINGS`. Each part is named for its subject: couplings whose
   far side is another tree's code across the language boundary; the address and port each side
   answers on, with every file that dials or states one; the brain container's own shipped
@@ -153,7 +154,10 @@ answer: a marker written into any other module here is reported by the line it i
   them; the subagent tier's admission budgets with the cgroup limits that are their hard twins,
   and the reasoning-off flag pair every server in that tier starts with, held as one needle whose
   value is the budget's count and whose shape is the two flag names around it; the model-host
-  tier settings and the override that ships them; the two llama.cpp images a server here is
+  tier settings and the override that ships them; the wire name a per-request trace budget is
+  sent under, which is the one value in the registry this repo did not choose, held to the `curl`
+  an operator asks a deployment's own engine with and to every document and comment that types
+  the name again; the two llama.cpp images a server here is
   started from, declared by the live harnesses that type one and spent by the model host's two
   build stages and by the three compose services running the CPU build, which are the places
   `volumecheck.py` reaches at the deployment and nowhere else, leaving a builder stage and three
