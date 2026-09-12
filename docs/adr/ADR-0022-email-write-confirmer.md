@@ -2656,3 +2656,110 @@ The record is the four task files, all four carrying a `Verified` date and one r
 addendum. No source file and no gate changed, so no mutation table is owed. The live readings were
 taken through `ImapMailbox` and through imaplib against the Bridge on loopback; no probe container
 was started, and nothing was written to the account.
+
+## Addendum (2026-09-12): what the list drops is the name the server proves missing
+
+The four folder deferrals this record carries were read again today, and one of them is closed by a
+change rather than by another reading. The change is small and the reason for it was in the tree
+already, written in the port contract and contradicted by this document.
+
+### The promise the flagged-and-refused addendum stated was never the one the contract holds
+
+That addendum said the promise "now holds in both directions: every name offered opens, and every
+name that opens is offered". The first half is false, and it is false against the server named two
+paragraphs later in the same addendum. The probe's `Guarded` is a real mailbox an ACL has shut. It
+carries no flag, so `list_folders` never opens it, so it is offered, and a search of it is refused
+`NO [NOPERM] Permission denied`. Read live today past the port, the probe's plain `LIST "" "*"`
+answers seven names, `Guarded` among them as `(\HasNoChildren)`.
+
+What the port really promises is narrower, and `mailbox_contract.py` writes it out. The check
+walking the offered list searches every name and fails on `FolderUnknownError` alone; a
+`MailboxError` is passed over with the comment "A mailbox that is really there and will not open is
+not this check's subject." So the contract's subject is a name the port would call unknown, and a
+listed mailbox that is shut is outside it by decision.
+
+Against that promise, dropping a flagged name for any refusal drops more than the contract asks
+for. The rule now reads: a flagged name is opened once, and dropped only when the refusal is the
+same evidence `_select` reads, the measured phrases or the RFC 5530 codes in `_FOLDER_MISSING_ANSWERS`.
+One predicate, `_says_folder_missing`, is what both callers ask, so a refusal cannot be a missing
+folder on one path and something else on the other. `_opens` is now `_kept_after_opening`, since
+whether the server opens the name is no longer the whole question.
+
+Nothing observable changes on either server this repo reaches. Dovecot flags `Parent` and refuses
+it `Mailbox doesn't exist: Parent`, which is the missing reading, so `Parent` still goes. The
+Bridge flags `Folders` and `Labels` and opens both, so both are still kept. The case that moves is
+the one no reachable server produces, a name that is both flagged and shut, and it is now offered,
+the same as the unflagged shut mailbox the probe really has.
+
+### That settles the asymmetry rather than measuring it
+
+The flagged-and-refused addendum called the asymmetry deliberate and untested and filed it as
+[R-375](../refinements/tasks/375-a-flagged-name-shut-is-dropped-as-if-missing.md), which asked for a
+server on which the flag and the refusal are separate facts. Three sweeps established that no server
+here is one: dovecot's `vfile` ACL file lives inside the mailbox directory whose absence is what
+makes a name unselectable, so writing the ACL unflags the name in the same edit, and the Bridge
+refuses nothing at all. The entry's second closing route was to settle the question by argument, and
+the argument is the contract's own subject rather than a preference: dropping a flagged shut mailbox
+hides a folder that exists, and hides it while the unflagged shut mailbox beside it stays listed.
+
+### Proved able to fail
+
+Three mutations, each planted in `brain/packages/email/src/cortex_email/imap.py` and reverted from a
+copy kept outside the tree, measured over the email package's unit suite, 125 tests with the
+integration ones deselected:
+
+| mutation | expected | observed |
+| --- | --- | --- |
+| `_kept_after_opening` returns False for every refusal, the rule before this change | the flagged name that is merely shut is dropped again | 1 red, at the shut name staying offered |
+| the flag is believed and no flagged name is opened | both keep readings and both drop readings go, the drops asserting the open was asked for | 4 red |
+| every listed name is offered and none is opened | the nodes that prove missing come back, and the port contract's own check goes with them | 5 red, one of them `a_listed_name_is_never_one_the_port_calls_unknown` on the `imap` arm |
+| all three reverted | green | 125 of 125 |
+
+### The other three deferrals, read again
+
+**The keep in the listing the adapter makes is still one account**,
+[R-400](../refinements/tasks/400-the-keep-in-the-adapters-listing-is-one-account.md). The probe was
+started today and its plain LIST read past the port: seven names, one flagged, `Parent
+(\Noselect \HasChildren)`, refused `Mailbox doesn't exist: Parent`, so this server still produces
+the drop branch and not the keep. `just email-folder-probe` passed 9 of 9 against it. The Bridge
+limb was not read today and the entry says so; nothing in the adapter, the fixture or the pinned
+image has moved since it was last read, and this change does not touch the keep branch.
+
+**A caller still supplies part of the text the folder rule reads**,
+[R-386](../refinements/tasks/386-the-answer-read-holds-the-name-that-was-sent.md). Both limbs were
+read and neither fired. `grep -n 'image:' docker/*.yml` returns one IMAP server image,
+`dovecot/dovecot:2.3.21`, so this repo reaches two servers and no third. The echo reproduced
+verbatim on the probe today, `EXAMINE "[NOPERM] archive"` answered `NO Mailbox doesn't exist:
+[NOPERM] archive (0.001 + 0.000 secs).` and `"no such mailbox"` and `"[CANNOT] thing"` the same
+way, while the refusal for the mailbox that is there and shut carries no name at all. The library
+claim was rechecked in the installed imap-tools 1.13.0: `MailboxFolderSelectError` inherits
+`UnexpectedCommandStatusError`, which binds the refused command's `(status, data)` as
+`command_result`. This change moves the reading into one predicate and does not change what it
+reads, so the entry is unaffected by it.
+
+**The two rejected probe configurations stay prose, and the entry is declined**,
+[R-401](../refinements/tasks/401-the-rejected-probe-configurations-are-prose.md). Its trigger has
+two limbs and neither fired: `docker/docker-compose.imap-probe.yml` still names
+`dovecot/dovecot:2.3.21`, and that tag still resolves to
+`sha256:1c18c756f20d03867077a1b509a6e2e3008ab1eafa56377b6f2eca12dc1ba581` in the registry
+(`docker manifest inspect --verbose`) and in this host's cache (`docker image inspect`). The entry
+rested on a bump landing with nothing saying so, and half of that is already false: the recorded
+image-volume answer is keyed on the image reference, so an edited pin fails `volumecheck` twice.
+Measured today by editing the tag to `dovecot/dovecot:2.4.1` and running the gate: it reports the
+unrecorded new reference at the service line and the orphaned `2.3.21` row at the record, and goes
+green again when the file is restored. What stays invisible is a tag republished under the same
+name, which is the exposure ADR-0011's addendum on asking the registry weighed and declined. The
+cost of the keeping move was also larger than the entry said. The one entrypoint,
+`docker/dovecot/probe-mailboxes.sh`, builds the tree the live suite pins by name and
+`scripts/fixturecouplings.py` holds its mailbox names to that suite's constants, so a second
+configuration needs a second tree-builder and a registry decision for any name it adds, on top of a
+second `.conf` and a compose override joining three compose gates. All of that to make a negative
+result rerunnable. The runbook now carries what the entry was really protecting: after a bump,
+rebuild the two configurations by hand, and why doing so would matter.
+
+### Records
+
+The record is the adapter, its unit suite, the email module contract, the IMAP runbook, the four
+task files, [docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+and this addendum. The live readings were taken against the probe on loopback, started and taken
+down around the measurement; no Bridge test was run today and nothing was written anywhere.

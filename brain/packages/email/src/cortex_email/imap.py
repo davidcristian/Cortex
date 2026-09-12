@@ -15,8 +15,9 @@ uid no message has, and the Bridge answers that search ``NO`` in a folder holdin
 server may list a name that is only a node in the hierarchy, and a caller given one would be
 rejected in the words that prove a folder missing (ADR-0022 hierarchy-node addendum). The flag
 that marks such a name is not conclusive, and the two servers this repo talks to disagree about
-what they mean by it, so a flagged name is opened once and kept when it opens (ADR-0022
-flagged-and-refused addendum).
+what they mean by it, so a flagged name is opened once and dropped only when the server's answer
+proves no mailbox has it, which is the evidence a refused SELECT is classified by as well (ADR-0022
+flagged-and-refused addendum and the addendum on what the list drops).
 
 No exception of the IMAP stack crosses the port (ADR-0022 refused-search addendum): whatever
 imap-tools, imaplib or the socket raises is wrapped as `MailboxError`, and the two failures a
@@ -122,14 +123,8 @@ _FOLDER_MISSING_ANSWERS = (*_FOLDER_MISSING_PHRASES, *_FOLDER_MISSING_CODES)
 _NOT_A_MAILBOX = frozenset({"\\noselect", "\\nonexistent"})
 
 
-def _select(box: BaseMailBox, folder: str) -> None:
-    """Open ``folder`` read-only (EXAMINE), classifying which failure a rejection of it is.
-
-    A ``NO`` to `SELECT` is not by itself a missing folder: the same status covers a mailbox that
-    exists and could not be opened, so the name is reported wrong only when the server's own
-    answer says so. That is the fail-safe direction. Sending a model to `list_folders` over a
-    folder that is really there would have it hunt for a name it already had, while the base error
-    it gets instead says the mailbox could not answer, which is true either way.
+def _says_folder_missing(err: MailboxFolderSelectError) -> bool:
+    """Whether a refused SELECT's own answer proves that no mailbox has the name it refused.
 
     The answer says so in one of two ways, and both are read: the words two servers were measured
     using, and the RFC 5530 response code a server sends instead of them. Where a code appears it
@@ -139,12 +134,28 @@ def _select(box: BaseMailBox, folder: str) -> None:
 
     imap-tools renders the rejected command's status and data into its exception message, so both
     are read from there rather than from a wire the adapter never sees.
+
+    Both places that have to tell a missing folder from a mailbox that is there and would not open
+    read this one predicate, so a `SELECT` the port calls unknown and a listed name the listing
+    drops are the same reading of the same answer (ADR-0022 addendum on what the list drops).
+    """
+    answer = str(err).lower()
+    return any(said in answer for said in _FOLDER_MISSING_ANSWERS)
+
+
+def _select(box: BaseMailBox, folder: str) -> None:
+    """Open ``folder`` read-only (EXAMINE), classifying which failure a rejection of it is.
+
+    A ``NO`` to `SELECT` is not by itself a missing folder: the same status covers a mailbox that
+    exists and could not be opened, so the name is reported wrong only when the server's own
+    answer says so. That is the fail-safe direction. Sending a model to `list_folders` over a
+    folder that is really there would have it hunt for a name it already had, while the base error
+    it gets instead says the mailbox could not answer, which is true either way.
     """
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
     except MailboxFolderSelectError as err:
-        answer = str(err).lower()
-        if any(said in answer for said in _FOLDER_MISSING_ANSWERS):
+        if _says_folder_missing(err):
             raise FolderUnknownError(folder) from err
         raise
 
@@ -159,13 +170,15 @@ def _flagged_unselectable(flags: Sequence[str]) -> bool:
     return any(flag.lower() in _NOT_A_MAILBOX for flag in flags)
 
 
-def _opens(box: BaseMailBox, folder: str) -> bool:
-    """Whether this server will really open ``folder``, asked only of a name it flagged.
+def _kept_after_opening(box: BaseMailBox, folder: str) -> bool:
+    """Whether a flagged name stays on the list, asked by opening it once.
 
     The flag is what a server says about a name and this is what it does with it, so where the two
-    disagree the open is what counts. Every rejection counts the same, because what `list_folders`
-    guarantees is names that work rather than names that exist: a flagged name rejected for any
-    reason is one a caller could not have used.
+    disagree the open is what counts. What drops the name is the server's answer proving no mailbox
+    has it, and not the refusal alone: a listed mailbox that is really there and will not open now
+    is the case the port answers with its base error, and hiding it from the list would withhold a
+    folder that exists while an unflagged mailbox refused in the same words stayed on, since an
+    unflagged name is never opened here at all (ADR-0022 addendum on what the list drops).
 
     Read-only like every other open here (EXAMINE), and paid once per flagged name rather than
     once per listed name, which is what keeps the check off the ordinary mailboxes: a Bridge
@@ -173,8 +186,8 @@ def _opens(box: BaseMailBox, folder: str) -> bool:
     """
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
-    except MailboxFolderSelectError:
-        return False
+    except MailboxFolderSelectError as err:
+        return not _says_folder_missing(err)
     return True
 
 
@@ -218,17 +231,19 @@ class ImapMailbox:
     def list_folders(self) -> Sequence[str]:
         """List the names that really are mailboxes, dropping the hierarchy's bare nodes.
 
-        Every name here is one `search` and `fetch` may be given, which is what `FOLDER_HELP`
-        states outright to a model. A name the server flagged unselectable is opened before it is
-        included: it is kept if it opens and dropped if it is rejected, so the list is neither
-        short of a name that works nor padded with one that does not.
+        No name here is one a later call would refuse as a folder no mailbox has, which is the
+        promise the `Mailbox` contract holds and what `FOLDER_HELP` tells a model to read the list
+        for. A name the server flagged unselectable is opened before it is included, and dropped
+        when that open is refused in the words or the code that prove the name missing. A listed
+        mailbox that is there and cannot be opened right now stays on the list either way, flagged
+        or not, and a call over it answers with the base error rather than with a correction.
         """
         with _translated("list the folders"), self._open() as box:
             listed = box.folder.list()
             return [
                 folder.name
                 for folder in listed
-                if not _flagged_unselectable(folder.flags) or _opens(box, folder.name)
+                if not _flagged_unselectable(folder.flags) or _kept_after_opening(box, folder.name)
             ]
 
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:

@@ -183,9 +183,12 @@ that code with six different reasons, one per way a name can be malformed. And
 this server refuses a listed `\Noselect` node exactly as it refuses a name no mailbox has, where
 the Bridge's own `\Noselect` parents open. Since the refusal carries nothing that could tell the
 two apart, `list_folders` reads the LIST attributes imap-tools already carries beside each name and
-opens anything flagged `\Noselect` or `\NonExistent` before deciding, dropping it only when this
-server refuses it as well (ADR-0022 flagged-and-refused addendum). `Parent` goes, `Parent/Child` is
-listed in its own right, and on the Bridge the two flagged parents that open are kept.
+opens anything flagged `\Noselect` or `\NonExistent` before deciding, dropping it only when the
+refusal is one of the two rows above that prove a folder missing (ADR-0022 flagged-and-refused
+addendum and the addendum on what the list drops). `Parent` goes, `Parent/Child` is listed in its
+own right, and on the Bridge the two flagged parents that open are kept. `Guarded` is listed too:
+it is refused, and the refusal says the mailbox is shut rather than absent, so the name stays on
+the list whether or not a server ever flags it.
 
 The probe is also the second server for the read by uid (ADR-0022 fetch-by-uid addendum), and one
 of its rows records the two answers side by side. Every folder here but `Sealed` holds no mail,
@@ -237,8 +240,8 @@ cannot be asked at all: it advertises no LIST-EXTENDED and answers the extended 
 
 ### And for the flag that lies, which is why the flag is asked rather than believed
 
-`list_folders` drops a flagged name only when the server also refuses it, because a `\Noselect`
-name really can open. That was measured on the Bridge, on one account, and nowhere else until
+`list_folders` drops a flagged name only when the server refuses it as a name no mailbox has,
+because a `\Noselect` name really can open. That was measured on the Bridge, on one account, and nowhere else until
 `Feigned` was added to this fixture. `Feigned` is an ordinary mailbox that opens; its child
 `Feigned/Followed` is subscribed and it is not, which is the state RFC 3501 has an `LSUB` of `%`
 answer with `\Noselect` whatever the name really is. So the standard obliges a compliant server to
@@ -261,7 +264,15 @@ proof of the keep in the listing the adapter makes (ADR-0022 flagged-name-that-o
 
 Rerun the probe after any change to the folder classification, and after a Dovecot bump if the
 pinned image ever moves: the wordings above are the evidence the rule is built on, and a server
-that reworded its `NO` is exactly what this measures.
+that reworded its `NO` is exactly what this measures. An edited pin announces itself, since
+`scripts/imagevolumes.py` is keyed on the image reference and `just check` fails on both the
+unrecorded new one and the orphaned old row until `just image-volumes` is rerun; a tag republished
+under the same name does not, which is the exposure ADR-0011's addendum on asking the registry
+weighed and declined. A bump is also the moment to rebuild the two rejected configurations above by
+hand, because a server that resolved the namespace collision to the mailbox rather than to the
+prefix node would make the kept half provable here instead of only on the Bridge. Nothing here runs
+them: the table is the record, and the entrypoint that builds this tree is the one the live suite
+and the constant registry pin by name, so a second configuration needs a second tree to build.
 
 ## Bring up the sidecar + end-to-end
 

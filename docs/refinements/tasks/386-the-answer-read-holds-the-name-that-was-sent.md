@@ -7,7 +7,7 @@ the name it refused. The first limb is read off the compose files, which name ev
 this repo runs (`grep -n 'image:' docker/*.yml`); the second by shutting a mailbox on a server this
 repo reaches and reading the refusal verbatim. This entry's trail records both readings.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-12
 
 `_select` in `brain/packages/email/src/cortex_email/imap.py` classifies a refused SELECT by
 lower-casing `str(err)` and looking for a measured phrase or an RFC 5530 code in it. That string is
@@ -83,3 +83,19 @@ is the one position RFC 5530 lets a code appear in.
   `MailboxFolderSelectError` inherits `UnexpectedCommandStatusError`, whose `__init__` binds the
   refused command's `(status, data)` as `command_result` and whose `__str__` renders it as
   `Data: ...`.
+- 2026-09-12: claims held against the code and both limbs read again, neither fired.
+  `grep -n 'image:' docker/*.yml` still returns one IMAP server image, `dovecot/dovecot:2.3.21`, so
+  this repo still reaches two servers and no third. The echo was reproduced on the probe rather
+  than quoted: `EXAMINE "[NOPERM] archive"` answered `NO Mailbox doesn't exist: [NOPERM] archive
+  (0.001 + 0.000 secs).`, and `"no such mailbox"`, `"[CANNOT] thing"` and `"Nonexistent"` the same
+  way, while `Guarded`, the mailbox that is there and shut, was refused `NO [NOPERM] Permission
+  denied (0.001 + 0.000 secs).` with no name in it. So the echo is still confined to the direction
+  that changes nothing. The library claim was rechecked in the installed imap-tools 1.13.0:
+  `MailboxFolderSelectError` inherits `UnexpectedCommandStatusError`, whose `__init__` binds the
+  refused command's `(status, data)` as `command_result` and whose `__str__` renders it as
+  `Data: ...`. The Bridge was not read today, the slot ruling out a live run against it. One thing
+  did move under this entry without changing it: the reading `_select` does is now a named
+  predicate, `_says_folder_missing`, shared with the listing's own filter
+  ([375](375-a-flagged-name-shut-is-dropped-as-if-missing.md)). It reads the same rendered message
+  the same way, so **What would close it** is unchanged except that the parse would now land in one
+  place instead of two.

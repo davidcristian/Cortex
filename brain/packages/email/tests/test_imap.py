@@ -74,13 +74,30 @@ def test_a_flagged_name_the_server_opens_is_still_offered(
     assert box.set_calls == [("Folders", True)]  # asked once, and only about the flagged name
 
 
-def test_a_flagged_name_the_server_refuses_is_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_flagged_name_the_server_calls_missing_is_dropped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # Dovecot lists a hierarchy node and then refuses to open it in the words that mean a folder
     # is missing, so an offered name would send the caller straight back to the same refusal.
     box = FakeBox(names=["INBOX"], nodes=["Parent"])
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
     assert box.set_calls == [("Parent", True)]
+
+
+def test_a_flagged_name_refused_for_a_reason_that_is_not_its_name_stays_offered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A refusal is not by itself proof that no mailbox has the name: this one is what a Dovecot
+    # with an ACL-shut mailbox really answers, and the mailbox behind it exists. Dropping the name
+    # would hide a real folder while the probe's unflagged `Guarded`, refused in exactly these
+    # words, stays on the list, so the two are kept the same way and a call over either answers
+    # with the base error (ADR-0022 addendum on what the list drops).
+    box = FakeBox(names=["INBOX"], nodes=["Shut"])
+    box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
+    patch_box(monkeypatch, box)
+    assert list(ImapMailbox(config()).list_folders()) == ["INBOX", "Shut"]
+    assert box.set_calls == [("Shut", True)]  # asked once, and only about the flagged name
 
 
 def test_search_is_headers_only_read_only_and_unseen(monkeypatch: pytest.MonkeyPatch) -> None:

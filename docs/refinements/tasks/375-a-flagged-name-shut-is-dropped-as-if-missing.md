@@ -1,14 +1,8 @@
 # A flagged name that is merely shut is dropped as if no mailbox had it
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-12
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-09
-**Trigger:** a server this repo can reach lists a name that is both flagged unselectable and refused
-in words other than the ones that prove a folder missing. The reading is a plain `LIST "" "*"` taken
-past the port, with every flagged name opened and its refusal kept: on the probe after
-`just up-imap-probe`, and on the Bridge through `ImapMailbox`. This entry's trail records the flag
-and the refusal each server answered with when that was last run.
 
 Opened 2026-08-21 by the close of [374](374-two-names-the-bridge-lists-are-now-withheld.md), which
 made `list_folders` open a flagged name and keep it only if the server opens it. `_opens` in
@@ -81,3 +75,21 @@ finding above is that the servers here cannot give one.
   plain LIST does not flag. The Bridge was read live today: 19 names listed, `Folders` and `Labels`
   flagged `('\Noselect', '\Unmarked')` and opening, and all 19 opening, so it refuses nothing and
   the combination has no producer here.
+- **2026-09-12, landed** by the second of the two closing moves above, settling the question by
+  argument once three sweeps had established that no server here can answer it. The argument was
+  not a preference: `mailbox_contract.py` already writes the promise the port keeps, and it is
+  narrower than the one this behaviour was justified by. Its check over the offered list fails on
+  `FolderUnknownError` alone and passes over a `MailboxError` with the comment "A mailbox that is
+  really there and will not open is not this check's subject", so a listed mailbox that is shut is
+  outside the promise by decision. The flagged-and-refused addendum's claim that "every name offered
+  opens" was therefore never true, and it was untrue against the server named two paragraphs later
+  in the same addendum: `Guarded` is unflagged, is offered, and is refused `[NOPERM] Permission
+  denied`. `_opens` is now `_kept_after_opening` and drops a flagged name only on the reading
+  `_select` uses, both calling one new `_says_folder_missing`. Nothing observable moves on either
+  server: `Parent` is still dropped and the Bridge's `Folders` and `Labels` are still kept. Read
+  live today, the probe's plain `LIST "" "*"` answers seven names with one flagged, `Parent
+  (\Noselect \HasChildren)` refused `Mailbox doesn't exist: Parent (0.001 + 0.000 secs).`, and
+  `Guarded` unflagged and refused `[NOPERM] Permission denied (0.001 + 0.000 secs).`, so the
+  combination this entry was waiting for still has no producer here. Three mutations over the email
+  package's unit suite, 125 tests, are tabled in the ADR-0022 addendum on what the list drops, along
+  with the module contract and runbook corrections the same reading forced.
