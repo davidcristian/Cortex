@@ -57,6 +57,14 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
             Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=3),
             Mention(SUBAGENTS_COMPOSE, "CPU_BUDGET {value},"),
             Mention(ROSTER_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=2),
+            Mention(
+                SUBAGENTS_COMPOSE,
+                '- "--threads"\n      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"',
+            ),
+            Mention(
+                ROSTER_COMPOSE,
+                '- "--threads"\n      - "${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"',
+            ),
         ),
     ),
     Constant(

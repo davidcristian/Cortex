@@ -65,7 +65,7 @@ never a reading of what the tree does now.
 
 One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
-115 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+116 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (5)
 
@@ -206,7 +206,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-631](tasks/631-the-purpose-paragraph-describes-the-scans-by-eye.md)** The Purpose paragraph describes the scans by eye (repo-gates). Reopens when: The Purpose paragraph of `docs/modules/repo-gates.md` is found describing a set of cross-tree scans other than the one `scripts/scanrecipes.py` reads out of the justfile and the workflow.
 - **[R-636](tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md)** A CPU budget under one floors the thread count to the engine's default (subagents). Reopens when: a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config change that lets the budget reach a CPU subagent server by any other spelling than the compose substitution both CPU servers read.
 - **[R-637](tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)** The delegated run ceilings were sized on the unpinned CPU tier (subagents). Reopens when: a delegated run on the pinned CPU server that holds its admission for the whole stall ceiling or the whole run deadline while a peer queues behind it, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`.
-- **[R-638](tasks/638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md)** A CPU subagent server in a third compose file is held to no thread count (subagents). Reopens when: a compose file other than `docker/docker-compose.subagents.yml` and `docker/docker-compose.subagents-roster.yml` that starts a subagent server with `-ngl 0`, which `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server or a fourth file.
+- **[R-638](tasks/638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md)** A CPU subagent server in a third compose file is held to no thread count (subagents). Reopens when: a compose file other than `docker/docker-compose.subagents.yml` and `docker/docker-compose.subagents-roster.yml` that starts a subagent server with `-ngl 0`, which `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server or a fourth file. Its claim was re-derived from the code on 2026-09-12.
 - **[R-639](tasks/639-the-envelope-judges-read-no-form.md)** The envelope judges read no form (subagents). Reopens when: a seeded sweep in which runs of the two kinds below, counted by a reader beside the machine column, move a control cell across the floor or move a published cell's delivered rate outside the Wilson interval quoted beside it.
 
 ### Dead until a consumer exists (25)
