@@ -1563,6 +1563,15 @@ def test_the_registry_holds_each_coupling_once() -> None:
     assert not repeated, f"the registry holds these labels more than once: {repeated}"
 
 
+def test_no_two_couplings_are_written_over_one_set_of_places() -> None:
+    """A copy that was relabelled is one coupling checked twice, under two names."""
+    written: dict[tuple[object, ...], list[str]] = {}
+    for constant in crosscheck.CONSTANTS:
+        written.setdefault((constant.sites, constant.mentions), []).append(constant.label)
+    repeated = sorted(labels for labels in written.values() if len(labels) > 1)
+    assert not repeated, f"these labels are written over one set of places: {repeated}"
+
+
 def test_registry_names_every_part_in_the_order_it_reads_them() -> None:
     """The parts are named in prose and nowhere else, so the prose is held to the directory."""
     named = re.findall(r"^- `(\w+)` ", registry.__doc__ or "", re.MULTILINE)

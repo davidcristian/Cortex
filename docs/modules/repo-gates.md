@@ -1469,7 +1469,13 @@ answer: a marker written into any other module here is reported by the line it i
   than gating normally under none of the names the docstring lists. Beside it,
   `test_the_registry_holds_each_coupling_once` asserts that no label appears twice, which is how the
   count is held: an entry in two parts leaves the verdict alone, the scan asking one question twice,
-  and makes `shape.entries` count a collection the registry does not have. The convention a part is
+  and makes `shape.entries` count a collection the registry does not have.
+  `test_no_two_couplings_are_written_over_one_set_of_places` holds the same count against the copy
+  that was relabelled on the way (ADR-0029 relabelled-copy addendum), grouping the registry by each
+  entry's sites and mentions: two labels over one tuple of places report one drift twice and count
+  two couplings where there is one. The relation is left out of the grouping, an ordering against a
+  third site being a third place and so another tuple. A copy whose places are a strict subset of
+  another entry's still passes, which the addendum records and measures. The convention a part is
   found by, a `<subject>couplings.py` holding a `<SUBJECT>_COUPLINGS` tuple, is asserted in the
   helper both tests go through, so an export under another name is a sentence rather than an
   `AttributeError`.
