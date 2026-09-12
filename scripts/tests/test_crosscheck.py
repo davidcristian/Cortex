@@ -1728,6 +1728,27 @@ def test_the_registry_holds_each_coupling_once() -> None:
     assert not repeated, f"the registry holds these labels more than once: {repeated}"
 
 
+def test_no_two_couplings_are_written_over_one_set_of_places() -> None:
+    """A copy that was relabelled is one coupling checked twice, under two names.
+
+    The label check above catches the copy a move between parts leaves when the delete is
+    forgotten, since that copy keeps its label. A copy renamed on the way passes it: two entries
+    over an identical tuple of sites and mentions satisfy the equality, carry distinct labels, and
+    are counted twice by `shape.entries`, so one drift is reported under two labels and a reader
+    cannot tell one coupling written down twice from two that overlap.
+
+    The places carry this check and the relation over them is left out of it (ADR-0029 addendum on
+    the relabelled copy). A site is a path and a name, so two entries naming the same sites read
+    the same declarations under the same names, and the one case offered for tying one pair of
+    sites twice was an ordering against a third site, which is a third place and so another tuple.
+    """
+    written: dict[tuple[object, ...], list[str]] = {}
+    for constant in crosscheck.CONSTANTS:
+        written.setdefault((constant.sites, constant.mentions), []).append(constant.label)
+    repeated = sorted(labels for labels in written.values() if len(labels) > 1)
+    assert not repeated, f"these labels are written over one set of places: {repeated}"
+
+
 def test_registry_names_every_part_in_the_order_it_reads_them() -> None:
     """The parts are named in prose and nowhere else, so the prose is held to the directory.
 

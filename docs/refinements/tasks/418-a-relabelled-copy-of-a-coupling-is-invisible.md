@@ -1,14 +1,8 @@
 # A coupling copied into a second part and relabelled is two entries checking one thing
 
-**Status:** open, fix when it bites
-**Trigger:** two entries in `crosscheck.CONSTANTS` carry different labels over one tuple of sites
-and mentions, which is what makes a fault arrive twice for one drift and `shape.entries` count a
-collection the registry does not hold. Grouping the registry by
-`(constant.sites, constant.mentions)` and finding a group larger than one reports it; this entry's
-trail records what that grouping returned when it was last run.
+**Status:** landed 2026-09-12
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
 
 Opened 2026-08-24 by the close of
 [R-412](412-nothing-holds-the-registry-to-its-parts.md), which held the registry's entry count by
@@ -29,13 +23,19 @@ the registry share a places tuple, so this is a hole of exactly the kind the one
 worth naming, not worth a rule nobody has needed. That measurement has been taken again since and
 still says the same thing, over a registry a third larger; the trail records it.
 
-**What would close it.** Decide whether two entries may ever legitimately name the same places. The
-argument that they may is `Relation`: one pair of sites could plausibly be tied as an equality and
-as an ordering against a third, and those are two couplings rather than one. If that is real, the
-rule is over the places **and** the relation rather than over the places alone, and a fault has to
-say which of the two entries is the copy. If it is not, the check is one line beside the label one,
-comparing `(sites, mentions, relation)` across `CONSTANTS`. Either way the message has to name both
-labels, since the whole failure is that one thing is written down under two names.
+**What it became.** `test_no_two_couplings_are_written_over_one_set_of_places` in
+`scripts/tests/test_crosscheck.py`, beside the label check it completes. It groups `CONSTANTS` by
+each entry's sites and mentions and fails on a group larger than one, naming every label in the
+group, since the failure is that one thing is written down under two names.
+
+The decision the entry was left with, whether two entries may ever legitimately name the same
+places, is answered no, and the argument for yes dissolved when it was read. That argument was
+`Relation`: one pair of sites tied as an equality and again as an ordering against a third site.
+A third site is a third place, so the ordering's sites tuple is not the equality's and the pair was
+never a collision. The relation is therefore left out of the grouping, which is the narrower rule:
+carrying it in the key would pass a copy that flipped `EQUAL` to `ORDERED`, and over identical
+sites that copy is either redundant, an equality already satisfying an ordering, or contradictory,
+a membership needing a collection where an equality needs the values to match.
 
 ## Trail
 
@@ -53,3 +53,10 @@ labels, since the whole failure is that one thing is written down under two name
   regard for what any entry names. The entry stays open with the question in **What would close
   it** unanswered, since deciding whether two entries may legitimately name the same places is the
   part that cannot be settled by counting.
+- 2026-09-12: landed, and the question was settled by reading `Relation` rather than by counting.
+  The registry now holds 91 entries over 109 sites and 300 mentions, 27 of them pinned, and
+  grouping by places still gives 91 groups of one, so the rule landed green and ahead of its
+  trigger. Recorded in the ADR-0029 relabelled-copy addendum, which carries the mutation table
+  and the boundary the rule stops at: a copy whose places are a strict subset of another entry's
+  passes the whole suite, which is
+  [R-653](653-a-narrower-copy-of-a-coupling-passes-the-places-rule.md).

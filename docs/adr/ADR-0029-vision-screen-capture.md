@@ -12229,3 +12229,92 @@ whose row on a different day this was and which it does not bear on,
 [test_reply_readings.py](../../brain/packages/inference/tests/test_reply_readings.py), the
 [llamacpp-gpu runbook](../runbooks/llamacpp-gpu.md)'s image-arm section, which an operator reads for
 what this row costs and what it loses, and this addendum.
+
+## Addendum (2026-09-12): a relabelled copy is caught by the places, and the relation never named a collision
+
+The registry-equality addendum above held `CONSTANTS` to the parts on disk in both directions and
+held the entry count with `test_the_registry_holds_each_coupling_once`, which asserts that no label
+appears twice. That catches the copy a move between parts leaves when the delete is forgotten, since
+such a copy keeps its label. A copy renamed on the way passes it. Two entries over an identical
+tuple of sites and mentions satisfy the equality, carry distinct labels, and are counted twice by
+`shape.entries`, so one drift is reported under two labels, and a reader cannot tell one coupling
+written down twice from two that overlap.
+
+### Re-derived first: the numbers moved and the claim held
+
+Measured before anything was changed. `crosscheck.py --root ..` prints
+`crosscheck OK: 91 cross-tree constant(s) under .. agree, over 109 declaring site(s) and 300
+mention(s), 27 of them pinned to a count`, where the entry recording this hole last read 89 over 105
+and 291. Grouping those 91 entries by `(constant.sites, constant.mentions)` gives 91 groups of one,
+and the stronger reading holds too: grouping by `constant.sites` alone also gives 91 groups, so no
+two entries name even the same declaring sites. The account of the existing check is accurate as
+well, `test_the_registry_holds_each_coupling_once` counting labels and nothing else. So this landed
+ahead of its trigger, over a registry that has taken 24 entries since the hole was named without one
+of them repeating a places tuple.
+
+### The question was settled by reading `Relation`, and the answer is no
+
+The hole was left open on one question: whether two entries may ever legitimately name the same
+places. The argument that they may was `Relation`. One pair of sites could be tied as an equality and
+again as an ordering against a third site, and those are two couplings rather than one. Read against
+the vocabulary, that argument names no collision at all: a third site is a third place, so the
+ordering's sites tuple is not the equality's, and the two entries are already distinct under any rule
+over the places.
+
+Nothing else produces a legitimate pair either, which is why the rule is over the places alone and
+leaves the relation out of the key. Over one identical sites tuple, an equality and an ordering are
+redundant, every equality satisfying the ordering that reads the same sites; an equality and a
+membership cannot both hold, a membership needing a collection at the last site where the equality
+needs every site to declare the same value; and an ordering and a membership cannot both hold, an
+ordering comparing integers. Carrying the relation in the key would therefore pass a copy that
+flipped `EQUAL` to `ORDERED` while describing one coupling twice, which is the failure the rule is
+for.
+
+### The rule, and where it sits
+
+`test_no_two_couplings_are_written_over_one_set_of_places` in `scripts/tests/test_crosscheck.py`
+groups `CONSTANTS` by each entry's sites and mentions and fails on a group larger than one, naming
+every label in the group. It sits in the suite rather than in `registry_fault`, beside the label
+check it completes, for the reason the label check sits there: what it holds is how the registry is
+written, not how the trees agree, and a fault about the registry's own prose is not one of the
+faults the scan prints for a reader fixing a drift.
+
+### Proved able to fail, three times, over the scripts suite
+
+Three planted mutations over `scripts/`, every count out of the `scripts/tests` suite at 1,798 tests
+after this change. `scripts/emailcouplings.py` was copied to the scratchpad before the first and
+restored from that copy between runs, with `__pycache__` purged each time, and the 1,798-passed
+baseline was re-established after the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | one coupling spliced into `emailcouplings` from `seamcouplings` under the label `a relabelled copy` | the new test fails naming both labels | **1 failed, 1,797 passed**, `these labels are written over one set of places: [['the screen-capture byte ceiling', 'a relabelled copy']]` |
+| 2 | the same copy with its label kept | the label check fires too | **3 failed, 1,795 passed**, the places test, `holds these labels more than once: ['the screen-capture byte ceiling']`, and the order test |
+| 3 | a copy under a new label with one of its two mentions dropped | the places rule does not reach it | **1,798 passed**, the whole suite green |
+
+Row 1 is what this close exists for, and it left the gate itself green: `crosscheck.py` printed
+`92 cross-tree constant(s) ... over 111 declaring site(s)` for a registry of 91 distinct couplings
+over 109 declaring sites. Row 2's third failure is the collateral the registry-equality addendum
+already recorded, the order test's position map taking the later index of a repeated entry. Row 3 is
+the boundary this rule stops at, measured rather than argued: the gate printed `92` there too, for a
+registry where one coupling is written down twice with the second copy checking less.
+
+### What this opened
+
+Row 3 is [R-653](../refinements/tasks/653-a-narrower-copy-of-a-coupling-passes-the-places-rule.md).
+A copy over fewer places is a different tuple, so grouping cannot find it, and finding it means
+walking the registry pairwise and saying which of two entries is the copy. It carries a real
+question of its own, whether an entry whose sites are a strict subset of another's is always a copy
+or may be a narrower coupling that stands on its own, and the narrower reading that needs no such
+decision, a second grouping by sites alone, is green today at 91 groups of one.
+
+### Records
+
+The records are the task file
+[R-418](../refinements/tasks/418-a-relabelled-copy-of-a-coupling-is-invisible.md), which closes as
+landed, the opening
+[R-653](../refinements/tasks/653-a-narrower-copy-of-a-coupling-passes-the-places-rule.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+`scripts/tests/test_crosscheck.py`, which carries the rule,
+[modules/repo-gates.md](../modules/repo-gates.md), which states what the suite now holds and what it
+stops at, and this addendum.
