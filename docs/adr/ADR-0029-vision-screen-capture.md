@@ -12318,3 +12318,128 @@ landed, the opening
 `scripts/tests/test_crosscheck.py`, which carries the rule,
 [modules/repo-gates.md](../modules/repo-gates.md), which states what the suite now holds and what it
 stops at, and this addendum.
+
+## Addendum (2026-09-12): the unregistered log line is left to a convention, and the scan over every `extra=` is declined on a rate
+
+The one-vocabulary addendum put the brain's log vocabulary behind `scripts/logcouplings.py`, which
+ties the five declarations in `cortex_core.log_fields` to the modules that spell them and the
+runbooks that tell an operator to grep them. That registry holds the places it lists. A module that
+starts naming a work identity under a spelling of its own is spelled in no mention, so every mention
+still resolves and the gate stays green, which is the split the vocabulary was written to end,
+arriving under a new name. Two answers were weighed when that landed: a convention written down with
+nobody enforcing it, or a twelfth cross-tree scan reading every `extra=` in the brain and holding
+each identity-shaped key to the vocabulary. The refinement that recorded the hole asked for a count
+before either was chosen, and this is that count.
+
+### Re-derived first: the readings hold, and one number in them was wrong
+
+Read over `brain/packages/*/src` with `ast`, so a key is read off the call rather than out of the
+text. Thirteen modules attach one of the five names inside an `extra=` dict literal, and
+`logcouplings.py` lists all thirteen plus `cortex_memory/audit.py`, which reaches the names through
+a `fields` dict it passes by name. The three indirect sinks the entry names are still the three,
+`converse_stream.py`, `cortex_memory/audit.py` and `cortex_tools/audit.py`, and nothing in the brain
+enumerates identity-shaped keys in a suite, so the hole is where the entry says it is.
+
+One recorded number was wrong. The keys outside the vocabulary that end in `id` are `pid` in the
+model host's supervisor and its children, `boot_id` in `residency_watch.py` and the model-host
+adapter, and `id` in `cortex_orchestrator/confirm.py`, which is three names over five places rather
+than the four keys the earlier reading states. Both `boot_id` places have been there since
+2026-08-09, so nothing arrived to make the count move. None of the three is a work identity under
+the dispatch stamp's reading, so the trigger is still unfired either way.
+
+### The count that decides it
+
+Two windows, both read off `git`, over `brain/packages/*/src`.
+
+| window | identity-naming lines added | modules | registered in the same commit |
+| --- | --- | --- | --- |
+| since the vocabulary was written down, 2026-08-24 | 16 | `brain_phase.py`, `runner.py`, `swap_conductor.py`, `swap_recovery.py`, `swap_settle.py` | 5 of 5 |
+| since that work finished, 2026-08-25 | 1 | `runner.py`, already listed | 1 of 1 |
+
+The first window's four swap modules were not in the registry when the vocabulary landed, and all
+four were added to it in the commit that wrote their lines, 42 minutes after the vocabulary itself
+for the turn and the next day for the conversation. So in sixteen lines there is no instance of a
+line landing without its mention, which is the practice a convention would ask for, already held
+without one.
+
+The second window is the one that prices the scan. Eighteen days produced one identity-naming line,
+in a module the registry already lists, beside ten log calls of other kinds. The entry's premise for
+weighing a scan at all was that a log line is added weekly where a compose default or a stylesheet
+property is added quarterly. Log lines are indeed added weekly, four a week by that reading. Lines
+naming a work identity are not: one in eighteen days, and the vocabulary covers five identities that
+are minted in five places and passed down, so a new module far more often carries an identity it was
+handed than names a new one.
+
+### What landed, and what it does not do
+
+The convention, in the two places the entry named. `log_fields.py` says that the registry holds the
+modules it lists and no others, that a module which starts naming one of the five is registered there
+in the same change, and that a module nobody registered can spell an identity any way it likes with
+every gate green. [modules/brain-core.md](../modules/brain-core.md) says the same beside the five
+declarations, and points here for the rate.
+
+Nothing enforces it, which is the honest cost of this decline and is why it is written where a person
+adding such a line is already reading. The scan stays declined on the rate rather than on its cost,
+and the two things that would reopen it are a rate that moves, several identity-naming lines arriving
+in unregistered modules, or a sixth identity, which has nowhere to be registered and would be the
+first real test of what "looks like an identity" means, since the Redis codecs spell four of the five
+as hash keys of their own and are deliberately not held to this vocabulary.
+
+### Records
+
+The records are the task file
+[R-416](../refinements/tasks/416-a-new-log-line-can-name-its-work-anything.md), which closes as
+declined, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`brain/packages/core/src/cortex_core/log_fields.py` and
+[modules/brain-core.md](../modules/brain-core.md), which carry the convention, and this addendum.
+
+## Addendum (2026-09-12): a borrowed name's direction stays unread, since the positional rule reports true prose
+
+The addendum on holding the module listing in halves split one paragraph of
+[modules/repo-gates.md](../modules/repo-gates.md) into two rosters, the modules with a command line
+and the modules without, and had to let the second half carry names the first half owns: its bullets
+group the libraries by the gate that reads them, and that gate is a CLI module. `rosters.py` takes
+`refers_to` for exactly that, a sibling set whose names a passage may carry without them being its
+members. What the allowance cannot see is which way a sentence points. `bindcheck.py` reads
+`composemounts.py` and `composemounts.py` reads `bindcheck.py` name the same two modules, and only
+one of them is true.
+
+### The rule that was proposed, and the page that refutes it
+
+The rewrite of that listing made every bullet open with the gate whose libraries it then names, so
+the rule became positional: a borrowed name is accepted only as a bullet's first code span, and one
+anywhere else in a bullet is a claim about a library rather than a reference to its reader. Read
+against the page on 2026-09-09, the rule was green, eleven bullets carrying eleven borrowed names,
+each its bullet's first code span.
+
+Read against the page today it is red, and on prose that is right. The envelope bullet now reads
+`envelopefloor.py` reads `envelopesamples.py` and `envelopejudges.py`, then `envelopepairs.py` reads
+the same format through `envelopesamples.py` for the fields a pairing matches on. That is one bullet
+about the two gates that share one sample reader, `envelopepairs.py` does import `envelopesamples`
+and does carry a command line, and its name is the twelfth borrowed name in the passage and the one
+that is not its bullet's first code span. The rule reports it. It arrived on 2026-09-11, two days
+after the reading that found the rule green, which is the second time this proposal has been
+overtaken by the page: the original version, accepting a borrowed name only where it is not the
+subject of its clause, was inverted by the rewrite that would have made it reject all eleven.
+
+### Why the decline rather than a wider rule
+
+Widening it means reading the grammar of a sentence, and every reader in `scripts/` answers what a
+document names rather than what it says. The alternative the rule would have imposed is a page split
+to suit it, one bullet per gate whatever the libraries do, where a bullet naming both gates that read
+one reader is the better description.
+
+The bound that stays is the one the refinement stated, now argued rather than assumed. Both sets are
+still held whole: 19 names in the CLI roster and 54 in the no-CLI one, all 54 named in the passage
+and no name in it that is not a member of one half or the other. A CLI module written into the second
+half as a claim is therefore still reported, by the first half, as a member nobody named. What
+survives unheld is one sentence's direction about a module both halves already account for, and
+[modules/repo-gates.md](../modules/repo-gates.md) now says so beside the allowance it is about.
+
+### Records
+
+The records are the task file
+[R-451](../refinements/tasks/451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md), which closes
+as declined, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+[modules/repo-gates.md](../modules/repo-gates.md), which states the decline where the allowance is
+described, and this addendum.

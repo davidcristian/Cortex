@@ -44,7 +44,11 @@ these names as code,
 being the one place that writes the whole vocabulary out as a list; every other site names one
 identity inside its own ``extra=`` and keeps the literal an operator greps, and
 `scripts/logcouplings.py` is what ties those literals, and the runbooks that quote them, back to
-the declarations here.
+the declarations here. That registry holds the modules it lists and no others, so a module that
+starts naming one of the five is registered there in the same change. A module nobody registered
+can spell an identity any way it likes with every gate still green (ADR-0029 unregistered-line
+addendum, which measured how often a module starts naming one and declined a scan over every
+``extra=``).
 
 A bound on how much of a value reaches the line sits here for the same reason the redaction does:
 the size of a field nobody enumerated is not something its call site was asked about, and the tool

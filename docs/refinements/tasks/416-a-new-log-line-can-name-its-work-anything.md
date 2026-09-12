@@ -1,13 +1,8 @@
 # A new log line can name its work anything, the registry holding only the modules it lists
 
-**Status:** open, fix when it bites
+**Status:** declined 2026-09-12
 **Area:** repo-gates
-**Trigger:** a module the log-vocabulary registry does not list attaching one of the five
-identities `log_fields.py` declares under a spelling of its own, or a sixth such identity arriving
-with nowhere to be registered. An id naming a process, a daemon's boot or one exchange with the
-body is not one of the five and does not fire this.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
 
 Opened 2026-08-24 by the close of
 [R-339](339-two-spellings-of-one-conversation.md) and
@@ -19,8 +14,7 @@ them, so a rename that moves one place and not the others makes the gate fail. W
 is a place nobody registered. A module added tomorrow that writes `extra={"chat_id": ...}` is spelled in
 no mention, so every mention still resolves, the gate stays green, and the split the two closed
 entries were about is back with a new spelling. That is the presence check working as designed, the
-same limit every part of that registry has, but it bites harder here: a log line is a thing this
-repo adds weekly, where a compose default or a stylesheet property is added once a quarter.
+same limit every part of that registry has.
 
 The two ways out are different in kind. The cheap one is a rule with nobody enforcing it, a
 sentence in `log_fields.py` and in the module contracts saying that a line naming work takes one of
@@ -38,13 +32,17 @@ unconditionally, so adding one is a change to the contract and not to a data fil
 "looks like an identity" means, since the Redis codecs spell four of the five as hash keys of their
 own and must not be held to the log vocabulary at all.
 
-**What would close it.** Decide between the rule and the scan, on evidence rather than taste: count
-how many log lines naming a work identity have been added since the vocabulary was written down,
-and how many of them were added in a module the registry already lists. If most new lines land in
-listed modules, the presence check plus a sentence is enough and the scan is not worth its ADR. If
-they land in new modules, build the scan, and build it on `ast` rather than on text, resolving a
-`fields` name to the dict literal assigned to it in the same function so the three sinks are not
-its blind spot.
+**Why it is declined.** The entry asked for the count that would pick between the two ways out, and
+the count says the cheap one. Every identity-naming line written since the vocabulary landed was
+registered in the commit that wrote it, sixteen lines over five modules, no exceptions; and once
+that work finished on 2026-08-25, eighteen days produced one such line, in `runner.py`, which the
+registry already listed. Ten log calls of any kind were added in the same eighteen days, so it is
+the identity-naming line that is rare rather than the log line, and the premise that this hole
+bites weekly is wrong by an order of magnitude. So the scan does not earn its ADR, and what landed
+is the sentence: `log_fields.py` and
+[modules/brain-core.md](../../modules/brain-core.md) now say that the registry holds the modules it
+lists, that a module which starts naming one of the five is registered in the same change, and that
+one nobody registered can spell an identity however it likes with every gate green.
 
 ## Trail
 
@@ -75,3 +73,14 @@ its blind spot.
 - 2026-09-09: the arithmetic has moved again and the argument still has not. AGENTS.md names
   eleven cross-tree scans, so the gate this entry weighs would be the twelfth, and the body says
   eleven rather than the six it was written against.
+- 2026-09-12: declined, on the count the entry itself asked for. Re-derived first and every
+  reading above holds: the same thirteen modules attach one of the five in an `extra=` dict
+  literal, the registry lists all thirteen plus `cortex_memory/audit.py`, and the four keys
+  outside the vocabulary that end in `id` are still those four, which is three names over five
+  places rather than four keys as that line says. The new readings are the rate. Sixteen
+  identity-naming lines have been written since the vocabulary landed, in `brain_phase.py`,
+  `runner.py`, `swap_conductor.py`, `swap_recovery.py` and `swap_settle.py`, and every one of the
+  five modules gained its registry rows in the commit that wrote its lines, the swap path's four
+  in the same hour as the vocabulary itself. In the eighteen days since that work finished, one
+  identity-naming line was added, beside ten log calls of other kinds. Recorded in the ADR-0029
+  unregistered-line addendum, which carries the derivation.
