@@ -6,7 +6,7 @@
 mail and reads back `the mailbox could not run that search` rather than
 `(no matching messages)`, which taints the turn.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-05 by the close of
 [548](548-an-empty-folder-read-raises-instead-of-answering-not-found.md), which moved the read
@@ -50,3 +50,11 @@ holds nothing is a change to the other call.
   uid; through the port, `ImapMailbox.search("INBOX", "UID 999", 1)` raises the base `MailboxError`
   with that answer's words, unchanged from the record above. The EXAMINE the same reading takes
   answers the message count this entry proposes short-circuiting on.
+- 2026-09-13: claims held against the code and the classification traced through the library
+  itself, and nothing has moved. `SEARCH_QUERY_HELP` still names no `UID` criterion,
+  `_search_failure` still reads only the exception type imaplib raises, and in imap-tools 1.13.0
+  `BaseMailBox.fetch` runs the SEARCH through `uids`, whose `check_command_status(uid_result,
+  MailboxUidsError)` raises on the `NO`. That error is an `ImapToolsError` rather than an
+  `IMAP4.error`, so it passes the `except IMAP4.error` in `search` untouched and is wrapped by
+  `_translated` as the base `MailboxError`, exactly as the body above records. The Bridge was not
+  read again this sitting, so the live reading of 2026-09-09 stands.

@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a second sitting of `test_uid_reading_live.py`, whether for another tier, another
 model pick, or a reworded `UID_HELP` or `NOT_FOUND`.
 
@@ -37,3 +37,11 @@ decision on whether the correction names the listing as well as the search.
 - 2026-09-06: opened by the close of
   [571](571-the-cortexs-reading-of-the-uid-description-is-unmeasured.md), which published the
   counts and recorded what they were measured over.
+- 2026-09-13: the trigger has not fired and the two limits were checked against the harness
+  rather than against the published counts. `test_uid_reading_live.py` under
+  `brain/packages/orchestrator/tests/` carries one commit, the one that wrote it, and neither
+  `UID_HELP` nor `NOT_FOUND` has changed since the sitting: the last commit touching either is
+  the one that wrote it. In the harness, `_READ_ASK` asks for "her message about the electricity
+  bill" against the listing subject "Electricity bill, final notice", `DRAWS` is 20, and the
+  after-not-found row runs three arms over those twenty seeds, which is the sixty draws the body
+  names.

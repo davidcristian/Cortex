@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a deployment where gated confirmations arrive often enough that the user starts
 approving them without reading them. Which tools can produce one is read off the shipped default,
 `gated` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how many one
@@ -14,8 +14,8 @@ Every gated call is confirmed on its own and nothing is remembered between calls
 `ToolDispatcher._confirmed` in `brain/packages/core/src/cortex_core/dispatch.py` builds one
 `ConfirmationRequest` per call and asks the confirmer, so two sends in one turn are two cards and a
 send approved a minute ago buys the next one nothing. There is no batching shape and no per-tool
-allowlist to hold an approval in: `ToolPolicy.gated_names` is frozen at construction and read as a
-membership test.
+allowlist to hold an approval in: `DispatchPolicy.gated_names` is frozen at construction and read
+as a membership test.
 
 The entry was filed about sends, and the surface is wider than that now. The shipped
 `CORTEX_TOOLS_GATED` default is two names, `escalate_to_brain` and `send_email`, so a turn that
@@ -49,3 +49,10 @@ send mail.
   names the two things a reader can check without a deployment. The per-call confirmation and the
   absent allowlist were confirmed in `dispatch.py`, and the within-turn flood was found already
   bounded by the refusal check that runs ahead of the gate.
+- 2026-09-13: claims held against the code again and both readings the trigger names are
+  unchanged. The shipped `gated` default is still the two names `escalate_to_brain` and
+  `send_email`, `MAX_TOOL_DISPATCHES` is still 32, `_confirmed` still builds one
+  `ConfirmationRequest` per call, and the refusal check still returns ahead of the gate. The
+  entry named the policy class wrong: the frozen gate set lives on `DispatchPolicy` in
+  `dispatch.py`, and no `ToolPolicy` exists anywhere in the brain, so the name is corrected above.
+  The trigger asks about a deployment and this tree runs none, so it has not fired.

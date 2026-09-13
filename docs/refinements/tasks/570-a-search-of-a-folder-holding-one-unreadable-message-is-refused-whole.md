@@ -6,7 +6,7 @@
 of that folder reads back `the mailbox could not run that search` rather than the messages the
 server did deliver.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-05 by the close of
 [551](551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md), whose
@@ -57,3 +57,12 @@ saving a second message into `Sealed` before sealing the first.
   the partial-answer option, which has nothing to read. The trigger has not fired: read live
   today, the Bridge account lists nineteen folders and every one of them answers a search, none
   refused.
+- 2026-09-13: the mechanism was read out of imap-tools 1.13.0's own source rather than off its
+  documentation, and every claim above held. `BaseMailBox.fetch` cuts the uid list with
+  `slice(0, limit)` before it sends any FETCH, `_fetch_by_one` sends one `UID FETCH` per uid and
+  calls `check_command_status(fetch_result, MailboxFetchError)` on each answer, and `search` still
+  builds `list(box.fetch(...))`, so the readable messages the generator has already yielded are
+  discarded when the declined uid raises. The probe's `Sealed` still holds the one message
+  `docker/dovecot/probe-mailboxes.sh` saves into it. The Bridge was not read again this sitting,
+  so the live reading of 2026-09-09, where all nineteen folders answered a search, stands and the
+  trigger has not fired.
