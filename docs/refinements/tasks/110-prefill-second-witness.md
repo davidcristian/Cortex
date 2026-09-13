@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`.
 
 Opened 2026-08-08 by
@@ -30,6 +30,18 @@ already holds, which leaves the calibration argument above as the whole of the c
 Nothing here touches the rule that state must survive a model swap: both rates are readings taken
 after a swap has finished, and a rate is not state anything could lose.
 
+**The tier this instrument would be read on has since been given a prompt cache size of its own,
+read 2026-09-13.** Every model-host tier now states `--cache-ram` rather than taking the engine's
+8192 MiB default ([config.py](../../../brain/packages/model_manager/src/cortex_model_manager/config.py)),
+and the deep tier states zero while the cortex states 8192. That narrows the calibration argument
+on the one tier this would run against: `CadenceWatch` is wired by the deep phase
+([brain_phase.py](../../../brain/packages/core/src/cortex_core/brain_phase.py)), the deep tier
+restores no conversation, so a prompt rate read there is always a cold one and cannot swing
+between a restored request and a cold one. Prompt length is still the variance the original
+argument named, and on that tier it is now the only one. The cortex is the opposite case, a
+restored return costing 1.9 s against 3.5 s of cold prompt eval, so a single prefill floor set for
+every tier would have been wrong there.
+
 ## Trail
 
 - 2026-08-08: Opened behind the same landing, prefill declined there as a second instrument with
@@ -48,3 +60,10 @@ after a swap has finished, and a rate is not state anything could lose.
   prompt rate rides on, and the runbook still records the 13.8 against 105 to 134 contrast. The
   live reading, recorded above, is that `timings` really does carry `prompt_per_second`. The
   trigger has not fired.
+- 2026-09-13: claims held to the code again and all of them stand. `MIN_CADENCE_TOKENS` is 32,
+  `_cadence` in [decode.py](../../../brain/packages/inference/src/cortex_inference/decode.py) still
+  takes `predicted_per_second` and `predicted_n` off the same `timings` object a prompt rate rides
+  on, and the runbook still records the 13.8 against 105 to 134 contrast, which it names as
+  prefill. Recorded above: every tier now states its own `--cache-ram` and the deep tier states
+  zero, which removes the cache-restore half of the variance on the tier this instrument would be
+  read on. The trigger has not fired.

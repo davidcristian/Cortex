@@ -9,7 +9,7 @@ R-379. Checking the counting half is one reading: nothing in the brain keeps a p
 outlives its handoff, `HandoffSettler._settle` deleting a `DONE` record outright and the Redis
 adapter expiring a `FAILED` one after an hour, so a count still has nowhere to live.
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-08-19 by the close of [304](304-spill-rides-the-residency-report.md). The standing rule
 that close chose is deliberate and it has a price: the note lives in the process, stands for an
@@ -68,3 +68,11 @@ been approached once and not met.
   the spill's only history is still the one `WARNING` in `brain_phase.py`, and `residency_pace.py`
   still binds no logger. Recorded above: why the record's swap survival is not the durability a
   count would need. The trigger has not fired.
+- 2026-09-13: claims held to the code again and all of them stand. `HandoffSettler._settle` still
+  deletes a `DONE` record, `_TERMINAL_TTL_SECONDS` is still 3600 and `DEFAULT_SPILL_DWELL_S` still
+  3600.0, the spill's only history is still the one `WARNING` in `brain_phase.py`, and
+  `residency_pace.py` still binds no logger. One reading sharpens which handoffs this would count:
+  `swap_in` ([residency_moves.py](../../../brain/packages/core/src/cortex_core/residency_moves.py))
+  stops the cortex under every plan, a co-resident plan sparing only the standing peers, so the
+  pair that overcommits the card is the deep tier and a peer rather than the deep tier and the
+  cortex. The trigger has not fired.

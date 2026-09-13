@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a failed handoff whose reason nobody found in time, or any surface that starts
 carrying handoff history. The second half is countable rather than felt:
 `residency_probe.residency()` composes exactly two annotators through `residency_state.with_note`,
@@ -83,3 +83,9 @@ that gets lost.
   `with_note` callers, a two field `HealthReply`, and one production read of `record.failure`.
   Recorded above: the reason survives a swap on the record, so the gap is a reader. The trigger has
   not fired.
+- 2026-09-13: the three countable claims were read again and all of them stand. `with_note` still
+  has exactly two callers in the brain's source, `residency_pace.py` and `residency_tiers.py`;
+  `HealthReply` in [proto/body.proto](../../../proto/body.proto) is still `bool ready` and
+  `string detail`; and `record.failure` is still read by one production line,
+  [handoff_codec.py](../../../brain/packages/session/src/cortex_session/handoff_codec.py)'s encode.
+  The trigger has not fired.

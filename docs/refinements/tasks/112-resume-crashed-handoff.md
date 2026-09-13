@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** the same dedup design the transport reconnect task needs, a request id plus an idempotency and resume registry keyed by it, after which resuming is a small addition to `recover_handoffs`.
 
 Opened 2026-07-17 with the
@@ -50,3 +50,9 @@ request id today, and `CORTEX_ESCALATION` appears in `docker/` only inside a com
   fails the stranded record and converges, the record still holds every part of the turn a resume
   would replay, and the dedup design that would unlock it exists nowhere in the brain's source. The
   trigger has not fired.
+- 2026-09-13: claims held to the code again and all of them stand. `recover_handoffs` still fails
+  the stranded record and converges residency without re-running the deep phase, `HandoffRecord`
+  still carries the brief, the fence nonce, the taint ledger, the turn-wide budget's position, the
+  rounds spent and the loop tail in order, and nothing in the brain's source spells a request id or
+  an idempotency key; the word appears only where a control verb describes itself as idempotent.
+  The trigger has not fired.
