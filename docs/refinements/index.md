@@ -71,7 +71,7 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 
 - **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Twenty of the cortex alt's thirty-one pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-12.
 - **[R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md)** The cells whose published reading is one load's answer are undrawn across loads (vision). Its claim was re-derived from the code on 2026-09-13.
-- **[R-647](tasks/647-the-mail-cells-rate-at-the-engine-budget-rests-on-one-firing.md)** The mail cell's rate at the engine budget rests on one firing (vision). Its claim was re-derived from the code on 2026-09-12.
+- **[R-647](tasks/647-the-mail-cells-rate-at-the-engine-budget-rests-on-one-firing.md)** The mail cell's rate at the engine budget rests on one firing (vision). Its claim was re-derived from the code on 2026-09-13.
 - **[R-654](tasks/654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md)** The void ceiling is a share the cortex alt's control arm is above (vision). Its claim was re-derived from the code on 2026-09-12.
 - **[R-655](tasks/655-the-canary-rows-ok-cannot-be-told-from-a-void-draw.md)** The canary row's `ok` cannot be told from a void draw (vision). Its claim was re-derived from the code on 2026-09-12.
 
