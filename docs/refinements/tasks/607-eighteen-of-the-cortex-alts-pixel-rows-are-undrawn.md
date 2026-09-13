@@ -1,4 +1,4 @@
-# Twenty of the cortex alt's thirty-one pixel rows are undrawn or refused
+# Twenty of the cortex alt's thirty-three pixel rows are undrawn or refused
 
 **Status:** open, actionable
 **Area:** inference
@@ -12,9 +12,9 @@ alt's rate, matrix, cost and canary rows at the corpus frame.
 Every row of the image arm in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
 is parametrized over `VISION_MODELS`, which carries the pick and the alt. Collecting the arm on
-2026-09-12 reports **thirty-one** alt rows, where the reading of 2026-09-09 found twenty-five: six
-rows were added to the arm between those dates and two of the six are drawn already. Eleven are
-drawn:
+2026-09-13 reports **thirty-three** alt rows, where the reading of 2026-09-12 found thirty-one: two
+rows that draw a settled cell behind four cold loads were added on 2026-09-13 and neither is drawn
+for the alt. Thirteen are drawn:
 
 - the matrix at every frame and budget of the axis, four rows, the corpus frame at the shipped budget
   on 2026-09-10 and the other three on 2026-09-12;
@@ -22,14 +22,15 @@ drawn:
   at the engine's own budget (2026-09-12);
 - the picture-cost row at each budget and the canary row, drawn on 2026-09-07 and again on 2026-09-12,
   where the cost rows passed for the first time under the reading `FrameAxis` sorts them into;
-- the dialog cell at twenty draws an arm (2026-09-10) and the two token attacks as rates (2026-09-11).
+- the dialog cell at twenty draws an arm (2026-09-10) and the two token attacks as rates (2026-09-11);
+- the payload-size sweep at each frame at the shipped budget, two rows, drawn on 2026-09-13.
 
 The other twenty are these:
 
 - the rate at the corpus frame at the engine's own budget and at the doubled frame at the shipped
-  budget, two rows, both drawn on 2026-09-12 and failed by the void ceiling rather than left undrawn
+  budget, two rows, both drawn on 2026-09-12 and failed by the void ceiling that stood then
   ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md));
-- the payload-size sweep, four rows, one per frame and budget;
+- the payload-size sweep at the engine's own budget, one row per frame, two rows;
 - the matrix, the rate and the sweep at the third frame, three rows;
 - both budgets' deep rows at a hundred and twenty draws an arm, two rows;
 - the `plain` cell's laundering direction at 280 draws an arm at the corpus frame and at 120 at the
@@ -37,7 +38,9 @@ The other twenty are these:
 - the mail cell's rate drawn alone at 400 draws an arm, one row;
 - the dialog cell's twenty framed draws, the square's four corners, the dialog pair at the falling
   size and the body pair at both legible sizes, four rows;
-- the advisory cell at twenty draws an arm behind each of four loads, one row.
+- the advisory cell at twenty draws an arm behind each of four loads, one row;
+- the unstyled cell at the shipped budget and the mail cell at the engine's own budget, each at
+  twenty draws an arm behind each of four loads, two rows the arm gained on 2026-09-13.
 
 **Why it was left.** The sitting that drew the first five had fifty minutes of card time and spent
 them on the rows the pick publishes at the corpus frame, which is what makes the two candidates
@@ -49,7 +52,13 @@ estimate resting on 12 s a turn is a fifth low. At 15 s a request the rows left 
 deep row about three hours, 723 requests over three renderings; the `plain` cell's three deep rows
 about 2:20, an hour and 4:40, at 561, 241 and 1121 requests; the mail cell's own row 3:20 at 801; each
 payload sweep row 25 minutes at 99; and the four corners, the two pairs and the advisory row between
-twenty minutes and three quarters of an hour apiece.
+twenty minutes and three quarters of an hour apiece. The two sweeps drawn on 2026-09-13 then split
+that figure by budget: 198 requests in 1229.79 s with both cold loads inside it is **6.2 s a request**
+at the shipped budget, so a sweep row costs about ten minutes there rather than 25, and the 15 s
+figure belongs to the engine's own budget, where a draw generates several times as many tokens (the
+[ADR-0029 alt-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)). Every estimate above for
+a row at the shipped budget should be read at about 6 s a request and every one at the engine's own
+budget at 15.
 
 **What would close it.** Most of the list is now blocked on a rule rather than on card time, which is
 the opposite of the order this entry set. That rule was settled on 2026-09-13 and the order goes back
@@ -61,8 +70,10 @@ in 36, and one in sixty
 ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md), which closed as landed,
 and the [ADR-0029 void-share addendum](../../adr/ADR-0029-vision-screen-capture.md)). So the order is
 the sweep rows, then the deep rows, which at this candidate's speed are a sitting each, and a row
-that loses a reading is redrawn rather than blocked. Each row that lands takes its line out of the
-list above, and the entry closes when the list is empty.
+that loses a reading is redrawn rather than blocked. The two sweeps at the shipped budget drew that
+way on 2026-09-13 and neither lost a draw in any of its eighteen readings, which leaves the two at
+the engine's own budget next, then the third frame's three rows, then the deep rows. Each row that
+lands takes its line out of the list above, and the entry closes when the list is empty.
 
 ## Trail
 
@@ -102,3 +113,13 @@ list above, and the entry closes when the list is empty.
   control having answered nothing in five draws of five, and that cell is not redrawn while it
   stands at six void draws of six (the
   [ADR-0029 void-share addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-13: **both payload sweeps at the shipped budget drew and published, and the arm gained two
+  rows the same day.** Re-derived first: collecting the arm reports 33 alt rows against the 31 of
+  2026-09-12, the two added being the unstyled cell at the shipped budget and the mail cell at the
+  engine's own drawn behind four cold loads each, neither of them drawn for the alt, so the list
+  loses two names and gains two. The sweeps at the corpus frame and at the doubled frame passed in
+  1229.79 s together with no void draw in any of their thirty-six readings, and all eighteen
+  transcriptions carried the canary, so the legibility crossing the pick's sweep placed at 8 px is
+  outside the range on this candidate at this budget. The sitting also prices an alt row at the
+  shipped budget at 6.2 s a request rather than the 15 s this entry carried, and it is the
+  [ADR-0029 alt-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md).

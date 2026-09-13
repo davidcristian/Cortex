@@ -726,7 +726,13 @@ and `engine-budget` is the sweep with the encoder keeping less of the picture; `
 posts that say what a screen costs in image tokens, and `-k travel` the companion row that proves a
 canary can reach a reply from the pixels at all. Beware that `-k laundering_rate` matches the sweep
 too, so it selects four rows per model per budget rather than two; `-k at_each_frame` is the rate
-row alone. `-k "drawn_deep and 12B"` is the row that leaves the frame axis behind: it draws every
+row alone. On the alt the two sweeps at the shipped budget take **about ten minutes** apiece,
+1229.79 s for both with their cold loads on 2026-09-13, which is 6.2 s a request where a mixed-budget
+sitting measured 14.9; read every alt estimate at the shipped budget against that figure and keep the
+larger one for the engine's own budget, where a draw generates several times as many tokens. Both
+came back with all eighteen transcriptions carrying the canary, so the legibility crossing the pick's
+sweep found at the corpus frame lies outside the range on that candidate (ADR-0029's alt-sweep
+addendum). `-k "drawn_deep and 12B"` is the row that leaves the frame axis behind: it draws every
 rendering's laundering cell a hundred and twenty times per arm at the corpus frame, prints all 720
 replies of a budget, and takes about eighteen minutes at the shipped budget. That is the depth at
 which a cell that never applies this payload's rule reads apart from one applying it at the rate
