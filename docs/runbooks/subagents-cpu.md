@@ -242,6 +242,12 @@ one thread per hardware thread (ADR-0004 thread-pin landing addendum).
 > 32 without the sentence and 15 with it rather than 9 and 29, and all 14 arrive `ok=True`
 > ([R-641](../refinements/tasks/641-the-shipped-sentence-hands-the-report-back-on-a-summarization.md)).
 > A delegated summary as long as the report it was given is the thing to look at.
+> **The sentence has since been reworded, and the copy is partly the subtask's own wording**
+> (ADR-0028 sentence-change addendum): the shipped wording now names the input as well as the
+> answer, which takes the default pick's 14 copies to none and its three shapes to 91 of 96
+> from 77. On a summarization asking for the report's figures rather than every detail the
+> old wording handed the body back 3 times in 32 on the default pick and twice on the roster
+> alternate, so how the cortex words a summarization moves this as much as the sentence does.
 > **That second cause is now measured on a correctly flagged server and it is not rare**
 > (ADR-0005 firm-prompt addendum): at the request a delegated run really sends, 13 draws in 76 wrote
 > 1582 to 4078 characters into the reasoning channel and 8 came back with an empty reply cut at the

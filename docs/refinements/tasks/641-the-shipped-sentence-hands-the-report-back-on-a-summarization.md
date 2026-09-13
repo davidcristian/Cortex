@@ -1,9 +1,8 @@
 # The shipped sentence hands the report back on a summarization
 
-**Status:** open, actionable
+**Status:** landed 2026-09-13
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-09-13
 
 Opened 2026-09-11 by the close of
 [R-640](640-the-five-pick-envelope-table-is-on-an-image-the-stack-no-longer-pulls.md). The
@@ -49,6 +48,11 @@ detail". Reading that fourth shape needs a judge declared for it in `scripts/env
 whose `declared` matches a run to a shape on the shape's own opening and returns nothing for a
 wording it does not carry, so the shape cannot be read until it is named there.
 
+**Both were then measured and the sentence changed**, in the sentence-change addendum at the
+origin. The candidate ships as `REPLY_INSTRUCTION`, and the fourth shape, a summarization asking
+for the report's figures rather than every detail, is declared beside the other three in
+`scripts/envelopejudges.py`.
+
 **What it bears on.** The decision that the shipped path pays no second completion rests on the
 default pick showing 0 of 6 quiet failures. On this image under the corrected rules the default
 pick's constrained arm has 19 non-deliveries in 96, and 14 of them, every copy, come back `ok=True`.
@@ -78,3 +82,16 @@ answer the exemption the lapse addendum names, a subtask that asks for the body 
   ([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) candidate-sentence addendum,
   samples under `measurements/envelope-sentence-2026-09-13/`, which git ignores). The entry stays
   open: one pick is the evidence shape that shipped the sentence this entry is about.
+- 2026-09-13: the roster alternate and the fourth shape were drawn, which is what this entry was
+  waiting for, and the sentence changed
+  ([ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) sentence-change addendum). The
+  candidate delivers 117 of 128 against the shipped wording's 102 on the default pick and 97 against
+  87 on the roster alternate, over four subtask shapes, so it ships. Two of this entry's claims
+  narrow with it. The copy is partly the harness's own wording: on a summarization asking for the
+  figures rather than every detail the shipped sentence hands the body back 3 times in 32 on the
+  default pick and twice on the alternate, against 14 and 27 on the wording this entry was opened
+  over. And on the roster alternate no sentence beats no sentence, the envelope alone reading 70 of
+  96 against the candidate's 66, which is the lineup disagreement the per-entry wording was declined
+  over rather than anything this wording can answer. The runner-side copy refusal this entry names
+  as the other remedy was not taken: the wording removes the default pick's copy, and the samples
+  are under `measurements/envelope-sentence-2026-09-13/`, which git ignores.

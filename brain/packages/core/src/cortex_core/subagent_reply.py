@@ -18,9 +18,6 @@ __all__ = [
     "unwrap_envelope",
 ]
 
-# The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
-# no grammatical position for an appended footer, link, or section, so a jailbroken weak model
-# cannot format-launder. The attempt unwraps ``reply`` before reporting its text.
 REPLY_ENVELOPE: JsonSchema = {
     "type": "object",
     "properties": {"reply": {"type": "string"}},
@@ -28,18 +25,18 @@ REPLY_ENVELOPE: JsonSchema = {
     "additionalProperties": False,
 }
 
+# The schema constrains the next token and describes nothing, so this sentence is the only part
+# of the envelope the model reads. Without it the subagent tiers spend the reply field on a plan
+# or a copy of the input about one subtask in four.
 REPLY_INSTRUCTION = (
-    "Your entire response must be the answer itself. Do not describe the task, plan an "
-    "approach, or announce what you are about to write."
+    "Your entire response must be the answer itself, not the text you were given. Do not "
+    "describe the task, plan an approach, announce what you are about to write, or repeat the "
+    "input back."
 )
 
 
 def instruct_reply(instruction: str) -> str:
-    """``instruction`` with the constrained path's own sentence appended.
-
-    One function rather than an f-string at the call site, so the harness that measures this can
-    strip exactly what the runner adds and read the counterfactual against the shipped path.
-    """
+    """``instruction`` with the constrained path's own sentence appended."""
     return f"{instruction} {REPLY_INSTRUCTION}"
 
 
@@ -56,6 +53,8 @@ def settle_reply(
     text: str, *, capped: bool, max_tokens: int | None, constrain: bool, tainted: bool
 ) -> AttemptOutcome:
     """What an attempt that ran to the end of its loop produced."""
+    # ``capped`` is read before the envelope: a cut reply ends mid-envelope, so unwrapping first
+    # would report a model that broke its grammar for a reply the server stopped.
     if capped:
         return AttemptOutcome(
             text=text,
@@ -65,7 +64,6 @@ def settle_reply(
         )
     if not constrain:
         return AttemptOutcome(text=text, tainted=tainted)
-    # Unwrap the envelope so the cortex sees an answer, never raw JSON (ADR-0028).
     reply = unwrap_envelope(text)
     if reply is None:
         return AttemptOutcome(

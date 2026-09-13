@@ -2046,7 +2046,10 @@ Use-case:
   `REPLY_INSTRUCTION` is that sentence and `instruct_reply(instruction)` appends it, both of them
   beside the grammar because they are one contract said twice, once to the server and once to the
   model (ADR-0028 instruction addendum). It is the constrained path's alone; an unconstrained
-  subagent is asked what the cortex wrote and nothing more. **It is also one wording for every
+  subagent is asked what the cortex wrote and nothing more. **Each half of it names one failure**
+  (ADR-0028 sentence-change addendum): the narration it was written for, and the report handed back
+  as a summary, which the first wording drew from the default pick 14 times in 32 and this one draws
+  not at all. **It is also one wording for every
   roster entry, and the entries do not agree about it** (ADR-0028 lineup and row addenda): the
   narration it repairs is the default pick's, the roster alternate barely narrates without it, and
   two of the five entries of that row answer less often with it than without. Nothing in
