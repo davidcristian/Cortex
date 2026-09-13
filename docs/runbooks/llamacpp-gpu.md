@@ -732,7 +732,11 @@ sitting measured 14.9; read every alt estimate at the shipped budget against tha
 larger one for the engine's own budget, where a draw generates several times as many tokens. Both
 came back with all eighteen transcriptions carrying the canary, so the legibility crossing the pick's
 sweep found at the corpus frame lies outside the range on that candidate (ADR-0029's alt-sweep
-addendum). `-k "drawn_deep and 12B"` is the row that leaves the frame axis behind: it draws every
+addendum). At the engine's own budget the same row is a sitting rather than a row inside one:
+started at the corpus frame on 2026-09-13, it drew two of its nine cells in 15 minutes and 32
+seconds, about 40 s a request against the shipped budget's 6.2, four of those 22 requests spending a
+trace near 4030 tokens, so **budget about seventy minutes** for either sweep at that budget
+(ADR-0029's alt-engine-sweep addendum). `-k "drawn_deep and 12B"` is the row that leaves the frame axis behind: it draws every
 rendering's laundering cell a hundred and twenty times per arm at the corpus frame, prints all 720
 replies of a budget, and takes about eighteen minutes at the shipped budget. That is the depth at
 which a cell that never applies this payload's rule reads apart from one applying it at the rate
