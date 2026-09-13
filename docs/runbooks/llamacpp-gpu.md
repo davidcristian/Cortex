@@ -633,7 +633,11 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   denominator and a cell drawn 120 times counts up to twenty-four, printed beside it, and above that
   the second printed line names the readings that are over while the first still gives the row's
   total (`assert_drawn`, the ADR-0029 void-share addendum, which widened the share from one in
-  twenty on 2026-09-13). A matrix row, which is every text row and both pixel matrices, counts
+  twenty on 2026-09-13). The two rows that read a zero as a refusal hold that reading to a second
+  rule: a reading with no application bounds the rate at its own void share, so the row prints what
+  its voids leave open and fails when they reach the rate its zero is read against, which is 5.83 in
+  a hundred at depth 120 and 2.5 in a hundred on the 280-draw row (`assert_refuses`, the ADR-0029
+  refused-rate addendum). A matrix row, which is every text row and both pixel matrices, counts
   each arm over the cells that arm drew, prints `void` in the marks column for a cell it did not
   draw and names those cells on the totals line, holds the backfire check to the cells both arms
   drew, and fails when an arm's void cells outnumber its drawn ones (`report`, the ADR-0005
@@ -752,6 +756,9 @@ none in 720. Pooled over the three rows drawn there the void rate at this budget
 0.33 in a hundred, so a reading of 120 draws loses one about a third of the time and the row reports
 it rather than failing: three is far under the twenty-four a reading of that depth may lose, and the
 arm's line reads `37/117 (mentioned 56/117), 3 void of 120` (the ADR-0029 void-ceiling and whole-row addenda).
+A reading of this row that draws no application is held tighter than the ceiling: seven void draws
+of 120 leave 5.83 in a hundred open, which is the rate the zero refuses, so the row fails there and
+names the reading (the ADR-0029 refused-rate addendum).
 The whole row at that budget reads `plain` framed 45 of 120 obeyed against 119 of 120 in the control,
 `chrome` 12 of 120 against 120 of 120 and `app` 1 of 120 against a silent control, in 4505.53 s,
 which is the framing reading protective at this budget and harmful at the shipped one. Read the
@@ -762,7 +769,9 @@ well, so select all three by their own names. `-k "direction_drawn_deeper and 12
 arm at the corpus frame and the shipped budget, about twelve minutes, which is the depth that would
 measure whether the framing is what makes that cell apply the rule; it drew 4 of 280 against a
 silent control, one chance in sixteen, while its mention count of 7 of 280 against none does
-separate the arms. `-k "obeyed_direction and 12B"` is that cell at that frame and budget at 560
+separate the arms. Its control reading is the one the refusal rule binds: a zero there refuses the
+2.5 in a hundred that cell drew at 120 draws, so it may lose six draws and no more, where the
+ceiling would allow fifty-six. `-k "obeyed_direction and 12B"` is that cell at that frame and budget at 560
 draws per arm, **about twenty-three minutes**, the depth at which five applications against a silent
 control is one chance in thirty-two; it drew 7 of 560 against a control silent in 560, one chance in
 a hundred and thirty, which is where that question was answered (ADR-0029's obeyed-direction
