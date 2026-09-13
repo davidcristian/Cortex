@@ -1,4 +1,7 @@
-//! [`within_gaps`]: a turn's stream, bounded by its silence (ADR-0024 idle-gap addendum).
+//! [`within_gaps`]: a turn's stream, bounded by its silence.
+//!
+//! A turn has no deadline, because a working turn is long by design. What is bounded is the
+//! silence between its events: every event resets the clock, so only a stalled turn ends.
 
 use std::future::poll_fn;
 use std::pin::pin;
@@ -12,10 +15,16 @@ use crate::retry::plan::{RetryPlan, SeamMethod};
 use crate::transport::{TransportError, TurnEvent};
 
 /// How long a turn may be silent before its first event, in milliseconds.
+///
+/// Ten minutes. The brain's own bounds on that stretch add up to 480 s (60 s pool drain, 300 s
+/// model load, 120 s first-token stall); the rest is margin for recall and prefill.
 pub const DEFAULT_TURN_FIRST_GAP_MS: u64 = 600_000;
 
 /// How long a turn may be silent between two of its events, in milliseconds.
-pub const DEFAULT_TURN_IDLE_GAP_MS: u64 = 7_200_000;
+///
+/// A delegated subtask waits up to `DEFAULT_ADMISSION_WAIT_S` (7200 s) for CPU budget, then holds
+/// it for two runs of `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` (2400 s): 12000 s, plus a fifth as margin.
+pub const DEFAULT_TURN_IDLE_GAP_MS: u64 = 14_400_000;
 
 /// The two silences one streamed turn runs under: the wait for its first event, and the wait
 /// between the events after it.
@@ -28,7 +37,7 @@ pub struct TurnGaps {
 }
 
 impl TurnGaps {
-    /// The gaps that never expire, which is how an unbounded stream is spelled here.
+    /// The gaps that never expire, which is how an unbounded stream is written here.
     pub const UNBOUNDED: Self = Self {
         first: Duration::MAX,
         idle: Duration::MAX,
@@ -65,9 +74,10 @@ impl RetryPlan {
     }
 }
 
-/// Which silence a turn is spending, and what its stream does next. It holds pure state and
-/// touches no clock and no stream: the decorator hands it what the clock saw, and it returns the
-/// item to yield or nothing.
+/// Which silence a turn is using, and what its stream does next.
+///
+/// Not generic, deliberately: a branch in generic code becomes a separate coverage region in
+/// every instantiation, so every decision the gap bound makes is kept here.
 struct GapClock {
     gaps: TurnGaps,
     /// Whether an event has arrived, which is what separates the two gaps.

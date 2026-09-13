@@ -235,7 +235,7 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   `deadline_for` because that file owns what a gap means and `plan.rs` is at the line cap.
 - `TurnGaps` (`retry::gap`; `Copy`, `Eq`, `Debug`) is that pair: `first`, the longest silence
   allowed before a turn's first event (`DEFAULT_TURN_FIRST_GAP_MS = 600000`), and `idle`, the
-  longest between two events (`DEFAULT_TURN_IDLE_GAP_MS = 7200000`). `TurnGaps::UNBOUNDED` is both
+  longest between two events (`DEFAULT_TURN_IDLE_GAP_MS = 14400000`). `TurnGaps::UNBOUNDED` is both
   at `Duration::MAX`, which is what "no bound" means to a clock. **The idle one is the longer, and
   that is not a typo**: the first is the sum of the brain's own bounds on a swap and a first token,
   while the mid-stream one has to clear a delegated subtask waiting for admission and then running,

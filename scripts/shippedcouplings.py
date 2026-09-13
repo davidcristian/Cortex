@@ -8,7 +8,7 @@ LOG_FORMAT = "brain/packages/core/src/cortex_core/log_format.py"
 SCHEDULE_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_schedule.py"
 SCHEDULE_TIME = "brain/packages/core/src/cortex_core/schedule_time.py"
 TOOLS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py"
-BODY_CORE_DOC = "docs/modules/body-core.md"
+BODY_CORE_DOC = "docs/modules/body-core-retry.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
 SEAM_CALL = "body/crates/rpc/src/call.rs"
@@ -18,7 +18,7 @@ OVERLAY_RUNBOOK = "docs/runbooks/body-overlay.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
-TOOLS_CORE_DOC = "docs/modules/brain-core.md"
+TOOLS_CORE_DOC = "docs/modules/brain-core-tools.md"
 
 SHIPPED_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -26,16 +26,13 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the compose stack spells the core's default into every container it starts, so "
             "retuning the core constant alone would leave every deployment still running the "
-            "old number with nothing saying so (ADR-0009 salience addendum)"
+            "old number with nothing saying so (ADR-0009 decision 12)"
         ),
         sites=(
             Site(
                 "brain/packages/core/src/cortex_core/tool_salience.py", "MAX_IDENTICAL_DISPATCHES"
             ),
         ),
-        # The knob's compose default, which is a shell substitution rather than a declaration:
-        # there is nothing to parse on that side, so the agreed number is rendered into the
-        # shape and required to appear.
         mentions=(Mention(BASE_COMPOSE, "${CORTEX_TOOLS_SALIENCE_LIMIT:-{value}}"),),
     ),
     Constant(
@@ -44,7 +41,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "the same knob's other half: the base compose file names which rule a loop runs "
             "under and the runbook tells an operator which one is running, so a retuned default "
             "with the substitution left alone would ship the old rule to every deployment while "
-            "the field claimed the new one (ADR-0009 salience addendum)"
+            "the field claimed the new one (ADR-0009 decision 12)"
         ),
         sites=(Site(TOOLS_CONFIG, "DEFAULT_SALIENCE"),),
         mentions=(
@@ -61,7 +58,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "as the bound one call inside a delegated run has to fit under, and restated in the "
             "module contract a future agent reads instead of the tree, so retuning the "
             "declaration alone would leave every deployment on the old bound with three "
-            "documents claiming the new one (ADR-0009 bound addendum)"
+            "documents claiming the new one (ADR-0009 decision 10)"
         ),
         sites=(
             Site(
@@ -87,7 +84,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "on, one telling a future agent what the plan ships and the other telling an operator "
             "how long a turn that never starts will hang before it settles, so retuning the "
             "constant alone would leave all three describing a bound the body no longer holds "
-            "(ADR-0024 idle-gap addendum)"
+            "(ADR-0024 decision 19)"
         ),
         sites=(Site(RETRY_GAP, "DEFAULT_TURN_FIRST_GAP_MS"),),
         mentions=(
@@ -102,13 +99,13 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "the same three readers carry this one, and it is the number that decides whether a "
             "delegated batch is allowed to finish: a contract or a runbook still quoting the old "
             "one would tell a reader a turn survives a silence the body now ends "
-            "(ADR-0024 idle-gap addendum)"
+            "(ADR-0024 decision 20)"
         ),
         sites=(Site(RETRY_GAP, "DEFAULT_TURN_IDLE_GAP_MS"),),
         mentions=(
             Mention(BODY_CORE_DOC, "`DEFAULT_TURN_IDLE_GAP_MS = {value}`"),
             Mention(BODY_APP_DOC, "`DEFAULT_TURN_IDLE_GAP_MS = {value}`"),
-            Mention(OVERLAY_RUNBOOK, "(default {value}, two hours)"),
+            Mention(OVERLAY_RUNBOOK, "(default {value}, four hours)"),
         ),
     ),
     Constant(
@@ -132,19 +129,13 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "milliseconds; one rung higher the unit is a whole second and the announcement arms "
             "tonic's own clock under the bound the core enforces, so the adapter rejects it "
             "there, and its contract quotes the rung as the number a future agent reads instead "
-            "of the tree (ADR-0024 unit-ladder addendum)"
+            "of the tree (ADR-0024 decision 16)"
         ),
         sites=(Site(SEAM_CALL, "MAX_ANNOUNCED_DEADLINE_MS"),),
-        # The contract spends it as the millisecond count beside the human scale a reader thinks
-        # in, the way the gap knobs above are quoted, since eight bare digits name nothing on a
-        # page that also carries the header's own 8-digit width.
         mentions=(
             Mention(BODY_RPC_DOC, "`MAX_ANNOUNCED_DEADLINE_MS` ({value} ms, about 27.8 hours)"),
         ),
     ),
-    # The two schedule knobs the base compose file restates, one a policy and one a zone. The zone
-    # needs no hoisted constant: the core already names it, the settings field importing that name
-    # rather than spelling a second `"UTC"`.
     Constant(
         label="whether a deployment ships a durable schedule store",
         why=(
@@ -165,7 +156,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "the core names the zone a schedule datetime renders in when the deployment names "
             "none, and the base compose file spells that same key as its own substitution "
             "default, so a renamed key would leave every composed deployment asking for a zone "
-            "the brain refuses at startup (ADR-0025 display addendum)"
+            "the brain refuses at startup (ADR-0065 decision 1)"
         ),
         sites=(Site(SCHEDULE_TIME, "UTC_ZONE_NAME"),),
         mentions=(Mention(BASE_COMPOSE, "${CORTEX_SCHEDULE_TZ:-{value}}"),),

@@ -893,9 +893,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   two knobs are the odd pair out, bounding silence rather than a call (ADR-0024 idle-gap
   addendum): `CORTEX_BRAIN_TURN_FIRST_GAP_MS` (`DEFAULT_TURN_FIRST_GAP_MS = 600000`) is the
   longest a turn may say nothing before its first event, and `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
-  (`DEFAULT_TURN_IDLE_GAP_MS = 7200000`) the longest between two of them. The second is the larger
-  because a delegated subtask, which can only happen once a turn is under way, may wait an hour for
-  admission and then run for forty minutes without the seam seeing anything.
+  (`DEFAULT_TURN_IDLE_GAP_MS = 14400000`) the longest between two of them. The second is the larger
+  because a delegated subtask, which can only happen once a turn is under way, may wait two hours
+  for admission and then hold it for two runs of forty minutes without the seam seeing anything.
 
 **Invariants.**
 

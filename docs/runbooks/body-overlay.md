@@ -113,17 +113,18 @@ $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
   and the thinking indicator stays up while events keep arriving. What is bounded is **silence**.
   If the brain accepts the turn and then sends nothing at all for `CORTEX_BRAIN_TURN_FIRST_GAP_MS`
   (default 600000, ten minutes), or stops sending mid reply for `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
-  (default 7200000, two hours), the body stops waiting: the reply settles on whatever text arrived,
+  (default 14400000, four hours), the body stops waiting: the reply settles on whatever text arrived,
   carrying `no reply within …`, and the header dot goes **red** with the same line, because nothing
   answered. That is the same reading a dead brain draws, and it is the correct one: from the body's
   side a brain that has stopped sending and a brain that is gone are indistinguishable. The user
   never has to wait for either bound, since the Stop control ends a turn in place at any time,
   keeping the partial text and recording no error.
-  The mid-stream default is long because it has to clear a **delegated subtask**, which may wait an
-  hour for the CPU budget and then run for forty minutes without the seam seeing anything. A stack
+  The mid-stream default is long because it has to clear a **delegated subtask**, which may wait two
+  hours for the CPU budget and then hold that admission for two runs of forty minutes without the
+  seam seeing anything. A stack
   composed without the subagent sidecars never produces that silence, so turn it down:
   `CORTEX_BRAIN_TURN_IDLE_GAP_MS=600000` matches the first-event bound and settles a wedged turn in
-  ten minutes instead of two hours.
+  ten minutes instead of four hours.
 - **v1 window behaviour.** A fixed 640×720 frameless **opaque** always-on-top window; the hotkey
   **toggles** it (no hide-on-blur, so validation is predictable). Deferred to a later overlay-polish
   pass (all together): a **transparent** window so only the panel floats (a first attempt bled

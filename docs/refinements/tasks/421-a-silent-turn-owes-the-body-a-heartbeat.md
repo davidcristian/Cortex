@@ -9,20 +9,21 @@ Opened 2026-08-24 by the close of
 [R-303](303-turn-stream-stall.md), which bounded the turn stream's silence and could only draw the
 bound above the longest silence the brain legitimately produces.
 
-That bound is two hours (`DEFAULT_TURN_IDLE_GAP_MS = 7_200_000`), and it is honest rather than
+That bound is four hours (`DEFAULT_TURN_IDLE_GAP_MS = 14_400_000`), and it is honest rather than
 useful. It was sized by a delegated subtask, which waits for the CPU budget
 (`DEFAULT_ADMISSION_WAIT_S`) and then runs under a deadline
 (`DEFAULT_SUBAGENT_RUN_TIMEOUT_S`), emitting nothing at the seam through either stretch unless it
 happens to call a tool. So the body cannot tell a brain working from a brain gone, and the overlay
 shows a thinking indicator for both.
 
-The two numbers that sizing rests on are no longer the ones it was drawn from. The admission wait
-was 3600 s when the gap landed and is 7200 s now, raised the following day so a queued spawn never
-stops waiting on a run still inside the time this deployment granted it, and that grant is two run
-deadlines rather than one. The longest legitimate silence is therefore 12000 s against a 7200 s
-gap, so the bound sits under the silence it was drawn above instead of a fifth over it. That
-inversion does not change what this entry asks for, and it raises what the entry buys, because
-the heartbeat is what would let the gap come down rather than have to go up again.
+The bound grew on the way here, which is what makes this entry worth more than when it was filed.
+The admission wait was 3600 s when the gap landed and is 7200 s now, raised the following day so a
+queued spawn never stops waiting on a run still inside the time this deployment granted it, and
+that grant is two run deadlines rather than one. The longest legitimate silence is therefore
+12000 s, and the gap was resized to sit a fifth above it. Nothing about what this entry asks for
+changed: every one of those hours is a turn the overlay cannot tell from a dead brain, and the
+heartbeat is what would let the gap come down instead of being re-derived upward each time a
+subagent bound moves.
 
 The tightening that suggests itself is rejected for a reason worth keeping: the delegation does
 emit a `StatusUpdate`, but progress travels on a best-effort sink that drops an event on
@@ -62,3 +63,7 @@ here has yet watched a turn stall.
   once, so the arithmetic quoted here was stale and the gap it justified is now shorter than the
   silence rather than longer. Corrected above, and the drift is written up in the ADR-0024
   addendum on the admission wait moving without the gap.
+- 2026-09-13: The gap was resized to 14400000 ms and the numbers above were refreshed to match.
+  The silence this entry describes is four hours now rather than two, and the brain-side coupling
+  that would have caught the drift is in place, so the next move of a subagent bound reaches this
+  bound as a gate failure.
