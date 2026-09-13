@@ -169,6 +169,17 @@ deployment lengthening the cortex's trace cannot lengthen a subagent's with it. 
 `scripts/crosscheck.py` can read it: the two compose subagent servers spell the same pair, and the
 registry holds all four of its items to them as one needle (ADR-0029's flag-pair addendum)
 ([docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) has the measured table).
+`--cache-ram` is stated per tier and is not a deployment knob. It sizes the prompt cache the engine
+keeps in host RAM for a conversation whose slot has been taken, and all three tiers are processes
+in one cgroup whose weights are mmapped inside it, so a cache that grows reclaims the GGUF a server
+reads on every token. Each tier's size is the one it was measured at (ADR-0028's prompt-cache
+addenda): `8192` on the cortex, where a cached conversation costs 1349 MiB and every return was
+restored at 1.9 s a request; `0` on the deep tier, where a conversation costs 3526 MiB, the
+engine's own ceiling holds two of three, and the arm restored nothing while pinning the cgroup at
+its cap; `0` on the GPU-placed subagent tier, whose subtasks are one-shot. The two zeros are
+`_NO_PROMPT_CACHE` and the cortex's size `_CORTEX_PROMPT_CACHE`, named beside the tiers for the
+same reason the reasoning zero is.
+
 `RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
 the probe client it owns (the three timing knobs are read off those two objects by a gated test,
 because nothing else in the process observes them), `build_model_host(config)` is the composition

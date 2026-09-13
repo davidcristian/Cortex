@@ -106,7 +106,12 @@ def test_the_stock_deployment_hosts_the_cortex_and_nothing_it_has_no_artifact_fo
     roster = ModelHostConfig().roster()
     assert list(roster) == ["cortex"]
     assert roster["cortex"].argv == llama_server_argv(
-        _BIN, _tier(model_path=f"/models/{_CORTEX_GGUF}", ctx_size=16384)
+        _BIN,
+        _tier(
+            model_path=f"/models/{_CORTEX_GGUF}",
+            ctx_size=16384,
+            extra=("--cache-ram", "8192"),
+        ),
     )
 
 
@@ -304,16 +309,16 @@ def test_the_subagent_tier_ends_the_thought_rather_than_bounding_it(
     assert "128" not in argv
 
 
-def test_the_subagent_tier_keeps_no_prompt_cache_in_host_ram(
+def test_every_tier_states_the_prompt_cache_it_was_measured_at(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The flag the tier's own cgroup argues for, and only on this tier."""
+    """Three tiers, three sizes, none of them the engine's own."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
     monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
     roster = ModelHostConfig().roster()
     assert roster["subagent-gpu"].argv[-2:] == ("--cache-ram", "0")
-    assert "--cache-ram" not in roster["cortex"].argv
-    assert "--cache-ram" not in roster["brain"].argv
+    assert roster["brain"].argv[-2:] == ("--cache-ram", "0")
+    assert roster["cortex"].argv[-2:] == ("--cache-ram", "8192")
 
 
 def test_a_budget_below_the_engines_own_default_is_refused(

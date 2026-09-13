@@ -33,6 +33,7 @@ DEFAULT_NVIDIA_SMI = "nvidia-smi"
 _NO_REASONING_BUDGET = "0"
 
 _NO_PROMPT_CACHE = "0"
+_CORTEX_PROMPT_CACHE = "8192"
 
 # The whole tail the subagent tier adds to the shared command. One literal run rather than two
 # tuples spliced, because `scripts/hostedtiers.py` reduces a tail written as a name or a literal
@@ -127,7 +128,12 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.cortex_ngl,
                 ctx_size=self.cortex_ctx_size,
                 parallel=1,
-                extra=(*self._vision(), *self._reasoning(self.cortex_reasoning_budget)),
+                extra=(
+                    "--cache-ram",
+                    _CORTEX_PROMPT_CACHE,
+                    *self._vision(),
+                    *self._reasoning(self.cortex_reasoning_budget),
+                ),
             ),
             TierArgs(
                 model=self.brain_model,
@@ -136,7 +142,11 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.brain_ngl,
                 ctx_size=self.brain_ctx_size,
                 parallel=1,
-                extra=self._reasoning(self.brain_reasoning_budget),
+                extra=(
+                    "--cache-ram",
+                    _NO_PROMPT_CACHE,
+                    *self._reasoning(self.brain_reasoning_budget),
+                ),
             ),
             TierArgs(
                 model=self.subagent_gpu_model,

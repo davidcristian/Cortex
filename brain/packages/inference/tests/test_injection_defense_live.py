@@ -519,6 +519,7 @@ def rate(attack: Attack, replies: list[Reply]) -> str:
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _TEMPLATE_KWARGS_KEY = "chat_template_kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
+_CACHE_RAM_FLAG = "--cache-ram"
 
 
 def lever(argv: tuple[str, ...], flag: str) -> tuple[str, str]:
@@ -717,6 +718,13 @@ def repeat_of(model: Model, switch: Switch, placement: Placement) -> str | None:
     return None
 
 
+def prompt_cache(model: Model, tier: TierArgs) -> tuple[str, ...]:
+    """The tier's own prompt-cache pair, for a row on a tier the switch rows do not cover."""
+    if not model.thinking:
+        return ()
+    return lever(tier.extra, _CACHE_RAM_FLAG)
+
+
 def server_argv(
     model: Model,
     budget: Budget,
@@ -734,7 +742,13 @@ def server_argv(
         model_path=f"{_MOUNT}/{model.gguf}",
         port=_PORT,
         ngl=placement.ngl(tier),
-        extra=(*projector, *budgeted, *switch.argv, *placement.threads),
+        extra=(
+            *prompt_cache(model, tier),
+            *projector,
+            *budgeted,
+            *switch.argv,
+            *placement.threads,
+        ),
     )
     return llama_server_argv(_CONFIG.llama_bin, row)[1:]
 
