@@ -29,3 +29,19 @@ Two things this deliberately does not do. It does not read the card from inside 
 since a clock is a property of the sitting rather than of the behaviour under test. And it does not
 refuse a capped card, because a row drawn under a lowered ceiling is still a row, so long as the
 ceiling it ran under is recorded beside its cost.
+
+## Trail
+
+- 2026-09-13: opened by the sitting that gave every arm a token total, and left open here with a
+  measurement that raises what it is worth. The card was read twice more the same day with nothing
+  running, and the ceiling moved: at 09:38, after a night of unattended work with the display
+  asleep, the enforced limit stood under a third of the card's maximum and under three fifths of its
+  default, and at 12:53, with the desktop session awake, it stood above nine tenths of the maximum
+  and above the default (the
+  [ADR-0029 moving-ceiling addendum](../../adr/ADR-0029-vision-screen-capture.md)). A hand-taken
+  reading an operator can skip was already a gap; a ceiling that differs between two sittings on one
+  day means a row published without one cannot be priced afterwards at all. The second half of the
+  trigger has fired: the loads rows the runbook publishes for 2026-09-13 carry costs with no ceiling
+  beside them, and the best that can be said of them now is that the whole night ran under the
+  lowered one. The entry stays open because closing it is a change to the live harness, which this
+  sitting did not take on.

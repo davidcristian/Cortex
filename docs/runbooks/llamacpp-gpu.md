@@ -1034,25 +1034,44 @@ on a third of the card.
 
 **Read the ceiling, not the draw, and read it before the sitting.** A clock and a draw taken at
 idle say nothing about the cap that will apply under load, because an idle card is under no cap
-whatever its ceiling is. Measured here on 2026-09-13 with nothing running, the card reports a clock
-around half its maximum, a draw around a tenth of `power.max_limit`, an `enforced.power.limit` below
-`power.default_limit` at under a third of `power.max_limit`, and `SW Power Cap` reading `Not Active`
-in `nvidia-smi -q -d PERFORMANCE`. The first two figures are the healthy ones and the third is the
-cap that produced both capped sittings above. So the reading to take is
+whatever its ceiling is. Measured here on the morning of 2026-09-13 with nothing running, the card
+reported a clock around half its maximum, a draw around a tenth of `power.max_limit`, an
+`enforced.power.limit` below `power.default_limit` at under a third of `power.max_limit`, and
+`SW Power Cap` reading `Not Active` in `nvidia-smi -q -d PERFORMANCE`. The first two figures are the
+healthy ones and the third is the cap that produced both capped sittings above. So the reading to
+take is
 
 ```
 nvidia-smi --query-gpu=clocks.sm,power.draw,enforced.power.limit,power.max_limit --format=csv
 ```
 
-and the number that decides the price is `enforced.power.limit` against `power.max_limit`. Here that
-pair reads under a third, with the enforced limit below the card's default limit, which is the state
-both capped sittings above were drawn under. Take the same reading again while the
+and the number that decides the price is `enforced.power.limit` against `power.max_limit`. That
+morning the pair stood under a third, with the enforced limit below the card's default limit, which
+is the state both capped sittings above were drawn under. Take the same reading again while the
 row is serving, where `clocks.sm` and `power.draw` become the live figures and `SW Power Cap` turns
 active if the ceiling is binding. Record both readings beside the sitting's cost, since a row that
 fits an hour at full clock does not fit it at a third of one. Under the ceiling both capped sittings
 were drawn at, this card gives about 30 tokens a second. **Each arm now prints what it generated**,
 as a token total closing its rate line, so a stopped row leaves its own price in the run log rather
 than in the container's.
+
+**The ceiling moves between sittings, so take the reading every time.** Two readings of
+`nvidia-smi -q -d POWER` on 2026-09-13, with nothing running either time, disagreed about where the
+ceiling stood. At 09:38, after a night of unattended work with the display asleep, the enforced
+limit was under a third of the card's maximum and under three fifths of its default, the SM clock
+about half its maximum and the draw about a tenth of the maximum limit. At 12:53, with the desktop
+session awake, the enforced limit was above nine tenths of the maximum and above the card's default,
+the clock a little over half its maximum and the draw about a fifth of the maximum limit. The
+maintainer reads the overnight display sleep as the cause. No run here has varied the screen state
+on its own and the power source was not observed at either reading, so that is his attribution and
+not a mechanism this repo has isolated.
+
+Three things follow for anyone pricing a row. A cost is comparable only against a cost drawn under
+the same ceiling, which is why the reading above is taken before the sitting and again while the row
+serves. An unattended overnight sitting either keeps the display awake or is budgeted at roughly a
+third of the card. And every row drawn on the night of 2026-09-12 into 2026-09-13 was drawn under
+the lowered ceiling, so those costs are not full-speed ones.
+
 **Say which rows you ran**, the same standing rule the brain tier's row has: the
 2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, the
 2026-08-30 sitting ran the cortex pick's matrix and rate at both frames at the engine's budget, the
