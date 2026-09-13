@@ -6,6 +6,7 @@ machine column, move a control cell across the floor or move a published cell's 
 outside the Wilson interval quoted beside it.
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
+**Verified:** 2026-09-13
 
 Opened 2026-09-11 by the lapse addendum at the origin, which closed the two lapses the sweep-columns
 addendum found. The rules `scripts/envelopejudges.py` now holds read a reply's letters, digits and
@@ -35,3 +36,18 @@ entry.
   [R-634](634-the-body-handed-back-passes-both-rates.md) and
   [R-635](635-the-lookup-judge-passes-an-invented-instance-beside-the-bodys-phrase.md), whose
   lapse addendum names the three runs.
+- 2026-09-13: Re-derived against the sweep drawn tonight, and the trigger has not fired. A reader
+  beside the machine column was written for the two kinds: one flags a delivered extraction that
+  carries more than three words per number and stands on a single line, the other a delivered
+  lookup that names a span the body states in another role. Held first to the sweep this entry
+  cites, it reproduces both, the constrained extraction of the network body at draw 3 and the two
+  raw clinic lookups at draws 1 and 6. Run over the two picks that ship, across the re-table
+  samples and tonight's sentence samples together, it counts none of either kind in 435 delivered
+  runs of gemma-4-E4B, the default, and one extraction answered in prose, on the clinic body, in
+  403 of Qwen3.5-2B, the roster alternate. The fourth subtask shape declared tonight is judged by
+  the same number recall, so it sits inside that blind spot, and its runs are inside those counts
+  and carry neither kind. One such run cannot move a cell either way: a published cell is 32 runs,
+  whose Wilson interval runs at least three runs either side of its rate, and both picks' control
+  arms read 88 of 96 or better where a control is refused only when its whole interval lies under
+  the floor. The entry stays open, and the pick its own two runs were drawn on, Qwen3.5-0.8B, is
+  neither of the two that ship.

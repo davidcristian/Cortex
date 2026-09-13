@@ -4,6 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is.
+**Verified:** 2026-09-13
 
 It was recorded inside the grammar-constrained subagent output entry, in its list of what remains
 behind the same seam (ADR-0028 deferred). The fragment, verbatim: a raw GBNF `grammar`
@@ -33,3 +34,14 @@ alternative to the JSON envelope.
   ([rerank_judge.py](../../../brain/packages/core/src/cortex_core/rerank_judge.py)), so the two
   shipped consumers of the keyword are both ordinary JSON objects and the ADR's "None (every
   caller today)" is now out of date in the direction that favours the envelope.
+- 2026-09-13: Re-derived, and the trigger has not fired. The seam still has exactly the two
+  constrained callers the reading below found, `REPLY_ENVELOPE` in
+  [subagent_reply.py](../../../brain/packages/core/src/cortex_core/subagent_reply.py) and
+  `ORDER_ENVELOPE` in
+  [rerank_judge.py](../../../brain/packages/core/src/cortex_core/rerank_judge.py), and both are
+  JSON objects, so nothing on the seam wants a shape JSON cannot express. The three code readings
+  above still hold line for line: the port takes `schema: JsonSchema | None`, `build_payload` wraps
+  a present schema into `response_format.json_schema` and offers no free-form sampling slot beside
+  it, and `settle_reply` unwraps by parsing JSON and nothing else. The reply sentence was reworded
+  and a fourth subtask shape was declared for the measurement judges on 2026-09-13, and neither
+  touches what the envelope admits.

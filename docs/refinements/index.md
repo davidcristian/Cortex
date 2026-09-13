@@ -63,7 +63,7 @@ never a reading of what the tree does now.
 
 ## What remains
 
-138 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+141 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (2)
 
@@ -190,7 +190,7 @@ never a reading of what the tree does now.
 - **[R-636](tasks/636-a-cpu-budget-under-one-floors-the-thread-count-to-the-engines-default.md)** A CPU budget under one floors the thread count to the engine's default (subagents). Reopens when: a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config change that lets the budget reach a CPU subagent server by any other spelling than the compose substitution both CPU servers read. Its claim was re-derived from the code on 2026-09-12.
 - **[R-637](tasks/637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md)** The delegated run ceilings were sized on the unpinned CPU tier (subagents). Reopens when: a delegated run on the pinned CPU server that holds its admission for the whole stall ceiling or the whole run deadline while a peer queues behind it, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`. Its claim was re-derived from the code on 2026-09-12.
 - **[R-638](tasks/638-a-cpu-subagent-server-in-a-third-compose-file-is-held-to-no-thread-count.md)** A CPU subagent server in a third compose file is held to no thread count (subagents). Reopens when: a compose file other than `docker/docker-compose.subagents.yml` and `docker/docker-compose.subagents-roster.yml` that starts a subagent server with `-ngl 0`, which `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server or a fourth file. Its claim was re-derived from the code on 2026-09-12.
-- **[R-639](tasks/639-the-envelope-judges-read-no-form.md)** The envelope judges read no form (subagents). Reopens when: a seeded sweep in which runs of the two kinds below, counted by a reader beside the machine column, move a control cell across the floor or move a published cell's delivered rate outside the Wilson interval quoted beside it.
+- **[R-639](tasks/639-the-envelope-judges-read-no-form.md)** The envelope judges read no form (subagents). Reopens when: a seeded sweep in which runs of the two kinds below, counted by a reader beside the machine column, move a control cell across the floor or move a published cell's delivered rate outside the Wilson interval quoted beside it. Its claim was re-derived from the code on 2026-09-13.
 - **[R-643](tasks/643-a-fence-marker-opening-a-line-inside-another-block-toggles-every-reader.md)** A fence marker opening a line inside another block toggles every reader (repo-gates). Reopens when: a document in this tree writes a fence marker at the start of a line inside another fenced block, which one search over the markdown answers. Its claim was re-derived from the code on 2026-09-12.
 - **[R-644](tasks/644-the-fence-obligation-stops-at-the-suites.md)** The fence obligation stops at the suites (repo-gates). Reopens when: a module under `scripts/tests/` that answers for itself whether a line is a fence, rather than writing a fenced document as the data its reader is asked about. Its claim was re-derived from the code on 2026-09-12.
 - **[R-645](tasks/645-the-standing-count-takes-the-last-dated-row.md)** The standing count takes the last dated row for the last pass (repo-gates). Reopens when: the date the standing line prints is not the date of the ledger's last pass, which is what a row dated in another format or appended out of order produces. Its claim was re-derived from the code on 2026-09-12.
@@ -206,8 +206,8 @@ never a reading of what the tree does now.
 ### Dead until a consumer exists (25)
 
 - **[R-025](tasks/025-token-rotation-multiple-tokens.md)** Token rotation / multiple tokens (seam-auth). Reopens when: A second client of the body↔brain seam exists.
-- **[R-069](tasks/069-raw-gbnf-alternative.md)** Raw GBNF grammar alternative (untrusted-content). Reopens when: the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is.
-- **[R-070](tasks/070-per-task-caller-schema.md)** Per-task caller-supplied schema (untrusted-content). Reopens when: a structured subagent-result feature, which is the only thing this is revisited for.
+- **[R-069](tasks/069-raw-gbnf-alternative.md)** Raw GBNF grammar alternative (untrusted-content). Reopens when: the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is. Its claim was re-derived from the code on 2026-09-13.
+- **[R-070](tasks/070-per-task-caller-schema.md)** Per-task caller-supplied schema (untrusted-content). Reopens when: a structured subagent-result feature, which is the only thing this is revisited for. Its claim was re-derived from the code on 2026-09-13.
 - **[R-074](tasks/074-per-provenance-eviction.md)** Per-provenance eviction (untrusted-content). Reopens when: a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they landed in.
 - **[R-077](tasks/077-provenance-across-stores.md)** Provenance across the stores (untrusted-content). Reopens when: the first design that needs a persisted per-turn taint or provenance marker.
 - **[R-084](tasks/084-session-global-union-read.md)** Session and global union read policy (memory). Reopens when: Something writes durable global facts under scoping. Its claim was re-derived from the code on 2026-09-13.
