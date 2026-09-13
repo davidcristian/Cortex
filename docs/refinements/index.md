@@ -63,9 +63,7 @@ never a reading of what the tree does now.
 
 ## What remains
 
-One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
-
-129 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+135 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (3)
 
@@ -225,9 +223,9 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 - **[R-222](tasks/222-injectinput-rpc.md)** The `InjectInput` RPC, the last unbuilt `BodyService` RPC (body-gateway). Reopens when: A real consumer for input injection, built then as one slice, not as a wired handler.
 - **[R-230](tasks/230-toast-activation-routing.md)** Toast activation routing (scheduling). Reopens when: a second consumer of toast interaction, such as snooze-from-the-toast. Its claim was re-derived from the code on 2026-09-13.
 - **[R-250](tasks/250-task-reminder-distinction.md)** A task versus reminder distinction on the pull surface (scheduling). Reopens when: the surface must distinguish them (a task icon, a "task ran" label, a task-only action). Its claim was re-derived from the code on 2026-09-13.
-- **[R-257](tasks/257-content-addressed-attachment-store.md)** A content-addressed `AttachmentStore` (vision). Reopens when: Accountability outweighing zero retention.
-- **[R-262](tasks/262-multi-monitor-dpi-reporting.md)** Multi-monitor and DPI reporting (vision). Reopens when: anything that enumerates monitors, which nothing does yet, and it arrives with a body that honours the field rather than ahead of one.
-- **[R-269](tasks/269-pixel-level-screening.md)** Pixel-level screening in the body (vision). No trigger was ever recorded for it.
+- **[R-257](tasks/257-content-addressed-attachment-store.md)** A content-addressed `AttachmentStore` (vision). Reopens when: Accountability outweighing zero retention. Its claim was re-derived from the code on 2026-09-13.
+- **[R-262](tasks/262-multi-monitor-dpi-reporting.md)** Multi-monitor and DPI reporting (vision). Reopens when: anything that enumerates monitors, which nothing does yet, and it arrives with a body that honours the field rather than ahead of one. Its claim was re-derived from the code on 2026-09-13.
+- **[R-269](tasks/269-pixel-level-screening.md)** Pixel-level screening in the body (vision). Reopens when: A capture that has to proceed with part of the screen removed rather than be refused, over a window or a region Cortex does not own and so cannot exclude at the OS level. Its claim was re-derived from the code on 2026-09-13.
 - **[R-314](tasks/314-decimal-form-refusals.md)** What the decimal value form still refuses (repo-gates). Reopens when: A decimal coupling that needs ordering rather than equality, or one whose far side is a Rust literal carrying its own type suffix.
 - **[R-361](tasks/361-a-read-rpc-recalls-nothing-to-omit.md)** A session read has no recalled context, so there is no partial answer to give (seam-transport). Reopens when: A read RPC on `BrainService` that recalls anything at all, meaning a handler that reads a memory port and composes what it finds into its reply. Today none does, so there is nothing for a reply to be partial about.
 - **[R-506](tasks/506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md)** A built row that became a base would spend a recorded trigger (repo-gates). Reopens when: a Dockerfile in this tree stands `FROM` an image this repo builds.
@@ -238,9 +236,9 @@ One of these waits on something nobody wrote down. That is a gap in the record r
 
 - **[R-157](tasks/157-liquid-edge-backdrop-blur.md)** The liquid edge's backdrop blur (body-overlay).
 - **[R-158](tasks/158-voice-as-picked-row.md)** The voice as a fourth picked row (body-overlay).
-- **[R-251](tasks/251-user-attached-image-path.md)** The user-attached image path (vision).
-- **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision).
-- **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision).
+- **[R-251](tasks/251-user-attached-image-path.md)** The user-attached image path (vision). Its claim was re-derived from the code on 2026-09-13.
+- **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was re-derived from the code on 2026-09-13.
+- **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was re-derived from the code on 2026-09-13.
 - **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting).
 - **[R-272](tasks/272-more-subagent-roles.md)** More subagent roles (cross-cutting).
 - **[R-353](tasks/353-a-trail-worth-querying-has-no-store.md)** The trail is now worth querying and has nowhere to be queried (tools-mcp).

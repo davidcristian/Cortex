@@ -3,6 +3,7 @@
 **Status:** open, feature breadth
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-13
 
 Both crates carry `unimplemented!()` stubs that
 satisfy the trait, like every other OS port.
@@ -33,3 +34,11 @@ satisfy the trait, like every other OS port.
   so the Linux side inherits the coverage question above while the `Windows.Graphics.Capture`
   argument beside it is untouched. What the pass changed is what the next reader should expect to
   pay rather than anything the entry says.
+- 2026-09-13: re-derived. Every load-bearing claim holds and three citations have moved. Both
+  stub crates are 70 lines rather than 71, each capture stub is the `fn capture` at line 65, and
+  the coverage half of the collision is no longer at line 42 of [body-os.md](../../modules/body-os.md)
+  but in that document's escape-hatch section. Neither stub crate carries a `cfg(target_os)`
+  gate, in its source or in its manifest, so both still compile and are measured on Linux while
+  `os_windows` still builds to nothing there, and the ADR decision that describes `os_macos` as
+  `cfg(macos)` still describes a gate the crate does not have. The coverage question therefore
+  stands exactly as recorded, and it is still the first thing this entry costs.

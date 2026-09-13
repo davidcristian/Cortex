@@ -3,9 +3,10 @@
 **Status:** open, feature breadth
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-13
 
-(`UserTurn.images`). The proto field has existed since Slice 2
-and is still ignored. It is a genuinely different design, not a smaller version of this one: a
+The proto field `UserTurn.images` has existed since Slice 2 and is still ignored. Carrying an
+image the user attached is a genuinely different design, not a smaller version of this one: a
 different seam direction, a different transport limit in a different package, the first path
 where Cortex would **decode a foreign image**, a four-layer TypeScript bridge change, and a
 persistence answer the capture path deliberately refused to give (pixels here are turn-local).
@@ -27,3 +28,13 @@ vision" now point here instead.
   therefore a deliberate relaxation of a rule asserted at three layers, and it must answer the
   persistence question the capture path refused rather than inherit an answer. Nothing opened and
   nothing closed, so no count moved.
+- 2026-09-13: re-derived against the code, and the opening sentence repaired. Splitting the
+  backlog into one file per task left the field name stranded inside a parenthesis with no
+  sentence around it, so the entry now names its subject. Every claim holds and all four
+  citations had moved, so they name symbols instead of line numbers now: `Message.__post_init__`
+  still raises for a non-`TOOL` message carrying images, `EscalationSlot.snapshot` still refuses
+  a tail carrying them, and `store_codec.refuse_images` still runs on the way to Redis, called
+  from the session store's `append`. Nothing reads the field: `converse_stream.py` takes
+  `event.user_turn.text` and nothing beside it, the overlay has no attachment path at all, and
+  the two in-code notes that record this deferral still point at this backlog rather than at a
+  coming slice.

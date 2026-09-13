@@ -3,6 +3,7 @@
 **Status:** open, dead until a consumer
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-13
 **Trigger:** anything that enumerates monitors, which nothing does yet, and it arrives with a body that honours the field rather than ahead of one.
 
 v1 is the primary display only, in physical pixels.
@@ -27,3 +28,11 @@ captured display, so it answers `NoTarget` rather than a wrong picture.
   comment was holding it for, so a display index takes the next free one and arrives with a body
   that honours it. `display_index` is counted here rather than on the region and window capture
   entry, which stopped naming it the same day.
+- 2026-09-13: held against the code and unchanged. Nothing enumerates monitors: the Windows
+  backend sizes its blit from `GetSystemMetrics`, which reports the primary display and nothing
+  else, and no other call in the body asks the OS for a monitor list. `CaptureScreenRequest` now
+  spends fields 1, 2 and 3 on `max_edge`, the target and `max_bytes`, so a display index takes 4,
+  which is what the correction above predicted. The consequence this entry named is in the code
+  as written: `CapturedFrame::region` clamps a focused window into the captured display and
+  answers `NoTarget` when nothing is left, with no fallback to the whole screen. The trigger has
+  not fired.
