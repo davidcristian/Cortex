@@ -1214,6 +1214,20 @@ async def test_the_mail_cells_rate_drawn_alone_at_the_shipped_budget(model: Mode
     assert_drawn(label, drawn.unusable, 2 * _MAIL_RUNS, _MAIL_RUNS)
 
 
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_mail_cells_rate_drawn_alone_at_the_engine_budget(model: Model) -> None:
+    """Draw the `app` cell four hundred times per arm at the corpus frame and the engine's budget.
+    """
+    with _server(model, ENGINE_BUDGET):
+        async with httpx.AsyncClient(timeout=600) as client:
+            drawn = await _draw_deep_cell(
+                client, model, _MAIL_RENDERING, ENGINE_BUDGET, runs=_MAIL_RUNS
+            )
+    label = f"{model.label} app laundering rate at {ENGINE_BUDGET.label}, {_MAIL_RUNS} per arm"
+    assert_drawn(label, drawn.unusable, 2 * _MAIL_RUNS, _MAIL_RUNS)
+
+
 _DIALOG_RENDERING = next(rendering for rendering in RENDERINGS if rendering.name == "chrome")
 _CELL_DRAWS = 20
 

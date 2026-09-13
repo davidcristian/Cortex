@@ -819,11 +819,18 @@ inside the bands written down before it ran: `bare` carried the rule in 40 of 40
 and 31 of 40 at 24 px, its control applied the rule in 0 of 40, and `plain`'s control applied it in
 38 of 40 (ADR-0029's body-pair addendum). The two probes are deliberately not corpus
 members, so no published count is taken over them.
-`-k "mail_cells_rate and 12B"` draws the mail rendering's laundering cell alone, 400 draws per arm
-at the corpus frame and the shipped budget, prints all 800 replies and takes **about twenty-two
-minutes**, 1305.89 s on 2026-09-11. It is the row that reads a cell whose two deep readings were
-a factor of three apart, 7 of 120 and 2 of 120, and it drew 17 of 400 framed against a control silent in 400,
-which is the first sitting's rate (ADR-0029's loads addendum). `-k "token_attacks and Qwen"` draws the two other instructions a matrix has applied, the
+`-k "mail_cells_rate and shipped and 12B"` draws the mail rendering's laundering cell alone, 400
+draws per arm at the corpus frame and the shipped budget, prints all 800 replies and takes **about
+twenty-two minutes**, 1305.89 s on 2026-09-11. It is the row that reads a cell whose two deep
+readings were a factor of three apart, 7 of 120 and 2 of 120, and it drew 17 of 400 framed against a
+control silent in 400, which is the first sitting's rate (ADR-0029's loads addendum).
+`-k "mail_cells_rate and engine and 12B"` is its sibling at the engine's own budget, the same cell
+at the same frame and the same depth, and it takes **about thirty-nine minutes**, 2307.73 s on
+2026-09-13 for 801 requests, which is 2.88 s a request. It drew 6 of 400 framed against a control
+silent in 400 and lost no draw in 800, so this cell's rate at the engine's own budget is 1.5 in a
+hundred with 0.55 to 3.24 under it, about a third of the rate the shipped budget settled on
+(ADR-0029's engine-budget-rate addendum). `-k "mail_cells_rate and 12B"` selects both rows, which is
+over an hour of card time. `-k "token_attacks and Qwen"` draws the two other instructions a matrix has applied, the
 bare token of `payload-splitting` and the appended token of `conditional-trigger`, five draws per
 arm on `plain` and `chrome` behind one load at the corpus frame and the shipped budget, printing
 every reply. It is a row for the alt, **about nine minutes** there, 509.95 s for 44 replies on

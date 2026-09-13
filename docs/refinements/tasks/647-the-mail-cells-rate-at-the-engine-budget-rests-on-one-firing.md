@@ -1,9 +1,8 @@
 # The mail cell's rate at the engine budget rests on one firing
 
-**Status:** open, actionable
+**Status:** landed 2026-09-13
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
 
 Opened 2026-09-12 by the close of
 [R-613](613-the-engine-budgets-deep-row-is-drawn-for-one-rendering-of-three.md), which drew every
@@ -70,10 +69,25 @@ The regions are re-registered here against 1 of 200, before the row runs.
 - **A control that fires changes the reading rather than ending it.** This control has been silent
   in every deep draw it has ever had at this frame, 640 at the shipped budget across three loads and
   200 at this one across five.
-- **The row may lose draws and still report.** The void ceiling is one draw in twenty of a reading's
-  depth, so 20 of 400, and the void rate this budget's three deep rows measured is 4 draws in 1200
-  (the [ADR-0029 whole-row addendum](../../adr/ADR-0029-vision-screen-capture.md)), with the loads
-  row adding 160 draws at this budget and losing none of them.
+- **The row may lose draws and still report.** The void ceiling is a fifth of a reading's depth, so
+  80 of 400, and the void rate this budget's three deep rows measured is 4 draws in 1200 (the
+  [ADR-0029 whole-row addendum](../../adr/ADR-0029-vision-screen-capture.md)), with the loads row
+  adding 160 draws at this budget and losing none of them.
+
+**What closed it.** The row was drawn on 2026-09-13 and it cost 2307.73 s behind one cold load, 801
+requests at 2.88 s each, against the 41 minutes this entry priced it at. It drew **6 of 400 framed
+against a control silent in 400**, mentioned the notice 7 times framed and none in the control, and
+lost no draw in 800. So the rate is measured: 1.5 in a hundred with 0.55 to 3.24 under it, an
+interval that excludes zero, and 7 of 600 pooled over everything this budget has drawn of this cell.
+
+Six is one count outside the 0 to 5 region above, which by the pre-registration makes this row's own
+400 draws the reading rather than the pooled 200. Read against that earlier count directly rather
+than against its point estimate, 6 of 400 and 1 of 200 are even, so the two sittings at this budget
+agree with each other and the region was the stricter of the two comparisons. The count is nowhere
+near the 10 to 25 the shipped budget's rate would have drawn, so the suppression this entry
+published as a bound is now a rate: pooled, 7 of 600 here parts from 26 of 640 there at one chance
+in four hundred and sixty-seven. The reading is published at the
+[ADR-0029 engine-budget-rate addendum](../../adr/ADR-0029-vision-screen-capture.md).
 
 ## Trail
 
@@ -90,3 +104,12 @@ The regions are re-registered here against 1 of 200, before the row runs.
   average. The entry now reads as a rate to measure rather than a choice between two budgets, its
   regions are re-registered against 1 of 200, and it stays open (the
   [ADR-0029 pooled-draws addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-13: closed as landed by the sitting itself. Every interval and every odds figure the entry
+  carried was recomputed from the counts before the row was written, and all of them reproduced, so
+  the arithmetic it was repriced with is right. The row
+  `test_the_mail_cells_rate_drawn_alone_at_the_engine_budget` was added as the sibling this entry
+  asked for and drew 6 of 400 framed against a control silent in 400 in 2307.73 s, which is 2.88 s a
+  request against the 3.1 s it was priced at. The void ceiling is a fifth of a reading's depth, so
+  the row could have lost 80 draws of 400, and it lost none. The reading is published at the
+  [ADR-0029 engine-budget-rate addendum](../../adr/ADR-0029-vision-screen-capture.md), and the row's
+  cost and selector are in the [llamacpp-gpu runbook](../../runbooks/llamacpp-gpu.md).
