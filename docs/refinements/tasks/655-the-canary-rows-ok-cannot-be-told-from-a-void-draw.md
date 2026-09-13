@@ -1,9 +1,8 @@
 # The canary row's `ok` cannot be told from a void draw
 
-**Status:** open, actionable
+**Status:** landed 2026-09-13
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-12
 
 Opened 2026-09-12 by the sitting that drew the cortex alt's frame and budget rows, where the canary
 row passed on one rendering of three (the
@@ -53,3 +52,11 @@ candidate.
 - 2026-09-12: opened by the sitting that drew the alt's six frame and budget rows, whose
   [ADR-0029 frame-and-budget addendum](../../adr/ADR-0029-vision-screen-capture.md) records the canary
   row passing on one rendering of three and what the row cannot say about the other two.
+- 2026-09-13: landed. The entry was right about its own subject: the row read `hit` off `verdict`
+  alone, touched `Reply.unusable` nowhere and printed no reply, so its `ok` covered a rendering that
+  answered without the token and one that answered nothing. `printed_mark` now decides the mark a
+  row prints in one place, `canary_hit` counts a void draw out of the reading the way `rate` and
+  `score` count one out of a denominator, both replies print whole, and the failure message names
+  the void draws so it says which of the two failures it is. Three mutants of the reading were
+  caught by the readings suite. The row was not redrawn: what changed is what it prints and counts
+  (the [ADR-0029 canary-void addendum](../../adr/ADR-0029-vision-screen-capture.md)).
