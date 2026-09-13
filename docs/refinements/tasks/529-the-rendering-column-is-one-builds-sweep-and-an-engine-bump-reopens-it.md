@@ -7,7 +7,7 @@ by the gpu override's model-host base image or by the subagents override moving 
 build, since the column is a property of one build's chat handlers and a handler that started
 gating its reasoning rule on `enable_thinking` would break it with nothing reporting the break.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-02 by the close of
 [R-510](510-nine-rows-of-the-rendering-column-are-hand-read.md), which read every row of the
@@ -71,3 +71,9 @@ opened this read them on the card.
   [brain/Dockerfile.modelhost](../../../brain/Dockerfile.modelhost) is the base image itself with
   a venv copied in, so the recipe starts whatever the cached base carries. Read the base, not the
   image built from it.
+
+- 2026-09-13: the trigger has still not fired. `docker images` reports the same two cached digests
+  the bullet above read, `sha256:952424b09abc` for `server-cuda` and `sha256:db057ec90de0` for
+  `server`, so the stack still starts the build every row of the column was read on. The registry
+  was not asked again: what the tags resolve to moves without this stack moving, and the reading
+  that answers this entry is the digest compose starts.

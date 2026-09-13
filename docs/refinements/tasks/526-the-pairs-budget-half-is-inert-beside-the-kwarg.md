@@ -6,13 +6,14 @@
 reasoning channel where the pair does not, which is the reading the budget was added on; or the
 kwarg's deprecation biting, when the argv is being rewritten anyway.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-02 by the close of
 [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).
 
 Every subagent server this repo starts carries both `--chat-template-kwargs '{"enable_thinking":
-false}'` and `--reasoning-budget 0`, and `scripts/flagcheck.py` requires both. The budget was added
+false}'` and `--reasoning-budget 0`, and `scripts/flagcheck.py` holds every one of them to that
+pair, which is one of the three requirements that gate carries. The budget was added
 on a reading of 2026-08-26 (the ADR-0005 thinking-lever addendum) that the kwarg alone left a 200
 token trace running under a `response_format` on the E4B pick. On the two builds measured since,
 `b10666` and `b10680`, the kwarg alone and the pair were identical to the character on 20 of 20
@@ -47,3 +48,14 @@ inert.
   from the pair and no build past 10680 was measured. Both engine tags have moved past the cached
   images, which is the occasion to re-measure the pair rather than evidence about it; the ADR-0005
   engine-tag addendum records the digests.
+
+- 2026-09-13: re-derived, and the second limb of the trigger nearly fired without closing anything.
+  Every subagent server's argv was rewritten tonight to turn off the host-RAM prompt cache, in both
+  compose overrides and the model host's hosted tier, and `scripts/flagcheck.py` gained a third
+  requirement for that flag. The pair was carried through that rewrite untouched, because the limb
+  names the kwarg's deprecation as the occasion to re-read the pair and the engine has not
+  deprecated it yet; a rewrite for another reason is not that occasion, since it brings no new
+  reading of what the budget does beside the kwarg. The first limb has not fired either: no build
+  past `b10680` has been measured, and the two cached engine digests are the ones the bullet above
+  read. The sentence above is corrected, the gate now requiring three things of every server rather
+  than the two this entry was written against.

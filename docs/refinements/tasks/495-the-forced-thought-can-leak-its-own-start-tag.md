@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a delegated run whose answer is one word, or a budgeted cell of the committed probe
 counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine.
 
@@ -92,3 +92,12 @@ since a sampler that emits half a tag into content is a bug wherever it is fixed
   ADR-0005 trigger-sweep addendum. Quoting the 258 turned up
   [R-598](598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md): the GPU runbook
   publishes the original leak as one draw in 53 where the other three places publish 58.
+
+- 2026-09-13: neither limb of the trigger has fired, and the change that looked like it reached
+  this entry does not. The sentence the constrained path appends to every subtask was rewritten
+  tonight, and the probe carrying this entry's counts,
+  [test_trace_budget_live.py](../../../brain/packages/inference/tests/test_trace_budget_live.py),
+  imports `REPLY_ENVELOPE` alone and composes its own ask, so the 1 leak in 258 budgeted draws and
+  the 0 in 140 flag draws are still readings of the request shape the probe sends and the sentence
+  change does not date them. No delegated run in this repo has reported a one-word answer since,
+  and no cell has been drawn, so the count stands where the sweep left it.

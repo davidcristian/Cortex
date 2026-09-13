@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a pick entering the lineup whose chat template writes a thought marker
 `scripts/switchtail.py` does not list, or a model file of a listed family whose template changes
 the marker it writes. Both are countable by the struct walk over each GGUF header's
@@ -52,3 +52,10 @@ one line; the record and the recipe are what make that line checked rather than 
   the served-by addendum records for `unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf`, and the
   header gives 7,816 today; the other 33 files have nothing to be compared against, which is the
   record this entry asks for. The ADR-0005 mount-walk addendum of the same date carries the table.
+
+- 2026-09-13: re-derived and still open. `MARKERS` in `scripts/switchtail.py` is the same two pairs
+  typed by hand. The first limb of the trigger has not fired: `/mnt/ai/Models` holds the same 68
+  `*.gguf` files the walk above read, none of them written since that walk, so no pick has entered
+  the lineup with a marker to add. The second limb was not re-read, the templates being unchanged
+  where the files are, and the one recorded reading this entry asks to be able to make is still the
+  single 7,816 character template the served-by addendum carries.

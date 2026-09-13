@@ -6,7 +6,7 @@
 the placement column of the lineup-tails record is typed by hand again for eleven rows; or a row
 whose verdict moves between placements, which the record so far says does not happen.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-02 by the close of
 [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), which
@@ -45,3 +45,11 @@ The layer count stays typed by hand unless a later build reports it.
   build the lineup was read on. The second half of the trigger, a row whose verdict moves between
   placements, is unchanged too, no row having been read at a second placement since. The ADR-0005
   engine-tag addendum records what the engine tags now resolve to.
+
+- 2026-09-13: the trigger has still not fired, on either limb. The sweep it waits on is
+  [R-529](529-the-rendering-column-is-one-builds-sweep-and-an-engine-bump-reopens-it.md)'s, and the
+  cached engine digests are unchanged, so no bump has reopened the lineup; no row has been read at
+  a second placement either. The model host's tiers gained a stated host-RAM prompt cache size
+  tonight, a per-tier number that is not the placement this entry is about: the record's placement
+  column is still the layer count and context size of a scratch shell loop that starts one server
+  per pick, and nothing in that loop reads `n_ctx` back off `GET /props` yet.
