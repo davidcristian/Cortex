@@ -4,6 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0037](../../adr/ADR-0037-whisper-streaming.md)
 **Trigger:** The user wanting a second voice back, or any second streaming treatment being asked for.
+**Verified:** 2026-09-13
 
 The whisper landed as the one streaming effect
 (ADR-0037 decision 1), but it was chosen from a pitched family (the Voice: Murmur, Whisper,
@@ -29,3 +30,14 @@ treatment being asked for. Placed here 2026-07-21.
   87 and 203 lines. What survives is the persistence half, preferences riding generic string keys so
   a fourth key costs no proto change and no brain change. Naming the row is deliberately left to the
   maintainer.
+- 2026-09-13: Re-derived, and the first of the two blockers has moved while the second has not.
+  `body/app/src/whisper/useWhisperClock.ts` is 288 lines rather than the 298 recorded above, and the
+  whisper directory now holds three files rather than two: `metrics.ts` (102 lines) took the bubble's
+  box arithmetic out of the clock when the wrap-width re-lay landed. So one responsibility split has
+  already happened and a per-voice edit starts with 12 lines of headroom instead of 2. What did not
+  move is the shape: all three phases still run from one rAF loop in that file, with the only
+  `setState` at the two transitions, so parameterizing the lifecycle still touches the loop itself.
+  The registry half is unchanged, `theme/themes.ts`, `mark/marks.ts` and `edge/edges.ts` each owning
+  one and the whisper owning none, and the tile row's neighbours are still exactly the 87 lines of
+  `EdgeMini.tsx` and the 203 of `BubbleMark.tsx`. The trigger has not fired: no second streaming
+  treatment has been asked for, and the pitched names appear nowhere in the tree.

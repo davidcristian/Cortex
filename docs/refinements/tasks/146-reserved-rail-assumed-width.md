@@ -4,6 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0035](../../adr/ADR-0035-console-and-motion.md) decision 22, scrollbars as reserved chrome ([overlay-ux.md §2](../../design/overlay-ux.md))
 **Trigger:** The body running on an engine that is not Chromium.
+**Verified:** 2026-09-13
 
 Every scroll container holds
 `scrollbar-gutter: stable` and funds the rail out of its own inline-end padding, either
@@ -47,3 +48,11 @@ tests, which is why it is not in a CSS-only slice.
   measurement is circular, so a fenced engine needs a second property and therefore a change to
   every subtraction in the stylesheet. `.history` and `.field` were confirmed at exactly 6px, and
   the recipe holds only on a box with no border.
+- 2026-09-13: Re-derived and the premise is unchanged; only the pointers into the stylesheet
+  moved. `--rail: 6px` is at `body/app/src/overlay.css:40`, the pseudo-element width that sets it
+  at lines 146 to 148, and the standards fence at lines 202 to 206. All six funding shapes are
+  still there: `calc(16px - var(--rail))` on `.history` (line 819) and `.rows` (line 1717), the
+  6px inset on `.switcher` and `.reminders`, and a whole added rail on `.thoughts-body` (line
+  1142), `.confirm-draft` (line 1304) and `.field` (line 1511). The trigger has not fired: the
+  overlay still runs on WebView2 alone, so nothing reaches the fenced branch and the entry stays
+  open.

@@ -3,6 +3,7 @@
 **Status:** open, feature breadth
 **Area:** cross-cutting
 **Origin:** none, this area is the old catch-all list and has no single origin decision record
+**Verified:** 2026-09-13
 
 macOS/Linux OS backends.
 
@@ -37,3 +38,16 @@ subagent roles and never gave it a bullet of its own.
   hatch. Nothing opened and nothing closed in that pass, and the index recorded this trap as the
   finding of the pass itself, writing it there rather than into this entry, so what the pass
   changed is what the next reader should expect to pay.
+- 2026-09-13: Re-derived and every substantive claim holds; four of the pointers it cites had
+  moved. `os_linux` and `os_macos` are 70 lines each rather than 71, both still plain workspace
+  members (`body/Cargo.toml:2`) with a bare `[dependencies]`, both still satisfying `Hotkey`,
+  `AudioControl`, `Notify` and `ScreenCapture` with `unimplemented!()` under
+  `#[cfg_attr(coverage, coverage(off))]`. The coverage run that would measure a real backend is now
+  at `justfile:233` rather than 95, and it still passes `--workspace`. The two halves of the
+  collision are at [body-os.md](../../modules/body-os.md) line 51 rather than 42, and at the crate
+  header lines 7 to 8 rather than 7 to 9. The origin decision still describes `os_macos` as
+  `cfg(macos)` ([ADR-0011](../../adr/ADR-0011-body-v1.md) line 63) where the crate carries no such
+  gate. The entry has no trigger to check, and it stays a refinement rather than moving to
+  [docs/host/](../../host/index.md), which holds work needing a Win32 desktop session or a 24 GB
+  GPU: a Linux or macOS backend needs neither, and the hardware it does need is not the hardware
+  that directory is about.

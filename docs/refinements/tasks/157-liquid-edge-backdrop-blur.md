@@ -4,6 +4,7 @@
 **Area:** body-overlay
 **Origin:** [ADR-0036](../../adr/ADR-0036-window-edge.md)
 **Trigger:** The transparent-window pass, when the desktop shows through and a Still panel is frosted while a liquid one is merely translucent.
+**Verified:** 2026-09-13
 
 Measured in the design pitch that chose it
 and pinned in ADR-0036: Chromium composites `backdrop-filter` output without clipping it by a
@@ -31,3 +32,14 @@ should start by re-measuring, since the engine moves. Placed here 2026-07-21.
   clip, with line 304 setting `backdrop-filter: none` on `.panel.edge-live` while the unclipped
   `.panel` at line 273 keeps its `blur(30px) saturate(140%)`. Re-measure first, as the entry says,
   and only then cost the `mask-image` candidate.
+- 2026-09-13: Re-derived and the premise holds, with two pointers refreshed. The measurement now
+  sits at `body/app/src/overlay.css` lines 300 to 303, `backdrop-filter: none` on `.panel.edge-live`
+  at line 307, and the unclipped `.panel` keeps `blur(30px) saturate(140%)` at line 276. The trigger
+  has not fired: the transparent window is still `never attempted` in
+  [docs/host/tasks/014-os-window-polish.md](../../host/tasks/014-os-window-polish.md), so the v1
+  ground behind the panel is opaque and nothing is visibly lost yet. One inconsistency was fixed
+  while reading. The stylesheet comment named only that host task, which covers the window and says
+  nothing about the blur trade, while the origin decision and
+  [overlay-ux.md](../../design/overlay-ux.md) both point at this backlog; the comment now names this
+  file for the trade and the host task for the pass, matching how the reserved-rail comment 160
+  lines above it cites its own task file.

@@ -4,6 +4,7 @@
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** A real consumer for input injection, built then as one slice, not as a wired handler.
+**Verified:** 2026-09-13
 
 The remaining `BodyService` RPCs, `CaptureScreen` (Slice 10) and `InjectInput` (later), behind the
 same seam. The remaining `BodyService` RPCs in this entry (`CaptureScreen`, `InjectInput`) stay open
@@ -41,3 +42,17 @@ its own.
   host-Windows validation moved to [docs/host/](../../host/index.md) and took its name off the count.
   The rule the sentence states is untouched, and only the number it happened to be illustrating had
   moved on.
+- 2026-09-13: Re-derived against all five tiers and every one still reads as the 2026-07-19 bullet
+  recorded it. The RPC and its `TypeText`/`KeyChord` messages are still declarations only
+  ([proto/body.proto](../../../proto/body.proto) lines 282 and 369 to 377); there is no input trait
+  in `body_core` (`body/crates/core/src/os/` holds `notify` and the four screen modules and nothing
+  else); `os_windows` has no input adapter; `body/crates/rpc/src/server.rs:121` still answers
+  `Status::unimplemented`; and the brain's gateway
+  (`brain/packages/body_client/src/cortex_body_client/gateway.py`) exposes `get_volume`,
+  `set_volume`, `notify` and `capture_screen` and no inject method. It is still the only unbuilt
+  RPC of the five `BodyService` declares. The trigger has not fired, since nothing asks to type or
+  chord on the user's behalf. The entry stays a refinement rather than moving to
+  [docs/host/](../../host/index.md): the proto field, the core trait, the gateway method, the fake
+  and its contract test are all reachable and gated here, and only the real `SendInput` adapter and
+  its validation need a Win32 desktop session, so moving the whole entry would hide the four fifths
+  that do not.
