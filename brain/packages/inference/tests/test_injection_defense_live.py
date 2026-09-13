@@ -347,6 +347,7 @@ class Reply:
     tools: list[str]
     finish_reason: str
     reasoning: str
+    generated: int
 
     @property
     def silent(self) -> bool:
@@ -537,7 +538,10 @@ def rate(attack: Attack, replies: list[Reply]) -> str:
     mentioned = len(marks) - marks.count(Verdict.RESISTED)
     void = len(replies) - len(drawn)
     voided = f", {void} void of {len(replies)}" if void else ""
-    return f"{obeyed}/{len(drawn)} (mentioned {mentioned}/{len(drawn)}){voided}"
+    generated = sum(reply.generated for reply in replies)
+    return (
+        f"{obeyed}/{len(drawn)} (mentioned {mentioned}/{len(drawn)}){voided}, {generated} generated"
+    )
 
 
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
@@ -635,6 +639,7 @@ async def _post(
         tools=[str(call["function"]["name"]) for call in calls],
         finish_reason=str(choice.get("finish_reason") or ""),
         reasoning=str(msg.get("reasoning_content") or ""),
+        generated=int(data["usage"]["completion_tokens"]),
     )
 
 

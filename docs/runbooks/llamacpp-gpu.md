@@ -736,11 +736,14 @@ sitting measured 14.9; read every alt estimate at the shipped budget against tha
 larger one for the engine's own budget, where a draw generates several times as many tokens. Both
 came back with all eighteen transcriptions carrying the canary, so the legibility crossing the pick's
 sweep found at the corpus frame lies outside the range on that candidate (ADR-0029's alt-sweep
-addendum). At the engine's own budget the same row is a sitting rather than a row inside one:
-started at the corpus frame on 2026-09-13, it drew two of its nine cells in 15 minutes and 32
-seconds, about 40 s a request against the shipped budget's 6.2, four of those 22 requests spending a
-trace near 4030 tokens, so **budget about seventy minutes** for either sweep at that budget
-(ADR-0029's alt-engine-sweep addendum). `-k "drawn_deep and 12B"` is the row that leaves the frame axis behind: it draws every
+addendum). At the engine's own budget the same row has no minute figure, and it has
+now been started twice at the corpus frame and stopped twice. The second attempt on 2026-09-13 drew
+30 of its 99 requests in 2033.3 s of serving, 67.8 s a request against the shipped budget's 6.2, and
+its 31 replies are **71854 generated tokens**, 42528 of them in one control arm that drew the same
+14176-token reply three times and filled the server's context each time. Price this row in tokens and
+divide by the tokens a second the card is giving: at the 30 a second both attempts ran at it is hours
+(ADR-0029's alt-engine-sweep and token-priced-sweep addenda). **Check the ceiling before starting
+it**, by the paragraph on the card's ceiling below. `-k "drawn_deep and 12B"` is the row that leaves the frame axis behind: it draws every
 rendering's laundering cell a hundred and twenty times per arm at the corpus frame, prints all 720
 replies of a budget, and takes about eighteen minutes at the shipped budget. That is the depth at
 which a cell that never applies this payload's rule reads apart from one applying it at the rate
@@ -1019,24 +1022,38 @@ pick's `plain` cell across four loads at the corpus frame and the shipped budget
 164 replies behind four, and its `app` cell across four loads at that frame at the engine's own
 budget **629.16 s**, 164 replies behind four more. A third loads row was started that day on the
 `chrome` cell at that frame and budget and stopped inside its first load; its 38 replies cost
-**22.54 s each**, which is the figure the row is priced at. **Read a cost against the card's
+**22.54 s each**, which is the figure the row is priced at. The cortex alt's payload sweep at the
+corpus frame at that budget was started that day too and stopped after 30 of its 99 requests,
+2033.3 s of serving for **71854 generated tokens**. **Read a cost against the card's
 clock.** That sitting ran with `clocks.sm` at about an eighth of the card's maximum SM clock and
 `power.draw` at about a third of its `power.max_limit`, `SW Power Cap` active and no thermal
 slowdown, generating about 30 tokens a second,
-where the 2026-09-12 deep row drew 720 replies at 6.26 s each.
+where the 2026-09-12 deep row drew 720 replies at 6.26 s each. The alt's
+sweep that evening ran under the same cap, a tenth of the card's maximum SM clock and a draw at its
+enforced power limit, and generated 30.0 tokens a second, so two sittings in a row were priced on a
+third of the card.
 
 **Read the ceiling, not the draw, and read it before the sitting.** A clock and a draw taken at
 idle say nothing about the cap that will apply under load, because an idle card is under no cap
-whatever its ceiling is. So the reading to take is
+whatever its ceiling is. Measured here on 2026-09-13 with nothing running, the card reports a clock
+around half its maximum, a draw around a tenth of `power.max_limit`, an `enforced.power.limit` below
+`power.default_limit` at under a third of `power.max_limit`, and `SW Power Cap` reading `Not Active`
+in `nvidia-smi -q -d PERFORMANCE`. The first two figures are the healthy ones and the third is the
+cap that produced both capped sittings above. So the reading to take is
 
 ```
 nvidia-smi --query-gpu=clocks.sm,power.draw,enforced.power.limit,power.max_limit --format=csv
 ```
 
-and the number that decides the price is `enforced.power.limit` against `power.max_limit`. Take the
-same reading again while the row is serving, where `clocks.sm` and `power.draw` become the live
-figures and `SW Power Cap` turns active if the ceiling is binding. Record both readings beside the
-sitting's cost, since a row that fits an hour at full clock does not fit it at a third of one.
+and the number that decides the price is `enforced.power.limit` against `power.max_limit`. Here that
+pair reads under a third, with the enforced limit below the card's default limit, which is the state
+both capped sittings above were drawn under. Take the same reading again while the
+row is serving, where `clocks.sm` and `power.draw` become the live figures and `SW Power Cap` turns
+active if the ceiling is binding. Record both readings beside the sitting's cost, since a row that
+fits an hour at full clock does not fit it at a third of one. Under the ceiling both capped sittings
+were drawn at, this card gives about 30 tokens a second. **Each arm now prints what it generated**,
+as a token total closing its rate line, so a stopped row leaves its own price in the run log rather
+than in the container's.
 **Say which rows you ran**, the same standing rule the brain tier's row has: the
 2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, the
 2026-08-30 sitting ran the cortex pick's matrix and rate at both frames at the engine's budget, the
@@ -1054,14 +1071,15 @@ the cortex alt's matrix at the corpus frame and the shipped budget with that swi
 pick's `app` cell at 400 draws per arm and its advisory probe across four loads, all with
 `CORTEX_INJECTION_SHOW_RESISTED=all`, the 2026-09-13 sittings ran the cortex pick's `plain` cell
 across four loads at the shipped budget, its `app` cell across four loads at the engine's own
-budget and part of the first load of its `chrome` cell at that budget, all three with that switch
+budget, part of the first load of its `chrome` cell at that budget and two and a half cells of the
+cortex alt's payload sweep at the corpus frame at that budget, all four with that switch
 unset, and a matrix
 reported without naming its model is worse than a bad number. **Name the engine digest
 too**: `server-cuda` is a mutable tag and it moved between the first two sittings; the 2026-08-30,
 2026-09-04, 2026-09-05, 2026-09-07, 2026-09-10 and 2026-09-11 rows all ran on
 `sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, and so did the two
-2026-09-13 loads rows and the stopped one on engine build `b10680-d7bd3bfca`, which is what makes
-the
+2026-09-13 loads rows, the stopped one and the alt's stopped sweep on engine build
+`b10680-d7bd3bfca`, which is what makes the
 budgets comparable. The alt is the
 expensive row and the reason is its projector, measured on 2026-09-07 rather than estimated:
 Qwen3.5-9B's F32 `mmproj` puts 1402 prompt tokens of one corpus screen in front of the model at the

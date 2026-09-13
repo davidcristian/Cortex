@@ -1,4 +1,4 @@
-# Nineteen of the cortex alt's thirty-four pixel rows are undrawn or refused
+# Twenty of the cortex alt's thirty-five pixel rows are undrawn or refused
 
 **Status:** open, actionable
 **Area:** inference
@@ -12,10 +12,10 @@ alt's rate, matrix, cost and canary rows at the corpus frame.
 Every row of the image arm in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
 is parametrized over `VISION_MODELS`, which carries the pick and the alt. Collecting the arm on
-2026-09-13 reports **thirty-four** alt rows, where the reading of 2026-09-12 found thirty-one: three
-rows were added on 2026-09-13, two that draw a settled cell behind four cold loads and one that draws
-the mail cell four hundred times at the engine's own budget, and none of the three is drawn for the
-alt. Fifteen are drawn:
+2026-09-13 reports **thirty-five** alt rows, where the reading of 2026-09-12 found thirty-one: four
+rows were added on 2026-09-13, three that draw a settled cell behind four cold loads and one that
+draws the mail cell four hundred times at the engine's own budget, and none of the four is drawn for
+the alt. Fifteen are drawn:
 
 - the matrix at every frame and budget of the axis, four rows, the corpus frame at the shipped budget
   on 2026-09-10 and the other three on 2026-09-12;
@@ -27,7 +27,7 @@ alt. Fifteen are drawn:
 - the payload-size sweep at each frame at the shipped budget, two rows, and the rate and the matrix
   at the third frame, two more, all four drawn on 2026-09-13.
 
-The other nineteen are these:
+The other twenty are these:
 
 - the rate at the corpus frame at the engine's own budget and at the doubled frame at the shipped
   budget, two rows, both drawn on 2026-09-12 and failed by the void ceiling that stood then
@@ -42,8 +42,9 @@ The other nineteen are these:
 - the dialog cell's twenty framed draws, the square's four corners, the dialog pair at the falling
   size and the body pair at both legible sizes, four rows;
 - the advisory cell at twenty draws an arm behind each of four loads, one row;
-- the unstyled cell at the shipped budget and the mail cell at the engine's own budget, each at
-  twenty draws an arm behind each of four loads, two rows the arm gained on 2026-09-13.
+- the unstyled cell at the shipped budget, the mail cell at the engine's own budget and the dialog
+  cell at that budget, each at twenty draws an arm behind each of four loads, three rows the arm
+  gained on 2026-09-13.
 
 **Why it was left.** The sitting that drew the first five had fifty minutes of card time and spent
 them on the rows the pick publishes at the corpus frame, which is what makes the two candidates
@@ -67,10 +68,20 @@ failed to predict the first row priced off it. The sweep at the corpus frame at 
 budget ran on 2026-09-13 and was stopped after two of its nine cells: 22 requests in the 15 minutes
 and 32 seconds its server was up, which is about **40 s a request**, and four of those requests spent
 a reasoning trace near 4000 tokens (the
-[ADR-0029 alt-engine-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)). So a row at the
+[ADR-0029 alt-engine-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)). The dedicated
+sitting that price asked for then ran and was stopped in its turn, 30 of the row's 99 requests in
+2033.3 s of serving, **67.8 s a request**, and it says a per-request price is the wrong instrument
+here. The 31 replies it drew are 71854 generated tokens, 67043 of them in three control arms and
+42528 in one: the `app` control arm at the corpus's own payload size drew the same 14176-token reply
+three times, each filling the server's 16383-token context. The card was software power capped
+throughout, at a tenth of its maximum SM clock and drawing its enforced power limit, itself about a
+third of `power.max_limit`, generating 30.0 tokens a second, which is the state the dialog cell's
+loads sitting recorded the same day and a third of the clock the 2026-09-12 rows ran at (the
+[ADR-0029 token-priced-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)). So a row at the
 shipped budget is read at about 6 s a request, the 13 s figure holds for the rows it was measured on
-rather than for the budget, and a sweep row at the engine's own budget is priced at about seventy
-minutes rather than the twenty-one that 13 s a request gives.
+rather than for the budget, and a sweep row at the engine's own budget has no minute figure at all:
+it generates about 72000 tokens in its first third, and what that costs is the figure divided by the
+tokens a second the card is giving when the row runs.
 
 **What would close it.** Most of the list is now blocked on a rule rather than on card time, which is
 the opposite of the order this entry set. That rule was settled on 2026-09-13 and the order goes back
@@ -83,11 +94,17 @@ in 36, and one in sixty
 and the [ADR-0029 void-share addendum](../../adr/ADR-0029-vision-screen-capture.md)). So the order is
 the sweep rows, then the deep rows, which at this candidate's speed are a sitting each, and a row
 that loses a reading is redrawn rather than blocked. The two sweeps at the shipped budget and the third
-frame's rate and matrix drew that way on 2026-09-13, and none of the four lost a draw, which leaves
-the two sweeps at the engine's own budget next, then the third frame's own sweep, then the deep
-rows. The first of those two sweeps was started on 2026-09-13 and stopped at two cells of nine, so
-each of them is a sitting rather than a row inside one. Each row that
-lands takes its line out of the list above, and the entry closes when the list is empty.
+frame's rate and matrix drew that way on 2026-09-13, and none of the four lost a draw.
+
+The three sweeps at the engine's own budget are the exception, and they move to the back of the
+order. The first of them was started twice on 2026-09-13, stopped at two cells of nine and then at
+two and a half, and both attempts ran on a card held at a third of its clock. Start one of those
+three only once `enforced.power.limit` reports the card's ceiling near its own maximum;
+under the cap those two attempts ran at it is hours rather than a sitting. What comes first instead
+is the rows the same measurements read as cheap: the two rate rows, which are three readings an arm
+at depth five, and the sweeps and deep rows at the shipped budget, where the alt was read at 6.2 s a
+request. Each row that lands takes its line out of the list above, and the entry closes when the
+list is empty.
 
 ## Trail
 
@@ -162,3 +179,19 @@ lands takes its line out of the list above, and the entry closes when the list i
   request where this entry priced the budget at 13, so the two sweeps left there are a sitting each
   and the entry now prices a row rather than a budget (the
   [ADR-0029 alt-engine-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-13: **the dedicated sitting the price asked for ran, was stopped in its turn, and the row
+  is now priced in tokens.** Re-derived first: collecting the image arm reports 35 alt rows against
+  the 34 of earlier the same day, the row added being the dialog cell at twenty draws an arm behind
+  each of four cold loads at the engine's own budget, which is not drawn for the alt, so the list
+  gains a name and stands at twenty; the rate row at the doubled frame at the shipped budget was
+  checked and is still undrawn, the widened void share having re-read its existing log rather than
+  redrawn it. The sweep at the corpus frame at the engine's own budget then ran for a second time and
+  was stopped after 30 of its 99 requests, 2033.3 s of serving at 67.8 s a request. Two things came
+  out of it. The card was software power capped at a tenth of its maximum SM clock and a third of
+  its power limit throughout, as it was for the loads sitting the same day, so both attempts on this
+  row were measured on a third of the card. And the cost is three replies rather than a rate: the
+  `app` control arm drew the same 14176-token reply three times, each filling the server's context,
+  which is three fifths of everything the sitting generated. The three sweeps at that budget move to
+  the back of the order behind the rows measured cheap, every arm now closes its line with the
+  tokens it generated, so a stopped row leaves its own price behind, and the sitting is the
+  [ADR-0029 token-priced-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md).
