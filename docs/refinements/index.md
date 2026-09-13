@@ -63,7 +63,7 @@ never a reading of what the tree does now.
 
 ## What remains
 
-155 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+161 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (2)
 
@@ -97,7 +97,7 @@ never a reading of what the tree does now.
 - **[R-110](tasks/110-prefill-second-witness.md)** Prefill as the second witness of a spill (inference-model-manager). Reopens when: A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`. Its claim was re-derived from the code on 2026-09-09.
 - **[R-112](tasks/112-resume-crashed-handoff.md)** Resume a crashed handoff from its record (inference-model-manager). Reopens when: the same dedup design the transport reconnect task needs, a request id plus an idempotency and resume registry keyed by it, after which resuming is a small addition to `recover_handoffs`. Its claim was re-derived from the code on 2026-09-09.
 - **[R-117](tasks/117-mtp-model-variants.md)** MTP (multi-token-prediction) model variants (inference-model-manager). Reopens when: an MTP or draft artifact on the mount for the file a shipped tier is actually started on, which is a narrower set than the candidates the lineup names at that tier, together with a start of the pinned engine on that file that loads. Its claim was re-derived from the code on 2026-09-11.
-- **[R-124](tasks/124-nudge-live-uptake.md)** The spontaneous-pick nudge's live uptake (subagents). Reopens when: A deployment that delegates unprompted and pays for the pile in the user's wall clock.
+- **[R-124](tasks/124-nudge-live-uptake.md)** The spontaneous-pick nudge's live uptake (subagents). Reopens when: A deployment that delegates unprompted and pays for the pile in the user's wall clock. Its claim was re-derived from the code on 2026-09-13.
 - **[R-127](tasks/127-multi-turn-and-proto-cancel.md)** Multi-turn within one stream plus proto `Cancel` (body-overlay). Reopens when: A live deployment on which mid-turn compute is expensive enough that muting the sink stops being adequate, meaning a report of a turn somebody wanted aborted rather than hidden. The brain-side model swap this once waited on has landed, so that half of the trigger has fired. Its claim was re-derived from the code on 2026-09-11.
 - **[R-162](tasks/162-per-letter-kerning-pairs.md)** Per-letter boxes giving up kerning pairs (body-overlay). Reopens when: The overlay adopting a licensed face. Its claim was re-derived from the code on 2026-09-11.
 - **[R-184](tasks/184-paging-cursor.md)** Paging / cursor on the read RPCs (session-read-seam). Reopens when: A list or a single history growing large enough that unary snapshots stop sufficing. Its claim was re-derived from the code on 2026-09-11.
@@ -205,17 +205,17 @@ never a reading of what the tree does now.
 
 ### Dead until a consumer exists (24)
 
-- **[R-025](tasks/025-token-rotation-multiple-tokens.md)** Token rotation / multiple tokens (seam-auth). Reopens when: A second client of the body↔brain seam exists.
+- **[R-025](tasks/025-token-rotation-multiple-tokens.md)** Token rotation / multiple tokens (seam-auth). Reopens when: A second party on this seam, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other. Its claim was re-derived from the code on 2026-09-13.
 - **[R-069](tasks/069-raw-gbnf-alternative.md)** Raw GBNF grammar alternative (untrusted-content). Reopens when: the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is. Its claim was re-derived from the code on 2026-09-13.
 - **[R-070](tasks/070-per-task-caller-schema.md)** Per-task caller-supplied schema (untrusted-content). Reopens when: a structured subagent-result feature, which is the only thing this is revisited for. Its claim was re-derived from the code on 2026-09-13.
-- **[R-074](tasks/074-per-provenance-eviction.md)** Per-provenance eviction (untrusted-content). Reopens when: a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they landed in.
-- **[R-077](tasks/077-provenance-across-stores.md)** Provenance across the stores (untrusted-content). Reopens when: the first design that needs a persisted per-turn taint or provenance marker.
+- **[R-074](tasks/074-per-provenance-eviction.md)** Per-provenance eviction (untrusted-content). Reopens when: a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they landed in. Its claim was re-derived from the code on 2026-09-13.
+- **[R-077](tasks/077-provenance-across-stores.md)** Provenance across the stores (untrusted-content). Reopens when: a design that needs a fired schedule item or a subagent result to name the turn whose provenance produced it, the way a handoff record already names its own. Its claim was re-derived from the code on 2026-09-13.
 - **[R-084](tasks/084-session-global-union-read.md)** Session and global union read policy (memory). Reopens when: Something writes durable global facts under scoping. Its claim was re-derived from the code on 2026-09-13.
 - **[R-085](tasks/085-per-scope-retention-eviction.md)** Per-scope retention and eviction (memory). Reopens when: A memory-compaction or self-editing feature needs a retention scheduler. Its claim was re-derived from the code on 2026-09-13.
 - **[R-086](tasks/086-cross-scope-recall-ranking.md)** Cross-scope recall ranking (memory). Reopens when: Something writes durable global facts under scoping. Its claim was re-derived from the code on 2026-09-13.
 - **[R-087](tasks/087-tiered-self-editing-memory.md)** Tiered and self-editing memory with summarization (memory). Reopens when: A memory-compaction or self-editing feature needs tiering or update in place. Its claim was re-derived from the code on 2026-09-13.
 - **[R-093](tasks/093-write-salience-policy.md)** Write-salience policy (memory). Reopens when: A memory-compaction or self-editing feature needs a record-time salience decision. Its claim was re-derived from the code on 2026-09-13.
-- **[R-125](tasks/125-per-role-escape-hatch.md)** The per-role escape hatch (subagents). Reopens when: A role needing a cheap model on a tainted or tool path for a proven-safe reason.
+- **[R-125](tasks/125-per-role-escape-hatch.md)** The per-role escape hatch (subagents). Reopens when: A role needing a cheap model on a tainted or tool path for a proven-safe reason. Its claim was re-derived from the code on 2026-09-13.
 - **[R-146](tasks/146-reserved-rail-assumed-width.md)** The reserved rail is 6px only on one engine (body-overlay). Reopens when: The body running on an engine that is not Chromium. Its claim was re-derived from the code on 2026-09-13.
 - **[R-180](tasks/180-out-of-window-title.md)** Out-of-window authoritative title (session-read-seam). Reopens when: A consumer that opens an out-of-window chat beside the switcher, such as toast activation routing once `NotifyRequest` carries a `session_id`, or a search or deep-link by id. Its claim was re-derived from the code on 2026-09-13.
 - **[R-222](tasks/222-injectinput-rpc.md)** The `InjectInput` RPC, the last unbuilt `BodyService` RPC (body-gateway). Reopens when: A real consumer for input injection, built then as one slice, not as a wired handler. Its claim was re-derived from the code on 2026-09-13.
@@ -238,7 +238,7 @@ never a reading of what the tree does now.
 - **[R-261](tasks/261-windows-graphics-capture-backend.md)** A `Windows.Graphics.Capture` backend (vision). Its claim was re-derived from the code on 2026-09-13.
 - **[R-263](tasks/263-linux-and-macos-capture-backends.md)** Linux and macOS `ScreenCapture` backends (vision). Its claim was re-derived from the code on 2026-09-13.
 - **[R-271](tasks/271-macos-linux-os-backends.md)** macOS and Linux OS backends (cross-cutting). Its claim was re-derived from the code on 2026-09-13.
-- **[R-272](tasks/272-more-subagent-roles.md)** More subagent roles (cross-cutting).
+- **[R-272](tasks/272-more-subagent-roles.md)** More subagent roles (cross-cutting). Its claim was re-derived from the code on 2026-09-13.
 - **[R-353](tasks/353-a-trail-worth-querying-has-no-store.md)** The trail is now worth querying and has nowhere to be queried (tools-mcp). Its claim was re-derived from the code on 2026-09-13.
 
 ## Every task, by area

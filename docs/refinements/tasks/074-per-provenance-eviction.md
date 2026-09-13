@@ -4,6 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they landed in.
+**Verified:** 2026-09-13
 
 It was recorded inside the context-preserving tainted-memory recording entry, in its list of what
 remains behind the same seams (ADR-0019 deferred). The fragment, verbatim:
@@ -38,3 +39,14 @@ remains behind the same seams (ADR-0019 deferred). The fragment, verbatim:
   neither is built, the confirmation card and per-provenance eviction of memories derived from one
   source, and `SourceKind` carries `attested` so that eviction by sender cannot sweep a URI
   spelling the same string. The design is finished and nothing has ever asked it to run.
+- 2026-09-13: Re-read against the code, and every claim above still holds. `MemoryRecord` carries
+  the same six fields, the `memories` table the same six columns under one `memories_scope_idx`,
+  and `delete_scope` is still the only removal on `MemoryStore`, with `SessionMemoryCascade` its
+  one caller. One verb joined the port since the reading above: `count_candidates` answers how many
+  records a set of namespaces holds, which filters nothing, so the predicate delete this entry
+  needs is still unwritten and the port change it implies is still a port change. Structured
+  provenance does now survive one store, `HandoffRecord` carrying the whole `TaintLedger` including
+  its `sources` for the length of a swap, which is the shape a durable marker would copy rather
+  than a marker this entry could spend; that store is the subject of
+  [R-077](077-provenance-across-stores.md). The trigger has not fired: no source has been found
+  hostile after the fact here, and nothing evicts a memory by anything but its scope.

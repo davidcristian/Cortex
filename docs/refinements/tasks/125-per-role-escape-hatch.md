@@ -4,6 +4,7 @@
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 **Trigger:** A role needing a cheap model on a tainted or tool path for a proven-safe reason.
+**Verified:** 2026-09-13
 
 A future subagent role needing a cheap model on a
 tainted/tool path for a proven-safe reason would be a per-role override on the same roster
@@ -21,3 +22,11 @@ Unimplemented by design; no role justifies it today.
   model roster at `brain/packages/core/src/cortex_core/roster.py`, whose `resolve` enforces the
   taint boundary. That pass named this entry as consistent with there being nothing to override
   yet.
+- 2026-09-13: Re-derived, still unfired, and the order of the two pieces is now written down.
+  `SubagentRoster.resolve` is the whole boundary and takes no override: a spawn whose turn was
+  tainted, or whose subagent is tools-enabled and can fetch untrusted content itself, resolves to
+  the robust `default` whatever was requested, unknown names included. There is also nothing to
+  override for, the spawn tool's per-item schema being `instruction`, `context` and an optional
+  `model` and no role concept existing anywhere in the brain, so this entry cannot fire before the
+  work described at [R-272](272-more-subagent-roles.md) exists. The 2026-08-09 pass costed the two
+  together and left that dependency unrecorded.

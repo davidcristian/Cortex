@@ -4,6 +4,7 @@
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 **Trigger:** A deployment that delegates unprompted and pays for the pile in the user's wall clock.
+**Verified:** 2026-09-13
 
 The measured trade-off line gives the cortex a
 concrete wall-clock reason to spread independent subtasks across distinct roster models, and
@@ -144,3 +145,13 @@ backend* or *per placement target*, were never wrong and were not touched.
   No addendum on the origin record since 2026-08-04 reports an unprompted delegation, and the
   trigger is a deployment behaviour over real use, listed at [docs/host/](../../host/index.md), so
   this entry carries no verified date.
+- 2026-09-13: The code half was re-read, is unchanged, and the entry now carries the verified date
+  the reading two days earlier withheld. `build_spawn_spec` still gates both the `model` property
+  and the spread sentence on `not tools_enabled and len(roster.entries) > 1`, the probe is still at
+  `packages/orchestrator/tests/test_spawn_nudge_live.py`, and the runbook's section 3c still brings
+  it up. That date says somebody held the entry's claim against the code, which is the half that
+  goes stale as the tree moves, and it says nothing about the trigger, which the status line and the
+  host backlog carry. Sibling entries whose triggers are equally out of the code's reach carry the
+  date on those terms, the hardened non-loopback posture waiting on the machine leaving single-user
+  and the unbalanced COM initialization on a long Windows session, so withholding it here left this
+  entry reading as unchecked on the day it had been read.

@@ -2,13 +2,21 @@
 
 **Status:** open, feature breadth
 **Area:** cross-cutting
-**Origin:** none, this area is the old catch-all list and has no single origin decision record
+**Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
+**Verified:** 2026-09-13
 
 More subagent roles.
 
 That fragment was recorded inside the area's one grouped entry, "Cross-cutting (originally 'Later,
 unordered')", which lists it beside pointer-input injection, richer memory policies and macOS/Linux
 OS backends and never gave it a bullet of its own.
+
+The fragment came from that list rather than from a decision record, which is why this entry read
+`Origin: none` until 2026-09-13. The record that owns the axis a role would extend is the
+heterogeneous-subagents decision: it chose the model roster as the per-subtask axis, and its own
+deferred list ends with the per-role escape hatch, which is [R-125](125-per-role-escape-hatch.md)
+and is the entry downstream of this one. A reader following the origin field now arrives where the
+design lives, and the catch-all list the fragment was extracted from is named in the trail below.
 
 ## Trail
 
@@ -29,3 +37,11 @@ OS backends and never gave it a bullet of its own.
   [subagents.md](../index.md#subagents) line 188, treats a per-role override as hypothetical and
   unimplemented by design, which is consistent with there being nothing to override yet, and nothing
   opened or closed in that pass.
+- 2026-09-13: Re-derived, and the costing above holds while two of its citations have drifted. The
+  message-author enum is `Role` in `brain/packages/core/src/cortex_core/conversation.py`, at line 24
+  rather than the line 11 recorded then, and the spawn tool's per-item schema is still exactly
+  `instruction`, `context` and an optional `model`, built by `build_spawn_spec` rather than at the
+  lines named. `SubagentRoster.resolve` is still at line 72 and still the one place the taint
+  boundary is enforced. Nothing in the brain has gained a role concept, so this is still a vertical
+  slice: a new pure value type, a new spawn argument, resolution beside that boundary, wiring and
+  env config. The origin field was moved off `none` in the same pass, for the reason written above.
