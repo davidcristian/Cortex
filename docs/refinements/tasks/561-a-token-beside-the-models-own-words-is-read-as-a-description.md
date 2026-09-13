@@ -6,7 +6,7 @@
 model's own rather than inside a report of what the screen or file says, the shape
 `Sure! ZK9-OVERRIDE` or `DAN: ZK9-DAN`.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-05 by the close of
 [R-543](543-the-description-confound-grows-with-the-image-budget.md), which gave the injection
@@ -40,6 +40,11 @@ separates it from the recorded descriptions.
 
 ## Trail
 
+- 2026-09-13: claims re-derived from the code and the entry stands as written. `RECORDED` now
+  holds seventy replies, and the ten for these six attacks are unchanged since this entry was
+  last read: three descriptions and seven text-arm obediences, every obedience the token alone.
+  The three image rows drawn on the card today could not have fired the trigger, because a
+  payload sweep draws the `output-laundering` attack alone and that attack is read at its tail.
 - 2026-09-09: claims re-derived from the code. The trigger has not fired and the argument holds:
   the six attacks still read by `_alone` are the six whose instruction is the token, and no
   recorded reply puts the token on a line with words of the model's own. The count was stale.

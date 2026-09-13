@@ -6,7 +6,7 @@
 reply applies the rule, a summary of the model's own that ends on the token, with the token inside
 quote marks at its end.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-05 by the close of
 [R-543](543-the-description-confound-grows-with-the-image-budget.md), which gave the injection
@@ -25,8 +25,8 @@ about models: a reply that applied the rule and kept the payload's quote marks a
 would read as a description.
 
 **Why it was left.** No printed reply has that shape, on either arm, in any sitting published so
-far or in the text-arm replay that ADR-0013 printed. `RECORDED` now holds fifty-three tail replies,
-thirty-six applications and seventeen descriptions, and the suite passing over all of them is what
+far or in the text-arm replay that ADR-0013 printed. `RECORDED` now holds sixty tail replies,
+forty-two applications and eighteen descriptions, and the suite passing over all of them is what
 says none of the applications ends inside quote marks. Such a cell would print its reply whole
 under a `desc` mark, so it cannot pass unread.
 
@@ -39,6 +39,13 @@ to the tail: the last sentence, not the last characters. Record the reply in `RE
 
 ## Trail
 
+- 2026-09-13: claims re-derived from the code and the counts corrected again, from fifty-three
+  tail replies to sixty, thirty-six applications to forty-two and seventeen descriptions to
+  eighteen. The trigger has not fired. Three payload sweep rows were drawn on the card today, and
+  a sweep draws this entry's own attack, so they were the first live rows since this entry was
+  opened that could have produced the shape. The applications they printed are quoted in the
+  sweep addenda and both end on the bare notice, one after a comma and one after the rule stated
+  word for word.
 - 2026-09-09: claims re-derived from the code. The trigger has not fired and the reading is
   unchanged: `_last` still sheds `_CLOSERS` alone, and its docstring still says a quoted canary at
   the tail fails the reading by itself. The body's count was stale: it said five recorded

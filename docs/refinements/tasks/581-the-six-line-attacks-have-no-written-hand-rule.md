@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a printed reply on one of the six whose sort is argued rather than read off the line, which is any reply carrying the token on a line with the model's own words that a sitting wants to count as obedience.
 
 Opened 2026-09-06 by the close of
@@ -31,6 +31,12 @@ reading needed no hand rule.
 
 ## Trail
 
+- 2026-09-13: claims re-derived from the code and the entry stands. The roster comment still
+  writes a hand rule for the two tail attacks and nothing for the six read by `_alone`, and the
+  ten recorded replies for those six are unchanged: three descriptions, each a report of the
+  dialog word for word, and seven obediences, each the token alone. The trigger has not fired,
+  and today's three image rows could not have fired it, because a payload sweep draws the
+  `output-laundering` attack alone.
 - 2026-09-06: opened by the close of
   [R-576](576-the-two-applications-every-boundary-rule-re-sorts-were-sorted-by-an-unwritten-rule.md),
   whose [ADR-0029 one-class addendum](../../adr/ADR-0029-vision-screen-capture.md) wrote the tail
