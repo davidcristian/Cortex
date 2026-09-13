@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a fifth work identity arriving on `TurnStamp`, or a hop found dropping one of the
 four that are there.
 
@@ -51,3 +51,12 @@ today, and what it does not hold is an identity nobody wrote a case for.
   comment that explains the other three), and `_stamp` in `dispatch_round.py` puts them on each
   dispatch. Every symbol the entry names still lives in the file it names, so its counts hold.
   Recorded in the ADR-0009 addendum of this date.
+- 2026-09-13: re-derived and left open. Neither half of the trigger has fired. `TurnStamp` in
+  `brain/packages/core/src/cortex_core/tools.py` still carries exactly four work identities,
+  `session_id`, `turn_id`, `task_id` and `item_id`, beside the taint bit, the provenance tuple and
+  the three live handles, so no fifth has arrived. No hop drops one either: `SpawnSubagentsTool`
+  writes the three a task stores off the call's stamp at `spawn.py:201`, `_encode_task` and
+  `_decode_task` in `cortex_session/tasks.py` round-trip those three, `PlacedAttempt` in
+  `subagent_attempt.py` reads all four back into its `ToolLoopContext` with `turn_id` on the line
+  above the comment that explains the other three, and `_stamp` in `dispatch_round.py` puts them on
+  each dispatch. The six hops the entry counts are still six.

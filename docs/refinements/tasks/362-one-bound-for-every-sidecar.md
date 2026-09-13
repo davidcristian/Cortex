@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** A legitimate call on one sidecar that a bound sized for another cuts, or a deployment
 that wants a tight bound on the fast sidecar without loosening the slow one. Neither has happened:
 the only two sidecars this repo ships are a filesystem server measured at 154 ms a call and an
@@ -43,3 +43,12 @@ the worst case a listing can take is the sum of the endpoints' bounds rather tha
   [docs/runbooks/tools-mcp.md](../../runbooks/tools-mcp.md) is the filesystem sidecar's. The clause
   is left as written, because both halves name something that can come out false. Recorded in the
   ADR-0009 addendum of this date.
+- 2026-09-13: re-derived and left open. The trigger has not fired. `docker/` still spells exactly
+  two endpoint keys, `CORTEX_TOOLS_ENDPOINTS__FILESYSTEM` in `docker/docker-compose.tools.yml` and
+  `CORTEX_TOOLS_ENDPOINTS__EMAIL` in `docker/docker-compose.email.yml`.
+  `CORTEX_TOOLS_CALL_TIMEOUT_S` is still one flat number, defaulted to 60.0 in
+  `docker/docker-compose.yml`, read as the single `call_timeout_s` field of the tools config and
+  spent by the one `BoundedToolRegistry` that `builders.py` wraps around the dialed endpoint. No
+  per-endpoint form of the variable is read anywhere, while the shape the entry points at is still
+  in use beside it: `CORTEX_TOOLS_ALLOW__FILESYSTEM` restricts one sidecar by name. The email
+  sidecar is still untimed.

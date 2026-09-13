@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** A batch of subagents handed one instruction.
 
 This item was recorded inside the entry for salience on the tool loop,
@@ -38,3 +38,11 @@ once per member.
   this repo has measured was given eight distinct subtasks over their own material on purpose, so
   that no two prompts shared a slot's prompt cache (ADR-0005 batch addendum), which is the
   opposite of a batch handed one instruction.
+- 2026-09-13: re-derived and left open. The trigger has not fired, and every claim holds. Both
+  quotations still read as written in [039](039-salience-on-the-tool-loop.md). `RepeatSalience` in
+  `brain/packages/core/src/cortex_core/tool_salience.py` still reads nothing but the calls it is
+  handed, its port declaring `admits(call, dispatched)` and nothing else, and `dispatched` is still
+  a local of `stream_tool_loop`, declared at `tool_loop.py:126` and passed into `run_round` on each
+  round. Nothing joins that list across the loops of one batch. The module's own docstring still
+  gives the same reason the entry quotes, that reach is a resource a turn's subagents share while a
+  repeat is redundant only against the messages holding its answer.

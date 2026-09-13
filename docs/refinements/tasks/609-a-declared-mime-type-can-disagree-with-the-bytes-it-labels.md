@@ -6,7 +6,7 @@
 sidecar declared the wrong one or because an inference backend refuses a `data:` URI whose label
 and payload disagree.
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 
 Opened 2026-09-08 by the close of
 [549](549-jpeg-and-webp-image-blocks-are-refused-rather-than-sized.md), which made
@@ -58,3 +58,11 @@ the declaration stays unchecked and that a mislabeled picture is the sidecar's d
   Everything else holds: `blocks.py` still reads the declaration and the size independently, and
   `ALLOWED_MIME_TYPES` has carried all three types since the capture path was written. Recorded in
   the ADR-0009 addendum of this date.
+- 2026-09-13: re-derived and left open. The trigger has not fired: nothing in the tree records a
+  picture that reached the model under a type its bytes are not, and no inference backend here has
+  refused one. The mechanism is unchanged. `_image_part` in
+  `brain/packages/tools/src/cortex_tools/blocks.py` still builds the part from `block.mimeType`
+  and from `image_size(data)`, which picks its reader off the signature the bytes carry, and the
+  function's own docstring still states that the declaration is checked against the core's
+  allow-list rather than against the bytes. `ALLOWED_MIME_TYPES` in `cortex_core/images.py` still
+  lists all three formats, so all six mismatched pairs are still accepted.
