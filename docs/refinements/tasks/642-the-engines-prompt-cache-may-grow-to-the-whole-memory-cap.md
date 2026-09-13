@@ -1,9 +1,8 @@
 # The engine's prompt cache may grow to the whole memory cap of the container it runs in
 
-**Status:** open, actionable
+**Status:** landed 2026-09-13
 **Area:** resource-governance
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
-**Verified:** 2026-09-13
 
 Opened 2026-09-11 by the close of
 [R-640](640-the-five-pick-envelope-table-is-on-an-image-the-stack-no-longer-pulls.md). The
@@ -56,16 +55,24 @@ the cache. The shape is the pessimistic one for the flag,
 every prompt being distinct, and a delegated batch that reuses a system prefix is the shape where
 the cache could pay for itself.
 
-**What would close it.** `--cache-ram` on every server this repo starts under a memory cap, with a
-value argued per tier, and the rule that holds it. `0` is the value the measurement above argues
-for the two CPU subagent servers, whose container has under 1 GiB to spare and whose subtasks are
-one-shot. The model host's three tiers share one 24 GiB cap and have not been measured this way,
-and the resident cortex is the tier a prompt cache is most likely to pay on, so that decision wants
-its own reading rather than this one. The rule is `scripts/flagcheck.py`, which already derives the
-set of subagent servers and holds each to the flags its tier requires, so a fourth requirement
-reaches both placements the day it is written. The remaining cost to read is the one a seeded pair
-would show, since a prompt-cache hit is the state a seeded completion reproduces against (the
-ADR-0005 paired-arms addendum), and the runs above were unseeded and shared no prefix.
+**What the GPU tier does, and what the flag costs there.** Measured on 2026-09-13 on the subagent
+pick at `-ngl 99` under the model host's own 24 GiB cap, on the shape the cache exists for: four
+conversations of about 1100 prompt tokens rotating through two server slots, four rounds each, at
+temperature 0 and a fixed seed. The default arm spent 100 MiB of host memory per cached
+conversation and answered a returning conversation in 0.11 to 0.19 s. The `--cache-ram 0` arm held
+flat from the fourth request on and answered in 0.24 to 0.29 s, 7.77 s against 6.59 s over the
+sixteen requests. All sixteen cells returned the same completion in both arms, so the cache changes
+what a request costs and not what it answers, which is the seeded reading this entry was left open
+for. The cache does pay on this shape, and what it pays with is up to 8192 MiB of a cap that also
+holds another tier's mapped weights.
+
+**What closed it.** `--cache-ram 0` on every subagent server this repo starts, the two CPU compose
+servers and the model host's hosted subagent tier, held by a fourth requirement in
+`scripts/flagcheck.py`, which derives that set from the stack's own wiring and argv and so reaches
+both placements and any server a later override adds. The value is zero rather than a size because
+the CPU containers have 781 MiB of headroom to give a cache and the tier's subtasks are one-shot.
+The cortex and the deep tier keep the engine's default: they are the tiers a cache is most likely
+to pay on, and this reading does not transfer to them.
 
 ## Trail
 
@@ -82,3 +89,11 @@ ADR-0005 paired-arms addendum), and the runs above were unseeded and shared no p
   effect of `--cache-ram 0` on it. Both arms are under `measurements/cache-ram-2026-09-13/`, which
   git ignores. The entry stays open and actionable: the value for the model host's three tiers and
   the seeded cost reading are not in this measurement.
+- 2026-09-13: landed. The GPU arm this entry reserved for its own reading was drawn on the subagent
+  tier under the model host's cap, and it answers both questions that were open on that tier: the
+  cache costs 100 MiB per cached conversation and saves 0.13 s on a request that returns to a taken
+  slot, and a seeded pair of arms returns the same sixteen cells, so the flag changes cost and not
+  output. Both arms are under `measurements/cache-ram-2026-09-13/`, which git ignores. The flag is
+  now on both compose servers and the hosted tier, and the gate that holds it fails when either
+  shipped server loses it or retunes it, proven by two mutations in its own suite
+  (`scripts/tests/test_flagcheck.py`). The cortex and deep tiers are left on the engine's default.

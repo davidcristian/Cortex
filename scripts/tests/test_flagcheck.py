@@ -31,15 +31,16 @@ ROSTER = "docker-compose.subagents-roster.yml"
 ARGV_MODULE = "tiers.py"
 TIER_MODULE = "config.py"
 
-# The reasoning-off pair as a compose command spells it, each half its own text so a test can
-# take exactly one away, and the budget's own line so a test can retune it.
+# The three flags as a compose command spells them, each its own text so a test can take
+# exactly one away, and the budget's own line so a test can retune it.
 KWARG_ITEMS = '      - "--chat-template-kwargs"\n      - \'{"enable_thinking": false}\'\n'
 BUDGET_ITEMS = '      - "--reasoning-budget"\n      - "0"\n'
+CACHE_ITEMS = '      - "--cache-ram"\n      - "0"\n'
 JINJA_ITEM = '      - "--jinja"\n'
 
-# The same pair and the same template where the sidecar spells them, which is what makes the two
-# placements one rule's business rather than two.
-HOSTED_PAIR = "                extra=_REASONING_OFF,\n"
+# The whole tail and the same template where the sidecar spells them, which is what makes the
+# two placements one rule's business rather than two.
+HOSTED_TAIL = "                extra=_SUBAGENT_TAIL,\n"
 HOSTED_JINJA = '_JINJA = "--jinja"'
 
 # The two names the membership of that set is decided from, each where its own placement writes
@@ -167,6 +168,8 @@ def test_a_server_carrying_every_required_flag_has_no_fault() -> None:
         '{"enable_thinking": false}',
         "--reasoning-budget",
         "0",
+        "--cache-ram",
+        "0",
     )
     assert check_one(_server(*argv)) == []
 
@@ -174,9 +177,16 @@ def test_a_server_carrying_every_required_flag_has_no_fault() -> None:
 def test_a_fault_carries_the_requirement_that_names_it_and_the_reason_it_exists() -> None:
     """A gate saying only that something differs leaves a reader to rediscover why it must not."""
     faults = check_one(_server("--jinja"))
-    assert len(faults) == 2, faults
-    assert all(fault.detail.startswith("the tier's reasoning-off pair:") for fault in faults)
-    assert all("only symptom is a slow subagent" in fault.detail for fault in faults)
+    assert len(faults) == 3, faults
+    pair = [fault for fault in faults if "reasoning-off pair:" in fault.detail]
+    assert len(pair) == 2
+    assert all(fault.detail.startswith("the tier's reasoning-off pair:") for fault in pair)
+    assert all("only symptom is a slow subagent" in fault.detail for fault in pair)
+    cache = [fault for fault in faults if "prompt cache, turned off:" in fault.detail]
+    assert [fault.detail.split(":")[0] for fault in cache] == [
+        "the host-RAM prompt cache, turned off"
+    ]
+    assert "the mapped weights a server reads on every token" in cache[0].detail
     assert {fault.service for fault in faults} == {"one"}
 
 
@@ -195,10 +205,11 @@ def test_the_hosted_tier_is_held_by_the_same_rule_as_the_servers_compose_starts(
     """The placement no compose file holds. Taking the pair off the sidecar's own tier fails
     this gate rather than only the suite next to it, which is what one rule over two placements
     means: the fault names the module the argv is assembled in, not a service."""
-    faults = check(copied(tmp_path, [(TIER_MODULE, HOSTED_PAIR, "                extra=(),\n")]))
-    assert [fault.service for fault in faults.faults] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"] * 2
+    faults = check(copied(tmp_path, [(TIER_MODULE, HOSTED_TAIL, "                extra=(),\n")]))
+    assert [fault.service for fault in faults.faults] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"] * 3
     assert {fault.file for fault in faults.faults} == {(MODEL_MANAGER / TIER_MODULE).as_posix()}
-    assert all("reasoning-off pair" in fault.detail for fault in faults.faults)
+    assert sum("reasoning-off pair" in fault.detail for fault in faults.faults) == 2
+    assert sum("prompt cache" in fault.detail for fault in faults.faults) == 1
 
 
 def test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared(tmp_path: Path) -> None:
@@ -216,7 +227,7 @@ def test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared(tmp_path
         )
     ).faults
     assert {fault.service for fault in faults} == {"CORTEX_MODEL_FILE_SUBAGENT_CPU"}
-    assert len(faults) == 2, "the shared argv still carries --jinja, so only the pair is missing"
+    assert len(faults) == 3, "the shared argv still carries --jinja, so only the tail is missing"
 
 
 def test_a_sidecar_renaming_the_tool_capable_template_fails_its_own_tier(
@@ -240,6 +251,29 @@ def test_a_server_started_with_half_the_reasoning_off_pair_is_a_fault(
     faults = check(copied(tmp_path, [(compose, items, "")])).faults
     assert len(faults) == 1, half
     assert faults[0].file == f"docker/{compose}"
+
+
+@pytest.mark.parametrize("compose", [SUBAGENTS, ROSTER])
+def test_a_server_started_on_the_engines_own_prompt_cache_is_a_fault(
+    tmp_path: Path, compose: str
+) -> None:
+    """The flag gone from either shipped server. The engine's default sizes that cache at the
+    whole memory cap the container runs under, so what it grows into is the mapped weights the
+    same server reads on every token."""
+    faults = check(copied(tmp_path, [(compose, CACHE_ITEMS, "")])).faults
+    assert [fault.file for fault in faults] == [f"docker/{compose}"]
+    assert faults[0].detail.startswith("the host-RAM prompt cache, turned off:")
+    assert "it carries no --cache-ram" in faults[0].detail
+
+
+def test_a_server_started_at_a_cache_size_the_tier_does_not_ship_is_a_fault(
+    tmp_path: Path,
+) -> None:
+    """A zero retuned to a size is a tier spending the headroom it was measured not to have."""
+    sized = CACHE_ITEMS.replace('"0"', '"2048"')
+    faults = check(copied(tmp_path, [(SUBAGENTS, CACHE_ITEMS, sized)])).faults
+    assert [fault.service for fault in faults] == ["llama-subagent"]
+    assert "where the tier requires '0'" in faults[0].detail
 
 
 def test_a_server_started_at_a_budget_the_tier_does_not_ship_is_a_fault(tmp_path: Path) -> None:
@@ -293,7 +327,7 @@ def test_a_hosted_tiers_artifact_spelled_another_way_is_reported_rather_than_dro
     went on passing over the two servers that were left, tail or no tail."""
     edits = [
         (TIER_MODULE, HOSTED_ALIAS, '"CORTEX_SUBAGENT_MODEL_FILE_GPU"'),
-        (TIER_MODULE, HOSTED_PAIR, "                extra=(),\n"),
+        (TIER_MODULE, HOSTED_TAIL, "                extra=(),\n"),
     ]
     scanned = check(copied(tmp_path, edits))
     assert scanned.servers == 2, "the tier really did leave the set, which is what is reported"

@@ -32,11 +32,18 @@ DEFAULT_NVIDIA_SMI = "nvidia-smi"
 
 _NO_REASONING_BUDGET = "0"
 
-_REASONING_OFF = (
+_NO_PROMPT_CACHE = "0"
+
+# The whole tail the subagent tier adds to the shared command. One literal run rather than two
+# tuples spliced, because `scripts/hostedtiers.py` reduces a tail written as a name or a literal
+# and a splat is a shape it cannot reduce.
+_SUBAGENT_TAIL = (
     "--chat-template-kwargs",
     '{"enable_thinking": false}',
     "--reasoning-budget",
     _NO_REASONING_BUDGET,
+    "--cache-ram",
+    _NO_PROMPT_CACHE,
 )
 
 _UNRESTRICTED_REASONING = -1
@@ -138,7 +145,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.subagent_gpu_ngl,
                 ctx_size=self.subagent_gpu_ctx_size,
                 parallel=self.subagent_gpu_parallel,
-                extra=_REASONING_OFF,
+                extra=_SUBAGENT_TAIL,
             ),
         )
         return tuple(tier for tier in declared if tier.model_path)

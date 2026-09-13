@@ -537,11 +537,8 @@ def template_kwargs(argv: tuple[str, ...]) -> dict[str, Any]:
     return cast("dict[str, Any]", json.loads(written))
 
 
-# The shipped subagent tier's own tail, which the compose subagent servers spell again in YAML
-# and `scripts/flagcheck.py` holds both placements to, so the sidecar's declaration answers for
-# the tier.
-SHIPPED_REASONING_OFF = tier_args(SUBAGENT_TIER).extra
-THINKING_OFF_KWARGS = template_kwargs(SHIPPED_REASONING_OFF)
+SHIPPED_SUBAGENT_TAIL = tier_args(SUBAGENT_TIER).extra
+THINKING_OFF_KWARGS = template_kwargs(SHIPPED_SUBAGENT_TAIL)
 
 
 @dataclass(frozen=True)
@@ -555,8 +552,8 @@ class Switch:
 
 THINKING_ON = Switch("thinking-on")
 REQUEST_KEY = Switch("request-key", request_key=THINKING_OFF_KWARGS)
-SHIPPED_SWITCH = Switch("shipped-argv", argv=SHIPPED_REASONING_OFF)
-BUDGET_ALONE = Switch("budget-alone", argv=lever(SHIPPED_REASONING_OFF, _REASONING_BUDGET_FLAG))
+SHIPPED_SWITCH = Switch("shipped-argv", argv=SHIPPED_SUBAGENT_TAIL)
+BUDGET_ALONE = Switch("budget-alone", argv=lever(SHIPPED_SUBAGENT_TAIL, _REASONING_BUDGET_FLAG))
 SWITCHES: tuple[Switch, ...] = (REQUEST_KEY, SHIPPED_SWITCH, BUDGET_ALONE)
 
 

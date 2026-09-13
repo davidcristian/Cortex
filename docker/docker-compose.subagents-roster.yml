@@ -1,7 +1,13 @@
+# Roster override: a second CPU llama-server offering a cheaper alternate subagent model, which
+# the cortex may choose per subtask. Layer it on top of the base and subagents files. Any spawn
+# that can read untrusted content still uses the default model, whatever the cortex chose.
 
 services:
   brain:
     environment:
+      # One JSON object per alternate entry. Leaving gpu_endpoint out falls back to endpoint.
+      # The VRAM figure is an estimate, since no GPU server exists for this entry. The
+      # description is shown to the cortex word for word.
       CORTEX_SUBAGENTS_ROSTER__qwen: >-
         {"endpoint": "http://llama-subagent-qwen:8083",
         "vram_gb": 2.5, "cpus": 2.0, "memory_gb": 1.5,
@@ -12,9 +18,8 @@ services:
         condition: service_healthy
 
   llama-subagent-qwen:
-    # CPU (non-CUDA) OpenAI-compatible llama.cpp server (ADR-0005), the same image and flag
-    # rationale as llama-subagent in docker-compose.subagents.yml (--jinja for tool-capable
-    # templates; thinking disabled because Qwen3.5 unbounded thinking on CPU is minutes/call).
+    # CPU (non-CUDA) OpenAI-compatible llama.cpp server, with the same image and flags as
+    # llama-subagent in docker-compose.subagents.yml.
     image: "ghcr.io/ggml-org/llama.cpp:server"
     command:
       - "--model"
@@ -26,37 +31,45 @@ services:
       - "-ngl"
       - "0"
       - "--jinja"
+      # Both reasoning-off flags, as on the default entry. On this model the kwarg is the one that
+      # works: its template opens the thought inside the prompt, where the budget's sampler never
+      # sees a start. The budget stays because every subagent server here is required to have it.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--reasoning-budget"
+      - "0"
+      # No host-RAM prompt cache: its 8192 MiB default is this container's whole memory cap, and
+      # what it fills is the model weights the server reads on every token.
+      - "--cache-ram"
       - "0"
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
       - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
-      # Pinned to this server's own cpus cap below, for the reason llama-subagent's is.
+      # Fixed to this server's own cpus cap below, as llama-subagent's is.
       - "--threads"
       - "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     volumes:
-      # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
+      # Models stay on the host drive, mounted read-only.
       - type: bind
         source: "${CORTEX_MODELS_DIR:-./models}"
         target: /models
         read_only: true
     ports:
-      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
-      # the brain uses the in-network address above, not this one.
+      # Published on loopback so host-side integration tests can reach it; the brain uses the
+      # compose network address above instead.
       - "127.0.0.1:8083:8083"
     restart: unless-stopped
     healthcheck:
-      # llama-server serves /health once the model finishes loading; Qwen-2B loads in ~15 s
-      # on CPU, comfortably inside the subagents file's start_period.
+      # llama-server serves /health once the model has finished loading, about 15 s on CPU here.
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8083/health"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 90s
       start_interval: 2s
+    # The same three caps as llama-subagent: both entries are charged against one budget, and each
+    # server is capped at the whole of it rather than at a share.
     cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     mem_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
     memswap_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"

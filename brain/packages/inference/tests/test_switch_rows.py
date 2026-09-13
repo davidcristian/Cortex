@@ -1,5 +1,3 @@
-"""CI-side gate on the injection harness's rows: the argv each starts with and the body it posts."""
-
 from dataclasses import replace
 
 import pytest
@@ -15,7 +13,7 @@ from test_injection_defense_live import (
     PLACEMENTS,
     REQUEST_KEY,
     SHIPPED_BUDGET,
-    SHIPPED_REASONING_OFF,
+    SHIPPED_SUBAGENT_TAIL,
     SHIPPED_SWITCH,
     SUBAGENT_CANDIDATES,
     SUBAGENT_TIER,
@@ -36,44 +34,40 @@ from cortex_core import PlacementTarget
 from cortex_model_manager import llama_server_argv
 from cortex_orchestrator.config_subagents import DEFAULT_CPU_BUDGET, DEFAULT_MEM_BUDGET_GB
 
+# The two flags a subagent server is started with, named here because naming them is the whole of
+# what this file claims about the sidecar. llama.cpp has deprecated the second name once
+# already, and a tier that moved to the successor would leave every shipped row measuring nothing.
 _TEMPLATE_KWARGS_FLAG = "--chat-template-kwargs"
 _REASONING_BUDGET_FLAG = "--reasoning-budget"
 
-# A row's own inputs, which nothing here is about: the switch is the only variable, so the
-# messages and tools are a fixed stand-in the two bodies are compared over.
 _MESSAGES: list[dict[str, object]] = [{"role": "user", "content": "summarise this"}]
 _TOOLS: list[dict[str, object]] = [{"type": "function", "function": {"name": "read_file"}}]
 _MAX_TOKENS = 1600
 
-# What the sidecar's builder puts first, which the harness drops because the image's entrypoint
-# is the server; any word does here, since only what follows it is compared.
 _ANY_BINARY = "llama-server"
 
 _THINKING_OFF = [model for model in MODELS if not model.thinking]
 
 
 def test_the_sidecar_still_declares_both_halves_of_the_reasoning_off_pair() -> None:
-    """The tier the shipped row copies is started with the kwarg and the budget, in that order."""
-    assert SHIPPED_REASONING_OFF[0] == _TEMPLATE_KWARGS_FLAG, SHIPPED_REASONING_OFF
-    assert SHIPPED_REASONING_OFF[2] == _REASONING_BUDGET_FLAG, SHIPPED_REASONING_OFF
-    assert len(SHIPPED_REASONING_OFF) == 4, SHIPPED_REASONING_OFF
+    assert SHIPPED_SUBAGENT_TAIL[0] == _TEMPLATE_KWARGS_FLAG, SHIPPED_SUBAGENT_TAIL
+    assert SHIPPED_SUBAGENT_TAIL[2] == _REASONING_BUDGET_FLAG, SHIPPED_SUBAGENT_TAIL
+    assert len(SHIPPED_SUBAGENT_TAIL) % 2 == 0, SHIPPED_SUBAGENT_TAIL
+    assert len(SHIPPED_SUBAGENT_TAIL) >= 4, SHIPPED_SUBAGENT_TAIL
 
 
 def test_the_request_key_renders_what_the_tiers_own_flag_tells_its_template() -> None:
-    """The key a request-key row sends is the flag's own JSON, decoded rather than retyped."""
-    assert REQUEST_KEY.request_key == template_kwargs(SHIPPED_REASONING_OFF)
+    assert REQUEST_KEY.request_key == template_kwargs(SHIPPED_SUBAGENT_TAIL)
     assert REQUEST_KEY.request_key, REQUEST_KEY
 
 
 def test_a_shipped_row_starts_its_server_with_the_tiers_reasoning_off_pair() -> None:
-    """Every thinking-off row on the shipped switch carries the pair at the end of its argv."""
     for model in _THINKING_OFF:
         argv = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH)
-        assert argv[-len(SHIPPED_REASONING_OFF) :] == SHIPPED_REASONING_OFF, model.label
+        assert argv[-len(SHIPPED_SUBAGENT_TAIL) :] == SHIPPED_SUBAGENT_TAIL, model.label
 
 
 def test_a_request_key_row_starts_its_server_with_neither_flag() -> None:
-    """The row that reproduces every subagent number published before the switch became a row."""
     for model in _THINKING_OFF:
         argv = server_argv(model, SHIPPED_BUDGET, REQUEST_KEY)
         assert _TEMPLATE_KWARGS_FLAG not in argv, model.label
@@ -81,14 +75,11 @@ def test_a_request_key_row_starts_its_server_with_neither_flag() -> None:
 
 
 def test_the_switch_rows_differ_by_the_lever_and_by_nothing_else() -> None:
-    """One row moves the pair onto the argv and the key off the request, one moves half the pair
-    there; nothing else moves.
-    """
     for model in _THINKING_OFF:
         keyed = server_argv(model, SHIPPED_BUDGET, REQUEST_KEY)
         shipped = server_argv(model, SHIPPED_BUDGET, SHIPPED_SWITCH)
         budgeted = server_argv(model, SHIPPED_BUDGET, BUDGET_ALONE)
-        assert shipped == (*keyed, *SHIPPED_REASONING_OFF), model.label
+        assert shipped == (*keyed, *SHIPPED_SUBAGENT_TAIL), model.label
         assert budgeted == (*keyed, *BUDGET_ALONE.argv), model.label
     bodies = {
         switch.label: completion_body(_MESSAGES, _TOOLS, switch=switch, max_tokens=_MAX_TOKENS)
@@ -102,9 +93,8 @@ def test_the_switch_rows_differ_by_the_lever_and_by_nothing_else() -> None:
 
 
 def test_the_budget_alone_row_carries_the_budget_half_and_not_the_kwarg() -> None:
-    """The third cell is the pair's second half on the argv, at the tier's own count, and no key."""
-    at = SHIPPED_REASONING_OFF.index(_REASONING_BUDGET_FLAG)
-    assert BUDGET_ALONE.argv == (_REASONING_BUDGET_FLAG, SHIPPED_REASONING_OFF[at + 1])
+    at = SHIPPED_SUBAGENT_TAIL.index(_REASONING_BUDGET_FLAG)
+    assert BUDGET_ALONE.argv == (_REASONING_BUDGET_FLAG, SHIPPED_SUBAGENT_TAIL[at + 1])
     assert BUDGET_ALONE.request_key is None
     assert BUDGET_ALONE in SWITCHES
     for model in _THINKING_OFF:
@@ -114,7 +104,6 @@ def test_the_budget_alone_row_carries_the_budget_half_and_not_the_kwarg() -> Non
 
 
 def test_a_lever_is_read_by_its_flag_and_a_missing_one_refuses() -> None:
-    """A lever is the flag and the value after it, and an argv without the flag raises."""
     assert lever(("--a", "1", "--b", "2"), "--b") == ("--b", "2")
     with pytest.raises(LookupError):
         lever(("--a", "1"), "--b")
@@ -123,15 +112,13 @@ def test_a_lever_is_read_by_its_flag_and_a_missing_one_refuses() -> None:
 
 
 def test_a_shipped_row_sends_no_request_key_and_a_keyed_row_sends_one() -> None:
-    """The lever really is on one side or the other, in the body the row posts."""
     shipped = completion_body(_MESSAGES, _TOOLS, switch=SHIPPED_SWITCH, max_tokens=_MAX_TOKENS)
     keyed = completion_body(_MESSAGES, _TOOLS, switch=REQUEST_KEY, max_tokens=_MAX_TOKENS)
     assert "chat_template_kwargs" not in shipped
-    assert keyed["chat_template_kwargs"] == dict(template_kwargs(SHIPPED_REASONING_OFF))
+    assert keyed["chat_template_kwargs"] == dict(template_kwargs(SHIPPED_SUBAGENT_TAIL))
 
 
 def test_a_thinking_on_tier_pulls_neither_lever_whichever_row_asks() -> None:
-    """A tier measured deliberating is measured deliberating under every switch."""
     thinking = [model for model in MODELS if model.thinking]
     assert thinking, MODELS
     for model in (*thinking, *VISION_MODELS):
@@ -142,7 +129,6 @@ def test_a_thinking_on_tier_pulls_neither_lever_whichever_row_asks() -> None:
 
 
 def test_the_image_arms_rows_post_what_they_posted_before_the_switch_became_a_row() -> None:
-    """Every seeing row's body is unchanged, so the published pixel matrices stay reproducible."""
     for model in VISION_MODELS:
         body = completion_body(_MESSAGES, _TOOLS, switch=switch_for(model), max_tokens=None)
         assert "chat_template_kwargs" not in body, model.label
@@ -153,7 +139,6 @@ def test_the_image_arms_rows_post_what_they_posted_before_the_switch_became_a_ro
 
 
 def test_the_default_switch_is_the_row_every_published_subagent_number_was_taken_under() -> None:
-    """A caller naming no switch gets the request key, which is what the old rows sent."""
     subagent: Model = _THINKING_OFF[0]
     assert switch_for(subagent) is REQUEST_KEY
     assert server_argv(subagent, SHIPPED_BUDGET) == server_argv(
@@ -165,8 +150,6 @@ def test_the_default_switch_is_the_row_every_published_subagent_number_was_taken
 
 
 def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
-    """A text-only row on the shipped switch is the tier's argv with the artifact and port swapped.
-    """
     for model in MODELS:
         tier = tier_args(model.tier)
         started = server_argv(model, SHIPPED_BUDGET, switch_for(model, SHIPPED_SWITCH))
@@ -178,8 +161,6 @@ def test_a_shipped_row_is_its_tiers_own_command_line() -> None:
 
 
 def test_the_cpu_row_offloads_no_layer_pins_its_threads_and_changes_nothing_else() -> None:
-    """The CPU row is the card row with the core's layer count for that server and a thread count.
-    """
     pinned = ("--threads", str(DEFAULT_CPU_BUDGET))
     for model in _THINKING_OFF:
         tier = tier_args(model.tier)
@@ -212,9 +193,6 @@ def test_the_cpu_row_offloads_no_layer_pins_its_threads_and_changes_nothing_else
 
 
 def test_which_rows_are_a_models_own() -> None:
-    """A thinking-off model has a row per switch on the card and a shipped row on the CPU; a
-    thinking-on model has one row, under the shipped switch on the card.
-    """
     thinking = [model for model in MODELS if model.thinking]
     assert thinking, MODELS
     for model in MODELS:
@@ -234,11 +212,6 @@ def test_which_rows_are_a_models_own() -> None:
 
 
 def test_thinking_follows_the_tier_and_each_lineup_names_its_own() -> None:
-    """Whether a model thinks is read off the tier it is measured as, and no lineup is mis-tiered.
-
-    A subagent candidate measured as the cortex tier would be started without the pair and read
-    as deliberating on purpose, so its published row would be a row of another tier.
-    """
     assert all(model.tier == CORTEX_TIER for model in (*CORTEX_CANDIDATES, *VISION_MODELS))
     assert all(model.tier == SUBAGENT_TIER for model in SUBAGENT_CANDIDATES)
     assert all(model.tier == BRAIN_TIER for model in BRAIN_CANDIDATES)
@@ -247,6 +220,5 @@ def test_thinking_follows_the_tier_and_each_lineup_names_its_own() -> None:
 
 
 def test_a_tier_the_sidecar_does_not_declare_is_refused() -> None:
-    """A model naming a tier the model host has no row for fails at the read, not at the card."""
     with pytest.raises(LookupError):
         tier_args("no-such-tier")

@@ -35,6 +35,8 @@ services:
       - '{"enable_thinking": false}'
       - "--reasoning-budget"
       - "0"
+      - "--cache-ram"
+      - "0"
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"

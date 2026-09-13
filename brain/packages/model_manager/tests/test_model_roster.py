@@ -129,12 +129,14 @@ def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
     assert "32768" in roster["deep"].argv
     # The GPU-placed subagent is the tier ADR-0012's host half was waiting for: whole model on the
     # GPU, reasoning off, one server slot per admitted subagent.
-    assert roster["subagent-gpu"].argv[-6:] == (
+    assert roster["subagent-gpu"].argv[-8:] == (
         "3",
         "--jinja",
         "--chat-template-kwargs",
         '{"enable_thinking": false}',
         "--reasoning-budget",
+        "0",
+        "--cache-ram",
         "0",
     )
     assert "-ngl" in roster["subagent-gpu"].argv
@@ -293,13 +295,25 @@ def test_the_subagent_tier_ends_the_thought_rather_than_bounding_it(
     monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "128")
     argv = ModelHostConfig().roster()["subagent-gpu"].argv
-    assert argv[-4:] == (
+    assert argv[-6:-2] == (
         "--chat-template-kwargs",
         '{"enable_thinking": false}',
         "--reasoning-budget",
         "0",
     )
     assert "128" not in argv
+
+
+def test_the_subagent_tier_keeps_no_prompt_cache_in_host_ram(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The flag the tier's own cgroup argues for, and only on this tier."""
+    monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
+    roster = ModelHostConfig().roster()
+    assert roster["subagent-gpu"].argv[-2:] == ("--cache-ram", "0")
+    assert "--cache-ram" not in roster["cortex"].argv
+    assert "--cache-ram" not in roster["brain"].argv
 
 
 def test_a_budget_below_the_engines_own_default_is_refused(

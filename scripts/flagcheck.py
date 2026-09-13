@@ -69,6 +69,21 @@ REQUIREMENTS: tuple[Requirement, ...] = (
             Flag("--reasoning-budget", "0"),
         ),
     ),
+    Requirement(
+        label="the host-RAM prompt cache, turned off",
+        why=(
+            "llama.cpp keeps a prompt cache in host RAM for a conversation whose server slot has "
+            "been taken and sizes it at 8192 MiB by default, which is the whole memory cap the "
+            "compose subagent servers run under and a third of the one the model host's three "
+            "tiers share. What such a cache grows into is the mapped weights a server reads on "
+            "every token, measured on the shipped pick at 781 MiB of headroom spent in nine "
+            "prompts and the weights reclaimed from the tenth on, so a subagent server left on "
+            "the default answers more slowly the longer it runs and one on a full cgroup is "
+            "killed outright. Zero was measured to cost nothing on this tier's one-shot subtasks "
+            "(ADR-0028 prompt-cache addendum)"
+        ),
+        flags=(Flag("--cache-ram", "0"),),
+    ),
 )
 
 
