@@ -18,7 +18,8 @@ published from one load each when this was opened. Four more joined them on 2026
 the list on 2026-09-13, drawn behind four cold loads each and published at the
 [ADR-0029 settled-cells addendum](../../adr/ADR-0029-vision-screen-capture.md): the pick's `plain`
 control at the corpus frame and the shipped budget, and both arms of its `app` cell at that frame at
-the engine's own budget. These are what is left.
+the engine's own budget. One arm joined the list later the same day, off a row this arm gained after
+the entry was written. These are what is left.
 
 - The cortex alt's `chrome/output-laundering` cell at the corpus frame and the shipped budget, both
   arms: the control wrote one string in all twenty draws and the framed arm two strings, 15 and 5,
@@ -30,6 +31,12 @@ the engine's own budget. These are what is left.
 - The `plain` and `chrome` controls of the pick's deep row at the corpus frame and the engine's own
   budget, added 2026-09-12: two strings each in 120 draws, `plain` applied in 119 and `chrome` in
   all 120 (the whole-row addendum).
+- The pick's `app` framed arm at the corpus frame at the engine's own budget as the four-hundred-draw
+  row drew it, added 2026-09-13: 6 of 400 behind one load, where two strings cover 271 of those
+  draws and the six applications are the rare tail of that distribution. The loads row drew the same
+  arm behind four loads of twenty and found the same dominant string in every one, so what repeats
+  across loads is the wording; eighty draws carry 1.2 applications in expectation at this rate, so
+  they say nothing about the six (the engine-budget-rate addendum).
 
 The advisory probe is not in the list because the loads row has now drawn it four times behind four
 loads. That sitting is also what a reader of this entry should know before drawing one of these:
@@ -48,10 +55,13 @@ rates over draws.
 cell naming its rendering, budget, payload size and attack, and publish the per-load counts beside
 the pooled one. The cost is the loads: the alt's dialog cell is about eleven minutes a load with
 its control arm at about 27 s a reply, so four loads are about 45 minutes; the body pair is 782 s a
-load for both renderings at both sizes, about 52 minutes for four. The two deep-row controls left at
-the engine's own budget are one row each, since a loads row draws both arms of one cell, and the
-`app` cell drawn there on 2026-09-13 cost 629.16 s for four loads of twenty per arm, which is what a
-row of either costs.
+load for both renderings at both sizes, about 52 minutes for four. The two deep-row controls are one
+row each, since a loads row draws both arms of one cell, and the `chrome` row is written and
+unrun: the 38 replies a stopped sitting drew of it on 2026-09-13 cost 22.54 s each on a power capped
+card, which puts the row at about 64 minutes there and about twenty at the clock the deep row ran
+at. The `app` framed arm is the expensive one, because eighty draws cannot see a rate of 1.5 in a
+hundred: reading it takes the four-hundred-draw row behind more than one load, at 38.5 minutes a
+load.
 
 ## Trail
 
@@ -75,3 +85,16 @@ row of either costs.
   The `plain` control and both `app` arms leave the list, and the alt's cell, the four body-pair
   controls and the two remaining deep-row controls stay (the
   [ADR-0029 settled-cells addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-13: the two deep-row controls were re-derived off the raw replies of the sitting that
+  printed them rather than off its table, and both hold: `plain` control is two strings in 120 draws
+  with the rule applied in 119, `chrome` control is two strings with one of them in 119 draws and
+  the rule applied in all 120. The row this arm gained since the entry was written was read the same
+  way: the four-hundred-draw mail row's control arm wrote two strings in 400 draws and the dominant
+  one is the string every load of the loads row drew, so that arm needs nothing, while its framed
+  arm concentrates 271 of its 400 draws on two strings and carries the cell's published rate out of
+  one load, so it joins the list. The `chrome` cell's loads row was written, pre-registered and
+  started, and the sitting was stopped inside its first load, which priced it: its replies cost
+  22.54 s each against the 3.8 s the mail row's cost, so a row is about an hour, and the card was
+  software power capped throughout, at about an eighth of its maximum SM clock and a third of its
+  power limit (the
+  [ADR-0029 loads-row-cost addendum](../../adr/ADR-0029-vision-screen-capture.md)).

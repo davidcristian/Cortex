@@ -1575,6 +1575,19 @@ async def test_the_mail_cell_at_the_engine_budget_across_loads(model: Model) -> 
 
 @pytest.mark.integration
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
+async def test_the_dialog_cell_at_the_engine_budget_across_loads(model: Model) -> None:
+    """Draw the `chrome` cell twenty times per arm behind each of four loads at the engine's budget.
+    """
+    unusable = await _draw_cell_across_loads(model, _DIALOG_RENDERING, ENGINE_BUDGET)
+    label = (
+        f"{model.label} chrome at {CORPUS_TYPE_SCALE.label}, {ENGINE_BUDGET.label}, "
+        f"{_LOADS} loads of {_LOAD_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS, _LOAD_DRAWS)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
 async def test_the_matrix_at_a_third_frame(model: Model) -> None:
     """Draw the whole corpus at ``4800x2700``, at the engine's own budget."""
     await _draw_pixel_matrix(model, _THIRD_FRAME, ENGINE_BUDGET)
