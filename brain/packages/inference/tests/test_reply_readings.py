@@ -690,38 +690,36 @@ def test_a_row_of_repeated_draws_prints_its_count_before_the_ceiling_reads_it(
     out = capsys.readouterr().out
     assert "a row: empty or capped replies 0/20 []" in out
     assert "void draws per reading" not in out
-    void = ["dan-roleplay:framed", "exfil-tool:control"]
-    with pytest.raises(AssertionError, match=r"a row: over 0 void draws of 5, readings void: \["):
+    void = ["dan-roleplay:framed"] * 2 + ["exfil-tool:control"]
+    with pytest.raises(AssertionError, match=r"a row: over 1 void draws of 5, readings void: \["):
         assert_drawn("a row", void, 20, 5)
     out = capsys.readouterr().out
-    assert f"a row: empty or capped replies 2/20 {void}" in out
-    assert "a row: void draws per reading of 5, ceiling 0: dan-roleplay:framed=1" in out
+    assert f"a row: empty or capped replies 3/20 {void}" in out
+    assert "a row: void draws per reading of 5, ceiling 1: dan-roleplay:framed=2" in out
+    assert "exfil-tool:control=1" in out
 
 
 def test_a_row_of_repeated_draws_reports_the_voids_its_depth_allows_and_fails_above_them(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A reading of one cell drawn many times may lose one draw in twenty of its own depth."""
-    voids = ["plain:framed"] * 6 + ["plain:control", "chrome:framed"]
+    """A reading of one cell drawn many times may lose one draw in five of its own depth."""
+    voids = ["plain:framed"] * 24 + ["plain:control", "chrome:framed"]
     assert_drawn("a deep row", voids, 720, 120)
     out = capsys.readouterr().out
-    assert "a deep row: empty or capped replies 8/720" in out
-    assert "void draws per reading of 120, ceiling 6: chrome:framed=1 plain:control=1" in out
+    assert "a deep row: empty or capped replies 26/720" in out
+    assert "void draws per reading of 120, ceiling 24: chrome:framed=1 plain:control=1" in out
     over = [*voids, "plain:framed"]
     with pytest.raises(
-        AssertionError, match=r"a deep row: over 6 void draws of 120, readings void: \['plain:fra"
+        AssertionError, match=r"a deep row: over 24 void draws of 120, readings void: \['plain:fr"
     ):
         assert_drawn("a deep row", over, 720, 120)
 
 
-def test_a_five_draw_reading_may_lose_no_draw_at_all() -> None:
-    """One in twenty of five draws is none, so the rate rows keep the rule they have always had.
-
-    A void in five is a fifth of the reading, which would move a rate by twenty points, so the
-    shallow rows fail on one exactly as they did before the ceiling existed.
-    """
-    with pytest.raises(AssertionError, match=r"over 0 void draws of 5"):
-        assert_drawn("a rate row", ["plain:framed"], 30, 5)
+def test_a_five_draw_reading_may_lose_one_draw_and_no_more() -> None:
+    """One in five of five draws is one, which is what a rate row and a payload sweep may lose."""
+    assert_drawn("a rate row", ["plain:framed"], 30, 5)
+    with pytest.raises(AssertionError, match=r"over 1 void draws of 5"):
+        assert_drawn("a rate row", ["plain:framed", "plain:framed"], 30, 5)
 
 
 def test_a_matrix_rows_void_cell_is_counted_out_of_that_arms_denominator_and_named(

@@ -1,9 +1,8 @@
 # The void ceiling is a share the cortex alt's control arm is above
 
-**Status:** open, actionable
+**Status:** landed 2026-09-13
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-12
 
 Opened 2026-09-12 by the sitting that drew the cortex alt's frame and budget rows, two of which the
 ceiling failed ([R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md), the
@@ -55,7 +54,10 @@ already published.
   which `rate` already prints, and fail a reading only when its void draws outnumber its drawn ones,
   the way `assert_measured` holds a matrix arm. On 2026-09-12 that publishes the doubled frame at the
   shipped budget, 1 void against 4 drawn, and still fails the corpus frame at the engine's budget, 5
-  void against none drawn. The cost is the twenty points of rate the ceiling addendum priced.
+  void against none drawn. The cost is stated here as the twenty points of rate the ceiling addendum
+  priced, and that was **wrong**: a majority rule lets a five-draw reading lose two and report a rate
+  over three draws, which is forty points, and lets a reading of 120 lose fifty-nine. The twenty
+  points is what a share of one draw in five costs, at every depth.
 - **Take that rule per arm of the row rather than per reading**, which publishes both rows, 5 void
   against 25 drawn and 1 against 29. This is the variant the ceiling's own argument refused, in the
   words "a share taken over 720 could fall entirely in one arm of one cell", and on 2026-09-12 that
@@ -84,3 +86,15 @@ is a seventh void in expectation.
 - 2026-09-12: opened by the sitting that drew the alt's six frame and budget rows, whose
   [ADR-0029 frame-and-budget addendum](../../adr/ADR-0029-vision-screen-capture.md) publishes the four
   rows that landed, the two the ceiling failed, the per-arm void rates and the depth table.
+- 2026-09-13: decided, as the second answer held to the price this entry claimed for it. The share
+  `_VOID_SHARE` is one draw in five rather than one in twenty, so a five-draw reading may lose one
+  and a reading of 120 may lose twenty-four, and what a reading's lost draws leave open is twenty
+  points of rate at every depth rather than five at depth 120 and a refusal at depth 5. Two things
+  in this entry were re-derived and one of them moved: the rule, the depths and the void rates
+  recompute exactly as written, and the majority rule's cost is forty points at depth five rather
+  than the twenty stated above. No published reading is withdrawn, since the new ceiling is at or
+  above the old one everywhere and no five-per-arm row on the page carries a void draw. The doubled
+  frame at the shipped budget publishes on a redraw and the dead mail cell still fails, which is
+  what was pre-registered. What the change costs a reader is a wider check by hand under a deep
+  row's zero, which the
+  [ADR-0029 void-share addendum](../../adr/ADR-0029-vision-screen-capture.md) records.

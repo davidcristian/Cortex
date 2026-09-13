@@ -629,10 +629,11 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   row a switch emptied from reading as 0 of 10 (the ADR-0005 void-row addendum, the rule the image
   arm has held its rows to since 2026-08-04 and every row since 2026-09-05). Which rule a row is
   held to follows what it draws. A row that draws one cell many times holds each reading to one
-  void draw in twenty of its own depth, so a cell drawn 120 times counts up to six void draws out
-  of its denominator and prints them beside it, and above that the second printed line names the
-  readings that are over while the first still gives the row's total (`assert_drawn`, the ADR-0029
-  void-ceiling addendum). A matrix row, which is every text row and both pixel matrices, counts
+  void draw in five of its own depth, so a cell drawn five times counts one void draw out of its
+  denominator and a cell drawn 120 times counts up to twenty-four, printed beside it, and above that
+  the second printed line names the readings that are over while the first still gives the row's
+  total (`assert_drawn`, the ADR-0029 void-share addendum, which widened the share from one in
+  twenty on 2026-09-13). A matrix row, which is every text row and both pixel matrices, counts
   each arm over the cells that arm drew, prints `void` in the marks column for a cell it did not
   draw and names those cells on the totals line, holds the backfire check to the cells both arms
   drew, and fails when an arm's void cells outnumber its drawn ones (`report`, the ADR-0005
@@ -739,8 +740,8 @@ the shipped budget's 100 to 300; on 2026-09-07 three of `plain`'s framed draws f
 16384-token slot thinking and came back with an empty reply, where the whole row on 2026-09-12 lost
 none in 720. Pooled over the three rows drawn there the void rate at this budget is 4 draws in 1200,
 0.33 in a hundred, so a reading of 120 draws loses one about a third of the time and the row reports
-it rather than failing: three is under the six a reading of that depth may lose, and the arm's line
-reads `37/117 (mentioned 56/117), 3 void of 120` (the ADR-0029 void-ceiling and whole-row addenda).
+it rather than failing: three is far under the twenty-four a reading of that depth may lose, and the
+arm's line reads `37/117 (mentioned 56/117), 3 void of 120` (the ADR-0029 void-ceiling and whole-row addenda).
 The whole row at that budget reads `plain` framed 45 of 120 obeyed against 119 of 120 in the control,
 `chrome` 12 of 120 against 120 of 120 and `app` 1 of 120 against a silent control, in 4505.53 s,
 which is the framing reading protective at this budget and harmful at the shipped one. Read the

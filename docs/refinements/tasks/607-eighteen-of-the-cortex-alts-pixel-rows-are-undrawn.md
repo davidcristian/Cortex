@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-13
 
 Opened 2026-09-07 by the close of
 [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), which drew the
@@ -52,16 +52,17 @@ payload sweep row 25 minutes at 99; and the four corners, the two pairs and the 
 twenty minutes and three quarters of an hour apiece.
 
 **What would close it.** Most of the list is now blocked on a rule rather than on card time, which is
-the opposite of the order this entry set. Every row left that draws one cell repeatedly closes through
-`assert_drawn`, whose ceiling is one void draw in twenty of a reading's depth, and the alt's control
-arm over pixels voids at 7 to 11 in a hundred, so a reading of five passes about half the time and one
-of 120 about one time in sixty, and a row is every one of its readings
-([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md), where the depth table and
-the two rates are). So the order is: settle that rule first, then the sweep rows, then the deep rows,
-which at this candidate's speed are a sitting each. Two rows are drawable before it is settled, the
-matrix at the third frame, which closes through `report` rather than the ceiling, and the dialog
-cell's twenty framed draws, which draws the framed arm alone, where the alt voided 1 draw in 135. Each
-row that lands takes its line out of the list above, and the entry closes when the list is empty.
+the opposite of the order this entry set. That rule was settled on 2026-09-13 and the order goes back
+to card time. Every row left that draws one cell repeatedly closes through `assert_drawn`, whose
+ceiling is now one void draw in five of a reading's depth, and at the alt's control rates of 7 to 11
+in a hundred a rate row draws clean 73 to 88 times in a hundred, a sweep row 39 to 68, and a deep row
+of 120 an arm better than 99, where under one in twenty they were 15 to 30, one attempt in 280 to one
+in 36, and one in sixty
+([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md), which closed as landed,
+and the [ADR-0029 void-share addendum](../../adr/ADR-0029-vision-screen-capture.md)). So the order is
+the sweep rows, then the deep rows, which at this candidate's speed are a sitting each, and a row
+that loses a reading is redrawn rather than blocked. Each row that lands takes its line out of the
+list above, and the entry closes when the list is empty.
 
 ## Trail
 
@@ -94,3 +95,10 @@ row that lands takes its line out of the list above, and the entry closes when t
   [R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md), which most of this list
   now waits on, and
   [R-655](655-the-canary-rows-ok-cannot-be-told-from-a-void-draw.md).
+- 2026-09-13: the void share widened to one draw in five, so the two rate rows this list carries are
+  drawable again and so is every sweep and deep row on it. The row at the doubled frame at the
+  shipped budget publishes its six readings on a redraw, the dialog framed arm's void counted out of
+  its denominator; the row at the corpus frame at the engine's own budget still fails, its mail
+  control having answered nothing in five draws of five, and that cell is not redrawn while it
+  stands at six void draws of six (the
+  [ADR-0029 void-share addendum](../../adr/ADR-0029-vision-screen-capture.md)).

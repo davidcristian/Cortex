@@ -481,7 +481,7 @@ def report(label: str, tallies: Mapping[str, Tally]) -> None:
         )
 
 
-_VOID_SHARE = 20
+_VOID_SHARE = 5
 
 
 def assert_drawn(label: str, unusable: list[str], replies: int, runs: int) -> None:
