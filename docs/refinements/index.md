@@ -63,7 +63,7 @@ never a reading of what the tree does now.
 
 ## What remains
 
-135 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
+139 of these record the day their claims were last re-derived from the code. On every other task here, that reading is still yours to take.
 
 ### Actionable now (3)
 
@@ -74,8 +74,8 @@ never a reading of what the tree does now.
 ### Actionable, once a seam or port changes (7)
 
 - **[R-129](tasks/129-streamed-brain-status.md)** Streamed brain status (body-overlay).
-- **[R-253](tasks/253-reply-says-window-resampled.md)** Whether the reply says a window was resampled (vision).
-- **[R-266](tasks/266-carrying-a-picture-across-a-swap.md)** Carrying a picture across a model swap (vision).
+- **[R-253](tasks/253-reply-says-window-resampled.md)** Whether the reply says a window was resampled (vision). Its claim was re-derived from the code on 2026-09-13.
+- **[R-266](tasks/266-carrying-a-picture-across-a-swap.md)** Carrying a picture across a model swap (vision). Its claim was re-derived from the code on 2026-09-13.
 - **[R-320](tasks/320-one-detail-string-two-facts.md)** The seam carries one detail string, so two facts are one sentence (seam-transport).
 - **[R-338](tasks/338-a-named-recall-is-not-a-named-turn.md)** A named recall is not a named turn (memory).
 - **[R-421](tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md)** A turn that goes quiet for an hour is indistinguishable from a brain that died (seam-transport).
@@ -226,10 +226,10 @@ never a reading of what the tree does now.
 - **[R-257](tasks/257-content-addressed-attachment-store.md)** A content-addressed `AttachmentStore` (vision). Reopens when: Accountability outweighing zero retention. Its claim was re-derived from the code on 2026-09-13.
 - **[R-262](tasks/262-multi-monitor-dpi-reporting.md)** Multi-monitor and DPI reporting (vision). Reopens when: anything that enumerates monitors, which nothing does yet, and it arrives with a body that honours the field rather than ahead of one. Its claim was re-derived from the code on 2026-09-13.
 - **[R-269](tasks/269-pixel-level-screening.md)** Pixel-level screening in the body (vision). Reopens when: A capture that has to proceed with part of the screen removed rather than be refused, over a window or a region Cortex does not own and so cannot exclude at the OS level. Its claim was re-derived from the code on 2026-09-13.
-- **[R-314](tasks/314-decimal-form-refusals.md)** What the decimal value form still refuses (repo-gates). Reopens when: A decimal coupling that needs ordering rather than equality, or one whose far side is a Rust literal carrying its own type suffix.
+- **[R-314](tasks/314-decimal-form-refusals.md)** What the decimal value form still refuses (repo-gates). Reopens when: A decimal coupling that needs ordering rather than equality, or one whose far side is a Rust literal carrying its own type suffix. Its claim was re-derived from the code on 2026-09-13.
 - **[R-361](tasks/361-a-read-rpc-recalls-nothing-to-omit.md)** A session read has no recalled context, so there is no partial answer to give (seam-transport). Reopens when: A read RPC on `BrainService` that recalls anything at all, meaning a handler that reads a memory port and composes what it finds into its reply. Today none does, so there is nothing for a reply to be partial about.
 - **[R-506](tasks/506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md)** A built row that became a base would spend a recorded trigger (repo-gates). Reopens when: a Dockerfile in this tree stands `FROM` an image this repo builds.
-- **[R-536](tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md)** The Python declaration syntax reads no binding inside a class body (repo-gates). Reopens when: a second producer binding a `SourceKind` value at module level because the enum member it restates cannot be a site, which the `uri` twin's producer would be, or any other registry entry whose one spelling on a side is a member of a class body, which is countable by locating every mention's needle in its far file and reading whether the line it lands on binds a name inside a `class`.
+- **[R-536](tasks/536-the-python-declaration-syntax-reads-no-class-level-binding.md)** The Python declaration syntax reads no binding inside a class body (repo-gates). Reopens when: a second producer binding a `SourceKind` value at module level because the enum member it restates cannot be a site, which the `uri` twin's producer would be, or any other registry entry whose one spelling on a side is a member of a class body, which is countable by locating every mention's needle in its far file and reading whether the line it lands on binds a name inside a `class`. Its claim was re-derived from the code on 2026-09-13.
 - **[R-621](tasks/621-a-delegating-turn-cannot-be-resumed-from-the-store.md)** A delegating turn cannot be resumed from the store (resource-governance). Reopens when: a turn that survives an orchestrator restart, which the seam's `Converse` reconnect entry and the request-identity design the crashed-handoff resume entry waits on would together give it. Until one exists there is nothing to hand a stored result back to. Its claim was re-derived from the code on 2026-09-10.
 
 ### Feature breadth, on request (8)

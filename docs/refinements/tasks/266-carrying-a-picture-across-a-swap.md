@@ -3,7 +3,9 @@
 **Status:** open, a seam or port change comes first
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Trigger:** The `AttachmentStore` above, plus a brain-tier candidate that has a projector.
+**Verified:** 2026-09-13
+**Trigger:** The `AttachmentStore` above, plus a brain tier that can actually be started with a
+projector, which needs a setting the model host does not have.
 
 Carrying a picture, or at least the `opaque` bit, across a model swap. Named in ADR-0029's own
 Deferred paragraph and written down here on 2026-07-19, having been missed when the slice closed.
@@ -14,9 +16,12 @@ model at all, and the conductor ends it with a note telling the user to ask agai
 message. `HandoffRecord` does not carry the `opaque` bit either, so `taint_ledger()` rebuilds it at
 `False`; that is sound only because no opaque turn can reach a record (the conductor rejects first),
 and carrying the bit as defence in depth is the cheap half of this entry. The expensive half is
-pixels themselves, which wants the `AttachmentStore` above, and a capability argument still says no:
-no brain-tier candidate on the mount has a projector, so a replayed picture would be unreadable even
-if it survived.
+pixels themselves, which wants the `AttachmentStore` above and a deep tier that can read one. The
+capability half of that is a wiring gap rather than a mount gap: the model host names a projector
+for the cortex tier alone (`cortex_mmproj_file`, spent by `_vision()` in
+`brain/packages/model_manager/src/cortex_model_manager/config.py`), and the brain tier's `extra`
+carries only its reasoning budget, so a deep tier started today is text-only whatever sits beside
+its GGUF.
 
 **The cheap half landed 2026-08-03; the expensive half stays open, so this entry stays counted**
 ([ADR-0030](../../adr/ADR-0030-brain-handoff.md) 2026-08-03 addendum). `HandoffRecord` grows
@@ -70,3 +75,12 @@ false` in the stored document, both read back exact on the record and on the led
 - 2026-08-03: the index named the bit's two consumers where this entry's own text leaves them
   unnamed, strict URL redaction and the durable-memory block, and recorded that both are real and
   that both are reached by the deep phase.
+- 2026-09-13: re-derived and left open, with the capability claim corrected. The entry said no
+  brain-tier candidate on the mount has a projector, and that is no longer true: the 31B QAT pick
+  ships `gemma-4-31B-it-mmproj.gguf` beside its GGUF, and the Qwen 27B and 35B-A3B candidates each
+  ship an `mmproj` file too. What actually keeps a replayed picture unreadable is that the model
+  host has no setting to hand the deep tier one, so the sentence now names the wiring instead of
+  the mount and the trigger reads on that. The rest holds unchanged: nothing in the brain declares
+  an `AttachmentStore`, no store persists pixels, and `SwapConductor._prepare` still refuses an
+  opaque turn on `slot.refs.taint.opaque` before the store is touched, which is what keeps the far
+  side clean rather than the schema.

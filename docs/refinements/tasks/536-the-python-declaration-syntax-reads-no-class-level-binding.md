@@ -8,6 +8,7 @@ registry entry whose one spelling on a side is a member of a class body, which i
 locating every mention's needle in its far file and reading whether the line it lands on binds a
 name inside a `class`.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-13
 
 Opened 2026-09-02 by the close of
 [534](534-the-declared-kind-word-has-no-site-to-hold-it.md), which held the kind word `sender` by
@@ -53,3 +54,12 @@ mention, since two sites are compared with each other while a mention is a prese
   prose, none of them the one spelling of a value on a side. `Flag("--reasoning-budget", "0")` in
   `scripts/flagcheck.py` reads like a near miss and is not one: it sits in a module-level tuple,
   and that entry declares its value at `_NO_REASONING_BUDGET` in the model host's config.
+- 2026-09-13: re-derived and left open, both clauses still unfired. The registry has grown to 92
+  entries over 110 sites and 311 mentions since the last reading, and locating every one of those
+  311 needles in its far file turns up the same single binding inside a class body,
+  `SENDER = "sender"` under `class SourceKind(Enum)` in
+  `brain/packages/core/src/cortex_core/provenance.py`, which is this entry's own subject.
+  `SourceKind` still has one producer outside the core, `cortex_email/server.py`, and `URI` still
+  has none, so the `uri` twin the trigger names does not exist. The Python form in
+  `crosscheck.DECLARATIONS` is unchanged and still anchors its name at column 0 under
+  `re.MULTILINE`.

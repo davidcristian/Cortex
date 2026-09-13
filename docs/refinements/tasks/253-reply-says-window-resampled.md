@@ -3,6 +3,7 @@
 **Status:** open, a seam or port change comes first
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-13
 **Trigger:** The next change that opens `CaptureScreenReply`, or a measured caption effect.
 
 Opened 2026-08-10 by the measurement above and the steer correction that followed it
@@ -24,11 +25,11 @@ the other 38, and the crop arm found the same thing from the other side, that a 
 declines into readings rather than inventions into truths. The cheaper half of the value landed
 instead, in the tool description, which now tells the model **before** the pick that `focus` is
 not a guarantee of detail, which is the half it can act on. And the cost is a slice rather than a
-follow-up: a fourth proto regeneration on this path in one day, reaching `screen_policy.rs` (286
-of 300 at HEAD, so a field plus its accessor forces a split by responsibility), `gateway.py` (263
-of 300), the seam facade, both fakes, six test files and six docs. Per this backlog's own
-standing warning, everything in that sentence except the two line counts is a hypothesis; the
-line counts were read at HEAD.
+follow-up: a fourth proto regeneration on this path in one day, reaching `screen_policy.rs` (289
+of 300 at HEAD, so a field plus its accessor forces a split by responsibility), the body client's
+`gateway.py` (285 of 300), the seam facade, both fakes, six test files and six docs. Per this
+backlog's own standing warning, everything in that sentence except the two line counts is a
+hypothesis; the line counts were read at HEAD.
 
 What is **not** a reason is accuracy. The missing field is a real gap in what `describe()` can say,
 and it is why that function already declines to guess. The claim is that the gap is not currently
@@ -55,3 +56,12 @@ comes first.
   the smallest type alone, and the refusal never needed that leg. It is a whole new entry rather
   than the closed one reopening, since what closed was a question about the world and what opens is
   a piece of work with its own trigger.
+- 2026-09-13: re-derived and left open, with both line citations refreshed. The trigger has not
+  fired. `CaptureScreenReply` still carries `image` and `resolved_target` and nothing else, and
+  the one change to `proto/body.proto` since this entry opened edited the delete-session comment.
+  The mechanism the entry rests on is unchanged: `Capture::from_bgra` crops before the ladder and
+  a region already inside the edge crosses through the identity arm of `downscale`, while
+  `describe()` in `screen_tool.py` still says nothing about which of the two arrived. Both cost
+  citations had moved under the same 300 cap, `screen_policy.rs` from 286 to 289 lines and the
+  body client's `gateway.py` from 263 to 285, so the split by responsibility the entry predicts
+  is nearer on both files than when it was written.

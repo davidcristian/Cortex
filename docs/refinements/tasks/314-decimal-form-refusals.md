@@ -3,6 +3,7 @@
 **Status:** open, dead until a consumer
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
+**Verified:** 2026-09-13
 **Trigger:** A decimal coupling that needs ordering rather than equality, or one whose far side is
 a Rust literal carrying its own type suffix.
 
@@ -24,9 +25,11 @@ The consumer this is waiting for does not exist yet, and the near miss is worth 
 mistakes it for one. The two deadlines on the brain to body seam really are ordered, the short one
 being defensible only under the capture's, but both are declared in
 `brain/packages/body_client/src/cortex_body_client/gateway.py` and an ordering may carry no
-mentions, so an entry over them would name two places in one file and one language, which
-`test_every_registered_constant_spans_more_than_one_language` refuses on its own. The trigger is a
-decimal bound whose two sites are genuinely in two trees.
+mentions, so an entry over them would name two places in one file, which
+`test_every_registered_constant_spans_more_than_one_seam_side` refuses on its own. That test now
+compares language and brain package together rather than language alone, so the trigger is a
+decimal bound whose two sites sit on two seam sides: two trees, two languages in one tree, or two
+brain packages.
 
 **A decimal carrying a language's type suffix does not reduce.** `10.0f64` and `10.0_f64` are
 refused with the exponent and the sign, for the reason the reducer rejects a `frozenset` spelled in
@@ -40,3 +43,15 @@ strips rather than a new form.
 
 - 2026-08-19: opened by the close of [R-308](308-crosscheck-cannot-tie-a-decimal.md), which landed
   the decimal form these two refusals belong to.
+- 2026-09-13: re-derived and left open, with one correction. Both refusals still stand exactly as
+  written: `relation_fault` in `scripts/readings.py` keeps an ordering to readings that pass
+  `isinstance(value, int)` and exits with the same sentence otherwise, and `scripts/values.py`
+  still raises on a type suffix alongside the exponent and the sign. Neither trigger has fired.
+  The registry declares fourteen decimal sites today, from `DEFAULT_VRAM_GB` at 3.5 to
+  `DEFAULT_ADMISSION_WAIT_S` at 7200.0, and every one of them is an equality; the only two
+  orderings are the capture edge pair and the receive limit pair, both integers on both sides.
+  Nothing under `body/crates` or `body/app/src-tauri` declares an `f64` constant, so the Rust half
+  is unreached too. What changed is the near miss: the test that refuses a one-sided entry was
+  renamed and widened to compare language and brain package together, so two brain packages are
+  now two seam sides and a decimal ordering between them would be registrable. The two gateway
+  deadlines still are not, both being declared in one file.
