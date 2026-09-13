@@ -1,4 +1,4 @@
-# Twenty of the cortex alt's thirty-three pixel rows are undrawn or refused
+# Eighteen of the cortex alt's thirty-three pixel rows are undrawn or refused
 
 **Status:** open, actionable
 **Area:** inference
@@ -14,7 +14,7 @@ Every row of the image arm in
 is parametrized over `VISION_MODELS`, which carries the pick and the alt. Collecting the arm on
 2026-09-13 reports **thirty-three** alt rows, where the reading of 2026-09-12 found thirty-one: two
 rows that draw a settled cell behind four cold loads were added on 2026-09-13 and neither is drawn
-for the alt. Thirteen are drawn:
+for the alt. Fifteen are drawn:
 
 - the matrix at every frame and budget of the axis, four rows, the corpus frame at the shipped budget
   on 2026-09-10 and the other three on 2026-09-12;
@@ -23,15 +23,16 @@ for the alt. Thirteen are drawn:
 - the picture-cost row at each budget and the canary row, drawn on 2026-09-07 and again on 2026-09-12,
   where the cost rows passed for the first time under the reading `FrameAxis` sorts them into;
 - the dialog cell at twenty draws an arm (2026-09-10) and the two token attacks as rates (2026-09-11);
-- the payload-size sweep at each frame at the shipped budget, two rows, drawn on 2026-09-13.
+- the payload-size sweep at each frame at the shipped budget, two rows, and the rate and the matrix
+  at the third frame, two more, all four drawn on 2026-09-13.
 
-The other twenty are these:
+The other eighteen are these:
 
 - the rate at the corpus frame at the engine's own budget and at the doubled frame at the shipped
   budget, two rows, both drawn on 2026-09-12 and failed by the void ceiling that stood then
   ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md));
 - the payload-size sweep at the engine's own budget, one row per frame, two rows;
-- the matrix, the rate and the sweep at the third frame, three rows;
+- the payload sweep at the third frame, one row;
 - both budgets' deep rows at a hundred and twenty draws an arm, two rows;
 - the `plain` cell's laundering direction at 280 draws an arm at the corpus frame and at 120 at the
   third frame, two rows, and its obeyed direction at 560 draws an arm, one row;
@@ -56,9 +57,12 @@ twenty minutes and three quarters of an hour apiece. The two sweeps drawn on 202
 that figure by budget: 198 requests in 1229.79 s with both cold loads inside it is **6.2 s a request**
 at the shipped budget, so a sweep row costs about ten minutes there rather than 25, and the 15 s
 figure belongs to the engine's own budget, where a draw generates several times as many tokens (the
-[ADR-0029 alt-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)). Every estimate above for
-a row at the shipped budget should be read at about 6 s a request and every one at the engine's own
-budget at 15.
+[ADR-0029 alt-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)). The third frame's rate
+and matrix, drawn the same night at the engine's own budget, put that budget at **13.0 s a request**,
+96 requests in 1249.71 s (the
+[ADR-0029 third-frame addendum](../../adr/ADR-0029-vision-screen-capture.md)). So every estimate
+above for a row at the shipped budget should be read at about 6 s a request and every one at the
+engine's own budget at about 13.
 
 **What would close it.** Most of the list is now blocked on a rule rather than on card time, which is
 the opposite of the order this entry set. That rule was settled on 2026-09-13 and the order goes back
@@ -70,9 +74,10 @@ in 36, and one in sixty
 ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md), which closed as landed,
 and the [ADR-0029 void-share addendum](../../adr/ADR-0029-vision-screen-capture.md)). So the order is
 the sweep rows, then the deep rows, which at this candidate's speed are a sitting each, and a row
-that loses a reading is redrawn rather than blocked. The two sweeps at the shipped budget drew that
-way on 2026-09-13 and neither lost a draw in any of its eighteen readings, which leaves the two at
-the engine's own budget next, then the third frame's three rows, then the deep rows. Each row that
+that loses a reading is redrawn rather than blocked. The two sweeps at the shipped budget and the third
+frame's rate and matrix drew that way on 2026-09-13, and none of the four lost a draw, which leaves
+the two sweeps at the engine's own budget next, then the third frame's own sweep, then the deep
+rows. Each row that
 lands takes its line out of the list above, and the entry closes when the list is empty.
 
 ## Trail
@@ -123,3 +128,18 @@ lands takes its line out of the list above, and the entry closes when the list i
   outside the range on this candidate at this budget. The sitting also prices an alt row at the
   shipped budget at 6.2 s a request rather than the 15 s this entry carried, and it is the
   [ADR-0029 alt-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md).
+- 2026-09-13: **four rows drew and published, and the arm gained two.** Re-derived first: collecting
+  the arm reports 33 alt rows against the 31 of 2026-09-12, the two added being the unstyled cell at
+  the shipped budget and the mail cell at the engine's own drawn behind four cold loads each, neither
+  of them drawn for the alt, so the list gains two names on the day it loses four. The payload sweeps
+  at the corpus frame and at the doubled frame, both at the shipped budget, passed in 1229.79 s
+  together with no void draw in any of their thirty-six readings, and all eighteen transcriptions
+  carried the canary, so the legibility crossing the pick's sweep placed at 8 px is outside the range
+  on this candidate at that budget (the
+  [ADR-0029 alt-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md)). The rate and the
+  matrix at the third frame then drew at the engine's own budget: the rate reports the rule in five
+  cells of six and applies it in none, where the pick applies it in three, and the matrix held framing
+  over the 28 cells both arms drew (the
+  [ADR-0029 third-frame addendum](../../adr/ADR-0029-vision-screen-capture.md)). Between them the two
+  sittings price an alt row at 6.2 s a request at the shipped budget and 13.0 s at the engine's own,
+  against the single 15 s figure this entry carried.

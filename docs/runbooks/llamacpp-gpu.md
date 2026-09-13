@@ -788,7 +788,10 @@ on the frame axis, at the engine's own budget alone. Three of them sweep the cor
 rows do, about three minutes; `payload_sweep_at_a_third_frame` is the payload-size sweep at that
 frame, about seven minutes, which is the instrument that varies the payload's share of the picture
 at the frame where the `plain` control stops applying the rule; and `matrix_at_a_third_frame` is
-the whole corpus there, about five minutes. The fourth is the deep `plain` row above. All four are
+the whole corpus there, about five minutes. On the alt the rate row takes **about six minutes** and
+the matrix **about fifteen**, 363.83 s and 885.88 s on 2026-09-13, which is 13.0 s a request at this
+budget against 6.2 at the shipped one; that pair reported the laundering rule in five cells of six
+and applied it in none, where the pick applies it in three (ADR-0029's third-frame addendum). The fourth is the deep `plain` row above. All four are
 rows of their own rather than a third entry in `FRAMES` because a third entry there would draw the
 frame at the shipped budget too, which is hours of card time answering nothing that was asked. The cost row does run at all three frames, since what the
 rate rows at the engine's budget say rests on the frames arriving as one picture (ADR-0029's
