@@ -1024,14 +1024,13 @@ budget **629.16 s**, 164 replies behind four more. A third loads row was started
 `chrome` cell at that frame and budget and stopped inside its first load; its 38 replies cost
 **22.54 s each**, which is the figure the row is priced at. The cortex alt's payload sweep at the
 corpus frame at that budget was started that day too and stopped after 30 of its 99 requests,
-2033.3 s of serving for **71854 generated tokens**. **Read a cost against the card's
-clock.** That sitting ran with `clocks.sm` at about an eighth of the card's maximum SM clock and
-`power.draw` at about a third of its `power.max_limit`, `SW Power Cap` active and no thermal
-slowdown, generating about 30 tokens a second,
-where the 2026-09-12 deep row drew 720 replies at 6.26 s each. The alt's
-sweep that evening ran under the same cap, a tenth of the card's maximum SM clock and a draw at its
-enforced power limit, and generated 30.0 tokens a second, so two sittings in a row were priced on a
-third of the card.
+2033.3 s of serving for **71854 generated tokens**. **Read a cost against the card's clock.** That
+sitting ran with `clocks.sm` at about an eighth of the card's maximum SM clock and `power.draw` at
+about a third of its `power.max_limit`, `SW Power Cap` active and no thermal slowdown, generating
+about 30 tokens a second, where the 2026-09-12 deep row drew 720 replies at 6.26 s each. The alt's
+sweep that evening ran under the same cap, a tenth of the card's maximum SM clock and a draw at
+its enforced power limit, and generated 30.0 tokens a second, so two sittings in a row were priced
+on a third of the card.
 
 **Read the ceiling, not the draw, and read it before the sitting.** A clock and a draw taken at
 idle say nothing about the cap that will apply under load, because an idle card is under no cap
@@ -1276,12 +1275,12 @@ cd body && cargo test -p body-core --test capture_bytes --release -- \
 
 ## Measured so far (2026-06-29, 24 GB card, 16K ctx, single slot, full offload)
 
-`nvidia-smi` total used with the model resident (only the llama-server on the GPU). Load
-times were under a **55 W travel-power cap** (not the 175 W brick). VRAM is power-
-independent, load/throughput are not. Full detail + placement strategy in the
-[ADR-0004 addendum](../adr/ADR-0004-model-lineup.md).
+`nvidia-smi` total used with the model resident (only the llama-server on the GPU). Load times
+were taken with the card held to **about a third of its full power** by a travel charger rather
+than its own brick. VRAM is power-independent, load/throughput are not. Full detail + placement
+strategy in the [ADR-0004 addendum](../adr/ADR-0004-model-lineup.md).
 
-| Tier | Candidate | Quant | Weights only | + vision (mmproj) | Load (55 W) |
+| Tier | Candidate | Quant | Weights only | + vision (mmproj) | Load (capped to a third) |
 |---|---|---|---|---|---|
 | **Cortex (pick)** | **gemma-4-12B** | q4_0 (QAT) | 11.0 GB | 11.3 GB (small proj) | ~38-52 s |
 | Cortex (alt) | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
@@ -1303,7 +1302,7 @@ names the quant its 2026-06-29 reading was taken on (the ADR-0004 alt-artifact a
 **Nor are the two brain rows**, added 2026-08-04 when the deep-model pick landed. They were taken
 on a card that holds the real tiers, through the `model-host` sidecar with the cortex evicted
 first, at `CORTEX_CTX_SIZE_BRAIN=8192` and `-ngl 99`, on llama.cpp `b10236-1464c62d8` with **no
-power cap**, so their load times are not comparable with the 55 W rows above. The weights column
+power cap**, so their load times are not comparable with the capped rows above. The weights column
 is `nvidia-smi` total used minus the 1867 to 1932 MiB the card reads with no model loaded, and it
 includes the 8K KV. All four candidates fit alone on 24 GB, so the pick turned on whether a
 candidate finishes reasoning rather than on VRAM; the two mixture-of-experts candidates consume

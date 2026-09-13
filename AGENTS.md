@@ -194,6 +194,11 @@ reading has failed this rule twice.
 - **Define jargon once, then use it.** A precise term introduced where it is first used is
   welcome (`site` and `mention` in `scripts/couplings.py`). A figurative term standing in
   for a technical one is not.
+- **Write a measurement a reader on other hardware can use.** A figure that describes only
+  the machine it was taken on is written as a ratio of that machine's own numbers, and,
+  where an operator has to take the reading, as the fields they query on their own
+  hardware. A figure stays absolute when a reader compares it directly against their own
+  hardware to decide whether something fits.
 - **No AI-isms.** Machine-written prose has recognizable tics and every one of them costs
   clarity: runs of short parallel fragments, the "not X, but Y" reversal, throat-clearing
   openers ("it is worth noting that"), inflated stakes ("critically", "fundamentally",
