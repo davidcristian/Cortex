@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** A retune of `DEFAULT_TOOL_CALL_TIMEOUT_S` or `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` that
 inverts the shipped pair, which nothing would catch until a deployment turned both tools and
 delegation on. Neither number has moved since it was declared.
@@ -72,3 +72,15 @@ ends up the wrong way round.
   `all(lower <= upper for lower, upper in pairwise(numbers))`, which admits equality. The entry's
   pointer to `values.py` was stale and is repaired above: that function moved to `readings.py` when
   `values.py` reached the line cap.
+- 2026-09-13: re-checked and left open. The trigger has not fired and both halves of the widening
+  are still unbuilt. `DEFAULT_TOOL_CALL_TIMEOUT_S` is still 60.0 at `tool_deadline.py:64` and
+  `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` still 2400.0 in `subagents.py`, where the declaration has moved
+  to line 152 from the 149 the reading above cites; `git log -L64,64` on the first file and
+  `git log -L152,152` on the second each return exactly one commit, the one that declared the line,
+  so neither number has been retuned and the shipped pair is still the right way round.
+  `relation_fault` in `scripts/readings.py` still filters its readings to `isinstance(value, int)`
+  and returns the "an ordering compares integers" fault for anything else, which is what a decimal
+  reduces to a `Digits` for, and its comparison is still
+  `all(lower <= upper for lower, upper in pairwise(numbers))`, which admits equality. The only two
+  registered orderings are still the pair of `Relation.ORDERED` couplings in
+  `scripts/seamcouplings.py`, so nothing new has been registered on this relation either.

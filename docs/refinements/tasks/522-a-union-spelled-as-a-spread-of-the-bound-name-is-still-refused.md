@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** a brain log call spelling its union as `{**extra, "shortfall": ...}` over a name
 bound above it, rather than as `extra | {...}`, which is the spelling the deep phase writes today.
 That is countable by reading the `extra=` of every log call in the brain's source and sorting them
@@ -41,6 +41,17 @@ a shape nobody has asked for. When one arrives, the fault names its line.
   as 2026-09-04: 94 in all, 85 a mapping written out at the call, six a bare name, one the `|`
   union at `cortex_core/brain_phase.py:210`, and two a call, `_pairing(subagents, tools)` in
   `cortex_orchestrator/bounds.py`, which the formatter has moved to lines 131 and 144 from the 129
+  and 144 recorded before. None of the 85 mappings carries a `**` entry, so the shape this entry
+  describes still has no example in the brain and a reader case for it would still be written
+  against no call.
+- 2026-09-13: re-checked and left open. The trigger has not fired, and the census has grown by
+  two calls at the shape this entry does not describe. Reading the `extra=` of every log call in
+  the brain's source and sorting by the shape of the expression gives 96 in all, where 94 were
+  read before: 85 a mapping written out at the call, six a bare name, one the `|` union at
+  `cortex_core/brain_phase.py:210`, and four a call rather than the two recorded before. The two
+  new ones are `bounds.pairing_fields(...)` at `cortex_core/residency_watch.py:199` and at
+  `cortex_orchestrator/swap_builders.py:209`, and the two already recorded are `_pairing(...)` in
+  `cortex_orchestrator/bounds.py`, which the formatter has moved to lines 134 and 147 from the 131
   and 144 recorded before. None of the 85 mappings carries a `**` entry, so the shape this entry
   describes still has no example in the brain and a reader case for it would still be written
   against no call.

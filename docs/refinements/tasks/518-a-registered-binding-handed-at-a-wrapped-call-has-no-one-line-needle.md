@@ -3,12 +3,13 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-13
 **Trigger:** registering a message binding whose call the formatter wraps, which is what
-`cortex_orchestrator/abandon.py` and the no-reading call in `cortex_core/brain_phase.py` would be.
-That is countable by reading every brain log call `logcalls.handed` reports, keeping the ones whose
-name the module binds at its own top level, and comparing the name's line with the call's: the
-trigger fires when one of the wrapped ones gains a `Site` in the constant registry.
+`cortex_orchestrator/abandon.py`, the no-reading call in `cortex_core/brain_phase.py` and the
+short-card error in `cortex_core/residency_moves.py` would be. That is countable by reading every
+brain log call `logcalls.handed` reports, keeping the ones whose name the module binds at its own
+top level, and comparing the name's line with the call's: the trigger fires when one of the
+wrapped ones gains a `Site` in the constant registry.
 
 Opened 2026-09-02 by the close of
 [R-504](504-a-declared-message-and-a-different-word-in-the-call.md), which holds a registered
@@ -18,11 +19,11 @@ handed.
 
 The guard checks that the mention's needle lands on the line the name sits on, which
 `logcalls.handed` reports as the name's own line rather than the call's. On the one site registered
-today those are one line. Two of the brain's five handed calls are wrapped by the formatter, the
-abandonment warning and the no-reading line, each with the identifier on the line after the
-opening parenthesis, and on either the template the guard's failure message suggests,
-`<the call>({name},`, renders a needle the file does not carry, since a newline and an indent stand
-between the parenthesis and the name.
+today those are one line. Three of the brain's eleven handed calls are wrapped by the formatter,
+the abandonment warning, the no-reading line and the short-card error, each with the identifier on
+the line after the opening parenthesis, and on any of the three the template the guard's failure
+message suggests, `<the call>({name},`, renders a needle the file does not carry, since a newline
+and an indent stand between the parenthesis and the name.
 
 Two shapes work and neither is written down. `{name},` alone lands on the name's line and is
 bounded at the word edge, but it is a looser needle: it matches wherever the identifier is followed
@@ -64,3 +65,19 @@ the prose side.
   `trailcouplings.py`, and rendering the guard's suggested template against the three files finds
   `_logger.warning(ABANDONED_MESSAGE,` and `_logger.info(_NO_READING_LOG_MSG,` zero times each and
   `_logger.info(_MESSAGE,` once.
+- 2026-09-13: re-derived and corrected. The trigger has not fired, but the set this entry counts
+  has moved twice over. `logcalls.handed` still reports 11 brain log calls whose message is a bare
+  name, and all 11 names are now bound at their module's own top level, where five were when this
+  was last read: the six that were a local `msg` built in the function are now
+  `_NO_DEVICE_MEMORY` and `_CARD_TOO_SHORT` in `cortex_core/residency_moves.py`, `_NOT_CONVERGED`
+  and `_WORST_STOP_UNCLEARED` in `cortex_core/residency_watch.py`, and a `_REFUSED` in each of
+  `cortex_orchestrator/bounds.py` and `cortex_orchestrator/swap_builders.py`. Comparing each
+  name's line with its call's marks three of them wrapped rather than two: `_NO_READING_LOG_MSG` at
+  `brain_phase.py:191` whose call opens at 190, `ABANDONED_MESSAGE` at `abandon.py:73` whose call
+  opens at 72, and `_CARD_TOO_SHORT` at `residency_moves.py:161` whose call opens at 160. The
+  body and the trigger above are repaired to those numbers. None of the three has gained a `Site`:
+  the registry still carries exactly one mention rendering a call handed a name,
+  `Mention(AUDIT_SINK, "_logger.info({name},", name="_MESSAGE")` in `trailcouplings.py`, and none
+  of the other ten names is spelled in any registry part. Rendering the guard's suggested template
+  still finds `_logger.info(_NO_READING_LOG_MSG,` and `_logger.warning(ABANDONED_MESSAGE,` zero
+  times each in their own files, where `_logger.info(_MESSAGE,` is found once.
