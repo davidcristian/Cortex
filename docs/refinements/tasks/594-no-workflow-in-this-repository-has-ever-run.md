@@ -6,6 +6,7 @@
 **Trigger:** the first run this repository records under either workflow, which needs Actions
 enabled for the whole repository and is therefore a setting on the account rather than a change in
 this tree.
+**Verified:** 2026-09-13
 
 Opened 2026-09-06 by the trigger check on
 [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md), which went looking for a shuffle sweep that
@@ -43,13 +44,18 @@ so the setting is the maintainer's; the reading afterwards is not, and a run his
 in it closes this. Until then the honest statement in any doc that describes CI is that the
 workflows are written and unexecuted.
 
-**What is in reach before that, and is not started.** No doc here says the workflows have never
-run. Two lines of [docs/index.md](../../index.md) say the opposite in passing, one pointing at the
-architecture record's contract-test addendum as naming "which implementations CI actually drives it
-against" and one describing the pgvector adapter's behaviour as "proven against the fake in CI".
-Both describe what the workflow file specifies and read as a report of runs that happened. Wording
-those as the workflow's instruction rather than as a verdict is a change anyone can make in this
-tree, and it is what this entry can deliver while the setting stays off.
+**What is in reach before that: nothing.** This entry used to name two lines of
+[docs/index.md](../../index.md) as claims that CI had run, one pointing at the architecture
+record's contract-test addendum for "which implementations CI actually drives it against" and one
+describing the pgvector adapter's behaviour as "proven against the fake in CI". Both were read
+again on 2026-09-13 against the records they point at, and neither is a statement about a
+workflow. That addendum defines the word for its own tables, saying that CI means `just check`
+running the suite outside the integration marker, and the memory decision uses it the same way
+throughout, for the service-less suite that runs with no Postgres container. About a hundred
+lines across `docs/` follow that convention. The two sentences are therefore accurate as written,
+and rewording them would leave the convention untouched while making two of its instances read
+differently from the rest. What is left in reach is the negative statement the paragraph above
+names, which no doc carries yet.
 
 ## Trail
 
@@ -73,3 +79,14 @@ tree, and it is what this entry can deliver while the setting stays off.
   `docs/index.md` this entry names still read as verdicts, at lines 27 and 78, and no document
   outside this backlog says the workflows have never run, so the half that is in reach is still
   not started. No verified date, for the reason the previous bullet gives.
+- 2026-09-13: re-derived on both halves, and this time the remote half was read rather than
+  carried. Neither workflow has run: the runs listing for `ci.yml` reports `total_count` 0 and the
+  same call for `shuffle.yml` reports 0. The repository's whole run history now holds three
+  entries rather than one, on 2026-09-01, 2026-09-08 and 2026-09-09, and all three are Dependabot
+  updates, so the history grows while neither workflow executes. The permissions call this entry
+  quotes answers 403 to the token available here, which reports a token scope and not a setting,
+  so Actions being off stays the maintainer's standing answer; the two run counts are the reading
+  the entry rests on and they are readable. The tree half is rewritten above: the two lines of
+  `docs/index.md` this entry called verdicts are instances of the repo-wide convention that names
+  the service-less gate suite CI, so the half filed as in reach is not work. This entry now
+  carries a verified date, the run counts being a reading of its own claim.

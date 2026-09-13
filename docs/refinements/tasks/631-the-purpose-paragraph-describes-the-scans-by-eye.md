@@ -6,6 +6,7 @@
 **Trigger:** The Purpose paragraph of `docs/modules/repo-gates.md` is found describing a set of
 cross-tree scans other than the one `scripts/scanrecipes.py` reads out of the justfile and the
 workflow.
+**Verified:** 2026-09-13
 
 Opened 2026-09-11 by the close of
 [R-452](452-a-roster-written-in-descriptions-is-held-by-nobody.md), which decided that a
@@ -32,3 +33,14 @@ checked by eye, which is what the origin decision's addendum of 2026-09-11 says 
 - 2026-09-11: opened by the close of
   [R-452](452-a-roster-written-in-descriptions-is-held-by-nobody.md). Recorded in the ADR-0003
   addendum of the same day on why a description is not a roster.
+- 2026-09-13: re-derived, and the trigger has not fired. `scripts/scanrecipes.py` reads eleven
+  scans out of the justfile and the workflow, and the paragraph describes those same eleven
+  before naming the three gates that are not cross-tree scans. Two sets moved under the paragraph
+  since it was opened and neither was one of these: a fourteenth part joined the constant
+  registry, and a third requirement joined the subagent flag rule. Both sit inside one scan
+  rather than being a scan, so the paragraph is as long as it was and still right. The second of
+  them did reach another description checked by eye, the engineering contract's sentence for that
+  rule, which still named two requirements on the day a third landed; that sentence is completed
+  in this change. It is the paragraph's own argument holding rather than failing: a description
+  that lives in the file every addition already edits stays current, and one that does not
+  drifts, a new requirement inside a scan editing only `scripts/`.

@@ -3,6 +3,7 @@
 **Status:** open, feature breadth
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
+**Verified:** 2026-09-13
 
 `ToolAuditSink` has exactly one adapter, `LoggingAuditSink`, so the audit trail is a stream of
 `logging` records and nothing else. That was proportionate while a line said only which tool ran:
@@ -28,3 +29,13 @@ one an operator does by eye. It is written down because the widening is what mad
 - 2026-08-21: Opened by the close of
   [342](342-the-audit-trail-cannot-name-the-turn.md), which gave the trail the identities that make
   it queryable. Recorded in the ADR-0009 named-work addendum.
+- 2026-09-13: re-derived and still open. `ToolAuditSink` still has exactly one adapter,
+  `cortex_tools.audit.LoggingAuditSink`, with `RecordingAuditSink` in `cortex_core.fakes` being
+  the fake; the line still carries the session, turn, task, item and call ids off the dispatch
+  stamp, so the queries this entry names are still expressible and still unanswerable; and
+  retention is still the container's log driver. One thing widened. The brain now writes a second
+  audit trail, the recall trail, and `RecallAuditSink` is in the same state: one adapter,
+  `LoggingRecallSink`, chosen by a config flag in `memory_builders.recall_audit_from_config`. So
+  a durable sink is now a policy decision over two ports rather than one, and the three open
+  questions above, on retention, on the fidelity a store keeps an argument at, and on whether a
+  failed durable write may fail the work it audits, are asked of both.

@@ -135,7 +135,8 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
      compares membership and naming only, since the sentence beside each name is what the roster
      is for (ADR-0003 live-roster addendum, ADR-0029 roster addenda).
    - `flagcheck.py`: every subagent server the stack starts carries the flags its tier requires,
-     the reasoning-off pair and the tool-capable chat template. The set is derived from the
+     the reasoning-off pair, the tool-capable chat template and the host-RAM prompt cache turned
+     off. The set is derived from the
      stack's own wiring and argv rather than read from a list, so a server added anywhere is
      covered the day it is written, and every model artifact is named under a
      `CORTEX_MODEL_FILE_` variable found structurally rather than by prefix (ADR-0029 addenda on

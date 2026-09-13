@@ -4,6 +4,7 @@
 **Area:** repo-gates
 **Trigger:** a Dockerfile in this tree stands `FROM` an image this repo builds
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
+**Verified:** 2026-09-13
 
 Opened 2026-08-30 by the close of
 [R-493](493-a-base-may-declare-a-volume-through-onbuild.md), which decided that
@@ -41,3 +42,10 @@ another one, which is what the trigger on this entry watches for.
 - 2026-08-30: opened by the close of
   [R-493](493-a-base-may-declare-a-volume-through-onbuild.md), which recorded what a base's
   `ONBUILD` would declare and left the tree's own side of that dimension unread.
+- 2026-09-13: re-derived, and the trigger has not fired. The tree holds two Dockerfiles,
+  `brain/Dockerfile` and `brain/Dockerfile.modelhost`, and their four `FROM` lines name
+  `ghcr.io/astral-sh/uv:0.11-python3.12-trixie-slim`, `python:3.12-slim-trixie` and
+  `ghcr.io/ggml-org/llama.cpp:server-cuda` twice. Every one is a pulled reference, and the two
+  final stages, which are the ones `dockerfilebases.read_base` reads, are still the two images
+  this entry names. The compose stack builds `cortex-brain` and `cortex-model-host` and nothing
+  stands on either, so the hole this entry describes still costs nothing.
