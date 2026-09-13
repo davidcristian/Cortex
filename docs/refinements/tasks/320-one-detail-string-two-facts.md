@@ -3,6 +3,7 @@
 **Status:** open, a seam or port change comes first
 **Area:** seam-transport
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
+**Verified:** 2026-09-13
 
 Opened 2026-08-19 by the close of [304](304-spill-rides-the-residency-report.md), which put a second
 annotator on a **serving** residency report. `HealthReply.detail` is one string
@@ -26,3 +27,10 @@ second client that needs it rather than against the first that ran into it.
 - 2026-08-19: Opened by the close of [304](304-spill-rides-the-residency-report.md), which chose
   to say both facts rather than let whichever wrote last win, and recorded the display compromise
   that choice leaves: one field, one sentence, two remedies.
+- 2026-09-13: Re-derived, unchanged, and still at two annotators rather than three.
+  `HealthReply { bool ready = 1; string detail = 2; }` is the proto's shape today, and
+  `with_note` has exactly two callers, `residency_tiers.py` for a peer that is down and
+  `residency_pace.py` for a handoff that spilled, joined by the semicolon this entry describes.
+  `Health` in `server.py` passes whatever the residency composed, so the overlay still learns one
+  string and cannot tell that two facts arrived. The client that would decide the shape is still
+  the only client, so the entry waits where it was left.

@@ -3,6 +3,7 @@
 **Status:** open, dead until a consumer
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
+**Verified:** 2026-09-13
 **Trigger:** A read RPC on `BrainService` that recalls anything at all, meaning a handler that
 reads a memory port and composes what it finds into its reply. Today none does, so there is
 nothing for a reply to be partial about.
@@ -36,3 +37,10 @@ facts. Whoever builds the recall builds that at the same time.
   [341](341-nothing-declines-work-it-cannot-finish.md), which found on re-derivation that this one
   of its three shapes describes a cascade no read path has. Recorded in the ADR-0024 addendum on
   what the announced deadline is worth downstream.
+- 2026-09-13: Re-derived, unchanged, and the trigger has not fired. `session_servicer.py` holds all
+  five session RPCs and every one of them calls the store alone: `GetSessionMessages` is
+  `self._store.history(...)` mapped, and `SessionMemoryCascade` is still injected for
+  `DeleteSession` only, where it is a write and where the hard-delete-first ordering stands. The
+  other four read RPCs on the service, `ListDueReminders`, `AckReminder`, `GetPreferences` and
+  `SetPreference`, touch no memory port either. No read RPC recalls anything, so there is still no
+  site for the wire question this entry holds.

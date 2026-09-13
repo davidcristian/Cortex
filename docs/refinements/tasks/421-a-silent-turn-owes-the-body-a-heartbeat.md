@@ -3,16 +3,26 @@
 **Status:** open, a seam or port change comes first
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
+**Verified:** 2026-09-13
 
 Opened 2026-08-24 by the close of
 [R-303](303-turn-stream-stall.md), which bounded the turn stream's silence and could only draw the
 bound above the longest silence the brain legitimately produces.
 
-That bound is two hours, and it is honest rather than useful. It is sized by a delegated subtask,
-which waits up to `DEFAULT_ADMISSION_WAIT_S` (3600 s) for the CPU budget and then runs up to
-`DEFAULT_SUBAGENT_RUN_TIMEOUT_S` (2400 s), emitting nothing at the seam through either stretch
-unless it happens to call a tool. So the body cannot tell a brain working from a brain gone, and
-the overlay shows a thinking indicator for both.
+That bound is two hours (`DEFAULT_TURN_IDLE_GAP_MS = 7_200_000`), and it is honest rather than
+useful. It was sized by a delegated subtask, which waits for the CPU budget
+(`DEFAULT_ADMISSION_WAIT_S`) and then runs under a deadline
+(`DEFAULT_SUBAGENT_RUN_TIMEOUT_S`), emitting nothing at the seam through either stretch unless it
+happens to call a tool. So the body cannot tell a brain working from a brain gone, and the overlay
+shows a thinking indicator for both.
+
+The two numbers that sizing rests on are no longer the ones it was drawn from. The admission wait
+was 3600 s when the gap landed and is 7200 s now, raised the following day so a queued spawn never
+stops waiting on a run still inside the time this deployment granted it, and that grant is two run
+deadlines rather than one. The longest legitimate silence is therefore 12000 s against a 7200 s
+gap, so the bound sits under the silence it was drawn above instead of a fifth over it. That
+inversion does not change what this entry asks for, and it raises what the entry buys, because
+the heartbeat is what would let the gap come down rather than have to go up again.
 
 The tightening that suggests itself is rejected for a reason worth keeping: the delegation does
 emit a `StatusUpdate`, but progress travels on a best-effort sink that drops an event on
@@ -40,3 +50,15 @@ for a model thinking, a subagent queued, and a brain that stopped existing.
 bound tight is a brain change and possibly a proto change, which is a different slice with a
 different gate, and the trigger for it is the same one that never fired for the entry above: nobody
 here has yet watched a turn stall.
+
+## Trail
+
+- 2026-09-13: Re-derived against the two constants the bound is drawn from and the seam. The
+  rejected tightening still holds exactly as written: `ProgressSink.emit` drops on a saturated
+  buffer by design (`cortex_core/progress.py`), and the proto declares no keepalive, `ServerEvent`
+  carrying the same five event kinds it did when this was filed. The stall nobody has watched is
+  still unwatched, so the entry stays open. What changed is underneath it: the admission wait moved
+  from 3600 s to 7200 s the day after the gap landed, and the run bound counts twice rather than
+  once, so the arithmetic quoted here was stale and the gap it justified is now shorter than the
+  silence rather than longer. Corrected above, and the drift is written up in the ADR-0024
+  addendum on the admission wait moving without the gap.

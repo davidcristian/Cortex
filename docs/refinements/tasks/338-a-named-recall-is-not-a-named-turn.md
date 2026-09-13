@@ -3,12 +3,13 @@
 **Status:** open, a seam or port change comes first
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
+**Verified:** 2026-09-13
 
 `RecallPolicy.select` now carries a `session_id`, so the judge's two fallback warnings name the
 conversation they happened in. They still cannot name the recall. A session with twenty turns
-produces twenty recalls, every one of them logging the same `session`, so a fallback and the trail
-line for the recall it belongs to are joined only by adjacency in the stream, which is exactly what
-stops holding on a busy brain and on any collector that reorders.
+produces twenty recalls, every one of them logging the same `session_id`, so a fallback and the
+trail line for the recall it belongs to are joined only by adjacency in the stream, which is
+exactly what stops holding on a busy brain and on any collector that reorders.
 
 The gap is one level further back than the one just closed. `MemoryRecaller.recall(query, *, k,
 session_id)` takes no turn id either, so widening the policy port alone reaches nothing: the method
@@ -17,10 +18,10 @@ which it already holds and already logs beside the session when memory is unavai
 
 What makes this smaller than it sounds is that the plumbing is two signatures and a call, and what
 makes it larger is that the pairing target has no turn id of its own. `LoggingRecallSink` writes
-`session` and never a turn, so a turn on the fallback would be unmatched by the very line it exists
-to pair with until `RecallAudit` grows one too. That is a third signature and a value type, and it
-is where the real decision is: whether a recall is a fact about a turn or a fact about a session.
-Everything the trail carries today reads as the second.
+`session_id` and never a turn, so a turn on the fallback would be unmatched by the very line it
+exists to pair with until `RecallAudit` grows one too. That is a third signature and a value type,
+and it is where the real decision is: whether a recall is a fact about a turn or a fact about a
+session. Everything the trail carries today reads as the second.
 
 ## Trail
 
@@ -28,3 +29,13 @@ Everything the trail carries today reads as the second.
   [R-316](316-a-rank-fallback-cannot-name-its-turn.md), which gave the port a session and found the
   turn its own title had asked for was a further two signatures away. Recorded in the ADR-0038
   named-recall addendum.
+- 2026-09-13: Re-derived, and every signature this entry counts is still the shape it describes.
+  `MemoryRecaller.recall(query, *, k, session_id)` takes no turn id, `RecallPolicy.select` carries
+  `session_id` and nothing more, `RecallAudit` holds a `session_id` beside the query and the pool
+  and no turn, and the judge's two warnings in `rerank_judge.py` write `session_id` into their
+  `extra`. `assemble_inference_messages` still holds `context.turn_id` and still logs it beside the
+  session on the unavailable-memory warning, so the value is where the entry says it is. One name
+  corrected: the sink writes `session_id` rather than `session`, having been renamed to the
+  vocabulary the seam and the stores share, which changes nothing about the pairing this asks for.
+  The decision the entry names, whether a recall is a fact about a turn or about a session, is
+  untaken, so it stays open rather than being plumbed on the way past.
