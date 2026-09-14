@@ -1,5 +1,3 @@
-"""Config behavior: defaults and env overrides for the settings models."""
-
 import os
 
 import pytest
@@ -25,6 +23,7 @@ from cortex_orchestrator import (
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
+    MemoryConfigError,
     SeamServerConfig,
     SubagentRosterEntry,
     SubagentsConfig,
@@ -64,7 +63,6 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_VISION",
     ):
         monkeypatch.delenv(name, raising=False)
-    # The per-sidecar tool vars are open-ended (one per <name>); sweep by prefix.
     for name in list(os.environ):
         if name.startswith(("CORTEX_TOOLS_ENDPOINTS__", "CORTEX_TOOLS_ALLOW__")):
             monkeypatch.delenv(name, raising=False)
@@ -76,8 +74,8 @@ def test_seam_defaults_are_loopback_50051() -> None:
     assert config.host == "127.0.0.1"
     assert config.port == 50051
     assert config.bind_address == "127.0.0.1:50051"
-    assert config.converse_buffer == 256  # the converse.py default, one knob (backpressure)
-    assert config.token == ""  # auth off by default, so loopback-only stays the boundary
+    assert config.converse_buffer == 256
+    assert config.token == ""
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -120,26 +118,18 @@ def test_seam_explicit_arguments_beat_the_environment(monkeypatch: pytest.Monkey
 def test_runtime_defaults_match_the_dictated_contract() -> None:
     config = BrainRuntimeConfig()
     assert config.redis_url == "redis://127.0.0.1:6379/0"
-    assert config.cortex_model == "cortex"  # a LOGICAL model id (ADR-0004), never a path
-    assert config.vram_soft_cap_gb == 14.0  # the deliberate GPU budget (ADR-0004)
-    # The cortex tier's own peak cost, measured at its shipped shape (ADR-0012
-    # re-measured-reservation addendum), not the total-used figure the 2026-06-29 lineup set.
+    assert config.cortex_model == "cortex"
+    assert config.vram_soft_cap_gb == 14.0
     assert config.cortex_reservation_gb == 8.6
-    assert config.history_char_budget == 48_000  # ≈12K of the 16K-token context (ADR-0014)
-    assert config.output_guardrail == "redact"  # the laundering defense ships on (ADR-0015)
-    assert config.generate_titles is False  # opt-in: an extra inference call per new session
-    # On is a measured decision and the user's: a fold now decodes 61 to 163 tokens for 2.9 s to
-    # 5.6 s with no tail, announces itself on screen, and an opening fact survived five
-    # compounding folds 3 times of 3 (ADR-0038 cheap-fold addendum).
+    assert config.history_char_budget == 48_000
+    assert config.output_guardrail == "redact"
+    assert config.generate_titles is False
     assert config.history_summary is True
-    # A fold's floor, in the unit the budget it wraps is denominated in: below one stored
-    # account's worth of new material there is less to fold in than the account folded into.
     assert config.history_recap_min_chars == 2_000
 
 
 @pytest.mark.usefixtures("clean_env")
 def test_the_shipped_budget_places_one_subagent_on_the_gpu_and_overflows_the_next() -> None:
-    """The three shipped numbers, read as placements rather than as arithmetic."""
     runtime = BrainRuntimeConfig()
     ask = SubagentsConfig().vram_gb
     placer = VramBudgetPlacer(
@@ -154,7 +144,6 @@ def test_the_shipped_budget_places_one_subagent_on_the_gpu_and_overflows_the_nex
 
 @pytest.mark.usefixtures("clean_env")
 def test_the_shipped_subagent_ask_covers_the_tier_it_was_measured_from() -> None:
-    """The ask is a reservation, so it must sit above the tier's peak rather than at it."""
     measured_peak_mib = 3410
     margin_mib = SubagentsConfig().vram_gb * 1024 - measured_peak_mib
     assert margin_mib >= 130
@@ -168,7 +157,6 @@ def test_runtime_env_overrides_the_history_budget(monkeypatch: pytest.MonkeyPatc
 
 @pytest.mark.usefixtures("clean_env")
 def test_runtime_rejects_a_negative_history_budget(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 0 is the documented off switch; anything below it is a config mistake.
     monkeypatch.setenv("CORTEX_HISTORY_CHAR_BUDGET", "-1")
     with pytest.raises(ValidationError, match="history_char_budget"):
         BrainRuntimeConfig()
@@ -176,7 +164,6 @@ def test_runtime_rejects_a_negative_history_budget(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.usefixtures("clean_env")
 def test_runtime_env_turns_the_history_summary_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The knob a deployment that would rather forget than wait reaches for; the default is on.
     monkeypatch.setenv("CORTEX_HISTORY_SUMMARY", "false")
     assert BrainRuntimeConfig().history_summary is False
 
@@ -185,7 +172,6 @@ def test_runtime_env_turns_the_history_summary_off(monkeypatch: pytest.MonkeyPat
 def test_runtime_env_sets_how_much_dropped_text_is_worth_a_fold(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # 0 folds on every boundary move, which is what the summary did before it had a floor.
     monkeypatch.setenv("CORTEX_HISTORY_RECAP_MIN_CHARS", "0")
     assert BrainRuntimeConfig().history_recap_min_chars == 0
 
@@ -211,15 +197,12 @@ def test_runtime_env_disables_the_output_guardrail(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.usefixtures("clean_env")
 def test_runtime_env_selects_strict_guardrail(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The opt-in strict mode (ADR-0015 addendum): redact every non-user URL on a tainted turn.
     monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "strict")
     assert BrainRuntimeConfig().output_guardrail == "strict"
 
 
 @pytest.mark.usefixtures("clean_env")
 def test_runtime_env_selects_the_lookalike_guardrail(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The opt-in lookalike policy (ADR-0015 fourteenth addendum): the default policy plus every
-    # URL whose host is not plain ASCII on a tainted turn.
     monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "lookalike")
     assert BrainRuntimeConfig().output_guardrail == "lookalike"
 
@@ -258,9 +241,6 @@ def test_inference_defaults_to_echo_without_an_endpoint() -> None:
     config = InferenceConfig()
     assert config.backend == "echo"
     assert config.endpoint == ""
-    # Vision is discovered rather than declared, so the default has to be the probing mode: an
-    # `off` default would silently cost every deployment the capability, and `on` would advertise
-    # a screen read to a model that cannot see. Pinned to the literal for that reason.
     assert config.vision == "auto"
     assert config.stall_timeout_s == 120.0
 
@@ -294,7 +274,6 @@ def test_inference_llamacpp_without_endpoint_is_rejected(monkeypatch: pytest.Mon
 def test_the_resident_stall_ceiling_is_settable_and_must_be_positive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A slower card raises it; zero would refuse every stream on its first read."""
     monkeypatch.setenv("CORTEX_INFERENCE_STALL_TIMEOUT_S", "45.5")
     assert InferenceConfig().stall_timeout_s == 45.5
     monkeypatch.setenv("CORTEX_INFERENCE_STALL_TIMEOUT_S", "-1")
@@ -307,6 +286,9 @@ def test_body_defaults_to_disabled() -> None:
     config = BodyConfig()
     assert config.backend == "none"
     assert config.endpoint == ""
+    # Compared against literals rather than the constants production reads, so the check says what
+    # a deployment gets rather than restating a declaration. A 0 capture edge asks the body for its
+    # own default instead, and the body's own default is 1600.
     assert (
         config.capture_max_edge,
         config.max_image_bytes,
@@ -319,8 +301,6 @@ def test_body_defaults_to_disabled() -> None:
 @pytest.mark.parametrize(
     ("name", "value"),
     [
-        # Both bounds ride uint32 proto fields, so these are values no request could carry; the
-        # byte budget may also only tighten the domain ceiling, never loosen it.
         ("CORTEX_BODY_CAPTURE_MAX_EDGE", "-1"),
         ("CORTEX_BODY_CAPTURE_MAX_EDGE", "8193"),
         ("CORTEX_BODY_MAX_IMAGE_BYTES", "0"),
@@ -328,8 +308,6 @@ def test_body_defaults_to_disabled() -> None:
         ("CORTEX_BODY_MAX_IMAGE_BYTES", "5000000000"),
         ("CORTEX_BODY_CAPTURE_TIMEOUT_S", "0"),
         ("CORTEX_BODY_CAPTURE_TIMEOUT_S", "-3"),
-        # A deadline that can never be met is a call that can never succeed, so both refuse the
-        # same two shapes: a zero fails every call on arrival and a negative one is not a wait.
         ("CORTEX_BODY_CALL_TIMEOUT_S", "0"),
         ("CORTEX_BODY_CALL_TIMEOUT_S", "-3"),
     ],
@@ -337,9 +315,6 @@ def test_body_defaults_to_disabled() -> None:
 def test_a_capture_bound_outside_the_seam_fails_at_boot(
     monkeypatch: pytest.MonkeyPatch, name: str, value: str
 ) -> None:
-    """Without this validation each of these values turned every capture into an exception that
-    ended the turn: the request could not be built, and neither the tool nor the dispatcher
-    catches a ValueError."""
     monkeypatch.setenv(name, value)
     with pytest.raises(ValidationError):
         BodyConfig()
@@ -347,7 +322,6 @@ def test_a_capture_bound_outside_the_seam_fails_at_boot(
 
 @pytest.mark.usefixtures("clean_env")
 def test_a_tightened_capture_bound_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The control arm: the same knobs inside the seam's own limits are ordinary configuration."""
     monkeypatch.setenv("CORTEX_BODY_CAPTURE_MAX_EDGE", "1280")
     monkeypatch.setenv("CORTEX_BODY_MAX_IMAGE_BYTES", "2000000")
     monkeypatch.setenv("CORTEX_BODY_CAPTURE_TIMEOUT_S", "2.5")
@@ -383,10 +357,8 @@ def test_memory_defaults_to_disabled() -> None:
     assert config.backend == "none"
     assert config.dsn == ""
     assert config.embedder_endpoint == ""
-    assert config.scope == "global"  # recall spans conversations unless opted out
-    assert config.on_tainted == "skip"  # a tainted turn is dropped from memory by default
-    # The model rank ships on (ADR-0038 turn-cost addendum): measured better on the corpus that
-    # could have refuted it, and worth 0.515 s of time to first token on a recalling turn.
+    assert config.scope == "global"
+    assert config.on_tainted == "skip"
     assert config.recall == "judge"
 
 
@@ -399,7 +371,7 @@ def test_memory_scope_env_selects_session(monkeypatch: pytest.MonkeyPatch) -> No
 @pytest.mark.usefixtures("clean_env")
 def test_memory_on_tainted_env_selects_record(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_MEMORY_ON_TAINTED", "record")
-    assert MemoryConfig().on_tainted == "record"  # opt into provenance-marked recording (ADR-0019)
+    assert MemoryConfig().on_tainted == "record"
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -417,8 +389,35 @@ def test_memory_env_selects_pgvector_with_dsn_and_embedder(monkeypatch: pytest.M
 def test_memory_pgvector_without_dsn_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_MEMORY_BACKEND", "pgvector")
     monkeypatch.setenv("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://llama-embed:8081")
-    with pytest.raises(ValidationError, match="CORTEX_MEMORY_DSN and CORTEX_MEMORY_EMBEDDER"):
+    with pytest.raises(MemoryConfigError, match="CORTEX_MEMORY_DSN and CORTEX_MEMORY_EMBEDDER"):
         MemoryConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_pgvector_takes_a_dsn_the_driver_can_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_BACKEND", "pgvector")
+    monkeypatch.setenv("CORTEX_MEMORY_DSN", "postgresql://cortex:hunter@postgres:5432/cortex")
+    monkeypatch.setenv("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://llama-embed:8081")
+    assert MemoryConfig().dsn == "postgresql://cortex:hunter@postgres:5432/cortex"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_dsn_the_driver_cannot_read_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_BACKEND", "pgvector")
+    monkeypatch.setenv("CORTEX_MEMORY_DSN", "postgresql://cortex:hun/ter@postgres:5432/cortex")
+    monkeypatch.setenv("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://llama-embed:8081")
+    with pytest.raises(MemoryConfigError) as refused:
+        MemoryConfig()
+    message = str(refused.value)
+    assert "CORTEX_MEMORY_DSN" in message
+    assert "hun" not in message
+    assert "postgresql" not in message
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_dsn_is_unread_while_the_backend_is_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_DSN", "postgresql://cortex:hun/ter@postgres:5432/cortex")
+    assert MemoryConfig().backend == "none"
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -429,7 +428,7 @@ def test_tools_defaults_to_disabled() -> None:
     assert config.endpoints == {}
     assert config.allow == {}
     assert config.named_endpoints == {}
-    assert config.on_unavailable == "fail"  # a dead sidecar is loud unless opted into skip
+    assert config.on_unavailable == "fail"
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -452,7 +451,6 @@ def test_tools_env_selects_mcp_with_endpoint(monkeypatch: pytest.MonkeyPatch) ->
     config = ToolsConfig()
     assert config.backend == "mcp"
     assert config.endpoint == "http://fs:9000/mcp"
-    # The singular form is the sole named endpoint, so the wiring has one code path.
     assert config.named_endpoints == {"default": "http://fs:9000/mcp"}
 
 
@@ -465,13 +463,12 @@ def test_tools_mcp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch)
 
 @pytest.mark.usefixtures("clean_env")
 def test_tools_named_endpoints_merge_and_sort(monkeypatch: pytest.MonkeyPatch) -> None:
-    """One env var per sidecar (compose overrides merge key-wise), sorted-name precedence."""
     monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
     monkeypatch.setenv("CORTEX_TOOLS_ENDPOINTS__FILESYSTEM", "http://mcp-filesystem:9000/mcp")
     monkeypatch.setenv("CORTEX_TOOLS_ENDPOINTS__EMAIL", "http://mcp-email:9100/mcp")
     monkeypatch.setenv("CORTEX_TOOLS_ALLOW__FILESYSTEM", '["read_text_file", "list_directory"]')
     config = ToolsConfig()
-    assert list(config.named_endpoints) == ["email", "filesystem"]  # sorted, not env order
+    assert list(config.named_endpoints) == ["email", "filesystem"]
     assert config.named_endpoints["filesystem"] == "http://mcp-filesystem:9000/mcp"
     assert config.allow == {"filesystem": ("read_text_file", "list_directory")}
 
@@ -500,12 +497,9 @@ def test_subagents_default_to_disabled() -> None:
     assert config.backend == "none"
     assert config.endpoint == ""
     assert config.gpu_endpoint == ""
-    assert config.model == "subagent"  # a LOGICAL id (ADR-0004), never a path
+    assert config.model == "subagent"
     assert (config.vram_gb, config.cpus, config.memory_gb) == (3.5, 2.0, 3.0)
     assert (config.cpu_budget, config.mem_budget_gb) == (4.0, 8.0)
-    # Against the literal rather than the constant it was assigned from. Ten minutes is twice the
-    # longest whole subtask measured on the shipped CPU entry, which is what a queued peer can
-    # legitimately sit behind; a tighter number would abort slow work instead of wedged work.
     assert config.stall_timeout_s == 600.0
     assert config.admission_wait_s == 7200.0
 
@@ -534,7 +528,7 @@ def test_subagents_llamacpp_without_both_endpoints_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CORTEX_SUBAGENTS_BACKEND", "llamacpp")
-    monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", "http://llama-subagent-cpu:8082")  # GPU missing
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", "http://llama-subagent-cpu:8082")
     with pytest.raises(ValidationError, match="CORTEX_SUBAGENTS_GPU_ENDPOINT are required"):
         SubagentsConfig()
 
@@ -550,7 +544,6 @@ def test_subagents_budget_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> N
 def test_the_subagent_stall_ceiling_is_settable_and_must_be_positive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A deployment on faster CPUs tightens it; zero would mean a stream that may never read."""
     monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "90")
     assert SubagentsConfig().stall_timeout_s == 90.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "0")
@@ -562,9 +555,6 @@ def test_the_subagent_stall_ceiling_is_settable_and_must_be_positive(
 def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Zero is a valid policy here, unlike the ceiling above: it means never queue and refuse what
-    does not fit.
-    """
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "6000")
     assert SubagentsConfig().admission_wait_s == 6000.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "0")
@@ -578,11 +568,6 @@ def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
 def test_the_total_generation_cap_is_settable_and_both_halves_must_be_real_bounds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Neither half has an off switch: the whole of this bound is that a run cannot be unbounded.
-
-    Zero tokens and a zero deadline would each be a spawn that fails before it produces anything,
-    which is not a policy any deployment wants, unlike the admission wait's zero above.
-    """
     monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "512")
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "900")
     config = SubagentsConfig()
@@ -600,7 +585,6 @@ def test_the_total_generation_cap_is_settable_and_both_halves_must_be_real_bound
 def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The precedence between the two bounds is enforced at boot rather than only written down."""
     monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "600")
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "600")
     with pytest.raises(ValidationError, match="must be greater than"):
@@ -613,17 +597,13 @@ def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boo
 def test_a_hold_no_queued_peer_would_outlast_fails_the_brain_at_boot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The other half of the deadline's ordering is refused at boot rather than only written down.
-    """
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "1800")
-    # A hold exactly equal to the wait, which is the boundary and the arm the strictness is for.
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "900")
     with pytest.raises(ValidationError, match="which must be less than"):
         SubagentsConfig()
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "2400")
     with pytest.raises(ValidationError, match="which must be less than"):
         SubagentsConfig()
-    # One second under it, which is the tightest pair that boots.
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "899.5")
     assert SubagentsConfig().run_timeout_s == 899.5
 
@@ -632,14 +612,10 @@ def test_a_hold_no_queued_peer_would_outlast_fails_the_brain_at_boot(
 def test_what_the_wait_is_compared_with_is_the_hold_and_not_one_attempts_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The comparison uses the whole hold, which is two attempts, rather than one attempt's
-    deadline.
-    """
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "1800")
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "1000")
     with pytest.raises(ValidationError, match=r"can hold its room for 2000\.0 s"):
         SubagentsConfig()
-    # The same pair with the hold brought under the wait, which is the fix the message names.
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "2001")
     assert SubagentsConfig().attempt_bounds.timeout_s == 1000.0
 
@@ -648,8 +624,6 @@ def test_what_the_wait_is_compared_with_is_the_hold_and_not_one_attempts_deadlin
 def test_a_pool_that_never_queues_keeps_whatever_deadline_it_was_given(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A zero wait is a policy rather than the smallest inversion, so the ordering above skips it.
-    """
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "0")
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "3000")
     config = SubagentsConfig()
@@ -665,8 +639,6 @@ def _llamacpp_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.usefixtures("clean_env")
 def test_subagents_roster_entries_parse_from_env_json(monkeypatch: pytest.MonkeyPatch) -> None:
-    # One CORTEX_SUBAGENTS_ROSTER__<name> JSON object per alternate model (ADR-0018); the
-    # env-name suffix becomes the lowercase entry name, exactly as the tools endpoints do.
     _llamacpp_env(monkeypatch)
     monkeypatch.setenv(
         "CORTEX_SUBAGENTS_ROSTER__QWEN",
@@ -698,12 +670,11 @@ def test_subagents_named_roster_synthesizes_the_default_from_the_flat_fields() -
         },
     )
     named = config.named_roster
-    assert list(named) == ["subagent", "big", "qwen"]  # the default first, alternates sorted
+    assert list(named) == ["subagent", "big", "qwen"]
     default = named["subagent"]
     assert (default.endpoint, default.gpu_endpoint) == ("http://cpu:8082", "http://gpu:8082")
     assert (default.vram_gb, default.memory_gb) == (5.5, 3.0)
-    assert "injection-robust" in default.description  # the advertised default text
-    # An alternate's empty gpu_endpoint is normalized to its endpoint; a set one is kept.
+    assert "injection-robust" in default.description
     assert named["qwen"].gpu_endpoint == "http://qwen:8083"
     assert named["big"].gpu_endpoint == "http://big-gpu:8085"
 
@@ -717,8 +688,6 @@ def test_subagents_named_roster_is_empty_when_delegation_is_disabled() -> None:
 def test_subagents_roster_key_naming_the_default_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The default entry's resources come from the flat fields. A roster entry shadowing it
-    # would be a second source of truth.
     _llamacpp_env(monkeypatch)
     monkeypatch.setenv("CORTEX_SUBAGENTS_MODEL", "qwen")
     monkeypatch.setenv("CORTEX_SUBAGENTS_ROSTER__QWEN", '{"endpoint": "http://qwen:8083"}')
@@ -734,9 +703,8 @@ def test_subagents_roster_key_naming_the_default_is_rejected(
 def test_subagents_reject_a_default_ask_larger_than_the_whole_budget(
     monkeypatch: pytest.MonkeyPatch, knob: str, value: str
 ) -> None:
-    """A spawn the scheduler could only ever reject is a wiring error, caught at boot."""
     _llamacpp_env(monkeypatch)
-    monkeypatch.setenv(knob, value)  # against the 4.0 cpu / 8.0 GB budget defaults
+    monkeypatch.setenv(knob, value)
     with pytest.raises(ValidationError, match="no spawn of it could ever be admitted"):
         SubagentsConfig()
 
@@ -745,7 +713,6 @@ def test_subagents_reject_a_default_ask_larger_than_the_whole_budget(
 def test_subagents_reject_a_roster_alternate_larger_than_the_whole_budget(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Every entry is checked, not just the flat-field default: an alternate carries its own ask."""
     _llamacpp_env(monkeypatch)
     monkeypatch.setenv(
         "CORTEX_SUBAGENTS_ROSTER__QWEN", '{"endpoint": "http://qwen:8083", "cpus": 9.0}'
@@ -758,7 +725,6 @@ def test_subagents_reject_a_roster_alternate_larger_than_the_whole_budget(
 def test_subagents_accept_an_ask_equal_to_the_whole_budget(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The scheduler admits an exactly-budget charge (alone), so the boot check must too."""
     _llamacpp_env(monkeypatch)
     monkeypatch.setenv("CORTEX_SUBAGENTS_CPUS", "4.0")
     monkeypatch.setenv("CORTEX_SUBAGENTS_MEMORY_GB", "8.0")
@@ -769,7 +735,6 @@ def test_subagents_accept_an_ask_equal_to_the_whole_budget(
 def test_subagents_ignore_the_budget_check_while_delegation_is_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With backend=none no scheduler exists, so a stale ask blocks nothing (empty roster)."""
     monkeypatch.setenv("CORTEX_SUBAGENTS_CPUS", "99.0")
     assert SubagentsConfig().named_roster == {}
 
@@ -801,9 +766,6 @@ def test_seam_rejects_a_non_positive_confirm_timeout(monkeypatch: pytest.MonkeyP
 
 
 def test_tools_gated_defaults_to_escalate_and_send_email() -> None:
-    # The fail-closed pairing (ADR-0022): enabling the email sidecar's write path without
-    # touching gating config still gates it. The escalate built-in joins as the dispatcher's
-    # backstop behind its own always-gated advertised flag (ADR-0030 decision 1).
     assert ToolsConfig().gated == (ESCALATE_TOOL_NAME, "send_email")
 
 
@@ -818,9 +780,6 @@ def test_tools_env_empties_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_gate_reasons_default_to_the_escalate_card_text() -> None:
-    # The one per-tool reason wired out of the box (ADR-0030 decision 1): the generic
-    # "outbound or irreversible" line is false about a model swap, so the escalate card says
-    # what is actually being approved; every other gated tool keeps the generic reason.
     policy = ToolsConfig().dispatch_policy
     assert policy.gate_reasons == {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON}
 
@@ -834,48 +793,34 @@ def test_gate_reasons_env_sets_one_tool_per_key(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_setting_one_gate_reason_does_not_silently_drop_the_escalate_one() -> None:
-    # Same merge argument as cost_policy: a nested-dict env key replaces the whole mapping,
-    # so the built-in escalate reason is merged under the user's, never kept as the default.
     merged = ToolsConfig(gate_reasons={"send_email": "sends as you"}).gate_reason_map
     assert merged[ESCALATE_TOOL_NAME] == ESCALATE_GATE_REASON
     assert merged["send_email"] == "sends as you"
 
 
 def test_restating_the_escalate_gate_reason_overrides_it() -> None:
-    # The merge is a floor, not a lock: a user who names the tool explicitly means it.
     merged = ToolsConfig(gate_reasons={ESCALATE_TOOL_NAME: "my own words"}).gate_reason_map
     assert merged[ESCALATE_TOOL_NAME] == "my own words"
 
 
 def test_a_blank_gate_reason_fails_at_boot() -> None:
-    # A blank reason would render an empty confirm-card line: a consent surface that no
-    # longer says what is being approved fails loudly at boot, not silently on screen.
     with pytest.raises(ValidationError, match=r"GATE_REASONS must be non-empty.*send_email"):
         ToolsConfig(gate_reasons={"send_email": "   "})
 
 
 def test_tools_costs_price_only_the_fan_out_tool_by_default() -> None:
-    # `spawn_subagents` is the one wired tool whose single dispatch becomes a batch of model
-    # runs and which no confirmation gate bounds (ADR-0009 cost addendum). `send_email` is
-    # deliberately unpriced: every send already needs the user's approval.
     policy = ToolsConfig().cost_policy
     assert policy.cost_of(SPAWN_TOOL_NAME) == DEFAULT_SPAWN_COST
-    assert DEFAULT_SPAWN_COST * 4 == MAX_TOOL_DISPATCHES  # four delegations a turn
+    assert DEFAULT_SPAWN_COST * 4 == MAX_TOOL_DISPATCHES
     assert policy.cost_of("send_email") == DEFAULT_TOOL_COST
 
 
 def test_tools_env_prices_one_tool_per_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The per-key form (not a JSON blob) is what lets layered compose overrides each
-    # contribute the price of the tool they enable. Env keys are matched case-insensitively,
-    # so the compose-style uppercase name reaches the lowercase tool name.
     monkeypatch.setenv("CORTEX_TOOLS_COSTS__READ_FILE", "3")
     assert ToolsConfig().costs == {"read_file": 3}
 
 
 def test_pricing_one_tool_does_not_silently_unprice_the_built_in_one() -> None:
-    # A nested-dict env key replaces the whole mapping, so a built-in price kept as the
-    # field's default would vanish the moment a user priced anything else, un-pricing the
-    # fan-out tool as a side effect of an unrelated knob. The policy merges instead.
     policy = ToolsConfig(costs={"read_file": 3}).cost_policy
     assert policy.cost_of("read_file") == 3
     assert policy.cost_of(SPAWN_TOOL_NAME) == DEFAULT_SPAWN_COST
@@ -883,52 +828,36 @@ def test_pricing_one_tool_does_not_silently_unprice_the_built_in_one() -> None:
 
 
 def test_restating_a_built_in_price_overrides_it() -> None:
-    # The merge is a floor, not a lock: a user who names the tool explicitly means it.
     assert ToolsConfig(costs={SPAWN_TOOL_NAME: 2}).cost_policy.cost_of(SPAWN_TOOL_NAME) == 2
 
 
 @pytest.mark.parametrize("cost", [0, -2, MAX_TOOL_DISPATCHES + 1])
 def test_a_tool_cost_outside_the_budget_range_fails_at_boot(cost: int) -> None:
-    # Both ends hide rather than announce themselves at runtime: free means the budget stops
-    # bounding that tool, and unaffordable means it never runs and the first call closes the
-    # turn's budget. Neither is worth debugging from behavior, so the brain refuses to start.
     expected = rf"CORTEX_TOOLS_COSTS must be 1\.\.{MAX_TOOL_DISPATCHES}: \['read_file'\]"
     with pytest.raises(ValidationError, match=expected):
         ToolsConfig(costs={"read_file": cost})
 
 
 def test_salience_defaults_to_refusing_a_repeat() -> None:
-    # A bound ships on, like the round cap and the dispatch budget before it: one that ships
-    # off protects nobody, and its escape hatch is the knob below.
     assert ToolsConfig().salience_policy == RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)
 
 
 def test_salience_off_restores_the_unfiltered_loop() -> None:
-    # The core takes a policy object; the composition root maps the string, the
-    # record_tainted_memory precedent.
     assert ToolsConfig(salience="off").salience_policy is ALWAYS_SALIENT
 
 
 def test_the_configured_salience_limit_reaches_the_policy() -> None:
-    # The knob ADR-0009's salience addendum named for the deployment where two proves wrong.
-    # The policy already took the number, so what lands here is the wire from env to it, and a
-    # retune that never reached the policy would leave the loop on the shipped default.
     assert ToolsConfig(salience_limit=3).salience_policy == RepeatSalience(limit=3)
 
 
 @pytest.mark.parametrize("limit", [0, -1])
 def test_a_salience_limit_below_one_fails_at_boot(limit: int) -> None:
-    # Zero refuses every call including the first, so the loop runs its rounds, dispatches
-    # nothing, and reports refusals the model cannot act on: a silent hole rather than a
-    # visible failure. The core rejects it at construction; the brain refuses to start.
     expected = f"CORTEX_TOOLS_SALIENCE_LIMIT must be positive: {limit}"
     with pytest.raises(ValidationError, match=expected):
         ToolsConfig(salience_limit=limit)
 
 
 def test_the_salience_limit_is_inert_when_salience_is_off() -> None:
-    # AlwaysSalient counts nothing, so a number set beside `off` bounds nothing at all. Pinned
-    # here so the inertness is documented behavior rather than something found in production.
     assert ToolsConfig(salience="off", salience_limit=5).salience_policy is ALWAYS_SALIENT
 
 
@@ -943,15 +872,11 @@ def test_the_shipped_call_timeout_is_the_cores_own_bound() -> None:
 
 
 def test_an_unknown_salience_name_fails_at_boot() -> None:
-    # A typo would otherwise silently keep the default, which is the failure mode a knob whose
-    # whole purpose is to turn a bound off must not have.
     with pytest.raises(ValidationError):
         ToolsConfig(salience="sometimes")  # pyright: ignore[reportArgumentType]
 
 
 def test_the_dispatch_policy_carries_all_three_declarations() -> None:
-    # One value is what the dispatcher and both its builders take, so a declaration cannot
-    # reach the cortex and miss subagents (or the reverse) by being threaded separately.
     policy = ToolsConfig(
         gated=("send_email",), costs={"read_file": 3}, salience="off"
     ).dispatch_policy

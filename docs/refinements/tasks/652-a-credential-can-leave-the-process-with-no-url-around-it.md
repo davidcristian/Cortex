@@ -1,13 +1,8 @@
 # A credential can leave the process with no URL around it
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-14
 **Area:** cross-cutting
-**Trigger:** an operator setting `CORTEX_PG_PASSWORD` to a password `asyncpg` cannot read as an
-authority, which today means one carrying a `/`. Two readings answer it: `grep -rn "PG_PASSWORD"
-docker/` says what ships, and putting the resulting DSN through `asyncpg.create_pool` says what the
-failure names. This entry's trail records what both answered when they were last taken.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-14
 
 Opened 2026-09-12 by the trigger sweep of
 [R-343](343-a-userinfo-the-pattern-cannot-reach.md), which asks which credentials inside a URL the
@@ -55,6 +50,18 @@ URL syntax, and a credential can leave the process outside that syntax entirely.
 
 ## Trail
 
+- 2026-09-14: landed as the first of the three shapes. `MemoryConfig` carries a second
+  `model_validator` refusing a DSN whose authority the Postgres driver cannot read
+  (`authority_is_readable`, `brain/packages/orchestrator/src/cortex_orchestrator/dsn.py`, which
+  reruns three of `asyncpg`'s own parsing steps), and both of that class's validators now raise
+  `MemoryConfigError` rather than `ValueError`: Pydantic renders the validated input beside a
+  converted message, so the entry's own proposal of a validator naming the variable and never the
+  value would have printed the credential anyway. The second shape, routing a startup traceback
+  through the formatter, is filed as
+  [R-664](664-a-startup-traceback-reaches-stderr-with-no-formatter.md); the third, documenting
+  RFC 3986's requirement, is declined as a requirement rather than a defence. The reasoning, the
+  Pydantic rendering and the mutation table are in the ADR-0038 unreadable-DSN addendum, and the
+  reading to retake after a driver upgrade is in the memory runbook.
 - 2026-09-14: trigger swept and not fired, and both halves re-derived. `grep -rn "PG_PASSWORD"
   docker/` still finds `CORTEX_PG_PASSWORD` only in `docker/docker-compose.memory.yml`, defaulting
   to `cortex` in all three places that spell it, the DSN, the Postgres server's own

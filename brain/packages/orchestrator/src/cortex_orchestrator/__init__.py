@@ -20,6 +20,7 @@ from cortex_orchestrator.config import (
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
+    MemoryConfigError,
     SeamServerConfig,
 )
 from cortex_orchestrator.config_body import BodyConfig
@@ -104,6 +105,7 @@ __all__ = [
     "EngineFactory",
     "InferenceConfig",
     "MemoryConfig",
+    "MemoryConfigError",
     "ScheduleConfig",
     "ScheduleTicker",
     "SeamConfirmer",

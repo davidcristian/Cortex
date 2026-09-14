@@ -86,6 +86,35 @@ the DSN and the embedder endpoint and nothing else, so this runbook documented v
 operator running the stack in Docker had no way to supply. The pass-through block landed with the
 turn-cost harness (ADR-0038 harness addendum), which needs exactly this restart between arms.
 
+## The password the DSN can carry (ADR-0038 unreadable-DSN addendum)
+
+`CORTEX_PG_PASSWORD` reaches Postgres twice, once as the server's own password and once inside
+`CORTEX_MEMORY_DSN`, and inside a URL it has to be percent-encoded. A password carrying a character
+that ends a URL's authority, `/` above all, makes the driver read the password's first segment as
+a port. The brain refuses that at boot, before anything dials:
+
+```
+cortex_orchestrator.config.MemoryConfigError: CORTEX_MEMORY_DSN carries an authority the Postgres
+driver cannot read; percent-encode any password character that would end a URL's authority
+```
+
+The refusal names the variable and no part of what it holds, because nothing catches it and the
+interpreter prints it. Percent-encode the character (`/` is `%2F`) in the DSN and leave
+`POSTGRES_PASSWORD` as the raw text, which is not a URL.
+
+The check reruns three of `asyncpg`'s own parsing steps rather than calling it, since the driver
+reads the DSN inside `create_pool` and by then the failure has already happened. After upgrading
+the driver, retake the reading those steps are mirrored from:
+
+```
+cd brain && .venv/bin/python -c "import asyncio, asyncpg; \
+  asyncio.run(asyncpg.create_pool('postgresql://cortex:hun/ter@postgres:5432/cortex'))"
+```
+
+On 0.31.0 that raises `ValueError: invalid literal for int() with base 10: 'hun'`, the password's
+first segment and nothing else. An upgrade that fails differently, or fails at connection time
+instead, is a driver whose parse `dsn.py` no longer mirrors.
+
 ## Memory scoping (ADR-0008 scoping addendum)
 
 Recall is **global by default** (`CORTEX_MEMORY_SCOPE=global`). Memories are one shared space

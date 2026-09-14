@@ -132,7 +132,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   policy (the model rank is a policy over the inference port, which is why `build_memory` now takes
   that port and the cortex id) and `recall_audit_from_config(config)` maps the flag to
   `LoggingRecallSink` or to `None`. Validates that
-  `pgvector` has both a DSN and an embedder endpoint. Set by `docker/docker-compose.memory.yml`.
+  `pgvector` has both a DSN and an embedder endpoint, and that the DSN's authority is one the
+  Postgres driver can read (`authority_is_readable`, `dsn.py`, ADR-0038 unreadable-DSN addendum):
+  a password carrying a character that ends a URL's authority makes `asyncpg` read the password's
+  first segment as a port and name it in a `ValueError` no withholding rule over URL syntax
+  reaches. Both refusals raise `MemoryConfigError` rather than `ValueError`, since Pydantic renders
+  the validated input beside a converted message and this class's input is the DSN. Set by
+  `docker/docker-compose.memory.yml`.
 - `ToolsConfig` uses env prefix `CORTEX_TOOLS_`, nested delimiter `__` (`config_tools.py`, split
   off at `config.py`'s line cap as the third dispatch declaration landed; ADR-0009 + refinements
   addendum): `backend: "none" | "mcp" = "none"` (`CORTEX_TOOLS_BACKEND`); endpoints in one of
