@@ -9,7 +9,7 @@ the widest line the tree can build is read off the two shipped sinks by renderin
 `LoggingAuditSink`'s eleven fields through `PlainFormatter` with the four a model or a tool server
 writes each past `VALUE_CHARS`. This entry's trail records both when they were last taken.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 
 `VALUE_CHARS` bounds one field's value at 2,048 rendered characters. A line carries a message and
 as many fields as its call site attached, so **eight** fields at the bound pass the measured 16 KiB
@@ -100,3 +100,17 @@ day that field is written rather than the day the line is read.
   cheaper alternative still stands. The live half was not re-read, `just recall-width` needing the
   card that a long measurement was holding all session, so the 1,800-character live reading of
   2026-08-27 remains the only one taken off a running stack.
+- 2026-09-14: trigger swept again and not fired, and every in-process figure re-derived. Rendered
+  through the shipped `PlainFormatter` today, the widest line the tree can build, the audit-shaped
+  record with a million characters in each of its four model-written fields, is **8,573 characters,
+  52.3% of the 16,383 cliff and a headroom factor of 1.91**; the recall trail at its shipped caps
+  renders at 2,256; seven fields at the bound make 14,571 characters and eight make 16,647, so seven
+  is still the headroom in fields. Both sinks were counted off their own `extra=` dicts again and
+  both still carry eleven keys at their widest, the audit's being `tool`, `ok`, `arguments`,
+  `trust`, `at`, whichever of the five work identities the dispatch carried, and `error`. The three
+  absolute widths this entry has now recorded for one shape, 8,580, 8,437 and 8,573, sit within 1.7%
+  of each other and move with the level, logger and message a run chose, which is why the field
+  count is the reading that carries. The entry is unchanged in substance: the line is still
+  unbounded, still ungated, and the cheaper alternative is still the more attractive of the two. The
+  live half was not re-read again, `just recall-width` needing a running stack this slot's box had
+  no room for, so the 1,800-character reading of 2026-08-27 is still the only one taken off one.

@@ -9,7 +9,7 @@ and each shape is read by putting the URL through `render_value` and then throug
 twice, as a field and as a message, which is five answers and not one. This entry's trail records
 what the shipped URLs and each shape answered when that was last run.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three shapes of credential:
 
@@ -45,6 +45,20 @@ that was already outside the URL grammar.
 
 ## Trail
 
+- 2026-09-14: trigger swept a fourth time and not fired, and the five readings reproduce the table
+  below cell for cell: a `/` in the userinfo is exposed in all five, a space, a U+00A0 and a U+3000
+  are exposed in all five, a tab, a newline, a carriage return, a vertical tab and a form feed are
+  withheld everywhere except the plain rendering's message, a `"` or a `\` is withheld everywhere,
+  and a credential with no scheme in front of it is exposed in all five. The compose files are
+  unchanged: `CORTEX_MEMORY_DSN` is still the only URL built with a credential and
+  `CORTEX_PG_PASSWORD` still defaults to `cortex`. One count in the reading below has grown without
+  changing what it concluded. The grep for a URL among the brain's `extra=` dicts finds six call
+  sites today rather than one: five attach a URL, two in `cortex_inference/lever.py`, two in
+  `cortex_orchestrator/vision.py` and one in `cortex_model_manager/probe.py`, and the sixth,
+  `server.py`'s listening line, attaches a bare host and port. None of the six can carry a
+  credential, every one of them naming an inference or control endpoint the compose files build
+  without one, so the conclusion stands: a connection URL reaches a line only inside a library's
+  exception text or a traceback.
 - 2026-09-12: trigger swept a third time and not fired, and the sweep found that the pattern is not
   the only thing standing between the one shipped credential and a log line. The five readings
   reproduce the 2026-09-08 table cell for cell, and the compose files are unchanged:

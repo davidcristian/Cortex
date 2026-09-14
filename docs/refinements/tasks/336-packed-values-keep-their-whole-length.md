@@ -8,7 +8,7 @@ it that reads entries rather than lines. Both limbs come off the compose files:
 those files declare are where a collector would be. This entry's trail records what that reading
 answered when it was last taken, and what a packed line of the widest shipped record measures.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 
 The per-value bound landed in `render_value`, which only the plain rendering spends.
 `PackedFormatter` hands `record_fields(record)` straight to `json.dumps`, so a field of any size
@@ -37,6 +37,22 @@ purpose, which is where it stands today and is only accurate while nobody runs i
 
 ## Trail
 
+- 2026-09-14: trigger swept a fourth time and not fired, and the widths re-measured. The compose
+  files still ship `plain` in both variables, `CORTEX_LOG_FORMAT` in `docker/docker-compose.yml`
+  and `CORTEX_MODELHOST_LOG_FORMAT` in `docker/docker-compose.gpu.yml`, no `.env` in the tree sets
+  either, and the eleven services those files declare still include no collector: `brain`, `redis`,
+  `postgres`, `pg-backup`, `llama-embed`, `mcp-filesystem`, `mcp-email`, `model-host`, two
+  `llama-subagent` servers and the IMAP probe. `render_value` is still reached only through
+  `render_fields` from `PlainFormatter.formatMessage`; the only other mentions of the three names in
+  the brain are the `_surface/logs.py` re-exports. Re-measured today, the audit-shaped record whose
+  four model-written fields each carry a million characters renders at **8,573 characters plain with
+  four cut markers and 4,000,442 packed with none**, again 245 of the driver's messages against one.
+  The same run puts one trail record at its shipped caps at 2,256 plain and 2,476 packed, so the
+  packed rendering again costs **220 characters more** on a record carrying no over-long value,
+  which is the same delta as 2026-09-12 against plain widths that moved. Three runs of the wide
+  shape have now recorded 8,580, 8,437 and 8,573, a spread of 1.7% that comes from the level, logger
+  and message each run chose, so what this entry publishes as portable is the marker count, the
+  message count and that 220.
 - 2026-09-12: trigger swept a third time and not fired, and this entry is not the same defect as
   [R-337](337-a-bounded-value-leaves-the-line-unbounded.md), which was the question the sweep was
   asked. The compose files are unchanged, `plain` in both variables and no collector among the

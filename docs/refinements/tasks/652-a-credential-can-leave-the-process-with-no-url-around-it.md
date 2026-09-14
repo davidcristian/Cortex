@@ -7,7 +7,7 @@ authority, which today means one carrying a `/`. Two readings answer it: `grep -
 docker/` says what ships, and putting the resulting DSN through `asyncpg.create_pool` says what the
 failure names. This entry's trail records what both answered when they were last taken.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 
 Opened 2026-09-12 by the trigger sweep of
 [R-343](343-a-userinfo-the-pattern-cannot-reach.md), which asks which credentials inside a URL the
@@ -55,6 +55,22 @@ URL syntax, and a credential can leave the process outside that syntax entirely.
 
 ## Trail
 
+- 2026-09-14: trigger swept and not fired, and both halves re-derived. `grep -rn "PG_PASSWORD"
+  docker/` still finds `CORTEX_PG_PASSWORD` only in `docker/docker-compose.memory.yml`, defaulting
+  to `cortex` in all three places that spell it, the DSN, the Postgres server's own
+  `POSTGRES_PASSWORD` and the backup job's `PGPASSWORD`, and that default carries no `/`. On
+  `asyncpg` 0.31.0 today, `create_pool("postgresql://cortex:hun/ter@postgres:5432/cortex")` raises
+  the same `ValueError: invalid literal for int() with base 10: 'hun'` recorded above, and a
+  password of `pw/5432` raises the same error naming `pw`, so what reaches the message is the
+  segment in front of the `/` and nothing about the word itself. The three other shapes answer as
+  before in substance: an unknown scheme is refused naming the scheme alone, and a password carrying
+  a space or an `@` names no part of itself, though run outside the compose network those two fail
+  at name resolution rather than by timing out, `postgres` resolving nowhere here. The second half
+  is unchanged in the code: `memory_builders.py` still awaits
+  `PgVectorMemoryStore.connect(config.dsn)` with no `except` around it, `__main__.py` still runs
+  `asyncio.run(run_from_env())` under a bare entry guard, and `MemoryConfig`'s one validator still
+  checks only that a pgvector deployment names both a DSN and an embedder. So a startup failure is
+  still printed by the interpreter rather than through the formatter.
 - 2026-09-12: opened by the trigger sweep of
   [R-343](343-a-userinfo-the-pattern-cannot-reach.md). `CORTEX_PG_PASSWORD` still defaults to
   `cortex` in `docker/docker-compose.memory.yml` and carries no `/`, so the trigger has not fired.
