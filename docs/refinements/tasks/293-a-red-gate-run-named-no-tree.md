@@ -4,7 +4,7 @@
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
 **Trigger:** the next red `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a pass can reproduce from.
-**Verified:** 2026-09-11
+**Verified:** 2026-09-14
 
 **What was observed.** Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a
 tree that passed on both sides of it with nothing changed in between. The first was on the commit
@@ -79,3 +79,14 @@ only that the rate is not negligible.
   a fixed seed it prints in its own header: 9973 for the brain, 7919 for the gate tree, 104729
   for the body's coverage run and 65537 for the overlay. The two files describing an intermittent
   failure are still this one and [R-115](115-stop-bounds-deadline-check.md).
+- 2026-09-14: read against the tree and not fired. No red run of the gate has been kept since the
+  reading above: no task file or decision record dated 2026-09-12 or later describes one, and the
+  only two files describing an intermittent failure are still this one and
+  [R-115](115-stop-bounds-deadline-check.md). The mechanism the trigger relies on was re-read
+  rather than assumed. `just check` still runs the four trees in parallel, buffers each into its
+  own log, and prints `=== check-<tree>: OK|FAILED ===` ahead of it, and the four fixed seeds are
+  where they were: 9973 in `brain/pyproject.toml`, 7919 in `scripts/pyproject.toml`, 104729 on the
+  body's coverage run in the justfile, and 65537 in `body/app/vite.config.ts`. The pre-commit hook
+  is still the only thing that runs this gate on a schedule anybody keeps, because no workflow in
+  this repository has executed once
+  ([R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md) holds today's reading of that).

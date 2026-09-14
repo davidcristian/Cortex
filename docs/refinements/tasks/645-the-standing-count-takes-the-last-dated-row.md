@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** the date the standing line prints is not the date of the ledger's last pass, which
 is what a row dated in another format or appended out of order produces.
 
@@ -34,3 +34,15 @@ condition no commit caused.
   [R-439](439-nothing-counts-the-record-between-passes.md), whose
   [ADR-0002 standing-count addendum](../../adr/ADR-0002-toolchain-gates.md) records the four arms
   the new line was measured over, one of which is the ledger carrying no dated row at all.
+
+- 2026-09-14: re-derived and not fired, and the guess that this entry and
+  [R-646](646-the-standing-count-includes-the-pass-day.md) are one defect was tested and is wrong.
+  The ledger still carries the two rows of 2026-08-21 and 2026-08-25, both written in the ISO
+  format the recipe's pattern matches and both in date order, so the last dated row is the last
+  row: `just replay 19269061` prints the pass of 2026-08-25, which is the ledger's last pass.
+  Nothing has been appended since, no pass having been run since the one that opened both entries.
+  The two entries share the remedy R-646 names, a ledger row carrying the commit the pass was
+  recorded at, and they share nothing else. On this one reading R-646's trigger has fired and this
+  one's has not, which is only possible because they are two conditions over the same printed line
+  rather than one. This entry is about which row the date is read from. R-646 is about how far into
+  a day that date reaches once the right row has been read.
