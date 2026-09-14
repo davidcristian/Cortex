@@ -517,18 +517,22 @@ answer: a marker written into any other module here is reported by the line it i
   `{project}-{service}` needs the stems this module already owns. Exactly one such file must pin a
   name; none and several both return `None`, and the caller draws a fault rather than keying a
   silently wrong row.
-- `skippeddirs.py` is the directory components no walk here enters and has no CLI: ten names,
+- `skippeddirs.py` is the directory components no walk here enters and has no CLI: eleven names,
   read by `treewalk.py` and by nothing else, which is what applies them to all seven readers.
   **It is deliberately not `.gitignore`**, and the
-  overlap is measured rather than believed: eight of the ten are names git ignores wherever they
+  overlap is measured rather than believed: nine of the eleven are names git ignores wherever they
   appear, `.git` is never reported ignored (it is not part of the work tree), and `coverage` is
   ignored only under `body/app/`, by that tree's own file. Collapsing the list to `.git` and
   asking git for the rest would make the line cap, the anchor scan and the compose walk refuse a
   root git cannot answer about, which is `just check` refusing to run outside a git working tree;
   only the dash ban has a rule whose collection is git's answer. `test_skippeddirs.py` holds what
-  is left of the two claims once the walk has one home: the eight-two partition against git's own
-  answer for this repo, which fails from either side. That every reader uses the list rather than
-  a copy is `test_treewalk.py`'s, and it is now held over the descent instead of over the list.
+  is left of the two claims once the walk has one home, in both directions. Outward, the nine-two
+  partition against git's own answer for this repo, which fails from either side. Inward, every
+  directory git ignores that exists here, minus those a name already prunes, must hold no file the
+  line cap, the anchor scan or the compose walk would read; the inward half is why `measurements`
+  is a name, the archive under it having begun to hold the Python that drove a run. That every
+  reader uses the list rather than a copy is `test_treewalk.py`'s, and it is now held over the
+  descent instead of over the list.
 - `treewalk.py` is that descent and has no CLI. `walk_files(root, also_skip=..., enter=...)`
   yields every regular file under `root` in walk order, never entering a directory named in
   `skippeddirs.SKIPPED_DIRS`, in `also_skip` (the line cap's `tests` and `_generated`, its two

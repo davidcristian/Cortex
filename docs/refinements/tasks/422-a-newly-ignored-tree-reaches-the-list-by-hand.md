@@ -1,14 +1,8 @@
 # A tree that joins .gitignore reaches the shared skip list only by hand
 
-**Status:** open, fix when it bites
-**Trigger:** a file one of the three walks reads appears inside a directory git ignores that
-`SKIPPED_DIRS` does not name: a `.py`, `.rs`, `.ts` or `.tsx` for the cap, a `.md` for the anchor
-scan, a `docker-compose*` or `compose*` `.yml` or `.yaml` for the compose walk. The bare
-disagreement is not the trigger, because the two collections already disagree about five
-directories that exist today.
+**Status:** landed 2026-09-14
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-14
 
 Opened 2026-08-24 by the close of
 [R-420](420-the-skipped-dirs-list-restates-what-git-ignores.md), which measured the overlap
@@ -95,3 +89,15 @@ fault over a tree it should not have read.
   the shared list is argued as vendored trees, build output, tool caches and the object database,
   and a measurement archive is a fifth kind that the module docstring has to name; and the
   docstring's own count, ten names of which eight restate git, moves with it.
+- 2026-09-14: **landed.** `measurements` is a name in `SKIPPED_DIRS`, which is now eleven names of
+  which nine restate git, and the entry's own narrow test is beside the module: it enumerates the
+  directories git ignores that exist here, drops those a name already prunes, and reports any that
+  still holds a file the line cap, the anchor scan or the compose walk would read, each of the
+  three asked with its own selection imported from its own module. The test was written before the
+  prune and failed on the real tree, naming the three files under `measurements/`, which is the
+  proof it can fail. The line cap's success line moved from `433 non-test source file(s) ... over
+  61946 line(s)` to `430 ... over 61653`. Both counts in the module docstring were re-derived, and
+  a measurement archive is named there as the fifth kind of tree the list carries. The dated
+  addendum is at the origin. What the close opened is
+  [R-666](666-the-inward-skip-check-asks-only-the-three-repo-wide-walks.md): the inward test asks
+  the three repo-wide walks and says nothing about the three readers scoped to a subtree.

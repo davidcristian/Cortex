@@ -1,7 +1,5 @@
-"""Which directory components no walk in this tree enters, in the one place it is read from."""
+"""Which directory names no walk in this tree enters, read from one place."""
 
-# Vendored trees, build output, tool caches, and the object database. Ten names, of which eight
-# also appear in a `.gitignore`; the two that do not are argued above.
 SKIPPED_DIRS = frozenset(
     {
         ".git",
@@ -14,5 +12,6 @@ SKIPPED_DIRS = frozenset(
         ".ruff_cache",
         "dist",
         "coverage",
+        "measurements",
     }
 )
