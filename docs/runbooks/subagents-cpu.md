@@ -536,6 +536,7 @@ docker run -d --name e4b-probe --cpus 4 -p 127.0.0.1:8090:8090 -v /srv/models:/m
   --model /models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf \
   --host 0.0.0.0 --port 8090 -ngl 0 --threads 4 \
   --jinja --chat-template-kwargs '{"enable_thinking": false}' \
+  --cache-ram 0 \
   --reasoning-budget 0
 ```
 
