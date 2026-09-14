@@ -8,7 +8,7 @@ disagreement is not the trigger, because the two collections already disagree ab
 directories that exist today.
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-10
+**Verified:** 2026-09-14
 
 Opened 2026-08-24 by the close of
 [R-420](420-the-skipped-dirs-list-restates-what-git-ignores.md), which measured the overlap
@@ -68,3 +68,30 @@ fault over a tree it should not have read.
   `body/app/src-tauri/gen/`, `measurements/`, `models/`, `pgdata/` and `sandbox/`. None of them
   holds a `.py`, `.rs`, `.ts`, `.tsx`, `.md` or compose file, so none of the three walks has a file
   to read there. `.gitignore` itself has not been edited since 2026-08-09.
+- 2026-09-14: **the trigger has fired.** `measurements/` now holds three `.py` files, and the
+  line cap measures all three. `git ls-files --others --ignored --directory --exclude-standard`
+  reports the same five directories the last three readings named, but `measurements/` is no
+  longer empty of anything a walk reads: `measurements/cache-ram-2026-09-13/gpuarm.py`,
+  `measurements/cache-ram-2026-09-13/load.py` and
+  `measurements/cache-ram-tiers-2026-09-13/tierarm.py`, 300 lines between them, arrived with the
+  host-RAM cache measurement. `linecap.py --root ..` reports `433 non-test source file(s) ... over
+  61946 line(s) counted`, and 3 of those files and 300 of those lines are in a tree this repo does
+  not track. No fault is reported yet, because all three are under the cap, and the longest is
+  130 lines. The harm the entry predicted is the one that has happened: the cap's success line
+  counts over a collection that includes a tree git ignores, and a measurement script that grew
+  past 300 lines would fail `just check` over a file no commit contains.
+
+  The other four directories are unchanged: `body/app/src-tauri/gen/` holds JSON schemas,
+  `models/` is empty, `pgdata/` holds two `.dump` files, and `sandbox/` holds one `.txt`. The
+  anchor scan and the compose walk still have nothing to read anywhere in the five.
+
+  What this settles is the entry's own fork. The honest alternative it offered, writing down that
+  the list is maintained by hand and that a new ignore entry obliges nobody, was defensible "for
+  exactly as long as no gate reports a fault over a tree it should not have read", and a gate is
+  now reading one. So the close is the first branch: prune `measurements/` by name and land the
+  narrow test the entry describes, which enumerates the ignored directories that exist, drops
+  those already pruned, and reports any holding a file one of the three walks would read. The
+  test fails today, which is what makes it worth having. Two costs to weigh when it is written:
+  the shared list is argued as vendored trees, build output, tool caches and the object database,
+  and a measurement archive is a fifth kind that the module docstring has to name; and the
+  docstring's own count, ten names of which eight restate git, moves with it.

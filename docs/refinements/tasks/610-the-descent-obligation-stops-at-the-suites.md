@@ -7,7 +7,7 @@ tool cache. Both suites that descend one today do filter, so this is one search 
 answer.
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-10
+**Verified:** 2026-09-14
 
 Opened 2026-09-08 by the close of
 [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), which made `treewalk.py` the one
@@ -47,3 +47,21 @@ the boundary is a decision rather than the edge of what the first version happen
   filter. The other suites that glob (`test_gitenv.py`, `test_composeservices.py`,
   `test_flagcheck.py`, `test_crosscheck.py`, `test_logsamples.py`) all take one named directory
   with a non-recursive pattern. No suite under `scripts/tests/` descends unfiltered.
+- 2026-09-14: still not fired, and one claim this entry rests on is wrong. No suite under
+  `scripts/tests/` descends a tree unfiltered: `test_loggernames.py` is the only recursive
+  descent there, at line 210, and it still drops any module whose parts meet `SKIPPED_DIRS`;
+  every other glob in that directory is non-recursive. What the entry does not say is that a
+  sibling obligation in the same family already runs over the suites.
+  `test_gitenv.py` compares its set over `[*GATES.glob("*.py"), *GATES.glob("tests/*.py")]`, and
+  its docstring records that it was widened to reach a suite: the one beside the skip list runs
+  git with an argv the formatter wrote one item per line. So three obligations read modules
+  through `gatecalls.py` and `markdownfences.py`, and they do not agree on their boundary: the
+  git-environment one covers the suites, this one and the fence one do not.
+
+  That weakens the second branch as this entry states it. Recording at the origin that "the
+  suites are outside it on purpose" cannot be written as a rule about obligations here, because
+  one of them is not. What is writable is the narrower decision: this obligation stops at the
+  suites because widening it would break the one suite with a reason to descend independently,
+  and the git-environment obligation had no such suite to break. Whichever branch is taken should
+  name the third obligation, so the next reader meets the inconsistency where it is decided
+  rather than by grepping for the set expression.

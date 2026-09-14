@@ -5,7 +5,7 @@
 **Trigger:** a change wants a compose value that falls back through two variables, which is what an
 env-var rename with a compatibility shim needs and what nothing in this tree needs today
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 
 Opened 2026-08-30 by the close of
 [R-492](492-the-embedder-names-its-artifact-outside-the-family.md), which wanted exactly this
@@ -64,3 +64,13 @@ than two is worth reading at all, since compose allows it and no honest use of i
   set, `OUT: frominner` with `B` set, and `OUT: fromouter` with `A` set. The suite pins only the
   words `nested substitution`, so the tail was free to move. The trigger has not fired: no compose
   file in `docker/` spells a nested substitution, over 76 spends read.
+- 2026-09-14: still not fired, and the correction the last reading landed is the state of the
+  tree. `composedefaults._braced` raises on a body carrying a `{`, and the message it raises now
+  ends `whose default is itself a variable and so has no value for a rule over these spends to
+  compare`, which is the reason [repo-gates.md](../../modules/repo-gates.md) gives as well. No
+  compose file in `docker/` spells a nested substitution, over 78 spends read across the ten
+  files, two more than the 76 the last reading counted. The three shapes this entry weighs are
+  unchanged, and so is the argument for the middle one: `artifactnames.py` and
+  `subagentservers.py` read a spend's name and never its default, so a reader that returned the
+  name and refused the value would unblock a rename shim without handing `defaultcheck.py`,
+  `bindcheck.py` or `volumecheck.py` a comparison none of them can make.

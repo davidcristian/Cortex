@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** a document in this tree writes a fence marker at the start of a line inside another
 fenced block, which one search over the markdown answers.
 
@@ -45,3 +45,11 @@ stays safe by its own layout.
   [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), recorded at the
   [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-gates.md), which states what the
   shared reading covers and what it leaves.
+- 2026-09-14: still not fired, measured rather than argued. Every `.md` file `treewalk.walk_files`
+  hands over was read line by line under markdown's own closing rule, opening on a marker and
+  closing only on one of the same character and at least the opening run's length: no marker at
+  the start of a line falls inside another block, in any document in this tree. The one case the
+  entry names is where it was. `docs/adr/ADR-0005-llamacpp-engine.md` opens a four-backtick block
+  at line 1630 and closes it at 1634, and the `"```json"` inside it sits at line 1631 with the
+  marker in the middle of the line, so nothing toggles. It is still one reflow away from the start
+  of a line. The two branches are unchanged.

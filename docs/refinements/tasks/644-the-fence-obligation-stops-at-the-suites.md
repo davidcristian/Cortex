@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** a module under `scripts/tests/` that answers for itself whether a line is a fence,
 rather than writing a fenced document as the data its reader is asked about.
 
@@ -42,3 +42,21 @@ the boundary is a decision.
   [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), whose
   [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-gates.md) records the set the
   obligation is compared over and why the suites are not in it.
+- 2026-09-14: still not fired, and the same correction the sibling entry now carries applies
+  here. Seven suites write a fence marker, the seven this entry names, and all 48 of their markers
+  are fixtures: `test_rosternames.py`, `test_commitlint.py`, `test_logsamples.py`,
+  `test_samplecheck.py`, `test_backloganchors.py`, `test_markdownfences.py` and
+  `test_headingshapes.py`. None of them tests a line for a marker. What the entry does not say is
+  that the boundary it describes is not the family's. `test_gitenv.py` compares its obligation
+  over `[*GATES.glob("*.py"), *GATES.glob("tests/*.py")]`, so of the three obligations here one
+  covers the suites and two do not.
+
+  This is the sibling of [R-610](610-the-descent-obligation-stops-at-the-suites.md) and it is not
+  the same defect, which is worth writing down because the two names invite the guess. They share
+  a cause, the comparison set spelled per suite rather than once, and nothing else: widening this
+  one needs a rule that tells a marker reaching a `re.compile`, a `startswith` or an `in` test
+  from a marker inside a document string, and widening that one needs a second reader in
+  `treewalk.py` for the suite with a reason to descend independently. One fix closes neither the
+  other. The written-argument branch is the half they really share, and after the reading above it
+  can no longer be written as "the suites are outside these obligations", only as a decision per
+  obligation with the third named.
