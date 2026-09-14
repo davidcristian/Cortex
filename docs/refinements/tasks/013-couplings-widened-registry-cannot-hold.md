@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 **Trigger:** A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
 
 Opened 2026-08-08 behind the landing above, in the same shape its own parent had: a registry that
@@ -253,3 +253,11 @@ side, or a `.proto` reader arriving in the scan for another reason.
   where the stylesheet spells `var(--ease)` 49 times today. The capture-target paragraph also
   called the `.proto` a kind of place the registry does not cover, when one entry already searches
   it for a rendered needle; what is missing is a reader for declarations in it, not the file.
+- 2026-09-14: both remaining couplings re-derived and neither trigger has fired. The proto still
+  declares two capture targets, `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS`, so no third
+  value has arrived and the two hand-written mirrors still stand against a two-member vocabulary.
+  The gRPC status codes are spelled in three non-test modules and every one of them is inside the
+  two homes this entry names: `body/crates/rpc/src/screen.rs` and `body/crates/rpc/src/server.rs`
+  in the body's rpc crate, and `brain/packages/body_client/src/cortex_body_client/failures.py` in
+  the brain's body client. A second module inside the rpc crate is not the third caller the
+  trigger names, which counts modules outside those two.

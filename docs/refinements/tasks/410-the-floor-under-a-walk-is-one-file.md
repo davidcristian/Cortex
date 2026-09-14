@@ -7,7 +7,7 @@ count dropping is not by itself the trigger: that happened two and a half hours 
 was opened, in a commit whose own subject was the exclusion.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 
 Opened 2026-08-24 by the close of
 [R-409](409-a-gates-success-line-names-no-collection.md), which gave the four remaining cross-tree
@@ -73,3 +73,10 @@ suite makes about the tree it ships in.
   or more. Every count is at or above the reading above it, so the trigger has not fired, and the
   two `MIN_FILES = 1` floors, the raising compose walk and the two suite floors of 6 all still
   stand as this entry describes them.
+- 2026-09-14: the readings again, against the ones recorded above. `linecap OK: 432 non-test
+  source file(s) under .. are within 300 lines, over 61831 line(s) counted`. `dashcheck OK: 1597
+  text file(s) under .. use no banned dash, over 312920 line(s) read`. Both compose gates still
+  walk 10 files, at 11 bind mounts and 8 variables spelled twice or more. Every count is at or
+  above the reading above it, so the trigger has not fired. The floors are unchanged as well:
+  `linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, `composefiles.py` still raises on a
+  walk that found none, and the two suite floors of 6 still stand where they were written.

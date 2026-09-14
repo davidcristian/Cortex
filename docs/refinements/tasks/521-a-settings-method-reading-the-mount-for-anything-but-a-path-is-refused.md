@@ -7,7 +7,7 @@ is not an artifact path, reporting the mount on `GET /health` or checking that i
 startup, which nothing in the sidecar does today. That is countable by reading every method of
 `ModelHostConfig` and asking which of them name `self.models_root`
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 
 Opened 2026-09-02 by the close of
 [R-515](515-the-artifact-domain-rests-on-a-field-name-convention.md), which made
@@ -47,3 +47,9 @@ it.
   four fields today, `cortex_file`, `brain_file`, `subagent_gpu_file` and `cortex_mmproj_file`,
   each found by the resolver call it is handed to rather than by its name, so narrowing the refusal
   would change no answer the reader gives now.
+- 2026-09-14: read again and nothing moved. `ModelHostConfig` still declares the same six methods,
+  `tiers`, `roster`, `_vision`, `_reasoning`, `_image_budget` and `_path`, and `self.models_root`
+  appears in `_path` alone, on the one line joining a file onto the mount. `artifactnames.resolved`
+  still returns four fields, `cortex_file`, `brain_file`, `subagent_gpu_file` and
+  `cortex_mmproj_file`, each found by the resolver call it is handed to. The refusal still has
+  nothing to report and nothing to over-report, so narrowing it would change no answer.

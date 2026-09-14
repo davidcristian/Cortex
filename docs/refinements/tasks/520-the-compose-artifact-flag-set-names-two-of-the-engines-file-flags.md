@@ -7,7 +7,7 @@
 vector, which no service here does today. That is countable by reading the command of every
 service the compose files start and listing the flags it spells
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 
 Opened 2026-09-02 by the close of
 [R-515](515-the-artifact-domain-rests-on-a-field-name-convention.md), which made the hosted half
@@ -59,3 +59,12 @@ language offers.
   today rather than two. The two short flags a command does spell are the shapes the reader
   declines by name: `python -m cortex_email` starts the email sidecar, and `sh -c` carries the
   filesystem sidecar's install line.
+- 2026-09-14: counted again and the trigger has not fired. Reading the command of every service
+  the compose files start turns up fifteen distinct flags rather than the thirteen recorded above,
+  the two added being `--cache-ram` on both subagent services, which carries a count and not a
+  file. No file flag outside `ARTIFACT_FLAGS` appears anywhere: `--model` is spelled by
+  `llama-embed`, `llama-subagent` and `llama-subagent-qwen`, which are the three artifacts
+  `artifactnames.composed` finds, and nothing spells `--model-draft`, `--lora` or a control
+  vector. `--mmproj` is still spelled by no compose command, so the compose half of the reader
+  goes on resting on one of its two flags. The two short flags a command spells are unchanged,
+  `-m` for the email sidecar and `-c` for the filesystem sidecar's install line.

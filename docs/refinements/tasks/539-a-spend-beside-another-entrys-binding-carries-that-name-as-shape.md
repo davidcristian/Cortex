@@ -7,7 +7,7 @@ reader to the wrong constant, or a second registry entry whose needle spells ano
 name in its literal shape, which is countable by rendering every mention and searching its shape
 for the site names the registry declares.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 
 Opened 2026-09-02 by the close of
 [537](537-the-declaration-field-names-are-bare-literals-on-both-sides.md), whose fifth mutation
@@ -61,3 +61,12 @@ gate fault the field entry alone.
   `CORTEX_BODY_MAX_IMAGE_BYTES`, which five further needles spell. A short site name matching
   inside a longer env var is what this measurement will keep turning up, so the count of
   coincidences is worth re-deriving rather than reading off the bullet above.
+- 2026-09-14: measured again and the instance is still one. The server still writes
+  `{_SOURCE_META_KEY: {_KIND_FIELD: _SENDER_KIND, _VALUE_FIELD: sender}}` on one line, and the
+  kind word's spend, rendered `_KIND_FIELD: _SENDER_KIND,`, is the only needle whose literal shape
+  carries a site name belonging to another entry. The registry is 92 constants over 96 site names
+  and renders 313 mentions, up from 296, and the coincidences are still the seven `_IMAGE` hits
+  inside `CORTEX_IMAGE_MAX_TOKENS` and `CORTEX_BODY_MAX_IMAGE_BYTES`. Searching each needle for
+  every site name rather than only for foreign ones returns 29 hits, the extra 21 being mentions
+  that spell their own entry's binding, which is the ordinary shape of a module-doc row and not
+  what this entry counts.
