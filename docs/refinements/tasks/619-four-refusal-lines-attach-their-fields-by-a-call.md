@@ -76,3 +76,9 @@ four would need. Its cost is a second place each line is written down.
   `assertedlines.py` reads out of an equality. They meet only at the proven path, which is this
   entry's cheaper close and that entry's subject, so widening the reader there raises what the
   assertion route can be written as.
+
+  What the tree said about this was corrected in the same session. `scripts/samplecheck.py`,
+  `scripts/assertedlines.py` and `docs/modules/repo-gates.md` all described the refused set as one
+  call, the tool audit's, which was true until these four lines were written and is what this entry
+  was filed against. They now name both shapes and say that every refused call reaches the suite
+  beside its own module.

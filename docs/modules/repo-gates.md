@@ -50,7 +50,7 @@ each named for what it holds. Grouped by the gate that reads them:
 - `samplecheck.py` reads `logsamples.py` for what a documented log line claims to print,
   `logcalls.py` for what the call writing it really attaches, with `logfields.py` split off it
   for the field list read off the call or off the binding above it, `assertedlines.py` for the
-  lines a sink's own suite asserts whole, read for the one call whose fields the source cannot
+  lines a package's own suite asserts whole, read for a call whose fields the source cannot
   list, and `loggernames.py` for which module owns the logger that line is written under.
 - `rostercheck.py` reads `rosters.py` for every roster this repo has written down,
   `rosternames.py` for what a page's roster names, and `rostermembers.py` for the set it
@@ -782,12 +782,15 @@ answer: a marker written into any other module here is reported by the line it i
   way the formatter quotes a value with a space in it is the fiction ADR-0009 refused to teach a
   gate to expect. **Found rather than registered**: the walk reads `docs/runbooks/` and checks
   every fenced line shaped like a rendered one, so a new sample is held the day it is written,
-  and a runbook quoting a line no brain module writes is a miss rather than a skip. **One call
-  is held to its suite rather than to itself**: the tool audit binds its mapping, grows it by
-  condition and only then hands it over, so `logfields.py` refuses it rather than choosing a
-  branch, and a sample of that line passes when the sink's own package suite asserts a whole
-  rendered line with the same level, logger, message and fields (`assertedlines.py`); the level
-  is still compared against the call, which was read that far. The chain holds because the
+  and a runbook quoting a line no brain module writes is a miss rather than a skip. **A call
+  whose fields the source cannot list is held to its package suite rather than to itself**: the
+  tool audit binds its mapping, grows it by condition and only then hands it over, and the two
+  bound pairings hand over what another call returns, so `logfields.py` refuses all five rather
+  than choosing a branch or following a call, and a sample of one of those lines passes when the
+  suite beside that module's `src` asserts a whole rendered line with the same level, logger,
+  message and fields (`assertedlines.py`); the level is still compared against the call, which was
+  read that far. Every refused call reaches that path and none of them is registered anywhere, so
+  a runbook may print any of the five once its own suite asserts the line whole. The chain holds because the
   suite's assertion is an equality against the shipped formatter's output, which pytest fails the
   day the sink moves, so a runbook sample no assertion matches is a miss naming what the suite
   does assert, and a suite that loosens its equality into a containment check leaves the sample
@@ -858,25 +861,30 @@ answer: a marker written into any other module here is reported by the line it i
   the keys read off the binding, plus those of the unioned literal, are the fields the line
   prints. Every other spelling is refused with a fault naming the line, because a field list
   read off a mapping something else may have changed would hold a document to a line nothing
-  prints, which is worse than holding it to nothing (ADR-0009 composed-fields addendum). The
-  tool audit's trail is the refused case in the tree: its mapping is bound, grown by `update`
-  and by a key set under a condition, and only then handed over, so no one sample could print
-  what it attaches, and `logcalls.py` raises the refusal as `UnreadFieldsError` with the line
-  and level it read first, which is what lets `samplecheck.py` hold that line to the sink's
-  suite instead. The rule for which calls are log calls is handed in by `logcalls.py` rather
+  prints, which is worse than holding it to nothing (ADR-0009 composed-fields addendum). Five
+  calls are refused in the tree today, of two shapes. The tool audit's trail is the first: its
+  mapping is bound, grown by `update` and by a key set under a condition, and only then handed
+  over, so no one sample could print what it attaches. The other four hand over what another call
+  returns, the two bound pairings each building their field set once so that both lines about one
+  comparison attach the same names (`cortex_orchestrator/bounds.py` on its passing line and its
+  refusal, `cortex_orchestrator/swap_builders.py` and `cortex_core/residency_watch.py` on theirs).
+  For all five `logcalls.py` raises the refusal as `UnreadFieldsError` with the line and level it
+  read first, which is what lets `samplecheck.py` hold the line to that module's package suite
+  instead. The rule for which calls are log calls is handed in by `logcalls.py` rather
   than read here, so this module carries no level table. Keys come back sorted and
   deduplicated, a key both halves of a union carry being one key on the record.
 - `assertedlines.py` is the third reading `samplecheck.py` makes and has no CLI: the rendered
-  lines a package's own suite asserts whole, read for the one call whose fields the source cannot
+  lines a package's own suite asserts whole, read for a call whose fields the source cannot
   list. It parses the suite with `ast` and reads a string only where it is one side of an
   `assert x == "..."`, anchored at the level the formatter writes first and carrying no newline.
   A containment check is not read, because the tool audit's suite feeds a forged head of the
   trail through a field and checks it with `in`, and reading that would hold a runbook to a
   forgery; an f-string and a name bound to a string are not read either, so a suite that asserts
   its lines through one of them leaves the runbook sample unheld. The suite read is the `tests`
-  directory beside the `src` the sink's module lives under and no other: the orchestrator's
-  logging suite asserts a whole `cortex.tools.audit` line with one field, written straight
-  through the logger to prove the shipped level, and it is not a line the sink prints. A package
+  directory beside the `src` the refused call's module lives under and no other: the
+  orchestrator's logging suite asserts a whole `cortex.tools.audit` line with one field, written
+  straight through the logger to prove the shipped level, and it is not a line the audit sink
+  prints. A package
   with no suite, a suite file that is not text and one that does not parse each raise.
 - `loggernames.py` is the other half of that reader and has no CLI. It answers which module owns a
   logger name, standing on `logcalls.py`'s walk of the brain's source, and it split off that
