@@ -8,7 +8,7 @@ constants and neither is read from the environment, so the change is a diff in t
 deployment's setting: `grep -rn "DEFAULT_RECALL_K\|DROPPED_TRAIL_LIMIT" brain/packages/*/src`
 reports every place either is spelled.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 
 Opened 2026-08-27 by the close of
 [R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md), which measured the whole trail
@@ -43,3 +43,24 @@ named and could name the cohorts it never saw.
   constant has an env variable, and `k` reaches the recall from one call site that passes
   `DEFAULT_RECALL_K` and nothing else. So the trigger fires on a commit here, which is a thing a
   reader of this file can watch for, rather than on a setting nobody can write.
+- 2026-09-14: swept. The two constants and the trigger still stand: `DEFAULT_RECALL_K` is 5
+  (`turn_context.py:39`), reaching a recall from the one call site at `turn_context.py:216`, and
+  `DROPPED_TRAIL_LIMIT` is 20 (`ranking.py:111`). What the entry did not say is that the bound is
+  slack at the shipped shape and the comment on it now does: the pool is twenty and five are
+  recalled at a pool factor of four, so a rank keeping the whole of `k` drops fifteen and the
+  twenty-candidate bound bites only where a deployment over-fetches wider than what ships.
+
+  The arithmetic no longer stands alone. The trigger-sweep addendum of 2026-09-08 rendered one
+  trail record at its shipped caps and measured it, 2,264 characters plain then 2,258 on the run
+  four days later, and says in as many words that this is the near-2,200 this entry computed. So
+  the unsampled corner has a measured width beside its estimate. It is not the reading this entry
+  asks for: that record was built with five hits and **twenty** dropped candidates, which is wider
+  than the shipped pool can produce, and it was constructed rather than drawn from a judged run, so
+  what is still unmeasured is a real corpus in which the judge keeps all five.
+
+  The cheaper half is still undone, and `scripts/trailwidth.py` is where it would go.
+  `by_entries` groups only the readings a capture held and `report` walks `sorted(grouped)`, so a
+  cohort with no lines is absent rather than named as empty. One thing to know before writing it:
+  the harness groups by the candidates a line **dropped**, and this entry argues in kept notes, so
+  a cohort named here is a dropped-count row there, the two numbers summing to the pool that run
+  fetched rather than to the shipped twenty.
