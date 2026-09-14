@@ -111,6 +111,17 @@ working and abort the handoff that asked for it. Raise the brain's deadline abov
 lower the sidecar's own bounds
 ```
 
+That text is the exception, read in the traceback the failing boot prints. The brain logs the same
+refusal one line earlier, as one constant message with the five numbers beside it as fields, which
+is the copy to search for on a stream carrying several containers' output:
+
+```
+ERROR:cortex_orchestrator.swap_builders:the control deadline does not clear the model host's worst stop deadline_s=60.0 probe_timeout_s=5.0 reap_timeout_s=35.0 stop_grace_s=20.0 worst_s=60.0
+```
+
+`grep "does not clear"` matches every instance of it whatever the numbers are, which the exception's
+own text does not offer, spelling each number inside the sentence.
+
 Raise `CORTEX_MODELHOST_TIMEOUT_S`, or lower whichever sidecar bound you had raised, and bring the
 stack up again. Two cases deliberately do **not** fail the boot: a `model-host` that is not answering yet
 (logged at warning, and the brain serves, because a sidecar that is merely down comes back on its

@@ -1,5 +1,3 @@
-"""The handoff's composition root: the env gate in both directions, and what it builds."""
-
 import asyncio
 import logging
 import os
@@ -152,7 +150,6 @@ def _supervisor_runtime(
 
 
 def test_escalation_is_off_by_default() -> None:
-    """CI and the GPU-less dev loop are byte for byte what they were before this landed."""
     config = SwapConfig()
     assert config.escalation is False
     assert config.modelhost_backend == "none"
@@ -160,8 +157,6 @@ def test_escalation_is_off_by_default() -> None:
 
 
 def test_escalation_without_a_model_host_fails_at_boot() -> None:
-    """Nothing could evict or load a model, so the config raises at boot rather than serving a
-    tool that could only refuse."""
     with pytest.raises(ValueError, match="CORTEX_MODELHOST_BACKEND must name a model host"):
         SwapConfig(escalation=True)
 
@@ -172,38 +167,28 @@ def test_escalation_without_a_brain_endpoint_fails_at_boot() -> None:
 
 
 def test_the_real_backend_without_its_endpoint_fails_at_boot() -> None:
-    """Every swap step would fail at its first call, so the deployment is refused instead."""
     with pytest.raises(ValueError, match="CORTEX_MODELHOST_ENDPOINT is required"):
         _enabled(modelhost_backend="supervisor")
 
 
 def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
-    """One plan value, so the manager, the conductor, and recovery cannot disagree."""
     plan = _enabled(
         evict_models=("subagent-gpu",), swap_drain_timeout_s=5.0, swap_load_timeout_s=7.0
     ).residency_plan("cortex")
     assert (plan.cortex_model, plan.brain_model) == ("cortex", "brain")
     assert plan.evict_models == ("subagent-gpu",)
     assert (plan.drain_timeout_s, plan.load_timeout_s) == (5.0, 7.0)
-    # Brain-runs-alone unless the deployment says its peers fit beside the deep model.
     assert plan.coresident is False
     assert _enabled(coresident=True).residency_plan("cortex").coresident is True
-    # And no fit is checked unless the deployment measured one, which is the shipped default.
     assert plan.brain_vram_mib == 0
     assert _enabled(brain_vram_mib=19125).residency_plan("cortex").brain_vram_mib == 19125
-    # Nor is a handoff judged by a decode rate the deployment never measured on its own card.
     assert plan.brain_decode_tps == 0.0
     assert _enabled(brain_decode_tps=22.0).residency_plan("cortex").brain_decode_tps == 22.0
-    # And the control deadline rides the plan rather than travelling beside it, so the boot check
-    # and a swap re-reading the same rule after a sidecar restart cannot compare different numbers.
     assert plan.control_deadline_s == SwapConfig().modelhost_timeout_s
     assert _enabled(modelhost_timeout_s=90.0).residency_plan("cortex").control_deadline_s == 90.0
 
 
 def test_co_residency_on_the_real_host_without_a_measured_fit_fails_at_boot() -> None:
-    """The co-residency flag is a claim about a specific card, and this boot check is the only
-    place it is tested.
-    """
     with pytest.raises(ValueError, match="CORTEX_SWAP_BRAIN_VRAM_MIB is required"):
         _enabled(
             modelhost_backend="supervisor",
@@ -213,11 +198,8 @@ def test_co_residency_on_the_real_host_without_a_measured_fit_fails_at_boot() ->
 
 
 def test_co_residency_over_the_scripted_host_needs_no_measurement() -> None:
-    """That backend starts no process on any card, so a figure would assert nothing."""
     plan = _enabled(coresident=True).residency_plan("cortex")
     assert (plan.coresident, plan.brain_vram_mib) == (True, 0)
-    # The decode floor is not required by co-residency at all, on any host: it guards no
-    # decision, so an unmeasured deployment is better served by the number in its log.
     assert plan.brain_decode_tps == 0.0
 
 
@@ -234,7 +216,6 @@ def test_nothing_is_built_when_escalation_is_off() -> None:
 
 
 async def test_the_enabled_runtime_is_the_one_lease_and_the_one_residency() -> None:
-    """The same object must be both, or a swap could preempt a live inference round."""
     runtime = build_swap_runtime(
         _enabled(),
         BrainRuntimeConfig(),
@@ -246,7 +227,7 @@ async def test_the_enabled_runtime_is_the_one_lease_and_the_one_residency() -> N
     assert runtime is not None
     assert isinstance(runtime.manager, SwappingModelManager)
     assert isinstance(runtime.host, ScriptedModelHost)
-    assert runtime.host.running == {"cortex"}  # the host boots with the cortex resident
+    assert runtime.host.running == {"cortex"}
     async with runtime.manager.acquire("cortex") as lease:
         assert lease.endpoint == "http://llama-cortex:8080"
     async with runtime.manager.swap_scope("brain"), runtime.manager.acquire("brain") as lease:
@@ -255,7 +236,6 @@ async def test_the_enabled_runtime_is_the_one_lease_and_the_one_residency() -> N
 
 
 async def test_each_tier_leases_the_endpoint_its_own_deployment_named() -> None:
-    """A deployment that renamed both tiers still leases, and the case above cannot see it."""
     runtime = build_swap_runtime(
         _enabled(brain_model="brain-alt"),
         BrainRuntimeConfig(cortex_model="cortex-alt"),
@@ -278,7 +258,6 @@ async def test_each_tier_leases_the_endpoint_its_own_deployment_named() -> None:
 
 
 async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() -> None:
-    """A delegation tier that will not start is not the usual assistant failing to come up."""
     placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
     runtime = build_swap_runtime(
         _enabled(evict_models=("subagent-gpu",)),
@@ -308,11 +287,6 @@ async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() ->
 async def test_the_supervisor_backend_builds_the_real_adapter_at_the_configured_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The one place ``CORTEX_MODELHOST_ENDPOINT`` reaches the adapter, asserted as the URL sent.
-
-    The scripted host answers every ``status`` from its own bookkeeping and would send nothing,
-    so the request itself is the witness that the real adapter was built and pointed somewhere.
-    """
     runtime, client, asked = _supervisor_runtime(monkeypatch, [])
     try:
         assert isinstance(runtime.host, HttpModelHost)
@@ -324,11 +298,8 @@ async def test_the_supervisor_backend_builds_the_real_adapter_at_the_configured_
 
 
 async def test_the_control_client_has_a_read_deadline_unlike_the_generation_clients() -> None:
-    """The generation clients bound a silent gap; a control call is bounded end to end."""
     client = swap_builders.build_control_client(31.5)
     try:
-        # Whole-value equality, which pins the read deadline along with the other three phases:
-        # the generation clients' looser, per-read ceiling cannot satisfy it.
         assert client.timeout == httpx.Timeout(31.5)
     finally:
         await client.aclose()
@@ -337,7 +308,6 @@ async def test_the_control_client_has_a_read_deadline_unlike_the_generation_clie
 async def test_closing_the_runtime_releases_the_control_client_too(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A real host holds an HTTP client, so the shutdown hook has two things to release now."""
     released: list[str] = []
     runtime, client, _ = _supervisor_runtime(monkeypatch, released)
     assert not client.is_closed
@@ -349,7 +319,6 @@ async def test_closing_the_runtime_releases_the_control_client_too(
 async def test_a_store_that_will_not_close_still_releases_the_control_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A refused store release must not leak the control client: shutdown gets one pass, not two."""
     released: list[str] = []
     runtime, client, _ = _supervisor_runtime(monkeypatch, released, refuse_store_close=True)
     with pytest.raises(OSError, match="could not be released"):
@@ -383,7 +352,6 @@ def _only(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
 
 
 async def test_the_shipped_bounds_and_the_shipped_deadline_still_clear_each_other() -> None:
-    """The two containers' defaults, compared as the running pair rather than as prose."""
     daemon = ModelHostConfig()
     shipped = ControlBounds(
         probe_timeout_s=daemon.probe_timeout_s,
@@ -397,33 +365,25 @@ async def test_the_shipped_bounds_and_the_shipped_deadline_still_clear_each_othe
 async def test_a_deadline_the_hosts_worst_stop_can_outlast_refuses_to_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The pairing spans two containers' env, so this is the only place it can be checked."""
     runtime = _with_bounds(
         ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0)
     )
     with caplog.at_level(logging.ERROR), pytest.raises(ControlDeadlineError) as excinfo:
         await check_control_deadline(runtime)
-    # Every term, so the operator can see which knob to move without reading two containers' env.
     assert "worst stop is 60.0 s (probe 5.0 s, grace 20.0 s, reap 35.0 s)" in str(excinfo.value)
     assert "CORTEX_MODELHOST_TIMEOUT_S is 60.0 s" in str(excinfo.value)
-    # The log line says the same thing in the shape a log line wants: one constant message a
-    # grep matches every instance of, and the same five terms as fields in the printed order.
-    rendered = PlainFormatter().format(_only(caplog))
-    assert "the control deadline does not clear the model host's worst stop" in rendered
-    assert (
-        "deadline_s=60.0 probe_timeout_s=5.0 reap_timeout_s=35.0 stop_grace_s=20.0 worst_s=60.0"
-        in rendered
+    # Asserted whole against the shipped formatter, because the swap runbook prints this line as
+    # a sample and `samplecheck.py` compares that sample with a line a suite asserts whole.
+    assert PlainFormatter().format(_only(caplog)) == (
+        "ERROR:cortex_orchestrator.swap_builders:the control deadline does not clear the "
+        "model host's worst stop deadline_s=60.0 probe_timeout_s=5.0 reap_timeout_s=35.0 "
+        "stop_grace_s=20.0 worst_s=60.0"
     )
 
 
 async def test_a_refused_pairing_releases_what_the_runtime_already_holds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The whole path over the real adapter, and the shutdown hook is not armed yet when it fails.
-
-    The bounds come off a real ``GET /health`` here rather than off a twin, so this is also what
-    pins the adapter's reading to the composition root's comparison.
-    """
     released: list[str] = []
     runtime, client, asked = _supervisor_runtime(
         monkeypatch,
@@ -440,7 +400,6 @@ async def test_a_refused_pairing_releases_what_the_runtime_already_holds(
 async def test_a_deadline_that_clears_the_worst_stop_is_wired_and_says_so(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The shipped pair passes, since a check that rejected it would reject every stack."""
     runtime = _with_bounds(
         ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
     )
@@ -454,7 +413,6 @@ async def test_a_deadline_that_clears_the_worst_stop_is_wired_and_says_so(
 async def test_a_host_that_bounds_no_stop_of_its_own_is_not_a_refusal(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The scripted backend CI and the dev loop run: it stops no process, so it bounds nothing."""
     runtime = _with_bounds(None)
     with caplog.at_level(logging.INFO):
         await check_control_deadline(runtime)
@@ -465,7 +423,6 @@ async def test_a_host_that_bounds_no_stop_of_its_own_is_not_a_refusal(
 async def test_a_host_that_cannot_be_asked_leaves_the_pairing_unchecked(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A sidecar that is down is not a misconfiguration, and boot recovery already says so."""
     runtime = build_swap_runtime(
         _enabled(),
         BrainRuntimeConfig(),
@@ -483,12 +440,10 @@ async def test_a_host_that_cannot_be_asked_leaves_the_pairing_unchecked(
 
 
 async def test_the_pairing_check_is_a_clean_no_op_when_nothing_was_built() -> None:
-    """Escalation off builds no host, so there is no deadline anything could spend."""
     await check_control_deadline(None)
 
 
 async def test_the_escalate_tool_is_not_advertised_unless_a_handoff_can_run() -> None:
-    """Advertising it without the wrapper would offer a tool that could only refuse."""
     without = build_builtin_tools(None, InMemoryBodyGateway())
     assert [tool.spec.name for tool in without if tool.spec.name == ESCALATE_TOOL_NAME] == []
     with_handoff = build_builtin_tools(None, InMemoryBodyGateway(), escalation=True)
@@ -498,7 +453,6 @@ async def test_the_escalate_tool_is_not_advertised_unless_a_handoff_can_run() ->
 async def test_run_from_env_serves_with_the_handoff_wired(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The whole capability from env: recovery runs, turns serve, and shutdown stays clean."""
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
@@ -515,8 +469,6 @@ async def test_run_from_env_serves_with_the_handoff_wired(
     task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
     try:
         events = await _run_one_turn(f"127.0.0.1:{port}")
-        # The escalating wrapper is transparent for a turn that never asks to escalate: the
-        # echo backend's reply arrives exactly as it does without the handoff wired.
         assert (
             "".join(
                 event.text_delta.text
@@ -535,7 +487,6 @@ async def test_run_from_env_serves_with_the_handoff_wired(
 async def test_run_from_env_refuses_a_deployment_whose_pairing_does_not_hold(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The root asks before it builds anything else, so a mispaired stack never serves a turn."""
     monkeypatch.setenv("CORTEX_ESCALATION", "1")
     monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "supervisor")
     monkeypatch.setenv("CORTEX_MODELHOST_ENDPOINT", "http://model-host:9300")
@@ -566,8 +517,6 @@ async def test_run_from_env_refuses_a_deployment_whose_pairing_does_not_hold(
 
     monkeypatch.setattr(Redis, "from_url", fake_from_url)
     monkeypatch.setattr(swap_builders, "build_control_client", mock_client)
-    # Bounded, because the failure this pins is a root that never asks: without the refusal the
-    # root goes on to ``serve``, which returns for nothing this test can arrange.
     with pytest.raises(ControlDeadlineError, match=r"CORTEX_MODELHOST_TIMEOUT_S is 60\.0 s"):
         await asyncio.wait_for(
             run_from_env(store_factory=lambda _url: _session_store(server)), timeout=10
@@ -578,7 +527,6 @@ async def test_run_from_env_refuses_a_deployment_whose_pairing_does_not_hold(
 async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The reporter reaches the servicer: with the wired manager mid handoff, Health says so."""
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
@@ -604,11 +552,8 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
         handoff_store_factory: Callable[[str], RedisHandoffStore] = RedisHandoffStore.from_url,
         placer: SubagentPlacer | None = None,
     ) -> SwapRuntime | None:
-        # The placer is forwarded rather than dropped: the root hands the pool's own object here
-        # so the residency scope can recharge it during a handoff, and a double that swallowed it
-        # would hide a root that stopped passing it.
         made = real(swap, runtime, inference, clock, sleeper, handoff_store_factory, placer)
-        assert made is not None  # escalation is on in this test's env
+        assert made is not None
         built.append(made)
         return made
 
@@ -624,7 +569,7 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
                 mid_handoff = await asyncio.wait_for(_health(stub), timeout=5.0)
             assert mid_handoff.ready is False
             assert mid_handoff.detail == RESIDENCY_DEEP.detail
-            assert (await _health(stub)).ready is True  # the swap back turns the dot green again
+            assert (await _health(stub)).ready is True
         os.kill(os.getpid(), signal.SIGTERM)
         await asyncio.wait_for(task, timeout=10)
     finally:
@@ -634,9 +579,6 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
 async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Boot recovery's own observation reaches the report, so the first probe answers what
-    recovery found.
-    """
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
@@ -668,7 +610,6 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
 async def test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The recovery that used to need a restart of the brain, driven through the whole wiring."""
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
@@ -698,10 +639,8 @@ async def test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_gree
             stub = BrainServiceStub(channel)
             assert (await asyncio.wait_for(_health(stub), timeout=5.0)).ready is False
             for model in sorted(hosts[0].running):
-                hosts[0].set_status(model, None)  # POST /models/cortex/start, and it came up
+                hosts[0].set_status(model, None)
             async with asyncio.timeout(10):
-                # Bounded polling rather than an event, deliberately: what this waits on is the
-                # healer's own loop inside the process under test, which offers nothing to await.
                 while not (await _health(stub)).ready:  # noqa: ASYNC110 -- no event to wait on
                     await asyncio.sleep(0.01)
         os.kill(os.getpid(), signal.SIGTERM)

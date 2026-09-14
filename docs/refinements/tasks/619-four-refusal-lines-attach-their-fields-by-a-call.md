@@ -1,13 +1,8 @@
 # Four refusal lines attach their fields by a call no reader follows
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-14
 **Area:** repo-gates
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Trigger:** the first runbook that wants to print one of these four lines as a fenced sample,
-which is the same event that fired for the spill warning; `check-samplecheck` then fails on that
-document with the proven path's fault, which quotes the refusal, names the `tests` directory beside
-the module and reports that nothing there is asserted whole with those fields.
-**Verified:** 2026-09-14
 
 Opened 2026-09-10 by the close of
 [R-331](331-five-raised-messages-keep-their-numbers-in-prose.md), which made two more log calls
@@ -82,3 +77,23 @@ four would need. Its cost is a second place each line is written down.
   call, the tool audit's, which was true until these four lines were written and is what this entry
   was filed against. They now name both shapes and say that every refused call reaches the suite
   beside its own module.
+- 2026-09-14: landed by the assertion route, and the reader widening declined in the same pass.
+  `docs/runbooks/model-swap.md` now prints the control deadline's refusal as a fenced sample beside
+  the exception text it already carried, held to a whole-line equality in
+  `brain/packages/orchestrator/tests/test_swap_wiring.py`, where two containment checks over the
+  same rendered line stood before. The gate reports 15 samples in 12 runbooks with 6 held to a
+  suite's assertion, one more of each than the day before.
+
+  The reader was declined on a fact the entry had wrong. A reader following a call to a function in
+  the same module covers two of the four, not four: `bounds.py`'s two `_pairing` calls are
+  same-module, while `swap_builders.py` and `residency_watch.py` call `pairing_fields` on a local
+  whose class the source never states, a frozen dataclass in a third module of another package. The
+  reader that would reach those infers a type across packages from a name, and the narrower one
+  reads a `return` statement as though a function had one and it were unconditional, which is the
+  assumption the composed-fields addendum declined. The argument, the two-step route a later
+  runbook follows, and the mutation table are in the refused-fields addendum at
+  [ADR-0038](../../adr/ADR-0038-ranked-recall.md).
+
+  The other three call-shaped lines are left with no sample and owe none, so this closes without
+  opening anything: no runbook prints them, and one that wants to asserts the line whole in that
+  package's suite and fences it.
