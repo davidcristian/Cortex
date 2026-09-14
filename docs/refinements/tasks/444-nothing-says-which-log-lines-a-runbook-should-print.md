@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
 this file's Trail. That is the evidence the entry says nobody has collected, and it is what decides
 between the two closes below: a gated criterion needs at least one such line to be written against,
@@ -102,3 +102,9 @@ names.
   suite asserts whole. The fourteenth sample is in `docs/runbooks/vision.md`, which began printing
   the vision probe's line on 2026-09-10 when that line gained the engine build `/props` names, so
   the body above now says fourteen. The runbooks still print a seventh of what the brain writes.
+- 2026-09-14: verified again, and the first check since this entry was opened at which no number
+  in the body moved. The trigger has not fired: no bullet here names a line somebody wanted during
+  a real failure and no runbook had, which is still what decides between the two closes.
+  `scripts/samplecheck.py` reports the same 14 samples across the same 12 runbooks, resolved
+  against the same 38 loggers the brain declares and the same 100 messages it logs, with 5 of the
+  samples held to a line the sink's own suite asserts whole.

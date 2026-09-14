@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** a whole-line assertion in a sink's own suite whose expected line is not a plain string
 constant: an f-string interpolating the fixture's timestamp, a name the expected line is bound to
 above the assert, or a helper that builds or compares it. Countable by listing a suite's `assert`
@@ -61,3 +61,19 @@ asked for.
 
   What a close would cost is unchanged, and so is the reason it is not paid: no suite writes either
   shape, so the f-string case would still be written against no example.
+- 2026-09-14: verified again, with nothing in the body repaired. The trigger has not fired. Every
+  `assert` in `brain/packages/tools/tests/test_audit.py` whose test is one `==` was listed and read,
+  fifteen of them: ten carry a one-line string constant on a side and five do not, and none of
+  those five would render a line opening with a level. Two compare a tuple of fields against a
+  tuple of values, one compares the result size against an integer, one counts how often the
+  message appears in a line carrying a forgery, and one compares a single rendered value against a
+  concatenation. `assertedlines.proven` returns the same six lines for the sink.
+
+  One thing about the reach of this reader was derived while checking, and it raises what a close
+  is worth. `samplecheck.disagreement` sends every call whose field list the source refuses to
+  `_proven`, not only the audit sink's, so the reader is consulted for the four call-shaped
+  refusals [R-619](619-four-refusal-lines-attach-their-fields-by-a-call.md) is about as well. No
+  runbook prints one of those four today, so nothing turns on it yet. What changes is the cost of
+  leaving this open: a suite asserting one of those lines through an f-string would leave that
+  sample unheld the same way, so the shapes this reader refuses now stand between four more lines
+  and being documentable rather than one sink's.

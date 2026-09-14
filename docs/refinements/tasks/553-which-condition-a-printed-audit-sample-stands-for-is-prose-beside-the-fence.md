@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** a rendered sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a shape other than the one its fields spell, or a whole-line assertion
 added to `brain/packages/tools/tests/test_audit.py` with a field set the runbook's fence does not
@@ -71,3 +71,9 @@ failing on shapes the reader had not been able to see.
   priced it at a few lines in `samplecheck.py`, and that file is at 287 of the 300-line cap, so the
   rule no longer fits beside the reading it needs and a split comes with it. The which-shape half is
   unchanged and still wants a grammar for a sentence.
+- 2026-09-14: verified again, with nothing in the body repaired. Neither trigger clause has fired.
+  `docs/runbooks/tools-mcp.md` prints the same five samples of `cortex.tools.audit` in the order its
+  introducing sentence states, success, failure, cortex call, delegated call, schedule fire, and
+  `assertedlines.proven` returns the same six lines for the sink over those same five distinct field
+  sets, so the fence prints every shape the suite asserts. `samplecheck.py` still stands at 287
+  lines, so the coverage half still costs the split of that file the previous check priced it at.
