@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
+**Verified:** 2026-09-14
 **Trigger:** a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in
 `docker/docker-compose.gpu.yml` other than `-1`, or a recorded run in this repo where the cortex or
 the deep tier answers a question wrong at a bounded or zero budget and right at the unbounded
@@ -52,3 +52,16 @@ anything lower as a trade, is the placeholder until this exists.
   under a cap, on a 4B tier nobody reads a trace from, at the request rather than in the
   deployment. This entry is still about the two tiers a user reads, where the graded corpus and the
   judge it asks for do not exist.
+- 2026-09-14: **neither clause has fired, and the second half of the older survey has drifted.**
+  Both shipped defaults are still `-1`, [docker-compose.gpu.yml](../../../docker/docker-compose.gpu.yml)
+  line 139 for the cortex tier and line 160 for the deep one, and nothing sets either variable as a
+  deployment: no justfile recipe and no env file, and the GPU runbook's one instruction to set
+  `CORTEX_REASONING_BUDGET=0` is a conditional repair an operator applies after a switch verdict
+  rather than a value this stack starts with. The count of what else spells the knob is now wrong:
+  `brain/packages/model_manager/tests/test_model_roster.py` carries eight `monkeypatch` spellings
+  rather than five, and two more sites exist that did not when the survey was taken, the compose
+  defaults held as mentions in `scripts/modelhostcouplings.py`, where `crosscheck` pins both tiers'
+  `-1` as one set. None of those is a deployment, so the deployment clause reads the same way it
+  did. The answer clause still has no recorded run behind it: the graded corpus and the judge this
+  entry asks for do not exist, and nothing in the tree compares one tier's answer to one question
+  right unbounded and wrong bounded.

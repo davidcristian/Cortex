@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** a newer llama.cpp pulled under a brain that keeps running, where the new build answers
 the lever question differently from the answer that brain cached and the documented restart was
 skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line.
@@ -48,3 +48,14 @@ built here has to argue against it with a deployment that was actually bitten.
   half of that entry's two repairs. The narrowing above is new: the swap boundary the older entry
   called obvious is absent from the default stack and blind to the recreate that causes the
   staleness, so what remains is smaller than it read.
+- 2026-09-14: the trigger has not fired, taken as the reading it names rather than reasoned about.
+  Both mutable tags this stack spells still resolve to the build the GPU runbook recorded on
+  2026-09-12, `b10680-d7bd3bfca` for `ghcr.io/ggml-org/llama.cpp:server` and for `:server-cuda`,
+  read with the runbook's own `docker image inspect` command, so no pull has moved a binary under a
+  running brain here. The premise is unchanged: `resolve_trace_lever` is called once inside
+  `build_inference_backend` and its answer reaches `LlamaCppBackend` as a `bool` that lives as long
+  as the process, `CORTEX_ESCALATION` is still off by default so the swap scope this entry weighs
+  is still absent from the shipped stack, and the documented restart is still what the runbook
+  prints. This is not the same defect as the entry about a budget that went unread: that one asks
+  for the cached answer to be reported, this one for it to be re-asked, and they meet only at
+  `build_inference_backend` returning without it.

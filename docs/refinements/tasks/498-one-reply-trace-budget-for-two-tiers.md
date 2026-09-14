@@ -1,12 +1,8 @@
 # One reply trace budget reaches the deep phase as well as the cortex turn
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-14
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-12
-**Trigger:** the first deployment that sets `CORTEX_REPLY_TRACE_TOKENS` on a stack with
-`CORTEX_ESCALATION` on, which is when one count starts binding two tiers picked on opposite
-arguments.
 
 Opened 2026-08-29 by the close of
 [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which gave a user's reply a
@@ -67,3 +63,12 @@ honest and cheap; the first is what the trigger above asks for.
   `crosscheck` holds those two defaults as one set on the argument that both tiers ship unbounded.
   So the first deployment to set the request count on an escalating stack bounds two traces that
   nothing else bounds, which is a wider first step than the entry's wording implies.
+- 2026-09-14: **landed as the cheap half, the sentence rather than the second knob.** The trigger
+  had still not fired: `CORTEX_REPLY_TRACE_TOKENS` is set by no compose file, recipe or workflow,
+  there is no `.env` at the repo root, and `CORTEX_ESCALATION` appears in the GPU override only in
+  a comment saying what a deployment would add. The sharing is unchanged and now argued rather than
+  inherited: the count's scope is stated beside the field in `config_reply.py`, in the orchestrator
+  module doc's `ReplyBoundsConfig` entry and in the GPU runbook's per-request budget section, each
+  pointing a deployment that wants two counts at `CORTEX_REASONING_BUDGET` and
+  `CORTEX_REASONING_BUDGET_BRAIN`. The second env field is declined for the reason it was deferred,
+  a knob for a case no deployment has reached. Recorded in the ADR-0005 shared-count addendum.

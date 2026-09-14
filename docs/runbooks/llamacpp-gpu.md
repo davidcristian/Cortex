@@ -418,6 +418,14 @@ and that is deliberate: its trace is the thinking status the overlay renders, so
 yours to set with `CORTEX_REPLY_TRACE_TOKENS`, and leaving it unset keeps the tier's own flag
 deciding.
 
+**That one count covers both tiers a user reads**, the cortex turn and the deep phase a handoff
+continues it with, because a handoff is one turn continued and the bounds travel with it. The same
+setting at the server is two flags, `CORTEX_REASONING_BUDGET` and `CORTEX_REASONING_BUDGET_BRAIN`,
+split on the argument that the cortex answers while somebody watches and the deep model was picked
+for reaching an answer inside its trace at all (ADR-0004). So a deployment that wants the two
+traces bounded at different counts sets those two flags and leaves `CORTEX_REPLY_TRACE_TOKENS`
+unset, which is the fallback the request has always taken.
+
 **The key is only sent where the engine reads it**, since a build that does not implement it
 ignores it without error. `CORTEX_INFERENCE_TRACE_LEVER` decides: `auto` (the default) asks your endpoint one
 question at boot, `on` and `off` answer for it. The question is free of the model, and you can ask

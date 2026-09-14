@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-14
 **Trigger:** a deployment that set `CORTEX_REPLY_TRACE_TOKENS` to a count and cannot tell whether it
 did anything, or a side call that returns an empty reply on an endpoint whose boot probe answered
 that the engine reads no per-request trace budget.
@@ -73,3 +73,13 @@ those two is the whole of the work.
   on this host either: the three side calls send `thinking=False` and `trace_tokens=0`, the lever
   defaults to `auto`, and both cached builds here are the one whose answer to the lever question was
   measured as yes.
+- 2026-09-14: neither limb has fired and every claim re-derived unchanged. `drain_text` reads
+  `bounds.thinking` at its one condition and never `bounds.trace_tokens`;
+  `CORTEX_REPLY_TRACE_TOKENS` is set by no compose file, recipe or workflow and there is still no
+  `.env` at the repo root; `CORTEX_ENVELOPE_TRACE_TOKENS` is still the one producer of a positive
+  count, in the envelope harness; and `resolve_trace_lever` is still called inside
+  `build_inference_backend`'s llama.cpp arm, which returns the backend and its closer with the
+  lever's answer visible nowhere, so the boot line still costs that return shape or an argument.
+  One relation is worth recording rather than left to be rediscovered: the entry beside this one
+  about re-asking the lever when the engine moves shares that obstacle and not the defect. A boot
+  line reports an answer once; it does not re-ask a stale one, so neither closes the other.

@@ -209,7 +209,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   ADR-0005 request-lever addendum) are
   the bounds a user-facing reply may carry, and `bounds()` reduces the unset set to `None` so
   the request stays byte-identical. The composition root reads it once and hands the value to both
-  `TurnEngine` and `BrainPhase`, one turn keeping one bound across a handoff. A cap is set with a
+  `TurnEngine` and `BrainPhase`, one turn keeping one bound across a handoff. The count travels
+  with it, so `CORTEX_REPLY_TRACE_TOKENS` bounds the deep model's trace as well as the cortex's; a
+  deployment that wants the two bounded at different counts leaves it unset and sets the two server
+  flags, `CORTEX_REASONING_BUDGET` and `CORTEX_REASONING_BUDGET_BRAIN`, which are two on purpose.
+  A cap is set with a
   bounded trace or not at all: a cap with an unbounded trace empties the reply rather than
   shortening it, and either the switch or the count bounds one. **The count is not derived from
   the switch**, deliberately and uniquely on this path: a user's reply renders its trace as the
