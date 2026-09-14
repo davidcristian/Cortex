@@ -1,12 +1,8 @@
 # The deep phase reads a cut tool call as a dead server
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-14
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-14
-**Trigger:** the first handoff observed settling FAILED whose partial answer ends mid tool call, or
-a third `except MalformedToolCallError` arm appearing in the tree beside the two in `engine.py` and
-`subagent_attempt.py`
 
 Both consumers that can act on `MalformedToolCallError` now do: a delegated attempt reports a
 truncation rather than an inference failure, and the cortex turn ends with a note rather than
@@ -60,4 +56,13 @@ failure of the swap, so answering that question means deciding what a settled-bu
   means choosing between two paths that both already exist, rather than building one. The size
   argument the body makes is also no longer only here: the same 8192 context and the same 3847 to
   4448 tokens are cited in a comment beside the phase's own `StopLedger`.
-
+- 2026-09-14: **landed.** `brain_phase.py` catches `MalformedToolCallError` ahead of the wide arm,
+  logs one `warning` naming the model, the session, the turn and `capped`, flushes the channels,
+  and leaves `failure` unset, so the phase persists and completes and the conductor settles the
+  record `DONE` on the path it already had. The open decision is answered against re-raising, and
+  the argument is in the ADR-0005 deep-cut addendum: `FAILED` is a claim about the swap, every
+  other reason the record carries one is a fault in the machinery, and the sibling arm on the
+  cortex turn ends the same error the same way for the same reader. What the close opened is
+  [R-665](665-a-settled-handoff-does-not-say-it-was-cut.md): a settled record no longer says
+  whether the answer was cut, the old wrong `FAILED` having carried a sentence the right `DONE`
+  does not.

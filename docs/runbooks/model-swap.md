@@ -570,6 +570,23 @@ Anything else is the deep model's own server dying mid answer, whose message com
 inference backend rather than from the swap; the user already has that one, since the reply
 carries the note saying the answer is unfinished.
 
+**One thing that reads like a failure does not settle as one.** A completion cut by a token limit
+while the deep model was writing a tool call leaves a fragment that will not parse, and the phase
+ends the handoff rather than failing it (ADR-0005 deep-cut addendum): the record settles `done`,
+the reply carries the sentence every capped reply carries, and the only line about it is a
+`WARNING` from `cortex_core.brain_phase`.
+
+```
+WARNING:cortex_core.brain_phase:a tool call the deep model wrote could not be read; ending this handoff where it broke capped=<whether a limit did it> model=<the deep model> session_id=<chat id> turn_id=<turn id>
+```
+
+`capped` is the field to read. True means a token limit ended the completion, which is either
+`CORTEX_REPLY_MAX_TOKENS` if the deployment set one or the deep tier's own context window if it
+did not, and the user saw the ordinary capped sentence. False means no limit was reported and the
+model wrote a call its own grammar broke, which is a model problem rather than a budget one, and
+the user saw the sentence that names no bound. Either way the exception is on the line as a
+traceback, since no record carries it any more.
+
 **The record itself, which is where to look afterwards.** The same sentence is on the handoff
 record, which survives the process that wrote it and stays readable for the diagnosis hour the
 store keeps a terminal record:

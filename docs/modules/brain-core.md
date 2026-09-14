@@ -1215,7 +1215,8 @@ unchanged):
   model writes again wherever it runs, so a caller holding a `StopLedger` can tell a call a token
   limit cut from a backend that died; two callers name it, a delegated attempt reporting
   `TRUNCATED` and the cortex turn ending with a note instead of raising, ADR-0005 cortex-cut
-  addendum, while `BrainPhase` still reads it as the wide type) / `ModelManagerError` (+ its
+  addendum, and the deep model's phase ending the handoff the same way, ADR-0005 deep-cut
+  addendum) / `ModelManagerError` (+ its
   `ModelUnavailableError`, `SwapFailedError`, `ResidencyRestoreError`, and
   `HandoffInProgressError`, ADR-0030: the two swap failures, plus the refusal that is not a
   failure at all, since it means the deep model IS loaded and working on another turn, which is
@@ -1322,12 +1323,13 @@ Use-case:
   `TextDelta` and appended to `parts`, so what is persisted is what was shown (ADR-0005
   capped-reply addendum). Both user-facing callers pass a ledger always, so the note covers the
   server's context window as well as a cap the deployment set; `BrainPhase` suppresses it when the
-  phase itself failed, `BRAIN_FAILED_NOTE` already saying the answer is unfinished.
+  phase itself failed, `BRAIN_FAILED_NOTE` already saying the answer is unfinished, and reaches it
+  on the cut-call arm, which leaves `failure` unset for exactly that reason.
   `unreadable_call_note(stops, parts)` is its complement and reads the same ledger the other way
   (ADR-0005 cortex-cut addendum): it appends `UNREADABLE_CALL_NOTE` only when NO completion was
   capped, so a tool call the cap cut takes the ordinary capped sentence and one the model simply
   wrote wrong takes its own. The two disagree on one boolean by construction, which is what lets
-  the engine call both in sequence and hand the reader exactly one explanation. Silence is still
+  both user-facing callers call them in sequence and hand the reader exactly one explanation. Silence is still
   not a cap, so a backend reporting no reason takes the unreadable note. `TurnCapabilities.bounds`
   carries the deployment's own cap and thinking switch to both, `None` by default and therefore
   the request this repo has always sent. `stream_turn_events` maps one tool loop's
@@ -1411,7 +1413,14 @@ Use-case:
   that tier carries no vision projector), then persists its reply as
   a second assistant message under the same `turn_id` and records the exchange under the same
   taint policy. A mid-work `InferenceError` persists the partial text with an honest note and
-  re-raises, so the conductor fails the record and converges. It is also **the only caller that
+  re-raises, so the conductor fails the record and converges, with **one exception that ends the
+  handoff instead of failing it** (ADR-0005 deep-cut addendum): a `MalformedToolCallError`, the
+  cortex turn's arm reached by the same reasoning, since a handoff is one turn continued and its
+  reader is the same user watching the same stream. That arm flushes the guarded channels, streams
+  the note the `StopLedger` picks between `REPLY_CAPPED_NOTE` and `UNREADABLE_CALL_NOTE`, logs a
+  `warning` naming the model, the session, the turn and `capped`, and leaves `failure` unset, so
+  the phase persists and completes and `swap_conductor.py` settles the record `DONE` on its
+  ordinary path with no change of its own. Every other `InferenceError` still settles it `FAILED`. It is also **the only caller that
   watches decode cadence** (ADR-0030 spill-watch addendum): it puts a `CadenceWatch` on the loop
   context and, after the stream and before it persists, logs the tier's rate once, at WARNING with
   the shortfall when the tier never reached `cadence.floor_tps` and at INFO otherwise, including

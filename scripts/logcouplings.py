@@ -57,10 +57,7 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(SWAP_CONDUCTOR, FIELD_KEY, occurrences=4),
             Mention(SWAP_SETTLE, FIELD_KEY, occurrences=3),
             Mention(SWAP_RECOVERY, FIELD_KEY),
-            # The deep phase's two cadence spellings, the reading and the no-reading arms. Pinned
-            # at two because they are the only lines a handoff that WORKED ever writes, so losing
-            # either leaves a chat that escalated successfully with no evidence it ever did.
-            Mention(BRAIN_PHASE, FIELD_KEY, occurrences=2),
+            Mention(BRAIN_PHASE, FIELD_KEY, occurrences=3),
             Mention(MEMORY_RUNBOOK, 'grep "{value}=<id>"'),
             Mention(MEMORY_RUNBOOK, "`{value}=None`"),
             Mention(SWAP_RUNBOOK, 'failed reason="<what happened>" {value}=<chat id>'),

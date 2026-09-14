@@ -14,6 +14,7 @@ from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
     NO_CADENCE_TERMS,
     REPLY_CAPPED_NOTE,
+    UNREADABLE_CALL_NOTE,
     CadenceTerms,
     DecodeCadence,
     DecodeStop,
@@ -26,6 +27,7 @@ from cortex_core import (
     InMemorySessionStore,
     InMemoryToolRegistry,
     JsonSchema,
+    MalformedToolCallError,
     Message,
     RecordingAuditSink,
     RecordingPaceSink,
@@ -600,9 +602,18 @@ async def test_a_failed_phase_still_publishes_the_verdict_it_managed_to_reach() 
 class StoppingDeepBackend:
     """A deep-model stream that reports why it stopped, and optionally dies after saying it."""
 
-    def __init__(self, reason: StopReason, *, fail: bool = False) -> None:
+    def __init__(
+        self,
+        reason: StopReason,
+        *,
+        fail: bool = False,
+        cut: bool = False,
+        chunks: Sequence[str] = ("a deep ", "stump"),
+    ) -> None:
         self._reason = reason
         self._fail = fail
+        self._cut = cut
+        self._chunks = chunks
         self.bounds: list[GenerationBounds | None] = []
 
     async def stream(
@@ -616,16 +627,21 @@ class StoppingDeepBackend:
     ) -> AsyncGenerator[InferenceEvent, None]:
         del model, messages, tools, schema
         self.bounds.append(bounds)
-        yield TextChunk("a deep ")
-        yield TextChunk("stump")
+        for chunk in self._chunks:
+            yield TextChunk(chunk)
         yield DecodeStop(self._reason)
         if self._fail:
             msg = "the deep server died after reporting its stop"
             raise InferenceError(msg)
+        if self._cut:
+            msg = "the tool call arguments are not JSON"
+            raise MalformedToolCallError(msg)
 
 
 async def _run_deep(
-    backend: StoppingDeepBackend, bounds: GenerationBounds | None = None
+    backend: StoppingDeepBackend,
+    bounds: GenerationBounds | None = None,
+    guardrail: UrlRedactingGuardrail | None = None,
 ) -> tuple[list[str], InMemorySessionStore]:
     """Drive one deep phase over a seeded session, returning its text and the store."""
     sessions = InMemorySessionStore()
@@ -633,7 +649,13 @@ async def _run_deep(
         harness.SESSION,
         Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN),
     )
-    phase = BrainPhase(sessions, backend, TickingClock(), "brain", TurnCapabilities(bounds=bounds))
+    phase = BrainPhase(
+        sessions,
+        backend,
+        TickingClock(),
+        "brain",
+        TurnCapabilities(bounds=bounds, guardrail=guardrail),
+    )
     record = harness.armed_slot().snapshot(
         turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
     )
@@ -685,6 +707,68 @@ async def test_a_deep_phase_that_died_says_that_and_not_also_that_it_was_cut() -
     await events.aclose()
     assert texts == ["a deep ", "stump", BRAIN_FAILED_NOTE]
     assert REPLY_CAPPED_NOTE not in "".join(texts)
+
+
+async def test_a_cut_deep_tool_call_ends_the_handoff_rather_than_failing_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A token limit that cut a tool call is reported as the cut it was: the phase does not
+    re-raise, so the conductor settles the record on its ordinary path, and the reader gets the
+    sentence every capped reply gets."""
+    caplog.set_level(logging.WARNING, logger="cortex_core.brain_phase")
+    texts, sessions = await _run_deep(StoppingDeepBackend(StopReason.CAPPED, cut=True))
+    assert texts == ["a deep ", "stump", REPLY_CAPPED_NOTE]
+    history = list(await sessions.history(harness.SESSION))
+    assert history[-1].text == f"a deep stump{REPLY_CAPPED_NOTE}"
+    (logged,) = [record for record in caplog.records if "could not be read" in record.message]
+    assert _extra(logged, "capped") is True  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(logged, "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
+
+
+async def test_a_deep_tool_call_no_limit_explains_gets_its_own_note() -> None:
+    """Uncapped, nothing explains the fragment, so the note that names no bound is written and
+    the phase still ends rather than failing."""
+    texts, sessions = await _run_deep(StoppingDeepBackend(StopReason.FINISHED, cut=True))
+    assert texts == ["a deep ", "stump", UNREADABLE_CALL_NOTE]
+    history = list(await sessions.history(harness.SESSION))
+    assert history[-1].text == f"a deep stump{UNREADABLE_CALL_NOTE}"
+
+
+async def test_a_cut_deep_tool_call_releases_what_the_guardrail_still_held() -> None:
+    """The cut arm flushes the channels itself, because the mapper flushes only on a clean end:
+    the partial URL the filter was holding is released before the note and persisted with it."""
+    backend = StoppingDeepBackend(StopReason.FINISHED, cut=True, chunks=("see http://exa",))
+    texts, sessions = await _run_deep(backend, guardrail=UrlRedactingGuardrail())
+    assert "".join(texts) == "see http://exa" + UNREADABLE_CALL_NOTE
+    history = list(await sessions.history(harness.SESSION))
+    assert history[-1].text == "see http://exa" + UNREADABLE_CALL_NOTE
+
+
+async def test_a_deep_server_that_dies_after_a_cap_still_fails_the_handoff() -> None:
+    """The wide arm behind the narrow one is unchanged: a transport failure after a capped round
+    is still a transport failure, and it still re-raises for the conductor to settle."""
+    texts: list[str] = []
+    sessions = InMemorySessionStore()
+    await sessions.append(
+        harness.SESSION,
+        Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN),
+    )
+    phase = BrainPhase(
+        sessions,
+        StoppingDeepBackend(StopReason.CAPPED, fail=True),
+        TickingClock(),
+        "brain",
+        TurnCapabilities(),
+    )
+    record = harness.armed_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
+    )
+    events = phase.run(record)
+    with pytest.raises(InferenceError, match="died after reporting its stop"):
+        await _collect(events, texts)
+    await events.aclose()
+    assert texts == ["a deep ", "stump", BRAIN_FAILED_NOTE]
+    assert UNREADABLE_CALL_NOTE not in "".join(texts)
 
 
 async def test_the_turns_own_bounds_continue_onto_the_deep_model() -> None:

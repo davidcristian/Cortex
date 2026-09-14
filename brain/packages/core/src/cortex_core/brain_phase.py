@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator, Sequence
 
 from cortex_core.cadence import NO_CADENCE_TERMS, CadenceReading, CadenceTerms, CadenceWatch
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, MalformedToolCallError
 from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
 from cortex_core.output_channels import open_output_channels
@@ -15,7 +15,13 @@ from cortex_core.swap_notes import BRAIN_FAILED_NOTE
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
-from cortex_core.turn_output import cap_note, flush_channels, record_exchange, stream_turn_events
+from cortex_core.turn_output import (
+    cap_note,
+    flush_channels,
+    record_exchange,
+    stream_turn_events,
+    unreadable_call_note,
+)
 from cortex_core.untrusted import TaintLedger
 
 _logger = logging.getLogger(__name__)
@@ -28,6 +34,9 @@ _MEASURED_LOG_MSG = "the deep model's decode rate for this handoff"
 _NO_READING_LOG_MSG = (
     "no decode rate was reported for this handoff, so nothing was checked; a completion too "
     "short to judge, a failed phase, or a backend whose engine reports no timings all read alike"
+)
+_UNREADABLE_CALL_LOG_MSG = (
+    "a tool call the deep model wrote could not be read; ending this handoff where it broke"
 )
 
 
@@ -101,6 +110,21 @@ class BrainPhase:
         )
         try:
             async for event in events:
+                yield event
+        except MalformedToolCallError:
+            _logger.warning(
+                _UNREADABLE_CALL_LOG_MSG,
+                extra={
+                    "model": self._model,
+                    "session_id": record.session_id,
+                    "turn_id": record.handoff_id,
+                    "capped": stops.capped,
+                },
+                exc_info=True,
+            )
+            for held in flush_channels(channels, parts):
+                yield held
+            for event in unreadable_call_note(stops, parts):
                 yield event
         except InferenceError as err:
             # The server died under the deep model. Keep what it produced, say so plainly, and
