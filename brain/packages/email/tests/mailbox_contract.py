@@ -1,4 +1,4 @@
-"""The `Mailbox` contract, run over every implementation (AGENTS.md: ports before adapters)."""
+"""The `Mailbox` contract checks, run over every implementation of the port."""
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -7,22 +7,22 @@ import pytest
 
 from cortex_email import FolderUnknownError, Mailbox, MailboxError, SearchRefusedError
 
-# The client syntax a model reaches for, which is what a real Bridge answers BAD to.
+# The client syntax a model reaches for, which a real Bridge answers BAD to, and what imaplib
+# puts in the exception that refusal raises. No implementation may pass the wire answer on: it
+# is an offset into a command the model never saw.
 REFUSED_QUERY = "from:someone@example.com"
-# What imaplib puts in the exception a refused search raises, verbatim from a live Bridge. No
-# implementation may pass any of it on: it is an offset into a wire command the model never saw.
 WIRE_ANSWER = "UID command error: BAD [b'[Error offset=38]: expected space']"
-# A folder name a model could plausibly invent from a mailbox's shape, and one no implementation
-# under test lists. Every check that uses it asserts that first, so it cannot rot into a name a
-# fixture quietly grew.
+# A folder name a model could invent and no implementation lists, and a name no mailbox could
+# have at all, which the two servers describe differently: a Bridge calls the empty name no
+# such mailbox, and the probe's Dovecot refuses to read it as a name.
 INVENTED_FOLDER = "Receipts"
-# A name no mailbox could have rather than one no mailbox happens to have, which is the other
-# way a folder argument goes wrong and the one the two servers describe differently: a Bridge
-# calls the empty name no such mailbox and the probe's Dovecot refuses to read it as a name.
 IMPOSSIBLE_FOLDER = ""
 SELECT_ANSWER_FRAGMENTS = ("Response status", "no such mailbox", "Data:")
-# A uid past anything a mailbox has assigned, so no message in any fixture's folder has it.
 MISSING_UID = "4294967290"
+UID_CRITERION = f"UID {MISSING_UID}"
+# One string per way a model can get a uid wrong: not a number, the zero RFC 3501 excludes, a
+# set and a range that would fetch messages nobody named, a number past the 32-bit range, and
+# nothing. The two servers read these differently, so the port answers all of them itself.
 IMPOSSIBLE_UIDS = ("abc", "0", "2,1", "1:*", "4294967296", "")
 
 
@@ -35,17 +35,8 @@ class MailboxUnderTest:
     refuse_searches: Callable[[], None]
     break_folder_opening: Callable[[], None]
     decline_reads: Callable[[], None]
-    # A name this implementation's server lists and no mailbox has: a node in the hierarchy.
-    # It is not a knob, because no method can make a server grow one; each fixture is built
-    # over a server that already has it, the live one included.
     hierarchy_node: str
-    # A folder this implementation's server has that holds no mail, so a read in it is asking
-    # about a message in a place that has none. Not a knob either: every fixture is built over
-    # a server that has one.
     empty_folder: str
-    # The uid of the read `decline_reads` arranges. On the fakes the knob declines every read, so
-    # any uid serves and this default is one no message has; on a server that declines one
-    # message and no other, the probe's sealed one, it is that message's uid.
     declined_uid: str = MISSING_UID
 
 
@@ -70,7 +61,7 @@ def a_listed_name_is_never_one_the_port_calls_unknown(under_test: MailboxUnderTe
         except FolderUnknownError as unknown:
             pytest.fail(f"list_folders offered {unknown.folder}, which the port calls unknown")
         except MailboxError:
-            pass  # A mailbox that is really there and will not open is not this check's subject.
+            pass
 
 
 def a_hierarchy_node_is_still_refused_when_a_caller_names_it(under_test: MailboxUnderTest) -> None:
@@ -81,18 +72,20 @@ def a_hierarchy_node_is_still_refused_when_a_caller_names_it(under_test: Mailbox
 
 
 def a_search_answers_with_the_raw_messages_it_matched(under_test: MailboxUnderTest) -> None:
-    """A search the server accepts returns `RawEmail`s: a uid and the bytes to parse.
-
-    The reader parses these with the stdlib, so raw must really be the RFC822 message and the
-    uid must be the string a later `fetch` is given back.
-    """
+    """A search the server accepts returns `RawEmail`s: a uid and the bytes to parse."""
     found = list(under_test.mailbox.search(under_test.folder, "ALL", 5))
     assert found
     assert all(item.uid and item.raw.startswith(b"From:") for item in found)
 
 
+def a_search_of_a_folder_holding_no_mail_matches_nothing(under_test: MailboxUnderTest) -> None:
+    """A folder holding no mail matches nothing, whichever criteria the search was written with."""
+    assert list(under_test.mailbox.search(under_test.empty_folder, "ALL", 5)) == []
+    assert list(under_test.mailbox.search(under_test.empty_folder, UID_CRITERION, 5)) == []
+
+
 def a_refused_search_raises_the_port_s_own_error(under_test: MailboxUnderTest) -> None:
-    """A query the server refuses crosses the port as `SearchRefusedError`, carrying that query."""
+    """A query the server refuses crosses the port as `SearchRefusedError` naming that query."""
     under_test.refuse_searches()
     with pytest.raises(SearchRefusedError) as raised:
         under_test.mailbox.search(under_test.folder, REFUSED_QUERY, 5)
@@ -165,7 +158,7 @@ def a_fetch_answers_the_message_a_search_named(under_test: MailboxUnderTest) -> 
 
 
 def a_uid_no_message_has_is_answered_as_not_there(under_test: MailboxUnderTest) -> None:
-    """A uid nothing in the folder carries comes back ``None``, whichever kind of folder it is."""
+    """A uid no message in the folder has comes back ``None``, whichever kind of folder it is."""
     assert list(under_test.mailbox.search(under_test.folder, "ALL", 1))
     assert under_test.mailbox.fetch(under_test.folder, MISSING_UID) is None
     assert list(under_test.mailbox.search(under_test.empty_folder, "ALL", 1)) == []
@@ -191,6 +184,7 @@ ALL_CHECKS: Sequence[Check] = (
     a_listed_name_is_never_one_the_port_calls_unknown,
     a_hierarchy_node_is_still_refused_when_a_caller_names_it,
     a_search_answers_with_the_raw_messages_it_matched,
+    a_search_of_a_folder_holding_no_mail_matches_nothing,
     a_refused_search_raises_the_port_s_own_error,
     a_refusal_says_what_to_do_and_never_what_the_wire_said,
     a_folder_no_mailbox_has_raises_the_port_s_own_error,

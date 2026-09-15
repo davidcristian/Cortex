@@ -1,5 +1,3 @@
-"""ImapMailbox against a second real IMAP server, the local probe (ADR-0022 two-server addendum)."""
-
 import imaplib
 import os
 import ssl
@@ -14,45 +12,24 @@ from mailbox_contract import (
     a_listed_name_is_never_one_the_port_calls_unknown,
     a_name_no_mailbox_could_have_is_one_no_mailbox_has,
     a_read_the_server_declined_is_not_reported_as_not_there,
+    a_search_of_a_folder_holding_no_mail_matches_nothing,
     a_uid_no_message_could_have_is_answered_as_not_there,
 )
 from pydantic import SecretStr
 
 from cortex_email import EmailConfig, FolderUnknownError, ImapMailbox, MailboxError
 
-# The mailbox the probe leaves this account lookup rights only: listed, real, and refusing to
-# open. It is the whole reason the stack exists.
 GUARDED_FOLDER = "Guarded"
-# A hierarchy node with a child and no mailbox of its own, which this server lists and then
-# refuses as missing. The Bridge's own \Noselect parents open instead.
 NOSELECT_PARENT = "Parent"
-# That node's child, which is a real mailbox and opens. It is what makes dropping the parent
-# lossless: the prefix is still on the list, spelled as part of a name that works.
 NODE_CHILD = "Parent/Child"
-# A name no mailbox has, and the shape of guess `FOLDER_HELP` warns a model against.
 INVENTED_FOLDER = "Nonexistent"
-# The one folder the probe leaves openable, so a run proves the login and the read path before
-# it asks about any refusal.
 REAL_FOLDER = "INBOX"
-# The name the fixture subscribes the account to without building a mailbox for it, which is the
-# only way to make this server send RFC 5258's `\NonExistent`: it refuses a SUBSCRIBE of a name
-# no mailbox has, so the subscription is written into its own file rather than asked for here.
 GHOST_SUBSCRIPTION = "Ghost"
-# A real mailbox that opens and that one of this server's listings still calls unselectable,
-# which is the shape the Bridge shows in its ordinary LIST and the reason the flag is a question
-# rather than an answer. The child below is subscribed and this one is not.
 FEIGNED_FOLDER = "Feigned"
-# That child. Its subscription is the whole cause: RFC 3501 has an `LSUB` of `%` flag an
-# unsubscribed name with subscribed children `\Noselect` whatever the name really is.
 FOLLOWED_SUBSCRIPTION = "Feigned/Followed"
 SEALED_FOLDER = "Sealed"
-# That message's uid, the first a fresh mailbox assigns. The file the fixture shuts is named after
-# it, and it is the uid the contract check reads.
 SEALED_UID = "1"
 IMPOSSIBLE_NAMES = ("Parent/", "/Parent", "Parent//Child", "INBOX/../etc")
-# No password is checked (docker/dovecot/probe.conf), so this is a formality the IMAP dialogue
-# requires rather than a secret, and the user and the password are the same word because nothing
-# verifies either.
 PROBE_LOGIN = "probe"
 
 
@@ -65,7 +42,7 @@ def _probe_address() -> tuple[str, int]:
 
 
 def probe_mailbox() -> ImapMailbox:
-    """Build an `ImapMailbox` on the probe. The self-signed cert is accepted as the Bridge's is."""
+    """Build an `ImapMailbox` on the probe."""
     host, port = _probe_address()
     config = EmailConfig(
         host=host,
@@ -92,7 +69,6 @@ def probe_dialogue() -> imaplib.IMAP4:
 
 @pytest.mark.integration
 def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> None:
-    """A real mailbox an ACL has shut is refused without being typed as a missing folder."""
     mailbox = probe_mailbox()
     assert GUARDED_FOLDER in list(mailbox.list_folders())
     a_folder_that_could_not_be_opened_is_not_reported_missing(
@@ -112,14 +88,11 @@ def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> 
         mailbox.fetch(GUARDED_FOLDER, "1")
     for raised in (searched, read):
         assert not isinstance(raised.value, FolderUnknownError)
-        # The words themselves, which are the evidence: RFC 5530's code for a mailbox that is
-        # there and not available to this account, and nothing a missing folder ever says.
         assert "[NOPERM] Permission denied" in str(raised.value)
 
 
 @pytest.mark.integration
 def test_a_message_this_server_will_not_read_is_never_reported_missing() -> None:
-    """A read the server declines is refused without being answered as a message not there."""
     mailbox = probe_mailbox()
     assert SEALED_FOLDER in list(mailbox.list_folders())
     a_read_the_server_declined_is_not_reported_as_not_there(
@@ -153,7 +126,6 @@ def test_a_message_this_server_will_not_read_is_never_reported_missing() -> None
 
 @pytest.mark.integration
 def test_this_server_says_a_folder_is_missing_in_its_own_words_and_is_still_understood() -> None:
-    """A folder no mailbox has is typed as missing in this server's own wording too."""
     mailbox = probe_mailbox()
     assert INVENTED_FOLDER not in list(mailbox.list_folders())
     with pytest.raises(FolderUnknownError) as searched:
@@ -163,7 +135,7 @@ def test_this_server_says_a_folder_is_missing_in_its_own_words_and_is_still_unde
     for raised in (searched, read):
         assert raised.value.folder == INVENTED_FOLDER
         assert "list_folders" in str(raised.value)
-        assert "Response status" not in str(raised.value)  # nothing of imap-tools reaches a model
+        assert "Response status" not in str(raised.value)
 
     assert "NONEXISTENT" not in str(searched.value.__cause__)
     assert "doesn't exist" in str(searched.value.__cause__)
@@ -171,11 +143,6 @@ def test_this_server_says_a_folder_is_missing_in_its_own_words_and_is_still_unde
 
 @pytest.mark.integration
 def test_the_folder_the_probe_leaves_open_still_opens() -> None:
-    """The login, the EXAMINE and the search path all work against this server.
-
-    This is the control. Without it a refusal proves nothing, since a server that refused
-    everything would pass every other test in this file.
-    """
     mailbox = probe_mailbox()
     assert REAL_FOLDER in list(mailbox.list_folders())
     assert list(mailbox.search(REAL_FOLDER, "ALL", 1)) == []
@@ -183,7 +150,6 @@ def test_the_folder_the_probe_leaves_open_still_opens() -> None:
 
 @pytest.mark.integration
 def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> None:
-    """`list_folders` drops the listed Noselect node, and its child is still offered."""
     mailbox = probe_mailbox()
     under_test = MailboxUnderTest(
         mailbox=mailbox,
@@ -201,7 +167,6 @@ def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> N
 
 @pytest.mark.integration
 def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correction() -> None:
-    """A name this server rejects as a mailbox name is still corrected towards `list_folders`."""
     mailbox = probe_mailbox()
     a_name_no_mailbox_could_have_is_one_no_mailbox_has(
         MailboxUnderTest(
@@ -228,30 +193,28 @@ def test_a_name_this_server_will_not_even_consider_is_still_the_folder_correctio
 
 @pytest.mark.integration
 def test_a_uid_no_message_has_is_not_there_in_this_server_s_empty_folders() -> None:
-    """The second server's answer to the read the Bridge got wrong one command down."""
     mailbox = probe_mailbox()
     assert list(mailbox.search(REAL_FOLDER, "ALL", 1)) == []
     assert mailbox.fetch(REAL_FOLDER, MISSING_UID) is None
-    a_uid_no_message_could_have_is_answered_as_not_there(
-        MailboxUnderTest(
-            mailbox=mailbox,
-            folder=REAL_FOLDER,
-            refuse_searches=_nothing,
-            break_folder_opening=_nothing,
-            decline_reads=_nothing,
-            hierarchy_node=NOSELECT_PARENT,
-            empty_folder=REAL_FOLDER,
-        )
+    under_test = MailboxUnderTest(
+        mailbox=mailbox,
+        folder=REAL_FOLDER,
+        refuse_searches=_nothing,
+        break_folder_opening=_nothing,
+        decline_reads=_nothing,
+        hierarchy_node=NOSELECT_PARENT,
+        empty_folder=REAL_FOLDER,
     )
+    a_uid_no_message_could_have_is_answered_as_not_there(under_test)
+    a_search_of_a_folder_holding_no_mail_matches_nothing(under_test)
     with probe_dialogue() as conn:
-        conn.select(f'"{REAL_FOLDER}"', readonly=True)
+        assert conn.select(f'"{REAL_FOLDER}"', readonly=True) == ("OK", [b"0"])
         assert conn.uid("SEARCH", "UID", MISSING_UID) == ("OK", [b""])
         assert conn.uid("FETCH", MISSING_UID, "(UID)") == ("OK", [None])
 
 
 @pytest.mark.integration
 def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends() -> None:
-    """A real server sends RFC 5258's `\\NonExistent`, and only to a LIST that asks for it."""
     with probe_dialogue() as conn:
         conn.xatom("LIST", "(SUBSCRIBED)", '""', '"*"')
         subscribed = _named(conn.response("LIST"))
@@ -267,7 +230,6 @@ def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends()
 
 @pytest.mark.integration
 def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing() -> None:
-    """A second server flags a mailbox `\\Noselect` in one listing and opens it anyway."""
     with probe_dialogue() as conn:
         subscribed_tree = _named(conn.lsub('""', '"%"'))
         plain = _named(conn.list())
@@ -276,9 +238,6 @@ def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing(
     assert "\\HasChildren" in plain_flags
     assert not plain_flags & {"\\Noselect", "\\NonExistent"}
 
-    # The same name opens, which is why the flag is treated as a question to put to the server
-    # rather than as the answer. This goes through the port, so the offer and the open are read
-    # together: both the parent and the child that flagged it are names a caller may be given.
     mailbox = probe_mailbox()
     offered = list(mailbox.list_folders())
     assert FEIGNED_FOLDER in offered
@@ -293,4 +252,4 @@ def _named(answer: tuple[str, Sequence[bytes | tuple[bytes, bytes] | None]]) -> 
 
 
 def _nothing() -> None:
-    """Do nothing, for a contract knob whose state this server is already in."""
+    """Do nothing, for a contract condition this server is already in."""

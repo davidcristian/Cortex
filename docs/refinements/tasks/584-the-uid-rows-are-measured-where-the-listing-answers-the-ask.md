@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-15
 **Trigger:** a second sitting of `test_uid_reading_live.py`, whether for another tier, another
 model pick, or a reworded `UID_HELP` or `NOT_FOUND`.
 
@@ -45,3 +45,10 @@ decision on whether the correction names the listing as well as the search.
   bill" against the listing subject "Electricity bill, final notice", `DRAWS` is 20, and the
   after-not-found row runs three arms over those twenty seeds, which is the sixty draws the body
   names.
+- 2026-09-15: read again with the three email entries beside it and nothing has moved. `UID_HELP`
+  and `NOT_FOUND` in `brain/packages/email/src/cortex_email/values.py` still carry the words the
+  sitting measured, `test_uid_reading_live.py` still asks for "her message about the electricity
+  bill" against the listing line "Electricity bill, final notice" over twenty seeds, and the
+  trigger has not fired. What this sitting adds is where the entry belongs: closing it needs
+  another run on the cortex tier, which is a GPU measurement rather than a mailbox one, so it
+  will not be closed by a sitting that has the probe up.

@@ -1,12 +1,8 @@
 # The dropped read under Dovecot's default is measured by hand and driven by no live row
 
-**Status:** open, fix when it bites
+**Status:** declined 2026-09-15
 **Area:** email
-**Trigger:** a Dovecot left at its default `imap_fetch_failure` is found to answer a FETCH of a
-message it cannot open with words other than `DROPPED_READ`'s, or the adapter starts reading an
-abort's words rather than only its type.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-13
 
 Opened 2026-09-05 by the close of
 [551](551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md), which
@@ -55,3 +51,16 @@ cleanup; or a decision that words no classification reads need no live row, reco
   under the default the message `_translated` wraps is probably the logout's rather than the
   FETCH's. The fail-safe outcome is unchanged either way, a `MailboxError` and never `None`, which
   is why this stays open rather than becoming urgent.
+- 2026-09-15: declined, on the second of the two closing moves the body names, and on a reading
+  rather than on the argument. The probe was restarted with `imap_fetch_failure` at its default
+  and the declined read taken through every layer: imaplib raises `IMAP4.abort('command: UID =>
+  FETCH failed: Internal error occurred. Refer to server log for more information. [2026-09-15
+  01:45:44]')`, which is `DROPPED_READ` word for word apart from the timestamp, so the hand
+  measurement is confirmed by a second independent reading. The body's own worry is refuted at
+  the same time: imaplib's `logout` expects the `BYE` and returns without raising, so the message
+  `_translated` wraps is the FETCH's rather than the logout's, on the read path and the search
+  path alike. What a second dovecot service would buy is a row pinning a string no classification
+  reads, which does not carry a second service, a second published port and a second address for
+  `just email-folder-probe` to find. The half of this that is a classification rather than words
+  is filed as
+  [673](673-the-search-paths-dropped-connection-is-driven-by-no-live-row.md).

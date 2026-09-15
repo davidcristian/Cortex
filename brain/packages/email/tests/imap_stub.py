@@ -1,12 +1,12 @@
-"""A stand-in for the imap-tools ``MailBox``: what `ImapMailbox` talks to when no server exists."""
+"""A stand-in for the imap-tools ``MailBox``: what `ImapMailbox` talks to with no server."""
 
 import ssl
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from imaplib import IMAP4
 from typing import Self
 
 import pytest
-from imap_tools import MailboxFolderSelectError
+from imap_tools import MailboxFolderSelectError, MailboxUidsError
 from pydantic import SecretStr
 
 import cortex_email.imap as imap_module
@@ -32,12 +32,10 @@ class Msg:
         self.obj = Obj(raw)
 
 
-# What a real ProtonMail Bridge answers to a SELECT of a name no mailbox has, measured verbatim
-# and identically for every shape of wrong name (ADR-0022 unknown-folder addendum).
+# Refusals measured verbatim on two servers: a ProtonMail Bridge for a name no mailbox has,
+# and Dovecot 2.3.21 for the same, for a mailbox whose ACL leaves this account lookup rights
+# only, and for a name it will not read as a mailbox name at all.
 MISSING_FOLDER_ANSWER = ("NO", [b"no such mailbox"])
-# The same fact in another server's words: Dovecot 2.3.21 names the folder it refused and shares
-# not one word with the Bridge, which is why the classification holds two measured phrases rather
-# than one (ADR-0022 two-server addendum).
 OTHER_MISSING_FOLDER_ANSWER = ("NO", [b"Mailbox doesn't exist: Receipts (0.001 + 0.000 secs)."])
 UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[NOPERM] Permission denied (0.001 + 0.000 secs)."])
 REFUSED_NAME_ANSWER = (
@@ -45,13 +43,11 @@ REFUSED_NAME_ANSWER = (
     [b"[CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs)."],
 )
 
-# What imaplib hands back for one command: the tagged status and the untagged lines, a line whose
-# literal arrived separately coming as a pair, and `[None]` when no line came at all.
 type Answer = tuple[str, list[bytes | tuple[bytes, bytes] | None]]
 
-# What both servers answer a UID FETCH of a uid no message has, in a folder holding mail and in
-# one holding none alike: RFC 3501's OK with no data, as imaplib renders it (ADR-0022 fetch-by-uid
-# addendum).
+# Read answers measured verbatim: RFC 3501's OK with no data for a uid no message has, the NO
+# Dovecot sends over a message file it cannot open under `imap_fetch_failure = no-after`, the
+# BYE and dropped connection its default sends instead, and a refused UID search key.
 NOTHING_FETCHED: Answer = ("OK", [None])
 DECLINED_READ_ANSWER: Answer = (
     "NO",
@@ -64,18 +60,14 @@ DROPPED_READ = IMAP4.abort(
     "command: UID => FETCH failed: Internal error occurred. Refer to server log for more "
     "information. [2026-09-05 01:02:49]"
 )
+REFUSED_UID_SEARCH = MailboxUidsError(("NO", [b"no such message"]), "OK")
 
 
-# The LIST attributes a real server sends with a name that is only a point in the hierarchy,
-# measured verbatim against the probe's `Parent`, which has a child and is not a mailbox:
-# `FolderInfo(name='Parent', delim='/', flags=('\\Noselect', '\\HasChildren'))`.
+# LIST attributes measured verbatim: Dovecot's hierarchy node and its ordinary leaf, the
+# Bridge's own flagged parents that still open, and the `\NonExistent` Dovecot sends only to
+# a LIST that asks for subscriptions.
 NODE_FLAGS = ("\\Noselect", "\\HasChildren")
-# What the same server sends with an ordinary leaf mailbox, so the adapter's filter is driven
-# over both answers rather than over one and an empty tuple.
 MAILBOX_FLAGS = ("\\HasNoChildren",)
-# The same claim on the other server, measured verbatim on a live ProtonMail Bridge, which
-# flags the two parents of its own hierarchy and then opens both:
-# `FolderInfo(name='Folders', delim='/', flags=('\\Noselect', '\\Unmarked'))`.
 OPEN_NODE_FLAGS = ("\\Noselect", "\\Unmarked")
 NONEXISTENT_NODE_FLAGS = ("\\Subscribed", "\\NonExistent")
 
@@ -98,14 +90,16 @@ class FolderManager:
         nodes: Sequence[str] = (),
         node_flags: Sequence[str] = NODE_FLAGS,
         open_nodes: Sequence[str] = (),
+        counts: Mapping[str, int] | None = None,
     ) -> None:
         self._names = names
         self._nodes = nodes
         self._node_flags = node_flags
         self._open_nodes = open_nodes
         self._set_calls = set_calls
+        self._counts = counts or {}
         self.select_error: BaseException | None = None
-        # The folder the last accepted ``set`` opened, which is what a later fetch answers from.
+        self.select_answer: Answer | None = None
         self.current: str | None = None
 
     def list(self) -> list[Folder]:
@@ -113,18 +107,20 @@ class FolderManager:
         flagged = [*self._nodes, *self._open_nodes]
         return listed + [Folder(name, self._node_flags) for name in flagged]
 
-    def set(self, folder: str, readonly: bool = False) -> None:  # noqa: FBT001, FBT002
+    def set(self, folder: str, readonly: bool = False) -> Answer:  # noqa: FBT001, FBT002
         self._set_calls.append((folder, readonly))
         if self.select_error is not None:
             raise self.select_error
         if folder not in self._names and folder not in self._open_nodes:
             raise MailboxFolderSelectError(MISSING_FOLDER_ANSWER, "OK")
         self.current = folder
+        if self.select_answer is not None:
+            return self.select_answer
+        return ("OK", [str(self._counts.get(folder, 0)).encode()])
 
 
 def _fetched(message: Msg) -> list[bytes | tuple[bytes, bytes] | None]:
-    """One message as the Bridge's UID FETCH item reaches imaplib, in the shape measured verbatim.
-    """
+    """One message as the Bridge's UID FETCH item reaches imaplib, measured verbatim."""
     raw = message.obj.as_bytes()
     return [
         (f"1 (BODY[] {{{len(raw)}}}".encode(), raw),
@@ -132,9 +128,6 @@ def _fetched(message: Msg) -> list[bytes | tuple[bytes, bytes] | None]:
     ]
 
 
-# What imaplib raises when the Bridge answers a UID FETCH of a string that is not a number,
-# measured verbatim; Dovecot 2.3.21 answers the same BAD in its own words. Both refuse ``0``
-# the same way, so the stand-in refuses everything that is not a number above zero.
 NOT_A_NUMBER = IMAP4.error(
     "UID command error: BAD [b'[Error offset=16]: expected valid digit for number']"
 )
@@ -180,12 +173,14 @@ class FakeBox:
         self.set_calls: list[tuple[str, bool]] = []
         self.login_calls: list[tuple[str, str]] = []
         self.fetch_calls: list[tuple[object, int | None, bool, bool]] = []
-        self.folder = FolderManager(names, self.set_calls, nodes, node_flags, open_nodes)
+        self._mail_folder = names[0]
+        self._messages = list(messages)
+        self.folder = FolderManager(
+            names, self.set_calls, nodes, node_flags, open_nodes, {names[0]: len(messages)}
+        )
         self.client = FakeClient(self)
         self.fetch_error = fetch_error
         self.fetch_answer: Answer | None = None
-        self._mail_folder = names[0]
-        self._messages = list(messages)
 
     def messages_in_open_folder(self) -> list[Msg]:
         """The canned messages when the open folder is the one holding them, else none."""
@@ -211,7 +206,10 @@ class FakeBox:
         self.fetch_calls.append((criteria, limit, headers_only, mark_seen))
         if self.fetch_error is not None:
             raise self.fetch_error
-        return self.messages_in_open_folder()
+        held = self.messages_in_open_folder()
+        if not held and "UID" in str(criteria):
+            raise REFUSED_UID_SEARCH
+        return held
 
 
 def config(*, security: ImapSecurity = "starttls", tls_insecure: bool = False) -> EmailConfig:

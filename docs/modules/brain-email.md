@@ -87,7 +87,10 @@ denied outright.
   rewrite loop that cannot end. The select is classified from what the server said, in either of
   the two forms it can say it in: `_FOLDER_MISSING_PHRASES` holds the Bridge's measured `no such
   mailbox` and Dovecot's measured `Mailbox doesn't exist`, and `_FOLDER_MISSING_CODES` holds the
-  RFC 5530 codes `[NONEXISTENT]` and `[CANNOT]`. The same `NO` also covers a folder that is
+  RFC 5530 codes `[NONEXISTENT]` and `[CANNOT]`. Those two, the predicate that reads them and the
+  two calls that open a folder are `folders.py`, the half of this adapter that decides which names
+  a server really offers and what a refused open means; `imap.py` is the connection and the three
+  port methods. The same `NO` also covers a folder that is
   really there and could not be opened, and a folder that cannot be proved missing is not
   reported missing. The two servers report one fact with no shared wording, and neither sends a
   response code for the missing case, which is why the phrases are read at all and why there are
@@ -99,6 +102,17 @@ denied outright.
   whose prose merely contains "cannot" is not classified as a missing folder. The other
   refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
   two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
+- **A search the server refuses in a folder holding no mail answers with nothing found.** The
+  same Bridge refuses a `UID` search key in such a folder, `NO no such message`, which imap-tools
+  raises out of the search it runs before any fetch and the adapter reported as a mailbox that
+  could not answer, tainting a turn over a call nothing was wrong with. The evidence for the
+  answer is the count the folder's own EXAMINE reported, which `folders.select` reads off the
+  accepted answer and hands back: a folder holding no message matches no criteria, whatever the
+  server's reason for refusing was. The search is still sent, because that is what has the server
+  parse the query, so a malformed query in an empty folder is still `SearchRefusedError` (this
+  Bridge answers it `BAD` there, measured beside the refusal). A folder whose count the server
+  did not report is not answered this way, and neither is a refusal in a folder holding mail
+  (ADR-0022 empty-folder-search addendum).
 - **A read by uid is one `UID FETCH`, sent by `uidfetch.py` rather than through imap-tools'
   `fetch`.** imap-tools searches for the uid before fetching it, and a ProtonMail Bridge answers
   that search `NO no such message` for every uid in a folder holding no mail, where it answers the

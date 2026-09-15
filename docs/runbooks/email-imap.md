@@ -85,6 +85,13 @@ set -a; . ~/.cortex/email.env; set +a
 cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_email_live.py -k uid
 ```
 
+The fourth live row is the other half of that refusal, the search rather than the read (ADR-0022
+empty-folder-search addendum). It finds a folder of the account holding no mail, asserts that a
+search naming a uid there answers with nothing found through the port, and asserts both premises
+raw: that the folder's EXAMINE really reports `0`, which is what the answer is read off, and that
+the `UID SEARCH` really is refused `NO no such message`, which is what the answer is for. The `-k
+uid` selection above runs this row as well as the read, since both are named for the uid.
+
 Add `CORTEX_EMAIL_IMAP_TLS_INSECURE=true` when you are accepting the Bridge's self-signed cert on
 loopback rather than verifying it with an exported `ca_cert`.
 

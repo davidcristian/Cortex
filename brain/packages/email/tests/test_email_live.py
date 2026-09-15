@@ -1,5 +1,3 @@
-"""EmailReader + ImapMailbox against a live ProtonMail Bridge (host-only, ADR-0009)."""
-
 import os
 import re
 import time
@@ -10,7 +8,12 @@ from typing import cast
 
 import pytest
 from imap_tools import MailboxFolderSelectError
-from mailbox_contract import IMPOSSIBLE_UIDS, MISSING_UID
+from mailbox_contract import (
+    IMPOSSIBLE_UIDS,
+    MISSING_UID,
+    MailboxUnderTest,
+    a_search_of_a_folder_holding_no_mail_matches_nothing,
+)
 
 from cortex_email import (
     EmailAttachment,
@@ -35,7 +38,7 @@ def test_reader_lists_and_reads_from_a_live_bridge() -> None:
     folders = list(reader.folders())
     assert "INBOX" in folders
     summaries = list(reader.search("INBOX", "ALL", 3))
-    if summaries:  # a fresh mailbox may be empty; only assert the read path when there's mail
+    if summaries:
         detail = reader.read("INBOX", summaries[0].uid)
         assert detail is not None
         assert detail.subject == summaries[0].subject
@@ -73,14 +76,11 @@ _ADVERTISED_QUERIES = (
     'NOT SUBJECT "cortex"',
     '(FROM "someone@example.com" SINCE 01-Jan-2026)',
 )
-# The words in the description that are criteria rather than prose. IMAP and SEARCH name the
-# dialect itself, and OR/NOT are exercised inside the composed queries above rather than alone.
 _NOT_CRITERIA = frozenset({"IMAP", "SEARCH", "OR", "NOT"})
 
 
 @pytest.mark.integration
 def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
-    """Every criterion `SEARCH_QUERY_HELP` names is run against the live Bridge and accepted."""
     config = EmailConfig()
     if not config.user:
         pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
@@ -92,7 +92,7 @@ def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
 
     reader = EmailReader(ImapMailbox(config))
     for query in _ADVERTISED_QUERIES:
-        reader.search("INBOX", query, 1)  # a criterion the server refuses raises out of here
+        reader.search("INBOX", query, 1)
 
     with pytest.raises(SearchRefusedError) as raised:
         reader.search("INBOX", "from:someone@example.com", 1)
@@ -102,7 +102,6 @@ def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
 
 @pytest.mark.integration
 def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> None:
-    """A name no mailbox has raises `FolderUnknownError`, and every offered name opens."""
     config = EmailConfig()
     if not config.user:
         pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
@@ -112,12 +111,12 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
             mailbox.search(name, "ALL", 1)
         assert raised.value.folder == name
         assert "list_folders" in str(raised.value)
-        assert "Response status" not in str(raised.value)  # nothing of imap-tools reaches a model
+        assert "Response status" not in str(raised.value)
     with pytest.raises(FolderUnknownError):
-        mailbox.fetch("Receipts", "1")  # the other tool that takes a folder, same answer
+        mailbox.fetch("Receipts", "1")
 
     for folder in mailbox.list_folders():
-        mailbox.search(folder, "ALL", 1)  # a listed name that would not open raises out of here
+        mailbox.search(folder, "ALL", 1)
 
     _assert_no_name_this_server_opens_is_withheld(mailbox)
 
@@ -125,8 +124,8 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
 def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
     """Assert that every name this server opens is one `list_folders` offers."""
     offered = set(mailbox.list_folders())
-    # Reaching past the port is deliberate, hence both suppressions: what this asks about is
-    # precisely the names the port did not return, which nothing on the port can show.
+    # Reaching past the port is what both suppressions are for: this asks about the names
+    # the port did not return, which nothing on the port can show.
     connection = mailbox._open()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
     with connection as box:
         listed = [folder.name for folder in box.folder.list()]
@@ -143,7 +142,6 @@ def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
 
 @pytest.mark.integration
 def test_a_uid_no_message_has_is_not_there_whichever_kind_of_folder_is_asked() -> None:
-    """`fetch` answers ``None`` for a uid no message has, in a folder holding mail or none."""
     config = EmailConfig()
     if not config.user:
         pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
@@ -164,6 +162,41 @@ def test_a_uid_no_message_has_is_not_there_whichever_kind_of_folder_is_asked() -
             assert box.client.uid("FETCH", MISSING_UID, "(UID)") == ("OK", [None]), folder
 
 
+@pytest.mark.integration
+def test_a_uid_criterion_in_a_folder_holding_no_mail_matches_nothing() -> None:
+    config = EmailConfig()
+    if not config.user:
+        pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
+    mailbox = ImapMailbox(config)
+    with_mail, without = _one_folder_of_each_kind(mailbox)
+    if without is None:
+        pytest.skip("every folder in this mailbox holds mail, so the empty-folder search is moot")
+    a_search_of_a_folder_holding_no_mail_matches_nothing(
+        MailboxUnderTest(
+            mailbox=mailbox,
+            folder=with_mail or without,
+            refuse_searches=_unreachable,
+            break_folder_opening=_unreachable,
+            decline_reads=_unreachable,
+            hierarchy_node="",
+            empty_folder=without,
+        )
+    )
+    connection = mailbox._open()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    with connection as box:
+        assert box.folder.set(without, readonly=True) == (  # pyright: ignore[reportUnknownMemberType]
+            "OK",
+            [b"0"],
+        )
+        status, answer = box.client.uid("SEARCH", "CHARSET", "US-ASCII", "UID", MISSING_UID)
+        assert (status, answer) == ("NO", [b"no such message"])
+
+
+def _unreachable() -> None:
+    """Fail a contract condition this account cannot set up and the check here never asks for."""
+    pytest.fail("this check arranges nothing on a live server")
+
+
 def _one_folder_of_each_kind(mailbox: ImapMailbox) -> tuple[str | None, str | None]:
     """One folder of this account holding mail and one holding none, or ``None`` for either."""
     with_mail: str | None = None
@@ -180,7 +213,6 @@ def _one_folder_of_each_kind(mailbox: ImapMailbox) -> tuple[str | None, str | No
 
 @pytest.mark.integration
 def test_send_round_trips_between_the_two_test_addresses() -> None:
-    """Send one message over SMTP through the Bridge and read its arrival back over IMAP."""
     smtp_config = SmtpConfig()
     to = os.environ.get("CORTEX_EMAIL_LIVE_SEND_TO", "")
     if not (smtp_config.enabled and to):
@@ -199,9 +231,6 @@ def test_send_round_trips_between_the_two_test_addresses() -> None:
     )
     assert to in line
 
-    # Search server-side BY the unique stamp, not the oldest N of the folder: a populated
-    # mailbox would never surface a just-arrived message in its oldest 20 (IMAP fetch is
-    # ascending-UID). The subject is unique per run, so the IMAP SUBJECT filter finds exactly it.
     mailbox = ImapMailbox(EmailConfig())
     reader = EmailReader(mailbox)
     query = f'SUBJECT "{stamp}"'

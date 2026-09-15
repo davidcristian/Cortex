@@ -1,12 +1,8 @@
 # A UID search key in a folder holding no mail is refused by the Bridge and stays untyped
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** email
-**Trigger:** a model writes a `UID` criterion into `search_emails` against a folder holding no
-mail and reads back `the mailbox could not run that search` rather than
-`(no matching messages)`, which taints the turn.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-13
 
 Opened 2026-09-05 by the close of
 [548](548-an-empty-folder-read-raises-instead-of-answering-not-found.md), which moved the read
@@ -58,3 +54,20 @@ holds nothing is a change to the other call.
   `IMAP4.error`, so it passes the `except IMAP4.error` in `search` untouched and is wrapped by
   `_translated` as the base `MailboxError`, exactly as the body above records. The Bridge was not
   read again this sitting, so the live reading of 2026-09-09 stands.
+- 2026-09-15: landed, and the closing move is the entry's second option narrowed. `search` reads
+  the message count off the EXAMINE it already sends and answers a refused search with nothing
+  found when that count is zero, so a folder holding no message matches no criteria whatever the
+  server's reason for refusing was, and nothing of the `NO` is read. The blanket version this
+  entry proposed, answering such a folder without sending any search, was written first and
+  rejected on a measurement: with it in place the live row that sends every criterion
+  `SEARCH_QUERY_HELP` names to the Bridge went red, because the account's `INBOX` holds no mail
+  today and the row asked the server nothing. The Bridge was measured beside that: it accepts
+  every advertised criterion in a folder holding no mail, answers the client syntax there with
+  `BAD [Error offset=38]`, and refuses only the `UID` key, `NO no such message`, which is now
+  answered from the count. The port contract gained
+  `a_search_of_a_folder_holding_no_mail_matches_nothing`, driven over the fake, the stand-in and
+  both servers, and the live Bridge row asserts both premises raw. The folder classification moved
+  to `brain/packages/email/src/cortex_email/folders.py` to keep the adapter under the file cap.
+  Opened [673](673-the-search-paths-dropped-connection-is-driven-by-no-live-row.md) from the same
+  sitting, through the reading of
+  [569](569-the-dropped-read-under-dovecots-default-is-measured-by-hand-and-driven-by-no-live-row.md).

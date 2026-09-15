@@ -6,7 +6,7 @@
 of that folder reads back `the mailbox could not run that search` rather than the messages the
 server did deliver.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-15
 
 Opened 2026-09-05 by the close of
 [551](551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md), whose
@@ -21,14 +21,16 @@ it are fetched by commands that answer `OK`. What loses those is this side of th
 builds `list(box.fetch(...))`, and that generator has already yielded the readable messages it
 reached before the declined uid raises, so the exception discards them.
 
-Two limits follow from the per-uid shape. The search is refused whole only when the declined uid
-is among the first `limit` matches, since imap-tools cuts the uid list to the limit before it
-sends any FETCH. And which messages are lost is a matter of uid order rather than of what the
-server delivered: under `imap_fetch_failure = no-after` the tagged `NO` covers the one message,
-and under Dovecot's default the connection is dropped, which ends the rest of the run as well.
-The probe's `Sealed` holds one message and nothing else, so the live row measures the refusal and
-not the loss; the loss is read off imap-tools' `_fetch_by_one` and the `list` in `search` rather
-than measured.
+Two limits follow from the per-uid shape, both measured on 2026-09-15 by saving two readable
+messages into the probe's `Sealed` beside the sealed one and moving the seal between them. The
+search is refused whole only when the declined uid is among the first `limit` matches, since
+imap-tools cuts the uid list to the limit before it sends any FETCH: with the sealed message at
+uid 3, `limit=1` and `limit=2` answered normally and `limit=3` and `limit=5` were refused. And
+which messages are lost is a matter of uid order rather than of what the server delivered: with
+the sealed message at uid 3 the generator yielded uids 1 and 2 before raising, and with it at uid
+1 it yielded nothing at all, every limit refused. Under Dovecot's default the connection is
+dropped instead, which ends the rest of the run as well. The probe's `Sealed` still holds the one
+message the fixture seals, so the live row measures the refusal and not the loss.
 
 **Why it was left.** No account this repo reads has such a message, and the answer a model gets
 is the fail-safe one: a mailbox that could not answer, which costs a dispatch and never a wrong
@@ -66,3 +68,13 @@ saving a second message into `Sealed` before sealing the first.
   `docker/dovecot/probe-mailboxes.sh` saves into it. The Bridge was not read again this sitting,
   so the live reading of 2026-09-09, where all nineteen folders answered a search, stands and the
   trigger has not fired.
+- 2026-09-15: the loss was measured rather than read off imap-tools' source, and every claim held.
+  Two readable messages were saved into the probe's `Sealed` through `doveadm` in the running
+  container and the seal moved between them, which is the fixture the closing move needs and which
+  no committed file builds: with the sealed message last, `search(Sealed, ALL, 5)` was refused
+  after uids 1 and 2 had already been fetched and discarded, and `limit=1` and `limit=2` answered
+  normally; with it first, nothing was yielded under any limit. The body now carries those
+  readings in place of the inference. The trigger has not fired: read live today, the Bridge
+  account lists nineteen folders and every one of them answers a search, none refused. The
+  closing move is unchanged and still large, a search that sends its own header fetches and
+  reports the uid it skipped, so this stays open.
