@@ -174,15 +174,34 @@ replay seed="" since="" count="5" window="25":
         echo "=== reproduce this draw with: just replay $seed $since ==="
     else
         ledger="docs/runbooks/mutation-replay.md"
+        anchor=""
+        nearest=""
+        for tip in $(sed -n 's/^| *[^|]* *| *\([0-9a-f]\{7,40\}\) *|.*/\1/p' "$ledger"); do
+            git rev-parse --verify --quiet "$tip^{commit}" >/dev/null || continue
+            ahead="$(git rev-list --count "$tip..HEAD")"
+            if [ -z "$nearest" ] || [ "$ahead" -lt "$nearest" ]; then
+                nearest="$ahead"
+                anchor="$tip"
+            fi
+        done
         last="$(sed -n 's/^| \([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\) |.*/\1/p' "$ledger" | tail -n 1)"
-        if [ -z "$last" ]; then
-            echo "=== $ledger carries no dated row, so there is no standing count ==="
-        else
+        if [ -n "$anchor" ]; then
+            when="$(sed -n "s/^| *\([^|]*[^| ]\) *| *$anchor *|.*/\1/p" "$ledger" | tail -n 1)"
+            landed="$(git log "$anchor..HEAD" "${vocabulary[@]}" --format='%H')"
+            read_as="the pass of $when, drawn from $(git rev-parse --short "$anchor")"
+        elif [ -n "$last" ]; then
             landed="$(git log --since="$last" "${vocabulary[@]}" --format='%H')"
+            read_as="midnight of the pass of $last, which records no commit"
+        else
+            read_as=""
+        fi
+        if [ -z "$read_as" ]; then
+            echo "=== $ledger carries no commit and no dated row, so there is no standing count ==="
+        else
             behind="$(printf '%s' "$landed" | grep -c . || true)"
             verdict="no pass due"
             [ "$behind" -lt {{ window }} ] || verdict="a pass is due"
-            echo "=== $behind candidate bodies since the pass of $last, cadence {{ window }}: $verdict ==="
+            echo "=== $behind candidate bodies since $read_as, cadence {{ window }}: $verdict ==="
         fi
         pool="$(git log --max-count={{ window }} "${vocabulary[@]}" --format='%H%x09%s')"
         echo "=== replay draw: seed $seed, over the {{ window }} most recent tables ==="

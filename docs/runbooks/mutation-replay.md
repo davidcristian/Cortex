@@ -21,9 +21,26 @@ own, with no date typed in:
 just replay
 ```
 
-Its first line reads the date off the ledger's last dated row, counts the candidate bodies that have
-landed since it, and states that count against the cadence. Under twenty five there is nothing to
-do. At or over it, the same run has already drawn a sample out of the standing window.
+Its first line counts the candidate bodies that have landed since the last pass and states that
+count against the cadence. Under twenty five there is nothing to do. At or over it, the same run
+has already drawn a sample out of the standing window.
+
+**The count runs from the commit in the ledger's "Drawn from" column**, as the range
+`<commit>..HEAD`, so it covers exactly the work that landed after the pass took its sample. The
+recipe reads every commit the column holds and anchors on the one nearest HEAD, which is the last
+pass whatever order the rows were typed in and whatever their date cells say. The line names the
+row it read and the commit it counted from, so a reader can see which pass the number is measured
+against.
+
+A row whose "Drawn from" cell holds no commit, or one this clone cannot resolve, is counted from
+midnight of its date instead, the reading this recipe used before the column existed. That reading
+is coarser in two ways: it counts from the start of the pass's own day rather than from the sample,
+and it takes the last row that carries an ISO date rather than the last pass. The line says which
+of the two readings it gave. A rewrite of this repo's history is what makes a recorded commit stop
+resolving, and one has already reached the range the pass of 2026-08-25 drew over, which is why
+that pass's own five are no longer the five its seed draws. A row whose commit a rewrite has moved
+falls back to the coarse reading until somebody re-derives the commit, and the next pass records
+one that resolves.
 
 Once the count is well past the cadence, the standing window and the gap since the last pass are no
 longer the same set, and the gap is the honest one to sample, being what went unsampled. Hand the
@@ -33,10 +50,10 @@ recipe the ledger's date to count and draw over that range instead:
 just replay "" 2026-08-25
 ```
 
-A ledger carrying no dated row leaves the standing count unavailable, which that first line says in
-place of a number, and the draw still runs. A missing ledger file fails the recipe outright:
-this document is the procedure a pass is run from, so its absence is a fault rather than one
-number going unreported.
+A ledger carrying neither a commit nor a dated row leaves the standing count unavailable, which
+that first line says in place of a number, and the draw still runs. A missing ledger file fails the
+recipe outright: this document is the procedure a pass is run from, so its absence is a fault
+rather than one number going unreported.
 
 ## Drawing the sample
 
@@ -124,16 +141,18 @@ are the reason the draw takes the twenty five most recent bodies rather than the
 
 Two places, and both are required for the next pass to work.
 
-- **The ledger below** gets a row: the date, the seed, the window, how many rows were replayed and
-  what came of them. It is what the next pass counts from, so a pass that finds nothing still
-  writes one.
+- **The ledger below** gets a row: the date, the commit the sample was drawn from, the seed, the
+  window, how many rows were replayed and what came of them. It is what the next pass counts from,
+  so a pass that finds nothing still writes one. Take the commit with `git rev-parse HEAD` before
+  the draw, not after the row is written: the count runs from it, and a pass's own record commits
+  landed after the sample was taken, so they are unsampled work like any other.
 - **Anything a row turned up** goes where that row's claim lives: a correction as a dated note at
   the ADR addendum carrying the table, a zero count as a new assertion plus its own task file, an
   unreplayable wording as a task file.
 
 ## Ledger of passes
 
-| Date | Seed | Window | Rows | Result |
-| --- | --- | --- | --- | --- |
-| 2026-08-21 | none, chosen by hand | one week of the record, five tables | 32 rows over 49 runs | every row reproduced; cost four minutes per table where the file, the edit and the suite were named and fifteen where none of the three was |
-| 2026-08-25 | 19269061 | the 25 most recent bodies, five drawn | 10 rows over 16 runs, out of the 16 those tables state | every replayed row reproduced, one of them only after the plant was corrected; three of the five drawn bodies were opened and the pass was bounded by the session rather than by the record |
+| Date | Drawn from | Seed | Window | Rows | Result |
+| --- | --- | --- | --- | --- | --- |
+| 2026-08-21 | not recorded | none, chosen by hand | one week of the record, five tables | 32 rows over 49 runs | every row reproduced; cost four minutes per table where the file, the edit and the suite were named and fifteen where none of the three was |
+| 2026-08-25 | 2712a6aa1fd7c1c274a2f2c03b24fb0bf20872f2 | 19269061 | the 25 most recent bodies, five drawn | 10 rows over 16 runs, out of the 16 those tables state | every replayed row reproduced, one of them only after the plant was corrected; three of the five drawn bodies were opened and the pass was bounded by the session rather than by the record |

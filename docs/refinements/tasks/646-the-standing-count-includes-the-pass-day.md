@@ -1,9 +1,8 @@
 # The standing count includes the pass's own day
 
-**Status:** open, actionable
+**Status:** landed 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-14
 
 Opened 2026-09-12 by the close of
 [R-439](439-nothing-counts-the-record-between-passes.md), which gave `just replay` a standing count
@@ -41,3 +40,17 @@ being orderable where a hand-typed date is only readable, so the two are worth d
   recorded the pass of 2026-08-25, which is work that pass had already drawn from. The cost
   argument above no longer holds, because the error is not two at the quiet end of a range but the
   verdict the line exists to give, so this moves to actionable.
+
+- 2026-09-15: **landed, and the consequence written above does not survive the re-derivation.**
+  The ledger grows a "Drawn from" column and the count becomes the range `<commit>..HEAD`, which is
+  exactly the work that landed after the pass took its sample. The real ledger counts 26 under the
+  date and 25 under the range. The one body between the two readings is the commit that recorded
+  the pass of 2026-08-25, which landed thirteen minutes after the commit the draw ran over; the
+  other commit of that day was in the draw's pool, so the overstatement is one body and not two.
+  **The verdict does not move**, 25 reaching the cadence of 25, so the trail above is wrong that a
+  pass is being called due on the pass's own commits. The column holds the draw's tip rather than
+  the commit the pass was recorded at, because a commit's hash does not exist until the commit is
+  made and no pass can write its own; the tip is knowable before the row is written and is what the
+  count wants. The seven arms are in the
+  [ADR-0002 drawn-from addendum](../../adr/ADR-0002-toolchain-gates.md). Opened by this close:
+  [R-668](668-a-rewritten-history-unreproduces-a-recorded-draw.md).

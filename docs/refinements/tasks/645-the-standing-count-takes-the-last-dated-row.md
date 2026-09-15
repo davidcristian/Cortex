@@ -1,11 +1,8 @@
 # The standing count takes the last dated row for the last pass
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-14
-**Trigger:** the date the standing line prints is not the date of the ledger's last pass, which
-is what a row dated in another format or appended out of order produces.
 
 Opened 2026-09-12 by the close of
 [R-439](439-nothing-counts-the-record-between-passes.md), which gave `just replay` a standing count
@@ -46,3 +43,18 @@ condition no commit caused.
   one's has not, which is only possible because they are two conditions over the same printed line
   rather than one. This entry is about which row the date is read from. R-646 is about how far into
   a day that date reaches once the right row has been read.
+
+- 2026-09-15: **landed**, through the column
+  [R-646](646-the-standing-count-includes-the-pass-day.md) named rather than through either remedy
+  written above. The ledger grows a "Drawn from" column holding the commit a pass took its sample
+  over, and the recipe anchors on the commit nearest HEAD among the rows that carry one, so the
+  last pass is whichever row git says is latest. Both failure modes this entry names are gone for a
+  row that records a commit: a date cell in another format is never read, and file order decides
+  nothing. Two arms in the
+  [ADR-0002 drawn-from addendum](../../adr/ADR-0002-toolchain-gates.md) measure it, the rows
+  swapped and the older commit moved to the bottom of the table, both still anchoring on the pass
+  of 2026-08-25; a third writes the last row's date as `25 August 2026` and still counts 25, where
+  the date reading fell through to the row of 2026-08-21 and reported 32. A row with no resolvable
+  commit keeps the date fallback and both failure modes with it, which the pass of 2026-08-21 has,
+  its tip never having been written down. Opened by this close:
+  [R-667](667-a-dateless-row-is-passed-over-by-the-commit-anchor.md).
