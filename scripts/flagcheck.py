@@ -1,4 +1,4 @@
-"""Repo gate: fail when a subagent server this repo starts is missing a flag its tier requires."""
+"""Fail when a subagent server this repo starts is missing a flag its tier requires."""
 
 import argparse
 import sys
@@ -9,86 +9,17 @@ from artifactnames import Artifact, named
 from composefiles import ComposeSearchError
 from composestarts import ComposeStartError
 from hostedtiers import HostedTierError, hosted
+from subagentflags import REQUIREMENTS, Requirement, applies, missing
 from subagentservers import FAMILY_PREFIX, Server, servers
 
-# A gate over no server, or over no requirement, would be green forever, so every scan here fails
-# when either set is empty.
 MIN_SERVERS = 1
 MIN_FLAGS = 1
 
 
 class FlagCheckError(Exception):
-    """The servers a stack starts, or the flags they must carry, cannot be read or are empty."""
+    """The servers a stack starts, or the flags they need, cannot be read or are empty."""
 
 
-class Flag(NamedTuple):
-    """One flag a server must start with, and the value that must follow it, where one must.
-
-    ``value`` is None for a flag that takes none, which is the whole of what is asked of it: it
-    is there or it is not.
-    """
-
-    name: str
-    value: str | None = None
-
-
-class Requirement(NamedTuple):
-    """One thing every subagent server must be started with, and why every one of them must."""
-
-    label: str
-    why: str
-    flags: tuple[Flag, ...]
-
-
-REQUIREMENTS: tuple[Requirement, ...] = (
-    Requirement(
-        label="the tool-capable chat template",
-        why=(
-            "a subagent server started without it runs llama.cpp's built-in template instead of "
-            "the model's own, which cannot emit a tool call, so a tools-enabled subagent comes up "
-            "healthy and silently has no tools (ADR-0010)"
-        ),
-        flags=(Flag("--jinja"),),
-    ),
-    Requirement(
-        label="the tier's reasoning-off pair",
-        why=(
-            "every subagent server this repo starts carries both flags, because neither alone "
-            "covers both request shapes the tier serves: the kwarg is what a chat template reads "
-            "on a plain request, and the budget is what reaches the constrained shape every "
-            "tool-less subagent decodes into the fixed envelope, where the kwarg was measured to "
-            "stop holding. A server started with half the pair spends its whole token cap on a "
-            "trace no reader ever sees and answers a cap refusal, which is a defect whose only "
-            "symptom is a slow subagent (ADR-0005 switch-is-advisory addendum)"
-        ),
-        # The budget's count is the model host's `_NO_REASONING_BUDGET`, held to this spelling by
-        # the constant scan, so the hosted tier and the compose servers cannot disagree about it.
-        # Zero rather than a count, because a narrow subtask needs no thought and not a short one.
-        flags=(
-            Flag("--chat-template-kwargs", '{"enable_thinking": false}'),
-            Flag("--reasoning-budget", "0"),
-        ),
-    ),
-    Requirement(
-        label="the host-RAM prompt cache, turned off",
-        why=(
-            "llama.cpp keeps a prompt cache in host RAM for a conversation whose server slot has "
-            "been taken and sizes it at 8192 MiB by default, which is the whole memory cap the "
-            "compose subagent servers run under and a third of the one the model host's three "
-            "tiers share. What such a cache grows into is the mapped weights a server reads on "
-            "every token, measured on the shipped pick at 781 MiB of headroom spent in nine "
-            "prompts and the weights reclaimed from the tenth on, so a subagent server left on "
-            "the default answers more slowly the longer it runs and one on a full cgroup is "
-            "killed outright. Zero was measured to cost nothing on this tier's one-shot subtasks "
-            "(ADR-0028 prompt-cache addendum)"
-        ),
-        flags=(Flag("--cache-ram", "0"),),
-    ),
-)
-
-
-# Why an artifact's own name is this gate's business, printed with any naming fault exactly as a
-# requirement prints why every server must meet it.
 WHY_NAMED = (
     "both readers of this gate's set decide whether a server or a tier serves subagents from that "
     "spelling alone, so an artifact named another way drops out of the set unreported and this "
@@ -105,7 +36,7 @@ class Fault(NamedTuple):
 
 
 class Scan(NamedTuple):
-    """One run: what it was over, then what it could not account for."""
+    """What one run checked, and what it could not account for."""
 
     servers: int
     files: int
@@ -114,36 +45,20 @@ class Scan(NamedTuple):
     faults: list[Fault]
 
 
-def missing(command: tuple[str, ...], flag: Flag) -> str | None:
-    """What is wrong with one flag in one argv, or None when the argv carries it as required."""
-    written = [
-        command[index + 1] if index + 1 < len(command) else None
-        for index, item in enumerate(command)
-        if item == flag.name
-    ]
-    if not written:
-        return f"it carries no {flag.name}"
-    if flag.value is None:
-        return None
-    wrong = [value for value in written if value != flag.value]
-    if not wrong:
-        return None
-    return f"{flag.name} is followed by {wrong[0]!r} where the tier requires {flag.value!r}"
-
-
 def check_one(server: Server, requirements: tuple[Requirement, ...] | None = None) -> list[Fault]:
-    """Every requirement one server's argv does not meet, in the order they are written here."""
+    """Every requirement one server's argv does not meet, in the order the rules are written."""
     required = REQUIREMENTS if requirements is None else requirements
     return [
         Fault(server.file, server.service, f"{requirement.label}: {wrong}; {requirement.why}")
         for requirement in required
+        if applies(server.command, requirement)
         for flag in requirement.flags
         if (wrong := missing(server.command, flag)) is not None
     ]
 
 
 def unclassifiable(artifact: Artifact) -> Fault | None:
-    """What is wrong with one artifact's name, or None when a membership reader can classify it."""
+    """What is wrong with one model artifact's name, or None when the readers can classify it."""
     if artifact.variable.startswith(FAMILY_PREFIX):
         return None
     return Fault(
@@ -155,11 +70,7 @@ def unclassifiable(artifact: Artifact) -> Fault | None:
 
 
 def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Scan:
-    """Hold every subagent server the tree under ``root`` starts, either way, to every requirement.
-
-    The compose stack is read first, so a tree that is no repo at all is reported as the compose
-    tree it is missing rather than as the sidecar module underneath that one.
-    """
+    """Check every subagent server the tree under ``root`` starts against every requirement."""
     required = REQUIREMENTS if requirements is None else requirements
     flags = sum(len(requirement.flags) for requirement in required)
     if flags < MIN_FLAGS:
@@ -194,7 +105,7 @@ def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Sc
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any faults and return the process exit code."""
+    """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when a subagent server this repo starts is missing a required flag.",
     )
@@ -228,7 +139,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(
         f"flagcheck OK: the {scanned.servers} subagent server(s) started under {given} by "
-        f"{scanned.files} file(s) each carry all {scanned.flags} required flag(s), and the "
+        f"{scanned.files} file(s) each carry every one of the {scanned.flags} required flag(s) "
+        f"that reaches them, and the "
         f"{scanned.artifacts} model artifact(s) this tree names are each named so a reader can "
         "say which tier they serve"
     )

@@ -5,7 +5,7 @@
 **Trigger:** a second hand-started subagent server appears in a runbook or a host task, or one of
 the two flags the constant registry does not hold is found missing from the one that exists
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 
 Opened 2026-08-27 by the close of
 [R-462](462-nothing-enumerates-the-subagent-servers-this-repo-starts.md), which held every subagent
@@ -32,7 +32,7 @@ fenced commands is a second reader for one far side.
 sidecar to hang off, `_SUBAGENT_TAIL` in `config.py` for the kwarg and the two counts and `_JINJA`
 in `tiers.py` for the other. None of those strings is registered in the constant registry, though
 `_JINJA` is no longer unheld: `scripts/hostedtiers.py` reads the argv `llama_server_argv` returns
-and holds every item in it to `flagcheck.REQUIREMENTS`, so the gate's `Flag("--jinja")` and the
+and holds every item in it to the flag gate's rule, so its `Flag("--jinja")` and the
 sidecar's `_JINJA` do fail together. What that reader cannot reach is the runbook, which is the
 whole of what this entry is about. The alternative worth weighing first is that a runbook command
 is prose an operator adapts, and holding four flags in it is holding a paste. The reason to weigh
@@ -65,3 +65,12 @@ not.
   `scripts/hostedtiers.py`, which reduces the argv builder's return tuple and compares it against
   the flag rule, so a rename on either side fails. The entry stays open because none of that
   reaches a fenced command in a runbook, which is the one far side it names.
+- 2026-09-15: the rule moved again and this time the paste was already ahead of it. The flag gate
+  gained a fourth requirement, a `--threads` on every server started with `-ngl 0`, and the
+  runbook's `docker run` already spells `-ngl 0 --threads 4`, added when the thread pin landed. So
+  neither half of the trigger fired. The count of flags in that command block that nothing holds
+  rose from three to four all the same: the kwarg, `--jinja`, `--cache-ram 0` and now `--threads 4`.
+  The CPU budget's own constant carries five needles and every one of them names a compose file, so
+  the count beside `--cpus 4` in this block is held by nobody either, which is a second value of the
+  same kind rather than a second far side. The entry stays open, and what it is about is unchanged:
+  a fenced command in a runbook is the one far side a rule over compose services cannot reach.

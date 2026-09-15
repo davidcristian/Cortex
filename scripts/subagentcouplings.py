@@ -1,5 +1,5 @@
-"""The couplings around the subagent tier's container: what a spawn is charged, what the container
-running it is given, and the count that says its servers do no thinking at all.
+"""The couplings around the subagent tier: the budgets a spawn is charged, the limits its
+container is given, and the count that turns its thinking off.
 """
 
 from couplings import Constant, Mention, Site, Spelling
@@ -8,7 +8,7 @@ SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
-FLAG_GATE = "scripts/flagcheck.py"
+FLAG_GATE = "scripts/subagentflags.py"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
@@ -50,7 +50,7 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
             "count again for its own server, so retuning the brain's field alone would hand those "
             "containers fewer cores than the spawns they serve were charged against, which is the "
             "memory budget's failure in the other dimension and reads as a tier that got slow "
-            "(ADR-0012, and ADR-0004's thread-pin landing addendum for the count)"
+            "(ADR-0012, and ADR-0004 decision 12 for the count)"
         ),
         sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_CPU_BUDGET"),),
         mentions=(
@@ -73,11 +73,9 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
             "the placer fit-tests this ask against the headroom left beside the resident cortex "
             "and the compose stack spells the measured number into every container it starts, so "
             "a field above the stack's refuses placements the card has room for and one below it "
-            "admits a spawn onto room the tier then overruns (ADR-0012 measured-ask addendum)"
+            "admits a spawn onto room the tier then overruns (ADR-0012 decision 14)"
         ),
         sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_VRAM_GB"),),
-        # The passthrough, and the sentence that records what was measured: an ask retuned without
-        # that sentence leaves the file claiming a margin over a peak it no longer has.
         mentions=(
             Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_VRAM_GB:-{value}}"'),
             Mention(SUBAGENTS_COMPOSE, "{value} GiB sits"),
@@ -118,7 +116,7 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
             "states the pair to check on any tier's argv and hands an operator a `docker run` "
             "that starts a server with it. Retuning one leaves two halves of one tier under two "
             "answers to what thinking costs, and an operator bringing up a server the shipped "
-            "stack would not (ADR-0005 switch-is-advisory addendum)"
+            "stack would not (ADR-0049)"
         ),
         sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
         mentions=(

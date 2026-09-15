@@ -1228,7 +1228,7 @@ def test_the_repo_itself_is_tied() -> None:
 
 
 REASONING_OFF = "the subagent tier's reasoning-off budget"
-FLAG_GATE = "scripts/flagcheck.py"
+FLAG_GATE = "scripts/subagentflags.py"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 
 # The count as each side spells it: the sidecar declares it, and the flag gate requires it of

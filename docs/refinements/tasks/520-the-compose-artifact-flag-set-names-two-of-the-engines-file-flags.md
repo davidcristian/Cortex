@@ -7,7 +7,7 @@
 vector, which no service here does today. That is countable by reading the command of every
 service the compose files start and listing the flags it spells
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 
 Opened 2026-09-02 by the close of
 [R-515](515-the-artifact-domain-rests-on-a-field-name-convention.md), which made the hosted half
@@ -68,3 +68,11 @@ language offers.
   vector. `--mmproj` is still spelled by no compose command, so the compose half of the reader
   goes on resting on one of its two flags. The two short flags a command spells are unchanged,
   `-m` for the email sidecar and `-c` for the filesystem sidecar's install line.
+- 2026-09-15: counted again after the flag gate gained a thread-count requirement, and the trigger
+  has not fired. Reading the command of every service the compose files start still turns up
+  fifteen distinct flags, the same fifteen as the day before: the new requirement asks for
+  `--threads`, which both CPU servers already spelled, so nothing was added to any command. The only
+  file flag spelled anywhere is `--model`, by `llama-embed`, `llama-subagent` and
+  `llama-subagent-qwen`, which are the three artifacts `artifactnames.composed` finds. Nothing
+  spells `--model-draft`, `--lora` or a control vector, and `--mmproj` is still spelled by no
+  compose command, so the compose half of the reader goes on resting on one of its two flags.

@@ -1,13 +1,8 @@
 # A CPU subagent server in a third compose file is held to no thread count
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-15
-**Trigger:** a compose file other than `docker/docker-compose.subagents.yml` and
-`docker/docker-compose.subagents-roster.yml` that starts a subagent server with `-ngl 0`, which
-`uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server
-or a fourth file.
 
 Opened 2026-09-11 by the close of
 [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md).
@@ -69,3 +64,19 @@ which is why the first is still what closes this entry.
   `flagcheck.py` is 265 lines against the 300-line cap, so either also moves the requirements into a
   module beside it. Recorded in the
   [ADR-0004 delegated-memory addendum](../../adr/ADR-0004-model-lineup.md).
+- 2026-09-15, later: **landed**, as the cheaper of the two remedies. `Requirement` gained a `when`
+  field, the flag and value a server must already be started with for the requirement to reach it,
+  and the thread entry names `-ngl 0`, so it holds both CPU servers and passes over the model host's
+  hosted GPU tier. What the entry asks is the flag and not the number after it. The larger remedy
+  was declined on three grounds, written up in the [ADR-0004 thread-count
+  addendum](../../adr/ADR-0004-model-lineup.md):
+  a `cpus` key is a field half the set cannot answer, since the hosted tier is no compose service;
+  comparing two spellings of one value is the constant scan's subject and it already holds this pair
+  per file; and `composestarts.py`, the reader that would learn the key, is at 250 lines of the 300
+  cap. The rule and the reading of one flag against one argv moved into `scripts/subagentflags.py`,
+  taking `flagcheck.py` from 265 lines to 175. The trigger's own shape was then run by hand: a third
+  compose file starting a `-ngl 0` server with every other flag and no `--threads` made
+  `uv run python flagcheck.py --root ..` exit 1 naming that file and that entry, where the same file
+  passed before. Six mutations of the rule take down 4 to 25 tests of the `scripts/` suite. The
+  count's value in a file nobody has written yet is left open as
+  [R-676](676-a-third-compose-files-thread-count-is-held-to-no-value.md).

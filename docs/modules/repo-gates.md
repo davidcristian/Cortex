@@ -25,7 +25,7 @@ brain workspace member (ADR-0002).
 `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, fifty-five modules, most split out under the line cap and
+**The rest have no CLI of their own**, fifty-six modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -56,10 +56,11 @@ each named for what it holds. Grouped by the gate that reads them:
   `rosternames.py` for what a page's roster names, and `rostermembers.py` for the set it
   describes. `scanrecipes.py` answers the one such set that is no listing at all, which scans the
   single gate and CI both run.
-- `flagcheck.py` reads `subagentservers.py` for which servers a composed stack starts as
-  subagents and `hostedtiers.py` for the tier the model host starts itself, taken off the
-  sidecar's own declaration with `moduleconstants.py` answering what a Python module's top level
-  binds. `composestarts.py` supplies what a service is started with and what environment it is
+- `flagcheck.py` reads `subagentflags.py` for the flags a subagent server must carry and
+  which argvs each requirement reaches, `subagentservers.py` for which servers a composed
+  stack starts as subagents, and `hostedtiers.py` for the tier the model host starts itself,
+  taken off the sidecar's own declaration with `moduleconstants.py` answering what a Python
+  module's top level binds. `composestarts.py` supplies what a service is started with and what environment it is
   given, the two keys the volume gate's reader steps over. Both sets rest on `artifactnames.py`,
   every model artifact this tree names and the variable each is named under.
 - `backlogcheck.py` reads `backlog.py` for the task-file grammar, `backlogindex.py` for the index
@@ -1028,27 +1029,36 @@ answer: a marker written into any other module here is reported by the line it i
   requires (ADR-0029 addenda on deriving the set a rule runs over and on covering both placements
   of one tier with one rule). **The rule is one and the readers are two**: this tier is started in
   two places, as a compose service and as the model host's own hosted tier, so the scan runs
-  `REQUIREMENTS` over the union of `subagentservers.py` and `hostedtiers.py`. A flag added to the
-  rule therefore reaches both placements the day it is written, and a flag renamed on either side
-  fails, the sidecar's own spelling being compared against this one rather than trusted.
-  `REQUIREMENTS` is the rule
-  and it is production code here: each entry carries a label, the sentence saying why every server
-  must meet it, and the flags it is made of. Two entries today. **The membership both readers
+  `subagentflags.REQUIREMENTS` over the union of `subagentservers.py` and `hostedtiers.py`. A flag
+  added to the rule therefore reaches both placements the day it is written, and a flag renamed on
+  either side fails, the sidecar's own spelling being compared against this one rather than
+  trusted. **The membership both readers
   decide is held too**, by a second rule in the same scan: every model artifact the tree names
   must be named under a `CORTEX_MODEL_FILE_` variable, since that spelling is the whole of what
   makes a server or a tier classifiable, and one named another way would leave both sets in
   silence. Its domain is deliberately not the family, which would be a rule about the convention
   it checks and could not fail for the fault it exists to catch, but every artifact
-  `artifactnames.py` finds structurally. The reasoning-off pair is **one**
-  requirement rather than two, because two flags that must travel together are one claim about a
-  deployment and a fault should print the reason whichever half went missing; the tool-capable
-  chat template is the other, a server without `--jinja` coming up healthy with no tools at all.
-  A flag carrying a value is held at **every** occurrence rather than the first, llama.cpp taking
-  the last spelling of a repeated flag, so a server whose second `--reasoning-budget` disagrees
-  with its first is a fault rather than a pass. Both floors are asserted, a rule requiring nothing
-  and a tree starting no server each being a scan that reports success forever. The count under
-  `--reasoning-budget` is one value in two trees, this rule's and the model host's
-  `_NO_REASONING_BUDGET`, and `crosscheck.py` is what holds them together.
+  `artifactnames.py` finds structurally. Both floors are asserted, a rule requiring nothing
+  and a tree starting no server each being a scan that reports success forever.
+- `subagentflags.py` is that gate's rule and has no CLI. `REQUIREMENTS` is production code here:
+  each entry carries a label, the sentence saying why the servers it reaches must meet it, and the
+  flags it is made of, while `missing(command, flag)` is what one argv makes of one flag. Four
+  entries today. The reasoning-off pair is **one** requirement rather than two, because two flags
+  that must travel together are one claim about a deployment and a fault should print the reason
+  whichever half went missing; the tool-capable chat template is another, a server without
+  `--jinja` coming up healthy with no tools at all; the host-RAM prompt cache turned off is a
+  third, the engine's default for it being the whole memory cap a compose subagent server runs
+  under. A flag carrying a value is held at **every** occurrence rather than the first, llama.cpp
+  taking the last spelling of a repeated flag, so a server whose second `--reasoning-budget`
+  disagrees with its first is a fault rather than a pass. **An entry may name the argv it runs
+  over.** `when` is a flag the server must already be started with for the requirement to reach it
+  at all, and `applies` is that reading; the thread count is the entry written for it, asked only
+  of a server started with `-ngl 0`, since a tier offloading every layer has no CPU count to be
+  given (ADR-0004 third-file addendum). What the entry asks is the flag and not the number after
+  it: the right count is the service's own `cpus` cap, and a relation between two keys of one
+  compose file is the constant scan's to hold, per file. The count under `--reasoning-budget` is
+  one value in two trees, this rule's and the model host's `_NO_REASONING_BUDGET`, and
+  `crosscheck.py` is what holds them together.
 - `subagentservers.py` is the compose half of that gate's set and has no CLI. `servers(root)`
   returns every subagent
   server the compose tree starts, and the derivation is the deliverable: **the set is read off the

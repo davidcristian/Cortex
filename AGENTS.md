@@ -374,6 +374,7 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                     rostermembers.py    what the tree really holds, this block included
                     scanrecipes.py      which scans the gate and CI both run
                   flagcheck.py      every subagent server carries the flags its tier requires
+                    subagentflags.py    the flags themselves, and which argvs each one reaches
                     subagentservers.py  which servers a composed stack starts, derived from wiring
                     hostedtiers.py      the model host's own subagent tier
                     composestarts.py    a service's command and environment
