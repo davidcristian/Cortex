@@ -1,15 +1,8 @@
 # A settled handoff's reason is written twice and read back by nothing
 
-**Status:** open, fix when it bites
+**Status:** declined 2026-09-15
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-13
-**Trigger:** a failed handoff whose reason nobody found in time, or any surface that starts
-carrying handoff history. The second half is countable rather than felt:
-`residency_probe.residency()` composes exactly two annotators through `residency_state.with_note`,
-the missing peer and the spilled pace, and `HealthReply` in `proto/body.proto` carries `ready` and
-`detail` and nothing else, so a third annotator or a wider reply is the event.
-`grep -rn "with_note(" brain/packages` reports the first.
 
 Opened 2026-08-22 by the close of
 [R-350](350-a-failed-swap-in-says-nothing-brain-side.md), which gave a failed handoff a reason and
@@ -67,6 +60,26 @@ rather than any model's process, so what is missing is a reader and never durabi
 saying plainly, because an entry about an unread field is easy to misread as an entry about a field
 that gets lost.
 
+**Decided on 2026-09-15, the way this entry asked for: the two copies are the whole of it.** The
+question was never whether the field survives, since it rides the record in Redis, but whether it is
+owed a surface an operator does not have to know to look for. Two readings taken that day answer it
+and both are about the surface. `with_note` annotates a serving report and hands a non-serving one
+straight back, so the annotator this entry nominated would be silent on exactly the two states whose
+reason an operator would want, a restore that stopped retrying publishing `RESIDENCY_LOST` and a
+boot that could not confirm the cortex publishing `RESIDENCY_BOOT_FAILED`, and would speak only
+where the swap has converged back to a serving cortex and the fault is over. Carrying it on the
+non-serving report instead is ruled out by who reads that string: `ResidencyReport.detail` is
+rendered verbatim to the user by
+[linkState.ts](../../../body/app/src/overlay/linkState.ts), and two of the reasons are the message
+of the error that ended the sequence, which is where the model host's status code and body excerpt
+reach the brain's side. The failed-reason addendum decided in as many words that the user is owed
+what is true of their machine and not that status.
+
+The spill note's argument does not carry across for a sharper reason than "the user was told".
+`SPILLED_PACE_DETAIL` says what the next deep task will do, so it stays true until the card has
+room; none of the five reasons says anything about the next handoff. The decision, the readings
+behind it and what it does not move are in the ADR-0030 addendum of 2026-09-15.
+
 ## Trail
 
 - 2026-08-22: opened by the close of
@@ -89,3 +102,15 @@ that gets lost.
   `string detail`; and `record.failure` is still read by one production line,
   [handoff_codec.py](../../../brain/packages/session/src/cortex_session/handoff_codec.py)'s encode.
   The trigger has not fired.
+- 2026-09-15: declined, which is the half of "one paragraph either way" this entry left to be
+  chosen. The three countable claims were held to the code once more and all of them stand:
+  `with_note` has two callers, `HealthReply` carries `ready` and `detail`, and the codec's encode
+  is still the one production line reading `record.failure`. What settled the question was a
+  fourth reading nobody had taken, that `with_note` refuses a non-serving report, which inverts
+  the proposed surface: it would carry the reason where the machine is already fine and drop it on
+  the two states whose reason is worth having. The log line plus the runbook's Redis recipe is
+  recorded as deliberately the whole of it, in
+  [docs/runbooks/model-swap.md](../../runbooks/model-swap.md) and in the ADR-0030 addendum of that
+  date. No code changed. The counting half of the same shape stays with
+  [R-321](321-a-spill-nobody-saw-is-forgotten.md), and the width of the one detail string stays
+  with [R-320](320-one-detail-string-two-facts.md).

@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-15
 **Trigger:** A spill that decode misses, or a deployment whose deep answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`.
 
 Opened 2026-08-08 by
@@ -42,6 +42,37 @@ argument named, and on that tier it is now the only one. The cortex is the oppos
 restored return costing 1.9 s against 3.5 s of cold prompt eval, so a single prefill floor set for
 every tier would have been wrong there.
 
+**That narrowing does not hold, and the reading that removes it was taken live on 2026-09-15.**
+`--cache-ram` sizes the prompt cache llama.cpp keeps in host RAM for a conversation whose slot has
+been taken ([config.py](../../../brain/packages/model_manager/src/cortex_model_manager/config.py)),
+and it does not govern the in-slot prefix reuse a request gets when it extends the prompt the same
+slot just answered. A CPU server started with `--cache-ram 0`, which is the deep tier's shipped
+setting, reported `cache_n` 0 and `prompt_n` 21 on a cold request and `cache_n` 17 and `prompt_n` 4
+on each repeat of the same question. The deep phase runs a whole tool loop under one handoff
+([brain_phase.py](../../../brain/packages/core/src/cortex_core/brain_phase.py)), so its second and
+later completions are exactly the reused-prefix case, and a prompt rate read on that tier is a cold
+one only for the first of them.
+
+**What that costs the instrument, as a number.** `prompt_per_second` is `prompt_n` over
+`prompt_ms`, so a mostly cached prompt divides one request's fixed cost by very few processed
+tokens and reads slower rather than faster: on the probe above the cold request reported 12.3
+tokens per second and its own repeats 4.5 and 4.8, a factor of 2.6 on one server, one model and one
+prompt with nothing about the card changed. A second server at the engine's default cache size gave
+9.5 against 4.3 and 4.4. So the false collapse this entry was declined for is real, it is produced
+by the cheapest requests rather than by a loaded card, and a prefill watch would need a minimum
+processed-prompt length as well as a floor, where decode needs one number that is already chosen
+and argued (`MIN_CADENCE_TOKENS`). The existing watch's shape would absorb it if that minimum were
+read off `prompt_n` rather than off the prompt's length, which is the design question a landing
+would start from.
+
+**The cost claim itself is confirmed on the path the adapter actually uses.** The 2026-09-09
+reading was taken on a completion this entry does not record as streamed, and the adapter only ever
+streams. The final streamed chunk of a `/v1/chat/completions` request on build `b10680-d7bd3bfca`
+carries `prompt_n`, `prompt_ms`, `prompt_per_token_ms`, `prompt_per_second` and `cache_n` in the
+same `timings` object `_cadence` already reads `predicted_per_second` out of, so the second
+instrument really does cost no extra request and no second parse. No GPU was used, so the figures
+above describe a CPU probe and are quoted only as ratios of their own server's readings.
+
 ## Trail
 
 - 2026-08-08: Opened behind the same landing, prefill declined there as a second instrument with
@@ -67,3 +98,13 @@ every tier would have been wrong there.
   prefill. Recorded above: every tier now states its own `--cache-ram` and the deep tier states
   zero, which removes the cache-restore half of the variance on the tier this instrument would be
   read on. The trigger has not fired.
+- 2026-09-15: claims held to the code and the two the tree cannot answer held to a live CPU server,
+  which corrected the entry rather than confirming it. The cost claim is confirmed on the streaming
+  path the adapter uses: the prompt fields ride the same `timings` object as the decode rate. The
+  2026-09-13 narrowing is withdrawn: `--cache-ram 0` does not make the deep tier's prompt rate a
+  cold reading, because it does not govern in-slot prefix reuse and a deep phase's tool loop runs
+  several completions under one handoff. Recorded above with its numbers: a cached prompt reads 2.6
+  times slower than a cold one on the same server, so the false collapse is produced by the
+  cheapest requests, and a prefill watch needs a minimum processed-prompt length as well as a
+  floor. The entry stays open and the decline it records stands on better evidence than it had.
+  The readings are in the ADR-0030 addendum of that date.

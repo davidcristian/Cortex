@@ -602,6 +602,15 @@ either. The two are not a duplicate: when the store fails the settling write, th
 the record outright (that delete is what frees the active pointer), so the failure that costs you
 the record is exactly the failure the log line covers for.
 
+**These two are deliberately the whole of it** (ADR-0030 addendum of 2026-09-15). Nothing reads the
+reason back, and it is not carried on the residency report the way a spilled handoff's pace is. The
+report only ever annotates a **serving** answer, so a reason put there would be silent on the two
+states whose reason you would actually want, a restore that stopped retrying and a boot that could
+not confirm the cortex, and would speak only about a fault the machine has already recovered from.
+Its text also reaches the user verbatim through the overlay, and two of the reasons are the model
+host's own status code and body excerpt. So reach for the log while somebody is waiting, and for
+the record afterwards; there is no third place to look.
+
 ## The error that sends you here
 
 ```

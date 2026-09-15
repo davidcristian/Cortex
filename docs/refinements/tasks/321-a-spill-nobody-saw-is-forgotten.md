@@ -4,12 +4,12 @@
 **Area:** inference-model-manager
 **Trigger:** an operator asks whether a slow deep task has happened before, or a second per handoff
 verdict arrives that is worth counting rather than displaying. The failed handoff's reason arrived
-three days after this entry was opened and is not one of those, being a display question tracked as
-R-379. Checking the counting half is one reading: nothing in the brain keeps a per handoff row that
+three days after this entry was opened and is not one of those: it was decided on 2026-09-15 as
+neither counted nor displayed, and R-379 closed on that. Checking the counting half is one reading: nothing in the brain keeps a per handoff row that
 outlives its handoff, `HandoffSettler._settle` deleting a `DONE` record outright and the Redis
 adapter expiring a `FAILED` one after an hour, so a count still has nowhere to live.
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-15
 
 Opened 2026-08-19 by the close of [304](304-spill-rides-the-residency-report.md). The standing rule
 that close chose is deliberate and it has a price: the note lives in the process, stands for an
@@ -46,10 +46,13 @@ carried is finished, which is why a store built for swap survival is not a store
 
 **A second per handoff verdict has arrived, and it is not one of the counting kind.** Three days
 after this entry was opened, a handoff settled `FAILED` gained a reason, written onto the record and
-into one `WARNING` from the settler. That is this shape one step further along and it has its own
-entry, [R-379](379-a-settled-reason-nothing-reads-back.md), which argues the reason wants a surface
-rather than a count, the user having already been told what failed. So the trigger's second half has
-been approached once and not met.
+into one `WARNING` from the settler. That is this shape one step further along, and on 2026-09-15
+its own entry, [R-379](379-a-settled-reason-nothing-reads-back.md), was declined: the reason keeps
+the log line and the record and gains no surface, because the residency report only annotates a
+serving answer and would therefore be silent on the two states whose reason is worth having. So the
+trigger's second half has been approached once and settled against counting as firmly as against
+displaying, which leaves this entry's own subject, a spill, the only per handoff verdict here that
+anybody has argued is worth a history.
 
 ## Trail
 
@@ -76,3 +79,12 @@ been approached once and not met.
   stops the cortex under every plan, a co-resident plan sparing only the standing peers, so the
   pair that overcommits the card is the deep tier and a peer rather than the deep tier and the
   cortex. The trigger has not fired.
+- 2026-09-15: claims held to the code again and all of them stand. `HandoffSettler._settle` still
+  deletes a `DONE` record, `_TERMINAL_TTL_SECONDS` is still 3600 and `DEFAULT_SPILL_DWELL_S` still
+  3600.0, the spill's only history is still the one `WARNING` in `brain_phase.py`, and
+  `residency_pace.py` still binds no logger. The trigger's second half moved and is recorded above:
+  the failed handoff's reason was decided against a surface as well as against a count, so no
+  second verdict of the counting kind has arrived and this entry is still the only one arguing for
+  a per handoff row. Choosing a store and a shape is still what closing it costs, and the one hard
+  rule points at Postgres rather than at the record, since a record built for swap survival is
+  released the moment the turn it carried is finished. The trigger has not fired.

@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-15
 **Trigger:** a cortex that stops while the brain and the model host both keep running, which is the
 one state neither of the two boot starters covers, or a second visit to the runbook's step 2. Both
 are operator events, so the cheap recheck is whether the surfaces have moved:
@@ -82,3 +82,11 @@ own deadline; only the count is.
   [config_swap.py](../../../brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py),
   which is the package that file lives in and which the paragraph above names by its bare
   filename. The trigger has not fired.
+- 2026-09-15: the four surfaces the trigger clause names were counted again and none has moved.
+  `regain_residency` still makes two `host.status` calls and no `host.start`, and its docstring
+  still records the start as a decision deferred rather than made there;
+  [proto/body.proto](../../../proto/body.proto) still declares 16 RPCs with none of them an
+  operator command; the model host's control API still offers four routes; and `evict_models`
+  still defaults to the empty tuple. Nothing in the swept group touched this entry's subject: the
+  three others are about what a handoff leaves behind for a reader, while this one is about a write
+  nothing performs. The trigger has not fired.
