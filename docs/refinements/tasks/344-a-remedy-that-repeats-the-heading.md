@@ -48,4 +48,7 @@ every printed line out literally, so a reworded remedy is a visible change rathe
   remedy could name an answer without deciding [R-334](334-a-heading-that-means-its-brackets.md).
   The other five refusals keep `PLAINLY`, which fits them. Recorded at the origin record as the
   bracket-remedy addendum, with the sweep it was measured over, 772 markdown files carrying zero
-  bracketed headings, and the three mutations it was proved with.
+  bracketed headings, and the three mutations it was proved with. The close opened
+  [R-677](677-a-double-backtick-code-span-is-torn-apart.md): the remedy names a code span, and
+  `CODE_SPAN` reads only the single backtick spelling of one, so a heading quoting brackets in a
+  double backtick span is refused and told to do what it did.
