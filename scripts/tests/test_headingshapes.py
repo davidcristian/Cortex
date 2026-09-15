@@ -1,5 +1,3 @@
-"""Tests for the heading shapes the anchor rule reports rather than slugging."""
-
 import re
 from pathlib import Path
 
@@ -10,9 +8,6 @@ import headingshapes
 from headingshapes import Unsluggable
 
 ROOT = Path(__file__).resolve().parents[2]
-
-
-# ── which lines are headings at all ────────────────────────────────────────────
 
 
 def test_headings_numbers_every_level_and_skips_what_only_looks_like_one() -> None:
@@ -32,56 +27,29 @@ def test_headings_numbers_every_level_and_skips_what_only_looks_like_one() -> No
 
 
 def test_headings_ignores_a_hash_inside_a_fenced_block() -> None:
-    """A runbook fence is full of shell comments, and none of them is a heading."""
     text = "# Real\n```bash\n# start the stack\n```\n~~~\n## also not one\n~~~\n## Real too\n"
     assert headingshapes.headings(text) == [(1, "Real"), (8, "Real too")]
 
 
 def test_headings_reads_a_block_that_prints_a_fence_of_its_own() -> None:
-    """A four-backtick block carries a three-backtick line as text, so nothing below it moves.
-
-    A reading that toggled on the inner marker would take the shell comment below it for a
-    heading and the real heading after the block for a line inside one.
-    """
     text = "# Real\n````markdown\n```bash\n# not a heading\n```\n````\n## Real too\n"
     assert headingshapes.headings(text) == [(1, "Real"), (7, "Real too")]
-
-
-# ── the six shapes this rule rejects ───────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
     ("heading", "reason"),
     [
-        # A renderer slugs the bracketed text alone, so this rule welds the target onto it.
         ("Read [the rules](../AGENTS.md)", headingshapes.LINKED),
-        # An image is the same shape with a bang, and the same disagreement. It proves nothing
-        # about the bang, which the detector no longer spells: it is here because an image is a
-        # heading shape somebody writes, and it is found by the brackets inside it like the rest.
         ("The mark ![its bubble](../assets/logo.svg)", headingshapes.LINKED),
-        # A reference link resolves elsewhere; the label is not part of the rendered text.
         ("Read [the rules][rules]", headingshapes.LINKED),
-        # The shortcut form carries no mark at all: whether it is a link depends on a definition
-        # somewhere else in the document, which a heading cannot answer about itself, so the
-        # brackets alone are enough to report it.
         ("Read [the rules]", headingshapes.LINKED),
-        # And the collapsed form between the two, whose empty pair of brackets is its whole mark.
         ("Read [the rules][]", headingshapes.LINKED),
-        # A span nobody meant as a link is reported along with them. That is the cost of the rule,
-        # and a heading that looks like a link misleads a reader in any case.
         ("A note [with an aside] in it", headingshapes.LINKED),
-        # A renderer drops the tags; this rule keeps kbd and the slash as letters.
         ("Press <kbd>Ctrl</kbd>+N", headingshapes.TAGGED),
-        # An autolink is angle brackets too, and its URL is not the rendered text either.
         ("The site <https://example.com>", headingshapes.TAGGED),
-        # Markdown allows a closing run and a renderer strips it; here the space before it
-        # survives as a trailing hyphen, so every pointer at the plain anchor is reported.
         ("A closed heading ##", headingshapes.CLOSED),
-        # The underscore is a word character to this rule and a formatting mark to a renderer.
         ("An _emphasised_ word", headingshapes.STRESSED),
-        # A named entity resolves to one character; this rule keeps its letters as text.
         ("Risks &amp; notes", headingshapes.ENTITIED),
-        # A numeric entity is the same, in both of its spellings.
         ("Risks &#38; notes", headingshapes.ENTITIED),
         ("Risks &#x26; notes", headingshapes.ENTITIED),
     ],
@@ -95,8 +63,6 @@ def test_a_heading_this_rule_reads_too_literally_is_refused_by_name(
 
 
 def test_a_setext_heading_is_refused_at_the_underline_that_makes_it_one() -> None:
-    """`anchors()` cannot see a setext heading at all, so the document would offer no anchor for
-    it."""
     text = "Not a heading yet\n\nAn underlined heading\n=====================\n"
     assert headingshapes.unsluggable(text) == [
         Unsluggable(line=4, heading="An underlined heading", reason=headingshapes.UNDERLINED)
@@ -104,43 +70,30 @@ def test_a_setext_heading_is_refused_at_the_underline_that_makes_it_one() -> Non
 
 
 def test_a_setext_heading_underlined_with_dashes_is_refused_too() -> None:
-    """A single dash under a paragraph line renders as a heading, so one is enough."""
     assert headingshapes.unsluggable("Underlined with one dash\n-\n") == [
         Unsluggable(line=2, heading="Underlined with one dash", reason=headingshapes.UNDERLINED)
     ]
 
 
 def test_refusals_are_reported_in_line_order_however_they_were_found() -> None:
-    """The inline shapes and the underlines are found in separate walks and merged."""
     text = "## Press <kbd>Esc</kbd>\n\nUnderlined\n---\n\n## An _emphasised_ word\n"
     assert [shape.line for shape in headingshapes.unsluggable(text)] == [1, 4, 6]
-
-
-# ── what must stay legal, because the two readings agree ───────────────────────
 
 
 @pytest.mark.parametrize(
     "heading",
     [
-        # Both sides drop a character standing between two spaces and neither collapses the
-        # pair of hyphens it leaves, which is why these two shapes already agree.
         "Risks & notes",
         "hotkey → overlay → chat",
-        # A backtick and an asterisk are dropped by this rule and by a renderer alike, and
-        # take no text with them, so 133 code-span headings and 4 starred ones are unaffected.
         "`Embedder` and its port",
         "The relaxation is a **leak**",
         "body/crates/os_* (per-platform OS backends)",
-        # CommonMark never reads an underscore inside a word as emphasis, so both sides keep
-        # it. Every underscore heading in this repo is of this kind.
         "the loop context grows session_id",
         "brain/packages/body_client and cortex_core",
         "Setting a rule via edit_scheduled",
-        # A heading may end in a hash that is not a closing run: no whitespace precedes it.
         "Writing it in C#",
-        # A link quoted inside a code span renders as its own literal text, so the backticks
-        # come off on both sides and what is left disagrees about nothing.
         "`[not a link](nowhere.md)` as written",
+        "Array index `a[0]`",
     ],
 )
 def test_a_heading_both_readings_agree_on_is_left_alone(heading: str) -> None:
@@ -150,19 +103,14 @@ def test_a_heading_both_readings_agree_on_is_left_alone(heading: str) -> None:
 @pytest.mark.parametrize(
     "text",
     [
-        # A rule after a blank line is a thematic break, which underlines nothing.
         "Some prose.\n\n---\n",
-        # So is one under a line that opens a block of its own rather than paragraph text.
         "- a list item\n---\n",
         "1. a numbered item\n---\n",
         "> a quotation\n---\n",
         "| a | table |\n---\n",
         "## an ATX heading\n---\n",
-        # And a rule inside a fence is somebody's shell output, not a heading.
         "```\nnot prose\n---\n```\n",
-        # A fence closing right after prose leaves no predecessor for the rule below it.
         "```\nnot prose\n```\n---\n",
-        # A rule at the very top of a file underlines nothing either.
         "---\n",
     ],
 )
@@ -176,8 +124,16 @@ def test_a_rule_that_underlines_nothing_is_not_a_setext_heading(text: str) -> No
         (
             "## Read [the rules](../AGENTS.md)\n",
             "docs/x.md:1: heading 'Read [the rules](../AGENTS.md)' brackets a span, which"
-            " markdown may make a link and this rule always reads literally; write it as plain"
-            " text under leading hashes, so the source is what a renderer slugs",
+            " markdown may make a link and this rule always reads literally; quote the brackets"
+            " in a code span, whose backticks this rule and a renderer both drop, or write the"
+            " heading without them",
+        ),
+        (
+            "## Array index a[0]\n",
+            "docs/x.md:1: heading 'Array index a[0]' brackets a span, which markdown may make a"
+            " link and this rule always reads literally; quote the brackets in a code span,"
+            " whose backticks this rule and a renderer both drop, or write the heading"
+            " without them",
         ),
         (
             "## Press <kbd>Ctrl</kbd>+N\n",
@@ -221,12 +177,7 @@ def test_problems_says_nothing_about_a_document_written_plainly() -> None:
     assert headingshapes.problems("docs/x.md", "# Plain\n\n## Also plain\n") == []
 
 
-# ── the real tree, since a heading lands here before it lands in a fixture ──────
-
-
 def test_the_repo_itself_writes_no_heading_this_rule_cannot_slug() -> None:
-    """The clean verdict is measured over the real tree rather than assumed, which is what makes
-    this a house style."""
     found = [
         problem
         for path in backloganchors.markdown_files(ROOT)
@@ -238,8 +189,6 @@ def test_the_repo_itself_writes_no_heading_this_rule_cannot_slug() -> None:
 
 
 def test_the_repo_really_offers_the_two_shapes_this_rule_must_not_report() -> None:
-    """The tree really carries code-span and underscore headings, so the two exemptions above are
-    exercised by committed documents rather than only by fixtures."""
     quoted = 0
     underscored = 0
     for path in backloganchors.markdown_files(ROOT):

@@ -1,12 +1,8 @@
 # The remedy a refused heading prints does not fit the refusal it follows
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-09-10
-**Trigger:** the first heading refused for its brackets that is already plain text under leading
-hashes, meaning `backlogcheck` printing the bracketed refusal at a heading somebody wrote on
-purpose rather than at a link.
 
 Opened 2026-08-20 by a review of the change that made `scripts/headingshapes.py` refuse a bracketed
 span with or without a target. Every refusal the gate prints ends in one shared remedy, the
@@ -43,3 +39,13 @@ every printed line out literally, so a reworded remedy is a visible change rathe
   files carries a bracket, so `backlogcheck` has never printed the bracketed refusal at all.
   `scripts/headingshapes.py` still ends every refusal with the one shared `PLAINLY` constant, and
   the wording decision this entry describes is still undecided because the entry it moves with is.
+- 2026-09-15: landed as a remedy for the bracketed span alone, the `QUOTED` constant, which names
+  the code span: `; quote the brackets in a code span, whose backticks this rule and a renderer
+  both drop, or write the heading without them`. The reason this entry gave for filing rather than
+  fixing turned out to rest on a wrong premise, which running the reader showed. The escape it was
+  waiting on already exists: a code span is one of the shapes `headingshapes.py` documents as
+  slugging identically on both sides, and ``## Array index `a[0]` `` passes the gate today, so the
+  remedy could name an answer without deciding [R-334](334-a-heading-that-means-its-brackets.md).
+  The other five refusals keep `PLAINLY`, which fits them. Recorded at the origin record as the
+  bracket-remedy addendum, with the sweep it was measured over, 772 markdown files carrying zero
+  bracketed headings, and the three mutations it was proved with.

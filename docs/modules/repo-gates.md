@@ -1231,8 +1231,12 @@ answer: a marker written into any other module here is reported by the line it i
   (ADR-0039 bracket addendum), which covers an inline link, an image and both reference forms by
   the mark they carry and the shortcut form, which carries none: whether that one is a link
   depends on a link reference definition elsewhere in the document, the one question a heading
-  cannot answer about itself. The price is a literal pair of brackets in a heading, and no heading
-  in this tree spends one. **They are refused, not emulated**: rendering a heading's inline
+  cannot answer about itself. The price is a pair of brackets in prose, and no heading in this
+  tree spends one. **The bracketed refusal prints its own remedy** (ADR-0039 bracket-remedy
+  addendum), the `QUOTED` constant, naming the code span: it is the one refusal that reaches a
+  heading already written as plain text, and a code span is a shape both readings agree on, so
+  `## Array index a[0]` has somewhere to go. The other five share `PLAINLY`, which tells an author
+  to stop writing markup and fits each of them. **They are refused, not emulated**: rendering a heading's inline
   markdown before slugging it is a transform written against shapes the tree does not contain, and
   a wrong transform yields a wrong anchor, which is a silent accept nothing here could see, where a
   refusal is loud. An underscore *inside* a word is never reported, CommonMark reading none as

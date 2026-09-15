@@ -3,8 +3,8 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-09-10
-**Trigger:** the first heading somebody wants to write with a literal pair of brackets in it, which the shape rule now refuses whatever follows them.
+**Verified:** 2026-09-15
+**Trigger:** the first heading somebody wants to write with a pair of brackets in prose, which the shape rule refuses whatever follows them and which a code span cannot carry, monospace being wrong for prose.
 
 Opened 2026-08-20 by the close of [R-307](307-shortcut-reference-link-in-a-heading.md), which made
 `scripts/headingshapes.py` refuse a bracketed span in a heading with or without a target after it.
@@ -37,3 +37,13 @@ it makes the source say what it means instead of adding an exemption the gate ha
   them carries a bracket at all, in or out of a code span. `BRACKETED` in
   `scripts/headingshapes.py` still refuses a bracketed span with or without a target after it, so
   the price named when the rule landed is still a price nobody has paid.
+- 2026-09-15: this entry's title overstates the refusal, which running the reader showed. A heading
+  can carry a literal pair of brackets today, in a code span: `CODE_SPAN` is stripped before
+  `BRACKETED` is looked for, so ``## Array index `a[0]` `` is accepted, and it slugs the same on
+  both sides because the backticks come off on both. The option list above gains a fourth entry
+  that needs no decision, and what stays open is narrower than the title says: a pair of brackets
+  in prose, where monospace is the wrong rendering. The sweep was re-run over 772 tracked markdown
+  files, up from the 725 of 2026-09-10, and still finds no heading carrying a bracket at all. The
+  refusal's remedy now names the code span, which is the close of
+  [R-344](344-a-remedy-that-repeats-the-heading.md), and names rewriting for the prose case this
+  entry holds.

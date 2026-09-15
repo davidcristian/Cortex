@@ -7,9 +7,6 @@ from markdownfences import Fences
 
 HEADING = re.compile(r"^#{1,6} +(\S.*?) *$")
 
-# A code span renders as its own literal text, and its backticks are dropped by the slug rule
-# and by a renderer alike, so nothing inside one can make the two disagree. Stripped before the
-# inline shapes below are looked for, so a heading that *quotes* a link or an entity is left be.
 CODE_SPAN = re.compile(r"`[^`]*`")
 
 BRACKETED = re.compile(r"\[[^\]]*\]")
@@ -18,18 +15,12 @@ CLOSING_HASHES = re.compile(r"\s#+$")
 UNDERSCORE_EMPHASIS = re.compile(r"(?:^|\W)_[^\s_][^_]*_(?:\W|$)")
 ENTITY = re.compile(r"&(?:#\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);")
 
-# The sixth shape. A rule of `=` or `-` under a paragraph line is a setext heading, indented at
-# most three spaces, and a single character of either is enough: that is the spec's rule and not
-# a conservative reading of it, since a lone dash under prose really does render as a heading.
+# One `=` or `-` under a paragraph line is enough to make it a heading, which is the spec rule
+# and not a cautious reading of it.
 SETEXT = re.compile(r"^ {0,3}(?:=+|-+)\s*$")
 
-# A line that opens a block of its own is not the paragraph text a setext rule underlines, so a
-# rule of dashes below one is a thematic break instead. A blank predecessor is checked separately,
-# which is what separates a break written after a blank line from a heading written without one.
 BLOCK_OPENER = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|>|\||#{1,6} )")
 
-# What each refused shape is told, and the remedy all six share. Constants so a test names the
-# sentence the gate prints rather than a paraphrase of it that could drift from the gate's own.
 LINKED = "brackets a span, which markdown may make a link and this rule always reads literally"
 TAGGED = "carries angle-bracket markup, whose letters this rule keeps and a renderer drops"
 CLOSED = "is closed with hashes, which a renderer strips and this rule leaves as a trailing hyphen"
@@ -37,6 +28,11 @@ STRESSED = "emphasises with underscores, a word character to this rule and a mar
 ENTITIED = "carries an entity reference, whose letters this rule keeps and a renderer resolves"
 UNDERLINED = "is written as a setext underline, a heading shape this rule cannot see at all"
 PLAINLY = "; write it as plain text under leading hashes, so the source is what a renderer slugs"
+
+QUOTED = (
+    "; quote the brackets in a code span, whose backticks this rule and a renderer both drop, "
+    "or write the heading without them"
+)
 
 
 class Unsluggable(NamedTuple):
@@ -60,11 +56,7 @@ def headings(text: str) -> list[tuple[int, str]]:
 
 
 def _inline_reason(heading: str) -> str | None:
-    """Why one ATX heading's source text is refused, or None when this rule can slug it.
-
-    The closing hashes are read first and off the raw text, since stripping code spans could
-    uncover or bury a trailing run; the rest are read off the heading without its code spans.
-    """
+    """Why one ATX heading's source text is refused, or None when this rule can slug it."""
     if CLOSING_HASHES.search(heading):
         return CLOSED
     bare = CODE_SPAN.sub("", heading)
@@ -107,9 +99,14 @@ def unsluggable(text: str) -> list[Unsluggable]:
     return sorted([*refused, *_underlined(text)])
 
 
+def _remedy(reason: str) -> str:
+    """Return the remedy printed after ``reason``: the bracketed span's own, or the shared one."""
+    return QUOTED if reason == LINKED else PLAINLY
+
+
 def problems(name: str, text: str) -> list[str]:
     """Return one problem line per refused heading in ``text``, named for the file it is in."""
     return [
-        f"{name}:{shape.line}: heading {shape.heading!r} {shape.reason}{PLAINLY}"
+        f"{name}:{shape.line}: heading {shape.heading!r} {shape.reason}{_remedy(shape.reason)}"
         for shape in unsluggable(text)
     ]
