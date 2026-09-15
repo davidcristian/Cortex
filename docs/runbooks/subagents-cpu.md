@@ -168,7 +168,11 @@ one thread per hardware thread (ADR-0004 thread-pin landing addendum).
 > batch later put the same shape at 222.8 to 324.3 s a subtask, so the whole-subtask figure is an
 > interval and the deadline is four times its upper end; taken from that batch instead it is four
 > times the longest a spawn was measured holding its admission there, 595.2 s, which lands on the
-> same number. The
+> same number. Every figure in that derivation was drawn before the thread count was pinned, and one
+> shape has been drawn again since: a delegated attempt that runs to the token cap takes 86.6 s with
+> one attempt decoding at a time and 122.9 s with two at once on an idle host, so the deadline is
+> about twenty times the longer of those, and the other four shapes are still undrawn under the pin
+> (ADR-0004 delegated-memory addendum). The
 > deadline also lands between the two bounds either side of it, above the stall ceiling and below
 > `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the brain fails to start on either ordering broken, so
 > a deployment where a run holds its admission for as long as a peer will queue for that admission

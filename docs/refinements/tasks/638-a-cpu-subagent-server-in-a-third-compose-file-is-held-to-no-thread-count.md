@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-15
 **Trigger:** a compose file other than `docker/docker-compose.subagents.yml` and
 `docker/docker-compose.subagents-roster.yml` that starts a subagent server with `-ngl 0`, which
 `uv run python flagcheck.py --root ..` in `scripts/` counts in its success line as a fourth server
@@ -57,3 +57,15 @@ which is why the first is still what closes this entry.
   gate's. The trigger is unfired, read out of `uv run python flagcheck.py --root ..` in `scripts/`
   on this date: three servers in three files, which are the two CPU servers and the model host's
   hosted GPU tier.
+- 2026-09-15: **the trigger is still unfired, and a second remedy is worth writing down.**
+  `uv run python flagcheck.py --root ..` in `scripts/` reads three subagent servers in three files,
+  the two CPU servers and the model host's hosted GPU tier. Beside the conditional requirement this
+  entry records, which holds a `-ngl 0` server's `--threads` to the same substitution its own `cpus`
+  key reads and needs `composestarts.py` to learn a third service key, there is a smaller one: a
+  requirement predicated on the argv alone, holding every server started with `-ngl 0` to carrying a
+  `--threads` at all. It needs no new compose key and refuses the shape the pin exists to prevent,
+  the engine's own default of one thread per hardware thread, while leaving the count's value to the
+  per-file needle. Either adds a field to `Requirement` and a predicate to `check_one`, and
+  `flagcheck.py` is 265 lines against the 300-line cap, so either also moves the requirements into a
+  module beside it. Recorded in the
+  [ADR-0004 delegated-memory addendum](../../adr/ADR-0004-model-lineup.md).

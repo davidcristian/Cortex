@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-15
 **Trigger:** a deployment that sets `CORTEX_SUBAGENTS_CPU_BUDGET` below 1.0, or a brain config
 change that lets the budget reach a CPU subagent server by any other spelling than the compose
 substitution both CPU servers read.
@@ -53,3 +53,12 @@ this fix-when-it-bites rather than actionable: the single-knob version of it ann
   cannot reach a running server, because the brain refuses to start on the same value, so this
   needs the asks lowered in the same step. The thread flag's name is now held by the constant scan
   as well, which changes nothing here, the hole being the value's range rather than the flag.
+- 2026-09-15: **run whole for the first time, and the claim holds with the quota included.** The
+  reading that opened this entry passed `--threads 0.5` to a container under a four-CPU quota, which
+  reads the engine's parse and not the shape a budget of 0.5 starts. Run as that budget would start
+  it, `--cpus 0.5 --memory 8g --memory-swap 8g --threads 0.5` on the shipped argv and artifact and
+  the same image and build, `docker inspect` gave 500,000,000 nanocpus and the server logged `llama
+  threadpool init, n_threads = 24`. So a budget under one CPU runs 24 threads inside half a CPU on
+  this box. Nothing else moves: both remedies and the two-knob door stand as the entry records them.
+  Published in the
+  [ADR-0004 delegated-memory addendum](../../adr/ADR-0004-model-lineup.md).

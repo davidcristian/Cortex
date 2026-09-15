@@ -1,13 +1,8 @@
 # The pick's CPU server reaches its memory cap under the harness's budget
 
-**Status:** open, fix when it bites
+**Status:** declined 2026-09-15
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-12
-**Trigger:** a sitting of the pick's CPU row, or a delegated run on the shipped CPU server, whose
-`memory.events` reads an `oom_kill`, or whose `workingset_refault_file` reaches 262,144 pages, which
-is a gigabyte of the artifact re-read through the bind. Read both off `/sys/fs/cgroup` inside the
-container while it runs.
 
 Opened 2026-09-11 by the close of
 [R-627](627-the-cpu-rows-wall-clock-does-not-reproduce-the-published-one.md), whose three sittings
@@ -57,3 +52,17 @@ the entry moves to actionable with the choice between a larger limit and a small
   That reading is added to the body above, because it narrows what the entry is about: at 96.9% of
   the limit with the cap never binding, the limit binds on slot occupancy rather than on the
   artifact being resident.
+- 2026-09-15: **declined, on the delegated reading the entry asked for.** The shipped CPU server was
+  brought up from the compose stack and driven through `SpawnSubagentsTool` at
+  `AttemptBounds(max_tokens=1024, timeout_s=2400.0)` with a backend per placement target, both
+  resolving to that one server as the compose default does, so an admitted pair reaches it as two
+  concurrent streams. Three batches, six attempts, every one stopping at the token cap: `memory.peak`
+  ended at 8,007,458,816, which is 93.2% of the limit with 0.54 GiB of headroom, `memory.events`
+  read `max 0` and `oom_kill 0`, `workingset_refault_file` and `pgscan` stayed at 0, and
+  `pgmajfault` moved from 14 to 18. The entry's own settling condition was that the cap binds under
+  this reading, and it does not. What separates it from the harness sittings is the token budget and
+  the attempt count, 1600 tokens over ten attacks against 1024 over two, which this sitting does not
+  separate. The cap is charged for the whole 5.15 GB artifact plus 2.8 GB of `anon`, so it fits this
+  pick and says nothing about a larger one, which is
+  [R-675](675-the-subagent-memory-cap-is-sized-for-the-picks-artifact-alone.md). Published in the
+  [ADR-0004 delegated-memory addendum](../../adr/ADR-0004-model-lineup.md).

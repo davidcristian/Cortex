@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-15
 **Trigger:** a delegated run on the pinned CPU server that holds its admission for the whole stall
 ceiling or the whole run deadline while a peer queues behind it, or any retune of
 `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
@@ -56,3 +56,15 @@ rules those addenda wrote down.
   idle, the 4096 per-slot context is now the tighter, and the load factor is about four. The
   comment now says so. This entry's own subject is untouched, since the whole-subtask shapes the
   three bounds are multiples of are still undrawn under the pin.
+- 2026-09-15: **the three declarations are still unchanged, and the first whole-subtask wall clock
+  under the pin is drawn.** `DEFAULT_STALL_TIMEOUT_S` is 600.0, `DEFAULT_SUBAGENT_RUN_TIMEOUT_S`
+  2400.0 and `DEFAULT_ADMISSION_WAIT_S` 7200.0, so neither half of the trigger has fired. The
+  delegated sitting that closed
+  [R-629](629-the-picks-cpu-server-reaches-its-memory-cap-under-the-harnesss-budget.md) ran six
+  attempts that each stopped at the 1024-token cap, which is a whole subtask of the shape this
+  deadline bounds: 86.57 s and 86.79 s with one attempt decoding at a time, 122.89 s and 121.81 s
+  with two at once, on prompts of about 100 tokens. On an idle host the deadline is about twenty
+  times the longest of those, and about seven times derived from the tier's published saturated
+  rate. That is one shape of the five the ceilings addendum measured and it is a capped attempt
+  rather than a tool-using run, so no bound moves on it. The entry stays open for the other four
+  shapes, the full batch and the saturated arm.
