@@ -49,4 +49,4 @@ refused were proved.
   old detector, which passes two of those three, and end to end on a heading planted in a real
   runbook. The reasoning is the ADR-0039 addendum on the bracketed span. The price the entry named,
   a heading that means its brackets literally, opens as
-  [R-334](334-a-heading-that-means-its-brackets.md).
+  [R-334](334-a-heading-whose-brackets-are-prose.md).

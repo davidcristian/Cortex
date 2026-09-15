@@ -1,4 +1,4 @@
-# A heading that means its brackets literally has no way to say so
+# A heading whose brackets are prose has no way to say so
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
@@ -37,13 +37,14 @@ it makes the source say what it means instead of adding an exemption the gate ha
   them carries a bracket at all, in or out of a code span. `BRACKETED` in
   `scripts/headingshapes.py` still refuses a bracketed span with or without a target after it, so
   the price named when the rule landed is still a price nobody has paid.
-- 2026-09-15: this entry's title overstates the refusal, which running the reader showed. A heading
-  can carry a literal pair of brackets today, in a code span: `CODE_SPAN` is stripped before
-  `BRACKETED` is looked for, so ``## Array index `a[0]` `` is accepted, and it slugs the same on
-  both sides because the backticks come off on both. The option list above gains a fourth entry
-  that needs no decision, and what stays open is narrower than the title says: a pair of brackets
-  in prose, where monospace is the wrong rendering. The sweep was re-run over 772 tracked markdown
-  files, up from the 725 of 2026-09-10, and still finds no heading carrying a bracket at all. The
-  refusal's remedy now names the code span, which is the close of
-  [R-344](344-a-remedy-that-repeats-the-heading.md), and names rewriting for the prose case this
+- 2026-09-15: this entry is narrower than its old title said, which running the reader showed, and
+  the title now says so, the file having been called `a-heading-that-means-its-brackets` until
+  today. A heading can carry a literal pair of brackets now, in a code span: `CODE_SPAN` is
+  stripped before `BRACKETED` is looked for, so ``## Array index `a[0]` `` is accepted, and it
+  slugs the same on both sides because the backticks come off on both. So the option list above
+  gains a fourth entry that needs no decision, and what stays open is a pair of brackets in prose,
+  where monospace is the wrong rendering. The sweep was re-run over the 772 tracked markdown files,
+  up from the 725 of 2026-09-10, and still finds no heading carrying a bracket at all. The
+  refusal's remedy names the code span from today, which is the close of
+  [R-344](344-a-remedy-that-repeats-the-heading.md), and it names rewriting for the prose case this
   entry holds.
