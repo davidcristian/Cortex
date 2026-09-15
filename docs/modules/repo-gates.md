@@ -1450,10 +1450,13 @@ answer: a marker written into any other module here is reported by the line it i
   list (ADR-0005 quiet-control addendum). Which cell is constrained and which sent the switch are
   the sample's own flags, so no shape's name has to agree across the two trees. **The report's
   first two lines name what the operator pointed the probe at and what the server said of
-  itself**: the sample's `build_info` and `model_path`, read once off `GET /props` and required by
-  name like every other field, so a row copied into a record names the engine build and the file
-  it was measured on off the page rather than off the driver's notes, and a quant the lineup does
-  not name is visible there (ADR-0005 served-by addendum). Exit 0 printing the report; exit 1 printing it with a `refused:` line (a rendering it
+  itself**: the sample's `build_info`, `model_path` and `n_ctx`, read once off `GET /props` and
+  required by name like every other field, so a row copied into a record names the engine build,
+  the file it was measured on and the context it was served at off the page rather than off the
+  driver's notes, and a quant the lineup does not name is visible there (ADR-0005 served-by
+  addendum). `n_ctx` is the one half of a row's placement that route reports; the GPU layer count
+  is on no route llama-server offers and stays typed by hand beside it (ADR-0005 context-size
+  addendum). Exit 0 printing the report; exit 1 printing it with a `refused:` line (a rendering it
   cannot place, a tail in a spelling it cannot read, a cell too thin to read, a control that did
   not fire, or a prediction the measurement broke); exit 2 printing one `switchtail: PROBLEM` line;
   argparse exit 2 on usage.

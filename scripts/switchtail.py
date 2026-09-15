@@ -7,39 +7,30 @@ from typing import cast
 
 from switchsamples import Cell, Probe, ProbeError, load
 
-# The two template families in ADR-0004's lineup, each as its (opens, closes) marker pair. The bar
-# sits on the other side of the closing marker, so neither member of a pair is a substring of the
-# other.
+# Each template family as its (opens, closes) marker pair. The bar sits on the other side of the
+# closing marker, so neither member of a pair is a substring of the other.
 MARKERS: tuple[tuple[str, str], ...] = (
     ("<|channel>thought", "<channel|>"),
     ("<think>", "</think>"),
 )
-# Minimum draws before a cell's verdict is read as a tier's behaviour: the failing pick's
-# constrained cell holds on 1 draw in 5.
+# Minimum draws before a cell's result is read as the tier's behaviour: the failing pick's
+# constrained cell held on 1 draw in 5.
 DRAWS = 5
 
 
 def tail(prompt: str, ask: str) -> str | None:
-    """What the template appended after the ask, or ``None`` when the prompt lacks the ask.
-
-    Found without a per-pick turn marker: whatever follows the last occurrence of the recorded ask
-    is what the template added on the model's behalf.
-    """
+    """What the template appended after the ask, or ``None`` when the prompt lacks the ask."""
     _, found, rest = prompt.rpartition(ask)
     return rest if found else None
 
 
 def marked(rendered: str) -> bool:
-    """Whether ``rendered`` carries a thought marker of either family in ``MARKERS``."""
+    """Whether ``rendered`` contains a thought marker of either family in ``MARKERS``."""
     return any(marker in rendered for pair in MARKERS for marker in pair)
 
 
 def closes(rendered: str) -> bool:
-    """Whether the last thought marker in ``rendered`` closes the thought rather than opening it.
-
-    No marker at all answers "open". Only a tail the switch left unchanged is owed that reading, so
-    `_tails` checks `marked` and the unswitched tail before calling this.
-    """
+    """Whether the last thought marker in ``rendered`` closes the thought rather than opening it."""
     opened = max(rendered.rfind(opener) for opener, _ in MARKERS)
     shut = max(rendered.rfind(closer) for _, closer in MARKERS)
     return shut > opened
@@ -62,11 +53,7 @@ def unfired(plain: str) -> str:
 
 
 def _tails(probe: Probe, lines: list[str]) -> dict[bool, str] | None:
-    """Report both renderings, and return their tails keyed by whether the switch was sent.
-
-    ``None`` when a rendering cannot be placed: it lacks the ask the sample recorded, or the
-    switched tail carries no marker either family writes and the switch changed it.
-    """
+    """Report both renderings, and return their tails keyed by whether the switch was sent."""
     lines.append("  the rendering, taken after the ask itself:")
     found: dict[bool, str] = {}
     for switch in (False, True):
@@ -94,10 +81,7 @@ def _tails(probe: Probe, lines: list[str]) -> dict[bool, str] | None:
 
 
 def _judged(probe: Probe, plain: str, lines: list[str]) -> Cell | None:
-    """The constrained cell the prediction is held against, or ``None`` if it may not be read.
-
-    ``plain`` is the tail rendered with the key left alone, which words the control refusal.
-    """
+    """The constrained cell the prediction is held against, or ``None`` if it may not be read."""
     control, cell = probe.cell(switch=False), probe.cell(switch=True)
     if control is None or cell is None:
         lines.append(
@@ -126,7 +110,8 @@ def read(probe: Probe) -> tuple[list[str], int]:
     """One tier's report and exit code: the rendering, the cells, then the rule over both."""
     lines = [
         f"{probe.path}: {probe.model} at {probe.endpoint}",
-        f"  served on {probe.build_info} from {probe.model_path}",
+        f"  served on {probe.build_info} from {probe.model_path}"
+        f" at {probe.n_ctx} tokens of context",
     ]
     found = _tails(probe, lines)
     if found is None:

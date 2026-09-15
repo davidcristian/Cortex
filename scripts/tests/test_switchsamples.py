@@ -7,13 +7,11 @@ import pytest
 
 from switchsamples import Cell, ProbeError, load
 
-# The ask a run records sending, shortened here. What matters to this reader is that the same
-# string appears in both renderings, since the tail is what follows the last of it.
 ASK = "What does each of them pay?"
-# What the server this format was validated against reported of itself on `GET /props`.
 BUILD = "b10680-d7bd3bfca"
 MODEL_PATH = "/models/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf"
-# The two chat-template families in ADR-0004's lineup, as they rendered on `b10666-4e97ac86e`.
+N_CTX = 8192
+# Both renderings as they came off a real server on llama.cpp build `b10666-4e97ac86e`.
 NATIVE_OPEN = f"<|im_start|>user\n{ASK}<|im_end|>\n<|im_start|>assistant\n<think>\n"
 NATIVE_SHUT = f"<|im_start|>user\n{ASK}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
 
@@ -30,6 +28,7 @@ def sample(
         "endpoint": "http://127.0.0.1:8080",
         "build_info": BUILD,
         "model_path": MODEL_PATH,
+        "n_ctx": N_CTX,
         "cap": 256,
         "ask": ASK,
         "renderings": [
@@ -50,7 +49,7 @@ def sample(
 
 
 def rewrite(path: Path, key: str, value: object) -> Path:
-    """Replace one field of a written sample, which is the shape drift in the driver arrives in."""
+    """Replace one field of a written sample, which is how a change in the driver shows up."""
     written = cast("dict[str, object]", json.loads(path.read_text(encoding="utf-8")))
     written[key] = value
     path.write_text(json.dumps(written), encoding="utf-8")
@@ -60,7 +59,7 @@ def rewrite(path: Path, key: str, value: object) -> Path:
 def test_a_sample_is_read_as_the_run_that_wrote_it(tmp_path: Path) -> None:
     probe = load(sample(tmp_path / "switch-cortex.json"))
     assert (probe.model, probe.endpoint, probe.ask) == ("cortex", "http://127.0.0.1:8080", ASK)
-    assert (probe.build_info, probe.model_path) == (BUILD, MODEL_PATH)
+    assert (probe.build_info, probe.model_path, probe.n_ctx) == (BUILD, MODEL_PATH, N_CTX)
     assert probe.prompt(switch=False) == NATIVE_OPEN
     assert probe.prompt(switch=True) == NATIVE_SHUT
     assert [cell.shape for cell in probe.cells] == ["plain", "plain"]
@@ -75,8 +74,6 @@ def test_a_cell_says_what_the_switch_did_in_the_probes_own_three_words() -> None
 
 
 def test_a_cells_line_names_its_shape_and_how_it_was_sent() -> None:
-    """The rendered line names the shape and how the request was sent, so a reader can compare it
-    against the rendering printed above it."""
     line = Cell("envelope", constrained=True, switch=True, draws=5, deliberated=4).rendered()
     assert "envelope" in line
     assert "switch" in line
@@ -85,9 +82,6 @@ def test_a_cells_line_names_its_shape_and_how_it_was_sent() -> None:
 
 
 def test_only_the_arm_that_sent_the_switch_is_reported_as_a_verdict_about_it() -> None:
-    """The arm that sent no switch is reported as a control rather than as a verdict on the switch.
-    A line reading "the switch does nothing" beside a request that sent none would report on
-    something the run never measured."""
     fired = Cell("plain", constrained=False, switch=False, draws=5, deliberated=5).rendered()
     quiet = Cell("plain", constrained=False, switch=False, draws=5, deliberated=4).rendered()
     assert fired.endswith("the control fired")
@@ -95,8 +89,6 @@ def test_only_the_arm_that_sent_the_switch_is_reported_as_a_verdict_about_it() -
 
 
 def test_the_constrained_cell_is_found_by_the_samples_own_flags(tmp_path: Path) -> None:
-    """The cell is found by the sample's own flags rather than by a shape name, because the two
-    trees agree on `constrained` and not on the word `envelope`."""
     probe = load(
         sample(
             tmp_path / "s.json",
@@ -118,8 +110,6 @@ def test_the_constrained_cell_is_found_by_the_samples_own_flags(tmp_path: Path) 
 
 
 def test_two_cells_claiming_one_placement_are_no_cell_at_all(tmp_path: Path) -> None:
-    """A sample holding two cells at the judged placement publishes none rather than picking the
-    first, since nothing distinguishes them."""
     row: dict[str, object] = {
         "shape": "envelope",
         "constrained": True,
@@ -152,9 +142,6 @@ def test_a_sample_that_is_not_an_object_is_refused(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("key", ["model", "endpoint", "build_info", "model_path", "ask"])
 def test_a_missing_string_field_is_refused_by_its_own_name(tmp_path: Path, key: str) -> None:
-    """A field that is missing or is not a string raises under its own name. The driver that writes
-    these samples has no suite of its own, so a field it stopped writing has to fail here rather
-    than fall back to a default."""
     with pytest.raises(ProbeError, match=f"{key} is missing or is not a string"):
         load(rewrite(sample(tmp_path / "s.json"), key, 17))
 
@@ -180,8 +167,6 @@ def test_a_rendering_with_no_switch_flag_is_refused(tmp_path: Path) -> None:
 
 
 def test_one_prompt_is_not_a_run_of_this_probe(tmp_path: Path) -> None:
-    """The probe takes two renderings, one with the switch and one without, so a sample carrying a
-    single rendering raises as malformed."""
     with pytest.raises(ProbeError, match="one prompt with the switch and one without"):
         load(sample(tmp_path / "s.json", renderings=[{"switch": True, "prompt": NATIVE_SHUT}]))
 
@@ -199,10 +184,14 @@ def test_two_renderings_taken_the_same_way_are_refused(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.parametrize("read", ["8192", True, -1])
+def test_a_context_size_that_is_not_a_count_is_refused(tmp_path: Path, read: object) -> None:
+    with pytest.raises(ProbeError, match="n_ctx is missing or is not a count"):
+        load(rewrite(sample(tmp_path / "s.json"), "n_ctx", read))
+
+
 @pytest.mark.parametrize("drawn", ["five", True, -1])
 def test_a_draw_count_that_is_not_a_count_is_refused(tmp_path: Path, drawn: object) -> None:
-    """A string, a boolean and a negative number each raise. The boolean and the negative would
-    otherwise compare against the draw floor and pass or fail on a value that is not a count."""
     cells = [
         {
             "shape": "plain",

@@ -6,7 +6,7 @@
 reasoning channel where the pair does not, which is the reading the budget was added on; or the
 kwarg's deprecation biting, when the argv is being rewritten anyway.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-15
 
 Opened 2026-09-02 by the close of
 [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).
@@ -59,3 +59,14 @@ inert.
   past `b10680` has been measured, and the two cached engine digests are the ones the bullet above
   read. The sentence above is corrected, the gate now requiring three things of every server rather
   than the two this entry was written against.
+
+- 2026-09-15: re-derived and still open. Both call sites still spend the pair, the two subagent
+  compose overrides writing it into each server's argv and the model host's `_SUBAGENT_TAIL`
+  writing it into the hosted tier's, and `scripts/flagcheck.py`
+  still holds every derived server to the pair as one of its three requirements. Both engine tags
+  have moved past the cached images again: `server` is cached at `sha256:db057ec90de0` against a
+  registry index of `sha256:6a8b3fbc10e6`, and `server-cuda` at `sha256:952424b09abc` against
+  `sha256:e2eebf1bd901`. Re-reading the pair on the moved tags was declined tonight for this
+  entry's own stated reason, that a new build's answer either way keeps the pair, so the
+  measurement costs a pull and a seeded sitting of forty draws and changes no decision. The second
+  limb has not fired either, the engine having still not deprecated the kwarg.

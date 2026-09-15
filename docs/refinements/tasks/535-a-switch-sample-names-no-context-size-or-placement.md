@@ -1,12 +1,8 @@
 # A switch sample names no context size or placement
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** inference
-**Trigger:** the next lineup sweep under an engine bump, which is the sweep R-529 waits for, when
-the placement column of the lineup-tails record is typed by hand again for eleven rows; or a row
-whose verdict moves between placements, which the record so far says does not happen.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-13
 
 Opened 2026-09-02 by the close of
 [R-528](528-a-switch-sample-names-the-model-the-operator-typed-and-no-engine-build.md), which
@@ -53,3 +49,15 @@ The layer count stays typed by hand unless a later build reports it.
   tonight, a per-tier number that is not the placement this entry is about: the record's placement
   column is still the layer count and context size of a scratch shell loop that starts one server
   per pick, and nothing in that loop reads `n_ctx` back off `GET /props` yet.
+
+- 2026-09-15: landed. The probe reads `default_generation_settings.n_ctx` off `GET /props` beside
+  `build_info` and `model_path`, writes it into the sample under that name, `switchsamples.py`
+  requires it as a count, and `switchtail.py` prints it on the served-on line, which now reads
+  `served on <build> from <file> at <n> tokens of context`. The lineup-tails record's placement
+  column keeps both figures and says which of them a sample confirms: the context size, since the
+  GPU layer count is on no route llama-server offers. Recorded end to end on one server on
+  `b10680-d7bd3bfca` serving `Qwen3.5-0.8B-Q8_0.gguf` at `-ngl 99 -c 8192`, whose sample came back
+  carrying `n_ctx` 8192 and published at exit 0. The nine samples of the 2026-09-02 sweep still on
+  this host were already unreadable, having been written before a sample carried `build_info`, so
+  the required field costs them nothing. The ADR-0005 context-size addendum carries the run and the
+  mutation table.

@@ -6,7 +6,7 @@ from typing import NamedTuple, cast
 
 
 class ProbeError(Exception):
-    """A sample file is unreadable, malformed, or written by a driver too old to carry a run."""
+    """A sample file is unreadable, malformed, or written by a driver too old to record a run."""
 
 
 class Cell(NamedTuple):
@@ -28,7 +28,7 @@ class Cell(NamedTuple):
         return f"holds on {self.draws - self.deliberated} of {self.draws} draws"
 
     def rendered(self) -> str:
-        """The one line a cell is reported as, which is a different sentence per arm."""
+        """The one line a cell is reported as, a different sentence for each way it was sent."""
         sent = "switch" if self.switch else "no switch"
         if self.switch:
             said = f"the switch {self.verdict}"
@@ -48,6 +48,7 @@ class Probe(NamedTuple):
     endpoint: str
     build_info: str
     model_path: str
+    n_ctx: int
     ask: str
     plain: str
     switched: str
@@ -58,7 +59,7 @@ class Probe(NamedTuple):
         return self.switched if switch else self.plain
 
     def cell(self, *, switch: bool) -> Cell | None:
-        """The one constrained cell sent that way, if this sample carries exactly one."""
+        """The one constrained cell sent that way, if this sample has exactly one."""
         found = [seen for seen in self.cells if seen.constrained and seen.switch is switch]
         return found[0] if len(found) == 1 else None
 
@@ -112,8 +113,6 @@ def load(path: Path) -> Probe:
         raise ProbeError(msg) from err
     _require(isinstance(parsed, dict), f"{path}: a sample is a JSON object")
     sample = cast("dict[str, object]", parsed)
-    # One prompt each way is what the probe renders, so a sample carrying anything else is
-    # malformed rather than unpublishable: no run of it renders one prompt, or three.
     rendered = {
         _flag(row, "switch", path): _text(row, "prompt", path)
         for row in _rows(sample, "renderings", path)
@@ -128,6 +127,7 @@ def load(path: Path) -> Probe:
         endpoint=_text(sample, "endpoint", path),
         build_info=_text(sample, "build_info", path),
         model_path=_text(sample, "model_path", path),
+        n_ctx=_count(sample, "n_ctx", path),
         ask=_text(sample, "ask", path),
         plain=rendered[False],
         switched=rendered[True],

@@ -1,11 +1,10 @@
-"""Integration: measure which request shapes this deployment honours the thinking switch on."""
-
 import json
 import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import httpx
 import pytest
@@ -29,32 +28,25 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 _ENDPOINT = os.environ.get("CORTEX_THINKING_ENDPOINT", "http://127.0.0.1:8080")
 _MODEL = os.environ.get("CORTEX_THINKING_MODEL", "cortex")
-# A cap, so a cell on a CPU tier whose trace nothing stops still ends inside a coffee break. It is
-# deliberately generous rather than snug: what is being read is whether a trace ran at all, and a
-# cap tight enough to cut one would leave every cell looking the same.
+# A cap, so a cell on a CPU tier whose trace nothing stops still ends inside a coffee break. It
+# is deliberately generous: what is read is whether a trace ran at all, and a cap tight enough to
+# cut one would leave every cell looking the same.
 _CAP = int(os.environ.get("CORTEX_THINKING_MAX_TOKENS", "256"))
-# How much of each trace is printed. A count says the tokens went to deliberation and cannot say
-# what the model was deliberating about, and on a cell that spent its whole cap there, what it was
-# writing is the difference between a model thinking and a model narrating the task.
 _HEAD = int(os.environ.get("CORTEX_THINKING_HEAD", "160"))
+# Sampling here is the server's own default, so one draw is one sample rather than a reading.
+# The default stays 1 so the runbook's one-command form answers quickly, and anything reported as
+# a tier's behaviour is run at 5 or more.
 _REPEATS = int(os.environ.get("CORTEX_THINKING_REPEATS", "1"))
-# Where this run's sample lands, read relative to `brain/` like every other driver's, and the
-# suffix that keeps one tier's runs apart: a probe at another cap or another repeat count is a
-# different reading and must not overwrite the one it was run beside.
 _OUT = Path(os.environ.get("CORTEX_THINKING_OUT", "."))
 _TAG = os.environ.get("CORTEX_THINKING_TAG", "")
 
-# A question with a few steps in it, because the control has to fire. Short enough that a 4B model
-# on a CPU answers inside a minute, and not a lookup: a prompt whose answer is one token invites no
-# deliberation, and a probe run on one measures nothing.
+# A question with a few steps in it, because the control has to produce a trace. Short enough
+# that a 4B model on a CPU answers inside a minute, and not a lookup.
 _ASK = (
     "Three friends split a bill. Ana pays twice what Bo pays, and Cy pays 4 less than Ana. "
     "The bill is 51. What does each of them pay?"
 )
 
-# The two shapes a bound request is sent in here. Plain is the title, the recap and a user's own
-# reply; the envelope is what a tool-less subagent decodes into (ADR-0028) and the shape the recall
-# rank's own schema puts it in, and it is the one the switch was first seen doing nothing on.
 _SHAPES: tuple[tuple[str, JsonSchema | None], ...] = (("plain", None), ("envelope", REPLY_ENVELOPE))
 
 
@@ -127,14 +119,32 @@ async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, swi
 
 @dataclass(frozen=True)
 class _Server:
-    """What the server said of itself on ``GET /props``: the engine build and the file it loaded."""
+    """What the server said of itself on ``GET /props``: the build, the file, the context size."""
 
     build_info: str
     model_path: str
+    n_ctx: int
+
+
+def _context_size(props: dict[str, object]) -> int:
+    """The context size the server is serving at, off ``default_generation_settings.n_ctx``."""
+    settings = props.get("default_generation_settings")
+    assert isinstance(settings, dict), (
+        f"GET /props at {_ENDPOINT} reports no default_generation_settings, so this run cannot "
+        f"say what context size served it: {sorted(props)}"
+    )
+    named = cast("dict[str, object]", settings)
+    read: object = named.get("n_ctx")
+    counted = read if isinstance(read, int) and not isinstance(read, bool) else None
+    assert counted is not None, (
+        f"GET /props at {_ENDPOINT} reports no n_ctx under default_generation_settings, so this "
+        f"run cannot say what context size served it: {sorted(named)}"
+    )
+    return counted
 
 
 async def _served(client: httpx.AsyncClient) -> _Server:
-    """Read which engine build and which model file are answering, once, before anything runs."""
+    """Read which engine build, model file and context size are answering, before anything runs."""
     response = await client.get(f"{_ENDPOINT}/props")
     response.raise_for_status()
     props: dict[str, object] = response.json()
@@ -147,8 +157,9 @@ async def _served(client: httpx.AsyncClient) -> _Server:
         f"GET /props at {_ENDPOINT} names no model_path, so this run cannot say which file "
         f"served it: {sorted(props)}"
     )
-    print(f"server    {build_info} serving {model_path}")  # noqa: T201
-    return _Server(build_info, model_path)
+    n_ctx = _context_size(props)
+    print(f"server    {build_info} serving {model_path} at {n_ctx} tokens of context")  # noqa: T201
+    return _Server(build_info, model_path, n_ctx)
 
 
 async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
@@ -184,6 +195,7 @@ def _write(
         "endpoint": _ENDPOINT,
         "build_info": server.build_info,
         "model_path": server.model_path,
+        "n_ctx": server.n_ctx,
         "cap": _CAP,
         "ask": _ASK,
         "renderings": [{"switch": switch, "prompt": prompt} for switch, prompt in prompts.items()],
@@ -203,7 +215,6 @@ def _write(
 
 
 async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -> None:
-    """Draw four cells: two request shapes, each sent with the switch and without it."""
     print(  # noqa: T201
         f"\n{_MODEL} at {_ENDPOINT}, cap {_CAP}, {_REPEATS} draws a cell, "
         f"no server-side reasoning flags:"
@@ -217,9 +228,6 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
                 cells = [await _run(client, shape, schema, switch=switch) for _ in range(_REPEATS)]
                 draws[shape, switch] = cells
 
-    # Written before the assertions below, so a run that trips one still leaves the sample it
-    # measured. Resolved rather than as written: `_OUT` is read relative to `brain/` and the line
-    # below is pasted into a shell that is somewhere else.
     written = _write(server, prompts, draws).resolve()
     print(  # noqa: T201 -- the report IS the measurement
         f"\nwrote one sample: {written}\n"

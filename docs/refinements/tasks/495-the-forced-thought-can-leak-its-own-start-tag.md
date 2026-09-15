@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-15
 **Trigger:** a delegated run whose answer is one word, or a budgeted cell of the committed probe
 counting two or more leaks in a hundred draws, on any tier that ends a thought at the engine.
 
@@ -101,3 +101,15 @@ since a sampler that emits half a tag into content is a bug wherever it is fixed
   the 0 in 140 flag draws are still readings of the request shape the probe sends and the sentence
   change does not date them. No delegated run in this repo has reported a one-word answer since,
   and no cell has been drawn, so the count stands where the sweep left it.
+
+- 2026-09-15: re-derived and still open, and the three shapes were put through the shipped reader
+  rather than argued about from the parser, which nobody had done since the entry was opened.
+  `settle_reply` on a constrained attempt reports `{"reply": "thought"}` as the answer `thought`
+  with no failure, and reports `<|channel>{"reply": "42"}`, `<think>{"reply": "42"}` and
+  `<|channel>` alone as `MALFORMED`. So the entry's account of which shape is dangerous is exact:
+  the prefix reaches an outcome this repo has words for and the whole envelope does not. The
+  adapter's chunk reader passes a bare `<|channel>` through as reply content, since it routes on
+  the key llama.cpp put the text under and never on what the text says. Neither limb of the trigger
+  has fired, no delegated run in this repo having reported a one-word answer and no cell having
+  been drawn since the trigger sweep, so the counts stand where that sweep left them. The ADR-0005
+  context-size addendum carries the table.
