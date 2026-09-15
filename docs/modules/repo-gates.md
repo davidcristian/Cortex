@@ -272,10 +272,15 @@ answer: a marker written into any other module here is reported by the line it i
   neighbour's value out of a template fails the entry beside it: the compose publish's host-side
   interface and the body app contract's `CORTEX_BRAIN_ADDR` default each reported *the brain's
   seam port*, which neither of them spells. `needles.py` now answers the fault with two readings.
-  The first is whether the file **still spells this constant's own value** as a token of its own,
-  which is the evidence that what moved is shape and that the entry named is probably not the entry
-  to change; a mention rendering only a name spells no value at all and is told so instead. **A
-  yes says where it read one** (ADR-0029 still-spelled addendum): how many places spell the value,
+  The first is whether the file **still spells the part this constant answers for** as a token of
+  its own, which is the evidence that what moved is shape and that the entry named is probably not
+  the entry to change. That part is the value where the mention's template renders one, and the
+  rendered name where it renders only a name (ADR-0029 addendum on a spend beside another entry's
+  binding): a template with no value placeholder has a name in its place, there is no declaration
+  on that far side for the scan to read, and the name is therefore the one thing the entry answers
+  for there. The verdict names whichever it read, so a shape that moved under a name is reported
+  the way one that moved under a value is. **A yes says where it read one** (ADR-0029
+  still-spelled addendum): how many places spell the part,
   and of those the one nearest where the run below stops, named by line number and read back with
   the line's own words, windowed to `needles.QUOTED_WIDTH` because the widest line this gate reads
   is a runbook table row. A maybe a reader has to grep is the work the reading exists to save, and
@@ -940,8 +945,17 @@ answer: a marker written into any other module here is reported by the line it i
   (ADR-0003 live-roster addendum and ADR-0029 roster-membership addendum). A **roster** is a list
   of names a page keeps for something the tree really holds: the `#[ignore]`d checks in the body's
   live seam suite, the modules in this directory, the two halves that same sentence sorts them
-  into, the same set again in the repo map's fenced block, the tuples the constant registry is
-  joined from.
+  into, the same set again in the repo map's fenced block, the packages and the crates the two
+  workspace rows of that block name, the tuples the constant registry is joined from.
+  **What a map row claims to be a complete list of is a decision, and both workspace rows took the
+  same one** (ADR-0029 addendum on the map's two workspace rows). Each row gives every directory it
+  says is there a parenthesised description, so a name plus that description is what a member is
+  written as: the planned package, written `(planned) shared` with the marker in front of the name
+  and nothing behind it, is not read as one, and the `cfg(windows)` inside a crate's description is
+  not read as a crate, having no space before its parenthesis. What both rows name is the
+  directory and never the package name a manifest declares, all five crates differing between the
+  two (`os_windows` against `os-windows`), and the crates row was rewritten to name `os_linux` and
+  `os_macos` separately, having named the first of them for a reader and neither for a rule.
   Each entry carries a sentence saying what its member proves or is for, which is why the list is
   written by hand and has to stay that way, and it is only the names that are held: **every member
   is named, and every name is a member**. The prose beside them is free, at any length and in any
@@ -1004,7 +1018,8 @@ answer: a marker written into any other module here is reported by the line it i
   suite, read as the first function below each attribute so a stacked `#[tokio::test]` cannot hide
   the name; the file names in `scripts/`, whole and split into the ones carrying a top-level
   `if __name__ == "__main__":` guard and the ones that do not, which is the one fact deciding
-  which half of this contract's opening sentence a module belongs in; and the registry's parts as
+  which half of this contract's opening sentence a module belongs in; the directories under
+  `brain/packages/`, which is what a member of that uv workspace is; and the registry's parts as
   the tuple names the
   `<subject>couplings.py` convention gives them, `couplings.py` itself being the vocabulary rather
   than a part. Every one of them refuses an empty answer, a comparison over nothing being one that
@@ -1523,12 +1538,18 @@ answer: a marker written into any other module here is reported by the line it i
   `test_the_registry_holds_each_coupling_once` asserts that no label appears twice, which is how the
   count is held: an entry in two parts leaves the verdict alone, the scan asking one question twice,
   and makes `shape.entries` count a collection the registry does not have.
-  `test_no_two_couplings_are_written_over_one_set_of_places` holds the same count against the copy
-  that was relabelled on the way (ADR-0029 relabelled-copy addendum), grouping the registry by each
-  entry's sites and mentions: two labels over one tuple of places report one drift twice and count
-  two couplings where there is one. The relation is left out of the grouping, an ordering against a
-  third site being a third place and so another tuple. A copy whose places are a strict subset of
-  another entry's still passes, which the addendum records and measures. The convention a part is
+  `test_no_two_couplings_declare_one_set_of_sites` holds the same count against the copy that was
+  relabelled on the way (ADR-0029 relabelled-copy addendum), grouping the registry by each entry's
+  sites: two labels over one set of declarations report one drift twice and count two couplings
+  where there is one. The relation is left out of the grouping, an ordering against a third site
+  being a third place and so another key. The mentions are left out too (ADR-0029 addendum on the
+  narrower copy), because a copy that dropped one of them on the way still reads the same
+  declarations under the same names. Beside it,
+  `test_no_coupling_is_a_narrower_copy_of_another` walks the registry pairwise for the copy that
+  dropped a declaring site, and names the narrower entry as the copy. It reads two equalities only:
+  an equality holds between every pair of its sites, so an equality over fewer of them is implied
+  by the wider entry, where an ordering and a membership read their sites in order and a subset of
+  either one's places can be a claim the wider entry never made. The convention a part is
   found by, a `<subject>couplings.py` holding a `<SUBJECT>_COUPLINGS` tuple, is asserted in the
   helper both tests go through, so an export under another name is a sentence rather than an
   `AttributeError`.

@@ -8,9 +8,12 @@ from pathlib import Path
 import scanrecipes
 from scanrecipes import ScanReadError
 
-# The body's live suite, and the tree this repo's own gates live in.
+# The body's live suite, the tree this repo's own gates live in, and the two workspaces the repo
+# map names the members of.
 LIVE_SEAM = Path("body/crates/rpc/tests/live.rs")
 GATES = Path("scripts")
+PACKAGES = Path("brain/packages")
+CRATES = Path("body/crates")
 
 MODULES = "*.py"
 PARTS = "*couplings.py"
@@ -49,13 +52,23 @@ def _read(root: Path, name: Path) -> str:
         raise MemberError(msg) from err
 
 
+def _listed(root: Path, tree: Path) -> list[Path]:
+    """Return what one directory a roster is written about holds, in a fixed order."""
+    found = root / tree
+    if not found.is_dir():
+        msg = f"{tree.as_posix()} is not a directory, so there is nothing to read"
+        raise MemberError(msg)
+    return sorted(found.iterdir())
+
+
 def _filenames(root: Path, pattern: str) -> list[str]:
     """Return the file names under `scripts/` matching ``pattern``, in a fixed order."""
-    tree = root / GATES
-    if not tree.is_dir():
-        msg = f"{GATES.as_posix()} is not a directory, so there is nothing to read"
-        raise MemberError(msg)
-    return sorted(path.name for path in tree.iterdir() if fnmatchcase(path.name, pattern))
+    return [path.name for path in _listed(root, GATES) if fnmatchcase(path.name, pattern)]
+
+
+def _directories(root: Path, tree: Path) -> list[str]:
+    """Return the names of the directories directly under ``tree``, in a fixed order."""
+    return [path.name for path in _listed(root, tree) if path.is_dir()]
 
 
 def ignored_tests(text: str) -> list[str]:
@@ -117,6 +130,16 @@ def cross_tree_scans(root: Path) -> frozenset[str]:
     except ScanReadError as err:
         raise MemberError(str(err)) from err
     return _floored(found, "the cross-tree scans the gate runs")
+
+
+def brain_packages(root: Path) -> frozenset[str]:
+    """Every package in the brain's uv workspace, which is every directory under it."""
+    return _floored(_directories(root, PACKAGES), f"the packages in {PACKAGES}")
+
+
+def body_crates(root: Path) -> frozenset[str]:
+    """Every crate in the body's cargo workspace, which is every directory under it."""
+    return _floored(_directories(root, CRATES), f"the crates in {CRATES}")
 
 
 def registry_tuples(root: Path) -> frozenset[str]:

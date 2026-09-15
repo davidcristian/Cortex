@@ -1,13 +1,8 @@
 # A spend written beside another entry's binding carries that binding's name as shape
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** repo-gates
-**Trigger:** a `crosscheck` fault over the kind word after a rename of a field binding sending a
-reader to the wrong constant, or a second registry entry whose needle spells another entry's site
-name in its literal shape, which is countable by rendering every mention and searching its shape
-for the site names the registry declares.
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-14
 
 Opened 2026-09-02 by the close of
 [537](537-the-declaration-field-names-are-bare-literals-on-both-sides.md), whose fifth mutation
@@ -31,11 +26,22 @@ relate entries, which nothing in `couplings.py` does today, and the fault is lou
 silent, since the right entry is named on the same run. One line spending four bindings is also
 the only place this shape occurs.
 
-**What would close it.** Either a mention carrying a second name, rendered from another entry's
-site so a rename there re-renders this needle rather than leaving it unfound, or a narrower spend
-for the kind word, `: {name},`, that carries no neighbour's name and holds less. The mutation is
-the one that showed it: rename `_KIND_FIELD` on the server together with its use and watch the
-gate fault the field entry alone.
+**What it became.** Neither of the two remedies above, because the misattribution this entry is
+about already had a remedy in the scan and it simply did not run here. `needles.unfound` gives an
+unfound needle two readings and, where they name one line, says that what moved is likely shape and
+that the constant named may not be the one to change. It took that reading only for a mention
+rendering a value, answering a name-rendering one with `this needle renders no value, so the whole
+of it is shape`, which is wrong about the needle in front of it: the rendered name is the one part
+of it this constant answers for. `needles.answered` now says which half a needle's constant answers
+for, the value where the template renders one and the name where it renders only a name, and the
+verdict names whichever it read.
+
+The needle still carries the field's binding name as shape and the registry still relates no
+entries, which the fault now says out loud on the line the neighbour moved on. Both entries are
+rendered from the one `KIND_FIELD` constant in `scripts/emailcouplings.py`, so one registry edit
+repairs both faults; what was costing a reader was the sentence, and the sentence is the thing that
+changed. Fifteen mentions render a name and no value today, so every one of them gained the
+reading rather than the kind word alone.
 
 ## Trail
 
@@ -70,3 +76,10 @@ gate fault the field entry alone.
   every site name rather than only for foreign ones returns 29 hits, the extra 21 being mentions
   that spell their own entry's binding, which is the ordinary shape of a module-doc row and not
   what this entry counts.
+- 2026-09-15: landed. The mutation this entry names was run first and reproduced exactly what it
+  describes, two faults with the misleading one printed first. What it became is the reading above,
+  recorded in the ADR-0029 addendum on a needle that renders a name, which carries both faults in
+  full and the mutation table over `scripts/needles.py`. The instance is still one and the shape is
+  worth counting again if a second entry ever spells another entry's site name in its needle: the
+  fault it would cost is now a pointing one rather than a misleading one, so the count matters less
+  than it did.

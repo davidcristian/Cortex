@@ -320,7 +320,7 @@ body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits [Hotkey, AudioControl] + BrainTransport port),
                   rpc (tonic adapter, committed stubs; BrainService client + BodyService server),
                   os_windows (real global-hotkey + Core Audio backends, cfg(windows)) +
-                  os_linux/os_macos (cfg-gated stubs)
+                  os_linux (cfg-gated stub) + os_macos (cfg-gated stub)
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt- and clippy-checked in CI, running it is host-only) named
                   cortex-body, own workspace

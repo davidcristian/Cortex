@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 **Trigger:** A third value on the capture-target enum, or a third module outside the body's rpc crate and the brain's body client that must spell one of the two gRPC status codes.
 
 Opened 2026-08-08 behind the landing above, in the same shape its own parent had: a registry that
@@ -161,8 +161,16 @@ Neither side declares a value the other could read: tonic's spelling is a method
 grpc-python's is an enum member, so a mention template would have to case-fold across the
 languages, which the reducer cannot do and should not learn for one coupling. What holds the
 pair today is prose in both module docs plus a test table on each side, which is exactly what
-the registry exists to replace. **Trigger:** a third caller of the same table, or a case-aware
-mention form arriving for another reason.
+the registry exists to replace. **Trigger:** a third module outside the body's rpc crate and the
+brain's body client that has to spell one of the codes, or either side gaining a declaration whose
+value the scan can read.
+**The case-aware clause this trigger used to carry fired on 2026-09-15, and it reaches nothing.**
+`Spelling.LOWERED` is a case fold and it arrived for another reason, Python declaring `False` where
+YAML writes `false`, so a mention form that re-spells a value across languages exists now. It does
+not unblock this pair, because the casing was never the obstacle: a spelling is applied to a value
+a site declares, and neither side declares one. tonic's spelling is a method name and grpc-python's
+is an enum member, so there is nothing for a scan to read and nothing for a fold to be applied to.
+The clause is therefore restated as the declaration it was really waiting on.
 **A vocabulary generated on both sides, spelled a third time by hand for the model.** Added
 2026-08-10 with the brain half of the targeted capture
 ([ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)'s second addendum of that date). The proto
@@ -261,3 +269,13 @@ side, or a `.proto` reader arriving in the scan for another reason.
   in the body's rpc crate, and `brain/packages/body_client/src/cortex_body_client/failures.py` in
   the brain's body client. A second module inside the rpc crate is not the third caller the
   trigger names, which counts modules outside those two.
+- 2026-09-15: both couplings re-derived again, and the registry's own widenings were read against
+  them, which is the reading this entry had not taken. The proto still declares
+  `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS` and nothing else, and
+  `crosscheck.DECLARATIONS` still knows three suffixes, `.py`, `.rs` and `.ts`, so no `.proto`
+  reader has arrived for another reason. The status codes are still spelled in three non-test
+  modules, `body/crates/rpc/src/screen.rs` and `body/crates/rpc/src/server.rs` in the body's rpc
+  crate and `brain/packages/body_client/src/cortex_body_client/failures.py` in the brain's body
+  client, which is the two homes the trigger counts. What had moved is the other clause of the
+  status pair's own trigger: a case-aware mention form has arrived, and the account under that
+  sub-entry now says why it reaches nothing and what the clause is restated to.

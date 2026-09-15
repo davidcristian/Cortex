@@ -631,8 +631,8 @@ def test_a_quote_is_windowed_only_where_the_line_runs_past_it(
     assert read.endswith(needles.TRIMMED) is closes
 
 
-def test_a_needle_that_renders_only_a_name_is_shape_all_through(tmp_path: Path) -> None:
-    """A name-only needle spells the value nowhere, so there is no value to report on."""
+def test_a_needle_that_renders_only_a_name_is_read_on_that_name(tmp_path: Path) -> None:
+    """A name-only needle spells the value nowhere, so the name is the part read for instead."""
     _restate(tmp_path, "--roll", "--ease", "--ease")
     spent = RESTATED._replace(
         mentions=(RESTATED.mentions[0], RESTATED.mentions[1]._replace(occurrences=None)),
@@ -640,8 +640,44 @@ def test_a_needle_that_renders_only_a_name_is_shape_all_through(tmp_path: Path) 
     (fault,) = crosscheck.check_constant(tmp_path, spent)
     assert "does not spell 'var(--roll)' as a token of its own" in fault.detail
     assert "carrying no more of it than 'var(--'" in fault.detail
-    assert "which stops in 2 places, the first on line 2" in fault.detail
-    assert "this needle renders no value, so the whole of it is shape" in fault.detail
+    assert "which stops in 2 places, the nearest to that spelling on line 2" in fault.detail
+    assert "does still spell '--roll' as a token of its own, once on line 1" in fault.detail
+    assert needles.APART in fault.detail
+
+
+UNDER_A_FIELD = crosscheck.Constant(
+    label="a word written under a neighbour's field",
+    why="the sidecar declares its sender under this word and the brain admits only that word",
+    sites=(crosscheck.Site("server.py", "_SENDER_KIND"),),
+    mentions=(
+        crosscheck.Mention("core.py", '{name} = "{value}"', name="SENDER"),
+        crosscheck.Mention("server.py", "_KIND_FIELD: {name},", name="_SENDER_KIND"),
+    ),
+)
+
+
+def _declare(root: Path, field: str) -> None:
+    """Write a sidecar declaring its sender under ``field``, and the core member it must match."""
+    (root / "core.py").write_text('SENDER = "sender"\n', encoding="utf-8")
+    (root / "server.py").write_text(
+        '_SENDER_KIND = "sender"\n'
+        f'{field} = "kind"\n'
+        f"DECLARATION = {{_SOURCE_KEY: {{{field}: _SENDER_KIND, _VALUE_FIELD: sender}}}}\n",
+        encoding="utf-8",
+    )
+
+
+def test_a_name_whose_shape_is_a_neighbours_binding_reports_the_shape_as_the_mover(
+    tmp_path: Path,
+) -> None:
+    """The misattribution this reading exists for, over a name rather than over a value."""
+    _declare(tmp_path, "_KIND_FIELD")
+    assert crosscheck.check_constant(tmp_path, UNDER_A_FIELD) == []
+    _declare(tmp_path, "_KIND_NAME")
+    (fault,) = crosscheck.check_constant(tmp_path, UNDER_A_FIELD)
+    assert "does not spell '_KIND_FIELD: _SENDER_KIND,' as a token of its own" in fault.detail
+    assert "does still spell '_SENDER_KIND' as a token of its own" in fault.detail
+    assert needles.MET.format(part=needles.NAME) in fault.detail
 
 
 @pytest.mark.parametrize(
@@ -907,7 +943,8 @@ def test_a_call_handed_another_word_leaves_the_call_mention_unfound(tmp_path: Pa
     _hand(tmp_path, '_logger.info("tool.dispatch", extra=fields)')
     (fault,) = crosscheck.check_constant(tmp_path, HANDED)
     assert "sink.py does not spell '_logger.info(_MESSAGE,' as a token of its own" in fault.detail
-    assert "the whole of it is shape" in fault.detail
+    assert "does still spell '_MESSAGE' as a token of its own, once on line 1" in fault.detail
+    assert needles.APART in fault.detail
 
 
 def test_a_call_handed_another_binding_is_the_same_fault(tmp_path: Path) -> None:
@@ -1581,13 +1618,37 @@ def test_the_registry_holds_each_coupling_once() -> None:
     assert not repeated, f"the registry holds these labels more than once: {repeated}"
 
 
-def test_no_two_couplings_are_written_over_one_set_of_places() -> None:
+def test_no_two_couplings_declare_one_set_of_sites() -> None:
     """A copy that was relabelled is one coupling checked twice, under two names."""
-    written: dict[tuple[object, ...], list[str]] = {}
+    written: dict[tuple[crosscheck.Site, ...], list[str]] = {}
     for constant in crosscheck.CONSTANTS:
-        written.setdefault((constant.sites, constant.mentions), []).append(constant.label)
+        written.setdefault(constant.sites, []).append(constant.label)
     repeated = sorted(labels for labels in written.values() if len(labels) > 1)
-    assert not repeated, f"these labels are written over one set of places: {repeated}"
+    assert not repeated, f"these labels are written over one set of declaring sites: {repeated}"
+
+
+def _narrower(one: couplings.Constant, other: couplings.Constant) -> bool:
+    """Whether ``one`` checks a subset of what ``other`` checks, which makes it a copy of it."""
+    return (
+        one.relation is couplings.Relation.EQUAL
+        and other.relation is couplings.Relation.EQUAL
+        and one.sites != other.sites
+        and set(one.sites) <= set(other.sites)
+        and set(one.mentions) <= set(other.mentions)
+    )
+
+
+def test_no_coupling_is_a_narrower_copy_of_another() -> None:
+    """A copy that also dropped a place checks less than the entry it came from, under a name of
+    its own.
+    """
+    copies = sorted(
+        f"{one.label!r} inside {other.label!r}"
+        for one in crosscheck.CONSTANTS
+        for other in crosscheck.CONSTANTS
+        if _narrower(one, other)
+    )
+    assert not copies, f"these couplings check a subset of another entry's places: {copies}"
 
 
 def test_registry_names_every_part_in_the_order_it_reads_them() -> None:

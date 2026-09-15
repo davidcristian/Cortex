@@ -1,14 +1,8 @@
 # A copy of a coupling over fewer places passes the rule over the places
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-12
-**Trigger:** two entries in `crosscheck.CONSTANTS` where one entry's sites and its mentions are
-both subsets of another entry's, which is one coupling written down twice with the second copy
-checking less. Grouping cannot find it, the two tuples not being equal, so the reading is a
-pairwise walk over the registry asking whether either entry's places contain the other's; this
-entry's trail records what that walk returned when it was last run.
 
 Opened 2026-09-12 by the close of
 [R-418](418-a-relabelled-copy-of-a-coupling-is-invisible.md), which grouped the registry by each
@@ -51,3 +45,10 @@ declaring sites.
   places and whose mutation table measured this hole as its third row. Recorded under what the
   ADR-0029 relabelled-copy addendum stops at. Not fired: no pair of the 91 entries has either
   entry's places contained in the other's, and grouping by sites alone gives 91 groups of one.
+- 2026-09-15: landed, ahead of its trigger and over a registry one entry wider. `crosscheck.py
+  --root ..` prints `crosscheck OK: 92 cross-tree constant(s) under .. agree, over 110 declaring
+  site(s) and 313 mention(s), 27 of them pinned to a count`; grouping those 92 by `constant.sites`
+  alone gives 92 groups of one; and over the 4,186 pairs neither entry's places are contained in
+  the other's, so both rules landed green. Recorded in the ADR-0029 addendum on the narrower copy,
+  which carries the mutation table and the boundary these rules stop at, filed as
+  [R-674](674-a-nested-copy-of-an-ordering-or-a-membership-is-not-read-as-one.md).

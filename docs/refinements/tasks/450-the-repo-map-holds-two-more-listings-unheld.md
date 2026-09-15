@@ -1,12 +1,8 @@
 # The repo map names two more trees in the shape now readable, and neither is held
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-12
-**Trigger:** a crate is added under `body/crates/` or a package under `brain/packages/` and the
-repo map keeps describing the workspace that existed before it, which is the drift the same map's
-`scripts/` row is held against by a roster.
 
 Opened 2026-08-26 by the close of
 [R-449](449-the-repo-map-names-every-gate-module-unheld.md), which made the roster reader take a
@@ -36,11 +32,26 @@ name, and the two differ for **every one of the five**: `core` is the `body-core
 `body-rpc`, and the three OS crates trade the underscore for a hyphen, `os_windows` being
 `os-windows`. So the reader has to pick a side and say why.
 
-**What would close it.** Two registry entries and one or two readers, plus a decision per tree
-about what its map entry claims to be a complete list of. Read
-[R-451](451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md) first, since the `brain/`
-entry's habit of naming a package while describing something else is exactly the shape the
-borrowed-name allowance was written for and exactly the shape it cannot distinguish.
+**What it became.** Two registry entries in `scripts/rosters.py`, two readers in
+`scripts/rostermembers.py`, and one decision taken for both rows: a member is a name the row
+follows with a parenthesised description, separated by a space or by the line break the map wraps
+at. The borrowed-name allowance was not needed, because the shape answers the question it was
+written for. The row names a package while describing something else twice, `subagents live in core
+(runner, scheduler, spawn tool) + session (task store)`, and both names it borrows there are
+members anyway, so the comparison is over sets and the borrow costs nothing.
+
+The decision settles the two cases this entry said had to be decided. `shared` is written
+`(planned) shared`, the marker in front of the name and nothing behind it, so the planned row is
+not read as a member; a planned row rewritten like a present one would be reported as a package the
+tree does not have, which is what a map claiming an absent directory deserves. And what is read is
+the directory and never the package name a manifest declares, which is what both rows write: the
+crate divergence is five of five, so a reader over manifests would report every crate as one the
+map does not name.
+
+One line of the map moved to meet that decision, and it is this close's only source edit. The
+crates row wrote its two stub crates as `os_linux/os_macos (cfg-gated stubs)`, which names the
+first of them for a reader and neither for a rule, only the second being followed by a description.
+It now reads `os_linux (cfg-gated stub) + os_macos (cfg-gated stub)`.
 
 ## Trail
 

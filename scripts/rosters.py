@@ -14,6 +14,8 @@ from rosternames import Bare, Bulleted, Spelled, Written
 MODULE = re.compile(r"[a-z_]+\.py")
 PART = re.compile(r"[A-Z][A-Z_]*_COUPLINGS")
 
+DIRECTORY = re.compile(r"[a-z][a-z_]*(?=[ \n]+\()")
+
 # The sentence dividing the gate tree's contract in two. It is one phrase and it bounds two
 # rosters, closing the one over the modules a shell can run and opening the one over the rest.
 NO_CLI = "**The rest have no CLI of their own**"
@@ -113,6 +115,32 @@ ROSTERS: tuple[Roster, ...] = (
         subject="a cross-tree scan the gate and CI both run",
         why=SCANS,
         members=rostermembers.cross_tree_scans,
+    ),
+    Roster(
+        label="the brain's packages in the repo map",
+        document=Path("AGENTS.md"),
+        opens="  packages/",
+        closes="body/             Rust/Tauri workspace",
+        written=Bare(pattern=DIRECTORY),
+        subject="a package under brain/packages/",
+        why=(
+            "this row is where a reader learns what the brain is made of before opening it, and "
+            "a package missing from it is one the next agent writes around rather than into"
+        ),
+        members=rostermembers.brain_packages,
+    ),
+    Roster(
+        label="the body's crates in the repo map",
+        document=Path("AGENTS.md"),
+        opens="  crates/",
+        closes="  app/            React",
+        written=Bare(pattern=DIRECTORY),
+        subject="a crate under body/crates/",
+        why=(
+            "this row is where a reader learns what the body is made of before opening it, and "
+            "a crate missing from it is one the next agent writes around rather than into"
+        ),
+        members=rostermembers.body_crates,
     ),
     Roster(
         label="the gate tree in the repo map",

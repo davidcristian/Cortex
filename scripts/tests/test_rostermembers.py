@@ -8,6 +8,8 @@ import rostermembers
 import scanrecipes
 from rostermembers import (
     MemberError,
+    body_crates,
+    brain_packages,
     cli_gate_modules,
     cross_tree_scans,
     gate_modules,
@@ -247,6 +249,69 @@ def test_a_registry_with_no_part_but_its_vocabulary_is_a_failure(tmp_path: Path)
         registry_tuples(gates(tmp_path, "couplings.py"))
 
 
+# ── the directories the two workspaces are made of ─────────────────────────────
+
+
+def packages(root: Path, *names: str) -> Path:
+    """Write a miniature `brain/packages/` holding exactly ``names``, and return the root."""
+    return _workspace(root, rostermembers.PACKAGES, names)
+
+
+def crates(root: Path, *names: str) -> Path:
+    """Write a miniature `body/crates/` holding exactly ``names``, and return the root."""
+    return _workspace(root, rostermembers.CRATES, names)
+
+
+def _workspace(root: Path, tree: Path, names: tuple[str, ...]) -> Path:
+    """Write one miniature workspace holding exactly ``names`` as directories."""
+    made = root / tree
+    made.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        (made / name).mkdir()
+    return root
+
+
+def test_every_directory_under_the_workspace_is_a_package(tmp_path: Path) -> None:
+    root = packages(tmp_path, "core", "seam", "tools")
+    assert brain_packages(root) == frozenset({"core", "seam", "tools"})
+
+
+def test_a_file_beside_the_packages_is_not_one(tmp_path: Path) -> None:
+    """A workspace member is a directory holding a project, so a note beside them is not one."""
+    root = packages(tmp_path, "core")
+    (root / rostermembers.PACKAGES / "README.md").write_text("a note\n", encoding="utf-8")
+    assert brain_packages(root) == frozenset({"core"})
+
+
+def test_a_workspace_that_is_not_there_is_named(tmp_path: Path) -> None:
+    with pytest.raises(MemberError, match="brain/packages is not a directory"):
+        brain_packages(tmp_path)
+
+
+def test_a_workspace_holding_no_package_is_a_failure(tmp_path: Path) -> None:
+    (tmp_path / rostermembers.PACKAGES).mkdir(parents=True)
+    with pytest.raises(MemberError, match="came back empty"):
+        brain_packages(tmp_path)
+
+
+def test_every_directory_under_the_body_workspace_is_a_crate(tmp_path: Path) -> None:
+    """The crates are read as directories, which is what the map names them by: `os_windows` is a
+    directory and `os-windows` is what its manifest calls the package."""
+    root = crates(tmp_path, "core", "os_windows", "rpc")
+    assert body_crates(root) == frozenset({"core", "os_windows", "rpc"})
+
+
+def test_a_body_workspace_that_is_not_there_is_named(tmp_path: Path) -> None:
+    with pytest.raises(MemberError, match="body/crates is not a directory"):
+        body_crates(tmp_path)
+
+
+def test_a_body_workspace_holding_no_crate_is_a_failure(tmp_path: Path) -> None:
+    (tmp_path / rostermembers.CRATES).mkdir(parents=True)
+    with pytest.raises(MemberError, match="came back empty"):
+        body_crates(tmp_path)
+
+
 # ── against the tree these readers are written for ─────────────────────────────
 
 
@@ -259,6 +324,8 @@ def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
     assert len(live_seam_checks(REPO_ROOT)) > 1
     assert len(registry_tuples(REPO_ROOT)) > 1
     assert "rostermembers.py" in gate_modules(REPO_ROOT)
+    assert "orchestrator" in brain_packages(REPO_ROOT)
+    assert "os_windows" in body_crates(REPO_ROOT)
 
 
 def test_the_real_tree_really_holds_both_halves() -> None:

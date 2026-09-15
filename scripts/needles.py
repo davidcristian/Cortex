@@ -1,6 +1,7 @@
 """How a rendered needle is looked for in a file, and what a fault says when one is not found."""
 
 import re
+from typing import NamedTuple
 
 from couplings import PLACEHOLDER, Mention
 
@@ -24,8 +25,14 @@ QUOTED_WIDTH = 100
 # a sentence the file does not have.
 TRIMMED = "..."
 
+# What a fault calls the part of a needle the constant it belongs to answers for: the value the
+# constant's sites declare, or the name the far side spends that value under where the template
+# renders no value.
+VALUE = "value"
+NAME = "name"
+
 MET = (
-    "so what moved is likely shape this needle carries rather than this value, and the constant "
+    "so what moved is likely shape this needle carries rather than this {part}, and the constant "
     "to change may not be the one named here"
 )
 APART = (
@@ -129,11 +136,29 @@ def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
     return f"{held}, which stops in {len(ends)} places, {which} on line {line}"
 
 
-def verdict(text: str, match: re.Match[str], at: int | None) -> str:
+def verdict(text: str, match: re.Match[str], at: int | None, part: str) -> str:
     """What the two readings conclude: the strong form only where they name one line."""
     if at is None or line_of(text, at - 1) != line_of(text, match.start()):
         return APART
-    return MET
+    return MET.format(part=part)
+
+
+class Answered(NamedTuple):
+    """The part of a needle the constant it belongs to answers for, and what a fault calls it."""
+
+    spelling: str
+    word: str
+
+
+def answered(mention: Mention, spelled: str) -> Answered:
+    """Which half of a rendered needle this constant answers for: its value, or its name.
+
+    `crosscheck.rendered` refuses a template that renders neither, so a template with no value
+    placeholder carries a name and the mention carries one to render there.
+    """
+    if PLACEHOLDER in mention.template or mention.name is None:
+        return Answered(spelled, VALUE)
+    return Answered(mention.name, NAME)
 
 
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
@@ -143,16 +168,17 @@ def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     if run == needle:
         return f"{stem}, carrying it only inside a longer token"
     ends = anchors(text, run)
-    if PLACEHOLDER not in mention.template:
-        held = stops(text, run, ends, None)
-        return f"{stem}, {held}; this needle renders no value, so the whole of it is shape"
-    matches = list(bounded(spelled).finditer(text))
+    held = answered(mention, spelled)
+    matches = list(bounded(held.spelling).finditer(text))
     if not matches:
-        held = stops(text, run, ends, None)
-        return f"{stem}, {held}; the file does not spell {spelled!r} as a token of its own either"
+        stopped = stops(text, run, ends, None)
+        return (
+            f"{stem}, {stopped}; the file does not spell {held.spelling!r} as a token of its own "
+            f"either"
+        )
     match, at = nearest(ends, matches)
     return (
-        f"{stem}, {stops(text, run, ends, at)}; the file does still spell {spelled!r} as a token "
-        f"of its own{where(text, match, len(matches), anchored=bool(ends))}, "
-        f"{verdict(text, match, at)}"
+        f"{stem}, {stops(text, run, ends, at)}; the file does still spell {held.spelling!r} as a "
+        f"token of its own{where(text, match, len(matches), anchored=bool(ends))}, "
+        f"{verdict(text, match, at, held.word)}"
     )

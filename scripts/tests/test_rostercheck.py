@@ -408,6 +408,42 @@ def test_every_registered_pattern_refuses_something_the_passage_carries() -> Non
         assert any(roster.written.pattern.fullmatch(span) is None for span in spans), roster.label
 
 
+@pytest.mark.parametrize(
+    ("row", "named"),
+    [
+        ("core (pure logic + ports)", ["core"]),
+        # The map wraps at its column, so a name can sit a line above its own description.
+        ("embedding\n                  (a CPU adapter)", ["embedding"]),
+        ("(planned) shared", []),
+        ("shared (planned)", ["shared"]),
+        # The space is what tells a name from a `cfg(...)` written inside a description.
+        ("os_windows (real backends, cfg(windows))", ["os_windows"]),
+        # And what a slashed pair costs: the first of the two is followed by no description.
+        ("os_linux/os_macos (cfg-gated stubs)", ["os_macos"]),
+    ],
+)
+def test_a_directory_is_read_only_where_the_map_describes_it(row: str, named: list[str]) -> None:
+    """What a repo-map row claims to be a complete list of, decided by one shape."""
+    assert rosternames.names(row, Bare(pattern=rosters.DIRECTORY)) == named
+
+
+def test_both_workspace_rows_of_the_map_are_read_in_one_shape() -> None:
+    """The decision above, held to the two rows it was made for rather than to a miniature."""
+    rows = [
+        roster
+        for roster in rosters.ROSTERS
+        if roster.members in {rostermembers.brain_packages, rostermembers.body_crates}
+    ]
+    assert len(rows) == 2
+    assert {type(roster.written) for roster in rows} == {Bare}
+    for roster in rows:
+        text = (REPO_ROOT / roster.document).read_text(encoding="utf-8")
+        passage = rosternames.passage(text, roster.opens, roster.closes)
+        assert set(rosternames.names(passage, roster.written)) == roster.members(REPO_ROOT)
+    assert "(planned) shared" in REPO_ROOT.joinpath("AGENTS.md").read_text(encoding="utf-8")
+    assert "shared" not in rostermembers.brain_packages(REPO_ROOT)
+
+
 def test_every_bare_roster_names_something_no_code_span_would_have_reached() -> None:
     """The shape earns its place only where names are written bare, which is what is pinned here."""
     bare = [roster for roster in rosters.ROSTERS if isinstance(roster.written, Bare)]
