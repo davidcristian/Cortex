@@ -505,9 +505,11 @@ answer: a marker written into any other module here is reported by the line it i
   from its remedy where a mistaken marker would drop a real spend in silence. Everything else
   raises `SubstitutionReadError`: a `$` opening none of those forms, a
   brace that never closes, a nested expansion, a name that is not
-  an identifier, and an operator it was not taught. Compose does expand a nested form, measured on
-  v2.39.1; it is refused here because a default that is itself a variable has no value until a
-  deployment supplies one, and every rule over these spends compares a default as a value.
+  an identifier, and an operator it was not taught. Compose does expand a nested form, under every
+  operator and at least three deep, measured on v2.39.1; it is refused here because a nested
+  default is a second spend rather than a value, standing for one thing with nothing set and
+  another once the inner variable is set, and every rule over these spends compares a default as
+  a value.
 - `composefiles.py` is which files the compose gates walk and has no CLI. `compose_files(root)`
   returns every compose file under `root` by name (stem `docker-compose`/`compose`, suffix
   `.yml`/`.yaml`), and raises `ComposeSearchError`

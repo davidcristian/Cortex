@@ -7,7 +7,7 @@ count dropping is not by itself the trigger: that happened two and a half hours 
 was opened, in a commit whose own subject was the exclusion.
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 
 Opened 2026-08-24 by the close of
 [R-409](409-a-gates-success-line-names-no-collection.md), which gave the four remaining cross-tree
@@ -80,3 +80,16 @@ suite makes about the tree it ships in.
   above the reading above it, so the trigger has not fired. The floors are unchanged as well:
   `linecap.MIN_FILES` and `dashcheck.MIN_FILES` are both 1, `composefiles.py` still raises on a
   walk that found none, and the two suite floors of 6 still stand where they were written.
+- 2026-09-15: the readings again, against the ones recorded above. `linecap OK: 432 non-test
+  source file(s) under .. are within 300 lines, over 61948 line(s) counted`. `dashcheck OK: 1616
+  text file(s) under .. use no banned dash, over 317821 line(s) read`. Both compose gates still
+  walk 10 files, at 11 bind mounts and 8 variables spelled twice or more. The cap reads the same
+  432 files as the last reading over 117 more lines, and every other count is above the one above
+  it, so the trigger has not fired. The floors are where they were: `linecap.MIN_FILES` and
+  `dashcheck.MIN_FILES` are both 1, `composefiles.py` still raises on a walk that found none, and
+  `test_bindcheck.py` and `test_defaultcheck.py` still carry `>= 6` against 6 and 8, so the first
+  of those two still has no headroom and the second would still absorb two removals in silence.
+  The claim about where the middle option can go was checked too, and holds: both of those suites
+  open with `REPO_ROOT = Path(__file__).resolve().parents[2]` and run their gate over it, while
+  `test_linecap.py` and `test_dashcheck.py` name no repo root anywhere, every test in both taking
+  a `tmp_path` tree instead.

@@ -5,7 +5,7 @@
 **Trigger:** a change wants a compose value that falls back through two variables, which is what an
 env-var rename with a compatibility shim needs and what nothing in this tree needs today
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 
 Opened 2026-08-30 by the close of
 [R-492](492-the-embedder-names-its-artifact-outside-the-family.md), which wanted exactly this
@@ -15,10 +15,10 @@ shape for a rename's shim and measured that it was unavailable.
 close its docstring gave the reason as "which compose does not expand". That is false:
 `${A:-${B:-x}}` resolves to `B`'s value and then to `x` on compose v2.39.1, measured against the
 real binary. The docstring is corrected, and the refusal is kept with the true reason written in
-its place: every rule over these spends compares a default as a value, and a default that is
-itself a variable has no value until a deployment supplies one, so a reader that returned
-something for it would hand `defaultcheck.py`, `bindcheck.py` and `volumecheck.py` a comparison
-none of them can make.
+its place: every rule over these spends compares a default as a value, and a nested default is a
+second spend rather than a value, standing for one thing with nothing set and another once the
+inner variable is set, so a reader that returned either reading would hand `defaultcheck.py`,
+`bindcheck.py` and `volumecheck.py` a comparison none of them can make.
 
 **Why it is worth reopening rather than settled.** The refusal is honest but it costs a shape
 compose supports and this repo will want again. A two-variable fallback is the one cheap way to
@@ -74,3 +74,28 @@ than two is worth reading at all, since compose allows it and no honest use of i
   `subagentservers.py` read a spend's name and never its default, so a reader that returned the
   name and refused the value would unblock a rename shim without handing `defaultcheck.py`,
   `bindcheck.py` or `volumecheck.py` a comparison none of them can make.
+- 2026-09-15: the reason the last reading landed is itself false, and the measurement falsifying
+  it was already one bullet above it. That reading wrote that a nested default "has no value until
+  a deployment supplies one", into the docstring, the message an operator reads on a fault and
+  [repo-gates.md](../../modules/repo-gates.md), while the 2026-09-09 bullet records
+  `${A:-${B:-fallback}}` printing `fallback` with neither variable set. It has a value with
+  nothing set. The measurement is re-taken and widened here, over a scratch compose file read with
+  `docker compose config` on v2.39.1: `${A:-${B:-fallback}}`, `${A:-${B:-${C:-deep}}}`,
+  `${A-${B-bare}}`, `${A:-${B}}` and `${A:+${B:-rep}}` print `fallback`, `deep`, `bare`, the empty
+  string and the empty string with nothing set, and `frominner`, `frominner`, `frominner`,
+  `frominner` and the empty string with `B` set. So compose takes the form under every operator
+  this reader knows and at least three deep, and each spend reduces to a value with nothing set.
+  The true reason is what the readings with `B` set show: a nested default is a second spend rather than
+  a value, so `${A:-${B:-x}}` and `${A:-${C:-x}}` agree under a deployment setting neither and
+  disagree under one that sets `B`, where `defaultcheck.py` compares a default as one value. All
+  three places now carry that reason, recorded in the [ADR-0026 addendum on what a nested compose
+  default stands for](../../adr/ADR-0026-prose-style-gates.md).
+  Nothing the gate accepts or refuses moved.
+- 2026-09-15: the reading also found a defect in the fault the refusal prints, which belongs to
+  this entry because it needs the same scan reading the form would. `_braced` takes the body as
+  the text up to the first `}`, so a nested spend is shown one brace short:
+  `${A:-${B:-fallback}}` is reported as `nested substitution ${A:-${B:-fallback}`, a spend the
+  file does not contain. Showing it whole needs a balanced scan, which is what reading the form
+  needs too, so it lands with the form or not at all. The trigger has still not fired: no compose
+  file in `docker/` spells a nested substitution, over 78 spends read across the ten files, the
+  same count as the last reading.

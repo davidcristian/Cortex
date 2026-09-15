@@ -51,8 +51,9 @@ def _braced(number: int, text: str, start: int) -> tuple[Substitution, int]:
     body = text[start + 2 : end]
     if "{" in body:
         msg = (
-            f"line {number}: nested substitution ${{{body}}}, whose default is itself a variable "
-            "and so has no value for a rule over these spends to compare"
+            f"line {number}: nested substitution ${{{body}}}, whose default is a second spend "
+            "rather than a value, standing for one thing with nothing set and another once the "
+            "inner variable is set"
         )
         raise SubstitutionReadError(msg)
     name = _NAME.match(body)
