@@ -6,7 +6,7 @@ import pytest
 import commitlint
 from gitenv import git_env
 
-# Built from escapes, not literals, so this file passes the dash gate.
+# Written as escapes so this file passes dashcheck.
 EM = "\u2014"
 EN = "\u2013"
 MINUS = "\u2212"
@@ -16,7 +16,7 @@ CLEAN_HEADERS = [
     "fix(brain): wrap redis errors as SessionStoreError",
     "docs: sync the deferral ledger",
     "feat(proto)!: renumber nothing, extend everything",
-    "chore: bump pins to 2026.1.14",  # digits after the colon are fine
+    "chore: bump pins to 2026.1.14",
 ]
 
 
@@ -47,7 +47,6 @@ def test_all_three_violations_report_together() -> None:
 
 
 def test_non_conventional_header_passes_silently() -> None:
-    # Structure errors are conventional-pre-commit's to report, not this hook's.
     assert commitlint.check_header("Added stuff without a type.") == []
 
 
@@ -79,13 +78,11 @@ def test_main_fails_a_violating_message(tmp_path: Path, capsys: pytest.CaptureFi
 
 
 def test_main_skips_comment_lines(tmp_path: Path) -> None:
-    # `git commit` templates put comments first; the header is the first real line.
     msg = _write(tmp_path, "# please enter the commit message\nfeat: add the thing\n")
     assert commitlint.main([msg]) == 0
 
 
 def test_main_passes_an_empty_message(tmp_path: Path) -> None:
-    # git aborts empty commits itself; nothing for this hook to say.
     msg = _write(tmp_path, "")
     assert commitlint.main([msg]) == 0
 
@@ -97,9 +94,6 @@ def test_main_usage_error_without_a_file_argument(
         commitlint.main([])
     assert excinfo.value.code == 2
     assert "usage" in capsys.readouterr().err
-
-
-# ── dashes as punctuation ──────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -119,18 +113,15 @@ def test_dash_as_punctuation_is_flagged(line: str, label: str) -> None:
 @pytest.mark.parametrize(
     "line",
     [
-        "a 2-4B model fits",  # a range takes a plain hyphen
-        f"VRAM is 24 GB {MINUS} ~11 GB",  # minus sign is arithmetic, still legal
-        "run cargo build --locked",  # CLI flag
+        "a 2-4B model fits",
+        f"VRAM is 24 GB {MINUS} ~11 GB",
+        "run cargo build --locked",
         "the well-formed hyphenated-word case",
         "--locked at the start of a line",
     ],
 )
 def test_non_punctuation_dashes_pass(line: str) -> None:
     assert commitlint.check_body_lines([line], Path()) == []
-
-
-# ── volatile references ────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -154,9 +145,9 @@ def test_volatile_reference_is_flagged(line: str, label: str) -> None:
 @pytest.mark.parametrize(
     "line",
     [
-        "the overlay gate 100% (79 tests) still holds",  # a coverage figure, not a pointer
-        "split the turn into a thin end-to-end slice",  # unnumbered methodology word
-        "the decision is recorded in the design doc",  # unnumbered
+        "the overlay gate 100% (79 tests) still holds",
+        "split the turn into a thin end-to-end slice",
+        "the decision is recorded in the design doc",
         "raise the cap to 14 GB",
     ],
 )
@@ -164,11 +155,8 @@ def test_non_volatile_text_passes(line: str) -> None:
     assert commitlint.check_body_lines([line], Path()) == []
 
 
-# ── commit hashes ──────────────────────────────────────────────────────────────
-
-
 def _git(repo: Path, *args: str) -> None:
-    """Drive git against the fixture's own tree, with the environment the gate itself uses."""
+    """Run git in the test repo, with the same environment the check uses."""
     subprocess.run(  # noqa: S603 -- fixed argv into a tmp repo, no shell
         ["git", "-C", str(repo), *args],  # noqa: S607 -- git on PATH
         check=True,
@@ -189,7 +177,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _head_sha(repo: Path) -> str:
-    """Return the fixture repository's own HEAD, abbreviated the way a person would paste it."""
+    """Return the test repository's HEAD as an abbreviated hash."""
     return subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],  # noqa: S607 -- git on PATH
         capture_output=True,
@@ -205,14 +193,12 @@ def test_a_resolving_commit_hash_is_flagged(repo: Path) -> None:
 
 
 def test_a_hex_string_that_is_not_a_commit_passes(repo: Path) -> None:
-    # Action SHAs, colour codes, and digests are legal: only a real, breakable ref is not.
     assert commitlint.check_body_lines(["pin to deadbeefcafe1234"], repo) == []
 
 
 def test_an_exported_git_dir_does_not_decide_which_repository_answers(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Stripping GIT_DIR is what makes `-C` decide which repository answers."""
     sha = _head_sha(repo)
     monkeypatch.setenv("GIT_DIR", str(repo / "no-such-git-dir"))
     assert commitlint.commit_exists(sha, repo) is True
@@ -226,14 +212,9 @@ def test_commit_exists_is_false_when_git_is_missing(
         raise OSError(message)
 
     monkeypatch.setattr(commitlint.subprocess, "run", boom)
-    # Cannot disprove the hash without git, so the commit is not blocked.
     assert commitlint.commit_exists("abcdef1", repo) is False
 
 
-# ── body width ─────────────────────────────────────────────────────────────────
-
-# Exactly 73 characters, all short words, so it had somewhere to break: one of the four real
-# lines that reached master while this rule did not exist.
 _OVER = "The projector rides the cortex tier's argv from CORTEX_MMPROJ_FILE_CORTEX"
 _LONG_URL = "https://example.invalid/" + "x" * 60
 
@@ -254,8 +235,8 @@ def test_a_line_exactly_at_the_wrap_passes() -> None:
 @pytest.mark.parametrize(
     "line",
     [
-        _LONG_URL,  # one unbreakable token: nowhere to break
-        f"see {_LONG_URL}",  # a URL past the wrap on its own, with a word beside it
+        _LONG_URL,
+        f"see {_LONG_URL}",
         "brain/packages/orchestrator/src/cortex_orchestrator/" + "a" * 40 + ".py",
     ],
 )
@@ -267,8 +248,6 @@ def test_a_line_with_nowhere_to_break_is_exempt(line: str) -> None:
 def test_an_overlong_subject_is_reported_once_as_a_header(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # The header owns its own cap and its own sentence; the width rule starts below it, so one
-    # long subject is one complaint rather than two.
     msg = _write(tmp_path, f"feat: {'x ' * 40}\n")
     assert commitlint.main([msg, "--repo", str(tmp_path)]) == 1
     errors = capsys.readouterr().err.splitlines()
@@ -284,16 +263,53 @@ def test_main_flags_a_body_line_past_the_wrap(
     assert "wraps the body at 72" in capsys.readouterr().err
 
 
-# ── the wrap's line-kind exemptions ────────────────────────────────────────────
+_WORD = "alpha"
+_FULL = " ".join([_WORD] * 12)
 
-# 104 characters, longest word 29: a real invocation from the repo's own runbooks, and the
-# shape the word-width exemption cannot see, since every word in it fits the wrap.
+
+def _body(words: int) -> list[str]:
+    whole, rest = divmod(words, 12)
+    tail = [" ".join([_WORD] * rest)] if rest else []
+    return ["feat: add the thing", "", *[_FULL] * whole, *tail]
+
+
+def test_a_body_at_the_word_cap_passes() -> None:
+    assert commitlint.check_body_lines(_body(commitlint.MAX_BODY_WORDS), Path()) == []
+
+
+def test_a_body_one_word_over_the_cap_is_flagged() -> None:
+    (problem,) = commitlint.check_body_lines(_body(commitlint.MAX_BODY_WORDS + 1), Path())
+    assert problem == "body is 51 words; AGENTS.md caps it at 50"
+
+
+def test_the_subject_does_not_count_toward_the_word_cap() -> None:
+    lines = _body(commitlint.MAX_BODY_WORDS)
+    lines[0] = "feat: add the thing that a few more words describe"
+    assert commitlint.check_body_lines(lines, Path()) == []
+
+
+def test_a_fenced_table_does_not_count_toward_the_word_cap() -> None:
+    lines = [*_body(12), "```", *[_FULL] * 6, "```"]
+    assert commitlint.check_body_lines(lines, Path()) == []
+
+
+def test_a_prompted_paste_does_not_count_toward_the_word_cap() -> None:
+    paste = f"$ echo {_FULL} {_FULL} {_FULL} {_FULL}"
+    assert commitlint.check_body_lines([*_body(12), paste], Path()) == []
+
+
+def test_main_flags_a_body_over_the_word_cap(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    msg = _write(tmp_path, "\n".join(_body(commitlint.MAX_BODY_WORDS + 1)) + "\n")
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 1
+    assert "caps it at 50" in capsys.readouterr().err
+
+
 _COMMAND = (
     "docker compose --project-directory . -f docker/docker-compose.yml "
     "-f docker/docker-compose.gpu.yml up -d"
 )
-# 124 characters, longest word 11: a footer of short words, which the word-width exemption
-# cannot excuse.
 _FOOTER = (
     "BREAKING CHANGE: the capture request field is renamed, so every client must be "
     "regenerated from the proto before it connects"
@@ -307,22 +323,29 @@ def test_a_fenced_line_past_the_wrap_is_exempt() -> None:
 
 @pytest.mark.parametrize("fence", ["```", "~~~", "```bash", "    ```"])
 def test_every_fence_spelling_opens_and_closes_a_block(fence: str) -> None:
-    # An info string still opens a block, and either fence character does; a fence indented
-    # inside a list item is still a fence.
     assert commitlint.check_widths(["feat: subject", fence, _COMMAND, fence]) == []
 
 
 def test_prose_after_a_closed_fence_is_still_flagged() -> None:
-    # An exemption that outlived its block would stop the rule applying to the prose after it.
     lines = ["feat: subject", "```", _COMMAND, "```", _OVER]
     (problem,) = commitlint.check_widths(lines)
     assert "line 5 is 73 chars" in problem
 
 
 def test_an_unclosed_fence_is_itself_a_violation() -> None:
-    # Otherwise one stray fence would exempt every line after it and nothing would report it.
     (problem,) = commitlint.check_widths(["feat: subject", "```", _COMMAND])
     assert "line 2 opens a code fence nothing closes" in problem
+
+
+def test_a_paste_that_prints_a_fence_of_its_own_is_one_block() -> None:
+    lines = ["feat: subject", "````", "```bash", _COMMAND, "```", "````"]
+    assert commitlint.check_widths(lines) == []
+
+
+def test_prose_after_a_nested_paste_is_measured_again() -> None:
+    lines = ["feat: subject", "````", "```", _COMMAND, "```", "````", _OVER]
+    (problem,) = commitlint.check_widths(lines)
+    assert "line 7 is 73 chars" in problem
 
 
 def test_a_prompted_paste_is_exempt() -> None:
@@ -330,7 +353,6 @@ def test_a_prompted_paste_is_exempt() -> None:
 
 
 def test_the_line_after_a_prompted_paste_is_measured_again() -> None:
-    # The prompt marks its own line, not the rest of the message.
     (problem,) = commitlint.check_widths(["feat: subject", f"$ {_COMMAND}", _OVER])
     assert "line 3 is 73 chars" in problem
 
@@ -338,9 +360,9 @@ def test_the_line_after_a_prompted_paste_is_measured_again() -> None:
 @pytest.mark.parametrize(
     "line",
     [
-        f"    {_OVER}",  # a nested bullet's continuation: prose, and this repo's history has 9
+        f"    {_OVER}",
         f"\t{_OVER}",
-        f"  $x = {_OVER}",  # a dollar that is not a prompt
+        f"  $x = {_OVER}",
     ],
 )
 def test_an_indent_alone_is_not_a_paste(line: str) -> None:
@@ -349,8 +371,6 @@ def test_an_indent_alone_is_not_a_paste(line: str) -> None:
 
 
 def test_a_breaking_change_footer_wraps_like_any_other_prose() -> None:
-    # The footer is a machine-read token over a prose value, and the parser that reads it
-    # allows newlines in that value, so wrapping it costs nothing.
     assert len(_FOOTER) == 124
     (problem,) = commitlint.check_widths(["feat(proto)!: rename the capture field", _FOOTER])
     assert "line 2 is 124 chars" in problem
@@ -381,10 +401,6 @@ def test_main_fails_a_message_whose_fence_is_left_open(
     assert "code fence nothing closes" in capsys.readouterr().err
 
 
-# ── how far the paste exemption reaches ────────────────────────────────────────
-
-# The two shapes this repo's own gate commands carry: cargo's argument separator, which the
-# dash ban reads as punctuation, and a hash that really resolves.
 _SEPARATOR = "cargo llvm-cov -- --nocapture"
 
 
@@ -397,14 +413,11 @@ _SEPARATOR = "cargo llvm-cov -- --nocapture"
     ],
 )
 def test_a_separator_inside_a_paste_is_not_punctuation(lines: list[str]) -> None:
-    # cargo's own argument separator, which no restructured sentence can remove.
     assert commitlint.check_body_lines(lines, Path()) == []
 
 
 @pytest.mark.parametrize("dash", [EM, EN])
 def test_a_unicode_dash_inside_a_paste_is_exempt_too(dash: str) -> None:
-    # Verbatim output can carry one, and altering a paste is what the exemption prevents. It is
-    # keyed on the kind of line, never on the character.
     lines = ["feat: subject", "```", f"error: expected {dash} found nothing", "```"]
     assert commitlint.check_body_lines(lines, Path()) == []
 
@@ -412,21 +425,17 @@ def test_a_unicode_dash_inside_a_paste_is_exempt_too(dash: str) -> None:
 @pytest.mark.parametrize(
     "lines",
     [
-        ["feat: subject", _SEPARATOR],  # never fenced at all
-        ["feat: subject", "```", _SEPARATOR, "```", _SEPARATOR],  # after the fence closed
-        ["feat: subject", f"$ {_SEPARATOR}", _SEPARATOR],  # the prompt marks its own line
+        ["feat: subject", _SEPARATOR],
+        ["feat: subject", "```", _SEPARATOR, "```", _SEPARATOR],
+        ["feat: subject", f"$ {_SEPARATOR}", _SEPARATOR],
     ],
 )
 def test_the_same_separator_outside_a_paste_still_fails(lines: list[str]) -> None:
-    # An exemption that outlived its block would stop the rule applying to the lines after it.
     (problem,) = commitlint.check_body_lines(lines, Path())
     assert "a spaced ASCII --" in problem
 
 
 def test_a_dash_in_the_subject_is_never_pasted() -> None:
-    # Line 1 is the header: the fence toggle starts below it, so no message can exempt its own
-    # subject by opening a block. The fenced separator beside it is exempt, so this is one
-    # complaint rather than two.
     lines = [f"feat: add the thing {EM} and more", "```", _SEPARATOR, "```"]
     (problem,) = commitlint.check_body_lines(lines, Path())
     assert "an em dash" in problem
@@ -439,8 +448,6 @@ def test_an_unclosed_fence_is_still_reported_beside_the_prose_rules() -> None:
 
 
 def test_a_volatile_reference_inside_a_paste_is_still_flagged() -> None:
-    # Deliberately not exempt: the ban is about the message still reading correctly once the
-    # thing it points at moves, and that holds however the pointer was typed.
     lines = ["docs: quote the record", "```", "grep -n 'ADR-0026' docs/adr/*.md", "```"]
     (problem,) = commitlint.check_body_lines(lines, Path())
     assert "decision-record number" in problem
@@ -453,7 +460,7 @@ def test_a_resolving_hash_inside_a_paste_is_still_flagged(repo: Path) -> None:
 
 
 def test_main_passes_a_message_whose_fenced_paste_carries_a_separator(tmp_path: Path) -> None:
-    msg = _write(tmp_path, f"docs: record the run\n\nThe gate is:\n\n```\n{_SEPARATOR}\n```\n")
+    msg = _write(tmp_path, f"docs: record the run\n\nThe command is:\n\n```\n{_SEPARATOR}\n```\n")
     assert commitlint.main([msg, "--repo", str(tmp_path)]) == 0
 
 
@@ -461,9 +468,6 @@ def test_classify_lines_marks_a_fence_and_its_contents() -> None:
     classified, opened_at = commitlint.classify_lines(["feat: subject", "```", _SEPARATOR, "```"])
     assert opened_at is None
     assert [line.pasted for line in classified] == [False, True, True, True]
-
-
-# ── whole-message wiring ───────────────────────────────────────────────────────
 
 
 def test_main_flags_a_body_dash(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -489,6 +493,68 @@ def test_main_flags_a_dash_in_the_subject(
 
 
 def test_git_tooling_messages_skip_the_body_rules(tmp_path: Path) -> None:
-    # A merge message is git's wording, not the author's; ADR-0025 style rules do not apply.
     msg = _write(tmp_path, f"Merge branch 'x'\n\nSee ADR-0025 {EM} really.\n")
     assert commitlint.main([msg, "--repo", str(tmp_path)]) == 0
+
+
+_TABLE = """# Rules
+
+| Do not write | Write instead |
+| --- | --- |
+| gate, gates | check |
+| in force | current |
+"""
+
+
+@pytest.fixture
+def rules(tmp_path: Path) -> Path:
+    path = tmp_path / "AGENTS.md"
+    path.write_text(_TABLE, encoding="utf-8")
+    return path
+
+
+def test_a_banned_word_in_the_subject_is_flagged(rules: Path) -> None:
+    (problem,) = commitlint.check_words(["feat: widen the gate"], rules)
+    assert problem == 'line 1 uses the banned word "gate"; AGENTS.md gives a plain replacement'
+
+
+def test_a_banned_phrase_split_across_two_body_lines_is_flagged_once(rules: Path) -> None:
+    lines = ["feat: x", "", "The rule is in", "force from today."]
+    (problem,) = commitlint.check_words(lines, rules)
+    assert 'line 3 uses the banned word "in force"' in problem
+
+
+def test_a_banned_word_inside_a_paste_is_exempt(rules: Path) -> None:
+    lines = ["feat: x", "", "```", "gate", "```", "$ gates --all"]
+    assert commitlint.check_words(lines, rules) == []
+
+
+def test_a_banned_word_in_backticks_is_exempt(rules: Path) -> None:
+    assert commitlint.check_words(["feat: x", "", "the `gate` recipe"], rules) == []
+
+
+def test_a_message_with_no_banned_word_passes(rules: Path) -> None:
+    assert commitlint.check_words(["feat: x", "", "the check runs first."], rules) == []
+
+
+def test_a_table_that_cannot_be_read_blocks_the_commit(tmp_path: Path) -> None:
+    (problem,) = commitlint.check_words(["feat: x"], tmp_path / "missing.md")
+    assert "that table is what the banned-word rule reads" in problem
+
+
+def test_main_reads_the_table_in_this_repository(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    msg = _write(tmp_path, "feat: add the thing\n\nThis line is load-bearing.\n")
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 1
+    assert 'banned word "load-bearing"' in capsys.readouterr().err
+
+
+def test_main_passes_a_message_with_no_banned_word(tmp_path: Path) -> None:
+    msg = _write(tmp_path, "feat: add the thing\n\nThe check reads the table.\n")
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 0
+
+
+def test_a_phrase_is_not_found_across_a_paste(rules: Path) -> None:
+    lines = ["feat: x", "", "The rule is in", "```", "a paste", "```", "force of habit."]
+    assert commitlint.check_words(lines, rules) == []

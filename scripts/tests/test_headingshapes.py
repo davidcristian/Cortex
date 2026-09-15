@@ -37,6 +37,16 @@ def test_headings_ignores_a_hash_inside_a_fenced_block() -> None:
     assert headingshapes.headings(text) == [(1, "Real"), (8, "Real too")]
 
 
+def test_headings_reads_a_block_that_prints_a_fence_of_its_own() -> None:
+    """A four-backtick block carries a three-backtick line as text, so nothing below it moves.
+
+    A reading that toggled on the inner marker would take the shell comment below it for a
+    heading and the real heading after the block for a line inside one.
+    """
+    text = "# Real\n````markdown\n```bash\n# not a heading\n```\n````\n## Real too\n"
+    assert headingshapes.headings(text) == [(1, "Real"), (7, "Real too")]
+
+
 # ── the six shapes this rule rejects ───────────────────────────────────────────
 
 

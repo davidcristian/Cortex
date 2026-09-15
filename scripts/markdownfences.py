@@ -1,28 +1,58 @@
-"""What a markdown fence is, in the one place every reader here takes the answer from."""
+"""What a markdown fence is, defined once for every reader here."""
 
 import ast
-import re
 
-# The two markers markdown accepts for a fenced block, three of either character. They are spelled
-# here and nowhere else: the pattern below is built from them, and `spelled` searches for them.
 MARKERS = ("```", "~~~")
 
-# A fence: the indent markdown allows, then a marker. Neither marker carries a regex
-# metacharacter, so both go into the pattern exactly as they are written above.
-FENCE = re.compile(rf"^\s*(?:{'|'.join(MARKERS)})")
+CHARACTERS = frozenset(marker[0] for marker in MARKERS)
+LEAST = min(len(marker) for marker in MARKERS)
 
 
-def is_fence(line: str) -> bool:
-    """Whether ``line`` opens or closes a fenced block."""
-    return FENCE.match(line) is not None
+def _marker(line: str) -> str | None:
+    """The run of fence characters ``line`` opens with, or None where it opens with none."""
+    text = line.lstrip()
+    if not text or text[0] not in CHARACTERS:
+        return None
+    run = len(text) - len(text.lstrip(text[0]))
+    return text[:run] if run >= LEAST else None
+
+
+class Fences:
+    """Where a document's fenced blocks stand, read one line at a time in document order."""
+
+    def __init__(self) -> None:
+        self._opened = ""
+
+    @property
+    def inside(self) -> bool:
+        """Whether the lines read so far leave a block open."""
+        return bool(self._opened)
+
+    def _closes(self, marker: str) -> bool:
+        """Whether one marker closes the block now open."""
+        return marker[0] == self._opened[0] and len(marker) >= len(self._opened)
+
+    def closes(self, line: str) -> bool:
+        """Whether ``line`` closes the block now open, leaving the reading where it was."""
+        marker = _marker(line)
+        return marker is not None and self.inside and self._closes(marker)
+
+    def bounds(self, line: str) -> bool:
+        """Whether ``line`` opens or closes a block, reading it into the state."""
+        marker = _marker(line)
+        if marker is None:
+            return False
+        if not self.inside:
+            self._opened = marker
+            return True
+        if self._closes(marker):
+            self._opened = ""
+            return True
+        return False
 
 
 def _prose(module: ast.Module) -> frozenset[int]:
-    """Every docstring in ``module``, by identity: a constant standing alone as a statement.
-
-    Identity rather than text, since two docstrings quoting the same fence are two nodes and only
-    the one being looked at is the one to pass over.
-    """
+    """Every docstring in ``module``, by identity: a string literal alone as a statement."""
     return frozenset(
         id(node.value)
         for node in ast.walk(module)
@@ -31,7 +61,7 @@ def _prose(module: ast.Module) -> frozenset[int]:
 
 
 def _marked(node: ast.Constant, prose: frozenset[int]) -> bool:
-    """Whether one literal is a string carrying a fence marker and is not a docstring."""
+    """Whether one literal is a string with a fence marker in it and is not a docstring."""
     return (
         isinstance(node.value, str)
         and id(node) not in prose

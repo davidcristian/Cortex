@@ -1,13 +1,8 @@
 # The descent obligation stops at the suites
 
-**Status:** open, fix when it bites
-**Trigger:** a module under `scripts/tests/` descends a directory tree without filtering what it
-finds against `SKIPPED_DIRS`, so a suite reads a file inside a vendored tree, a build output or a
-tool cache. Both suites that descend one today do filter, so this is one search away from an
-answer.
+**Status:** declined 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-14
 
 Opened 2026-09-08 by the close of
 [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), which made `treewalk.py` the one
@@ -65,3 +60,21 @@ the boundary is a decision rather than the edge of what the first version happen
   and the git-environment obligation had no such suite to break. Whichever branch is taken should
   name the third obligation, so the next reader meets the inconsistency where it is decided
   rather than by grepping for the set expression.
+- 2026-09-15: declined, with the second branch taken and narrowed as the reading above asked.
+  The search was run once more and still returns nothing: the only descent under `scripts/tests/`
+  is `test_loggernames.py`'s `rglob` at line 210, and it still drops any module whose parts meet
+  `SKIPPED_DIRS`. Every other glob there is a non-recursive listing of one directory.
+
+  What is written down instead is the boundary, per obligation, in the
+  [ADR-0026 addendum on where each obligation stops](../../adr/ADR-0026-prose-style-gates.md),
+  which names the git-environment obligation that does cover the suites so the next reader meets
+  the inconsistency where it is decided. The first branch is refused on its own terms: the
+  independence `test_loggernames.py` needs is of the descent itself, its guard comparing a reading
+  against `logcalls.modules`, which takes its files from `treewalk.walk_files`, so a second reading
+  taken from there too would come back empty beside the first if that walk ever stopped finding
+  modules. A second descent in `treewalk.py` to supply that independence puts two implementations
+  of one walk in the module written to hold one, and the second has a single caller.
+  `scripts/tests/test_treewalk.py`'s docstring now carries the pointer.
+
+  What would reopen this is a second suite with a reason to descend independently, which would make
+  the exception a class that can be named as one rather than a single file.

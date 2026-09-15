@@ -1,12 +1,16 @@
 """Tests for the shared directory skip list."""
 
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
+from assertedlines import suite_of
 from backloganchors import MARKDOWN
 from composefiles import COMPOSE_STEMS, COMPOSE_SUFFIXES
 from gitenv import git_env
 from linecap import EXTRA_SKIPS, SOURCE_SUFFIXES, is_skipped_file
+from logcalls import PYTHON, modules
+from samplecheck import runbooks
 from skippeddirs import SKIPPED_DIRS
 from treewalk import walk_files
 
@@ -97,11 +101,30 @@ def _read_by_a_suffix_walk(directory: Path) -> list[Path]:
     return sorted(set(measured) | set(prose_and_compose))
 
 
+def _read_by_a_scoped_reader() -> list[Path]:
+    """Every file the three readers scoped to a subtree would open, asked of each of them."""
+    brain = list(modules(REPO_ROOT))
+    found = [module for module, _, _ in brain]
+    found.extend(runbooks(REPO_ROOT))
+    for suite in sorted({suite_of(shown) for _, _, shown in brain}):
+        tree = REPO_ROOT / suite
+        if tree.is_dir():
+            found.extend(path for path in walk_files(tree) if path.suffix == PYTHON)
+    return found
+
+
+def _read_by_a_gate(directory: Path, scoped: Sequence[Path]) -> list[Path]:
+    """Every file under ``directory`` that any of the six readers with a selection would open."""
+    inside = {path for path in scoped if directory in path.parents}
+    return sorted(set(_read_by_a_suffix_walk(directory)) | inside)
+
+
 def test_no_tree_git_ignores_and_this_list_misses_holds_a_file_a_walk_reads() -> None:
-    """An ignored directory the list does not prune holds nothing the three suffix walks read."""
+    """An ignored directory the list does not prune holds nothing the six readers read."""
+    scoped = _read_by_a_scoped_reader()
     reachable = {
         directory.relative_to(REPO_ROOT): [
-            path.relative_to(REPO_ROOT) for path in _read_by_a_suffix_walk(directory)
+            path.relative_to(REPO_ROOT) for path in _read_by_a_gate(directory, scoped)
         ]
         for directory in _ignored_directories()
         if not any(part in SKIPPED_DIRS for part in directory.relative_to(REPO_ROOT).parts)

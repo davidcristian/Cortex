@@ -528,8 +528,12 @@ answer: a marker written into any other module here is reported by the line it i
   only the dash ban has a rule whose collection is git's answer. `test_skippeddirs.py` holds what
   is left of the two claims once the walk has one home, in both directions. Outward, the nine-two
   partition against git's own answer for this repo, which fails from either side. Inward, every
-  directory git ignores that exists here, minus those a name already prunes, must hold no file the
-  line cap, the anchor scan or the compose walk would read; the inward half is why `measurements`
+  directory git ignores that exists here, minus those a name already prunes, must hold no file any
+  of the six readers with a selection of its own would open: the three that run over the whole
+  repo asked by suffix, and the three scoped to a subtree asked for the files they read, since a
+  scoped reader can meet an ignored tree only inside its own subtree. Two of the scoped three
+  reach files the suffix three cannot, the cap skipping every `tests` tree and every file named
+  like a test. The inward half is why `measurements`
   is a name, the archive under it having begun to hold the Python that drove a run. That every
   reader uses the list rather than a copy is `test_treewalk.py`'s, and it is now held over the
   descent instead of over the list.
@@ -553,13 +557,16 @@ answer: a marker written into any other module here is reported by the line it i
   by how it was spelled: both had already passed over a real one (ADR-0026 shaped-obligation
   addendum). A shape it was not taught is answered as a read rather than passed over, so the
   failure it can have is a fault somebody has to look at.
-- `markdownfences.py` is what a markdown fence is to every reader here and has no CLI.
-  `is_fence(line)` answers the question the three document-reading gates used to answer for
-  themselves, each with the same pattern written out again: an indent markdown allows, then three
-  backticks or three tildes, an info string after them being part of the opening line. The closing
-  rules markdown adds (a closing marker of the same character, at least as long as the opening
-  one) are not read, since every reader here toggles on the marker and no document in this tree
-  nests a block or closes a long fence with a short one. `spelled(module)` is the other half and
+- `markdownfences.py` is what a markdown fence is to every reader here and has no CLI. `Fences()`
+  answers the question the three document-reading gates used to answer for themselves, each with
+  the same pattern written out again: an indent markdown allows, then three backticks or three
+  tildes, an info string after them being part of the opening line. It is a reading of a document
+  rather than a test on a line, because markdown closes a block with a marker of the same
+  character as the opening one and at least as long, which is what lets a four-backtick block
+  print a three-backtick line (ADR-0026 closing-rule addendum). `bounds(line)` reads one line and
+  says whether it opened or closed a block, `inside` is where the reading now stands, and
+  `closes(line)` answers the log-sample gate's question about the line after a continued one
+  without reading it. `spelled(module)` is the other half and
   the reason the first cannot be copied again: it returns every line where a fence marker is
   written into a module's code, a marker inside a docstring being prose about a fence and passed
   over, and the obligation beside it holds `scripts/` to exactly one module spelling one. A module
@@ -816,9 +823,10 @@ answer: a marker written into any other module here is reported by the line it i
   reader applies by eye and the only one that keeps a JSON argument from reading as a field. A
   sample that wraps over a trailing backslash is folded back into the one line it stands for,
   with the continuation's own comment marker dropped, because that marker would otherwise sit
-  between the message and the first field; the fold stops at a fence so a backslash on a block's
-  last line cannot swallow the marker that closes it. A fence is `markdownfences.is_fence`'s
-  answer, shared with the two other gates that read documents carrying one.
+  between the message and the first field; the fold stops at the marker closing the block so a
+  backslash on its last line cannot swallow it, and a shorter marker inside a longer block is
+  text and is folded in. Where a block stands is `markdownfences.Fences`'s answer, shared with the
+  two other gates that read documents carrying one.
 - `logcalls.py` is `samplecheck.py`'s code side and has no CLI. It answers what one call puts on
   its line, and holds the reading of the brain's source that `loggernames.py` answers the other
   half over. It is the one reader here that
@@ -1176,8 +1184,8 @@ answer: a marker written into any other module here is reported by the line it i
   judged and the run is already failing on the heading.
 - `headingshapes.py` is what a heading is to that scan, and the one place the gate says out loud
   what it claims about rendering (ADR-0039 slug-fidelity addendum). `headings(text)` returns every
-  ATX heading outside a fenced block with its line number, which `anchors()` reads; the fenced
-  block is `markdownfences.is_fence`'s answer, shared with the log-sample and commit-message
+  ATX heading outside a fenced block with its line number, which `anchors()` reads; where a block
+  stands is `markdownfences.Fences`'s answer, shared with the log-sample and commit-message
   gates. The slug rule
   is applied to a heading's **source**; a renderer slugs its **rendered** text, and the two agree
   exactly when every construct in the source is built from characters the rule already drops and
@@ -1249,9 +1257,10 @@ answer: a marker written into any other module here is reported by the line it i
   would train authors to ignore the gate. Four 73-character lines reached master before this
   landed, which is what it was added for. `classify_lines` is the one walk that decides a
   line's KIND, pairing each line with whether it is a paste and reporting any fence left open
-  (ADR-0026's two 2026-08-09 addenda): a line between two fences (`markdownfences.is_fence`'s
+  (ADR-0026's two 2026-08-09 addenda): a line inside a block (`markdownfences.Fences`'s
   answer, shared with the two document-reading gates, so either marker and an info string with it,
-  the markers themselves counted as part of the block) and a line whose first
+  the markers themselves counted as part of the block, and a shorter marker inside a longer block
+  counted as part of the paste it stands in) and a line whose first
   token is a bare `$` are pastes, and moving a newline inside one changes what it says. Line 1
   is the header, prose by construction, so no message exempts its own subject. A fence left
   open at the end of the walk is a violation naming the line that opened it, since otherwise

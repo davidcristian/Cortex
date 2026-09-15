@@ -3,29 +3,20 @@
 import re
 from typing import NamedTuple
 
-from markdownfences import is_fence
+from markdownfences import Fences
 
-# The prefix ``PlainFormatter`` writes in front of every line: the level, the logger's dotted name,
-# and then the message. Searched rather than anchored, so a compose prefix or a shell comment
-# marker in front of it is decoration rather than a reason to miss the line.
 SAMPLE = re.compile(
     r"(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)"
     r":(?P<logger>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)"
     r":(?P<rest>.*)$"
 )
 
-# One field opening: a name at a whitespace boundary, followed by the ``=`` the formatter writes.
-# The name shape is a Python identifier, which is what an ``extra=`` key has to be to survive as a
-# record attribute.
 FIELD = re.compile(r"(?:^|(?<=\s))(?P<name>[A-Za-z_]\w*)=")
 
-# How a sample says it continues on the next line. The runbooks spell it the way a shell does.
 CONTINUED = re.compile(r"\\\s*$")
 
 DECORATION = re.compile(r"^[\s#]+")
 
-# What the formatter puts around a value that carries whitespace or a quote, and therefore what
-# tells a field boundary from an ``=`` inside somebody's value.
 QUOTE = '"'
 
 
@@ -59,15 +50,11 @@ def split_fields(rest: str) -> tuple[str, tuple[str, ...]]:
     return rest.strip(), ()
 
 
-def joined(lines: list[str], start: int) -> str:
-    """``lines[start]`` with every line it continues onto folded back into one.
-
-    A fence ends the join whatever the backslash says, so a sample continued off the end of its
-    own block cannot absorb the marker that closes it.
-    """
+def joined(lines: list[str], start: int, fences: Fences) -> str:
+    """``lines[start]`` with every line it continues onto folded back into one."""
     text = lines[start]
     at = start
-    while CONTINUED.search(text) and at + 1 < len(lines) and not is_fence(lines[at + 1]):
+    while CONTINUED.search(text) and at + 1 < len(lines) and not fences.closes(lines[at + 1]):
         at += 1
         text = f"{CONTINUED.sub('', text)} {DECORATION.sub('', lines[at]).strip()}"
     return text
@@ -76,15 +63,14 @@ def joined(lines: list[str], start: int) -> str:
 def samples(text: str) -> list[Sample]:
     """Every log line ``text`` prints inside a fenced block, read as what it claims to render."""
     lines = text.splitlines()
-    fenced = False
+    fences = Fences()
     found: list[Sample] = []
     for number, line in enumerate(lines, start=1):
-        if is_fence(line):
-            fenced = not fenced
+        if fences.bounds(line):
             continue
-        if not fenced:
+        if not fences.inside:
             continue
-        printed = SAMPLE.search(joined(lines, number - 1))
+        printed = SAMPLE.search(joined(lines, number - 1, fences))
         if printed is None:
             continue
         message, fields = split_fields(printed["rest"])

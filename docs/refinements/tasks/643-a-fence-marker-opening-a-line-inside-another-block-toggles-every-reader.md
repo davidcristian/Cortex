@@ -1,11 +1,8 @@
 # A fence marker opening a line inside another block toggles every reader
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-14
-**Trigger:** a document in this tree writes a fence marker at the start of a line inside another
-fenced block, which one search over the markdown answers.
 
 Opened 2026-09-12 by the close of
 [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), which gave the three
@@ -53,3 +50,17 @@ stays safe by its own layout.
   at line 1630 and closes it at 1634, and the `"```json"` inside it sits at line 1631 with the
   marker in the middle of the line, so nothing toggles. It is still one reflow away from the start
   of a line. The two branches are unchanged.
+- 2026-09-15: landed, the first branch taken. The search was run once more over every `.md` file
+  `treewalk.walk_files` hands over, 764 of them, each read under markdown's own closing rule: no
+  marker at the start of a line falls inside another block anywhere in this tree, and the
+  four-backtick block in `docs/adr/ADR-0005-llamacpp-engine.md` still keeps its inner marker in
+  the middle of line 1631. So the change moves no answer about anything committed here.
+
+  It landed anyway, because the second branch cannot be written honestly. Two of the directions a
+  wrong reading takes are quiet rather than visible: a shell comment inside a block read as a
+  heading makes the anchor scan offer an anchor no renderer offers, so a broken pointer at it
+  passes, and a sample inside a block the log-sample gate stops reading is a documented line
+  nothing holds to its call site. The shared answer is now `Fences`, a reading of a document
+  rather than a test on a line, and `is_fence` is gone. The three gates, the four suites and the
+  mutation table are in the
+  [ADR-0026 closing-rule addendum](../../adr/ADR-0026-prose-style-gates.md).

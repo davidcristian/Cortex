@@ -3,7 +3,7 @@
 import re
 from typing import NamedTuple
 
-from markdownfences import is_fence
+from markdownfences import Fences
 
 HEADING = re.compile(r"^#{1,6} +(\S.*?) *$")
 
@@ -50,12 +50,11 @@ class Unsluggable(NamedTuple):
 def headings(text: str) -> list[tuple[int, str]]:
     """Return every ATX heading outside a fenced block: its line number and its source text."""
     found: list[tuple[int, str]] = []
-    fenced = False
+    fences = Fences()
     for number, line in enumerate(text.splitlines(), start=1):
-        if is_fence(line):
-            fenced = not fenced
+        if fences.bounds(line):
             continue
-        if not fenced and (match := HEADING.match(line)) is not None:
+        if not fences.inside and (match := HEADING.match(line)) is not None:
             found.append((number, match.group(1)))
     return found
 
@@ -84,13 +83,12 @@ def _underlined(text: str) -> list[Unsluggable]:
     """Return every setext heading in ``text``, reported at the underline that makes it one."""
     found: list[Unsluggable] = []
     previous = ""
-    fenced = False
+    fences = Fences()
     for number, line in enumerate(text.splitlines(), start=1):
-        if is_fence(line):
-            fenced = not fenced
+        if fences.bounds(line):
             previous = ""
             continue
-        if fenced:
+        if fences.inside:
             previous = ""
             continue
         if SETEXT.match(line) and previous.strip() and not BLOCK_OPENER.match(previous):

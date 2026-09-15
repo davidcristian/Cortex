@@ -1,49 +1,98 @@
-"""Tests for what a markdown fence is to every reader in this tree."""
-
 import ast
 from pathlib import Path
 
 import pytest
 
 import moduleconstants
-from markdownfences import MARKERS, is_fence, spelled
+from markdownfences import MARKERS, Fences, spelled
 
 GATES = Path(__file__).resolve().parents[1]
-# The one module allowed to spell a fence marker, which is the whole rule the last test holds.
 SPELLING = "markdownfences.py"
+
+
+def _opens(line: str) -> bool:
+    """Whether ``line`` opens a block when nothing is open yet."""
+    return Fences().bounds(line)
 
 
 @pytest.mark.parametrize("marker", MARKERS)
 def test_either_marker_opens_a_block(marker: str) -> None:
-    """Backticks and tildes are both markdown's, and a reader here has to take either."""
-    assert is_fence(marker)
+    assert _opens(marker)
 
 
 @pytest.mark.parametrize("line", ["```text", "~~~bash", "   ```", "\t~~~", "  ```json lines"])
 def test_an_indent_and_an_info_string_are_part_of_the_opening_line(line: str) -> None:
-    """A fence written inside a list item is still a fence, and so is one naming its language."""
-    assert is_fence(line)
+    assert _opens(line)
 
 
 @pytest.mark.parametrize("line", ["", "prose", "`` not three", "run `x` now", "text ```", " ~~ "])
 def test_what_carries_no_marker_at_the_start_of_the_line_is_not_a_fence(line: str) -> None:
-    """Two characters are a code span's, and a marker mid-line is text inside a sentence."""
-    assert not is_fence(line)
+    assert not _opens(line)
 
 
-def test_a_longer_run_of_the_marker_is_read_as_a_fence() -> None:
-    """Markdown allows more than three, and the reading here stops at the first three."""
-    assert is_fence("`````")
-    assert is_fence("~~~~")
+def test_a_longer_run_of_the_marker_opens_a_block_of_its_own_length() -> None:
+    long_run = Fences()
+    assert long_run.bounds("`````")
+    assert not long_run.bounds("```")
+    assert long_run.inside
+
+
+def test_nothing_is_open_before_a_line_is_read() -> None:
+    assert not Fences().inside
+
+
+def test_a_marker_of_the_opening_length_closes_the_block() -> None:
+    fences = Fences()
+    assert fences.bounds("```text")
+    assert fences.inside
+    assert fences.bounds("```")
+    assert not fences.inside
+
+
+def test_a_shorter_marker_inside_a_longer_block_is_text() -> None:
+    fences = Fences()
+    assert fences.bounds("````")
+    assert not fences.bounds("```json")
+    assert fences.inside
+    assert fences.bounds("````")
+    assert not fences.inside
+
+
+def test_the_other_character_inside_a_block_is_text() -> None:
+    fences = Fences()
+    assert fences.bounds("```")
+    assert not fences.bounds("~~~~~")
+    assert fences.inside
+
+
+def test_a_line_carrying_no_marker_bounds_nothing_inside_a_block_or_outside_one() -> None:
+    fences = Fences()
+    assert not fences.bounds("prose")
+    assert not fences.inside
+    assert fences.bounds("```")
+    assert not fences.bounds("prose")
+    assert fences.inside
+
+
+def test_what_would_close_the_block_is_answered_without_reading_it() -> None:
+    fences = Fences()
+    fences.bounds("````")
+    assert not fences.closes("```")
+    assert not fences.closes("prose")
+    assert fences.closes("````")
+    assert fences.inside
+
+
+def test_outside_a_block_nothing_closes_one() -> None:
+    assert not Fences().closes("```")
 
 
 def _spelled(source: str) -> list[int]:
-    """Every line of one source fragment where a fence marker is written into code."""
+    """Return every line of ``source`` where a fence marker is written into the code."""
     return spelled(ast.parse(source))
 
 
 def test_a_marker_written_into_code_is_reported_by_its_line() -> None:
-    """Any literal carrying a marker is a reader answering the question a second time."""
     source = (
         'x = 1\nFENCE = re.compile(r"^\\s*(?:```|~~~)")\nif line.startswith("~~~"):\n    pass\n'
     )
@@ -51,7 +100,6 @@ def test_a_marker_written_into_code_is_reported_by_its_line() -> None:
 
 
 def test_a_marker_inside_a_docstring_is_prose_and_not_a_spelling() -> None:
-    """A module, a class and a function may all say what a fence is without answering for one."""
     source = (
         '"""A module saying ``` out loud."""\n'
         "\n"
@@ -70,23 +118,19 @@ def test_a_marker_inside_a_docstring_is_prose_and_not_a_spelling() -> None:
 
 
 def test_a_literal_carrying_no_marker_is_not_reported() -> None:
-    """The report is about the marker and not about strings, of which every module is full."""
     assert _spelled('name = "backtick"\ncount = 3\nempty = ""\n') == []
 
 
 def test_a_bare_expression_that_is_not_a_string_leaves_the_literals_beside_it_held() -> None:
-    """A statement that is a call is not a docstring, and the marker below it is still code."""
     assert _spelled('do_something()\nopener = "```"\n') == [2]
 
 
 def test_two_docstrings_with_the_same_text_are_both_passed_over() -> None:
-    """Compared by identity, so one docstring does not exempt another that reads the same."""
     source = '"""Says ```."""\n\n\ndef f():\n    """Says ```."""\n'
     assert _spelled(source) == []
 
 
 def test_no_module_here_spells_a_fence_of_its_own() -> None:
-    """Every fence marker under `scripts/` is written in the one module that answers for it."""
     spellings = {
         path.name: spelled(moduleconstants.parse(path, path.name)) for path in GATES.glob("*.py")
     }

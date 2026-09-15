@@ -1,11 +1,8 @@
 # The fence obligation stops at the suites
 
-**Status:** open, fix when it bites
+**Status:** declined 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
-**Verified:** 2026-09-14
-**Trigger:** a module under `scripts/tests/` that answers for itself whether a line is a fence,
-rather than writing a fenced document as the data its reader is asked about.
 
 Opened 2026-09-12 by the close of
 [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), which made
@@ -60,3 +57,24 @@ the boundary is a decision.
   other. The written-argument branch is the half they really share, and after the reading above it
   can no longer be written as "the suites are outside these obligations", only as a decision per
   obligation with the third named.
+- 2026-09-15: declined, alongside [R-610](610-the-descent-obligation-stops-at-the-suites.md) and
+  for its own reason. The count was re-derived: seven suites spell a fence marker, 65 literals on
+  42 lines, and every one of the 65 was classified by the syntax around it. None reaches a
+  `re.compile`, a `startswith`, a `match` or a comparison. They are fixture documents,
+  parametrized spellings, and the markers the shared answer is asked about.
+
+  The rule by shape is refused, and on a ground this entry did not state. The obligation is over
+  literals, so a module importing `MARKERS` and testing a line against it is reported by nothing
+  today, in a module as much as in a suite. A shape rule would therefore enumerate the positions
+  that count as reading while leaving that hole open, which buys a weaker rule than the one it
+  widens. What the obligation holds is that the marker is spelled once, and a suite writing a
+  fixture is not a second spelling of it. The written argument is the
+  [ADR-0026 addendum on where each obligation stops](../../adr/ADR-0026-prose-style-gates.md),
+  which records the boundary per obligation and names the git-environment one that covers the
+  suites; `scripts/tests/test_markdownfences.py`'s docstring now carries the pointer.
+
+  What would reopen this is a suite found testing a line against a marker rather than writing one
+  into a document, which is the first case the widened obligation would have caught. The reading
+  that refused the shape rule also opened
+  [R-669](669-the-fence-obligation-is-over-literals-only.md), the hole it names being a module's
+  as much as a suite's.
