@@ -307,10 +307,11 @@ range, median and a seeded bootstrap of the mean, and the count of renderings th
 
 **The whole line is reported beside the field**, per capture and in the same cohorts, because the
 per-value bound leaves the line unbounded (ADR-0038 whole-line addendum). These are not the widest
-lines the brain writes: the tool audit's are, four of their fields carrying text a model or a
-sidecar wrote, and one of those renders at 8,437 characters with a million characters in each of the
-four, against a trail line's 2,258 at the shipped caps and the 16 KiB cliff a container's log driver
-ends a message at (ADR-0038 trigger-sweep addendum, 2026-09-08). The width counted is the rendering
+lines the brain writes: the tool audit's are, five of their eleven fields carrying text the brain
+did not choose, and one with all five past the bound renders at 10,593 characters, against a trail
+line's 4,464 at the shipped caps and the 16 KiB cliff a container's log driver ends a message at
+(ADR-0038 widest-line addendum, where `brain/packages/orchestrator/tests/test_widest_line.py` now
+holds both). The width counted is the rendering
 and not the
 captured text, so the `brain-1  |` prefix `docker compose logs` puts in front of a line is left
 out. Read the two ranges together rather than one after the other: the widest field and the widest

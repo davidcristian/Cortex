@@ -1,11 +1,8 @@
 # The field's ceiling assumes the shipped id factory
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** memory
-**Trigger:** a deployment that injects a `MemoryRecaller` `id_factory` minting anything other than
-a 36-character uuid4, or a `MemoryStore` that mints ids of its own
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-10
 
 Opened 2026-08-26 by the close of
 [R-358](358-the-widest-value-was-never-a-real-line.md), whose strongest result is an arithmetic
@@ -33,6 +30,24 @@ to buy log headroom would let a logging bound dictate a storage identity.
 
 ## Trail
 
+- 2026-09-15: landed as both halves rather than the cheap one. The arithmetic re-derived today
+  reproduces this entry exactly: twenty 36-character ids and their JSON come to 1,101 characters,
+  no float renders in more than 24, the field cannot pass 1,581, and 467 characters of slack buy 23
+  characters of id, so the worst case crosses `VALUE_CHARS` at 60. Live cosines render at about 18
+  characters rather than 24 and move the crossing to 66, which is why 60 is the number to design
+  against. Both halves of the trigger are still unfired: `MemoryRecaller.__init__` still defaults
+  `id_factory` to `_uuid4_memory_id` and `memory_builders.py` still passes none, and `memories.id`
+  is still `text PRIMARY KEY` with no default in `docker/postgres/init.sql`.
+  The number is written beside the factory, in the `MemoryRecaller` entry of
+  `docs/modules/brain-core.md`, with a pointer to it from the `dropped` entry of
+  `docs/modules/brain-memory.md`. The bound at the port is declined there in one sentence: the id
+  is the store's identity and a logging bound has no business setting it. What this entry did not
+  ask for and got anyway is a check.
+  `brain/packages/orchestrator/tests/test_widest_line.py` builds the trail's widest line from ids
+  minted by a `MemoryRecaller` constructed the way the composition root constructs it, scores every
+  candidate at the widest rendering a Python float has, and asserts the `dropped` field is not cut.
+  A factory minting 60 characters fails it, and fails nothing else in the tree. Recorded in the
+  ADR-0038 widest-line addendum.
 - 2026-09-10: neither half of the trigger has fired. `MemoryRecaller.__init__` still defaults
   `id_factory` to `_uuid4_memory_id`, which returns `str(uuid4())`, and the one construction in
   `brain/packages/orchestrator/src/cortex_orchestrator/memory_builders.py` passes store, embedder,

@@ -35,7 +35,10 @@ pool (the one hard rule).
     it, because the rank records no reason for a candidate it passed over, so the pair answers
     "was this memory even a candidate?" and never "why was it not kept?". The sink computes none
     of that: the core's `dropped_candidates` takes the difference and applies the bound, and
-    `record` only writes it out.
+    `record` only writes it out. The field carries one id per candidate, so its rendered width
+    moves with whatever mints them; the id width at which it stops fitting `VALUE_CHARS` is
+    written beside the factory itself, at `MemoryRecaller` in
+    [brain-core.md](brain-core.md).
   - `available` beside `pool` is how many candidates there were, against how many came back
     (ADR-0038 candidate-count addendum). When the two are equal, the pool was the whole readable
     store, so an id on neither list was either never written or written outside the read scopes.

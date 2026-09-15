@@ -8,7 +8,7 @@ it that reads entries rather than lines. Both limbs come off the compose files:
 those files declare are where a collector would be. This entry's trail records what that reading
 answered when it was last taken, and what a packed line of the widest shipped record measures.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 
 The per-value bound landed in `render_value`, which only the plain rendering spends.
 `PackedFormatter` hands `record_fields(record)` straight to `json.dumps`, so a field of any size
@@ -37,6 +37,21 @@ purpose, which is where it stands today and is only accurate while nobody runs i
 
 ## Trail
 
+- 2026-09-15: trigger swept a fifth time and not fired, and the field that reaches a packed line
+  whole is not only a model's. The compose files still ship `plain` in both variables, no `.env` in
+  the tree sets either, and the eleven services they declare still include no collector. What is
+  new is a caller the entry never counted: `session_id` arrives as a proto string on `ClientEvent`,
+  is length-checked nowhere between the wire and `render_value`, and rides both shipped sinks'
+  lines. The plain rendering cuts it like any other value; the packed one has no cut, so the body
+  rather than the model is enough to make a packed line arbitrarily wide. Measured today, an
+  audit-shaped record with a million characters in each of the **five** fields no call site chose
+  renders at **10,603 characters plain with five cut markers and 5,000,406 packed with none**, 306
+  of the driver's messages against one. The same run puts one trail record at its shipped caps at
+  2,255 plain and 2,475 packed, so the packed rendering again costs **220 characters more** on a
+  record carrying no over-long value, the fourth run to record that delta. The three shapes this
+  entry offers are unchanged, and the argument for the third, documenting the packed rendering as
+  unbounded on purpose, is one caller weaker than it was: it is accurate while nobody runs it, and
+  what runs it no longer has to be a model.
 - 2026-09-14: trigger swept a fourth time and not fired, and the widths re-measured. The compose
   files still ship `plain` in both variables, `CORTEX_LOG_FORMAT` in `docker/docker-compose.yml`
   and `CORTEX_MODELHOST_LOG_FORMAT` in `docker/docker-compose.gpu.yml`, no `.env` in the tree sets

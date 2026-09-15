@@ -8,7 +8,7 @@ constants and neither is read from the environment, so the change is a diff in t
 deployment's setting: `grep -rn "DEFAULT_RECALL_K\|DROPPED_TRAIL_LIMIT" brain/packages/*/src`
 reports every place either is spelled.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 
 Opened 2026-08-27 by the close of
 [R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md), which measured the whole trail
@@ -64,3 +64,26 @@ named and could name the cohorts it never saw.
   the harness groups by the candidates a line **dropped**, and this entry argues in kept notes, so
   a cohort named here is a dropped-count row there, the two numbers summing to the pool that run
   fetched rather than to the shipped twenty.
+- 2026-09-15: swept, and the cheaper half is a bigger change than its last description implied.
+  Both constants stand: `DEFAULT_RECALL_K` is 5 (`turn_context.py:39`), reaching a recall from the
+  one call site at `turn_context.py:216`, and `DROPPED_TRAIL_LIMIT` is 20 (`ranking.py:111`).
+
+  What the last reading left out is which cohorts are missing. The unsampled ones do not sit
+  between the dropped counts a run produced, they sit **below** the lowest: kept and dropped are
+  complementary, so a rank keeping all five of `k` writes the fewest drops and the widest line, and
+  the cohorts this entry is about are the low-drop end. A rule naming the gaps between the counts a
+  capture held would therefore name none of them. To name them the reader has to know how low the
+  count can go, which is `pool - k`, and both numbers are on the line, under `pool` and `k`. So the
+  cheaper half is a second and third field read off each trail line and carried on `Reading`, not a
+  loop over `sorted(grouped)`. `scripts/trailwidth.py` is at 296 lines of the 300 the cap allows,
+  so it also means splitting the module and registering the new one in the two rosters that name
+  every module in `scripts/`. That is a slice rather than an afternoon's tidy, and it is why this
+  entry is still open after a slot that had the file open.
+
+  The estimate it asks about did gain a gated upper bound today.
+  `brain/packages/orchestrator/tests/test_widest_line.py` builds the trail's widest line from five
+  hits and twenty drops, wider than the shipped pool can produce, and asserts it against the log
+  driver's cliff (ADR-0038 widest-line addendum): 4,464 characters with a bound-length session id
+  on it and 2,402 with an ordinary one. That is the arithmetic turned into a check rather than the
+  drawn reading this entry asks for, and it moves nothing about the ask: what is still unmeasured
+  is a judged run in which the rank keeps the whole of `k`.

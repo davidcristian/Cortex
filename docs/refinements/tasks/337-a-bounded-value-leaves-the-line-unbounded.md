@@ -1,15 +1,8 @@
 # A bounded value leaves the line unbounded
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** cross-cutting
-**Trigger:** a line whose fields together pass 16,383 rendered characters, which is where a
-container's log driver ends one message and starts another. Two readings answer it. `just
-recall-width` reports the widest line a live stack wrote, off captures the recall trail produced;
-the widest line the tree can build is read off the two shipped sinks by rendering
-`LoggingAuditSink`'s eleven fields through `PlainFormatter` with the four a model or a tool server
-writes each past `VALUE_CHARS`. This entry's trail records both when they were last taken.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-14
 
 `VALUE_CHARS` bounds one field's value at 2,048 rendered characters. A line carries a message and
 as many fields as its call site attached, so **eight** fields at the bound pass the measured 16 KiB
@@ -49,6 +42,28 @@ day that field is written rather than the day the line is read.
 
 ## Trail
 
+- 2026-09-15: landed as the cheaper of the two shapes, and the entry's own count of the wide fields
+  was wrong by one. `brain/packages/orchestrator/tests/test_widest_line.py` holds the widest line
+  each shipped sink builds under the cliff: one case per sink, each driving the real sink rather
+  than assembling a record, each setting every field whose text the brain does not choose past
+  `VALUE_CHARS`, each asserting the rendered width, the fields the bound cut and the eleven keys
+  the line carries. It sits in the orchestrator's suite because the composition root is the one
+  place both sinks are visible at once. The whole-line bound in `render_fields` was declined with
+  the argument recorded, its cost being a dropped-field count inside a rendering the function does
+  not own.
+  The correction is the fifth field: `session_id` is not one a call site chose either. It arrives
+  as a proto string on `ClientEvent`, reaches the dispatch stamp, and is length-checked nowhere
+  between the wire and `render_value`, so a body that sends a two-kilobyte session id puts a fifth
+  cut field on every audit line the turn writes. Measured today, the audit's widest line is
+  **10,593 characters, 65% of the cliff and a headroom factor of 1.55**, against the 8,437 and the
+  1.91 this entry recorded over four fields; the recall trail's widest is **4,464** against 2,258
+  for the same record with an ordinary session id. Seven fields at the bound is still the headroom
+  and five of the seven is what the widest sink spends. The live half was not run: the 1,800
+  characters of 2026-08-27 is still the only reading taken off a running stack, and the in-process
+  figures above are an upper bound over it rather than a competing reading of the same thing.
+  Recorded in the ADR-0038 widest-line addendum. It opened
+  [R-671](671-the-widest-line-check-names-its-sinks-by-hand.md), the two cases naming their sinks
+  by hand where the set could be derived.
 - 2026-08-20: The headroom this entry inherited was corrected from eight fields to seven, measured
   rather than argued (ADR-0038 cut-defeats-withholding addendum). The entry is unchanged in
   substance: the line is still unbounded and still unmeasured, and the cheaper alternative below, a

@@ -1325,9 +1325,10 @@ answer: a marker written into any other module here is reported by the line it i
   surfacing here weeks later as a capture holding no trail line at all. **The whole line that field
   sits on is reported beside it**, in the same cohorts, because the per-value bound leaves the line
   itself unbounded (ADR-0038 whole-line addendum). It is not the widest line the brain writes: the
-  tool audit's is, four of its fields carrying text a model or a sidecar wrote, and with a million
-  characters in each of those four it renders at 8,437 characters against a trail line's 2,258 at
-  the shipped caps (ADR-0038 trigger-sweep addendum, 2026-09-08). That width is measured from where the shipped formatter's output starts, the level,
+  tool audit's is, five of its eleven fields carrying text the brain did not choose, and with every
+  one of those five past the bound it renders at 10,593 characters, 65% of the cliff, against a
+  trail line's 4,464 at the shipped caps (ADR-0038 widest-line addendum). Both figures are now
+  asserted rather than swept, in `brain/packages/orchestrator/tests/test_widest_line.py`. That width is measured from where the shipped formatter's output starts, the level,
   logger and message of `logging.BASIC_FORMAT`, so a capture's own service prefix is not counted
   and the two captures a run takes are comparable; finding that opening is also what qualifies a
   line, which is what tells the message from the logger name ending in the same word. The rendering

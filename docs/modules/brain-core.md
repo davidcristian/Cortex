@@ -1718,6 +1718,17 @@ Use-case:
   reaches the store for the trail alone, so a silent recall issues no counting query at all; it
   runs straight after the search rather than after the rank, because the two are separate reads and
   a model rank sits between them for the best part of a second (ADR-0038 candidate-count addendum).
+  `id_factory` has a width past which the trail stops carrying whole candidates, and the number is
+  **60 characters** (ADR-0038 widest-line addendum). The id is spent twenty times over inside the
+  trail's `dropped` field, once per candidate the rank passed over, and that field is bounded at
+  `VALUE_CHARS` like every other: at the shipped 36 characters the field renders in 1,581 even with
+  every score at the widest a Python float has, and each character added to an id costs the field
+  twenty. At 60 the worst case passes the bound and the rendering is cut, which loses candidates
+  from a line written to say which candidates there were. Live cosines render narrower than that
+  ceiling and move the number to 66, so 60 is the width to design against.
+  `brain/packages/orchestrator/tests/test_widest_line.py` fails on the day a factory here crosses
+  it. Narrowing the id to buy log headroom is the trade the other way and was declined: the id is
+  the store's identity, and a logging bound has no business setting it.
   Stateless over the store: every memory
   lives in `MemoryStore`, so recall is identical across restarts and swaps. Wired into `TurnEngine`
   (retrieve-into-context, record-at-turn-end) when injected. The engine threads its `session_id`

@@ -1026,6 +1026,13 @@ The service:
 - Fully typed, pyright strict clean; 100% line+branch coverage. The `__main__` guard is
   the only coverage pragma, which is why the logging decision lives in `config_logging.py` and
   the guard holds one call to it. Tests are loopback-only (ephemeral ports, fakeredis), CI-safe.
+- The widest line either shipped audit sink can build still fits one message of the container's
+  log driver, asserted in `tests/test_widest_line.py` (ADR-0038 widest-line addendum).
+  `cortex_core.VALUE_CHARS` bounds one rendered field and nothing bounds the line those fields sit
+  on, so the question is how many fields a sink can make wide at once: five on the tool audit's
+  eleven, one on the recall trail's eleven. The check sits here rather than in either sink's own
+  package because this is the composition root, and therefore the one place that sees every sink
+  the brain ships.
 
 **Dependencies.** cortex-core, cortex-body-client (the `GrpcBodyGateway` dial, ADR-0023),
 cortex-inference, cortex-seam, cortex-session (workspace), grpcio (`grpc.aio`), httpx (the

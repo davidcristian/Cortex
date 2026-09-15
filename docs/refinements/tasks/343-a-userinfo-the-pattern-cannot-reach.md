@@ -9,7 +9,7 @@ and each shape is read by putting the URL through `render_value` and then throug
 twice, as a field and as a message, which is five answers and not one. This entry's trail records
 what the shipped URLs and each shape answered when that was last run.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three shapes of credential:
 
@@ -45,6 +45,17 @@ that was already outside the URL grammar.
 
 ## Trail
 
+- 2026-09-15: trigger swept a fifth time and not fired, and the thirteen shapes were put through
+  the five readings again rather than reasoned about. Every cell reproduces: a `/` in the userinfo
+  is exposed in all five, a space, a U+00A0 and a U+3000 are exposed in all five, a tab, a newline,
+  a carriage return, a vertical tab and a form feed are withheld everywhere except the plain
+  rendering's message, a `"` or a `\` is withheld everywhere, a credential with no scheme in front
+  of it is exposed in all five, and the shipped
+  `postgresql://cortex:cortex@postgres:5432/cortex` is withheld in all five. The compose files are
+  unchanged: `CORTEX_MEMORY_DSN` is still the only URL built with a credential and
+  `CORTEX_PG_PASSWORD` still defaults to `cortex`. Three shapes, three readings taken of them, and
+  the entry has now reproduced identically four times running, which says what it is: a description
+  of a pattern nobody has changed rather than a question still open about the tree.
 - 2026-09-14: trigger swept a fourth time and not fired, and the five readings reproduce the table
   below cell for cell: a `/` in the userinfo is exposed in all five, a space, a U+00A0 and a U+3000
   are exposed in all five, a tab, a newline, a carriage return, a vertical tab and a form feed are
