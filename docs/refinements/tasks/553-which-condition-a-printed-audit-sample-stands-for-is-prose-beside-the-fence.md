@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 **Trigger:** a rendered sample of the tool audit's line in `docs/runbooks/tools-mcp.md` whose
 introducing sentence names a shape other than the one its fields spell, or a whole-line assertion
 added to `brain/packages/tools/tests/test_audit.py` with a field set the runbook's fence does not
@@ -39,10 +39,15 @@ which is the prose-reading the sample gate declined at its founding. The coverag
 comparison over two readings the tree already makes, the fence's field lists against the suite's,
 and the rule it would land is that a sink held to its suite has every asserted shape printed;
 whether that rule is right is the question, since a suite may assert a line for a reason that is
-not an operator's. It is no longer a few lines where it would go: `samplecheck.py` stands at 287
+not an operator's. It is no longer a few lines where it would go: `samplecheck.py` stands at 289
 lines against the 300-line cap, and the rule needs a constant, a function and an accumulation in
 `check` beside the docstring sentence that argues it, so the half costs a split of that file as
-well. A second question arrives with
+well. The rule is also harder to state than a set comparison sounds. `_proven` reads the whole
+package suite beside the refused call's module, so the set it returns holds lines other modules in
+that package print: the orchestrator's suite asserts a whole `cortex.tools.audit` line written
+straight through the logger to prove the shipped level, which no module in that package writes, and
+a rule holding a runbook to every shape its sink's suite asserts would demand that one be printed.
+A second question arrives with
 [R-554](554-a-whole-line-asserted-through-an-f-string-or-a-helper-is-not-read-as-proven.md): the
 set the suite asserts is the set `assertedlines.py` can read, so widening that reader would grow
 the set a coverage rule compares against, and a runbook printing every shape today would begin
@@ -77,3 +82,13 @@ failing on shapes the reader had not been able to see.
   `assertedlines.proven` returns the same six lines for the sink over those same five distinct field
   sets, so the fence prints every shape the suite asserts. `samplecheck.py` still stands at 287
   lines, so the coverage half still costs the split of that file the previous check priced it at.
+- 2026-09-15: verified again, with one number and one cost claim repaired. Neither trigger clause
+  has fired. `docs/runbooks/tools-mcp.md` prints the same five samples of `cortex.tools.audit` in
+  the order its introducing sentence states, success, failure, cortex call, delegated call,
+  schedule fire, and `assertedlines.proven` returns the same six lines for the sink over those same
+  five distinct field sets. `samplecheck.py` now stands at 289 lines rather than 287, so the split
+  the coverage half costs is nearer. What is new is a constraint on the rule that half would land,
+  found by reading `_proven` against a second module: the suite it reads is the package's rather
+  than the module's, and the orchestrator's holds a `cortex.tools.audit` line no module in that
+  package prints, so a coverage rule over every asserted shape would demand a runbook print it.
+  Recorded in the ADR-0009 addendum holding three sample-gate triggers to the tree.

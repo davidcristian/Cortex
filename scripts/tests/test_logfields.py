@@ -258,9 +258,27 @@ def test_a_key_in_the_bound_mapping_that_is_not_a_plain_string_is_refused_at_its
     assert refused(text) == "m.py:2: a field name here is not a plain string"
 
 
-def test_a_spread_in_the_unioned_mapping_is_refused() -> None:
+SPREAD_FAULT = (
+    "a mapping written out here spreads another into itself, and no reading of the call lists "
+    "that mapping's keys; the union this reader does read is `name | {...}` over a name the "
+    "enclosing function binds above the call"
+)
+
+
+def test_a_union_spelled_as_a_spread_of_the_bound_name_is_refused_at_the_call() -> None:
+    text = 'def f(r):\n    extra = {"a": r}\n    _logger.info("m", extra={**extra, "b": r})\n'
+    assert refused(text) == f"m.py:3: {SPREAD_FAULT}"
+
+
+def test_a_spread_in_the_unioned_mapping_is_refused_the_same_way() -> None:
     text = 'def f(r):\n    extra = {"a": r}\n    _logger.info("m", extra=extra | {**r})\n'
-    assert "not a plain string" in refused(text)
+    assert refused(text) == f"m.py:3: {SPREAD_FAULT}"
+
+
+def test_a_spread_in_the_bound_mapping_is_refused_at_the_binding() -> None:
+    """The line is the mapping's, so the fault sends a reader to the spread rather than the call."""
+    text = 'def f(r, o):\n    extra = {**o, "a": r}\n    _logger.info("m", extra=extra)\n'
+    assert refused(text) == f"m.py:2: {SPREAD_FAULT}"
 
 
 # ── the committed brain ────────────────────────────────────────────────────────

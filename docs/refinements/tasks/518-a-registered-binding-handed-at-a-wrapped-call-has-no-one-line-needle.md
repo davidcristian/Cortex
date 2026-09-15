@@ -1,15 +1,8 @@
 # A registered binding handed at a wrapped call has no one-line needle
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-15
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-13
-**Trigger:** registering a message binding whose call the formatter wraps, which is what
-`cortex_orchestrator/abandon.py`, the no-reading call in `cortex_core/brain_phase.py` and the
-short-card error in `cortex_core/residency_moves.py` would be. That is countable by reading every
-brain log call `logcalls.handed` reports, keeping the ones whose name the module binds at its own
-top level, and comparing the name's line with the call's: the trigger fires when one of the
-wrapped ones gains a `Site` in the constant registry.
 
 Opened 2026-09-02 by the close of
 [R-504](504-a-declared-message-and-a-different-word-in-the-call.md), which holds a registered
@@ -19,14 +12,15 @@ handed.
 
 The guard checks that the mention's needle lands on the line the name sits on, which
 `logcalls.handed` reports as the name's own line rather than the call's. On the one site registered
-today those are one line. Three of the brain's eleven handed calls are wrapped by the formatter,
-the abandonment warning, the no-reading line and the short-card error, each with the identifier on
-the line after the opening parenthesis, and on any of the three the template the guard's failure
-message suggests, `<the call>({name},`, renders a needle the file does not carry, since a newline
-and an indent stand between the parenthesis and the name.
+today those are one line. Four of the brain's twelve handed calls are wrapped by the formatter, the
+abandonment warning, the no-reading line, the unreadable-call warning and the short-card error,
+each with the identifier on the line after the opening parenthesis, and on any of the four the
+template the guard's failure message suggested until 2026-09-15, `<the call>({name},`, renders a
+needle the file does not carry, since a newline and an indent stand between the parenthesis and
+the name.
 
-Two shapes work and neither is written down. `{name},` alone lands on the name's line and is
-bounded at the word edge, but it is a looser needle: it matches wherever the identifier is followed
+Two shapes work and neither was written down. `{name},` alone lands on the name's line and is
+bounded at the word edge, and it is a looser needle: it matches wherever the identifier is followed
 by a comma, an `__all__` list among them, and only the guard's line check ties it to the call. A
 template carrying the line break and the indent pins the call and is broken by any reformat that
 moves the wrap, loudly, which is a needle failing on a change it has no opinion about.
@@ -81,3 +75,18 @@ the prose side.
   of the other ten names is spelled in any registry part. Rendering the guard's suggested template
   still finds `_logger.info(_NO_READING_LOG_MSG,` and `_logger.warning(ABANDONED_MESSAGE,` zero
   times each in their own files, where `_logger.info(_MESSAGE,` is found once.
+- 2026-09-15: **landed** as the shorter of the two shapes written down where an author meets it
+  (ADR-0009 wrapped-needle addendum). The count moved again before anything was written.
+  `logcalls.handed` reports twelve brain log calls whose message is a bare name rather than
+  eleven, all twelve bound at their module's own top level, and four are wrapped rather than
+  three: `_UNREADABLE_CALL_LOG_MSG` at `brain_phase.py:170` joins `_NO_READING_LOG_MSG` at 226,
+  `_CARD_TOO_SHORT` at `residency_moves.py:161` and `ABANDONED_MESSAGE` at `abandon.py:73`. None of
+  the four is registered, so the guard still returns one row. Rendering both templates through the
+  real registry machinery against the real files confirms both halves of this entry: the template
+  naming the call is found zero times for each of the four and once for `_MESSAGE`, and `{name},`
+  lands on the handing line in all five. So the guard's failure message now names both, and its
+  suite pins each on a wrapped fixture. The whitespace-folding registry spelling is not built and
+  is not the close: it would overturn the rule in `needles.py` that a needle is matched as written,
+  which every other mention rests on, for one shape of one entry kind. What the shorter template
+  gives up, that it holds the name rather than the call, is filed as
+  [R-672](672-a-wrapped-calls-needle-holds-the-name-rather-than-the-call.md).

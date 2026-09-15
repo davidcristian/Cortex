@@ -5,11 +5,8 @@ from collections.abc import Callable, Iterator
 
 from moduleconstants import bound
 
-# The keyword a call attaches its fields under, which is the stdlib's own name for them.
 EXTRA = "extra"
 
-# The two statement kinds a call can be written inside. A class body is not a scope of its own
-# here: a call at a class's top level is read as the module's, and the brain writes none.
 FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
 
 Function = ast.FunctionDef | ast.AsyncFunctionDef
@@ -22,11 +19,7 @@ class FieldError(Exception):
 
 
 def enclosing(tree: ast.Module, call: ast.Call) -> Function | None:
-    """The innermost function ``call`` is written in, or None for a call at the module's top level.
-
-    A function nested in another starts on a later line, so of the functions holding the call the
-    innermost is the one defined last.
-    """
+    """The innermost function ``call`` is written in, or None for one at the module's top level."""
     holding = [
         node
         for node in ast.walk(tree)
@@ -39,6 +32,14 @@ def _literal(mapping: ast.Dict, shown: str) -> list[str]:
     """The keys of one mapping written out, each of which has to be a plain string."""
     names: list[str] = []
     for key in mapping.keys:
+        if key is None:
+            msg = (
+                f"{shown}:{mapping.lineno}: a mapping written out here spreads another into "
+                "itself, and no reading of the call lists that mapping's keys; the union this "
+                "reader does read is `name | {...}` over a name the enclosing function binds "
+                "above the call"
+            )
+            raise FieldError(msg)
         if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
             msg = f"{shown}:{mapping.lineno}: a field name here is not a plain string"
             raise FieldError(msg)
@@ -122,7 +123,7 @@ def _followed(
 def _named(
     value: ast.expr, call: ast.Call, tree: ast.Module, shown: str, is_log_call: IsLogCall
 ) -> list[str]:
-    """Every key the ``extra=`` expression ``value`` carries, in any of the three spellings."""
+    """Every key the ``extra=`` expression ``value`` has, in any of the three forms."""
     if isinstance(value, ast.Dict):
         return _literal(value, shown)
     unioned: list[str] = []
@@ -146,11 +147,7 @@ def _named(
 def attached(
     call: ast.Call, tree: ast.Module, shown: str, *, is_log_call: IsLogCall
 ) -> tuple[str, ...]:
-    """The field names ``call`` attaches, in the order the formatter will print them.
-
-    ``is_log_call`` says which calls in ``tree`` are log calls: a name handed to one of those as
-    its ``extra=`` is a use this reader accounts for, and a name handed to anything else is not.
-    """
+    """The field names ``call`` attaches, in the order the formatter will print them."""
     for keyword in call.keywords:
         if keyword.arg == EXTRA:
             return tuple(sorted(set(_named(keyword.value, call, tree, shown, is_log_call))))

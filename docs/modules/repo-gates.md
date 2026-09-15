@@ -873,7 +873,13 @@ answer: a marker written into any other module here is reported by the line it i
   the keys read off the binding, plus those of the unioned literal, are the fields the line
   prints. Every other spelling is refused with a fault naming the line, because a field list
   read off a mapping something else may have changed would hold a document to a line nothing
-  prints, which is worse than holding it to nothing (ADR-0009 composed-fields addendum). Five
+  prints, which is worse than holding it to nothing (ADR-0009 composed-fields addendum). One
+  refusal names the spelling that is read: a mapping written out that spreads another into itself,
+  `{**extra, "shortfall": ...}`, prints the line `extra | {...}` prints and carries keys nothing at
+  the call writes, so its fault names the union this reader follows rather than reporting a field
+  name that is not a string. It is raised wherever a spread sits, at the call, in the right half of
+  a union or in the mapping bound above the call, and reports that mapping's own line (ADR-0009
+  spread-refusal addendum). Five
   calls are refused in the tree today, of two shapes. The tool audit's trail is the first: its
   mapping is bound, grown by `update` and by a key set under a condition, and only then handed
   over, so no one sample could print what it attaches. The other four hand over what another call
@@ -1481,7 +1487,12 @@ answer: a marker written into any other module here is reported by the line it i
   every registry site a brain log call is handed as its message, a mention on that sink rendering
   the name and landing on the call's line, a set read off the registry and `logcalls.handed`
   together rather than off any naming, a message having no `_LOGGER_NAME` to be found under
-  (ADR-0009 held-call addendum). Registering a constant in a language
+  (ADR-0009 held-call addendum). Its failure names two templates because the call is written in
+  two shapes: a needle is matched as written, so `<the call>({name},` is found nowhere on a call
+  the formatter wraps, where a newline and an indent stand between the parenthesis and the name,
+  and what lands there is `{name},`. Four of the brain's twelve handed calls are wrapped and none
+  of them is registered, so the one row the guard returns today takes the first template (ADR-0009
+  wrapped-needle addendum). Registering a constant in a language
   `DECLARATIONS` does not know, or a mention whose template renders nothing the registry fills, or
   one whose name and whose `{name}` do not both appear, or an entry whose places are all on one
   side of a seam, a side being a language together with the brain package under

@@ -3,13 +3,16 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-14
-**Trigger:** a whole-line assertion in a sink's own suite whose expected line is not a plain string
-constant: an f-string interpolating the fixture's timestamp, a name the expected line is bound to
-above the assert, or a helper that builds or compares it. Countable by listing a suite's `assert`
-statements whose test is one `==` and neither side of which is a one-line string constant, and
-reading whether either side would render to a line opening with a level. Binding the *rendered*
-side to a name fires nothing, and the audit suite already writes one assertion that way.
+**Verified:** 2026-09-15
+**Trigger:** a whole-line assertion in a suite this reader is consulted over whose expected line is
+not a plain string constant and whose logger a module under the brain declares: an f-string
+interpolating the fixture's timestamp, a name the expected line is bound to above the assert, or a
+helper that builds or compares it. Countable by listing those suites' `assert` statements whose
+test is one `==` and neither side of which is a one-line string constant, reading whether either
+side would render to a line opening with a level, and resolving that line's logger against
+`loggernames.loggers`. Binding the *rendered* side to a name fires nothing, and the audit suite
+already writes one assertion that way. The one f-string in the tree today renders a line through
+the fixture logger `cortex.test`, which no brain module declares, so it does not fire this.
 
 Opened 2026-09-05 by the close of
 [R-523](523-the-tool-audit-line-is-described-in-prose-because-its-fields-vary-by-condition.md),
@@ -33,9 +36,13 @@ the other file is in the fault and only the anchor sends a reader to the sample 
 What a close would cost. An f-string whose parts are constants and expressions could be read as
 the constant parts with a hole where each expression stands, and matched against a sample by
 name, since values are dropped anyway; that is one more case in `_rendered` and a fixture per
-part shape. A helper cannot be read without executing it, and stays refused. Not built, because
-no suite writes either and a case written against no example is a guess about a shape nobody has
-asked for.
+part shape, plus a refusal for an f-string whose expression stands where a field name would, which
+no reading of the source can supply. A helper cannot be read without executing it, and stays
+refused. Not built, because no line anybody could document is asserted either way. One suite writes
+the f-string shape, `brain/packages/core/tests/test_log_format.py` asserting a whole line through
+`f"INFO:cortex.test:hello api_key={REDACTED}"`, and that line's logger is a fixture's, which no
+module under the brain declares, so a sample quoting it would be refused before the suite was
+read.
 
 ## Trail
 
@@ -77,3 +84,23 @@ asked for.
   leaving this open: a suite asserting one of those lines through an f-string would leave that
   sample unheld the same way, so the shapes this reader refuses now stand between four more lines
   and being documentable rather than one sink's.
+- 2026-09-15: verified again, with the trigger narrowed, the reason for leaving it weakened and
+  its reach widened. The trigger as written fired on the shape existing anywhere, and the shape now
+  exists:
+  `brain/packages/core/tests/test_log_format.py:336` asserts a whole line through an f-string,
+  `f"INFO:cortex.test:hello api_key={REDACTED}"`, and `brain/packages/core/tests` is a suite this
+  reader is consulted over, being the suite beside `cortex_core/residency_watch.py` whose refusal
+  line it would hold. Nothing is unheld by it: the logger is `cortex.test`, which no module under
+  the brain declares, so a sample of that line fails at the logger before the suite is read. So the
+  entry's reason for leaving the case unbuilt is now half dead, a fixture having something to be
+  written against, and the other half stands, no line wanting it. The trigger above is narrowed to
+  the line whose logger a brain module declares, which is the assertion that would leave a runbook
+  sample unheld. `brain/packages/tools/tests`
+  still writes ten `==` asserts carrying a one-line string constant and five that do not, none of
+  the five rendering a line opening with a level, and `assertedlines.proven` returns the same six
+  lines for the sink. What did move is reach: `docs/runbooks/model-swap.md` now prints the refusal
+  line of `cortex_orchestrator/swap_builders.py`, held to a whole line `test_swap_wiring.py`
+  asserts, so this reader is load-bearing for two package suites rather than one, where the
+  2026-09-14 bullet recorded that no runbook printed a call-shaped refusal at all. The
+  orchestrator's suite writes 553 single-`==` asserts and none of them is an unread whole line.
+  Recorded in the ADR-0009 addendum holding three sample-gate triggers to the tree.

@@ -1746,6 +1746,29 @@ def test_a_mention_aimed_at_the_declaration_lands_there_and_not_on_the_call(
     assert landed(tmp_path, aimed, aimed.sites[0]) == {1}
 
 
+# A call the formatter wraps, which is how four of the brain's twelve handed calls are written.
+# The name sits on line 6 of this fixture, one line below the parenthesis that opens the call.
+WRAPPED_CALL = "_logger.info(\n        _MESSAGE,\n        extra={},\n    )"
+
+
+def test_a_call_mention_naming_the_call_lands_nowhere_on_a_wrapped_one(tmp_path: Path) -> None:
+    """A needle is matched as written, and a newline and an indent stand where the template has
+    neither, so the suggestion the guard prints first is unfound on this shape."""
+    _sink(tmp_path, WRAPPED_CALL)
+    (site,) = HELD_AT_CALL.sites
+    assert handed_sites(tmp_path, (HELD_AT_CALL,)) == [(HELD_AT_CALL, site, [6])]
+    assert landed(tmp_path, HELD_AT_CALL, site) == set()
+
+
+def test_the_name_and_its_comma_land_on_a_wrapped_call(tmp_path: Path) -> None:
+    """Which is the template the guard's fault names second, and what satisfies it here."""
+    _sink(tmp_path, WRAPPED_CALL)
+    shorter = HELD_AT_CALL._replace(
+        mentions=(crosscheck.Mention(SINK, "{name},", name="_MESSAGE"),)
+    )
+    assert landed(tmp_path, shorter, shorter.sites[0]) == {6}
+
+
 def test_every_registered_binding_a_brain_log_call_is_handed_is_held_at_that_call() -> None:
     """The one place a registered message meets the call handed it, over whatever the tree holds."""
     held = handed_sites(REPO_ROOT, crosscheck.CONSTANTS)
@@ -1756,7 +1779,9 @@ def test_every_registered_binding_a_brain_log_call_is_handed_is_held_at_that_cal
             f"{site.path} hands {site.name} to a log call on line(s) {missing} and the entry "
             f"{constant.label!r} carries no mention landing there; add "
             f"Mention({site.path!r}, '<the call>({{name}},', name={site.name!r}) beside its "
-            f"other mentions, so a call handed another word fails check-crosscheck"
+            f"other mentions, so a call handed another word fails check-crosscheck. Where the "
+            f"formatter wraps that call onto more than one line, the template naming the call is "
+            f"found nowhere and '{{name}},' is the one that lands on line(s) {missing}"
         )
 
 

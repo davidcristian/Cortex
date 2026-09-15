@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-15
 **Trigger:** a line somebody wanted during a real failure, and no runbook named, is written down in
 this file's Trail. That is the evidence the entry says nobody has collected, and it is what decides
 between the two closes below: a gated criterion needs at least one such line to be written against,
@@ -20,7 +20,7 @@ the question a reader has about those samples.
 stopped attaching. It says nothing at all about **coverage**. A line the brain writes and no
 runbook mentions is invisible to that scan by construction, because a scan over what a document
 prints can only ever be as complete as the document. The brain writes far more lines than the
-fourteen the runbooks print, and which of them an operator would want documented is a question
+sixteen the runbooks print, and which of them an operator would want documented is a question
 nobody has asked in one place.
 
 The two questions are genuinely different and the second is much harder. Agreement is decidable: a
@@ -108,3 +108,12 @@ names.
   `scripts/samplecheck.py` reports the same 14 samples across the same 12 runbooks, resolved
   against the same 38 loggers the brain declares and the same 100 messages it logs, with 5 of the
   samples held to a line the sink's own suite asserts whole.
+- 2026-09-15: verified again, with one number in the body repaired. The trigger has not fired: no
+  bullet here names a line somebody wanted during a real failure and no runbook had, which is still
+  what decides between the two closes. Both counts moved in a day. `scripts/samplecheck.py` reports
+  16 samples across the same 12 runbooks, resolved against the same 38 loggers the brain declares
+  and the 101 messages it logs rather than 100, and 6 of the samples are held to a line the sink's
+  own suite asserts whole rather than 5. The sixth is `docs/runbooks/model-swap.md` printing the
+  refusal line of `cortex_orchestrator/swap_builders.py`, whose fields the source cannot list
+  because they are what another call returns, so the proven path now carries a second module's
+  line beside the tool audit's. The runbooks still print a sixth of what the brain writes.
