@@ -67,8 +67,8 @@ never a reading of what the tree does now.
 
 ### Actionable now (3)
 
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Twenty of the cortex alt's thirty-five pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-13.
-- **[R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md)** The cells whose published reading is one load's answer are undrawn across loads (vision). Its claim was re-derived from the code on 2026-09-13.
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Twenty of the cortex alt's thirty-five pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-17.
+- **[R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md)** The cells whose published reading is one load's answer are undrawn across loads (vision). Its claim was re-derived from the code on 2026-09-17.
 - **[R-678](tasks/678-a-rows-card-reading-misses-the-ceiling-between-its-ends.md)** A row's card reading misses what the ceiling did between its ends (vision). Its claim was re-derived from the code on 2026-09-17.
 
 ### Actionable, once a seam or port changes (7)

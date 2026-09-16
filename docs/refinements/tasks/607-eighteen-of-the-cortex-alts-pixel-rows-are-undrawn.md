@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** inference
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-17
 
 Opened 2026-09-07 by the close of
 [R-586](586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md), which drew the
@@ -106,6 +106,38 @@ at depth five, and the sweeps and deep rows at the shipped budget, where the alt
 request. Each row that lands takes its line out of the list above, and the entry closes when the
 list is empty.
 
+**Pre-registered for the 2026-09-17 sitting.** Seven rows are queued on the alt, after one row on
+the pick, all at the corpus frame at the shipped budget unless named, and each keeps its docstring's
+counts. The prices are full-clock guesses: about 3 s a framed reply and 27 s a dialog control reply
+(the dialog-cell addendum), and about 2.5 s for any other reply, which is what the two shipped-budget
+sweeps leave once their thirty dialog control draws are taken out. A row that the pace so far says
+cannot finish by 05:30 is skipped and logged, and the log is
+`measurements/sitting-2026-09-17/run.log` on the host.
+
+- The rate row at the doubled frame, about seven minutes, depth five. It publishes when every reading
+  keeps four draws of five. The `plain` control applying the rule in 4 or more of 5 with the `chrome`
+  control at 1 or fewer is the swap of 2026-09-12 replicating behind a second load, and a `plain`
+  control at 0 of 5 puts that swap on the load that drew it.
+- The dialog cell's twenty framed draws, about three minutes. The docstring's null is 10 to 18
+  mentioned. The both-arms row drew this arm at 0 of 20 mentioned over two strings, 15 and 5, so 3 or
+  fewer mentioned over those strings is that load's answer repeating behind a second load, and 10 or
+  more puts that row's zero on its load.
+- The `plain` cell behind four loads, about twelve minutes. Each control load writing one string in
+  19 or more of 20, the same string in all four, is the settling; the alt's control has applied the
+  rule in none of six draws, and one application in these 80 moves it.
+- The `plain` cell at 280 draws an arm, about 25 minutes. Seven or more framed applications against
+  a silent control measure the direction on the alt, whose framed arm drew 1 of 5. Fewer is a null,
+  and a control at zero is held to refusing 2.5 in a hundred by its own void draws.
+- The `app` cell at 400 draws an arm, about 40 minutes. A framed count of 2 to 12 is near the pick's
+  second sitting and 15 to 33 near its first; the alt's framed arm applied this rule in none of five.
+- The `plain` cell at 560 draws an arm, about 50 minutes. Five or more framed applications against a
+  silent control measure the obeyed direction; fewer is a null.
+
+The seventh, the deep row at the shipped budget, is queued last at about 80 minutes, since its 120
+dialog control draws alone are 54, and it runs only if the pace leaves room. Nothing at the engine's own budget is
+queued: the sweeps wait on the ceiling, and the deep rows, pairs, corners and loads rows there are
+each an hour or more at that budget's unmeasured per-reply cost.
+
 ## Trail
 
 - 2026-09-07: opened by the close of
@@ -195,3 +227,5 @@ list is empty.
   the back of the order behind the rows measured cheap, every arm now closes its line with the
   tokens it generated, so a stopped row leaves its own price behind, and the sitting is the
   [ADR-0029 token-priced-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md).
+- 2026-09-17: re-derived against the collected harness, which still lists 35 alt rows, so the list
+  stands at twenty. Seven of its rows were pre-registered here and queued in an unattended sitting.

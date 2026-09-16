@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-17
 
 Opened 2026-09-11 by the close of
 [R-623](623-a-cell-that-settles-per-load-is-read-in-draws-rather-than-loads.md), which put the row
@@ -63,6 +63,23 @@ at. The `app` framed arm is the expensive one, because eighty draws cannot see a
 hundred: reading it takes the four-hundred-draw row behind more than one load, at 38.5 minutes a
 load.
 
+Of the five cells, only the `chrome` control has a row: collecting the harness on 2026-09-17 lists
+four loads rows, and the other three name the advisory probe, the `plain` cell at the shipped budget
+and the `app` cell at the engine's own. So the alt's dialog cell at the shipped budget, the body pair,
+the deep row's `plain` control and the four-hundred-draw `app` arm each need a row written before
+card time can close them.
+
+**Pre-registered for the 2026-09-17 sitting.** One row is queued, first in the sitting,
+`test_the_dialog_cell_at_the_engine_budget_across_loads[gemma-4-12B (cortex pick)]`: twenty draws
+an arm behind each of four cold loads, 164 replies, priced at about twenty minutes at full clock and
+about an hour on the capped card. The deciding counts are the ones its docstring fixed on
+2026-09-13. The control writing one string in 15 or more of each load's 20 draws, the same string in
+all four loads, and the rule applied in 74 or more of 80 confirms the 120 of 120 as the cell's answer
+and takes the `chrome` control off this list. A null is any of: a load whose control writes no
+string 15 times, dominant strings that differ between loads, or 73 or fewer applications, and each
+puts the deep row's every-draw reading on the load that drew it. The framed arm decides nothing. The
+log is `measurements/sitting-2026-09-17/run.log` on the host.
+
 ## Trail
 
 - 2026-09-11: opened by the close of
@@ -98,3 +115,6 @@ load.
   software power capped throughout, at about an eighth of its maximum SM clock and a third of its
   power limit (the
   [ADR-0029 loads-row-cost addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-17: re-derived against the collected harness. Every reading on the list still stands,
+  and four of its five cells have no row yet, which the entry did not say. The `chrome` control's
+  row was pre-registered here and queued first in an unattended sitting.
