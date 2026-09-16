@@ -1048,22 +1048,49 @@ whatever its ceiling is. Measured here on the morning of 2026-09-13 with nothing
 reported a clock around half its maximum, a draw around a tenth of `power.max_limit`, an
 `enforced.power.limit` below `power.default_limit` at under a third of `power.max_limit`, and
 `SW Power Cap` reading `Not Active` in `nvidia-smi -q -d PERFORMANCE`. The first two figures are the
-healthy ones and the third is the cap that produced both capped sittings above. So the reading to
-take is
+healthy ones and the third is the cap that produced both capped sittings above. The number that
+decides the price is `enforced.power.limit` against `power.max_limit`. That morning the pair stood
+under a third, with the enforced limit below the card's default limit, which is the state both
+capped sittings above were drawn under. Under that ceiling this card gives about 30 tokens a second,
+so a row that fits an hour at full clock does not fit it at a third of one. **Each arm prints what
+it generated**, as a token total closing its rate line, so a stopped row leaves its own price in the
+run log rather than in the container's.
+
+**Every row prints the ceiling it ran under, at its start and at its end.** Since 2026-09-17 the
+harness reads the card through `docker exec cortex-inj-probe` once the row's server answers
+`/health`, and again as the row ends, however it ends, including a stopped row. It prints one line
+each time, and nothing fails on what the line says. Find them with
 
 ```
-nvidia-smi --query-gpu=clocks.sm,power.draw,enforced.power.limit,power.max_limit --format=csv
+grep -n 'card reading at' <run log>
 ```
 
-and the number that decides the price is `enforced.power.limit` against `power.max_limit`. That
-morning the pair stood under a third, with the enforced limit below the card's default limit, which
-is the state both capped sittings above were drawn under. Take the same reading again while the
-row is serving, where `clocks.sm` and `power.draw` become the live figures and `SW Power Cap` turns
-active if the ceiling is binding. Record both readings beside the sitting's cost, since a row that
-fits an hour at full clock does not fit it at a third of one. Under the ceiling both capped sittings
-were drawn at, this card gives about 30 tokens a second. **Each arm now prints what it generated**,
-as a token total closing its rate line, so a stopped row leaves its own price in the run log rather
-than in the container's.
+A card row's line reads
+
+```
+  card reading at start of <model> (<switch>, gpu, <budget>): ceiling <r> of max and <r> of default,
+  draw <r> of max, clock <r> of max, sw power cap <Active|Not Active>; clocks.sm=… clocks.max.sm=…
+  power.draw=… enforced.power.limit=… power.max_limit=… power.default_limit=…
+  clocks_event_reasons.sw_power_cap=…
+```
+
+on one physical line: ratios first, each over the card's own figures, then every field as
+`nvidia-smi` printed it. A CPU row's line says `none, the row is served on the cpu`, and a card row
+the binary could not answer says `none, ` followed by the exit status and what the call printed.
+Publish the two ceiling ratios beside the row's token total. When the start and end ceilings
+differ, the row ran under both at some point and neither alone prices it. The end reading is taken
+as the last reply returns, so its clock and draw are the figures just after load rather than
+under it; `sw power cap Active` there says the ceiling was still binding. The query the harness
+runs, for a reading before a sitting is started, is
+
+```
+nvidia-smi --query-gpu=clocks.sm,clocks.max.sm,power.draw,enforced.power.limit,power.max_limit,power.default_limit,clocks_event_reasons.sw_power_cap --format=csv,noheader,nounits
+```
+
+On a WSL host the binary is `/usr/lib/wsl/lib/nvidia-smi`, which is not on `PATH`. The harness
+never calls that one: it calls the binary the container toolkit injects beside `--gpus all`, the
+same one the model host reads free memory with. `clocks.sm` is the driver's short name for
+`clocks.current.sm`, the SM clock these figures publish; `clocks.gpu` is not a field.
 
 **The ceiling moves between sittings, so take the reading every time.** Two readings of
 `nvidia-smi -q -d POWER` on 2026-09-13, with nothing running either time, disagreed about where the
@@ -1077,8 +1104,7 @@ on its own and the power source was not observed at either reading, so that is h
 not a mechanism this repo has isolated.
 
 Three things follow for anyone pricing a row. A cost is comparable only against a cost drawn under
-the same ceiling, which is why the reading above is taken before the sitting and again while the row
-serves. An unattended overnight sitting either keeps the display awake or is budgeted at roughly a
+the same ceiling, which is why every row prints its own reading at both ends. An unattended overnight sitting either keeps the display awake or is budgeted at roughly a
 third of the card. And every row drawn on the night of 2026-09-12 into 2026-09-13 was drawn under
 the lowered ceiling, so those costs are not full-speed ones.
 

@@ -1,9 +1,8 @@
 # A sitting records the card's ceiling by hand
 
-**Status:** open, actionable
+**Status:** landed 2026-09-17
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-13
 
 Opened 2026-09-13 by the sitting that gave every injection arm a token total and read the card's
 ceiling at idle (the
@@ -14,9 +13,6 @@ other half of a price is the ceiling those tokens were generated under, and that
 by hand: the runbook tells an operator to read `enforced.power.limit` against `power.max_limit`
 before starting and again while the row serves, and nothing fails when they do not. Two sittings in
 a row were priced with no ceiling recorded beside them.
-
-**Trigger:** a row's token total is published with no card reading beside it, or a published figure
-has to be re-read later against a clock nobody wrote down.
 
 **What would close it.** The harness already shells out to docker through `_docker`, and its own
 `cortex-inj-probe` container runs an image carrying `nvidia-smi`, so one
@@ -45,3 +41,19 @@ ceiling it ran under is recorded beside its cost.
   beside them, and the best that can be said of them now is that the whole night ran under the
   lowered one. The entry stays open because closing it is a change to the live harness, which this
   sitting did not take on.
+- 2026-09-17: landed. Every row of
+  [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)
+  now prints a `card reading at start of` and a `card reading at end of` line, the second from a
+  `finally` so a stopped row prints it too, and nothing asserts on either. What the task had wrong:
+  `_docker` discards what it prints, so the reading makes its own call; the image does not carry
+  `nvidia-smi`, the container toolkit injects it beside `--gpus all`, so only a card row's
+  container has it and a CPU row's line says it is served on the CPU; and a ratio needs
+  `clocks.max.sm` beside `clocks.sm`, which is a valid field. The pure half is
+  [card_reading.py](../../../brain/packages/inference/tests/card_reading.py) with a CI-side suite,
+  seventeen mutants all killed. A real reading through `print_card` was taken against a sleeping
+  card container, and six readings over four minutes put the ceiling between 0.80 and 0.88 of the
+  card's maximum, which opened
+  [R-678](678-a-rows-card-reading-misses-the-ceiling-between-its-ends.md). The other harnesses that
+  time the card print no reading, which is
+  [R-679](679-a-card-timing-outside-the-injection-harness-carries-no-ceiling.md) (the
+  [ADR-0029 harness-ceiling addendum](../../adr/ADR-0029-vision-screen-capture.md)).

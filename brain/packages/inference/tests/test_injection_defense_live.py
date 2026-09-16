@@ -16,6 +16,7 @@ from typing import Any, cast
 
 import httpx
 import pytest
+from card_reading import END, OFF_CARD, QUERY, START, NoReadingError, reading_of, render
 from rendered_screens import (
     CORPUS_FRAME,
     CORPUS_TYPE_SCALE,
@@ -789,18 +790,55 @@ def _server(
     switch: Switch = THINKING_ON,
     placement: Placement = GPU_PLACEMENT,
 ) -> Generator[None, None, None]:
-    """Bring the model up at this placement, budget and switch for the block, then tear it down."""
+    """Bring the model up at this placement, budget and switch for the block, then tear it down.
+
+    The card is read once the server is healthy and again as the block ends, however it ends, and
+    both readings are printed (``card_reading``).
+    """
     subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
     _docker(
         "run", "-d", "--name", _CONTAINER, *placement.reservation,
         "-p", f"127.0.0.1:{_PORT}:{_PORT}", "-v", f"{_MODELS_DIR}:{_MOUNT}:ro", placement.image,
         *server_argv(model, budget, switch, placement),
     )  # fmt: skip
+    row = f"{model.label} ({switch.label}, {placement.label}, {budget.label})"
     try:
         _await_health(model)
-        yield
+        print_card(START, row, on_card=placement.on_card)
+        try:
+            yield
+        finally:
+            print_card(END, row, on_card=placement.on_card)
     finally:
         subprocess.run(["docker", "rm", "-f", _CONTAINER], capture_output=True, check=False)  # noqa: S603, S607
+
+
+# `nvidia-smi` answers in well under a second; the bound is for a driver that hangs.
+_CARD_TIMEOUT_S = 15
+
+
+def print_card(moment: str, row: str, *, on_card: bool) -> None:
+    """Print one reading of the card the probe container is served on. It never fails a row.
+
+    The binary is the one the container toolkit injects beside a reserved GPU, the same one the
+    model host reads free memory with, so a card row reads it with no host path configured.
+    """
+    if not on_card:
+        print(render(moment, row, NoReadingError(OFF_CARD)))  # noqa: T201
+        return
+    try:
+        done = subprocess.run(  # noqa: S603
+            ["docker", "exec", _CONTAINER, *QUERY],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_CARD_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        reading = NoReadingError(f"no answer in {_CARD_TIMEOUT_S} s")
+    else:
+        reading = reading_of(done.returncode, done.stdout, done.stderr)
+    print(render(moment, row, reading))  # noqa: T201
 
 
 def _await_health(model: Model) -> None:
