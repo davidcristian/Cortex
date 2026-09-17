@@ -1,5 +1,3 @@
-"""The model-host contract: the scriptable twin, the readiness gate, and the two sleepers."""
-
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -27,14 +25,14 @@ _AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
 
 
 class _FixedClock:
-    """A clock that never advances: a bound is reached only because it was already expired."""
+    """A clock that never advances, so a deadline is reached only if it had already passed."""
 
     def now(self) -> datetime:
         return _AT
 
 
 class _TickingClock:
-    """A clock that advances one second per reading, deterministically, without any waiting."""
+    """A clock that advances one second each time it is read, and never waits."""
 
     def __init__(self) -> None:
         self._ticks = 0
@@ -54,7 +52,7 @@ def _plan(**overrides: object) -> ResidencyPlan:
 
 
 class _LoadingThenReady:
-    """A host whose model finishes loading after ``polls`` probes (the real gate's whole point)."""
+    """A host whose model finishes loading after ``polls`` status probes."""
 
     def __init__(self, polls: int) -> None:
         self.polls = polls
@@ -84,8 +82,6 @@ class _LoadingThenReady:
 
 
 def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
-    """A bound a swap could not be governed by is refused at construction, since it is a
-    boot-time misconfiguration."""
     with pytest.raises(ValueError, match="drain_timeout_s must be >= 0"):
         _plan(drain_timeout_s=-1.0)
     with pytest.raises(ValueError, match="load_timeout_s must be >= 0"):
@@ -100,9 +96,23 @@ def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
         _plan(control_deadline_s=-1.0)
 
 
+@pytest.mark.parametrize(
+    ("evict", "setting"),
+    [
+        (("brain",), "CORTEX_MODEL_BRAIN"),
+        (("subagent-gpu", "cortex"), "CORTEX_MODEL_CORTEX"),
+    ],
+    ids=["the deep model", "the cortex"],
+)
+def test_the_plan_rejects_an_evict_list_naming_a_resident_it_swaps(
+    evict: tuple[str, ...], setting: str
+) -> None:
+    refusal = rf"CORTEX_SWAP_EVICT_MODELS\) names '\w+', which is {setting};"
+    with pytest.raises(ValueError, match=refusal):
+        _plan(evict_models=evict)
+
+
 def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
-    """A deployment may override each bound, and the defaults are what a stock stack swaps
-    under."""
     plan = _plan(evict_models=("subagent-gpu",))
     assert plan.evict_models == ("subagent-gpu",)
     assert (plan.load_timeout_s, ResidencyPlan("c", "b").load_timeout_s) == (
@@ -111,29 +121,19 @@ def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
     )
     assert ResidencyPlan("c", "b").poll_interval_s == DEFAULT_HEALTH_POLL_INTERVAL_S
     assert ResidencyPlan("c", "b").drain_timeout_s == DEFAULT_SWAP_DRAIN_TIMEOUT_S
-    # Co-residency is the deployment's own assertion about its card, so a plan that was not
-    # told holds the shipped rule: the deep model runs alone.
     assert ResidencyPlan("c", "b").coresident is False
     assert _plan(coresident=True).coresident is True
-    # A deployment that never measured its deep tier's rate judges no handoff by it.
     assert ResidencyPlan("c", "b").brain_decode_tps == 0.0
     assert _plan(brain_decode_tps=25.07).brain_decode_tps == 25.07
-    # And one that bounds no control call has stated no pairing rule for a swap to re-check.
     assert ResidencyPlan("c", "b").control_deadline_s == 0.0
     assert _plan(control_deadline_s=60.0).control_deadline_s == 60.0
 
 
 def test_the_control_bounds_sum_every_term_one_stop_can_spend() -> None:
-    """All three terms are summed, because a two-term reading of this rule is what shipped the
-    pairing wrong.
-    """
     assert ControlBounds(5.0, 10.0, 30.0).worst_case_stop_s == 45.0
 
 
 def test_a_deadline_only_clears_the_worst_case_when_it_sits_strictly_above_it() -> None:
-    """A deadline equal to the worst case does not clear it, since that is a timeout on the very
-    call the sum describes.
-    """
     bounds = ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0)
     assert bounds.clears(61.0) is True
     assert bounds.clears(60.0) is False
@@ -142,17 +142,12 @@ def test_a_deadline_only_clears_the_worst_case_when_it_sits_strictly_above_it() 
 
 
 async def test_the_scripted_host_reports_the_bounds_it_was_given_and_none_by_default() -> None:
-    """The twin reports the bounds it was given, and ``None`` when it was given none: its
-    ``stop`` is a set removal, so it has no grace and no reap to report.
-    """
     assert await ScriptedModelHost().control_bounds() is None
     wired = ControlBounds(probe_timeout_s=1.0, stop_grace_s=2.0, reap_timeout_s=3.0)
     assert await ScriptedModelHost(control_bounds=wired).control_bounds() == wired
 
 
 async def test_the_bounds_read_can_be_scripted_to_fail_like_any_other_call() -> None:
-    """The bounds read reaches a real sidecar over HTTP, so an unreachable host has to be
-    scriptable here too."""
     host = ScriptedModelHost(fail={("control_bounds", ""): "the supervisor is not there"})
     with pytest.raises(ModelHostError, match="not there"):
         await host.control_bounds()
@@ -160,21 +155,18 @@ async def test_the_bounds_read_can_be_scripted_to_fail_like_any_other_call() -> 
 
 
 async def test_the_scripted_host_starts_stops_and_reports_idempotently() -> None:
-    """Both verbs are idempotent, and readiness is only ever observed rather than set."""
     host: ModelHost = ScriptedModelHost(running=["cortex"])
     assert await host.status("cortex") is ModelHostState.READY
     assert await host.status("brain") is ModelHostState.STOPPED
     await host.start("brain")
-    await host.start("brain")  # idempotent: starting a started model changes nothing
+    await host.start("brain")
     assert await host.status("brain") is ModelHostState.READY
     await host.stop("brain")
-    await host.stop("brain")  # idempotent the same way
+    await host.stop("brain")
     assert await host.status("brain") is ModelHostState.STOPPED
 
 
 async def test_the_scripted_host_reports_an_overridden_state_for_a_running_model() -> None:
-    """A running model reports its overridden state, which is how a model that dies at load, or
-    never finishes one, is scripted."""
     host = ScriptedModelHost(
         running=["brain", "cortex"],
         status_override={"brain": ModelHostState.FAILED, "cortex": ModelHostState.LOADING},
@@ -182,22 +174,18 @@ async def test_the_scripted_host_reports_an_overridden_state_for_a_running_model
     assert await host.status("brain") is ModelHostState.FAILED
     assert await host.status("cortex") is ModelHostState.LOADING
     await host.stop("brain")
-    # A stopped model reports STOPPED whatever its override said: it is not running at all.
     assert await host.status("brain") is ModelHostState.STOPPED
 
 
 async def test_a_scripted_failure_is_typed_and_logged_in_the_call_order() -> None:
-    """Failures cross the port as ModelHostError, and the op log still records the attempt."""
     host = ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "no VRAM"})
     with pytest.raises(ModelHostError, match="no VRAM"):
         await host.start("brain")
     assert host.calls == [("start", "brain")]
-    assert "brain" not in host.running  # a failed start started nothing
+    assert "brain" not in host.running
 
 
 async def test_a_scripted_failure_can_be_armed_for_one_call_only() -> None:
-    """``fail_once`` fails the first attempt and lets the second through, which is the shape the
-    restore's retry is tested against."""
     host = ScriptedModelHost(fail_once={("start", "cortex"): "device busy"})
     with pytest.raises(ModelHostError, match="device busy"):
         await host.start("cortex")
@@ -206,13 +194,11 @@ async def test_a_scripted_failure_can_be_armed_for_one_call_only() -> None:
 
 
 async def test_a_paused_operation_has_already_taken_effect_when_it_blocks() -> None:
-    """A paused operation applies its effect before it blocks, so a kill at that boundary stands
-    for a death after the effect landed."""
     host = ScriptedModelHost(running=["cortex"], pause_at=[("stop", "cortex")])
     task = asyncio.create_task(host.stop("cortex"))
     async with asyncio.timeout(5.0):
         await host.reached[("stop", "cortex")].wait()
-    assert host.running == set()  # the cortex is genuinely down while the world is paused
+    assert host.running == set()
     assert not task.done()
     host.release[("stop", "cortex")].set()
     await task
@@ -225,11 +211,10 @@ async def test_the_gate_returns_ready_as_soon_as_the_model_serves() -> None:
         host, "brain", clock=_FixedClock(), sleeper=sleeper, plan=_plan()
     )
     assert state is ModelHostState.READY
-    assert sleeper.waits == []  # a model already serving is never waited on
+    assert sleeper.waits == []
 
 
 async def test_the_gate_polls_between_waits_until_the_load_finishes() -> None:
-    """The poll loop: one recorded wait per unsettled probe, at the plan's interval."""
     sleeper = RecordingSleeper()
     host = _LoadingThenReady(polls=3)
     plan = _plan(poll_interval_s=0.25)
@@ -239,7 +224,6 @@ async def test_the_gate_polls_between_waits_until_the_load_finishes() -> None:
 
 
 async def test_the_gate_returns_failed_at_once_without_waiting_out_the_bound() -> None:
-    """A model that died at load is in a settled state, so the gate returns without waiting."""
     sleeper = RecordingSleeper()
     host = ScriptedModelHost(running=["brain"], status_override={"brain": ModelHostState.FAILED})
     state = await await_model_ready(
@@ -249,7 +233,6 @@ async def test_the_gate_returns_failed_at_once_without_waiting_out_the_bound() -
 
 
 async def test_the_gate_reports_the_last_state_when_the_bound_elapses() -> None:
-    """An already-expired bound ends the gate on the first unsettled probe, telling which."""
     sleeper = RecordingSleeper()
     expired = _plan(load_timeout_s=0.0)
     loading = ScriptedModelHost(
@@ -268,15 +251,10 @@ async def test_the_gate_reports_the_last_state_when_the_bound_elapses() -> None:
         )
         is ModelHostState.STOPPED
     )
-    assert sleeper.waits == []  # the bound was already expired, so nothing was waited on
+    assert sleeper.waits == []
 
 
 async def test_the_gate_gives_up_once_the_clock_passes_the_bound_it_took_at_the_start() -> None:
-    """The bound is taken once, before the first poll, or it bounds nothing.
-
-    Read against a clock that advances a second per reading (as a real one does): a gate whose
-    deadline is recomputed each round would poll a stuck load forever.
-    """
     sleeper = RecordingSleeper()
     host = ScriptedModelHost(running=["brain"], status_override={"brain": ModelHostState.LOADING})
     async with asyncio.timeout(5.0):
@@ -288,7 +266,7 @@ async def test_the_gate_gives_up_once_the_clock_passes_the_bound_it_took_at_the_
             plan=_plan(load_timeout_s=3.0),
         )
     assert state is ModelHostState.LOADING
-    assert 0 < len(sleeper.waits) <= 4  # bounded by the clock, not by the host settling
+    assert 0 < len(sleeper.waits) <= 4
 
 
 async def test_a_dead_host_surfaces_from_the_gate_rather_than_being_guessed_at() -> None:
@@ -300,7 +278,6 @@ async def test_a_dead_host_surfaces_from_the_gate_rather_than_being_guessed_at()
 
 
 async def test_the_recording_sleeper_yields_the_loop_instead_of_consuming_time() -> None:
-    """The recorded schedule is observable and other tasks still get to run."""
     sleeper: Sleeper = RecordingSleeper()
     ran = False
 
@@ -310,14 +287,13 @@ async def test_the_recording_sleeper_yields_the_loop_instead_of_consuming_time()
 
     task = asyncio.create_task(other())
     await sleeper.sleep(300.0)
-    assert ran is True  # a 300 s wait cost the test nothing but one loop turn
+    assert ran is True
     await task
     assert isinstance(sleeper, RecordingSleeper)
     assert sleeper.waits == [300.0]
 
 
 async def test_the_real_sleeper_suspends_the_caller_and_resumes() -> None:
-    """AsyncioSleeper is production wiring, so it is exercised: a zero wait still yields."""
     sleeper: Sleeper = AsyncioSleeper()
     ran = False
 
@@ -332,6 +308,5 @@ async def test_the_real_sleeper_suspends_the_caller_and_resumes() -> None:
 
 
 def test_the_clock_port_is_what_bounds_the_gate() -> None:
-    """The bound is measured on the injected Clock, never on a real deadline."""
     clock: Clock = _FixedClock()
     assert clock.now() == _AT

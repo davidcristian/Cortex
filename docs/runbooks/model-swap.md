@@ -50,7 +50,8 @@ way, serving the cortex as the always-on `llama-cortex` service used to.
 
 Other knobs: `CORTEX_MODEL_BRAIN` (the deep tier's logical id, default `brain`),
 `CORTEX_SWAP_EVICT_MODELS` (further hosted tiers a swap stops first, as a JSON list such as
-`["subagent-gpu"]`; a comma-separated string fails the brain at boot),
+`["subagent-gpu"]`; a comma-separated string fails the brain at boot, and so does a list naming
+the cortex or the deep tier, since every reader of the list starts what it names),
 `CORTEX_SWAP_BRAIN_VRAM_MIB` (0, the deep tier's measured VRAM cost, see below),
 `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s), `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s),
 `CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline),

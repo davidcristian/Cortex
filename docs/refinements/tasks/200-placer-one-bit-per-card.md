@@ -57,15 +57,11 @@ model host carries three tiers (the 2026-09-17 trail line).
   only fire on a misconfiguration. `ModelHostConfig.tiers()` declares three tiers, and with every
   `CORTEX_MODEL_FILE_*` set it returns `cortex`, `brain` and `subagent-gpu` (run under
   `brain/.venv/bin/python`). So the only ids a deployment can list beside `subagent-gpu` are the
-  cortex, the deep tier, or an id no roster has, and `SwapConfig` accepts all three: an evict list of
-  `cortex`, `brain`, `subagent-gpu` and `nosuch` loaded without error. An id no roster has closes
-  the placer through `mark_unhosted`, which the runbook already names as a misconfiguration to
-  fix by dropping the id, so the one-bit width is not what costs that deployment anything. Listing
-  the deep tier is worse than anything this entry prices: run against `ScriptedModelHost`, one
-  `sweep_tiers` pass outside a handoff called `start` on `brain` and left it running beside the
-  cortex, and `converge_residency` at boot did the same and still reported the cortex settled.
-  That is filed as its own entry
-  ([R-681](681-the-evict-list-accepts-the-deep-tier-it-makes-room-for.md)). The code this entry
+  cortex, the deep tier, or an id no roster has. `ResidencyPlan` now refuses the first two at boot,
+  since every reader of the list would start them (ADR-0030 addendum of 2026-09-17). An id no
+  roster has closes the placer through `mark_unhosted`, which the runbook already names as a
+  misconfiguration to fix by dropping the id, so the one-bit width is not what costs that
+  deployment anything. The code this entry
   describes is unchanged: `placer.py` still sets and reads `_gpu_closed` at lines 48, 61, 109 and
   113, `PlacementRequest` still carries a model id and three resource figures, and no commit since
   2026-09-12 touched either.

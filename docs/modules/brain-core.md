@@ -174,6 +174,10 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   model is the standing resident every exit path converges back to, which one a handoff swaps in,
   which other hosted tiers a swap must stop first (the GPU-placed subagent; while the brain is
   resident it is alone on the GPU, ADR-0030 decision 8), and the swap's three bounds.
+  Construction raises `ValueError` when `evict_models` names `brain_model` or `cortex_model`,
+  since every reader of that list starts a listed tier that is not running: the deep model would
+  be started beside the cortex, and the cortex reloaded at every boot (ADR-0030's 2026-09-17
+  addendum).
   `coresident` is the deployment's opt-in reversal of that one rule and of nothing else
   (ADR-0030's co-residency addendum, measured): with it set a swap stops the cortex and leaves
   every `evict_models` tier serving, and the conductor never enters the drain window, so

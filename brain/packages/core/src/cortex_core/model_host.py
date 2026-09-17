@@ -1,24 +1,24 @@
-"""What a model process can be doing, and the plan one GPU's residency swap follows (ADR-0030)."""
+"""What a model process can be doing, and the plan one GPU's residency swap follows."""
 
 from dataclasses import dataclass
 from enum import Enum
 
-# How long a swap waits for the model it started to report READY (ADR-0030 decision 4 step 3).
-# An 18 GB GGUF read off the drvfs model mount at the measured ~150-180 MB/s is minutes, so the
-# default is generous; the deployment overrides it with CORTEX_SWAP_LOAD_TIMEOUT_S.
+# 300 s: a load reads an 18 GB GGUF off the model mount at 150 to 180 MB/s, so it takes
+# minutes. A deployment overrides it with CORTEX_SWAP_LOAD_TIMEOUT_S.
 DEFAULT_SWAP_LOAD_TIMEOUT_S = 300.0
 
+# A whole CPU subtask takes 200 to 300 s, so a drain that meets one in flight usually runs out
+# and aborts the handoff with nothing evicted, which is the intended direction.
 DEFAULT_SWAP_DRAIN_TIMEOUT_S = 60.0
 
-# How long the readiness gate waits between two ``status`` polls. A load takes minutes, so a
-# second-scale poll costs nothing and keeps the gate's own latency below the noise floor.
 DEFAULT_HEALTH_POLL_INTERVAL_S = 1.0
 
+# The subagent placer's budget settings are in gibibytes, so this converts MiB to those.
 _MIB_PER_GB = 1024.0
 
 
 class ModelHostState(Enum):
-    """What one logical model's process is doing, as its host reports it (ADR-0030 decision 3)."""
+    """What one logical model's process is doing, as its host reports it."""
 
     STOPPED = "stopped"
     LOADING = "loading"
@@ -52,7 +52,7 @@ class ControlBounds:
         return self.worst_case_stop_s < deadline_s
 
     def pairing_fields(self, deadline_s: float) -> dict[str, float]:
-        """The pairing's five numbers as log-record fields, so a line about it carries each one."""
+        """The five numbers as log-record fields, so one line names each of them."""
         return {
             "deadline_s": deadline_s,
             "worst_s": self.worst_case_stop_s,
@@ -64,7 +64,7 @@ class ControlBounds:
 
 @dataclass(frozen=True, slots=True)
 class ResidencyPlan:
-    """Which models share the one GPU, and the bounds a swap between them respects (ADR-0030)."""
+    """Which models share the one GPU, and the bounds a swap between them respects."""
 
     cortex_model: str
     brain_model: str
@@ -79,7 +79,7 @@ class ResidencyPlan:
 
     @property
     def brain_vram_gb(self) -> float:
-        """The same declared cost in the unit the subagent placer's budget is written in."""
+        """The declared cost in gibibytes, the unit the subagent placer's budget uses."""
         return self.brain_vram_mib / _MIB_PER_GB
 
     def __post_init__(self) -> None:
@@ -101,3 +101,17 @@ class ResidencyPlan:
         if self.control_deadline_s < 0:
             msg = f"ResidencyPlan.control_deadline_s must be >= 0, got {self.control_deadline_s}"
             raise ValueError(msg)
+        self._refuse_listed_residents()
+
+    def _refuse_listed_residents(self) -> None:
+        """Refuse an evict list naming the deep model or the cortex."""
+        for tier, setting in (
+            (self.brain_model, "CORTEX_MODEL_BRAIN"),
+            (self.cortex_model, "CORTEX_MODEL_CORTEX"),
+        ):
+            if tier in self.evict_models:
+                msg = (
+                    f"ResidencyPlan.evict_models (CORTEX_SWAP_EVICT_MODELS) names {tier!r}, "
+                    f"which is {setting}; list only the peers standing beside the cortex"
+                )
+                raise ValueError(msg)
