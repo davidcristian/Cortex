@@ -78,9 +78,11 @@ phishing link harms the user.
   [R-294](294-one-match-yields-one-identity.md)'s relaxation figure was drawn over, so its 22 is a
   reading over 2,997 spans and today's corpus carries 3,007.
 - 2026-09-17: **Not fired**, both readings taken again, and the measurement the trigger waits on
-  was found to have no instrument. `config.py:146` binds `output_guardrail` to `"redact"`, no
-  compose file sets `CORTEX_OUTPUT_GUARDRAIL`, and this checkout has no `.env`, so no turn here
-  has run under the lookalike ground. The corpus arm over `git ls-files` at `HEAD`: 1,663 tracked
+  was found to have no instrument. `config.py:146` binds `output_guardrail` to `"redact"`, and this
+  checkout has no `.env`, so no turn here has run under the lookalike ground. No compose file
+  carried `CORTEX_OUTPUT_GUARDRAIL` into the brain either, so the policy could not be switched on
+  in the Docker stack; the ADR-0015 addendum of the same day on the composed brain passes it, with
+  the brain's other settings, by name. The corpus arm over `git ls-files` at `HEAD`: 1,663 tracked
   files, 1,637 readable, 2,578,187 words, 3,018 spans reducing to 1,198 distinct identities, and
   **12** distinct non-ASCII hosts, the same twelve in the same four files with the same three
   backtick and arrow artifacts. The new finding was in the remedy: `guardrail.py` held no logger,
