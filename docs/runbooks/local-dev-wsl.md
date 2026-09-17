@@ -109,6 +109,42 @@ finds a redis published by Compose on loopback. Everything listens on loopback o
 action, reading and setting system volume) has its own end-to-end validation in
 [body-volume.md](body-volume.md).
 
+### How the composed brain receives a setting
+
+The brain container gets only the variables its compose files name, so a setting exported in
+the shell or written in the repo-root `.env` reaches it only when some file layered on names
+that variable. Each of the brain's settings is named in one of three ways:
+
+- **Passed through by name**, a bare key such as `CORTEX_OUTPUT_GUARDRAIL:`. Set on the host,
+  the value reaches the brain; unset, the variable never enters the container and the settings
+  class's own default applies. The base file passes the settings that apply to every stack
+  (history window, output guardrail, titles, reply bounds, seam buffer and confirm timeout, VRAM
+  budget, tool gating, costs and audit file, schedule pacing). Each overlay passes the ones its
+  capability reads: `docker-compose.gpu.yml` the inference and handoff settings and the two
+  logical model ids, `docker-compose.memory.yml` the recall settings, `docker-compose.subagents.yml`
+  the delegation bounds.
+- **Passed with a compose default**, `${CORTEX_X:-value}`, where the default is spelled in the
+  compose file as well as in Python (`CORTEX_SEAM_TOKEN`, `CORTEX_LOG_FORMAT`, the tool salience
+  knobs and call timeout, the schedule backend and zone, the body settings, the subagent resource
+  figures). `scripts/crosscheck.py` holds the body and subagent figures to their Python
+  declarations; the others are not held, which is why a new setting is passed bare.
+- **Set by the file**, where the topology decides the value: `CORTEX_SEAM_HOST`,
+  `CORTEX_REDIS_URL`, each overlay's backend switch and in-network endpoints, and the memory DSN.
+  Setting one of these on the host has no effect.
+
+Two settings are named by no file, on purpose. `CORTEX_SEAM_PORT` is fixed at 50051 by the base
+file's publish and its healthcheck, and `CORTEX_TOOLS_ENDPOINT` is the single-sidecar form that
+the tool overlays replace with one `CORTEX_TOOLS_ENDPOINTS__<name>` key each (the brain refuses
+both at once). The map-shaped settings `CORTEX_TOOLS_ALLOW` and `CORTEX_SUBAGENTS_ROSTER` are
+contributed one key at a time by the overlay that brings the server they describe. To see what a
+given stack will hand the brain, render it without starting anything:
+
+```bash
+docker compose --project-directory . -f docker/docker-compose.yml [-f <overlay> ...] config brain
+```
+
+A key rendered as `null` is a pass-through whose variable is unset on the host.
+
 ## Redis (the session store)
 
 Compose runs a `redis` service (image `redis:8-alpine`) next to the brain. Why Redis

@@ -1,24 +1,46 @@
+# Subagents override: it adds one CPU llama-server for the small subagent model and turns
+# delegation on in the brain. It needs no GPU and runs alongside the gpu override. Set
+# CORTEX_MODELS_DIR and CORTEX_MODEL_FILE_SUBAGENT on the host; docs/runbooks/subagents-cpu.md.
 
 services:
   brain:
     environment:
-      # Opt into delegation; without this the base image runs subagents=none (ADR-0010).
+      # Turn delegation on; without this the base image does not delegate at all.
       CORTEX_SUBAGENTS_BACKEND: "llamacpp"
+      # Addresses on the compose network, not the host-published port. Both placement targets
+      # resolve to the one CPU server, so a deployment naming CORTEX_MODEL_FILE_SUBAGENT_GPU must
+      # also set CORTEX_SUBAGENTS_GPU_ENDPOINT to http://model-host:8083 or nothing reaches it.
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
+      # One subagent's resource ask, and the soft admission budgets. Measured on the shipped pick:
+      # about 2.5 GiB RSS on CPU -> 3.0 memory ask (2 admitted under the 8 GB budget), and the
+      # GPU-placed tier costs 3338 to 3410 MiB, so 3.5 GiB sits a little above its peak.
       CORTEX_SUBAGENTS_CPUS: "${CORTEX_SUBAGENTS_CPUS:-2.0}"
       CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-3.0}"
       CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-3.5}"
       CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
       CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
+      # A `spawn_subagents` dispatch already costs a quarter of a turn's tool budget, so a turn
+      # may delegate four times. Change it with a CORTEX_TOOLS_COSTS__SPAWN_SUBAGENTS key added
+      # here, or with the whole map as JSON in CORTEX_TOOLS_COSTS on the host. The rest follows.
+      CORTEX_SUBAGENTS_MODEL:
+      CORTEX_SUBAGENTS_MODEL_DESCRIPTION:
+      CORTEX_SUBAGENTS_STALL_TIMEOUT_S:
+      CORTEX_SUBAGENTS_ADMISSION_WAIT_S:
+      CORTEX_SUBAGENTS_MAX_TOKENS:
+      CORTEX_SUBAGENTS_RUN_TIMEOUT_S:
+      CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT:
     depends_on:
       llama-subagent:
         condition: service_healthy
 
   llama-subagent:
-    # CPU (non-CUDA) OpenAI-compatible llama.cpp server (ADR-0005). Pin to a digest on the host
-    # once the subagent pick is locked. Mutable tags are a supply-chain risk (ADR-0006).
+    # CPU (non-CUDA) OpenAI-compatible llama.cpp server. Replace this mutable tag with a digest
+    # once the subagent model is settled.
     image: "ghcr.io/ggml-org/llama.cpp:server"
+    # A small (2-4B) subagent model on CPU. --jinja turns on the tool-capable chat template, and
+    # --parallel gives each admitted subagent a server slot; keep it near the CPU budget over the
+    # per-subagent CPU ask.
     command:
       - "--model"
       - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf}"
@@ -26,43 +48,53 @@ services:
       - "0.0.0.0"
       - "--port"
       - "8082"
-      # CPU only: this server is the default executor for BOTH placement targets. The GPU one
-      # (-ngl 99) is the model-host sidecar's opt-in subagent tier, not a service here.
+      # CPU only. The GPU executor is the model-host sidecar's opt-in tier, not a service here.
       - "-ngl"
       - "0"
       - "--jinja"
+      # Both flags turn reasoning off for this tier, and neither is redundant: the kwarg is what
+      # the chat template reads, and the budget is the sampler that closes a thought the template
+      # still opens. What each one does, measured: docs/readings/thinking-switch.md.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--reasoning-budget"
       - "0"
+      # The engine keeps a prompt cache in host RAM and sizes it at 8192 MiB by default, which is
+      # this container's whole memory cap; once it fills, the kernel reclaims the model weights the
+      # server reads on every token. Zero costs nothing here, since subtasks share no prefix.
       - "--cache-ram"
       - "0"
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
       - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      # One thread per CPU of the cgroup cap below, read from the same variable. Left to its
+      # default the server ran 24 threads inside that quota and decoded at 0.43 to 0.54 tokens per
+      # second against 11.9 to 12.4. The engine rounds the budget down to a whole number.
       - "--threads"
       - "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     volumes:
-      # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
+      # Models stay on the host drive, mounted read-only.
       - type: bind
         source: "${CORTEX_MODELS_DIR:-./models}"
         target: /models
         read_only: true
     ports:
-      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
-      # the brain uses the in-network address above, not this one.
+      # Published on loopback so host-side integration tests can reach it; the brain uses the
+      # compose network address above instead.
       - "127.0.0.1:8082:8082"
     restart: unless-stopped
     healthcheck:
-      # llama-server serves /health once the model finishes loading; a smaller CPU model
-      # loads faster than the cortex, so a shorter start_period than the GPU file suffices.
+      # llama-server serves /health once the model has finished loading.
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8082/health"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 90s
       start_interval: 2s
+    # Per-container caps for the CPU half, the hard twin of the brain's soft admission budgets
+    # above (CPU_BUDGET 4.0, MEM_BUDGET_GB 8.0). The two memory limits drop the decimal point
+    # because docker parses 8g as a size and refuses 8.0g.
     cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
     mem_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
     memswap_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"

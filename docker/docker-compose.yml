@@ -1,3 +1,6 @@
+# The brain services: the orchestrator and the redis it keeps session state in. CPU only, with no
+# GPU anywhere in this file. Always start it with `--project-directory .` from the repo root, as
+# the `just` recipes do, so relative paths and the .env file resolve from there.
 
 name: cortex
 
@@ -5,28 +8,60 @@ services:
   brain:
     build: ./brain
     environment:
-      # Bind all container interfaces; exposure is governed by `ports` (ADR-0003 d6).
+      # Bind every container interface; what is reachable from the host is set by `ports` below.
       CORTEX_SEAM_HOST: "0.0.0.0"
-      # The shared seam secret (assumption 5, ADR-0016), passed through from the host
-      # env / .env (never committed). Empty (the default) disables the token check.
+      # The shared secret both directions use, passed through from the host and never committed.
+      # Empty, the default, turns the token check off.
       CORTEX_SEAM_TOKEN: ${CORTEX_SEAM_TOKEN:-}
-      # Session state lives in the redis service, per the one hard rule: restarting the
-      # brain container must lose no conversation (see the runbook's restart check).
+      # Session state lives in the redis service, so restarting the brain loses no conversation.
       CORTEX_REDIS_URL: "redis://redis:6379/0"
-      # Durable schedules + the reminder ticker (ADR-0025) over the same append-only
-      # redis. Off by default; set CORTEX_SCHEDULE_BACKEND=redis (e.g. in .env) to enable.
+      # Durable schedules and the reminder ticker, over the same redis. Off by default; set
+      # CORTEX_SCHEDULE_BACKEND=redis to turn them on.
       CORTEX_SCHEDULE_BACKEND: ${CORTEX_SCHEDULE_BACKEND:-none}
-      # The IANA zone every model-facing schedule time renders in, and the zone an
-      # offset-less 'at' is read as (ADR-0025 display addendum). Display only: stored due
-      # times stay UTC. An unknown key fails the brain at startup, by design.
+      # The IANA zone every schedule time shown to the model is rendered in, and the zone an
+      # 'at' with no offset is read as. Display only: stored due times stay UTC.
       CORTEX_SCHEDULE_TZ: ${CORTEX_SCHEDULE_TZ:-UTC}
+      # Which tool calls a loop dispatches: 'repeat' refuses a call the loop has already made,
+      # 'off' dispatches every call. Set here rather than in a tool override so that it applies
+      # whichever set of sidecars is layered on.
       CORTEX_TOOLS_SALIENCE: ${CORTEX_TOOLS_SALIENCE:-repeat}
+      # How many times one identical call may be dispatched across a 'repeat' loop. Once per
+      # round is absolute and this number does not change it. Below 1 fails the brain at startup.
       CORTEX_TOOLS_SALIENCE_LIMIT: ${CORTEX_TOOLS_SALIENCE_LIMIT:-2}
+      # How long one call on a tool sidecar may take before the brain stops waiting and returns
+      # an error the model can act on. Without it a hung sidecar keeps a turn open forever, since
+      # the MCP session has no timeout of its own. Zero or less fails the brain at startup.
       CORTEX_TOOLS_CALL_TIMEOUT_S: ${CORTEX_TOOLS_CALL_TIMEOUT_S:-60.0}
+      # How a log line is written for whoever reads `docker compose logs brain`: 'plain' appends
+      # each record's fields after the message, and 'packed' writes the whole record as one JSON
+      # object for a deployment that collects logs rather than reading them.
       CORTEX_LOG_FORMAT: ${CORTEX_LOG_FORMAT:-plain}
+      # The brain's remaining settings, passed through from the host by name. A bare key with no
+      # value is compose's pass-through: set on the host it reaches the brain, and left unset it
+      # never enters the container, so each default stays declared in its own settings class.
+      CORTEX_SEAM_CONVERSE_BUFFER:
+      CORTEX_SEAM_CONFIRM_TIMEOUT_S:
+      CORTEX_VRAM_SOFT_CAP_GB:
+      CORTEX_VRAM_CORTEX_GB:
+      CORTEX_HISTORY_CHAR_BUDGET:
+      CORTEX_HISTORY_SUMMARY:
+      CORTEX_HISTORY_RECAP_MIN_CHARS:
+      CORTEX_OUTPUT_GUARDRAIL:
+      CORTEX_GENERATE_TITLES:
+      CORTEX_REPLY_MAX_TOKENS:
+      CORTEX_REPLY_THINKING:
+      CORTEX_REPLY_TRACE_TOKENS:
+      CORTEX_TOOLS_ON_UNAVAILABLE:
+      CORTEX_TOOLS_GATED:
+      CORTEX_TOOLS_GATE_REASONS:
+      CORTEX_TOOLS_COSTS:
+      CORTEX_TOOLS_AUDIT_FILE:
+      CORTEX_SCHEDULE_POLL_S:
+      CORTEX_SCHEDULE_LEASE_S:
+      CORTEX_SCHEDULE_CLAIM_LIMIT:
+      CORTEX_SCHEDULE_MAX_ACTIVE:
     ports:
-      # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
-      # nothing listens beyond 127.0.0.1 on the host.
+      # Published on loopback only: nothing listens beyond 127.0.0.1 on the host.
       - "127.0.0.1:50051:50051"
     restart: unless-stopped
     # tini as PID 1 so SIGTERM reaches Python and `docker compose down` stays fast.
@@ -35,6 +70,9 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
+      # A real BrainService.Health call, because a bare TCP connection could succeed while the
+      # gRPC server is broken. It passes when the call answers at all, not when `ready` is true:
+      # `ready=false` is what a working model swap reports for the minutes it takes.
       test:
         [
           "CMD",
@@ -49,15 +87,13 @@ services:
       start_interval: 1s
 
   redis:
-    # redis over valkey: redis-py + fakeredis (the contract-test twin) track Redis
-    # semantics first, and Redis 8 is open source again (AGPLv3 option). Rationale
-    # in docs/runbooks/local-dev-wsl.md.
+    # Redis rather than valkey: redis-py and fakeredis, which the contract tests use, follow
+    # Redis semantics first.
     image: redis:8-alpine
-    # Append-only persistence so sessions also survive a redis restart, not just a
-    # brain restart; data lives in the named volume below.
+    # Append-only persistence so sessions survive a redis restart too, not just a brain restart.
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      # Loopback-only publish, for dev inspection with a host redis-cli (assumption 5).
+      # Published on loopback only, so a host redis-cli can inspect it during development.
       - "127.0.0.1:6379:6379"
     restart: unless-stopped
     volumes:

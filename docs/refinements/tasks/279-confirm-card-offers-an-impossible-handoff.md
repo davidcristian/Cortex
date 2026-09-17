@@ -7,8 +7,9 @@
 deployment configuring escalation without a deep artifact for long enough that the card becomes a
 nuisance. Both are off-tree. What the tree can answer is whether any stack it ships can reach the
 state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRAIN` keeps its empty default
-(`docker/docker-compose.gpu.yml:153`), and `grep -rn CORTEX_ESCALATION docker/` finding only the
-comment at line 25 says none can.
+(`docker/docker-compose.gpu.yml:175`). The gpu overlay passes the switch through by name, so a
+host `.env` can reach the state, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing
+says no shipped file does.
 **Verified:** 2026-09-17
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain

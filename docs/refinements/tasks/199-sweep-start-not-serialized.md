@@ -7,8 +7,9 @@
 pass had just started. Either needs a live handoff, which is off-tree, and four settings that all
 default off: `CORTEX_ESCALATION`, a non-empty `CORTEX_SWAP_EVICT_MODELS`, and
 `CORTEX_SWAP_BRAIN_VRAM_MIB` (the refusal arm) or `CORTEX_SWAP_BRAIN_DECODE_TPS` (the spill arm).
-`grep -rn` for those four names over `docker/` finding them only in comments says no shipped stack
-can make the observation.
+The gpu overlay passes all four through by name, so a host `.env` can set them, and
+`grep -rnE '(CORTEX_ESCALATION|CORTEX_SWAP_EVICT_MODELS|CORTEX_SWAP_BRAIN_VRAM_MIB|CORTEX_SWAP_BRAIN_DECODE_TPS): *[^ ]' docker/`
+finding nothing says no shipped file sets any of them.
 **Verified:** 2026-09-17
 
 The sweep's start is fenced against a handoff but not serialized with one.

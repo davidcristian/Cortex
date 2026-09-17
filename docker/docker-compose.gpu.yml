@@ -8,6 +8,23 @@ services:
       # host-published ports). The cortex tier is a child process now, not a service.
       CORTEX_INFERENCE_ENDPOINT: "http://model-host:8080"
       CORTEX_MODELHOST_ENDPOINT: "http://model-host:9300"
+      # The deep tier's in-network address, fixed by the child port the sidecar gives that tier.
+      # Read only when CORTEX_ESCALATION is on, so it is harmless for the same reason.
+      CORTEX_BRAIN_ENDPOINT: "http://model-host:8081"
+      CORTEX_INFERENCE_TRACE_LEVER:
+      CORTEX_INFERENCE_STALL_TIMEOUT_S:
+      CORTEX_MODEL_CORTEX:
+      CORTEX_MODEL_BRAIN:
+      CORTEX_ESCALATION:
+      CORTEX_MODELHOST_BACKEND:
+      CORTEX_MODELHOST_TIMEOUT_S:
+      CORTEX_SWAP_EVICT_MODELS:
+      CORTEX_SWAP_CORESIDENT:
+      CORTEX_SWAP_BRAIN_VRAM_MIB:
+      CORTEX_SWAP_BRAIN_DECODE_TPS:
+      CORTEX_SWAP_DRAIN_TIMEOUT_S:
+      CORTEX_SWAP_LOAD_TIMEOUT_S:
+      CORTEX_SWAP_TIER_HEAL_S:
     depends_on:
       model-host:
         condition: service_healthy

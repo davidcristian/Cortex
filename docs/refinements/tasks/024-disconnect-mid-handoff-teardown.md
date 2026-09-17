@@ -5,8 +5,8 @@
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 **Trigger:** a client event that does not need the cortex, observed waiting behind a `Cancel`'s
 restore on a stack running handoffs. That observation is off-tree: no stack
-here runs a handoff, and `grep -rn CORTEX_ESCALATION docker/` reporting its one comment hit
-(`docker/docker-compose.gpu.yml:25`) says it still cannot be made.
+here runs a handoff, and `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/` finding nothing says no
+shipped file turns the switch on. The gpu overlay passes it through by name, so a host `.env` can.
 **Verified:** 2026-09-17
 
 A disconnect mid handoff blocks the stream's teardown until the cortex is back.

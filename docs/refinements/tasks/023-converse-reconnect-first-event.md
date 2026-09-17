@@ -6,8 +6,9 @@
 **Trigger:** a deployment that sets `CORTEX_ESCALATION`, which is the switch that builds a swap
 scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders.py:103` returns
 `None` without it), together with turns costly enough that a silent re-run beats paying for dedup.
-Recheck with `grep -rn CORTEX_ESCALATION docker/`: one hit, inside a comment, means nothing swaps
-and this has not fired.
+Recheck with `grep -rnE 'CORTEX_ESCALATION: *[^ ]' docker/`: no hit means no shipped file turns
+the switch on and this has not fired. The gpu overlay passes it through by name, so a host `.env`
+can.
 **Verified:** 2026-09-17
 
 The transport retry entry costed this at one line, "a replayable request and a signature

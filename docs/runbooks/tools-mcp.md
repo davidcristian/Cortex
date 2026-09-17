@@ -176,7 +176,8 @@ and the ticker's, also append one JSON object per call to that file, after writi
 (ADR-0009 durable-trail addendum). It holds the same fields the line prints and no more: the size
 of a successful result rather than its content, every URL credential withheld, and a value the
 line cuts kept as the line's own cut text, a string ending in `<cut N chars>`, rather than as the
-object it was. No compose file sets it, so it is off unless you set it.
+object it was. The base compose file passes it through by name and gives it no value, so it is
+off unless you set it on the host.
 
 The brain runs as uid 10001, and the file must be somewhere that user can write and that outlives
 the container. A named volume mounted at a path the image does not already have is created

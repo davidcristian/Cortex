@@ -30,20 +30,32 @@ begins at a confirm card only the overlay answers, and the timings of its phases
 Escalation is **off by default**. It is on only when `CORTEX_ESCALATION` is set, and then the
 deployment must also set `CORTEX_MODELHOST_BACKEND` (`scripted`, or `supervisor` with a
 `CORTEX_MODELHOST_ENDPOINT`) and
-`CORTEX_BRAIN_ENDPOINT`, or the brain refuses to boot (`config_swap.py`). **None of those three is
-interpolated by any compose file**, so a `.env` entry or an exported shell variable does not reach
-the brain container and the stack comes up with escalation quietly off (verified against a running
-container 2026-07-19): they go in the `brain` service's `environment:` block in
-`docker/docker-compose.gpu.yml`, or in a local override layered after it. With escalation off,
-nothing below can happen: no `escalate_to_brain` tool, no conductor, no boot recovery. The
+`CORTEX_BRAIN_ENDPOINT`, or the brain refuses to boot (`config_swap.py`). On the composed stack
+`docker/docker-compose.gpu.yml` already sets both endpoints to the sidecar's in-network addresses
+and passes `CORTEX_ESCALATION`, `CORTEX_MODELHOST_BACKEND` and every other setting in this section
+through from the host by name, so an exported shell variable or a line in the repo-root `.env` is
+enough, and no compose file needs editing. Until 2026-09-17 none of them was passed, and a `.env`
+entry left escalation quietly off. Confirm what the brain will receive before starting it:
+
+```bash
+docker compose --project-directory . -f docker/docker-compose.yml \
+  -f docker/docker-compose.gpu.yml config brain | grep -E 'CORTEX_(ESCALATION|MODELHOST|BRAIN|SWAP)'
+```
+
+The lines under `brain:` are what that container gets; the `model-host:` lines below them are the
+sidecar's own. A key rendered as `null`, such as `CORTEX_ESCALATION: null`, is unset on the host
+and never enters the container. With escalation off, nothing below can happen: no `escalate_to_brain` tool, no conductor, no boot recovery. The
 `model-host` sidecar itself is not gated by that switch: it comes up with the GPU override either
 way, serving the cortex as the always-on `llama-cortex` service used to.
 
 Other knobs: `CORTEX_MODEL_BRAIN` (the deep tier's logical id, default `brain`),
-`CORTEX_SWAP_EVICT_MODELS` (further hosted tiers a swap stops first, comma separated),
+`CORTEX_SWAP_EVICT_MODELS` (further hosted tiers a swap stops first, as a JSON list such as
+`["subagent-gpu"]`; a comma-separated string fails the brain at boot),
 `CORTEX_SWAP_BRAIN_VRAM_MIB` (0, the deep tier's measured VRAM cost, see below),
 `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s), `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s),
-`CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline). On the sidecar,
+`CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline),
+`CORTEX_SWAP_TIER_HEAL_S` (30 s, how often the brain re-reads the evicted tiers and restarts one found down), and the two logical
+ids, which the gpu overlay hands to the brain and the sidecar alike. On the sidecar,
 `CORTEX_MODELHOST_NVIDIA_SMI` (`nvidia-smi`) names the binary it reads the card with.
 
 **Sizing `CORTEX_SWAP_DRAIN_TIMEOUT_S`: it bounds your wait, not a subagent's run.** The drain
@@ -193,8 +205,8 @@ service published it, so `just brain-inference-live` and
 
 To give the deployment a deep tier, name its artifact in the `model-host` environment
 (`CORTEX_MODEL_FILE_BRAIN`, with `CORTEX_NGL_BRAIN` / `CORTEX_CTX_SIZE_BRAIN` to fit it) and set
-`CORTEX_ESCALATION=1`, `CORTEX_MODELHOST_BACKEND=supervisor`,
-`CORTEX_BRAIN_ENDPOINT=http://model-host:8081` on the brain. **A tier with no artifact file is not
+`CORTEX_ESCALATION=1` and `CORTEX_MODELHOST_BACKEND=supervisor`, all on the host or in `.env`. The
+gpu overlay already points `CORTEX_BRAIN_ENDPOINT` at `http://model-host:8081`. **A tier with no artifact file is not
 in the roster at all**, so a stock stack answers 404 for the deep model rather than spawning a
 doomed process, and `GET /health` lists exactly the tiers it can run.
 

@@ -248,15 +248,13 @@ Sittings die on setup. Have these before starting.
   (`just up-gpu`); see [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). The mount's host
   directory is `CORTEX_MODELS_DIR` (default `./models`), which compose interpolates, so the
   calling shell or a repo-root `.env` sets it.
-- **The three escalation settings are brain-side and no compose file interpolates them**, so a
-  `.env` entry or an exported shell variable is silently ignored and the stack comes up with
-  escalation off. They go in the `brain` service's `environment:` block in
-  `docker/docker-compose.gpu.yml`, which is what that file's own header instructs, or in a local
-  override layered after it. They are needed together: `CORTEX_ESCALATION=1`,
-  `CORTEX_MODELHOST_BACKEND=supervisor`, and `CORTEX_BRAIN_ENDPOINT=http://model-host:8081`. The
-  last one used to be missing from this list: without it the brain refuses to boot and restarts
-  forever on `CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1` (`config_swap.py`).
-  `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override, so do not add it.
+- **Escalation takes three brain settings together**: `CORTEX_ESCALATION=1`,
+  `CORTEX_MODELHOST_BACKEND=supervisor`, and `CORTEX_BRAIN_ENDPOINT=http://model-host:8081`.
+  Without the last one the brain refuses to boot and restarts forever on
+  `CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1` (`config_swap.py`).
+  `docker/docker-compose.gpu.yml` sets that endpoint and `CORTEX_MODELHOST_ENDPOINT` itself and
+  passes the other two through from the host by name, so a `.env` entry or an exported shell
+  variable carries them. Until 2026-09-17 nothing passed them, and both were silently ignored.
 - `CORTEX_MODEL_FILE_BRAIN`, with `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it, is
   model-host side and **is** interpolated, so `.env` or the calling shell carries it. It is what
   puts the deep tier in the roster at all.
@@ -489,24 +487,20 @@ Item 5 runs on none of this: it starts its own container, so it wants the stack 
    assuming.** A model-host left running holds the whole card, and this repo has already spent a
    round on a cleanup that was claimed and not checked.
 
-10. **Only for items 2, 3 and 4: put the three escalation settings in the `brain` service's
-    `environment:` block** of `docker/docker-compose.gpu.yml`, which is what that file's header
-    instructs, or in a local override you layer after it with your `-f` last. Nothing interpolates
-    them, so a `.env` entry and an exported shell variable both leave the container without them
-    and the stack comes up with escalation quietly off:
+10. **Only for items 2, 3 and 4: turn escalation on from the host.** Add these two lines to the
+    repo-root `.env`, or export them in the shell that runs `just up-gpu`:
 
-    ```yaml
-    services:
-      brain:
-        environment:
-          CORTEX_ESCALATION: "1"
-          CORTEX_MODELHOST_BACKEND: "supervisor"
-          CORTEX_BRAIN_ENDPOINT: "http://model-host:8081"
+    ```bash
+    CORTEX_ESCALATION=1
+    CORTEX_MODELHOST_BACKEND=supervisor
     ```
 
-    All three or none. `config_swap.py` fails the brain at boot on escalation without a backend and
-    on escalation without a brain endpoint, and the container then restarts forever rather than
-    serving. `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override; do not add it.
+    The GPU override passes both into the brain by name and already sets `CORTEX_BRAIN_ENDPOINT`
+    and `CORTEX_MODELHOST_ENDPOINT`, so do not add either. `config_swap.py` fails the brain at boot
+    on escalation without a backend, and the container then restarts forever rather than serving.
+    Before starting, `docker compose --project-directory . -f docker/docker-compose.yml -f
+    docker/docker-compose.gpu.yml config brain` shows both under `brain:` with the values you set;
+    `null` there means the variable did not reach compose.
 
 11. Read [runbooks/model-swap.md](../runbooks/model-swap.md) before item 2, whose opening paragraph
     states which of its numbers are the mechanism's and which are a tier's. When a live test needs
@@ -526,7 +520,7 @@ a brain with all three escalation settings booted healthy, and the two live stre
 `brain/packages/inference/tests/test_backend_live.py` passed against it through the real
 `LlamaCppBackend`. Dropping `CORTEX_BRAIN_ENDPOINT` was confirmed to be a restart loop, and putting
 the three settings in the shell instead of the compose file was confirmed to leave the container
-with none of them. One thing to expect on the host box too: the rest of the
+with none of them, which is what the pass-through of 2026-09-17 changed. One thing to expect on the host box too: the rest of the
 `just brain-inference-live` suite starts its own `llama-server` on `127.0.0.1:8080`, which the
 sidecar already publishes, so those arms fail on the port rather than on the stack.
 
