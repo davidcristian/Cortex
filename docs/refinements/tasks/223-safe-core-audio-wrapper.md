@@ -3,12 +3,13 @@
 **Status:** open, fix when it bites
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Trigger:** a fully-safe wrapper crate over the Core Audio volume API maturing, the way
-`global-hotkey` already covers the hotkey. What such a crate would delete is listed by
+**Trigger:** a crate on crates.io whose public API reads and writes the default render
+endpoint's master volume and mute with no `unsafe` at the call site, and which does not initialize
+and uninitialize COM around each call. The second condition is what the nearest crate today fails,
+and it is read off the crate's source. What such a crate would delete is listed by
 `grep -n unsafe body/crates/os_windows/src/audio.rs`: four `unsafe` blocks, one `unsafe fn`, and the
-module's scoped allow, six sites as of 2026-09-08. The trigger has fired when a crate can carry all
-six and still resolve the default render endpoint on every call.
-**Verified:** 2026-09-10
+module's scoped allow, six sites as of 2026-09-17.
+**Verified:** 2026-09-17
 
 Body gateway & OS actions in Slice 9 ([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)): each
 behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
@@ -46,8 +47,29 @@ exception is not something this entry can deliver.
 a count that was right until `focus` arrived on 2026-08-10 and stale after it; `lib.rs` had already
 been corrected to four. Both now say four.
 
-**What would close it.** A crate that resolves the default render endpoint and reads and writes its
-master scalar volume and mute without exposing raw COM, adopted in `audio.rs`, its scoped allow
+**The nearest crate, and why it does not fire the trigger.** `volumecontrol-windows` 0.1.2
+(first published 2026-03-28, last released 2026-04-02, so it existed before this entry's 2026-09-08
+re-read) is a safe wrapper over `IAudioEndpointVolume`: `AudioDevice::from_default()` resolves the
+default render endpoint, and `get_vol`, `set_vol`, `is_mute` and `set_mute` take `&self` with its
+`unsafe` confined to its own `internal` module. Constructing the device on every call would keep
+this backend's resolve-per-call behaviour, so the trigger as it was written before 2026-09-17 was
+already met. Three things keep it out, read from its 0.1.2 source:
+
+- every call runs inside a `ComGuard` that calls `CoInitializeEx(COINIT_MULTITHREADED)` and, when
+  that returns `S_OK` or `S_FALSE`, `CoUninitialize` on drop. On a blocking pool thread that no
+  other code has initialized, that joins and leaves the multithreaded apartment per call, which
+  [R-224](224-unbalanced-com-initialization.md) names as the wrong fix for this backend's own
+  imbalance;
+- it depends on `windows` 0.62, where this tree's lockfile pins 0.58, so adopting it compiles a
+  second `windows` major version unless the body moves first;
+- its volume is a `u8` percentage, rounded on read and divided by 100 on write, where the port's
+  `VolumeState::level` is an `f32` fraction, so a level set elsewhere reads back quantized to one
+  percent. Windows' own volume flyout shows whole percentages, so this one is a difference rather
+  than a bar.
+
+`wasapi` 0.24.0, the widely used WASAPI crate, has no `IAudioEndpointVolume` wrapper at all.
+
+**What would close it.** A crate meeting the trigger, adopted in `audio.rs`, its scoped allow
 deleted, and the result validated on a Windows desktop the way the backend itself was.
 
 ## Trail
@@ -62,3 +84,11 @@ deleted, and the result validated on a Windows desktop the way the backend itsel
   `body/Cargo.toml` and `deny` in the crate's own. Nothing safe has been adopted for Core Audio:
   the crate's only dependencies under `cfg(windows)` are `body-core`, `global-hotkey` and the
   `windows` crate whose `Win32_Media_Audio` features are what the `unsafe` calls into.
+- 2026-09-17: the trigger was read against crates.io rather than against this tree's manifest,
+  which is the question it asks, and the entry was wrong that no such crate existed.
+  `volumecontrol-windows` 0.1.2 already met the condition as written; it stays out because it
+  balances COM per call, pulls `windows` 0.62 beside the pinned 0.58, and works in whole percent.
+  The trigger now names the COM condition, which is the one that decides. The tree is unchanged
+  since 2026-09-10: no commit touches `body/crates/os_windows` or the body manifests, `audio.rs` is
+  113 lines with the same six sites, and the four modules carrying an allow are still `audio`,
+  `notify`, `screen` and `focus`.

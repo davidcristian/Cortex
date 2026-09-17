@@ -10,14 +10,16 @@ never `CoUninitialize`, which on tokio's blocking pool means threads join the MT
 reaped unbalanced. Only a long-uptime Windows session with sporadic OS actions can show it.
 
 The fix and the argument for it stay in
-[refinements/body-gateway.md](../../refinements/index.md#body-gateway), which is where the code cost
-belongs; what lives here is the trigger, kept verbatim from that entry:
+[R-224](../../refinements/tasks/224-unbalanced-com-initialization.md), which is where the code cost
+belongs; what lives here is the trigger as that entry first wrote it:
 
 > **Fix when it bites**, the trigger being any COM failure or thread growth the user sees on
 > Windows after a long session
 
 **Watch for.** A volume or toast call that starts failing after the app has been up for a long
-time, or Tauri's thread count growing without bound.
+time, or the body process's handle count climbing across bursts of OS actions spaced more than ten
+seconds apart, tokio's default keep-alive for an idle blocking thread. Its thread count is a
+weaker reading, since tokio exits those threads whatever their COM apartment.
 
 **Record it.** If it ever bites, say so on that refinements entry, which then becomes actionable.
 

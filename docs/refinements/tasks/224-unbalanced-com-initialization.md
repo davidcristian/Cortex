@@ -3,12 +3,15 @@
 **Status:** open, fix when it bites
 **Area:** body-gateway
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-09-10
-**Trigger:** any COM failure or thread growth the user sees on Windows after a long session. Only a
-Win32 desktop can show it, and the standing observation is the `windows-desktop` watch item in
-`docs/host/`. The code half is rechecked with
-`grep -rn 'CoInitializeEx\|CoUninitialize' body/crates/os_windows/src/`, which reports two
-initializations and no uninitialization as of 2026-09-08; a third initialization, or any
+**Verified:** 2026-09-17
+**Trigger:** either of two readings. On a Win32 desktop, the standing `windows-desktop` watch item
+in `docs/host/`: a volume or toast call failing with a COM error after a long uptime, or the body
+process's handle count climbing across bursts of OS actions spaced further apart than tokio's
+blocking thread keep-alive (10 s by default, and nothing under `body/` sets another), rather than
+returning to its idle level between them. The thread count is the weaker witness, because tokio
+exits an idle blocking thread after that keep-alive whatever its apartment. In the tree,
+`grep -rn 'CoInitializeEx\|CoUninitialize' body/crates/os_windows/src/` reports two
+initializations and no uninitialization as of 2026-09-17; a third initialization, or any
 `CoUninitialize`, means the shape below has changed and this entry needs rereading before the
 observation does.
 
@@ -71,3 +74,12 @@ COM-initialized thread the OS calls are funnelled through.
   still holds five modules beside `lib.rs`. `off_worker` still has four call sites, three of them
   reaching an initializing backend. The observation half is still out of reach here, there being no
   Win32 desktop session on this machine.
+- 2026-09-17: rechecked from the source and unchanged: no commit since 2026-09-10 touches
+  `body/crates/os_windows`, `body/crates/rpc/src/server.rs` or `body/crates/rpc/src/screen.rs`,
+  the grep reports the same two initializations at `audio.rs:43` and `notify.rs:61`, and
+  `CoUninitialize` appears in no Rust source (only in a doc comment in `screen.rs`). The trigger
+  now names a reading a Windows run can take, the handle count across bursts spaced past the
+  blocking pool's keep-alive, in place of "thread growth the user sees", which tokio's reaping
+  makes a weak witness. A safe Core Audio crate would not retire this entry by itself:
+  `volumecontrol-windows`, the nearest one ([R-223](223-safe-core-audio-wrapper.md)), initializes
+  and uninitializes around every call, which is the fix the body above rejects.

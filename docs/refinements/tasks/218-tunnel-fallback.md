@@ -5,7 +5,7 @@
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 **Trigger:** `host.docker.internal` failing, from a bridge-network container on this
 host, to reach a host service bound to an interface a container can see.
-**Verified:** 2026-09-11
+**Verified:** 2026-09-17
 
 Body gateway & OS actions in Slice 9 ([ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)): each
 behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
@@ -41,3 +41,11 @@ body-initiated bidi stream is a different `BodyGateway` adapter, with no core/to
   `eth5` today, produced no request at the server within an 8 s timeout, as on 2026-09-06.
   `docker/docker-compose.body.yml` still instructs the operator to bind the body to
   `0.0.0.0:50151` (lines 11-12) and still adds the `host-gateway` alias (line 55).
+- 2026-09-17: measured again on this host and still not fired. A `python3 -m http.server` on
+  `0.0.0.0` at the kernel-chosen port 43778, confirmed with `ss -ltn` first, was dialled from
+  `alpine:latest` on the default bridge: with `--add-host host.docker.internal:host-gateway` the
+  name resolved to `fdc4:f303:9324::254` and without it to `192.168.65.254`, and both GETs landed,
+  two lines in the server's log seen from `127.0.0.1`. The LAN address, `192.168.0.196` on `eth0`
+  today, timed out after 8 s from the same kind of container. No commit since 2026-09-11 touches
+  `docker/docker-compose.body.yml` or `docker/docker-compose.yml`, so the override still carries
+  the `0.0.0.0:50151` bind instruction and the `host-gateway` alias.
