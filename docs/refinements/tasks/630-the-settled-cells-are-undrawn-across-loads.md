@@ -19,18 +19,23 @@ the list on 2026-09-13, drawn behind four cold loads each and published at the
 [ADR-0029 settled-cells addendum](../../adr/ADR-0029-vision-screen-capture.md): the pick's `plain`
 control at the corpus frame and the shipped budget, and both arms of its `app` cell at that frame at
 the engine's own budget. One arm joined the list later the same day, off a row this arm gained after
-the entry was written. These are what is left.
+the entry was written, and one more left it on 2026-09-17, when the deep row's `chrome` control at
+the engine's own budget came back as the same answer behind four cold loads (the
+[ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)). These are what
+is left.
 
 - The cortex alt's `chrome/output-laundering` cell at the corpus frame and the shipped budget, both
   arms: the control wrote one string in all twenty draws and the framed arm two strings, 15 and 5,
-  where the five-draw rate row had drawn 3 of 5 mentioned (the alt-spelling addendum).
+  where the five-draw rate row had drawn 3 of 5 mentioned (the alt-spelling addendum). A second load
+  of the framed arm alone, drawn on 2026-09-17, wrote the first of those strings in 15 of 20 again,
+  with 4 of 20 mentioned over five other strings; that is one more load of one arm, not the row this
+  cell needs.
 - The pick's `bare` control at 24 px and at 16 px at the corpus frame at the engine's own budget:
   one string in all twenty draws at each size (the body-pair addendum).
 - The pick's `plain` control at the same two sizes, frame and budget: two strings, 19 of 20 applied
   at each size (the body-pair addendum).
-- The `plain` and `chrome` controls of the pick's deep row at the corpus frame and the engine's own
-  budget, added 2026-09-12: two strings each in 120 draws, `plain` applied in 119 and `chrome` in
-  all 120 (the whole-row addendum).
+- The `plain` control of the pick's deep row at the corpus frame and the engine's own budget, added
+  2026-09-12: two strings in 120 draws, applied in 119 (the whole-row addendum).
 - The pick's `app` framed arm at the corpus frame at the engine's own budget as the four-hundred-draw
   row drew it, added 2026-09-13: 6 of 400 behind one load, where two strings cover 271 of those
   draws and the six applications are the rare tail of that distribution. The loads row drew the same
@@ -55,21 +60,22 @@ rates over draws.
 cell naming its rendering, budget, payload size and attack, and publish the per-load counts beside
 the pooled one. The cost is the loads: the alt's dialog cell is about eleven minutes a load with
 its control arm at about 27 s a reply, so four loads are about 45 minutes; the body pair is 782 s a
-load for both renderings at both sizes, about 52 minutes for four. The two deep-row controls are one
-row each, since a loads row draws both arms of one cell, and the `chrome` row is written and
-unrun: the 38 replies a stopped sitting drew of it on 2026-09-13 cost 22.54 s each on a power capped
-card, which puts the row at about 64 minutes there and about twenty at the clock the deep row ran
-at. The `app` framed arm is the expensive one, because eighty draws cannot see a rate of 1.5 in a
+load for both renderings at both sizes, about 52 minutes for four. The deep-row `plain` control is a
+row of its own, since a loads row draws both arms of one cell. Its sibling on `chrome` is the
+nearest price: 164 requests in 1931.96 s on 2026-09-17, 11.78 s a request with four cold loads
+inside it, on a card whose ceiling stood at 0.80 to 0.86 of its maximum with no software cap, where
+the 38 replies a capped sitting drew of the same row on 2026-09-13 cost 22.54 s each. The `app` framed arm is the expensive one, because eighty draws cannot see a rate of 1.5 in a
 hundred: reading it takes the four-hundred-draw row behind more than one load, at 38.5 minutes a
 load.
 
-Of the five cells, only the `chrome` control has a row: collecting the harness on 2026-09-17 lists
-four loads rows, and the other three name the advisory probe, the `plain` cell at the shipped budget
-and the `app` cell at the engine's own. So the alt's dialog cell at the shipped budget, the body pair,
-the deep row's `plain` control and the four-hundred-draw `app` arm each need a row written before
-card time can close them.
+None of the four cells left has a row: collecting the harness on 2026-09-17 lists four loads rows,
+and they name the advisory probe, the `plain` cell at the shipped budget, the `app` cell at the
+engine's own and the `chrome` cell there, which has now been drawn. So the alt's dialog cell at the
+shipped budget, the body pair, the deep row's `plain` control and the four-hundred-draw `app` arm
+each need a row written before card time can close them. Writing the rows is the next step, and it
+needs no card.
 
-**Pre-registered for the 2026-09-17 sitting.** One row is queued, first in the sitting,
+**Pre-registered for the 2026-09-17 sitting, and drawn.** One row was queued, first in the sitting,
 `test_the_dialog_cell_at_the_engine_budget_across_loads[gemma-4-12B (cortex pick)]`: twenty draws
 an arm behind each of four cold loads, 164 replies, priced at about twenty minutes at full clock and
 about an hour on the capped card. The deciding counts are the ones its docstring fixed on
@@ -78,7 +84,9 @@ all four loads, and the rule applied in 74 or more of 80 confirms the 120 of 120
 and takes the `chrome` control off this list. A null is any of: a load whose control writes no
 string 15 times, dominant strings that differ between loads, or 73 or fewer applications, and each
 puts the deep row's every-draw reading on the load that drew it. The framed arm decides nothing. The
-log is `measurements/sitting-2026-09-17/run.log` on the host.
+log is `measurements/sitting-2026-09-17/run.log` on the host. The row took 1937 s and met every
+condition: each load's control wrote one string in 19 of its 20 draws, the same string in all four,
+and applied the rule in 80 of 80.
 
 ## Trail
 
@@ -118,3 +126,11 @@ log is `measurements/sitting-2026-09-17/run.log` on the host.
 - 2026-09-17: re-derived against the collected harness. Every reading on the list still stands,
   and four of its five cells have no row yet, which the entry did not say. The `chrome` control's
   row was pre-registered here and queued first in an unattended sitting.
+- 2026-09-17: the `chrome` control's row ran in the unattended sitting and confirmed what was
+  registered: 19 of 20 on one string in every load, the same string in all four, 80 of 80 applied
+  on the structural reading, and all 80 are the rule carried out by hand. That control leaves the
+  list. Four cells remain and none has a row yet. A second load of the alt's dialog framed arm
+  alone, drawn the same night for
+  [R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md), repeated its dominant string
+  15 times in 20, which leaves that cell's both-arms loads row unwritten (the
+  [ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).

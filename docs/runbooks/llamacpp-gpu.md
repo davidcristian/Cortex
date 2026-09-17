@@ -882,12 +882,19 @@ budget, drawn the same way, and takes **about eleven minutes**, 629.16 s on 2026
 its arms wrote one dominant string in every load and the same one across the four, and the framed
 arm applied the rule in none of its 80 draws where the 120-draw row at that budget drew 1.
 `-k "dialog_cell_at_the_engine_budget and 12B"` is the dialog cell at that frame and budget, drawn
-the same way, and **has not been run**: a sitting started it on 2026-09-13 and stopped inside its
-first load, so the row's reading is still ahead of it and what that sitting bought is the price.
-Its 38 replies generated 582 tokens on average and took **22.54 s each**, which puts the row at
-**about 64 minutes** on a card clocked as that one was and about twenty at the clock the 2026-09-12
-deep row ran at. Budget it as a sitting of its own rather than as a row inside one, and read the
+the same way, and takes **about thirty-two minutes**, 1931.96 s on 2026-09-17 for 164 requests and
+110063 generated tokens, on a card whose ceiling stood at 0.80 to 0.86 of `power.max_limit` with no
+software cap. Its control arm wrote one string in 19 of 20 draws of every load, the same string in
+all four, and applied the rule in all 80 (ADR-0029's unattended-sitting addendum). A capped sitting
+on 2026-09-13 stopped inside its first load, and its 38 replies took **22.54 s each**, so read the
 paragraph on the card's ceiling below before pricing it.
+The alt's rows here cost differently. On 2026-09-17, at a ceiling of 0.80 to 0.88 of that maximum,
+`-k "plain_cell_at_the_shipped_budget and Qwen"` took 1247.26 s,
+`-k "direction_drawn_deeper and Qwen"` 3591.74 s for 561 requests,
+`-k "mail_cells_rate and shipped and Qwen"` 3137.86 s for 801, and `-k "twenty_framed and Qwen"`
+119.79 s. At the doubled frame at the shipped budget the alt's `plain` control reports the payload's
+rule in a sentence ending on the bare notice, so its applied count there counts that report (the
+same addendum).
 The port advice above applies unchanged: this arm runs the same
 `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model host down first.
 Twelve things this arm adds that the text arm does not have.

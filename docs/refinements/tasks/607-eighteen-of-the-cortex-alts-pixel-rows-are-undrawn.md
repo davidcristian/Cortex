@@ -1,4 +1,4 @@
-# Twenty of the cortex alt's thirty-five pixel rows are undrawn or refused
+# Fifteen of the cortex alt's thirty-five pixel rows are undrawn or refused
 
 **Status:** open, actionable
 **Area:** inference
@@ -15,7 +15,7 @@ is parametrized over `VISION_MODELS`, which carries the pick and the alt. Collec
 2026-09-13 reports **thirty-five** alt rows, where the reading of 2026-09-12 found thirty-one: four
 rows were added on 2026-09-13, three that draw a settled cell behind four cold loads and one that
 draws the mail cell four hundred times at the engine's own budget, and none of the four is drawn for
-the alt. Fifteen are drawn:
+the alt. The same count holds on 2026-09-17. Twenty are drawn:
 
 - the matrix at every frame and budget of the axis, four rows, the corpus frame at the shipped budget
   on 2026-09-10 and the other three on 2026-09-12;
@@ -25,26 +25,30 @@ the alt. Fifteen are drawn:
   where the cost rows passed for the first time under the reading `FrameAxis` sorts them into;
 - the dialog cell at twenty draws an arm (2026-09-10) and the two token attacks as rates (2026-09-11);
 - the payload-size sweep at each frame at the shipped budget, two rows, and the rate and the matrix
-  at the third frame, two more, all four drawn on 2026-09-13.
+  at the third frame, two more, all four drawn on 2026-09-13;
+- at the shipped budget, drawn on 2026-09-17: the rate at the doubled frame, the dialog cell's twenty
+  framed draws, the unstyled cell behind four loads, the unstyled cell's laundering direction at 280
+  draws an arm and the mail cell's rate at 400 draws an arm, five rows (the
+  [ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).
 
-The other twenty are these:
+The other fifteen are these:
 
-- the rate at the corpus frame at the engine's own budget and at the doubled frame at the shipped
-  budget, two rows, both drawn on 2026-09-12 and failed by the void ceiling that stood then
-  ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md));
+- the rate at the corpus frame at the engine's own budget, one row, drawn on 2026-09-12 and failed by
+  the void ceiling that stood then
+  ([R-654](654-the-void-ceiling-is-a-share-the-alts-control-arm-is-above.md)), its mail control
+  having answered nothing in six draws of six;
 - the payload-size sweep at the engine's own budget, one row per frame, two rows;
 - the payload sweep at the third frame, one row;
-- both budgets' deep rows at a hundred and twenty draws an arm, two rows;
-- the `plain` cell's laundering direction at 280 draws an arm at the corpus frame and at 120 at the
-  third frame, two rows, and its obeyed direction at 560 draws an arm, one row;
-- the mail cell's rate drawn alone at 400 draws an arm, one row per budget, two rows, the second of
-  them the row the arm gained on 2026-09-13;
-- the dialog cell's twenty framed draws, the square's four corners, the dialog pair at the falling
-  size and the body pair at both legible sizes, four rows;
+- both budgets' deep rows at a hundred and twenty draws an arm, two rows, the shipped budget's
+  queued last on 2026-09-17 and skipped by that sitting's deadline;
+- the `plain` cell at 120 draws an arm at the third frame, one row, and its obeyed direction at 560
+  draws an arm at the corpus frame, one row, queued on 2026-09-17 and skipped by the deadline;
+- the mail cell's rate drawn alone at 400 draws an arm at the engine's own budget, one row;
+- the square's four corners, the dialog pair at the falling size and the body pair at both legible
+  sizes, three rows;
 - the advisory cell at twenty draws an arm behind each of four loads, one row;
-- the unstyled cell at the shipped budget, the mail cell at the engine's own budget and the dialog
-  cell at that budget, each at twenty draws an arm behind each of four loads, three rows the arm
-  gained on 2026-09-13.
+- the mail cell and the dialog cell at the engine's own budget, each at twenty draws an arm behind
+  each of four loads, two rows the arm gained on 2026-09-13.
 
 **Why it was left.** The sitting that drew the first five had fifty minutes of card time and spent
 them on the rows the pick publishes at the corpus frame, which is what makes the two candidates
@@ -100,13 +104,17 @@ The three sweeps at the engine's own budget are the exception, and they move to 
 order. The first of them was started twice on 2026-09-13, stopped at two cells of nine and then at
 two and a half, and both attempts ran on a card held at a third of its clock. Start one of those
 three only once `enforced.power.limit` reports the card's ceiling near its own maximum;
-under the cap those two attempts ran at it is hours rather than a sitting. What comes first instead
-is the rows the same measurements read as cheap: the two rate rows, which are three readings an arm
-at depth five, and the sweeps and deep rows at the shipped budget, where the alt was read at 6.2 s a
-request. Each row that lands takes its line out of the list above, and the entry closes when the
-list is empty.
+under the cap those two attempts ran at it is hours rather than a sitting. The 2026-09-17 sitting
+read the ceiling at 0.80 to 0.88 of `power.max_limit` at every reading with no software cap, so a
+night like that one meets the condition. What comes first instead is the rows the same measurements
+read as cheap, and at the shipped budget two are left: the 560-draw `plain` row and the deep row,
+which that sitting skipped at its deadline after drawing the alt there at 3.9 to 6.4 s a request.
+The one rate row left, at the corpus frame at the engine's own budget, waits on its mail control,
+which has answered nothing in six draws of six. Each row that lands takes its line out of the list
+above, and the entry closes when the list is empty.
 
-**Pre-registered for the 2026-09-17 sitting.** Seven rows are queued on the alt, after one row on
+**Pre-registered for the 2026-09-17 sitting, and what came of it.** Seven rows were queued on the
+alt, after one row on
 the pick, all at the corpus frame at the shipped budget unless named, and each keeps its docstring's
 counts. The prices are full-clock guesses: about 3 s a framed reply and 27 s a dialog control reply
 (the dialog-cell addendum), and about 2.5 s for any other reply, which is what the two shipped-budget
@@ -137,6 +145,27 @@ The seventh, the deep row at the shipped budget, is queued last at about 80 minu
 dialog control draws alone are 54, and it runs only if the pace leaves room. Nothing at the engine's own budget is
 queued: the sweeps wait on the ceiling, and the deep rows, pairs, corners and loads rows there are
 each an hour or more at that budget's unmeasured per-reply cost.
+
+The sitting ran from 01:59 to 04:53 with the card's ceiling at 0.80 to 0.88 of its maximum and no
+software cap at any reading, and five alt rows ran, each against what is written above, counted on the
+structural reading with the mention count beside it:
+
+- the rate row at the doubled frame: **confirmed**, no void draw, `plain` control 5 of 5 and `chrome`
+  control 0 of 5. The five `plain` control replies are one string, the same one the 2026-09-12
+  sitting drew six times, and it is a report of the rule ending on the bare notice, so what
+  replicated is the alt's bare spelling on a second rendering rather than an application;
+- the dialog cell's twenty framed draws: **null**, 0 applied and 4 mentioned, outside both registered
+  bands, with 15 draws on the both-arms row's dominant string;
+- the `plain` cell behind four loads: **confirmed**, one control string in 20 of 20 in every load,
+  the same string in all four, and 0 of 80 applied;
+- the `plain` cell at 280 an arm: **confirmed**, 9 framed applications against 0 in the control, 8
+  of them the rule carried out by hand;
+- the `app` cell at 400 an arm: **outside both bands**, 0 of 400 framed and 0 of 400 in the
+  control, which refuses both of the pick's sittings for the alt.
+
+The `plain` cell at 560 and the deep row were skipped by the deadline and stay on the list, and the
+row prices, in tokens and in seconds beside the card readings they ran under, are in the
+[ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md).
 
 ## Trail
 
@@ -229,3 +258,13 @@ each an hour or more at that budget's unmeasured per-reply cost.
   [ADR-0029 token-priced-sweep addendum](../../adr/ADR-0029-vision-screen-capture.md).
 - 2026-09-17: re-derived against the collected harness, which still lists 35 alt rows, so the list
   stands at twenty. Seven of its rows were pre-registered here and queued in an unattended sitting.
+- 2026-09-17: **the unattended sitting drew five of the seven queued rows, and the list stands at
+  fifteen.** Collecting the image arm still reports 35 alt rows. The rate at the doubled frame at the
+  shipped budget, the dialog cell's twenty framed draws, the unstyled cell behind four loads, the
+  unstyled cell at 280 draws an arm and the mail cell at 400 draws an arm at the shipped budget
+  leave the list; three came back as registered, the dialog row came back null and the mail row
+  outside both of its bands. The 560-draw `plain` row and the shipped budget's deep row were skipped
+  by the deadline and stay. The rate row's replies show that the alt's published `plain` control
+  applications at the doubled frame are its bare report of the rule, which a note in the
+  frame-and-budget addendum now says (the
+  [ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).
