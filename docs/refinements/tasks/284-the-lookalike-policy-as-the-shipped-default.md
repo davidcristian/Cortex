@@ -4,8 +4,9 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0015](../../adr/ADR-0015-output-guardrail.md)
 **Trigger:** a deployment measurement of how often a real turn names an internationalized host after
-reading untrusted content, which cannot be counted until a redaction records the ground it stood on
-(entry 685). Two readings say cheaply whether anything has moved. The shipped default
+reading untrusted content: the sum of `lookalike=` over the `cortex_core.turn_output` lines
+`the output guardrail removed links from this reply` carrying `policy=lookalike`, across a week of
+turns under that policy. Two readings say cheaply whether anything has moved. The shipped default
 is one binding, so
 `grep -n output_guardrail brain/packages/orchestrator/src/cortex_orchestrator/config.py` reports
 whether it is still `redact`. The corpus arm is the count of distinct non-ASCII hosts `URL_RE` finds
@@ -27,11 +28,10 @@ ranking, where 0 of the top 1,000 hosts and 1,441 of the top 1,000,000 are inter
 against this repo's own corpus. Neither is the question. The question is how often **a real turn on
 this machine** names such a host **after reading untrusted content**, which is a measurement of one
 deployment's mail and files and not of the web, and nothing in the repo can stand in for it. A week
-of turns with the policy on and the redactions counted by ground would answer it, and nothing counts
-them that way yet: `guardrail.py` writes no log line, and `REDACTED_LINK` is the same text whichever
-ground removed the link, so a persisted reply shows that a link was removed and never whether the
-lookalike ground was the one that removed it
-([R-685](685-a-redaction-records-no-ground.md)). A single user-visible false positive answers it
+of turns with the policy on and the redactions counted by ground would answer it. `REDACTED_LINK` is
+the same text whichever ground removed the link, so the count is read off the line a settled reply
+logs when it lost one, which carries a count per ground and counts a link under the lookalike
+ground only when no other ground in force took it (ADR-0015 per-ground addendum). A single user-visible false positive answers it
 too, which is why this waits on being bitten rather than on being scheduled.
 
 **Re-read 2026-09-08, and the corpus arm was six times out of date.** The default is unchanged:
@@ -83,8 +83,8 @@ phishing link harms the user.
   has run under the lookalike ground. The corpus arm over `git ls-files` at `HEAD`: 1,663 tracked
   files, 1,637 readable, 2,578,187 words, 3,018 spans reducing to 1,198 distinct identities, and
   **12** distinct non-ASCII hosts, the same twelve in the same four files with the same three
-  backtick and arrow artifacts. The new finding is in the remedy: `guardrail.py` holds no logger,
+  backtick and arrow artifacts. The new finding was in the remedy: `guardrail.py` held no logger,
   and `_redacted` substitutes one `REDACTED_LINK` for every ground, so a week under the policy
-  would leave a count of removed links and no count of lookalike removals. Filed
-  [R-685](685-a-redaction-records-no-ground.md) for the per-ground count, and recorded both in the
-  ADR-0015 addendum of 2026-09-17.
+  would have left a count of removed links and no count of lookalike removals. The ADR-0015
+  per-ground addendum of the same day added that count as a log line, and the trigger above now
+  names it.

@@ -14,9 +14,9 @@ from cortex_core.untrusted import TaintLedger
 
 _logger = logging.getLogger(__name__)
 
-# One turn's two guarded output channels: the reply filter (``None`` when unguarded) and the
-# thinking status channel, as ``open_output_channels`` returns them.
 type OutputChannels = tuple[OutputFilter | None, ThinkingChannel]
+
+_REDACTED_LOG_MSG = "the output guardrail removed links from this reply"
 
 REPLY_CAPPED_NOTE = (
     "\n\n(This answer stopped at the machine's length limit, so it is cut off rather than "
@@ -39,6 +39,8 @@ def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
 
 def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when a tool call would not parse, unless a token limit already explains it."""
+    # Nothing when a limit already explains the fragment: ``cap_note`` appends its own note a
+    # moment later, so a reader is never handed two explanations for one cut-off reply.
     if stops.capped:
         return
     parts.append(UNREADABLE_CALL_NOTE)
@@ -46,7 +48,7 @@ def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEv
 
 
 def render_exchange(user_text: str, assistant_text: str) -> str:
-    """Render one completed turn as the memory recorded at turn end (ADR-0008)."""
+    """Render one completed turn as the memory recorded at turn end."""
     return f"User: {user_text}\nAssistant: {assistant_text}"
 
 
@@ -55,7 +57,23 @@ def flush_channels(channels: OutputChannels, parts: list[str]) -> Iterator[TurnE
     if (status := channels[1].release()) is not None:
         yield status
     guard = channels[0]
-    if guard is not None and (tail := guard.flush()):
+    if guard is None:
+        return
+    tail = guard.flush()
+    removed = guard.redactions()
+    if any(removed.values()):
+        # The counts are the whole line: a removed URL and its host are the untrusted text
+        # itself, so neither is written to the log.
+        _logger.info(
+            _REDACTED_LOG_MSG,
+            extra={
+                "policy": guard.policy,
+                "collected": removed["collected"],
+                "link": removed["link"],
+                "lookalike": removed["lookalike"],
+            },
+        )
+    if tail:
         parts.append(tail)
         yield TextDelta(text=tail)
 
@@ -92,7 +110,9 @@ async def stream_turn_events(
 async def record_exchange(
     caps: TurnCapabilities, taint: TaintLedger, *, session_id: str, query: str, reply: str
 ) -> None:
-    """Record the completed exchange to memory under the turn's taint policy (ADR-0013/0019)."""
+    """Record the completed exchange to memory under the turn's taint policy."""
+    # A turn that read the screen is never recorded, whatever the deployment's taint policy
+    # says: its reply is a transcription of whatever was on the screen.
     if taint.opaque:
         return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):

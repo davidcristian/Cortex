@@ -1,16 +1,9 @@
-"""Public core names for the fields a log line carries and the formatters that render them.
-
-Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
-stays ``cortex_core``. ``__all__`` is this file's contract.
-"""
+"""Public core names for a log line's fields and the formatters that render them."""
 
 from cortex_core.log_fields import (
     CUT,
-    REDACTED,
     RESERVED_ATTRS,
-    SECRET_NAMES,
     VALUE_CHARS,
-    is_secret_name,
     record_fields,
     redact_urls,
     render_fields,
@@ -27,6 +20,7 @@ from cortex_core.log_format import (
     build_formatter,
     configure_logging,
 )
+from cortex_core.log_secrets import REDACTED, SECRET_NAMES, is_secret_name, withhold_secrets
 
 __all__ = [
     "CUT",
@@ -48,4 +42,5 @@ __all__ = [
     "redact_urls",
     "render_fields",
     "render_value",
+    "withhold_secrets",
 ]

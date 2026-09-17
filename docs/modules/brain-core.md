@@ -826,7 +826,12 @@ table is read by the grammar and the identity alike, so neither may own it):
   message carried.
 - `OutputFilter` (protocol) provides `feed(chunk) -> str` (the scrubbed text safe to emit now; an
   ambiguous suffix (a URL still growing, a partial `http(s)://`/`mailto:`) is carried) and
-  `flush() -> str` (end of stream resolves the carry).
+  `flush() -> str` (end of stream resolves the carry), plus two readings (ADR-0015 per-ground
+  addendum): `policy`, the `CORTEX_OUTPUT_GUARDRAIL` name it was opened under (each guardrail's
+  `POLICY` constant), and `redactions()`, how many URLs it has replaced so far under each ground,
+  keyed `collected`, `lookalike` and `link`, zeros included. A URL is counted under the first
+  ground that holds in the order collected, link, lookalike, so the lookalike count is the URLs no
+  other ground in force would have removed.
 - A policy is a **set of grounds** rather than a mode (ADR-0015 fourteenth addendum): a URL is
   redacted because its identity was `COLLECTED` from this turn's untrusted content, because it is a
   `LOOKALIKE` (host not plain ASCII) on a tainted turn, or because it is a `LINK` at all on one.
@@ -870,6 +875,11 @@ table is read by the grammar and the identity alike, so neither may own it):
   split around a dispatch is joined before matching (per-burst flushing would pass its fragments),
   and `release()` drains the scrubbed carry exactly once, at end of stream. With no guardrail both
   channels pass text through unchanged (an empty delta emits no event on either path).
+- `flush_channels` (`turn_output.py`) is where a reply is settled, on a completed stream and on
+  each path that keeps a partial reply. Right after the reply filter's `flush` it reads
+  `redactions()`, and when any count is above zero it logs `the output guardrail removed links
+  from this reply` at `INFO` on `cortex_core.turn_output` with `collected`, `link`, `lookalike`
+  and `policy`, never a URL or a host. The thinking channel's removals are not counted.
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below; the five
 state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore` /
@@ -2352,7 +2362,8 @@ Use-case:
   `ToolNotFoundError`, failing closed as a real layer. Wraps the subagent tool subset in the wiring
   so a subagent is never *handed* an outbound/gated tool, whatever the shared registry grows.
 
-Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.py`):
+Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py`, `log_secrets.py` and
+`log_format.py`):
 
 - `configure_logging(level, *, style=DEFAULT_LOG_FORMAT)` installs the root handler a process logs
   through. **Called only from a process entry**, never from a library: it is the one function in
@@ -2399,7 +2410,14 @@ Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.
   `apikey`, `api_key`, `authorization`, `cookie`, case-insensitively) renders `REDACTED`
   (`<redacted>`) instead of its value, the key still printed so a withheld field reads differently
   from a missing one. The match is a substring, so `max_tokens` is withheld too, which is the
-  direction of error a denylist is chosen for. Separately, `redact_urls` strips the credential
+  direction of error a denylist is chosen for. **The rule reaches inside a structured field**:
+  `record_fields` runs `withhold_secrets` over every value, which replaces the value under any
+  string key the rule matches, at any depth, in dicts and in lists or tuples of them, and returns
+  a value holding no such key as the same object (ADR-0009 nested-secret addendum). It runs where
+  both renderings read, because `PackedFormatter` never calls `render_value`. A structure nested
+  past the interpreter's recursion limit is withheld whole, the JSON encoder descending further
+  than the walk can; a cycle is left for the encoder, which raises on it. `REDACTED`,
+  `SECRET_NAMES`, `is_secret_name` and the walk live in `log_secrets.py`. Separately, `redact_urls` strips the credential
   from every URL in the **whole rendered line**, message and traceback included, since
   `redis://:pw@redis:6379` is what a connection error prints, **and from every value on its way
   through the bound below, before the cut** (ADR-0038 cut-defeats-withholding addendum).

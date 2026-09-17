@@ -1,5 +1,3 @@
-"""Behavior tests for the file trail: what a record holds, and what a failed append does."""
-
 import json
 import logging
 import stat
@@ -15,6 +13,7 @@ from cortex_core import (
     VALUE_CHARS,
     RecordingAuditSink,
     ToolInvocation,
+    record_fields,
     render_value,
 )
 from cortex_tools import (
@@ -57,7 +56,7 @@ def test_a_record_holds_the_fields_the_log_line_holds() -> None:
         "at": "2026-07-03T12:00:00+00:00",
         "call_id": "c-1",
         "ok": True,
-        "result_chars": 19,  # the size, never the content, exactly as on the line
+        "result_chars": 19,
         "tool": "read",
         "trust": "untrusted",
         "turn_id": "t-1",
@@ -72,9 +71,6 @@ def test_a_url_credential_is_withheld_as_the_line_withholds_it() -> None:
 
 
 def test_a_credential_split_across_two_strings_keeps_the_lines_own_text() -> None:
-    """The line redacts over its whole rendering, so a URL in one string and an `@` in the next
-    are withheld together there. Per string neither matches, so the file keeps the line's text.
-    """
     arguments = ["http://user:pw", "@host"]
     stored = _stored(arguments)
     assert stored == render_value({"value": arguments})
@@ -87,11 +83,29 @@ def test_a_value_the_line_cuts_is_kept_as_the_lines_cut_text() -> None:
     stored = _stored(long)
     assert stored == render_value({"value": long})
     assert isinstance(stored, str)
-    # `{"value":"` and `"}` are twelve characters of syntax around the two bounds of text.
     assert stored.endswith(CUT.format(chars=VALUE_CHARS + 12))
     row = json.loads(durable_line(_call(call_id=long)))
     assert row["call_id"] == render_value(long)
     assert len(row["call_id"]) < VALUE_CHARS * 2
+
+
+def test_a_secret_named_argument_is_withheld_as_the_line_withholds_it() -> None:
+    arguments = {"password": "hunter2", "items": [{"api_token": "abc", "path": "/a"}]}
+    call = ToolInvocation(
+        name="read", arguments=arguments, ok=True, detail="", at=_AT, call_id="c-1"
+    )
+    row = json.loads(durable_line(call))
+    assert row["arguments"] == {
+        "items": [{"api_token": REDACTED, "path": "/a"}],
+        "password": REDACTED,
+    }
+    record = logging.LogRecord("cortex.tools.audit", logging.INFO, "p.py", 1, "m", (), None)
+    record.__dict__.update(invocation_fields(call))
+    assert row == record_fields(record)
+
+
+def test_a_structure_too_deep_to_walk_is_kept_withheld_rather_than_as_a_gap() -> None:
+    assert _stored(_nested(100_000)) == REDACTED
 
 
 def test_a_non_finite_number_is_kept_as_the_lines_text() -> None:
@@ -151,6 +165,13 @@ def _nested(depth: int) -> object:
     return value
 
 
+class _EndlessText:
+    """An argument whose text never finishes, which no structure walk can see coming."""
+
+    def __str__(self) -> str:
+        return str(self)
+
+
 def _cycle() -> object:
     looped: list[object] = []
     looped.append(looped)
@@ -162,9 +183,9 @@ def _cycle() -> object:
     [
         ({("a", "b"): 1}, "TypeError: keys must be str"),
         (_cycle(), "ValueError: Circular reference detected"),
-        (_nested(100_000), "RecursionError: maximum recursion depth exceeded"),
+        (_EndlessText(), "RecursionError: maximum recursion depth exceeded"),
     ],
-    ids=["tuple-key", "cycle", "nesting"],
+    ids=["tuple-key", "cycle", "endless-text"],
 )
 async def test_an_unrenderable_argument_is_a_gap_not_a_failure(
     arguments: object, error: str, tmp_path: Path, caplog: pytest.LogCaptureFixture

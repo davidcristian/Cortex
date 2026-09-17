@@ -48,5 +48,5 @@ one an operator does by eye. It is written down because the widening is what mad
   first. The Postgres half was not built, a table tying the trail to the optional memory
   override. The port gained a shared list over the fake, the file sink and a tee of the two. The
   recall trail's half is
-  [683](683-the-recall-trail-has-no-store.md), and a secret-named argument key, which both trails
-  print, is [684](684-a-secret-named-argument-prints-on-both-audit-trails.md).
+  [683](683-the-recall-trail-has-no-store.md). A secret-named key inside `arguments` is withheld
+  on both trails alike (the ADR-0009 nested-secret addendum).

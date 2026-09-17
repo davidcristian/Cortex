@@ -43,6 +43,7 @@ from cortex_core import (
     MemoryRecord,
     MemoryStoreError,
     Message,
+    PlainFormatter,
     Provenance,
     Ranking,
     ReasoningChunk,
@@ -73,6 +74,7 @@ from cortex_core import (
     TurnEvent,
     TurnStamp,
     UrlRedactingGuardrail,
+    record_fields,
 )
 from cortex_core.loop_events import MAX_STEP_SUMMARY_CHARS
 from cortex_core.tool_loop import MAX_TOOL_STEPS
@@ -1076,6 +1078,36 @@ async def test_laundered_url_is_redacted_before_the_user_and_the_store() -> None
     assert _EVIL_URL not in deltas
     history = list(await store.history("s"))
     assert history[-1].text == completed.full_text  # the reply on record is the reply shown
+
+
+async def test_a_reply_that_lost_a_link_logs_its_counts_once_and_a_clean_one_logs_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The per-ground line is written where the reply filter flushes, with the policy and a count
+    per ground and never the URL or its host (ADR-0015 per-ground addendum)."""
+    caplog.set_level(logging.INFO, logger="cortex_core.turn_output")
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [TextChunk(f"see {_EVIL_URL} and "), TextChunk(f"{_EVIL_URL}")],
+        ]
+    )
+    await _collect(
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "q", turn_id="t")
+    )
+    (record,) = [line for line in caplog.records if line.name == "cortex_core.turn_output"]
+    assert (record.levelno, record.getMessage()) == (
+        logging.INFO,
+        "the output guardrail removed links from this reply",
+    )
+    assert record_fields(record) == {"policy": "redact", "collected": 2, "lookalike": 0, "link": 0}
+    assert "evil" not in PlainFormatter().format(record)
+    caplog.clear()
+    clean = ScriptedToolBackend([[TextChunk(f"docs at {_EVIL_URL}")]])
+    await _collect(
+        _guarded_engine(clean, InMemorySessionStore()).handle_turn("s", "q", turn_id="u")
+    )
+    assert not [line for line in caplog.records if line.name == "cortex_core.turn_output"]
 
 
 async def test_laundered_url_split_across_deltas_is_redacted_and_never_leaks() -> None:

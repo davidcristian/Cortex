@@ -1,5 +1,4 @@
-"""JsonLinesAuditSink appends the tool audit trail to a file; TeeAuditSink records to several sinks.
-"""
+"""JsonLinesAuditSink appends the tool audit trail to a file; TeeAuditSink writes to several."""
 
 import json
 import logging
@@ -8,20 +7,25 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
-from cortex_core import ToolAuditSink, ToolInvocation, redact_urls, render_value
+from cortex_core import (
+    ToolAuditSink,
+    ToolInvocation,
+    redact_urls,
+    render_value,
+    withhold_secrets,
+)
 from cortex_tools.audit import invocation_fields
 
 _logger = logging.getLogger(__name__)
 
-# The message a gap line is found by: a record this sink could not append.
 _GAP = "tool.audit.gap"
 
-# Owner read and write only, because a record carries model-written arguments, which can quote
+# Owner read and write only, because a record contains model-written arguments, which can quote
 # whatever the model read earlier in the turn.
 _MODE = 0o600
 
 # What a failed append raises: the file system's refusal, or a value the line's own renderer
-# cannot render either (a non-string key, a cycle, nesting past the interpreter's depth).
+# cannot render either, such as a non-string key, a cycle, or text that recurses without end.
 _GAP_ERRORS = (OSError, TypeError, ValueError, RecursionError)
 
 
@@ -47,25 +51,21 @@ def _compact(value: object) -> str:
 
 
 def durable_value(value: object) -> object:
-    """One field as the file keeps it: the value if the line prints it whole, else the line's text.
-    """
+    """One field as the file keeps it: the value if the line prints it whole, else its text."""
     if isinstance(value, bool | int):
         return value
+    value = withhold_secrets(value)
     rendered = render_value(value)
     redacted = _redacted(value)
     try:
         whole = _compact(redacted)
-    except ValueError:  # NaN or an infinity, which the line prints and JSON cannot hold
+    except ValueError:
         return rendered
     return redacted if rendered in (redacted, whole) else rendered
 
 
 def durable_line(invocation: ToolInvocation) -> bytes:
-    """One invocation as one line of ASCII JSON, its newline included.
-
-    ASCII output escapes every control character, line separator and lone surrogate, so no value
-    can end the record early or fail to encode.
-    """
+    """One invocation as one line of ASCII JSON, its newline included."""
     fields = {name: durable_value(value) for name, value in invocation_fields(invocation).items()}
     text = json.dumps(
         fields, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -81,8 +81,7 @@ class JsonLinesAuditSink:
         self._path = path
 
     async def record(self, invocation: ToolInvocation) -> None:
-        """Append the invocation, or log a gap and return, so a trail write never fails a dispatch.
-        """
+        """Append the invocation, or log a gap, so a trail write never fails a dispatch."""
         try:
             data = durable_line(invocation)
             descriptor = os.open(self._path, os.O_RDWR | os.O_APPEND | os.O_CREAT, _MODE)
@@ -112,11 +111,7 @@ def _append(descriptor: int, data: bytes) -> None:
 
 
 class TeeAuditSink:
-    """ToolAuditSink recording each invocation to every sink it holds, in the order given.
-
-    The composition root puts the logging sink first, so the line an operator already reads is
-    written before any other sink is tried.
-    """
+    """ToolAuditSink recording each invocation to every sink it holds, in the order given."""
 
     def __init__(self, sinks: Sequence[ToolAuditSink]) -> None:
         """Hold the sinks, in recording order."""

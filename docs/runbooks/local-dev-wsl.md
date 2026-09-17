@@ -228,7 +228,10 @@ started`); that word is part of the sentence rather than a field, and is never a
 call site. A
 field whose name looks like a secret (`token`, `password`, `secret`, `credential`, `api_key`,
 `authorization`, `cookie`, and anything containing one of those) prints `<redacted>` in place of
-its value, the key still there so a withheld field reads differently from a missing one. And the
+its value, the key still there so a withheld field reads differently from a missing one. The same
+names are withheld inside a structured field too, so a tool call's `arguments` prints
+`{"password":"<redacted>"}` for a key the model named `password`, and a structure nested too deep
+to read through prints `<redacted>` whole. And the
 credential inside any URL is stripped from the whole line, message and traceback included, so a
 `redis://` or `imap://` connection error names its host and never its password.
 
@@ -248,6 +251,17 @@ The two per-line trails worth knowing about are the tool audit (`cortex.tools.au
 [tools-mcp.md](tools-mcp.md)) and the recall trail (`cortex.memory.recall`, behind
 `CORTEX_MEMORY_RECALL_AUDIT`, [memory-pgvector.md](memory-pgvector.md)). Both write a bare message
 and put everything in fields, so they are read the way every other line here is.
+
+A reply the output guardrail removed a link from logs one line when it settles, with a count per
+ground and the policy set by `CORTEX_OUTPUT_GUARDRAIL`, and never the link or its host:
+
+```text
+INFO:cortex_core.turn_output:the output guardrail removed links from this reply collected=<links taken from untrusted results> link=<links taken on a strict or image turn> lookalike=<links only a non-ASCII host took> policy=<redact, lookalike or strict>
+```
+
+Each link is counted once, under the first ground that took it, so under `policy=lookalike` the
+sum of `lookalike=` over a week is how many links that policy removed beyond the default's. A
+reply that lost nothing logs nothing.
 
 ## Talk Converse from the host
 

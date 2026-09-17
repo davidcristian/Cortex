@@ -10,7 +10,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
+from typing import cast, get_args
 
 import httpx
 import pytest
@@ -73,6 +73,7 @@ from cortex_core import (
     SubagentRoster,
     SubagentRunner,
     SystemClock,
+    TaintLedger,
     TextChunk,
     ToolCall,
     ToolDispatcher,
@@ -114,6 +115,7 @@ from cortex_orchestrator import (
     run_from_env,
     tool_audit_from_config,
 )
+from cortex_orchestrator.config import OutputGuardrailName
 from cortex_orchestrator.config_subagents import DEFAULT_SUBAGENT_MODEL
 from cortex_orchestrator.window_builders import build_history_window
 from cortex_seam import (
@@ -1093,6 +1095,17 @@ async def test_build_subagent_tools_strips_gated_tools_structurally() -> None:
     denied = await tools.dispatch(ToolCall(id="g1", name="send", arguments={}))
     assert denied.is_error
     assert "unknown tool 'send'" in denied.content
+
+
+def test_every_guarding_mode_opens_a_filter_that_logs_under_the_same_name() -> None:
+    """The per-ground line names its policy with the core's own constant, so each constant is
+    held here to the configuration name that selects it (ADR-0015 per-ground addendum)."""
+    modes = [mode for mode in get_args(OutputGuardrailName) if mode != "off"]
+    assert modes == ["redact", "lookalike", "strict"]
+    for mode in modes:
+        guard = build_output_guardrail(mode)
+        assert guard is not None
+        assert guard.open(TaintLedger(), allow=frozenset()).policy == mode
 
 
 def test_build_output_guardrail_redact_is_the_shipped_defense() -> None:

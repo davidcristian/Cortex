@@ -1,19 +1,22 @@
-"""What a record carries beyond the standard attributes, and how those fields are written down."""
+"""The fields a caller attaches to a log record, and how each one is rendered."""
 
 import json
 import logging
 import re
 from collections.abc import Mapping
 
-# What stands in for a value this module will not print. Visible on purpose, per the docstring.
-REDACTED = "<redacted>"
+from cortex_core.log_secrets import REDACTED, is_secret_name, withhold_secrets
 
-# What stands in for the rest of a value the bound below cut, naming how many characters went.
-# Sibling of REDACTED in shape, since both are the formatter speaking rather than the record.
 CUT = "<cut {chars} chars>"
 
+# The most characters one rendered value may take on a line. A container log driver ends a
+# message at 16 KiB, so this is that limit divided by eight, which leaves room for seven cut
+# fields on one line; the widest sink today puts five fields past this bound.
 VALUE_CHARS = 2048
 
+# The attributes ``logging`` puts on every record itself, plus the two a ``Formatter`` adds.
+# Written out rather than read off a sample record, so a Python release that adds one fails a
+# test here instead of printing a new stdlib field as if a caller had attached it.
 RESERVED_ATTRS = frozenset(
     {
         "args",
@@ -48,32 +51,11 @@ TASK_FIELD = "task_id"
 ITEM_FIELD = "item_id"
 CALL_FIELD = "call_id"
 
-# Substrings that make a field name too dangerous to print, matched case-insensitively so
-# ``apiKey`` and ``API_KEY`` are the same name. Every concrete secret this deployment holds is
-# named for what it is: the seam token, the mail bridge's password, a model host's credential.
-SECRET_NAMES = (
-    "apikey",
-    "api_key",
-    "authorization",
-    "cookie",
-    "credential",
-    "passwd",
-    "password",
-    "secret",
-    "token",
-)
-
+# The userinfo half of a URL: everything between ``://`` and an ``@``. The match ends on that
+# ``@``, so nothing may shorten a rendering before this has run over it.
 _USERINFO = re.compile(r"(?<=://)[^/\s@]*@")
 
-# A value that can be printed as it stands: one token, no whitespace to run it into the next
-# field and no quote of its own to confuse the one this module would otherwise add.
 _BARE = re.compile(r'[^\s"]+')
-
-
-def is_secret_name(key: str) -> bool:
-    """Whether a field name is one whose value no log line may carry."""
-    lowered = key.lower()
-    return any(marker in lowered for marker in SECRET_NAMES)
 
 
 def redact_urls(text: str) -> str:
@@ -84,7 +66,7 @@ def redact_urls(text: str) -> str:
 def record_fields(record: logging.LogRecord) -> dict[str, object]:
     """The fields a caller attached to ``record``, with every secret-named value withheld."""
     return {
-        key: REDACTED if is_secret_name(key) else value
+        key: REDACTED if is_secret_name(key) else withhold_secrets(value)
         for key, value in record.__dict__.items()
         if key not in RESERVED_ATTRS
     }
@@ -99,7 +81,7 @@ def _bound_value(rendering: str) -> str:
 
 
 def render_value(value: object) -> str:
-    """One field's value, written so the pair it sits in can still be told from the next one."""
+    """One field's value, written so its ``key=value`` pair can be told from the next one."""
     if isinstance(value, str):
         text = value
     elif value is None or isinstance(value, int | float):
