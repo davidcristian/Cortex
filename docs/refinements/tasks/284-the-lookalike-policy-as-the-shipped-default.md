@@ -4,15 +4,16 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0015](../../adr/ADR-0015-output-guardrail.md)
 **Trigger:** a deployment measurement of how often a real turn names an internationalized host after
-reading untrusted content. Two readings say cheaply whether anything has moved. The shipped default
+reading untrusted content, which cannot be counted until a redaction records the ground it stood on
+(entry 685). Two readings say cheaply whether anything has moved. The shipped default
 is one binding, so
 `grep -n output_guardrail brain/packages/orchestrator/src/cortex_orchestrator/config.py` reports
 whether it is still `redact`. The corpus arm is the count of distinct non-ASCII hosts `URL_RE` finds
 across every tracked file, each read as
 `host_of(normalize_url(match.group(), confusables=False))`, which is the expression
-`_UrlRedactingFilter._flagged` spends on the lookalike ground; it stood at 12 on 2026-09-08 and
-again on 2026-09-11. The body records what both answered when they were last taken.
-**Verified:** 2026-09-11
+`_UrlRedactingFilter._flagged` spends on the lookalike ground; it stood at 12 on 2026-09-08, 2026-09-11
+and 2026-09-17. The body records what both answered when they were last taken.
+**Verified:** 2026-09-17
 
 The pass that added the third `OutputGuardrail` policy shipped the answer without imposing it:
 `CORTEX_OUTPUT_GUARDRAIL` still defaults to `redact`, so the gap that pass closed is closed only
@@ -26,8 +27,12 @@ ranking, where 0 of the top 1,000 hosts and 1,441 of the top 1,000,000 are inter
 against this repo's own corpus. Neither is the question. The question is how often **a real turn on
 this machine** names such a host **after reading untrusted content**, which is a measurement of one
 deployment's mail and files and not of the web, and nothing in the repo can stand in for it. A week
-of turns with the policy on and the redactions counted answers it; so does a single user-visible
-false positive, which is why this waits on being bitten rather than on being scheduled.
+of turns with the policy on and the redactions counted by ground would answer it, and nothing counts
+them that way yet: `guardrail.py` writes no log line, and `REDACTED_LINK` is the same text whichever
+ground removed the link, so a persisted reply shows that a link was removed and never whether the
+lookalike ground was the one that removed it
+([R-685](685-a-redaction-records-no-ground.md)). A single user-visible false positive answers it
+too, which is why this waits on being bitten rather than on being scheduled.
 
 **Re-read 2026-09-08, and the corpus arm was six times out of date.** The default is unchanged:
 `config.py` binds `output_guardrail` to `redact`, so the lookalike ground still ships off and the
@@ -72,3 +77,14 @@ phishing link harms the user.
   often a homoglyph example is written down, and none was. The same span count is the corpus
   [R-294](294-one-match-yields-one-identity.md)'s relaxation figure was drawn over, so its 22 is a
   reading over 2,997 spans and today's corpus carries 3,007.
+- 2026-09-17: **Not fired**, both readings taken again, and the measurement the trigger waits on
+  was found to have no instrument. `config.py:146` binds `output_guardrail` to `"redact"`, no
+  compose file sets `CORTEX_OUTPUT_GUARDRAIL`, and this checkout has no `.env`, so no turn here
+  has run under the lookalike ground. The corpus arm over `git ls-files` at `HEAD`: 1,663 tracked
+  files, 1,637 readable, 2,578,187 words, 3,018 spans reducing to 1,198 distinct identities, and
+  **12** distinct non-ASCII hosts, the same twelve in the same four files with the same three
+  backtick and arrow artifacts. The new finding is in the remedy: `guardrail.py` holds no logger,
+  and `_redacted` substitutes one `REDACTED_LINK` for every ground, so a week under the policy
+  would leave a count of removed links and no count of lookalike removals. Filed
+  [R-685](685-a-redaction-records-no-ground.md) for the per-ground count, and recorded both in the
+  ADR-0015 addendum of 2026-09-17.

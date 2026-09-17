@@ -12,9 +12,11 @@ the trailing-punctuation trim in `brain/packages/core/src/cortex_core/guardrail.
 `grep -rn 'URL_RE\.\|rstrip(TRAILING_PUNCTUATION)\|last\.end()' brain/packages/core/src/cortex_core/`
 prints six lines, five of them the four sites; the sixth is the trim `normalize_url` performs
 inside the identity reduction in `url_identity.py`, which reads one matched string and assumes
-nothing about how many readings its span has. The body records what the relaxation cost when it
-was last measured.
-**Verified:** 2026-09-11
+nothing about how many readings its span has. The second arm is not decidable in the tree, since a
+reply lives in the session store. The first is read off `url_spellings.py`, and the grep and the
+relaxation's rerun, which the body records as it was last measured, say whether the ground under
+the decline has moved.
+**Verified:** 2026-09-17
 
 Opened by the pass that declined the mixed dot-and-gap host, and opened because that decline is a
 symptom rather than the cause. `extract_urls` reduces each `URL_RE` match to exactly one identity
@@ -74,3 +76,14 @@ call sites are unchanged, so the decline stands on the reading it was made on.
   reply here. The relaxation was not rebuilt today: its 22 is a reading over the 2,997 spans of
   2026-09-08, and the corpus [R-284](284-the-lookalike-policy-as-the-shipped-default.md) re-read
   today carries 3,007.
+- 2026-09-17: **Not fired**, and the relaxation was rebuilt and rerun rather than carried. The
+  grep prints the same six lines at `urls.py:226`, `guardrail.py:220` and `:226`,
+  `url_identity.py:271` and `url_holdback.py:134` and `:136`, and none of those four files nor
+  `url_spellings.py` has changed since 2026-08-31. The rebuild composed the relaxed `SPLIT_LABEL` into the gap, the split
+  host and the host anchor through the module's own `_family` and `_authority_sep`, after checking
+  that the same composition over the shipped label reproduces `URL_RE.pattern` exactly. Over
+  today's 3,018 spans it adds **0**, loses **0**, and extends **22**, changing all 22 identities,
+  the first of them `http://example.com` read as `http://example.com dot the`, so the 22 holds on
+  the larger corpus. The three `extract_urls` callers (`untrusted.py:179` and `:191`,
+  `output_channels.py:64`) all take the result as a set, which is what the body claims. No second
+  two-reading spelling has appeared.

@@ -3,8 +3,12 @@
 **Status:** open, fix when it bites
 **Area:** untrusted-content
 **Origin:** [ADR-0013](../../adr/ADR-0013-untrusted-content.md)
-**Trigger:** the first design that needs a persisted per-turn taint or provenance marker.
-**Verified:** 2026-09-11
+**Trigger:** a design that needs a later turn to know which of its replayed assistant messages were
+written on a tainted turn. The tree shows it when a session history message gains a taint or
+provenance field, and
+`grep -n taint brain/packages/core/src/cortex_core/conversation.py brain/packages/session/src/cortex_session/store_codec.py`
+prints nothing on 2026-09-17.
+**Verified:** 2026-09-17
 
 Measured over the full corpus 2026-08-06, the standing rule split and landed ([ADR-0013
 replayed-quotation addendum](../../adr/ADR-0013-untrusted-content.md)). Opened
@@ -60,9 +64,8 @@ the shape exists), and the transcript itself is still unfenced in the assistant 
 changed is that the standing rule is now on the turn that replays it. Fencing the transcript
 would tell the model to distrust the user's own words; fencing only the assistant half needs that
 mark; and narrowing either rule so it may not quote would cost a real user need to defend a
-position both rules already hold. **Trigger:** the first design that needs a persisted per-turn
-taint or provenance marker, which this shares with provenance across the stores; the re-run of
-both rules rides the standing obligation every injection measurement here carries.
+position both rules already hold. The re-run of both rules rides the standing obligation every
+injection measurement here carries.
 
 ## Trail
 
@@ -95,3 +98,15 @@ both rules rides the standing obligation every injection measurement here carrie
   what a precise version of the recall fence in
   [R-073](073-fence-without-block-recall.md) would need, so the two entries wait on one design. The
   GPU measurements were not rerun.
+- 2026-09-17: **Not fired**, and the trigger is restated because its old wording was already true
+  the day this entry was written. A persisted per-turn taint marker existed twice by then:
+  `MemoryRecord.tainted` since 2026-07-06 and `HandoffRecord`'s whole `TaintLedger` since
+  2026-07-17, and [R-077](077-provenance-across-stores.md) recorded the second on 2026-09-13 and
+  rewrote its own trigger, so the two entries no longer share one. What this entry lacks is a mark
+  on the session history itself: `Message` in `conversation.py` still carries no taint field, and
+  `store_codec.py` serializes `role`, `text`, `at` and `turn_id` and nothing about taint. Neither
+  file has changed since 2026-08-31. The mechanism reads as it did on 2026-09-11
+  (`turn_context.py:165` picks the full preamble on `caps.tools is not None or
+  context.taint.tainted`, `guardrail.py:35` still binds `REDACTED_LINK`, `handoff.py:98-101` still
+  carry the four ledger fields). Tonight's tool audit file does not persist a taint bit either, so
+  it is not the design the trigger waits for. The GPU measurements were not rerun.

@@ -2,10 +2,12 @@
 
 **Status:** open, fix when it bites
 **Trigger:** an operator keeps the seam token in `.env` rather than in the environment, since that
-is the first moment the two readers of that file disagree about what is configured.
+is the first moment the two readers of that file disagree about what is configured. Two readings
+decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.env` exists on 2026-09-17),
+and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been added.
 **Area:** seam-auth
 **Origin:** [ADR-0016](../../adr/ADR-0016-seam-token.md)
-**Verified:** 2026-09-11
+**Verified:** 2026-09-17
 
 Opened 2026-08-25 by the pass that gave `just seam-health` a checked precondition
 ([ADR-0016 addendum on the checked precondition](../../adr/ADR-0016-seam-token.md)).
@@ -44,3 +46,17 @@ implement and something to write, which is the trade to make deliberately rather
   trigger has not fired here. The split is now stated in two places, the guard's own message and
   `docs/runbooks/local-dev-wsl.md`, and the runbook offers `.env` for the compose stack alone,
   which is the half of the operator's reading that is true.
+- 2026-09-17: **Not fired**, and settled without writing into the checkout. A scratch directory
+  held a `.env` with `CORTEX_SEAM_TOKEN=probe-token-441` and a copy of the justfile. With the
+  variable unset, `docker compose --project-directory <scratch> -f docker/docker-compose.yml config`
+  rendered `CORTEX_SEAM_TOKEN: probe-token-441` into the brain service, and rendered `""` with that
+  file moved aside, so the file is what supplied it. `just --justfile <scratch>/justfile
+  --working-directory <scratch> seam-health` stopped at its guard with "CORTEX_SEAM_TOKEN is unset".
+  Three commits dated 2026-09-11 or later touched the justfile and it still carries no `set` line,
+  and the checkout has no `.env`. The split is wider than the live suite: `just brain-serve` runs the brain
+  on the host with no `env_file` in any settings class, and the host body reads the token from its
+  own process environment (`converse.rs:192`, `seam.rs:106`, `body_server.rs:59` under
+  `body/app/src-tauri/src/`), so `.env` configures the compose brain and nothing else in the repo.
+  The runbook's sentence names `just` as the reader that skips the file, which takes in
+  `brain-serve`, and says nothing about the body, which would need a token exported wherever it is
+  launched whatever `.env` holds.
