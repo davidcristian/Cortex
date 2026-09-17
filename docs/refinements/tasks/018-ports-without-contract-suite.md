@@ -264,8 +264,8 @@ serves, where the adapter rejects one its manager cannot lease. The whole accoun
 seven breaks that proved the list able to fail and the eighth that deliberately did not, is the
 [ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day.
 
-**The trigger below counts nine and the tree now holds eighteen**, which is the entry's own text
-aging rather than a defect in it: seventeen in Python, fifteen lists named `<port>_contract.py`,
+**The trigger below counts nine and the tree now holds twenty-one**, which is the entry's own text
+aging rather than a defect in it: twenty in Python, eighteen lists named `<port>_contract.py`,
 `session/tests/contract.py`, and the own-text list defined inside
 `tools/tests/test_own_text_contract.py`, plus the overlay's `bridgeContract.ts`. The trigger keeps its
 wording because the arrangement it points at is unchanged and the number was true when it was
@@ -385,8 +385,8 @@ shared list would have named.
   the origin's Python table named 25. Of the eighteen missing, `EmailSender` is a fake and a real
   adapter with no shared list, so the Python half is not done and the body above now says so;
   `Mailbox`, `PaceSink` and `MemoryScope` needed rows and have them, the last with no list by
-  design; `RecallPolicy`, a port with five shipped policies whose shared obligations are restated
-  per policy, opened [R-682](682-the-recall-policies-restate-what-they-share.md); and the other
+  design; `RecallPolicy`, a port with five shipped policies whose shared obligations were restated
+  per policy, gained a shared list the same day at the origin; and the other
   thirteen are protocols their own docs do not call ports, argued at the origin's addendum of the
   same day. The list count was one short, eighteen rather than seventeen. The Rust
   side, `pub trait` across `body/crates` and `body/app/src-tauri/src`, is still the seven traits

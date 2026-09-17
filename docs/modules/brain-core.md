@@ -1765,8 +1765,12 @@ Use-case:
   never into an engine.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched candidate pool into the final `k` hits
   (the `MemoryScope` / `HistoryWindow` pattern): `candidate_k(k)` sizes the pool the recaller fetches,
-  `async select(hits, *, query, now, k, session_id=None) -> Ranking` reranks and prunes it. It is
-  `async` so a policy
+  `async select(hits, *, query, now, k, session_id=None) -> Ranking` reranks and prunes it,
+  returning at most `k` hits from the pool, none twice, and leaving the pool as handed because the
+  recaller reads it again for the dropped set. Only the dedup reranker and the judge prune below
+  `min(k, len(hits))`. Those obligations, the fetch width and the pool factor refusal are held once
+  by `core/tests/recall_policy_contract.py` over all five policies (ADR-0001 recall-policy
+  addendum). It is `async` so a policy
   may call the model, and it carries the `query` because a policy that ranks by what a memory says
   needs the question (ADR-0038); a policy that runs inference must leave its acquire block before
   returning, which `drain_text` does (it also forwards a caller's `bounds`, which every in-turn

@@ -133,11 +133,6 @@ async def test_the_judge_lifts_the_answer_over_the_higher_cosine_noise() -> None
     assert [ranked.key for ranked in ranking.hits] == [1.0, 0.5]  # placings, normalized
 
 
-async def test_the_judge_over_fetches_like_the_heuristic_policies() -> None:
-    policy, _ = _judge()
-    assert policy.candidate_k(5) == 20
-
-
 async def test_the_judge_sends_the_question_the_numbered_notes_and_the_envelope() -> None:
     policy, backend = _judge(json.dumps({"order": [0]}))
     await policy.select(_pool(), query="where does state live?", now=_NOW, k=1)
@@ -234,11 +229,6 @@ async def test_every_fallback_hands_on_the_recall_it_was_given() -> None:
     await unreadable.select(_pool(), query="q", now=_NOW, k=2, session_id="conv-9")
 
     assert fallback.sessions == ["conv-9", "conv-9", "conv-9"]
-
-
-def test_a_pool_factor_below_one_is_refused() -> None:
-    with pytest.raises(ValueError, match="pool_factor"):
-        JudgeRecallPolicy(_ScriptedBackend(), "cortex", pool_factor=0)
 
 
 def test_parse_order_drops_bad_elements_without_voiding_the_answer() -> None:
