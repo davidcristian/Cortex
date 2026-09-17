@@ -9,26 +9,68 @@ Deferred until the latency they save justifies the memory they cost, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
 
 **Why this is actionable now.** The deep tier's file is fixed: the ADR-0004 brain-pick addendum of
-2026-08-04 chose `google/gemma-4-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf`, and
-`docker/docker-compose.gpu.yml` names that file beside the empty `CORTEX_MODEL_FILE_BRAIN` default.
-The mount holds a drafter for exactly that model, `google/gemma-4-31B-it-assistant/assistant-F16.gguf`
-(954843360 bytes, `general.architecture` `gemma4-assistant`), and the pinned engine carries both the
-architecture and the flags to hand it over. What is left undecided is whether a start on that pair
-loads and whether it pays, and both are GPU readings this repo's agent takes through Docker.
+2026-08-04 chose `google/gemma-4-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf`. The mount holds
+its MTP drafter, `google/gemma-4-31B-it-assistant/assistant-F16.gguf` (954843360 bytes,
+`general.architecture` `gemma4-assistant`), and the 2026-09-17 sitting below measured that the
+pinned engine loads the pair and that the drafter pays: decode ran at 1.86 to 1.89 times the plain
+rate for about 1000 MiB more on the card. So the build is what remains.
 
-**What the next slot does**, once the card is free:
+**Pre-registered for the 2026-09-17 sitting**, written before any arm ran. Engine: the cached
+`ghcr.io/ggml-org/llama.cpp:server-cuda` (`952424b09abc`, build 10680), whose `--help` offers the
+drafter as `--model-draft FNAME` with `--spec-type draft-mtp` or `draft-simple`; a bare `--mtp` is
+rejected as an invalid argument. Both arms start the deep tier's shipped argv from
+`ModelHostConfig.tiers()`: `-ngl 99 --ctx-size 8192 --parallel 1 --jinja --cache-ram 0`, no
+reasoning budget. Arm A adds nothing; arm B adds the drafter with `--spec-type draft-mtp`, and
+`draft-simple` is tried only if that fails to load. Each arm sends one untimed warm-up and then four
+timed requests of one fixed prompt to `/v1/chat/completions` with `max_tokens` 512 and seed 42 and
+no sampling fields, since the brain sends none. The reading per request is the server's
+`timings.predicted_per_second`; `nvidia-smi` is sampled every two seconds through each arm.
+**Deciding comparison:** the drafter pays when arm B's median decode rate exceeds arm A's by more
+than arm A's spread (fastest minus slowest of its four), with the decode clock of both arms within
+a tenth of each other as a fraction of `clocks.max.sm`. **A null** is any other outcome: B no
+faster than that, B slower, or a load that fails with both spellings. A null closes this entry as
+declined; a win leaves it open with the build specified. A second pair, registered after the
+first reading and before it ran, repeats both arms on one tool-call turn (one `tools` entry,
+`max_tokens` 1024, one warm-up and three timed requests) under the same rule, and records whether
+each reply ends in a tool call.
 
-1. Start the cached `:server-cuda` tag on the 31B file with
-   `--model-draft /models/google/gemma-4-31B-it-assistant/assistant-F16.gguf` and each of the two
-   spellings the build offers (`--mtp`, and the plain draft path), at the deep tier's shipped
-   `-ngl 99` and 8192 context. Record whether it reaches READY, the load time, and `nvidia-smi`
-   used memory against the 20996 MiB resident total the addendum recorded for the 31B.
-2. If it loads, price decode on a fixed deep-tier prompt with and without the drafter, with the
-   card's clock and power ceiling read at both ends, and the acceptance rate the server logs.
-3. Only if decode improves by more than the run-to-run spread does the build follow: a typed draft
-   field on `TierArgs` and a second artifact variable per tier in
-   `brain/packages/model_manager/`, a VRAM budget row, and the compose line. A null result closes
-   this entry as declined with the reading.
+**The reading** (ADR-0004's 2026-09-17 drafter addendum has the table; the run logs are under
+`measurements/mtp-2026-09-17/` on the host). Four starts ran in the order MTP, plain, MTP, and
+the draft path with no `--spec-type`. The rule is met by a wide margin: the two MTP arms' medians
+sit 0.86 and 0.89 of the plain median above it, against a plain spread of 0.02 of that median. The
+drafter accepted 328 of 548 drafted tokens (0.60, mean accepted length 2.79) on every timed
+request. Both MTP arms decoded at 0.48 of the maximum clock and the plain arm at 0.57, within the
+tenth the rule allows, and the lower clock is the drafter's. `draft-simple` was not needed. The
+draft path alone logs loading the drafter and then drafts nothing: no acceptance line, the plain
+arm's rate, and used memory within 60 MiB of the plain arm. The reading covers one prompt whose
+512 tokens all fell inside the reasoning trace, so acceptance on answer text is unmeasured.
+
+The tool-call pair ran next, drafter first. Every reply in both arms ended in the same
+`search_email` call, after 86 tokens with the drafter and 69 without. The drafter's median was
+1.37 times the plain median against a plain spread of 0.01 of it, at an acceptance of 46 of 123
+(0.37, mean length 2.12). **The pair does not decide, because the clock clause failed:** the
+drafter arm decoded at 0.45 of the maximum clock and the plain arm at 0.62, four busy samples each.
+The gap runs against the drafter, as in the first pair, but the rule written beforehand does not
+count it.
+
+**The build, which is the next landing:**
+
+1. A typed drafter on `TierArgs` (the artifact path and the speculative type as one optional
+   value), and `llama_server_argv` writing `--model-draft PATH --spec-type draft-mtp` together
+   whenever it is set, since the path alone was measured to draft nothing.
+2. `ModelHostConfig` reads the deep tier's drafter from `CORTEX_MODEL_FILE_BRAIN_DRAFT`, empty by
+   default so a deployment that names none starts the argv it does today. The name follows the
+   `CORTEX_MODEL_FILE_` convention `scripts/artifactnames.py` reads, and `scripts/settingscheck.py`
+   will fail until `docker/docker-compose.gpu.yml` hands the field to the model host, so the
+   compose line is part of the same change.
+3. The VRAM budget: `CORTEX_SWAP_BRAIN_VRAM_MIB`'s comment in `docker/docker-compose.gpu.yml`
+   gains the drafter's 997 to 1020 MiB. Added to the 23555 to 23642 MiB the deep model and the
+   E4B subagent tier read together, that is more than the card's 24463 MiB (arithmetic, not
+   measured), so a deployment turning the drafter on also lists the GPU subagent tier in
+   `CORTEX_SWAP_EVICT_MODELS`; the runbook and the compose comment say so.
+4. Before a default is written anywhere, the tool-call turn is priced again with the two arms'
+   clocks within the rule's tenth, since the pair above missed that clause, and one turn with
+   answer text is priced beside it.
 
 ## Trail
 
@@ -107,7 +149,7 @@ loads and whether it pays, and both are GPU readings this repo's agent takes thr
   without starting anything, by extracting `/app` from a `docker create` of the cached `:server`
   tag (still `db057ec90de0`, and `:server-cuda` still `952424b09abc`): `libllama.so.0.3.0` holds
   `llama_model_gemma4_assistant` and `/app/src/models/gemma4-assistant.cpp`, and
-  `libllama-common.so.0.3.0` spells `--mtp`, `--model-draft`, `--draft-max`, `--gpu-layers-draft`
+  `libllama-common.so.0.3.0` spells `--model-draft`, `--spec-type`, `--draft-max`, `--gpu-layers-draft`
   and the message `creating MTP draft context against the target model`. No start was made,
   because a GPU sitting held the card, so whether the pair loads is unmeasured. The two shipped
   resident tiers still have no drafter: nothing on the mount serves `gemma-4-12b-it-qat-q4_0.gguf`
@@ -115,3 +157,10 @@ loads and whether it pays, and both are GPU readings this repo's agent takes thr
   draft flag: the grep for `model-draft`, `spec-draft`, `--draft` and `speculative` returns the
   one sentence in `fakes_model_host.py`. Re-filed actionable, with the load reading as the next
   step.
+- 2026-09-17: the load and decode reading was taken with the card to itself, and it pays. The
+  pair loads on build 10680 with `--model-draft` plus `--spec-type draft-mtp`, and decode ran at
+  1.86 and 1.89 times the plain arm's median in two starts that bracket it, for 997 to 1020 MiB
+  more on the card. The drafter file named with no `--spec-type` drafts nothing, which is why the
+  build writes the two flags as one value. Left open and actionable, with the build above as the
+  next landing. A tool-call pair the same morning ran 1.37 times faster with the drafter but
+  missed the clock clause, so repricing it is the build's first step.
