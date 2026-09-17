@@ -356,8 +356,8 @@ no-reading line is the one of the three carrying no numbers at all, which is how
 the other two at a glance on a stream somebody is waiting on:
 
 ```
-WARNING:cortex_core.brain_phase:the deep model decoded below the rate this deployment measured for it, which is what an overcommitted card looks like: the load was not refused, it was paged to host memory floor_tokens_per_second=<the floor you set> judged=<completions long enough to count> model=<the deep model> samples=<completions that reported a rate> session_id=<chat id> shortfall=<floor minus rate> tokens=<tokens in the best completion> tokens_per_second=<the best rate> turn_id=<turn id>
-INFO:cortex_core.brain_phase:the deep model's decode rate for this handoff floor_tokens_per_second=<the floor, 0 when none is set> judged=<completions long enough to count> model=<the deep model> samples=<completions that reported a rate> session_id=<chat id> tokens=<tokens in the best completion> tokens_per_second=<the best rate> turn_id=<turn id>
+WARNING:cortex_core.brain_phase:the deep model decoded below the rate this deployment measured for it, which is what an overcommitted card looks like: the load was not refused, it was paged to host memory decode_rate=<the best rate> decoded=<tokens in the best completion> floor_rate=<the floor you set> judged=<completions long enough to count> model=<the deep model> samples=<completions that reported a rate> session_id=<chat id> shortfall=<floor minus rate> turn_id=<turn id>
+INFO:cortex_core.brain_phase:the deep model's decode rate for this handoff decode_rate=<the best rate> decoded=<tokens in the best completion> floor_rate=<the floor, 0 when none is set> judged=<completions long enough to count> model=<the deep model> samples=<completions that reported a rate> session_id=<chat id> turn_id=<turn id>
 INFO:cortex_core.brain_phase:no decode rate was reported for this handoff, so nothing was checked; a completion too short to judge, a failed phase, or a backend whose engine reports no timings all read alike model=<the deep model> session_id=<chat id> turn_id=<turn id>
 ```
 

@@ -13,6 +13,7 @@ from cortex_core import (
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
     NO_CADENCE_TERMS,
+    REDACTED,
     REPLY_CAPPED_NOTE,
     UNREADABLE_CALL_NOTE,
     CadenceTerms,
@@ -29,6 +30,7 @@ from cortex_core import (
     JsonSchema,
     MalformedToolCallError,
     Message,
+    PlainFormatter,
     RecordingAuditSink,
     RecordingPaceSink,
     Role,
@@ -447,8 +449,8 @@ async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numb
     records = _cadence_records(caplog)
     assert len(records) == 1
     assert records[0].levelno == logging.WARNING
-    assert _extra(records[0], "tokens_per_second") == 17.29  # pyright: ignore[reportAttributeAccessIssue]
-    assert _extra(records[0], "floor_tokens_per_second") == 22.0  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "decode_rate") == 17.29  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "floor_rate") == 22.0  # pyright: ignore[reportAttributeAccessIssue]
     assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
     assert _extra(records[0], "session_id") == harness.SESSION  # pyright: ignore[reportAttributeAccessIssue]
     assert records[0].getMessage() == SPILLED_LOG_MSG
@@ -464,7 +466,30 @@ async def test_a_deep_phase_that_cleared_its_floor_says_so_without_warning(
     records = _cadence_records(caplog)
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
-    assert _extra(records[0], "tokens_per_second") == 30.4  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "decode_rate") == 30.4  # pyright: ignore[reportAttributeAccessIssue]
+
+
+@pytest.mark.parametrize(
+    ("rate", "shown"),
+    [
+        (17.29, "decode_rate=17.29 decoded=96 floor_rate=22.0 "),
+        (30.4, "decode_rate=30.4 decoded=96 floor_rate=22.0 "),
+    ],
+    ids=["under the floor", "at or above it"],
+)
+async def test_both_rate_lines_print_their_numbers_through_the_formatter(
+    caplog: pytest.LogCaptureFixture, rate: float, shown: str
+) -> None:
+    """Both rate lines print every number they attach. The formatter withholds any field whose
+    name contains a secret marker such as ``token``, so a field named for the tokens it counts
+    would print ``<redacted>`` where the swap runbook tells an operator to read a number."""
+    caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=rate, tokens=96)])
+    await _drive(backend=backend, cadence=CadenceTerms(22.0))
+    (record,) = _cadence_records(caplog)
+    line = PlainFormatter().format(record)
+    assert shown in line
+    assert REDACTED not in line
 
 
 async def test_a_deployment_that_declared_no_floor_still_gets_its_number(
@@ -520,7 +545,7 @@ async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
     assert _extra(records[0], "samples") == 2  # pyright: ignore[reportAttributeAccessIssue]
-    assert _extra(records[0], "tokens_per_second") == 29.0  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "decode_rate") == 29.0  # pyright: ignore[reportAttributeAccessIssue]
 
 
 async def test_a_failed_phase_still_reports_what_it_managed_to_observe(

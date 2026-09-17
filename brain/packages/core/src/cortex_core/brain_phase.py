@@ -1,4 +1,4 @@
-"""The deep model's half of a handoff: rehydrate from the record, run, persist (ADR-0030 d4)."""
+"""The deep model's half of a handoff: rehydrate from the record, run, then persist."""
 
 import logging
 from collections.abc import AsyncGenerator, Sequence
@@ -73,9 +73,6 @@ class BrainPhase:
         query = _user_query(history, record)
         taint = record.taint_ledger()
         watch = CadenceWatch(self._cadence.floor_tps)
-        # The deep tier is where a cut answer is likeliest and least visible: it ships an 8192
-        # context and the measured pick spends 3847 to 4448 tokens reaching an answer, so the
-        # wall is one long question away even with no cap set (ADR-0004 brain-pick table).
         stops = StopLedger()
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
@@ -88,14 +85,9 @@ class BrainPhase:
                 remaining=record.budget_remaining, closed=record.budget_closed
             ),
             progress=self._caps.progress,
-            # No slot: the deep model cannot escalate to itself, and the built-in refuses
-            # honestly rather than queuing a handoff no conductor would run.
             escalation=None,
             cadence=watch,
             stops=stops,
-            # The cortex turn's own bounds, carried on the same bundle (ADR-0005 capped-reply
-            # addendum): a handoff is one turn continued, so a deployment that capped a reply did
-            # not ask for the cap to lapse the moment the question got hard enough to escalate.
             bounds=self._caps.bounds,
         )
         assembled = await assemble_inference_messages(
@@ -111,6 +103,7 @@ class BrainPhase:
         try:
             async for event in events:
                 yield event
+        # ``MalformedToolCallError`` subclasses ``InferenceError``, so it is caught first.
         except MalformedToolCallError:
             _logger.warning(
                 _UNREADABLE_CALL_LOG_MSG,
@@ -122,13 +115,12 @@ class BrainPhase:
                 },
                 exc_info=True,
             )
+            # ``stream_turn_events`` flushes only on a clean end, so this path flushes.
             for held in flush_channels(channels, parts):
                 yield held
             for event in unreadable_call_note(stops, parts):
                 yield event
         except InferenceError as err:
-            # The server died under the deep model. Keep what it produced, say so plainly, and
-            # let the conductor converge; a partial answer with a note beats a silent loss.
             failure = err
             for held in flush_channels(channels, parts):
                 yield held
@@ -145,7 +137,7 @@ class BrainPhase:
             raise failure
 
     def _report_cadence(self, reading: CadenceReading | None, record: HandoffRecord) -> None:
-        """Say what the deep tier's throughput was, once, after the phase and before it persists."""
+        """Log the deep tier's throughput once, after the phase and before it persists."""
         if reading is None:
             _logger.info(
                 _NO_READING_LOG_MSG,
@@ -160,9 +152,9 @@ class BrainPhase:
             "model": self._model,
             "session_id": record.session_id,
             "turn_id": record.handoff_id,
-            "tokens_per_second": reading.observed.tokens_per_second,
-            "tokens": reading.observed.tokens,
-            "floor_tokens_per_second": reading.floor,
+            "decode_rate": reading.observed.tokens_per_second,
+            "decoded": reading.observed.tokens,
+            "floor_rate": reading.floor,
             "samples": reading.samples,
             "judged": reading.judged,
         }
@@ -173,7 +165,7 @@ class BrainPhase:
         self._note_pace(reading)
 
     def _note_pace(self, reading: CadenceReading) -> None:
-        """Publish the verdict past the log, when there is one and somewhere to publish it."""
+        """Report the result past the log, when there is one and a sink to report it to."""
         if self._cadence.sink is not None and reading.verdict is not None:
             self._cadence.sink.note_pace(spilled=reading.verdict)
 

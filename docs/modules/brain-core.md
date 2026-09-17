@@ -2410,7 +2410,9 @@ Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py`, `log_secrets.
   `apikey`, `api_key`, `authorization`, `cookie`, case-insensitively) renders `REDACTED`
   (`<redacted>`) instead of its value, the key still printed so a withheld field reads differently
   from a missing one. The match is a substring, so `max_tokens` is withheld too, which is the
-  direction of error a denylist is chosen for. **The rule reaches inside a structured field**:
+  direction of error a denylist is chosen for, and a line whose reading is a token count names it
+  without the marker: the deep model's decode-rate lines attach `decode_rate`, `decoded` and
+  `floor_rate` (ADR-0009 nested-secret addendum). **The rule reaches inside a structured field**:
   `record_fields` runs `withhold_secrets` over every value, which replaces the value under any
   string key the rule matches, at any depth, in dicts and in lists or tuples of them, and returns
   a value holding no such key as the same object (ADR-0009 nested-secret addendum). It runs where
