@@ -3,13 +3,13 @@
 **Status:** open, fix when it bites
 **Area:** resource-governance
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
-**Trigger:** The first deployment observed hitting the wait bound. Reading it is harder than the
-sentence suggests, because nothing logs the refusal: it reaches the cortex as the spawn tool's
-aggregate text and reaches the store as a `SubagentResult` whose `detail` carries
-`outlasts the deployment's admission bound`, under `cortex:task:{id}:result` in Redis at a TTL of
-3600 s, which is half the shipped bound. So the reading is a scan of those keys for that phrase,
-taken within an hour of the refusal, and R-614 is the entry for making it a log line instead.
-**Verified:** 2026-09-11
+**Trigger:** The first deployment observed hitting the wait bound, which reads as the runner's
+`a spawn was refused before it ran` warning (logger `cortex_core.runner`) whose `reason` field
+carries `outlasts the deployment's admission bound`. The brain writes that line to its container's
+own output and to no file, so it is read with `docker compose logs brain` and lasts only as long as
+the container does. The same text is also in the persisted `SubagentResult` under
+`cortex:task:{id}:result` in Redis, whose TTL of 3600 s is half the shipped bound.
+**Verified:** 2026-09-17
 
 A queue-depth bound, to refuse a hopeless queue early rather than a whole bound late.
 Opened 2026-08-09 by the close above, which shipped one of the two refusals that entry
@@ -73,3 +73,14 @@ callers wait, and a depth refusal is a caller that does not.
   seven fields listed above plus the `asyncio.Condition` they wait on, `PlacementRequest` still
   carries `model`, `vram_gb`, `cpus` and `memory_gb`, and the port's three signatures in
   `ports.py` are unchanged.
+- 2026-09-17: **Not fired**, and the trigger restated. It still said that nothing logs the refusal
+  and pointed at an entry for adding the log line, but that entry landed on 2026-09-08: the warning
+  `a spawn was refused before it ran` is written in the `except SubagentAdmissionError` of
+  `cortex_core/runner.py` with `task_id`, `model` and `reason`, and the delegation runbook shows it.
+  The trigger now names that line as the reading and the Redis key as the second place to look.
+  Both were looked at. `docker ps -a` lists no brain container, so there is no brain log to search.
+  Redis was started alone from its persisted volume and scanned: it held 75 keys, and
+  `cortex:task:*` matched none; it was stopped and removed again. The numbers were reread and hold:
+  `DEFAULT_ADMISSION_WAIT_S` is 7200.0, `_TASK_TTL_SECONDS` is 3600, `ATTEMPTS_PER_ADMISSION` is 2,
+  `MAX_SPAWN_BATCH` is 8, `ResourceBudgetScheduler.__init__` still sets the seven fields above plus
+  the `asyncio.Condition`, and the three port signatures in `ports.py` are unchanged.

@@ -9,7 +9,7 @@ container run: `pip install openvino` over `python:3.12-slim`, with `/dev/dxg` a
 handed in, then read `available_devices` and that property. This entry's trail records what the run
 answered when it was last taken, and the body records which half of the condition is already
 satisfied.
-**Verified:** 2026-09-11
+**Verified:** 2026-09-17
 
 A future OpenVINO `InferenceBackend` adapter + a
 `PlacementTarget.NPU`, pending a feasibility pass. Using the otherwise-idle NPU for tiny
@@ -98,3 +98,10 @@ reconciliation this reading came out of is [R-348](348-three-devices-against-two
   well: `/dev/dxg` is still the only device node, `/dev/accel` and `/dev/dri` do not exist, and the
   running kernel, 6.6.114.1-microsoft-standard-WSL2, still reports `# CONFIG_DRM_ACCEL is not set`.
   The half of the condition that is outstanding is still the Linux user mode driver.
+- 2026-09-17: **Not fired.** The trigger's own command was run again, `python:3.12-slim` with
+  `/dev/dxg` and `/usr/lib/wsl` mounted, and `pip install openvino` now resolves to 2026.4.0, a
+  newer release than the 2026.3.1 the two runs before it installed. The answers did not move with
+  it: `available_devices` reads `['CPU']` and `Core().get_property("NPU", "AVAILABLE_DEVICES")`
+  reads `[]`. The guest is unchanged as well: `/dev/dxg` is still the only device node, `/dev/accel`
+  and `/dev/dri` do not exist, and the running kernel, 6.6.114.1-microsoft-standard-WSL2, still
+  reports `# CONFIG_DRM_ACCEL is not set`.
