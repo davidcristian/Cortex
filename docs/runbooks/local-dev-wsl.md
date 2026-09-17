@@ -136,8 +136,11 @@ Two settings are named by no file, on purpose. `CORTEX_SEAM_PORT` is fixed at 50
 file's publish and its healthcheck, and `CORTEX_TOOLS_ENDPOINT` is the single-sidecar form that
 the tool overlays replace with one `CORTEX_TOOLS_ENDPOINTS__<name>` key each (the brain refuses
 both at once). The map-shaped settings `CORTEX_TOOLS_ALLOW` and `CORTEX_SUBAGENTS_ROSTER` are
-contributed one key at a time by the overlay that brings the server they describe. To see what a
-given stack will hand the brain, render it without starting anything:
+contributed one key at a time by the overlay that brings the server they describe.
+`just check-settingscheck` fails when a settings field reaches its service from no file and is not
+one of those two, and it holds the model host and the email sidecar the same way; a new setting
+therefore lands with its key. To see what a given stack will hand the brain, render it without
+starting anything:
 
 ```bash
 docker compose --project-directory . -f docker/docker-compose.yml [-f <overlay> ...] config brain

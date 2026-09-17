@@ -80,6 +80,7 @@ jobs:
       - run: just check-samplecheck
       - run: just check-rostercheck
       - run: just check-flagcheck
+      - run: just check-settingscheck
       - run: just check-backlog
 
   python:

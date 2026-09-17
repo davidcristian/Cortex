@@ -103,7 +103,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate.** It runs ruff, pyright, pytest with coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and **the cross-tree scans**, eleven of them:
+   Vitest coverage, and **the cross-tree scans**, twelve of them:
 
    - `linecap.py`: the 300-line cap, across all three toolchains.
    - `dashcheck.py`: no dash used as punctuation in any text file (ADR-0026).
@@ -142,6 +142,12 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
      `CORTEX_MODEL_FILE_` variable found structurally rather than by prefix (ADR-0029 addenda on
      deriving the set a rule runs over, on covering both placements of one tier, and on holding
      the convention it is read out of).
+   - `settingscheck.py`: every setting a brain module reads is named in the environment of the
+     compose service that runs it, so a value set on the host reaches the container. Both sets are
+     derived: the services by the module their argv runs, the settings by reading each module's
+     settings classes without importing them. A field left out on purpose is exempt in the scan
+     with its reason, and a stale exemption fails (ADR-0026 addendum on the settings a composed
+     service receives).
    - `backlogcheck.py`: each backlog index matches the task files it describes and every link in
      them resolves, so a status is written in exactly one place; and every `#fragment` in the repo
      names a heading its target really offers (ADR-0039).
@@ -324,7 +330,7 @@ body/             Rust/Tauri workspace, host-native
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt- and clippy-checked in CI, running it is host-only) named
                   cortex-body, own workspace
-scripts/          repo gates and their readers. Eleven scans run in `just check`; the rest are
+scripts/          repo gates and their readers. Twelve scans run in `just check`; the rest are
                   modules those scans read. Each gate is listed with the helpers it uses.
 
                   linecap.py        the 300-line cap
@@ -381,13 +387,15 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                     composestarts.py    a service's command and environment
                     moduleconstants.py  what a module's top level binds, read without importing
                     artifactnames.py    every model artifact and the variable naming it
+                  settingscheck.py  every setting a brain module reads reaches its compose service
+                    settingsfields.py   the variables a module's settings classes read
                   backlogcheck.py   a backlog index matches its task files, and anchors resolve
                     backlog.py          task-file grammar
                     backlogindex.py     what the index renders
                     backloganchors.py   anchors offered, and every pointer aimed at one
                     headingshapes.py    what a heading may look like for a slug to be derivable
 
-                  Shared by several of the above: composefiles.py (which compose files the four
+                  Shared by several of the above: composefiles.py (which compose files the five
                   compose gates walk), gitenv.py (the environment every git call runs with),
                   treewalk.py (the one descent every reader here is handed its files by) reading
                   skippeddirs.py (the directory names it never enters, deliberately not
@@ -417,7 +425,7 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
-                  (`just check` runs the eleven cross-tree scans before the per-tree ones;
+                  (`just check` runs the twelve cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
                   between arms live, ADR-0038; `envelope-floor` publishes an envelope
                   measurement's arms and refuses when its control arm fell through the floor,

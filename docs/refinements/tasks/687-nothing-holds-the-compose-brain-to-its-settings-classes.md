@@ -1,9 +1,8 @@
 # Nothing holds the compose brain to its settings classes
 
-**Status:** open, actionable
+**Status:** landed 2026-09-17
 **Area:** repo-gates
 **Origin:** [ADR-0015](../../adr/ADR-0015-output-guardrail.md)
-**Verified:** 2026-09-17
 
 Since [R-686](686-the-compose-brain-cannot-receive-most-of-its-settings.md) landed, every setting
 the orchestrator package reads reaches the brain container from some compose file, except
@@ -48,3 +47,10 @@ bare key from `docker/docker-compose.yml` and watching the scan fail.
 - 2026-09-17: filed by [R-686](686-the-compose-brain-cannot-receive-most-of-its-settings.md), which
   landed the pass-through and left this gate out of the same change. Recorded in the ADR-0015
   addendum of 2026-09-17 on the composed brain.
+- 2026-09-17: landed as `scripts/settingscheck.py` and `scripts/settingsfields.py`, recorded in
+  the [ADR-0026 addendum of 2026-09-17](../../adr/ADR-0026-prose-style-gates.md).
+  Two parts of the design above changed. The services are found by the module their argv runs,
+  in a compose command or the Dockerfile's `CMD`, rather than by a written package-to-service
+  mapping, so the sidecars were held from the start; that found three model-host fields no file
+  named, now passed bare, and five model-host exemptions beside the brain's two. And
+  `scanrecipes.py` needed no change, since it reads the scan list from the justfile and CI.

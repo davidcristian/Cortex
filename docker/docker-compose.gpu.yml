@@ -64,6 +64,9 @@ services:
       # container's env is its own. 'plain' appends each lifecycle line's tier, pid and port after
       # the message; 'packed' writes the whole record as one JSON object.
       CORTEX_MODELHOST_LOG_FORMAT: "${CORTEX_MODELHOST_LOG_FORMAT:-plain}"
+      CORTEX_MODELHOST_LOG_LEVEL:
+      CORTEX_MODEL_SUBAGENT_GPU:
+      CORTEX_NGL_SUBAGENT_GPU:
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.

@@ -1,10 +1,10 @@
 # scripts/ (`repo-gates`)
 
-**Purpose.** The repo's own tooling, in the tree neither shipped artifact contains. Fourteen
+**Purpose.** The repo's own tooling, in the tree neither shipped artifact contains. Fifteen
 gates: the cross-tree line cap, the punctuating-dash ban, the cross-language constant check, the
 compose bind-mount check, the compose defaults check, the image-volume check, the seam-stub
 comment check, the documented-log-sample check, the document-roster check, the subagent-server
-flag check, the backlog gate, the Rust coverage threshold, the CI path classifier and the
+flag check, the compose settings check, the backlog gate, the Rust coverage threshold, the CI path classifier and the
 commit-message style hook. Five more modules gate nothing and report a measurement, added from
 2026-08-09: the interval a live measurement reports, the width its widest logged field renders at,
 the two rates an envelope measurement's control arm is published against a floor on, the cells two
@@ -15,17 +15,17 @@ Not all of them are gates. What every module here shares is being pure Python th
 neither the brain nor the body, gated exactly like both. A standalone uv project rather than a
 brain workspace member (ADR-0002).
 
-**Public contract**. Nineteen modules have a command line. `just` recipes invoke `linecap.py`,
+**Public contract**. Twenty modules have a command line. `just` recipes invoke `linecap.py`,
 `dashcheck.py`, `crosscheck.py`, `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`,
-`stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `backlogcheck.py` and
-`coverage_gate.py`; the CI workflow invokes `ci_paths.py`; the commit-msg pre-commit stage invokes
+`stubcheck.py`, `samplecheck.py`, `rostercheck.py`, `flagcheck.py`, `settingscheck.py`,
+`backlogcheck.py` and `coverage_gate.py`; the CI workflow invokes `ci_paths.py`; the commit-msg pre-commit stage invokes
 `commitlint.py`; and the five measurement reporters run from their own recipes, `contrast.py` from
 `just turn-cost`, `trailwidth.py` from `just recall-width`, `envelopefloor.py` from
 `just envelope-floor`, `envelopepairs.py` from `just envelope-pairs` and `switchtail.py` from
 `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, fifty-seven modules, most split out under the line cap and
+**The rest have no CLI of their own**, fifty-eight modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
@@ -64,6 +64,10 @@ each named for what it holds. Grouped by the gate that reads them:
   module's top level binds. `composestarts.py` supplies what a service is started with and what environment it is
   given, the two keys the volume gate's reader steps over. Both sets rest on `artifactnames.py`,
   every model artifact this tree names and the variable each is named under.
+- `settingscheck.py` reads `settingsfields.py` for the variables a workspace module's settings
+  classes read, parsed without importing them. The stack side is the readers above:
+  `composestarts.py` for each service's command and environment keys, `composeservices.py` for
+  what it builds, and `dockerfilevolumes.py` for where that Dockerfile lands.
 - `backlogcheck.py` reads `backlog.py` for the task-file grammar, `backlogindex.py` for the index
   renderer, `backloganchors.py` for the anchors a document offers with every pointer in the repo
   aimed at one, and `headingshapes.py` for what a heading may look like for that last question to
@@ -1130,6 +1134,32 @@ answer: a marker written into any other module here is reported by the line it i
   adapter), and a compose service spending a variable after one of those is unread until the flag
   is added; `hostedtiers.py` asserts its own floors underneath, refusing a sidecar with no tier and
   a tier with no artifact.
+- `settingscheck.py [--root DIR]` holds every compose service that runs a workspace module to the
+  settings that module reads (ADR-0026 addendum on the settings a composed service receives). A
+  variable no compose file names never enters the container, whatever the host or `.env` sets,
+  and the module then runs its default with nothing reported; on 2026-09-17, 45 of the brain's 89
+  fields were in that state. **Both sets are derived.** A service is held when its argv runs
+  `python -m <module>` and `brain/packages/*/src/<module>` exists, the argv being its compose
+  command or, for a service that writes none, the last exec-form `CMD` of the Dockerfile it
+  builds; that finds `brain`, `mcp-email` and `model-host` today without naming any of them. A
+  service's keys are the union of its environment keys across every compose file, a bare
+  pass-through key counting, since that is how compose carries a host value in. Two files writing
+  different commands for one service raise, as does a shell-form `CMD`, rather than guessing which
+  one runs. `EXEMPT` lists the fields left out on purpose, each with its reason (a port the
+  stack's own endpoints dial, a path the image or a mount fixes, and the single-sidecar tools
+  endpoint the brain refuses beside the per-sidecar map). An exemption fails when a compose file
+  names its field for the service reading it, and when no module read here declares it, so a
+  renamed field cannot leave a stale entry behind. Fewer than one settings class read raises.
+- `settingsfields.py` is that gate's settings side and has no CLI. `read_settings(root, directory)`
+  returns every class under one module directory whose `model_config` is a `SettingsConfigDict`
+  call, and each annotated field's variable: its `validation_alias` when it has one, else the
+  class's `env_prefix` plus the field name in upper case. A `dict` field of a class with an
+  `env_nested_delimiter` is a map, which `Field.named_by` also counts as named when a key names
+  one `<NAME>__<entry>` of it. `ClassVar`, private and `model_config` annotations read nothing. A
+  `BaseSettings` subclass with no `SettingsConfigDict` call, and a prefix, delimiter or alias
+  that does not reduce through `moduleconstants.text` to a string, raise `SettingsReadError`.
+  `module_directory(root, module)` answers which workspace package provides a module, and only
+  when exactly one does.
 - `moduleconstants.py` is that reader's syntax side and has no CLI. `constants(module)` returns
   every top-level string and run of strings a parsed module binds, `parse`, `text`, `items` and
   `bound` being the pieces it is built from. Parsed with `ast` and never imported, for the reason

@@ -502,7 +502,7 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).
   - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
     host-native Tauri shell (`cortex-body`).
-  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`, whose **cross-tree scans** are the eleven
+  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`, whose **cross-tree scans** are the twelve
     that run on every change:
 
     - `linecap.py`, the 300-line cap.
@@ -532,6 +532,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
       itself, the `moduleconstants` reading of what a Python module's top level binds, and the
       `artifactnames` reading of every model artifact this tree names, which is what the
       membership of both sets is decided from.
+    - `settingscheck.py`, the settings each composed service receives, with the `settingsfields`
+      reading of which variables a module's settings classes read.
     - `backlogcheck.py`, backlog indexes and anchors, with the `backlog` grammar, the
       `backlogindex` renderer, the `backloganchors` pointer reader and the `headingshapes`
       rules under it.
