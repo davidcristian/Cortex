@@ -1,315 +1,250 @@
 # brain/packages/email (`cortex_email`)
 
 **Purpose.** A standalone email MCP server: **read-only IMAP by default** (ADR-0009), plus an
-**opt-in SMTP send twin** (ADR-0022). It exposes three read tools (list folders, search, read
-one message) and, only under `CORTEX_EMAIL_SEND_ENABLED=true`, the `send_email` write tool,
-over an MCP streamable-http endpoint against a ProtonMail Bridge. It is **not** the brain: it
-runs as its own sidecar process, and the brain reaches it as an ordinary MCP server through
-`cortex_tools`. There `send_email` is stamped `gated` by the composition-root overlay
-(`CORTEX_TOOLS_GATED`), so every send needs the user's approval and a tainted turn's send is
-denied outright.
+**opt-in SMTP send tool** (ADR-0022). It offers three read tools (list folders, search, read one
+message) and, only under `CORTEX_EMAIL_SEND_ENABLED=true`, the `send_email` write tool, over an MCP
+streamable-http endpoint against a ProtonMail Bridge. It is **not** part of the brain: it runs as
+its own sidecar process and the brain reaches it as an ordinary MCP server through `cortex_tools`.
+There the composition root marks `send_email` as needing confirmation (`CORTEX_TOOLS_GATED`), so
+every send needs the user's approval and a send on a tainted turn is refused outright.
 
-**Public contract** (everything importable from `cortex_email`; `__all__` is the API):
+## Public contract
 
-- `EmailReader(mailbox: Mailbox)` is the read-only use-case over the `Mailbox` port. `folders()`
-  lists folder names; `search(folder, query, limit)` returns `EmailSummary`s; `read(folder, uid)`
-  returns the full `EmailDetail` or None. It parses raw RFC822 with the stdlib `email` package
-  (canonicalized headers), so the parsing is pure and fully tested with canned messages. The
-  body prefers `text/plain`; an HTML-only message goes through `html.html_to_text` (ADR-0009
-  refinements addendum, via stdlib `HTMLParser`: script/style dropped, block boundaries become
-  line breaks, entities decoded, whitespace collapsed), keeping the raw HTML only when nothing
-  extracts (e.g. an image-only body), so the body is never empty when the message has one.
-- `Mailbox` is the `Protocol` the reader needs (`list_folders`, `search`, `fetch` → `RawEmail`);
-  the imap-tools adapter and a fake both satisfy it. It fails in exactly three ways and every
-  implementation owes all three, the fake included, which is what the shared contract
-  (`tests/mailbox_contract.py`, driven over the fake and the adapter) exists to hold. It also owes
-  one promise about success: no name `list_folders` answers with is one the other two calls would
-  refuse as a folder no mailbox has, so a server's bare hierarchy nodes are filtered out by the
-  implementation rather than handed on (ADR-0022 hierarchy-node addendum). A listed mailbox that is
-  there and will not open is deliberately outside that promise, and the check walking the offered
-  list says so in its own words: a name that answers with the base error is not its subject, so the
-  list can hold one and does on the probe (ADR-0022 addendum on what the list drops). Two contract
-  checks hold the promise, one walking the offered list and one requiring that naming a node anyway
-  still fails. The other direction, that every name the server opens is offered, is not a contract
-  check: it can only be seen beside the server's own LIST, so the adapter's tests and the live
-  Bridge test carry it (ADR-0022 flagged-and-refused addendum). The read by uid has its own promise: `fetch` answers `None` for
-  a uid no message has, in a folder holding mail and in one holding none alike, and for a string
-  that is not a uid, and it answers `None` only when the message is shown absent, so a read the
-  server declined for a reason of its own stays `MailboxError`. Four contract checks hold that,
-  one per half, one for a folder holding none (`empty_folder`, which every fixture names, because
-  a real server answered the two kinds differently one command down) and one for the round trip
-  from a search line's uid back to that message (ADR-0022 fetch-by-uid addendum). The declined
-  read is measured on the probe's `Sealed`, a mailbox holding one message the mail process
-  cannot open, where the FETCH is answered `NO [SERVERBUG] Internal error occurred` under the
-  `imap_fetch_failure = no-after` the probe sets; the check reads the uid a fixture names as
-  `declined_uid`, since on a live server the refusal belongs to one message rather than to every
-  read (ADR-0022 declined-read addendum).
-- `MailboxError` says the mailbox could not answer: unreachable Bridge, rejected TLS or login, a
-  folder that could not be examined, a dropped connection. Beneath it are the two narrower
-  subclasses, one per argument the read tools invite a model to guess, and the line in both cases
-  is whether writing the call differently would change anything.
-  `SearchRefusedError` is the server rejecting a query it read as malformed (ADR-0022
-  refused-search addendum). It carries the `query` that was rejected and its message points the
-  model at the `query` field's own description rather than restating the dialect.
-  `FolderUnknownError` reports that no mailbox holds the folder that was named (ADR-0022
-  unknown-folder
-  addendum), and a name no mailbox *could* have is the same error rather than a third one: the
-  two servers disagree about which fact an empty or malformed name is and cannot disagree about
-  the correction, since `list_folders` never offered such a name (ADR-0022 refused-name addendum).
-  It carries the `folder` it was given and sends the model to `list_folders`, the
-  cheaper correction of the two: one call rather than a rewrite. Neither carries any part of the
-  server's answer, those fragments (`UID command error: BAD [b'[Error offset=38]: expected
-  space']`; `Response status "OK" expected, but "NO" received. Data: [b'no such mailbox']`) being
-  a wire command and a command status the model never sent. The cause chain keeps both for an
-  operator.
-- `ImapMailbox(config)` is the `Mailbox` over imap-tools. Connects per call (the Bridge is local)
-  so the server holds no IMAP state. `list_folders` reads the LIST attributes `folder.list()`
-  carries beside each name and treats a name flagged `\Noselect` (RFC 3501) or `\NonExistent`
-  (RFC 5258), case-folded, as unproven rather than settled: it opens that name once with
-  EXAMINE and drops it only when that open is refused in the words or the code that prove no mailbox
-  has the name, which is the same reading `FolderUnknownError` is classified by. The two servers
-  disagree about the flag, Dovecot rejecting such a node in the very words that prove a folder
-  missing and the Bridge opening the two parents of its own hierarchy, so opening the name is what
-  is correct on both (ADR-0022 flagged-and-refused addendum and the addendum on what the list
-  drops). Both spellings are measured, in different listings: Dovecot sends
-  `\Noselect` with its hierarchy node under every LIST it accepts, and keeps `\NonExistent` for a
-  subscribed name no mailbox has, which only a LIST asking for subscriptions returns. The plain
-  `LIST "" "*"` that `folder.list()` sends can carry neither that name nor that word, and the
-  Bridge answers an extended LIST with `BAD`, so reading the newer spelling is a defence against a
-  server not yet met rather than a live path (ADR-0022 newer-spelling addendum).
-  No exception of the IMAP stack escapes it: a `BAD` answer to
-  a search becomes `SearchRefusedError`, a `NO` to `SELECT` whose own text says the mailbox does
-  not exist becomes `FolderUnknownError`, and everything else, imaplib's `IMAP4.abort` for a
-  connection lost mid-command included, becomes `MailboxError` with the cause chained. Both
-  classifications read what the server said rather than assuming it, for the same reason. The
-  abort is tested for by
-  subclass, since reporting a dropped connection as a refused query would send a model round a
-  rewrite loop that cannot end. The select is classified from what the server said, in either of
-  the two forms it can say it in: `_FOLDER_MISSING_PHRASES` holds the Bridge's measured `no such
-  mailbox` and Dovecot's measured `Mailbox doesn't exist`, and `_FOLDER_MISSING_CODES` holds the
-  RFC 5530 codes `[NONEXISTENT]` and `[CANNOT]`. Those two, the predicate that reads them and the
-  two calls that open a folder are `folders.py`, the half of this adapter that decides which names
-  a server really offers and what a refused open means; `imap.py` is the connection and the three
-  port methods. The same `NO` also covers a folder that is
-  really there and could not be opened, and a folder that cannot be proved missing is not
-  reported missing. The two servers report one fact with no shared wording, and neither sends a
-  response code for the missing case, which is why the phrases are read at all and why there are
-  two of them; the
-  code is what settles the refusal whose prose says nothing about a mailbox, Dovecot answering
-  every malformed name (empty, `Parent/`, `/Parent`, `Parent//Child`, `INBOX/../etc`, `~root`)
-  with `[CANNOT] Invalid mailbox name` where the Bridge says `no such mailbox` (ADR-0022
-  refused-name addendum). It is read bracketed rather than as the word inside it, so a refusal
-  whose prose merely contains "cannot" is not classified as a missing folder. The other
-  refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
-  two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
-- **A search the server refuses in a folder holding no mail answers with nothing found.** The
-  same Bridge refuses a `UID` search key in such a folder, `NO no such message`, which imap-tools
-  raises out of the search it runs before any fetch and the adapter reported as a mailbox that
-  could not answer, tainting a turn over a call nothing was wrong with. The evidence for the
-  answer is the count the folder's own EXAMINE reported, which `folders.select` reads off the
-  accepted answer and hands back: a folder holding no message matches no criteria, whatever the
-  server's reason for refusing was. The search is still sent, because that is what has the server
-  parse the query, so a malformed query in an empty folder is still `SearchRefusedError` (this
-  Bridge answers it `BAD` there, measured beside the refusal). A folder whose count the server
-  did not report is not answered this way, and neither is a refusal in a folder holding mail
-  (ADR-0022 empty-folder-search addendum).
+`__all__` is the API.
+
+### Reading
+
+- `EmailReader(mailbox: Mailbox)` is the read-only use case over the `Mailbox` port. `folders()`
+  lists folder names, `search(folder, query, limit)` returns `EmailSummary`s, and
+  `read(folder, uid)` returns the full `EmailDetail` or `None`. It parses raw RFC822 with the
+  standard library `email` package, so the parsing is pure and fully tested with canned messages.
+  The body prefers `text/plain`; an HTML-only message goes through `html.html_to_text` (ADR-0009
+  decision 8: script and style dropped, block boundaries become line breaks, entities decoded,
+  whitespace collapsed), keeping the raw HTML only when nothing extracts.
+- `EmailSummary` and `EmailDetail` are frozen value types: a search hit and a full message.
+- `Mailbox` is the `Protocol` the reader needs (`list_folders`, `search`, `fetch` to a `RawEmail`);
+  the imap-tools adapter and a fake both satisfy it. Its promises are written in
+  `tests/mailbox_contract.py`, driven over both:
+  - It fails in exactly three ways, and every implementation owes all three.
+  - **No name `list_folders` returns is one the other two calls would refuse as a folder no mailbox
+    has**, so an implementation filters out a server's bare hierarchy nodes rather than passing them
+    on (ADR-0056 decision 8). A listed mailbox that is there and will not open is outside that
+    promise, so the list may hold one and does on the probe fixture. Two checks cover it, one
+    walking the offered list and one requiring that naming a node anyway still fails. The other
+    direction, that every name the server opens is offered, can only be seen beside the server's own
+    LIST, so the adapter's tests and the live Bridge test cover it.
+  - **`fetch` answers `None` for a uid no message has**, in a folder holding mail and in one holding
+    none alike, and for a string that is not a uid, and it answers `None` **only** when the message
+    is shown absent, so a read the server declined for a reason of its own stays `MailboxError`.
+    Four checks cover that, including one for a folder holding none (`empty_folder`, which every
+    fixture names, because a real server answered the two kinds differently one command down) and
+    one for the round trip from a search line's uid back to that message (ADR-0056 decision 10). The
+    declined read is measured on the probe's `Sealed`, a mailbox holding one message the mail
+    process cannot open, where the FETCH is answered `NO [SERVERBUG] Internal error occurred`; the
+    check reads the uid a fixture names as `declined_uid` (ADR-0057 decision 4).
+
+### Errors
+
+`MailboxError` says the mailbox could not answer: an unreachable Bridge, rejected TLS or login, a
+folder that could not be examined, a dropped connection. Beneath it are two narrower subclasses, one
+per argument the read tools invite a model to guess, split on whether writing the call differently
+would change anything.
+
+- `SearchRefusedError` is the server rejecting a query it read as malformed (ADR-0056 decision 3).
+  It holds the `query` that was rejected and its message points the model at the `query` field's own
+  description rather than restating the dialect.
+- `FolderUnknownError` reports that no mailbox holds the folder that was named (ADR-0056 decision
+  6). A name no mailbox *could* have is the same error rather than a third one: the two servers
+  disagree about which fact an empty or malformed name is and cannot disagree about the correction
+  (ADR-0056 decision 7). It holds the `folder` it was given and sends the model to `list_folders`.
+
+Neither holds any part of the server's answer, those fragments being a wire command and a status the
+model never sent; the cause chain keeps both for an operator.
+
+### The IMAP adapter
+
+`ImapMailbox(config)` is the `Mailbox` over imap-tools. It connects per call, so the server holds no
+IMAP state.
+
+- **Listing.** `list_folders` reads the LIST attributes `folder.list()` returns beside each name and
+  treats a name flagged `\Noselect` (RFC 3501) or `\NonExistent` (RFC 5258), case-folded, as
+  unproven: it opens that name once with EXAMINE and drops it only when the open is refused in the
+  words or the code that prove no mailbox has the name. The two servers disagree about the flag,
+  Dovecot rejecting such a node in the very words that prove a folder missing and the Bridge opening
+  the two parents of its own hierarchy, so opening the name is correct on both (ADR-0056 decision
+  8). Both flags are measured, in different listings: Dovecot sends `\Noselect` with its hierarchy
+  node under every LIST it accepts, and keeps `\NonExistent` for a subscribed name no mailbox has,
+  which only a LIST asking for subscriptions returns. Neither can appear in the plain `LIST "" "*"`
+  that `folder.list()` sends, and the Bridge answers an extended LIST with `BAD`, so reading
+  `\NonExistent` is a defence against a server not yet met (ADR-0056 decision 9).
+- **Classifying a refusal.** No exception of the IMAP stack escapes the adapter: a `BAD` answer to a
+  search becomes `SearchRefusedError`, a `NO` to `SELECT` whose own text says the mailbox does not
+  exist becomes `FolderUnknownError`, and everything else, imaplib's `IMAP4.abort` for a connection
+  lost mid-command included, becomes `MailboxError` with the cause chained. Both classifications
+  read what the server said rather than assuming it, and the abort is tested by subclass, since
+  reporting a dropped connection as a refused query would send a model round a rewrite loop that
+  cannot end. The select is classified from either of two forms: `_FOLDER_MISSING_PHRASES` holds the
+  Bridge's measured `no such mailbox` and Dovecot's measured `Mailbox doesn't exist`, and
+  `_FOLDER_MISSING_CODES` holds the RFC 5530 codes `[NONEXISTENT]` and `[CANNOT]`. Those two, the
+  predicate that reads them and the two calls that open a folder are `folders.py`; `imap.py` is the
+  connection and the three port methods. The same `NO` also covers a folder that is really there and
+  could not be opened, and **a folder that cannot be proved missing is not reported missing**. The
+  code settles a refusal whose prose says nothing about a mailbox: Dovecot answers every malformed
+  name (empty, `Parent/`, `/Parent`, `Parent//Child`, `INBOX/../etc`, `~root`) with
+  `[CANNOT] Invalid mailbox name` where the Bridge says `no such mailbox` (ADR-0056 decision 7). It
+  is read bracketed, so a refusal whose prose merely contains "cannot" is not read as a missing
+  folder. The other refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed
+  and shut (ADR-0057 decision 1).
+- **A search the server refuses in a folder holding no mail answers with nothing found.** The Bridge
+  refuses a `UID` search key in such a folder, `NO no such message`, which imap-tools raises out of
+  the search it runs before any fetch, tainting a turn over a call nothing was wrong with. The
+  evidence for the answer is the count the folder's own EXAMINE reported, which `folders.select`
+  reads off the accepted answer and hands back: a folder holding no message matches no criteria,
+  whatever the server's reason for refusing was. The search is still sent, because that is what has
+  the server parse the query, so a malformed query in an empty folder is still `SearchRefusedError`.
+  A folder whose count the server did not report is not answered this way, and neither is a refusal
+  in a folder holding mail (ADR-0056 decision 2).
 - **A read by uid is one `UID FETCH`, sent by `uidfetch.py` rather than through imap-tools'
-  `fetch`.** imap-tools searches for the uid before fetching it, and a ProtonMail Bridge answers
-  that search `NO no such message` for every uid in a folder holding no mail, where it answers the
-  same search in a folder holding mail with nothing found; the adapter classified that `NO` as a
-  plain `MailboxError`, so a `read_email` in an empty folder tainted the turn instead of answering
-  `NOT_FOUND` over the uid and folder it was given. RFC 3501 defines what a `UID FETCH`
-  answers for a uid no message has, an `OK` carrying no data, and both servers answer
-  exactly that in both kinds of folder, so absence is read off the FETCH's own answer and
-  off nothing else. A `NO` to the FETCH
-  is a read the server declined for a reason of its own and stays `MailboxError` with the
-  server's text, the direction the folder classification fails in. The uid is held to RFC 3501's
-  `uniqueid` grammar first (`is_uid`: a decimal number with no leading zero, at most 4294967295),
-  and a string that is not a uid is answered `None` with no command sent, because the two servers
-  read such strings differently and the Bridge reads `01` as 1 and `2,1` or `1:*` as a set that
-  fetches messages the caller never named. The whole message is asked for with `BODY.PEEK[]`,
-  the read that leaves the Seen flag alone (ADR-0022 fetch-by-uid addendum).
-- **The probe suite's eight fixture names and one uid are module constants and registered
-  couplings.** `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT`, `NODE_CHILD`, `FEIGNED_FOLDER`,
-  `FOLLOWED_SUBSCRIPTION` and `SEALED_FOLDER` name mailboxes `docker/dovecot/probe-mailboxes.sh`
-  builds, and `GHOST_SUBSCRIPTION` names the one it does not:
-  a subscription written into the account's own file with no mailbox behind it, which is the only
-  way that server sends `\NonExistent`. `FEIGNED_FOLDER` and `FOLLOWED_SUBSCRIPTION` are a pair:
-  the first opens, and carries `\Noselect` in an `LSUB` of `%` only because the second, under
-  it, is subscribed and it is not, which is the one way this server says what the Bridge says in
-  its ordinary LIST (ADR-0022 flagged-name-that-opens addendum). `SEALED_FOLDER` holds the one
-  message this fixture has, under `SEALED_UID`, and it is the one read this server declines: the
-  message is saved through a first, loopback-only start of the server, its file is shut before
-  the server the suite reaches starts, and `docker/dovecot/probe.conf` sets `imap_fetch_failure =
-  no-after` so the FETCH is answered with a tagged `NO` rather than Dovecot's default BYE
-  (ADR-0022 declined-read addendum).
-  `scripts/crosscheck.py` ties each to the line
-  the script writes it in (ADR-0029 fixture addendum). This suite is `integration`-marked and
-  never runs in CI, so the gate is the only check that catches the fixture and the suite
-  drifting apart; the invented name the suite expects to be rejected is deliberately not tied,
-  since the point of that name is that nothing builds it.
-- **The mail root those names live under is the compose file's, handed to the container in
-  `CORTEX_IMAP_PROBE_MAIL_ROOT`.** The script builds the tree under it and dovecot resolves the
-  account's home out of it with `%{env:...}`, which needs the name on `import_environment` to
-  reach the processes that expand it, so the store, the tree and the home are one spelling rather
-  than three. The store must be the tmpfs the compose file mounts, and the entrypoint exits
-  instead of starting when it is not, since that is the one property of this fixture whose loss
-  nothing else would report (ADR-0022 one-mail-root addendum).
-- **The configuration directory is a tmpfs for a different reason, and the conf is copied onto
-  it.** The image declares a volume at `/etc/dovecot` as well, so a container with nothing mounted
-  there gets an anonymous volume `docker compose down` leaves on the host, once per run. The
-  compose file mounts a tmpfs at the path it hands the container as
-  `CORTEX_IMAP_PROBE_CONFIG_ROOT`, binds the conf in at `/probe.conf` beside the entrypoint, and
-  the entrypoint copies it onto the mount, which is what keeps that path to a single spelling:
-  dovecot's configuration directory is compiled in, so a root written as anything else produces a
-  server reading the image's own settings and seven failing tests rather than a leak nothing
-  reports. The conf names
-  `/etc/ssl/certs/ssl-cert-snakeoil.pem` and `/etc/ssl/private/ssl-cert-snakeoil.key`, the files
-  the image's `cert.pem` and `key.pem` symlinks point at, because those symlinks are under the
-  tmpfs (ADR-0022 configuration-directory addendum).
-- `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
-  (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
-  self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
-- **Two of these defaults are module constants rather than literals inside the fields**,
-  `DEFAULT_TLS_INSECURE` (which both halves read) and `DEFAULT_SEND_ENABLED`, because the email
-  override spells each again as a substitution default and `scripts/crosscheck.py` can only hold a
-  restatement to a declaration it can read (ADR-0029's boolean addendum). Flip both or neither.
-  One name covers the reader's escape hatch and the sender's because they are one setting rather
-  than two that happen to agree, and an escape hatch that shipped open would leave nothing to
-  switch off.
-- `EmailSummary` / `EmailDetail` are frozen value types (a search hit; a full message).
-- `EmailDraft` is the frozen send-side value the user approves: `to`/`subject`/`body` plus
-  optional `cc`, `bcc`, `html` (each defaulting to `""` = omitted), and `attachments`. It is the
-  seam's extension point: a further shape is a new field here, never a change to the
-  `EmailSender.send` signature.
+  `fetch`.** imap-tools searches for the uid before fetching it, and the Bridge answers that search
+  `NO no such message` for every uid in a folder holding no mail. RFC 3501 defines what a
+  `UID FETCH` answers for a uid no message has, an `OK` with no data, and both servers answer
+  exactly that in both kinds of folder, so absence is read off the FETCH's own answer and off
+  nothing else. A `NO` to the FETCH is a read the server declined and stays `MailboxError` with the
+  server's text. The uid is checked against RFC 3501's `uniqueid` grammar first (`is_uid`: a decimal
+  number with no leading zero, at most 4294967295), and anything else is answered `None` with no
+  command sent, because the Bridge reads `01` as 1 and `2,1` or `1:*` as a set that fetches messages
+  the caller never named. The whole message is asked for with `BODY.PEEK[]`, the read that leaves
+  the Seen flag alone (ADR-0056 decision 10).
+
+### The tools
+
+`build_server(reader, sender=None) -> FastMCP` registers the three read tools always, and
+`send_email(to, subject, body, cc="", bcc="", html="", attachments=())` only when a sender is
+passed, with advisory MCP `ToolAnnotations` (not read-only, destructive, open-world) that are never
+the authority on confirmation. `cc` and `bcc` are comma-separated address lists, `html` adds a rich
+alternative, and `attachments` is an array of `{filename, content, subtype}` objects.
+
+**The advertised schema is generated, never written**, so what the model is told is whatever
+`values.py` and the tool signature say; the server tests assert the generated schema itself. The
+model-facing prose lives in `values.py` (ADR-0056 decision 1). `SEARCH_QUERY_HELP` names the raw
+IMAP `SEARCH` dialect the query is written in, criterion by criterion and only where a live pass
+against a real Bridge proved the criterion works, plus the client `from:` syntax that is rejected
+rather than parsed. `FOLDER_HELP` (used by `read_email` too, so the two cannot disagree) says a
+folder name comes exactly as `list_folders` gave it, and `FOLDER_UNKNOWN` is the same fact said once
+the server has rejected a name. `UID_HELP` says a uid is the number in square brackets on a
+`search_emails` line, copied digit for digit, that it names a message only in the folder it was
+listed in, and that a not-found answer is final (ADR-0056 decision 12); `NOT_FOUND` says that last
+fact again once the read came back empty (ADR-0056 decision 13). `SEARCH_LIMIT_HELP` says the
+matches kept are the first in the folder's own uid order rather than the newest. The live test
+`test_every_advertised_search_criterion_is_one_the_bridge_accepts` guards that prose: it runs one
+query per named family and fails if the description names a criterion no query ran.
+
+**Each tool answers with a single readable text block**, two of them building it into a
+`CallToolResult` themselves (`_one_text`). Both folder-taking tools mark a correction `isError`
+while keeping the port's own wording, because a tool that lets an exception out is restated by
+FastMCP as `Error executing tool <name>: ...`, which is accurate for a mailbox that could not answer
+(deliberately left to escape) and inaccurate for a call the server read and declined.
+`search_emails` catches both corrections and `read_email` the folder one. The not-found answer is
+deliberately unmarked, and so is a search with no hits: `isError` says whether the server ran the
+call, not whether the answer corrects the model (ADR-0056 decision 14). The brain negates this flag
+into the audit trail's `ToolInvocation.ok`; what recovers the corrections is the same line's
+`trust`, since the brain's own-text overlay re-stamps two of them trusted, the not-found answer and
+the empty search (ADR-0009 decision 16).
+
+**`read_email` adds a result `_meta`** (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message
+sender as `{"kind": "sender", "value": <From>}` (`_sender_source`, omitted when there is no `From`).
+The `_meta` sits beside the text, so the model-facing content is unchanged; the brain's tool
+registry reads the key and decides trust, taking a claimed, sanitized source and never a label. This
+is the producer half of the sidecar declaration channel (ADR-0027 decision 9), a wire contract with
+`cortex_tools` that this standalone sidecar cannot import, so `scripts/crosscheck.py` compares this
+module's bindings with `cortex_tools`'s, each module's use of them, and both contracts' quotations
+(`scripts/emailcouplings.py`, ADR-0042). The kind word is bound here as `_SENDER_KIND`, because the
+brain writes it only as the enum member `SourceKind.SENDER`, which the scan cannot read as a
+declaration. The two field names are bound on both sides as (`_KIND_FIELD`, `"kind"`) and
+(`_VALUE_FIELD`, `"value"`).
+
+`main()` reads the environment config, builds the reader (and an `SmtpSender` only when
+`SmtpConfig.enabled`), and runs the server over streamable-http (`python -m cortex_email`).
+
+### Sending
+
+- `EmailDraft` is the frozen send-side value the user approves: `to`, `subject` and `body` plus
+  optional `cc`, `bcc`, `html` (each defaulting to `""`, meaning omitted) and `attachments`. It is
+  the extension point: a further shape is a new field here, never a change to `EmailSender.send`.
 - `EmailAttachment(filename, content, subtype="plain")` is one attached file, composed as a
-  `text/<subtype>` part. The maintype is not a parameter, exactly as `From` is not: the tool
-  attaches text the assistant **wrote**, never bytes it read, which is what keeps the
-  confirmation card showing the payload rather than a name for it (ADR-0022 attachments
-  addendum). It is also **the one value type in this package that is a prompt**: pydantic lifts
-  its class docstring into the tool's `$defs` entry and each field's `Field(description=...)`
-  into that field, so `values.py` imports pydantic and owns the model-facing prose (ADR-0022
-  per-field addendum). The three bounds a send is checked against (`MAX_ATTACHMENTS`,
-  `MAX_ATTACHMENT_CHARS`, `MAX_FILENAME_CHARS`) live there too, beside `ATTACHMENTS_HELP`, so
-  the number the model is told and the number `SmtpSender` enforces are one value.
-- `build_server(reader, sender=None) -> FastMCP` registers the three read tools always, and
-  `send_email(to, subject, body, cc="", bcc="", html="", attachments=())` only when a sender is
-  passed (with advisory MCP `ToolAnnotations`: not read-only, destructive, open-world, and never
-  the authority on gating, which the brain-side overlay is). `cc`/`bcc` are comma-separated
-  address lists; `html`
-  adds a rich alternative; `attachments` is an array of `{filename, content, subtype}` objects
-  (the one nested schema in the tool surface), carrying `ATTACHMENTS_HELP` as its own schema
-  description because the two bounds it names belong to the array rather than to any field of
-  an attachment. `search_emails` describes all three of its parameters from `values.py`
-  (ADR-0022 search-dialect addendum): `SEARCH_QUERY_HELP` names the raw IMAP `SEARCH` dialect
-  the query is written in, criterion by criterion and only where a live pass against a real
-  Bridge proved the criterion works, plus the client `from:` syntax that is rejected rather than
-  parsed; `FOLDER_HELP` (spent by `read_email` too, so the two cannot drift) says a folder
-  name comes verbatim from `list_folders`, and `FOLDER_UNKNOWN` is the same fact said once the
-  server has rejected a name, so it names neither searching nor reading in particular;
-  `UID_HELP`, spent by `read_email` alone, says a uid is the number in square brackets on a
-  `search_emails` line, copied digit for digit, that it names a message only in the folder it was
-  listed in, and that a not-found answer is final (ADR-0022 uid-description addendum), and
-  `NOT_FOUND` is that last fact said again once the read has come back empty, in the shape
-  `FOLDER_UNKNOWN` has: the uid and folder the call named, the rule that a uid belongs to one
-  folder, and the correction, which is another `search_emails` rather than another number
-  (ADR-0022 not-found-correction addendum). It is a format template over `uid` and `folder`
-  rather than a sentence with the argument appended, because the folder is named twice;
-  `SEARCH_LIMIT_HELP` says the matches kept are the
-  first in the folder's own uid order rather than the newest. The live test
-  `test_every_advertised_search_criterion_is_one_the_bridge_accepts` is the guard on that prose:
-  it runs one query per named family and fails if the description names a criterion no query
-  ran, and it asserts that the client syntax comes back as `SearchRefusedError` carrying the
-  query. Each tool answers with a single readable text block. Two of them build that block into
-  a `CallToolResult` themselves (`_one_text`), each for something the block alone cannot carry.
-  Both folder-taking tools mark a correction `isError` while keeping the port's own wording,
-  because a tool that lets an exception out is restated by FastMCP as `Error executing tool
-  <name>: ...`, which is accurate for a mailbox that could not answer (deliberately left to
-  escape) and inaccurate for a call the server read and declined. `search_emails` catches both
-  corrections, `read_email` the folder one, which it hits before it has looked at a uid (so a
-  guessed folder never reads "message not found"). The not-found answer is deliberately left
-  unmarked, and so is a search with no hits: the line `isError` draws is whether the server ran
-  the call, not whether the answer corrects the model (ADR-0022 not-found-flag addendum). The two
-  marked answers are calls the server declined before it touched the mailbox; a uid the folder
-  does not hold and a search with no matches are calls it ran, and their answer is what the
-  mailbox holds. The brain negates this flag into the audit trail's `ToolInvocation.ok`, so a
-  reading over `ok` counts the calls this server declined and not the answers that corrected the
-  model: the not-found answer states a correction and is recorded `ok`, and an `ok` audit line
-  carries the result's size in place of its text. What recovers it is the same line's `trust`,
-  since these are two of the answers the brain's own-text overlay re-stamps trusted: `ok=True`
-  with `trust=trusted` is the not-found answer under `read_email` and the empty search under
-  `search_emails`, and the `arguments` on that line are what the answer's text is rendered from
-  (ADR-0009 trusted-answer addendum). The flag leaves the brain as well, as the `ToolOutcome` that settles the
-  dispatch's activity chip, which is read for the screen-capture tool alone. `read_email` adds a
-  result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
-  (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
-  `_meta` rides beside the text, so the model-facing content is unchanged; the brain's tool
-  registry reads the key and decides trust (a claimed, sanitized source, never a label). This is
-  the producer half of the sidecar declaration channel (ADR-0027 sidecar addendum), a
-  cross-deployable wire contract with `cortex_tools` that this standalone sidecar cannot import;
-  `crosscheck.py` holds this module's binding of the key equal to `cortex_tools`'s, each module's
-  spend of the key to its own binding, and both contracts' quotation of it
-  (`scripts/emailcouplings.py`). The kind word beside the key is bound here as `_SENDER_KIND`,
-  because the brain's one spelling of it is the enum member `SourceKind.SENDER`, which the scan
-  cannot read as a declaration; the same scan holds that binding to the enum member, to this
-  module's spend of it, and to this contract's quotation of the declaration's shape above
-  (ADR-0029 declared-kind-word addendum). The declaration's two field names are bound here too,
-  as (`_KIND_FIELD`, `"kind"`) and (`_VALUE_FIELD`, `"value"`), and again in `cortex_tools`,
-  which reads them; the scan holds each pair of bindings equal, each module's spend of its own
-  binding, and both contracts' quotation of the two names (ADR-0029 declaration-fields addendum).
-  Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
-  builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
-  the server over streamable-http (`python -m cortex_email`).
-- `EmailSender` is the `Protocol` the send tool needs (`send(draft: EmailDraft) -> str`).
-- `SmtpSender(config)` is the `EmailSender` over smtplib + STARTTLS (or implicit TLS),
-  connecting per call. `From` is the authenticated Bridge user, never a parameter, so the tool
-  cannot spoof a sender; a CR/LF in the recipient, subject, `cc`, or `bcc` is rejected in code
-  (header injection, not left to the interpreter's patch level). A `bcc` rides the envelope but
-  is stripped from the transmitted message by `send_message`, so it stays hidden from the To/Cc
-  readers. An `html` draft composes a `multipart/alternative` (plain `body` fallback + HTML);
-  a plain draft stays a single `text/plain` part. Attachments wrap whatever the body shapes
-  built in a `multipart/mixed`, and are rejected (never truncated) unless each filename is
-  non-empty, CR/LF-free, and at most `MAX_FILENAME_CHARS` (128), each `subtype` is a MIME
-  token (`_SUBTYPE_TOKEN`, the one of the four bounds that stays here because it is a rule
-  rather than a number), there are at most `MAX_ATTACHMENTS` (8), and their `content` totals at
-  most `MAX_ATTACHMENT_CHARS` (32768) characters. The three numbers are imported from
-  `values.py`, which spends them in the schema the model reads. Returns one readable
-  confirmation line.
-- `SmtpConfig` holds env-driven settings (`CORTEX_EMAIL_SMTP_*` + `CORTEX_EMAIL_SEND_ENABLED`):
-  defaults target the Bridge SMTP loopback (127.0.0.1:1025, STARTTLS) with the same
-  cert-verification escape hatches as IMAP; enabling send without credentials fails fast at
-  startup.
+  `text/<subtype>` part. The main type is not a parameter, exactly as `From` is not: the tool
+  attaches text the assistant **wrote**, never bytes it read, which is what keeps the confirmation
+  card showing the payload rather than a name for it (ADR-0022 decision 10). It is also **the one
+  value type here that is a prompt**: pydantic lifts its class docstring into the tool's `$defs`
+  entry and each field's `Field(description=...)` into that field, so `values.py` owns that
+  model-facing prose (ADR-0022 decision 12). The three bounds a send is checked against
+  (`MAX_ATTACHMENTS`, `MAX_ATTACHMENT_CHARS`, `MAX_FILENAME_CHARS`) live there too, beside
+  `ATTACHMENTS_HELP`, so the number the model is told and the number `SmtpSender` enforces are one
+  value.
+- `EmailSender` is the `Protocol` the send tool needs (`send(draft: EmailDraft) -> str`). Every
+  implementation owes three things and `tests/sender_contract.py` drives both over them. A draft
+  `drafts.refuse_unsendable` rejects raises its `ValueError` and nothing is handed over: a CR or LF
+  in the recipient, subject, `cc`, `bcc` or an attachment filename (header injection, not left to
+  the interpreter's patch level), an empty or overlong filename, a `subtype` that is not a MIME
+  token (`_SUBTYPE_TOKEN`), more than `MAX_ATTACHMENTS` (8), or `content` totalling more than
+  `MAX_ATTACHMENT_CHARS` (32768) characters, all refused rather than truncated. A send that reached
+  nobody raises `SendError`. A send the server accepted for some recipients answers the
+  `drafts.confirmation` line, which names the recipient and the subject, with the refused addresses
+  appended. Both implementations call the same two functions, so the fake cannot accept a draft the
+  adapter would refuse (ADR-0068 decision 5).
+- `SendError` is the sender's one failure type, a sibling of `MailboxError` rather than a subclass.
+  It keeps smtplib's own text, which is the only thing saying why, and never holds the password,
+  which reaches smtplib only as a `login` argument.
+- `SmtpSender(config)` is the `EmailSender` over smtplib with STARTTLS or implicit TLS, connecting
+  per call. `From` is the authenticated Bridge user, never a parameter, so the tool cannot forge a
+  sender. A `bcc` is in the envelope but is stripped from the transmitted message by `send_message`,
+  so it stays hidden from the To and Cc readers. An `html` draft composes a `multipart/alternative`
+  (plain `body` fallback plus HTML), a plain draft stays a single `text/plain` part, and attachments
+  wrap either in a `multipart/mixed`. It wraps every `smtplib.SMTPException` and `OSError` into
+  `SendError`, and reads the refused recipients out of the dict `send_message` returns.
 
-**Read-only by default, in three layers on the read path.** Without the explicit send opt-in,
-only read tools register; folders are opened with EXAMINE (`readonly=True`, never SELECT); and
-fetches never set the Seen flag (`mark_seen=False` on a search, `BODY.PEEK[]` on a read by uid).
-The IMAP path can never modify a mailbox.
-The one write capability (`send_email`, SMTP on a different protocol and connection) exists only
-when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
+### Configuration
 
-**Invariants.**
-- Standalone sidecar that depends on no other cortex package; the brain reaches it over MCP.
-- Adapter-only I/O: the real IMAP work is `ImapMailbox` (integration-tested against a live
-  Bridge); the parsing + tools are pure and 100%-covered without a server.
-- Fully typed, pyright strict clean; 100% line+branch over fakes, namely a fake `Mailbox` for the
-  reader/tools (`tests/mailbox_fake.py`) and a stand-in imap-tools `MailBox` for `ImapMailbox`
-  (`tests/imap_stub.py`), each shared so the same one drives every suite. Both keep their canned
-  mail in the first folder they list and answer every other folder as holding none, and the
-  stand-in answers a `UID FETCH` the way the two measured servers do, by uid, so the contract's
-  read-by-uid checks drive a folder holding mail and one holding none over one fixture. Both
-  `Mailbox` implementations are run through `tests/mailbox_contract.py`, which is where the
-  port's promises are written, both corrections among them, including that a folder which failed
-  to open for any other reason is never reported missing and that a read the server declined is
-  never reported as a message that is not there. The live contract is the `integration`-marked
-  `tests/test_email_live.py` (run per docs/runbooks/email-imap.md).
-- Pinned to the MCP SDK v1.x (`mcp>=1.23,<2`).
-- The advertised schema is **generated, never written**, so what the model is told about an
-  attachment is whatever `values.py` and the tool signature say. The server tests assert the
-  generated schema itself (every attachment field described, the array's two bounds spelled
-  from the constants, the uid's three facts present), which is the only place that coupling is
-  checked.
+`EmailConfig` holds the `CORTEX_EMAIL_IMAP_*` settings: host, port, user, password (`SecretStr`),
+`security` (`starttls` or `ssl`), and `ca_cert` and `tls_insecure` for the Bridge's self-signed
+certificate. The defaults target a local Bridge (127.0.0.1:1143, STARTTLS). `SmtpConfig` holds
+`CORTEX_EMAIL_SMTP_*` plus `CORTEX_EMAIL_SEND_ENABLED`, defaulting to the Bridge SMTP loopback
+(127.0.0.1:1025, STARTTLS) with the same certificate escape hatches; enabling send without
+credentials fails at startup. **Two of these defaults are module constants rather than literals
+inside the fields**, `DEFAULT_TLS_INSECURE` (which both halves read) and `DEFAULT_SEND_ENABLED`,
+because the email compose override states each again as a substitution default and
+`scripts/crosscheck.py` can only compare a restatement with a declaration it can read (ADR-0042).
+Change both or neither.
 
-**Dependencies.** mcp (the FastMCP server), imap-tools (the IMAP client, STARTTLS-capable via
-stdlib `imaplib`, which the Bridge defaults to), pydantic (the `Field` descriptions the tool
-schema is generated from) and pydantic-settings (env config). Deployed by
+## Read-only by default, in three layers on the read path
+
+Without the explicit send opt-in, only read tools register; folders are opened with EXAMINE
+(`readonly=True`, never SELECT); and fetches never set the Seen flag (`mark_seen=False` on a search,
+`BODY.PEEK[]` on a read by uid). The IMAP path cannot modify a mailbox. The one write capability,
+`send_email` over SMTP on a different protocol and connection, exists only when deliberately
+enabled, and the brain requires the user's confirmation for it (ADR-0022).
+
+## Invariants
+
+- A standalone sidecar that depends on no other cortex package; the brain reaches it over MCP.
+- Real IMAP work is `ImapMailbox`, validated against a live Bridge; the parsing and the tools are
+  pure and covered 100% without a server.
+- Fully typed, pyright strict clean, 100% line and branch over fakes: a fake `Mailbox` for the
+  reader and tools (`tests/mailbox_fake.py`), a stand-in imap-tools `MailBox` for `ImapMailbox`
+  (`tests/imap_stub.py`), a fake `EmailSender` (`tests/sender_fake.py`) and a stand-in smtplib
+  (`tests/smtp_stub.py`), each shared so one fixture drives every suite. Both mailbox fakes keep
+  their canned mail in the first folder they list and answer every other folder as holding none, and
+  the stand-in answers a `UID FETCH` by uid the way the two measured servers do, so the contract's
+  read-by-uid checks drive both kinds of folder over one fixture.
+- The live contract is the `integration`-marked `tests/test_email_live.py`, run per
+  [docs/runbooks/email-imap.md](../runbooks/email-imap.md). The Dovecot probe fixture
+  (`tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`, ADR-0057) builds its
+  mailboxes from `docker/dovecot/probe-mailboxes.sh`; the suite's eight fixture names and one uid
+  are module constants that `scripts/crosscheck.py` compares with the lines that script writes them
+  in, since that suite never runs in CI.
+- Fixed to the MCP SDK v1.x (`mcp>=1.23,<2`).
+
+**Dependencies.** mcp (the FastMCP server), imap-tools (the IMAP client, STARTTLS-capable through
+the standard library `imaplib`, which the Bridge defaults to), pydantic (the `Field` descriptions
+the tool schema is generated from) and pydantic-settings. Deployed by
 `docker/docker-compose.email.yml`.

@@ -1,53 +1,16 @@
-"""SmtpSender: the send twin of ImapMailbox, over ProtonMail Bridge SMTP (ADR-0022)."""
+"""SmtpSender: the send twin of ImapMailbox, over ProtonMail Bridge SMTP."""
 
-import re
 import smtplib
 import ssl
 from email.message import EmailMessage
 from typing import Protocol
 
 from cortex_email.config import SmtpConfig
-from cortex_email.values import (
-    MAX_ATTACHMENT_CHARS,
-    MAX_ATTACHMENTS,
-    MAX_FILENAME_CHARS,
-    EmailAttachment,
-    EmailDraft,
-)
+from cortex_email.drafts import confirmation, refuse_unsendable
+from cortex_email.errors import SendError
+from cortex_email.values import EmailDraft
 
-# A MIME subtype token: no "/" (so "text/" stays a prefix the caller cannot escape), no
-# space, no ";" that could open a parameter, and nothing a header value must not hold.
-_SUBTYPE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,62}$")
-
-
-def _reject_header_injection(field: str, value: str) -> None:
-    """Raise if ``value`` carries a CR/LF that could inject an extra email header."""
-    if "\r" in value or "\n" in value:
-        msg = f"{field} must not contain a newline (header-injection attempt)"
-        raise ValueError(msg)
-
-
-def _reject_bad_attachments(attachments: tuple[EmailAttachment, ...]) -> None:
-    """Raise unless every attachment has a usable filename and subtype and fits the bounds."""
-    if len(attachments) > MAX_ATTACHMENTS:
-        msg = f"a message may carry at most {MAX_ATTACHMENTS} attachments"
-        raise ValueError(msg)
-    total = sum(len(attachment.content) for attachment in attachments)
-    if total > MAX_ATTACHMENT_CHARS:
-        msg = f"attachments must total at most {MAX_ATTACHMENT_CHARS} characters, not {total}"
-        raise ValueError(msg)
-    for attachment in attachments:
-        # The filename is a header value and gets header treatment; the content is a payload.
-        _reject_header_injection("attachment filename", attachment.filename)
-        if not attachment.filename:
-            msg = "attachment filename must not be empty"
-            raise ValueError(msg)
-        if len(attachment.filename) > MAX_FILENAME_CHARS:
-            msg = f"attachment filename must be at most {MAX_FILENAME_CHARS} characters"
-            raise ValueError(msg)
-        if not _SUBTYPE_TOKEN.match(attachment.subtype):
-            msg = f"attachment subtype {attachment.subtype!r} is not a MIME subtype token"
-            raise ValueError(msg)
+_TRANSPORT_FAILURES = (smtplib.SMTPException, OSError)
 
 
 class EmailSender(Protocol):
@@ -70,27 +33,21 @@ class SmtpSender:
         return context
 
     def _compose(self, draft: EmailDraft) -> EmailMessage:
-        # Reject header injection explicitly rather than trust the interpreter: a CR/LF in a
-        # header value can smuggle extra headers (a Bcc exfil) on some CPython patch levels
-        # (the 3.12.0-3.12.4 window). `body`/`html` are payload, not headers, so unrestricted.
-        _reject_header_injection("recipient", draft.to)
-        _reject_header_injection("subject", draft.subject)
-        _reject_header_injection("cc", draft.cc)
-        _reject_header_injection("bcc", draft.bcc)
-        _reject_bad_attachments(draft.attachments)
+        refuse_unsendable(draft)
         message = EmailMessage()
-        message["From"] = self._config.user  # the authenticated identity, never a parameter
+        # The authenticated identity, never a parameter, so a draft cannot forge a sender.
+        message["From"] = self._config.user
         message["To"] = draft.to
         message["Subject"] = draft.subject
         if draft.cc:
             message["Cc"] = draft.cc
         if draft.bcc:
-            # send_message reads To+Cc+Bcc for the envelope recipients, then deletes Bcc from
-            # the transmitted copy, so a Bcc address stays hidden from the To/Cc readers (stdlib).
             message["Bcc"] = draft.bcc
         message.set_content(draft.body)
         if draft.html:
             message.add_alternative(draft.html, subtype="html")
+        # A str payload keeps this a text/<subtype> part: add_attachment takes no maintype for
+        # a string, so only text the assistant wrote can be attached.
         for attachment in draft.attachments:
             message.add_attachment(
                 attachment.content, subtype=attachment.subtype, filename=attachment.filename
@@ -100,15 +57,24 @@ class SmtpSender:
     def send(self, draft: EmailDraft) -> str:
         """Send the message and report one human-readable confirmation line."""
         message = self._compose(draft)
+        try:
+            refused = self._deliver(message)
+        except _TRANSPORT_FAILURES as err:
+            msg = f"the email was not sent: {err}"
+            raise SendError(msg) from err
+        return confirmation(draft, tuple(refused))
+
+    def _deliver(self, message: EmailMessage) -> dict[str, tuple[int, bytes]]:
+        """Connect, authenticate and hand over ``message``; return the recipients refused."""
+        # send_message reads To, Cc and Bcc for the envelope recipients and then deletes Bcc
+        # from the transmitted copy, so a Bcc address stays hidden from the other readers.
         config = self._config
         context = self._ssl_context()
         if config.security == "starttls":
             with smtplib.SMTP(config.host, config.port) as client:
                 client.starttls(context=context)
                 client.login(config.user, config.password.get_secret_value())
-                client.send_message(message)
-        else:
-            with smtplib.SMTP_SSL(config.host, config.port, context=context) as client:
-                client.login(config.user, config.password.get_secret_value())
-                client.send_message(message)
-        return f'email sent to {draft.to} (subject: "{draft.subject}")'
+                return client.send_message(message)
+        with smtplib.SMTP_SSL(config.host, config.port, context=context) as client:
+            client.login(config.user, config.password.get_secret_value())
+            return client.send_message(message)

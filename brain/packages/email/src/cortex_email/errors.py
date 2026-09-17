@@ -1,10 +1,14 @@
-"""Typed errors of the `Mailbox` port: the IMAP library's own exceptions never cross it."""
+"""Typed errors of the `Mailbox` and `EmailSender` ports: no library's exceptions cross either."""
 
 from cortex_email.values import FOLDER_UNKNOWN, SEARCH_REFUSED
 
 
 class MailboxError(Exception):
     """A `Mailbox` operation failed; the adapter wraps its library's errors into this."""
+
+
+class SendError(Exception):
+    """An `EmailSender` delivered to nobody: the server was unreachable or refused the message."""
 
 
 class SearchRefusedError(MailboxError):

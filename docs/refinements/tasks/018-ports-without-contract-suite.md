@@ -3,10 +3,10 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0001](../../adr/ADR-0001-architecture.md)
-**Trigger:** a Rust port or `EmailSender` gaining a shared check list, which answers the design
-question below for its language; or a Rust test passing over a fake while the adapter it stands in
-for fails the same expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness`
-and only on the Windows host for the four OS ports.
+**Trigger:** a Rust port gaining a shared check list, which answers the design question below for
+Rust; or a Rust test passing over a fake while the adapter it stands in for fails the same
+expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness` and only on the
+Windows host for the four OS ports.
 **Verified:** 2026-09-17
 
 Opened 2026-08-10 by the sweep that followed the `MemoryStore` contract
@@ -271,13 +271,29 @@ aging rather than a defect in it: seventeen in Python, fifteen lists named `<por
 wording because the arrangement it points at is unchanged and the number was true when it was
 written; the count that matters to the next reader is here and in the ADR tables.
 
-**What is left is every Rust row and one Python port**: the four OS ports, three of whose fakes
-are hand-written twice in two crates, `BrainTransport` with three independent suites over one
-eleven-method trait, the two small ones beside them, and `EmailSender`, whose `FakeSender`
-(inside `email/tests/test_email_server.py`) and `SmtpSender` share no list. That last one was
-missing from the inventory until 2026-09-17, when the Python ports were enumerated by grep rather
-than from the table; it is one method wide, as `Embedder` was, and the email package it lives in
-is the one `Mailbox`'s list already runs in. The overlay is done.
+**`EmailSender` was the last Python port, found and closed on 2026-09-17.** It was missing from
+the inventory until the Python ports were enumerated by grep rather than from the table, a fake
+inside `email/tests/test_email_server.py` and `SmtpSender` sharing no list.
+`brain/packages/email/tests/sender_contract.py` now holds eight checks and
+`test_sender_contract.py` runs them over `FakeSender`, moved to `tests/sender_fake.py`, and over
+`SmtpSender` on a stand-in `smtplib` (`tests/smtp_stub.py`) that fakes only the socket, so no
+dependency was added. The eight are the one-line answer naming recipient and subject, a plain
+draft and a full one handed over as written, fourteen refused drafts that reach nothing,
+attachments at both bounds handed over whole, and the three ways a send goes wrong at the server:
+unreachable, every recipient refused, one recipient refused.
+
+It paid three times. The port had no failure type, so an unreachable Bridge reached the tool as
+whatever `smtplib` or the socket raised; it gained `SendError`, which the adapter wraps both into.
+The adapter ignored the refused-recipient dict `send_message` returns, so a send refused for some
+recipients was reported as sent to all. And the fake accepted every draft the adapter refuses and
+answered a line of its own; the refusals and the line moved into `cortex_email/drafts.py`, which
+both implementations call. Ten breaks, four in the adapter, five in the fake and one in the shared
+rules, each fail the arm that carries them, and the whole account is the
+[ADR-0001](../../adr/ADR-0001-architecture.md) addendum on the send port's shared list.
+
+**What is left is every Rust row**: the four OS ports, three of whose fakes are hand-written twice
+in two crates, `BrainTransport` with three independent suites over one eleven-method trait, and the
+two small ones beside them. The overlay is done, and so is every Python row that owes a list.
 
 **Why deferred rather than done.** The ports named above come to five in Python counting the
 partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
@@ -382,3 +398,9 @@ shared list would have named.
   change since this was opened, the capture target of 2026-08-10, was mirrored into both
   `FakeScreen` copies without a drift. Its first arm had already fired twice without closing the
   entry, so the trigger now names only what would move this entry.
+- 2026-09-17: `EmailSender` landed, eight checks over `FakeSender` and `SmtpSender` on a stand-in
+  `smtplib`, which leaves only the Rust rows. It paid three times: the port gained `SendError` for
+  a send that reached nobody, the adapter now names recipients the server refused while accepting
+  the others where it used to report them sent, and the fake now applies the refusals it had
+  skipped, from `cortex_email/drafts.py`, which both implementations call. The trigger no longer
+  names the port.

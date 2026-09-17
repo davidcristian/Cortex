@@ -1,7 +1,7 @@
 """Email MCP server: read-only IMAP + opt-in SMTP send (docs/modules/brain-email.md)."""
 
 from cortex_email.config import EmailConfig, SmtpConfig
-from cortex_email.errors import FolderUnknownError, MailboxError, SearchRefusedError
+from cortex_email.errors import FolderUnknownError, MailboxError, SearchRefusedError, SendError
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader, Mailbox, RawEmail
 from cortex_email.server import build_server, main
@@ -22,6 +22,7 @@ __all__ = [
     "MailboxError",
     "RawEmail",
     "SearchRefusedError",
+    "SendError",
     "SmtpConfig",
     "SmtpSender",
     "build_server",

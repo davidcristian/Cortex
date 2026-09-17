@@ -1,6 +1,5 @@
-"""Behavior tests for the email FastMCP server: the tools call the reader, in-process."""
-# The autouse env-isolation fixture below is invoked by pytest, not statically
-# referenced. Pyright cannot see that. (Same class as server.py's decorator handlers.)
+# The autouse fixture below is called by pytest and never referenced, so pyright reads it
+# as unused.
 # pyright: reportUnusedFunction=false
 
 from collections.abc import Sequence
@@ -11,14 +10,15 @@ from mailbox_fake import FakeMailbox
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import CallToolResult, TextContent
+from sender_fake import FakeSender
 
 import cortex_email.server as server_module
 from cortex_email import (
     EmailAttachment,
-    EmailDraft,
     EmailReader,
     MailboxError,
     RawEmail,
+    SendError,
     SmtpSender,
     build_server,
     main,
@@ -30,7 +30,6 @@ _SIMPLE = (
     b"Date: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nbody text\r\n"
 )
 
-# A message with no From header: read_email declares no sender source for it.
 _NO_SENDER = b"Subject: Hi\r\nDate: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nbody text\r\n"
 
 
@@ -44,16 +43,13 @@ _SMTP_ENV = (
 
 @pytest.fixture(autouse=True)
 def _clean_smtp_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Isolate the send-path env so a sourced ~/.cortex/email.env can't make `main()` wire a
-    # sender in the read-only-default test; tests that need it set the vars after this runs.
+    # A sourced ~/.cortex/email.env would otherwise make `main()` wire a sender in the test
+    # that asserts the default server is read-only.
     for name in _SMTP_ENV:
         monkeypatch.delenv(name, raising=False)
 
 
 async def _text(server: FastMCP, name: str, args: dict[str, object]) -> str:
-    # search_emails and read_email return a CallToolResult (one marks a refusal, the other
-    # declares a source, both below); the string-returning tools come back as FastMCP's
-    # (unstructured, structured) pair. Both reduce to the readable text.
     result: object = await server.call_tool(name, args)
     if isinstance(result, CallToolResult):
         blocks: Sequence[object] = result.content
@@ -176,21 +172,16 @@ async def test_only_a_call_the_server_declined_is_marked_a_failure() -> None:
 
 
 async def test_read_email_declares_the_message_sender_as_a_source() -> None:
-    # The producer half of the sidecar declaration channel (ADR-0027): the sender rides in the
-    # result `_meta`, beside (never inside) the readable string the model consumes. The brain's
-    # tool registry reads this key and, being the trust gate, admits it only as a claimed source.
     server = build_server(EmailReader(FakeMailbox(one=RawEmail("7", _SIMPLE))))
     result = cast(
         "CallToolResult", await server.call_tool("read_email", {"folder": "INBOX", "uid": "7"})
     )
     assert result.meta == {"cortex/source": {"kind": "sender", "value": "A <a@x.com>"}}
     text = "".join(b.text for b in result.content if isinstance(b, TextContent))
-    assert text.startswith("From: A <a@x.com>")  # the declaration left the content untouched
+    assert text.startswith("From: A <a@x.com>")
 
 
 async def test_read_email_declares_no_source_without_a_sender_or_when_not_found() -> None:
-    # A message with no From header, and a missing message, both declare nothing rather than an
-    # empty sender: the wire carries a source only when there is one.
     no_sender = build_server(EmailReader(FakeMailbox(one=RawEmail("8", _NO_SENDER))))
     found = cast(
         "CallToolResult", await no_sender.call_tool("read_email", {"folder": "INBOX", "uid": "8"})
@@ -204,15 +195,7 @@ async def test_read_email_declares_no_source_without_a_sender_or_when_not_found(
     assert missing.meta is None
 
 
-class FakeSender:
-    """Records sends and returns the readable confirmation line (the SmtpSender contract)."""
-
-    def __init__(self) -> None:
-        self.sent: list[EmailDraft] = []
-
-    def send(self, draft: EmailDraft) -> str:
-        self.sent.append(draft)
-        return f"email sent to {draft.to}"
+_SENT_HI = 'email sent to you@example.com (subject: "Hi")'
 
 
 async def _tool_names(server: FastMCP) -> set[str]:
@@ -220,8 +203,6 @@ async def _tool_names(server: FastMCP) -> set[str]:
 
 
 async def test_without_a_sender_only_the_read_tools_register() -> None:
-    # Building without a sender registers no write tool at all, which is the read-only-by-
-    # construction default the send path preserved (ADR-0022).
     server = build_server(EmailReader(FakeMailbox()))
     assert await _tool_names(server) == {"list_folders", "search_emails", "read_email"}
 
@@ -232,7 +213,6 @@ async def test_with_a_sender_send_email_registers_with_write_annotations() -> No
     assert set(tools) == {"list_folders", "search_emails", "read_email", "send_email"}
     annotations = tools["send_email"].annotations
     assert annotations is not None
-    # Advisory MCP metadata (never authority, because the brain-side overlay gates it).
     assert annotations.readOnlyHint is False
     assert annotations.destructiveHint is True
     assert annotations.openWorldHint is True
@@ -244,10 +224,10 @@ async def test_send_email_tool_sends_and_reports() -> None:
     text = await _text(
         server, "send_email", {"to": "you@example.com", "subject": "Hi", "body": "hello"}
     )
-    assert text == "email sent to you@example.com"
+    assert text == _SENT_HI
     (draft,) = sender.sent
     assert (draft.to, draft.subject, draft.body) == ("you@example.com", "Hi", "hello")
-    assert (draft.cc, draft.bcc, draft.html) == ("", "", "")  # omitted shapes default empty
+    assert (draft.cc, draft.bcc, draft.html) == ("", "", "")
     assert draft.attachments == ()
 
 
@@ -266,14 +246,12 @@ async def test_send_email_tool_forwards_cc_bcc_and_html() -> None:
             "html": "<p>hi</p>",
         },
     )
-    assert text == "email sent to you@example.com"
+    assert text == _SENT_HI
     (draft,) = sender.sent
     assert (draft.cc, draft.bcc, draft.html) == ("c@example.com", "b@example.com", "<p>hi</p>")
 
 
 async def test_send_email_tool_forwards_attachments_as_values() -> None:
-    # The nested array-of-objects argument is the first of its shape in the repo: what this
-    # pins is that the JSON the model writes arrives as EmailAttachment values on the draft.
     sender = FakeSender()
     server = build_server(EmailReader(FakeMailbox()), sender)
     text = await _text(
@@ -285,16 +263,26 @@ async def test_send_email_tool_forwards_attachments_as_values() -> None:
             "body": "see attached",
             "attachments": [
                 {"filename": "notes.md", "content": "# Notes", "subtype": "markdown"},
-                {"filename": "log.txt", "content": "line one"},  # subtype defaults to plain
+                {"filename": "log.txt", "content": "line one"},
             ],
         },
     )
-    assert text == "email sent to you@example.com"
+    assert text == _SENT_HI
     (draft,) = sender.sent
     assert draft.attachments == (
         EmailAttachment("notes.md", "# Notes", "markdown"),
         EmailAttachment("log.txt", "line one"),
     )
+
+
+async def test_a_send_that_reached_nobody_is_the_tools_error_with_its_reason() -> None:
+    sender = FakeSender()
+    sender.fail_with(SendError("the email was not sent: connection refused"))
+    server = build_server(EmailReader(FakeMailbox()), sender)
+    with pytest.raises(ToolError, match="the email was not sent: connection refused"):
+        await server.call_tool(
+            "send_email", {"to": "you@example.com", "subject": "Hi", "body": "b"}
+        )
 
 
 async def test_the_search_tool_names_the_dialect_its_query_is_written_in() -> None:
@@ -307,9 +295,6 @@ async def test_the_search_tool_names_the_dialect_its_query_is_written_in() -> No
 
 
 async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
-    # A folder name is taken verbatim, so an invented one is an error rather than an empty
-    # result. Both tools that take a folder say so, from one constant, which is what stops the
-    # two descriptions drifting apart.
     server = build_server(EmailReader(FakeMailbox()))
     tools = {t.name: t for t in await server.list_tools()}
     for name in ("search_emails", "read_email"):
@@ -328,9 +313,6 @@ async def test_the_read_tool_says_where_a_uid_comes_from_and_that_not_found_is_f
 
 
 async def test_the_search_limit_says_which_matches_it_keeps() -> None:
-    # A limit that means "the oldest N" without saying so misleads the model, so the description
-    # says it: the fetch is ascending-uid, and raising the limit is not how a recent message is
-    # found.
     server = build_server(EmailReader(FakeMailbox()))
     (tool,) = [t for t in await server.list_tools() if t.name == "search_emails"]
     limit = tool.inputSchema["properties"]["limit"]
@@ -339,8 +321,6 @@ async def test_the_search_limit_says_which_matches_it_keeps() -> None:
 
 
 async def test_the_send_tool_advertises_the_attachment_shape() -> None:
-    # The model can only fill a shape it is told about, and this schema is generated rather
-    # than written, so assert the nested object reaches the advertised parameters.
     server = build_server(EmailReader(FakeMailbox()), FakeSender())
     (tool,) = [t for t in await server.list_tools() if t.name == "send_email"]
     attachments = tool.inputSchema["properties"]["attachments"]
@@ -354,10 +334,7 @@ async def test_every_attachment_field_says_what_it_is_for() -> None:
     server = build_server(EmailReader(FakeMailbox()), FakeSender())
     (tool,) = [t for t in await server.list_tools() if t.name == "send_email"]
     fields = tool.inputSchema["$defs"]["EmailAttachment"]["properties"]
-    assert set(fields) == {"filename", "content", "subtype"}  # every one of them, below
-    # The subtype fact is the phrase that *locates* the token, not the bare "text/": the
-    # description also warns off "text/markdown", so matching "text/" alone would survive
-    # deleting the sentence that says what to write, which is a check that cannot fail.
+    assert set(fields) == {"filename", "content", "subtype"}
     for name, fact in (
         ("filename", str(MAX_FILENAME_CHARS)),
         ("content", "disk"),
@@ -367,9 +344,6 @@ async def test_every_attachment_field_says_what_it_is_for() -> None:
 
 
 async def test_the_attachments_array_names_the_two_bounds_it_is_refused_against() -> None:
-    # Neither bound belongs to a field: one counts the entries and one sums their content, so
-    # they ride the array itself, which had no description at all. Both are spelled from the
-    # constants SmtpSender refuses against, never restated.
     server = build_server(EmailReader(FakeMailbox()), FakeSender())
     (tool,) = [t for t in await server.list_tools() if t.name == "send_email"]
     described = tool.inputSchema["properties"]["attachments"]["description"]
@@ -392,7 +366,7 @@ def test_main_builds_the_server_and_runs_streamable_http(monkeypatch: pytest.Mon
     monkeypatch.setattr(server_module, "build_server", spy_build)
     main()
     assert transports == ["streamable-http"]
-    assert senders == [None]  # send disabled by default: the read-only server
+    assert senders == [None]
 
 
 def test_main_wires_a_sender_when_send_is_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
