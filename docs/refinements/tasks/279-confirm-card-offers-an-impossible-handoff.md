@@ -3,8 +3,13 @@
 **Status:** open, fix when it bites
 **Area:** resource-governance
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Trigger:** a user asking why they were asked to approve a deep task that then did not happen, or a deployment configuring escalation without a deep artifact for long enough that the card becomes a nuisance.
-**Verified:** 2026-09-12
+**Trigger:** a user asking why they were asked to approve a deep task that then did not happen, or a
+deployment configuring escalation without a deep artifact for long enough that the card becomes a
+nuisance. Both are off-tree. What the tree can answer is whether any stack it ships can reach the
+state: that needs `CORTEX_ESCALATION` set while `CORTEX_MODEL_FILE_BRAIN` keeps its empty default
+(`docker/docker-compose.gpu.yml:153`), and `grep -rn CORTEX_ESCALATION docker/` finding only the
+comment at line 25 says none can.
+**Verified:** 2026-09-17
 
 Opened 2026-08-16 by the close that refuses an impossible handoff before the drain
 ([R-203](203-escalation-fault-not-remembered.md)), which moved the refusal from after the stall to
@@ -74,3 +79,15 @@ visibility trade above rather than the cost.
   behind a stop. The body now says all of this, names the third shape a fix could take, and states
   the objection that does survive, which is that a quietly absent tool produces no sentence a user
   can ask about, narrowed by the per-boot error line `swap_recovery._clear_deep` already writes.
+- 2026-09-17: re-derived and still not fired. No commit since 2026-09-12 touched the sites the body
+  names. `build_builtin_tools` still appends `EscalateToBrainTool()` on the escalation flag
+  (`dispatch_builders.py:73`) and is still called once for the cortex and once for the deep phase
+  at boot (`wiring.py:154` and `:168`); `StreamEngines.for_stream` still builds the dispatcher per
+  stream (`engines.py:116`); `gate_reason_map` still merges the static `ESCALATE_GATE_REASON`
+  (`config_tools.py:172`). The route claim holds: the model host's `GET /health` handler takes no
+  per-model lock (`api.py:67`), while `ModelSupervisor.status` takes one (`supervisor.py:187`).
+  The trigger was left as it was, since both of its halves are about users and deployments, and
+  it gained the in-tree precondition and the command that reports it. That command is sufficient
+  because no compose file here has an `env_file` key, so a `.env` alone cannot put
+  `CORTEX_ESCALATION` into the brain container: an operator has to edit a compose file or add an
+  override.

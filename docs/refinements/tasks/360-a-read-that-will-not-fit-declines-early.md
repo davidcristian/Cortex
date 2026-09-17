@@ -9,9 +9,13 @@ shorter than the deadline it announces, which is what currently makes the handle
 worth so little. Recheck the second half with
 `grep -n ANNOUNCED_DEADLINE_GRACE_MS body/crates/core/src/retry/plan.rs`: a positive constant there
 means the announced deadline is still the longer of the two and this has not fired. Recheck the
-first with `grep -c time_remaining brain/packages/orchestrator/src/cortex_orchestrator/session_servicer.py`:
-zero means no read handler branches on the clock.
-**Verified:** 2026-09-11
+first with `grep -rln 'perf_counter\|time.monotonic' brain/packages/session`: no output means the
+store adapter times nothing, and the 2026-09-17 trail line found no harness timing a served read
+either. Separately, `grep -rln time_remaining brain/packages/orchestrator/src` listing only
+`abandon.py` means no handler branches on the clock yet, so nothing has built this entry by
+another route. The read handlers live in three files (`session_servicer.py`,
+`preference_servicer.py` and `server.py`), so a grep of one of them cannot answer that.
+**Verified:** 2026-09-17
 
 `ListSessions` reads `time_remaining()` nowhere. It calls `SessionStore.list_sessions` whatever the
 clock says, and a caller who has already given up gets a reply written into a stream nobody reads,
@@ -78,3 +82,19 @@ exists anywhere in the tree, and the paging cursor that would make one worth tak
   `Converse` is exempt from everything this entry weighs, since `deadline_for` answers `None`
   for it (line 252) and `announced_deadline_for` therefore announces nothing; a clock-reading
   branch in a read handler would change nothing about a turn, and the two entries agree.
+- 2026-09-17: neither half has fired, and two statements here were narrower or wider than the
+  tree. The recheck named only `session_servicer.py`, which holds two of the five methods the
+  body's plan treats as repeatable reads (`ListSessions` and `GetSessionMessages`);
+  `GetPreferences` is in `preference_servicer.py:34`, and `ListDueReminders` and `Health` are in
+  `server.py:193` and `:127`. The trigger now greps the whole package, and that grep lists only
+  `abandon.py`. That grep also never answered the first half, since it reports whether this entry
+  was built rather than whether a read was measured, so the first half now has its own command. The 2026-09-11 line said no `perf_counter`, `time.monotonic` or `Instant::now`
+  appears in any source file of either tree. That holds for production source and not for tests:
+  21 test files read a monotonic clock, 19 Python and 2 Rust. Two of them touch a read, and
+  neither times a served one. `test_fold_under_load_live.py` opens a `RedisSessionStore` and
+  times GPU lease waits and model calls, and `body/crates/rpc/tests/live.rs:304` times a
+  `list_sessions` against a peer that serves nothing, to measure the retry schedule. So the claim
+  that no store read's duration is measured anywhere still holds. `ANNOUNCED_DEADLINE_GRACE_MS`
+  is still 250 at `plan.rs:79`, still asserted as an equality at `retry_plan.rs:465`, and no
+  commit since 2026-09-11 touched either file. The paging cursor
+  ([184](184-paging-cursor.md)) is still open.

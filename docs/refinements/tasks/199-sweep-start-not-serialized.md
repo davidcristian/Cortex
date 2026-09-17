@@ -3,8 +3,13 @@
 **Status:** open, fix when it bites
 **Area:** resource-governance
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Trigger:** A handoff refused at its fit check, or recorded as having spilled, with a peer a retry pass had just started.
-**Verified:** 2026-09-12
+**Trigger:** A handoff refused at its fit check, or recorded as having spilled, with a peer a retry
+pass had just started. Either needs a live handoff, which is off-tree, and four settings that all
+default off: `CORTEX_ESCALATION`, a non-empty `CORTEX_SWAP_EVICT_MODELS`, and
+`CORTEX_SWAP_BRAIN_VRAM_MIB` (the refusal arm) or `CORTEX_SWAP_BRAIN_DECODE_TPS` (the spill arm).
+`grep -rn` for those four names over `docker/` finding them only in comments says no shipped stack
+can make the observation.
+**Verified:** 2026-09-17
 
 The sweep's start is fenced against a handoff but not serialized with one.
 Opened 2026-08-11 by the close above, which owns the fence and says plainly what the
@@ -62,3 +67,13 @@ residual does not put it there.
   primitive that serializes them; that one is the width of a single boolean in `VramBudgetPlacer`,
   whose fix is a declared tier id in `PlacementRequest`. Neither fix touches the other's object,
   and the two triggers can fire independently.
+- 2026-09-17: re-derived and still not fired; no commit since 2026-09-12 touched
+  `residency_sweep.py`, `residency_moves.py` or the supervisor. The two arms each need a setting
+  this entry had not named. The fit check returns at once while `plan.brain_vram_mib` is zero
+  (`residency_moves.py`, `_refuse_a_load_the_card_cannot_hold`), and a spill verdict is `None`
+  while the declared floor is zero (`cadence.py`, `verdict`), so a deployment that sets neither
+  figure cannot record either arm however often the race is run. The trigger now lists those
+  settings with `CORTEX_ESCALATION` and the evict list, and all four appear under `docker/` only
+  in the comment block of `docker/docker-compose.gpu.yml`. Still separate from
+  [R-200](200-placer-one-bit-per-card.md): this is about the order of two control calls, and
+  that entry is about the width of the placer's flag.

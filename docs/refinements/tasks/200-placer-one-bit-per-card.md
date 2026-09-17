@@ -3,8 +3,13 @@
 **Status:** open, fix when it bites
 **Area:** resource-governance
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Trigger:** A deployment naming more than the subagent tier in `CORTEX_SWAP_EVICT_MODELS`.
-**Verified:** 2026-09-12
+**Trigger:** The model host gaining a tier a deployment could correctly list beside the subagent
+tier, meaning `ModelHostConfig.tiers()` (`brain/packages/model_manager/src/cortex_model_manager/config.py`)
+declaring a fourth `TierArgs` after `cortex`, `brain` and `subagent-gpu`; or a subagent roster entry
+gaining a second GPU target beside `gpu_endpoint`. Recheck with
+`grep -c 'TierArgs(' brain/packages/model_manager/src/cortex_model_manager/config.py`: 3 means
+neither has happened.
+**Verified:** 2026-09-17
 
 The placer carries a single flag for whether the GPU is available, while the residency record holds
 one entry per tier. Opened 2026-08-09 by the same close. Any missing tier closes GPU placement for
@@ -16,10 +21,12 @@ in any shipped deployment. The cost of the coarse flag is a deployment that list
 subagent pool never places on and loses GPU placement it did not need, which is decode rate rather
 than correctness, and the conservative direction is deliberate (refusing too little costs a dead
 load per spawn). The fix is a declared tier id per roster entry, threaded into `PlacementRequest` so
-the placer can skip one target rather than all of them. The trigger is a deployment naming more than
-the subagent tier in `CORTEX_SWAP_EVICT_MODELS`, or a second GPU-capable executor, which is also
+the placer can skip one target rather than all of them. The trigger is a hosted tier a deployment
+could correctly list beside the subagent tier, or a second GPU-capable executor, which is also
 what would reopen the declined placement-aware CPU charging entry
-([R-189](189-placement-aware-cpu-charging.md)).
+([R-189](189-placement-aware-cpu-charging.md)). The trigger used to be any deployment naming more
+than the subagent tier in `CORTEX_SWAP_EVICT_MODELS`, which no correct deployment can do while the
+model host carries three tiers (the 2026-09-17 trail line).
 
 ## Trail
 
@@ -46,3 +53,19 @@ what would reopen the declined placement-aware CPU charging entry
   Read against [R-199](199-sweep-start-not-serialized.md) and they are not one defect seen twice.
   That one is an ordering residual between two control calls; this one is the width of one boolean.
   Neither fix touches the other's object, and the two triggers can fire independently.
+- 2026-09-17: re-derived, still not fired, and the trigger restated, because as written it could
+  only fire on a misconfiguration. `ModelHostConfig.tiers()` declares three tiers, and with every
+  `CORTEX_MODEL_FILE_*` set it returns `cortex`, `brain` and `subagent-gpu` (run under
+  `brain/.venv/bin/python`). So the only ids a deployment can list beside `subagent-gpu` are the
+  cortex, the deep tier, or an id no roster has, and `SwapConfig` accepts all three: an evict list of
+  `cortex`, `brain`, `subagent-gpu` and `nosuch` loaded without error. An id no roster has closes
+  the placer through `mark_unhosted`, which the runbook already names as a misconfiguration to
+  fix by dropping the id, so the one-bit width is not what costs that deployment anything. Listing
+  the deep tier is worse than anything this entry prices: run against `ScriptedModelHost`, one
+  `sweep_tiers` pass outside a handoff called `start` on `brain` and left it running beside the
+  cortex, and `converge_residency` at boot did the same and still reported the cortex settled.
+  That is filed as its own entry
+  ([R-681](681-the-evict-list-accepts-the-deep-tier-it-makes-room-for.md)). The code this entry
+  describes is unchanged: `placer.py` still sets and reads `_gpu_closed` at lines 48, 61, 109 and
+  113, `PlacementRequest` still carries a model id and three resource figures, and no commit since
+  2026-09-12 touched either.

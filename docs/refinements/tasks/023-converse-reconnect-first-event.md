@@ -8,7 +8,7 @@ scope at all (`brain/packages/orchestrator/src/cortex_orchestrator/swap_builders
 `None` without it), together with turns costly enough that a silent re-run beats paying for dedup.
 Recheck with `grep -rn CORTEX_ESCALATION docker/`: one hit, inside a comment, means nothing swaps
 and this has not fired.
-**Verified:** 2026-09-11
+**Verified:** 2026-09-17
 
 The transport retry entry costed this at one line, "a replayable request and a signature
 change", which was right about the shape and said nothing about the size.
@@ -79,3 +79,16 @@ the mid-turn eviction the trigger waits for cannot occur yet.
   announces no deadline and the grace margin that entry turns on never reaches a turn; a request
   id here would leave the read handlers' clock untouched. The two entries agree, and neither lies
   on the other's path.
+- 2026-09-17: the prescribed grep still reports its one hit, the comment at
+  `docker/docker-compose.gpu.yml:25`, and no compose file has an `env_file` key, so a `.env` alone
+  cannot turn the switch on inside the brain container. Every citation above was re-read and
+  holds at the same lines: `swap_builders.py:103-104`, `config_swap.py:108-109`,
+  `proto/body.proto:93-105`, `engine.py:118`, `converse_stream.py:208`, and `plan.rs` lines 157
+  and 252. No commit since 2026-09-11 touched any of those files. The one seam-transport change
+  in that time, the raised idle gap in `body/crates/core/src/retry/gap.rs`, bounds a turn's
+  silence and leaves `repeatable` answering false for `Converse`, so it moves neither half of
+  this entry. One sentence of the 2026-09-11 line was wrong: `Converse` is not the one method
+  `repeatable` answers false for. It is one of six (`plan.rs:157-162`), the other five being the
+  writes `AckReminder`, `RenameSession`, `DeleteSession`, `SetSessionPinned` and
+  `SetPreference`. It is the one method `deadline_for` answers `None` for, which is the half
+  the read-deadline entry turns on, so that line's conclusion stands.
