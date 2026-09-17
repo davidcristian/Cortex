@@ -3,8 +3,12 @@
 **Status:** open, a seam or port change comes first
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-10
-**Trigger:** the next change that opens the model host's `HealthProbe` or `InferenceEvent`, either of which is where a build reading for the remaining endpoints would land.
+**Verified:** 2026-09-17
+**Trigger:** a commit that changes `HealthProbe.serving` in
+`brain/packages/model_manager/src/cortex_model_manager/probe.py` or the `InferenceEvent` union in
+`brain/packages/core/src/cortex_core/inference.py`, either of which is where a build reading for
+the remaining endpoints would land. Read it with `git log --since=<Verified date>` on those two
+paths.
 
 Opened 2026-09-10 by the close of
 [R-611](611-nothing-reads-the-build-the-engine-names-on-every-response.md), which gave a running
@@ -13,7 +17,7 @@ stack its first build reading and covered one endpoint with it.
 `PropsVisionProbe.can_see` reads `build_info` off the `/props` body it already parses and puts it on
 `vision probe answered` as `build`. That probe is built only for `CORTEX_VISION=auto`
 (`build_vision` in [vision.py](../../../brain/packages/orchestrator/src/cortex_orchestrator/vision.py)
-returns no probe for `on` and none at all for `off`), and it asks one address, `config.endpoint`.
+returns no probe for `on`, and none at all for `off` or for a brain with no body wired), and it asks one address, `config.endpoint`.
 So three populations still record nothing. A deployment that fixed the vision answer by hand logs
 no build. The subagent servers and the deep model are other endpoints, and nothing asks them
 anything outside a turn. And a capture decision's line says which build answered that probe rather
@@ -42,3 +46,9 @@ it is a contract change: the port, the fake, the contract test and the seam's ow
   [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) addendum on the vision probe's build field,
   which argues why the reading landed on the one endpoint it did and names the three places it
   leaves unrecorded.
+- 2026-09-17: re-derived, not fired. Neither path has a commit since 2026-09-10; both last changed
+  on 2026-08-31, and the two model-host commits since then (the subagent prompt cache) did not
+  touch the probe. `PropsVisionProbe.can_see` still logs `build` on `vision probe answered`, and
+  nothing else in `brain/packages/*/src` reads `build_info` or `system_fingerprint`. One
+  correction: `build_vision` also returns no probe when no body is wired, since without a body
+  there is no capture tool to ask about.

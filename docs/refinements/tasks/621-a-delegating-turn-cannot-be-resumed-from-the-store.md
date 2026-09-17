@@ -3,8 +3,13 @@
 **Status:** open, dead until a consumer
 **Area:** resource-governance
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
-**Verified:** 2026-09-10
-**Trigger:** a turn that survives an orchestrator restart, which the seam's `Converse` reconnect entry and the request-identity design the crashed-handoff resume entry waits on would together give it. Until one exists there is nothing to hand a stored result back to.
+**Verified:** 2026-09-17
+**Trigger:** a request identity on the seam, meaning a request id on `UserTurn` or `ClientEvent` in
+`proto/body.proto` (`grep -ni request_id proto/body.proto` has no hit), which is the design both
+the `Converse` reconnect entry (R-023) and the crashed-handoff resume entry (R-112) wait on and
+which a turn surviving an orchestrator restart needs first. A production caller of
+`TaskStore.get_result` would also fire it: `grep -rn 'get_result(' brain/packages/*/src` hits only
+the port, the fake and the Redis adapter.
 
 Opened 2026-09-10 by the close of
 [R-615](615-nothing-reads-a-subagent-result-back-from-the-store.md), which repaired four sentences
@@ -47,3 +52,10 @@ second read taken arbitrarily later, and it would be the first read that orderin
   docstring, the `SubagentResult` docstring, the core module contract and three test comments that
   each described the cortex reading a result out of the store, and recorded the repair in the
   [ADR-0010](../../adr/ADR-0010-subagents.md) addendum on decision 5's last clause.
+- 2026-09-17: re-derived, not fired, and the trigger restated as two greps. Both entries the old
+  trigger leaned on are still open and neither has built request identity: R-023 was re-verified
+  today with its trigger moved onto `CORTEX_ESCALATION`, and R-112 still waits on the same request
+  id. The account holds. `SubagentRunner.run` reads `get_task` once (`runner.py:101`) and
+  `_persist` writes the result (`runner.py:212`); both keys sit at `_TASK_TTL_SECONDS = 3600` in
+  `cortex_session/tasks.py`, against `DEFAULT_ADMISSION_WAIT_S = 7200.0` in `scheduler.py`; and no
+  commit since 2026-09-10 changed the runner, the spawn tool, the task store or the port.

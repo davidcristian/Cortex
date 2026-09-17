@@ -3,11 +3,18 @@
 **Status:** open, fix when it bites
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-09
-**Trigger:** A screen someone owns firing the capture policy's halving ladder at the
-shipped 2048 px edge, which is either of the two ladder assertions in `capture_bytes.rs` failing:
-the four realistic frames on a 4K display, or the same grainy photograph on the three display sizes
-the second one draws it at, no longer fitting inside `CORTEX_BODY_MAX_IMAGE_BYTES`.
+**Verified:** 2026-09-17
+**Trigger:** either ladder assertion in `body/crates/core/tests/capture_bytes.rs` failing: the four
+realistic frames on a 4K display, or the same grainy photograph on the three display sizes the
+second one draws it at, no longer fitting inside `MAX_CAPTURE_BYTES` (6291456, in
+`body/crates/core/src/os/screen_policy.rs`, the body's copy of the `CORTEX_BODY_MAX_IMAGE_BYTES`
+default) at the test's `BRAIN_EDGE` (2048, which crosscheck holds to the
+`CORTEX_BODY_CAPTURE_MAX_EDGE` default). Both assertions are ignored tests that `just check` never
+runs, so the reading is the hand run
+`cargo test -p body-core --test capture_bytes --release -- --ignored --nocapture` from `body/`.
+The frames are synthetic and seeded, so only those two numbers, the downscaler, or the `png`
+encoder crate can move the result. A deployment that lowers either setting in its own environment
+is not measured by the test.
 
 Measurement puts JPEG q80 at roughly a quarter of
 PNG's bytes on incompressible content (0.97 MB vs 4.33 MB at 1600x900). It is a **body-side
@@ -25,6 +32,13 @@ fifth below the ceiling rather than a quarter (measured 2026-08-06,
 
 ## Trail
 
+- 2026-09-17: re-run, not fired. The hand run above passed all four tests and printed the same
+  bytes to the byte as the 2026-08-06 measurement: 5016491 B (79% of the ceiling) for the grainy
+  photograph on 2560x1440, 4669961 B (74%) on 4K, 4500808 B (71%) on 1920x1080. No commit since
+  2026-09-09 touched `capture_bytes.rs` or `screen_policy.rs`. The trigger now says that both
+  assertions are ignored, which the earlier restatement did not, so a green `just check` says
+  nothing about it. It also names the two numbers the test reads rather than the environment
+  settings, which a deployment can lower without the test seeing it.
 - 2026-09-09: claims re-derived from the code. Still not fired, and every structural claim holds:
   `ImageBlob.mime_type` carries the format
   ([proto/body.proto](../../../proto/body.proto)), `ALLOWED_MIME_TYPES` in
