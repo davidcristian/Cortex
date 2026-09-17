@@ -5,12 +5,16 @@
 **Trigger:** a third IMAP server, or one whose refusal for a mailbox that is there and shut echoes
 the name it refused. The first limb is read off the compose files, which name every server image
 this repo runs (`grep -n 'image:' docker/*.yml`); the second by shutting a mailbox on a server this
-repo reaches and reading the refusal verbatim. This entry's trail records both readings.
+repo reaches and reading the refusal verbatim. On the probe that reading can move only when its
+image line or `docker/dovecot/` changes, and it is taken after `just up-imap-probe` by an EXAMINE
+of `Guarded`, the mailbox there and shut, past the port. The Bridge limb needs a live run against the
+account. This entry's trail records both readings.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-17
 
-`_select` in `brain/packages/email/src/cortex_email/imap.py` classifies a refused SELECT by
-lower-casing `str(err)` and looking for a measured phrase or an RFC 5530 code in it. That string is
+`select` in `brain/packages/email/src/cortex_email/folders.py` classifies a refused SELECT through
+`_says_folder_missing`, which lower-cases `str(err)` and looks for a measured phrase or an RFC 5530
+code anywhere in it. That string is
 what imap-tools rendered out of the refused command, and a server that names the mailbox it refused
 puts the caller's own folder name inside it: Dovecot answers `Mailbox doesn't exist: <name>`. So a
 caller supplies part of the text the classification reads, and a folder named `[NOPERM] archive` or
@@ -46,9 +50,13 @@ on `MailboxFolderSelectError` as `command_result`, inherited from `UnexpectedCom
 whose `__str__` is what renders it into the message the rule reads today; so the parse is available
 without reaching past the library. What has to be decided is how much of an IMAP response-code
 grammar to write for a needle that is currently one `in` against a string. The cheaper half, and
-the one worth doing first if this ever bites, is to
-stop matching anywhere in the message and match only the code at the front of the data line, which
-is the one position RFC 5530 lets a code appear in.
+the one worth doing first if this ever bites, is to stop matching anywhere in the message and match
+only at the front of the first data line, `err.command_result[1][0]`, for the phrases as well as
+the codes. Anchoring the codes alone would not close this: the echoed name follows the phrase, so a
+phrase needle matched anywhere still reads the name. Every refusal measured so far puts its
+evidence first and the name after it (`Mailbox doesn't exist: <name>`, `no such mailbox`,
+`[NOPERM] Permission denied`, `[CANNOT] Invalid mailbox name: ...`), and the front is also the one
+position RFC 5530 lets a code appear in.
 
 ## Trail
 
@@ -99,3 +107,18 @@ is the one position RFC 5530 lets a code appear in.
   ([375](375-a-flagged-name-shut-is-dropped-as-if-missing.md)). It reads the same rendered message
   the same way, so **What would close it** is unchanged except that the parse would now land in one
   place instead of two.
+- 2026-09-17: claims held against the code, both limbs read, neither fired, and the closing move is
+  corrected. The classification moved on 2026-09-15 from `imap.py` to
+  `brain/packages/email/src/cortex_email/folders.py`, where `_select` is now the public `select`;
+  `_says_folder_missing` and `_FOLDER_MISSING_ANSWERS` moved with it unchanged, which an AST
+  comparison of the two versions confirmed. The send-side rework of the same week (`drafts.py`,
+  `SendError`) and the tool audit file sink touched neither. `grep -n 'image:' docker/*.yml` still
+  returns one IMAP server image, `dovecot/dovecot:2.3.21`. The probe was started and read past the
+  port: `EXAMINE "[NOPERM] archive"` answered `('NO', [b"Mailbox doesn't exist: [NOPERM] archive
+  (0.001 + 0.000 secs)."])`, and `"no such mailbox"`, `"[CANNOT] thing"` and `"Nonexistent"` the
+  same way, while `Guarded` was refused `[NOPERM] Permission denied (0.001 + 0.000 secs).` with no
+  name in it, and the probe's live suite passed 9 of 9. The library claim held in the installed
+  imap-tools 1.13.0, whose `__str__` renders `command_result[1]` as a Python list after `Data: `.
+  The Bridge was not read, so its limb is carried over from 2026-09-09. The correction: the cheaper
+  half used to anchor only the code, which leaves the phrase needle free to match the echoed name,
+  so it now anchors both.

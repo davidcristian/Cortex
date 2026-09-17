@@ -3,12 +3,15 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-12
+**Verified:** 2026-09-17
 **Trigger:** a second server this repo can reach starts flagging a name in a plain LIST and opening
 it, or the Bridge account whose two flagged parents are the current proof stops being reachable.
 Both limbs come off one reading, a plain `LIST "" "*"` taken past the port with every listed name
-opened: on the probe after `just up-imap-probe`, and on the Bridge through `ImapMailbox`. This
-entry's trail records the counts and the flags each server answered with when that was last run.
+opened: on the probe after `just up-imap-probe`, and on the Bridge through `ImapMailbox`. The probe
+half can move only when its image line in `docker/docker-compose.imap-probe.yml` or the mailboxes
+`docker/dovecot/probe-mailboxes.sh` builds change; the Bridge half needs a live run against the
+account. This entry's trail records the counts and the flags each server answered with when that
+was last run.
 
 Opened 2026-08-23 by the close of
 [376](376-the-bridge-flag-reading-is-one-account.md), which asked whether the probe could grow a
@@ -22,12 +25,13 @@ does make this server never produces the combination: there the flag and the ref
 from one fact. Two configurations were built to move it and both failed, and their outputs are in
 the ADR-0022 flagged-name-that-opens addendum.
 
-So the keep branch of `_flagged_unselectable` and `_opens` in
-`brain/packages/email/src/cortex_email/imap.py` is still exercised live by exactly one thing, the
-Bridge test in `brain/packages/email/tests/test_email_live.py`, over one person's folder tree,
-where `Folders` and `Labels` are flagged and open. The unit suite covers the branch over the
-stand-in with the Bridge's flags recorded as `OPEN_NODE_FLAGS`, which keeps the shape honest and
-proves nothing about a server.
+So the keep branch of `flagged_unselectable` and `kept_after_opening` in
+`brain/packages/email/src/cortex_email/folders.py` is still exercised live by exactly one thing,
+the Bridge test in `brain/packages/email/tests/test_email_live.py` that holds every name the server
+opens to the set `list_folders` offers, over one person's folder tree, where `Folders` and `Labels`
+are flagged and open. The test names neither; the flags are the account's. The unit suite covers
+the branch over the stand-in with the Bridge's flags recorded as `OPEN_NODE_FLAGS`, which keeps the
+shape honest and proves nothing about a server.
 
 **What would close it.** A server this repo can run that flags a name in a plain LIST and opens it.
 Dovecot 2.3.21 is not it, and the next thing to try is not another Dovecot setting: it is another
@@ -85,3 +89,16 @@ stand-in already does.
   ([375](375-a-flagged-name-shut-is-dropped-as-if-missing.md)), which widens what is kept and
   leaves the thing with no fixture exactly where it was, since dovecot 2.3.21 flags no name in this
   listing that it will open at all.
+- 2026-09-17: claims held against the code, the probe limb read again, neither limb fired. The
+  listing rule moved on 2026-09-15 from `imap.py` to `folders.py`, where `_flagged_unselectable`
+  and `_kept_after_opening` are now the public `flagged_unselectable` and `kept_after_opening`,
+  unchanged by an AST comparison of the two versions; the prose above names them there now. No
+  change to `docker/dovecot/` or the probe's compose file since 2026-09-12. The probe was started
+  and its plain `LIST "" "*"` read past the port: seven names, one flagged,
+  `Parent (\Noselect \HasChildren)`, refused `Mailbox doesn't exist: Parent (0.001 + 0.000
+  secs).`, and `list_folders` offered the other six, so this server still produces the drop branch
+  and not the keep; `Feigned` was listed unflagged, `(\HasChildren \UnMarked)`. The
+  probe's live suite passed 9 of 9. The Bridge limb was not read, so the account's reachability is
+  carried over from 2026-09-09, now eight days old; the next sweep of this entry should read it
+  live. The stand-in's `OPEN_NODE_FLAGS` is still the Bridge's own pair, at
+  `brain/packages/email/tests/imap_stub.py:124`.
