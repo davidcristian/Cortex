@@ -40,8 +40,8 @@ export class TauriBridge implements BrainBridge {
         sink.onError({ kind: "connection", message: String(reason) });
       }
     });
-    // Cancellation stops delivery to the sink; dropping the channel on the Rust
-    // side half-closes the Converse RPC (drop-to-cancel, ADR-0011).
+    // Cancellation only stops delivery to the sink. Nothing reaches the Rust command, which
+    // streams the turn to its end, so the brain finishes and persists it (see useOverlay.ts).
     return () => {
       live = false;
     };

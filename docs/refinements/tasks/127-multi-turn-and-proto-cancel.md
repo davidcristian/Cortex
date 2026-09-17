@@ -3,10 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** body-overlay
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Trigger:** A live deployment on which mid-turn compute is expensive enough that muting the sink
-stops being adequate, meaning a report of a turn somebody wanted aborted rather than hidden. The
-brain-side model swap this once waited on has landed, so that half of the trigger has fired.
-**Verified:** 2026-09-11
+**Trigger:** a record in the tree, a host task or a runbook reading, of a turn the person stopped
+whose generation went on holding the model lease against their next submit or a model swap. Until
+that is written down, muting the sink is adequate. CI cannot produce the reading, because the Tauri
+command that streams a stopped turn to its end runs only on the host.
+**Verified:** 2026-09-17
 
 One turn per `Converse`
 call; drop-to-cancel covers v1 (ADR-0011 decision 1 / risks). The interleaving half was
@@ -94,3 +95,14 @@ When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri
   reconnect entry now waits on a deployment that sets `CORTEX_ESCALATION`, and the streamed-status
   entry waits on a seam change, so the trigger line now says what remains here rather than pointing
   at them.
+- 2026-09-17: read against the tree and not fired: no task under `docs/host/tasks/` and no runbook
+  records a stopped turn holding the lease, and the trigger line now names that record instead of
+  a report, with the landed swap moved out of it into this trail. Every claim above holds.
+  `proto/body.proto:97` is still `Cancel cancel = 3`, `body/crates/rpc/src/converse.rs` still sends
+  one `UserTurn` from `turn_request` and maps an early end to the quoted `Protocol` error at line
+  145, the four brain handlers are in `converse_stream.py`, and the five tests are where the body
+  places them. The Tauri `converse` command (`body/app/src-tauri/src/converse.rs:184`) still
+  leaves its loop only when `channel.send` fails; the one commit to touch the shell since changed
+  a default in a doc comment. The comment beside `TauriBridge.converse`'s cancellation said that
+  dropping the channel half-closes the RPC, which contradicted `useOverlay.ts` and this entry, and
+  it now says that the command runs on.

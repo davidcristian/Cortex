@@ -3,8 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0001](../../adr/ADR-0001-architecture.md)
-**Trigger:** The next port to gain a shared check list, or the first drift caught in the wild.
-**Verified:** 2026-09-11
+**Trigger:** a Rust port or `EmailSender` gaining a shared check list, which answers the design
+question below for its language; or a Rust test passing over a fake while the adapter it stands in
+for fails the same expectation, readable in CI for `BrainTransport`, `Sleeper` and `Randomness`
+and only on the Windows host for the four OS ports.
+**Verified:** 2026-09-17
 
 Opened 2026-08-10 by the sweep that followed the `MemoryStore` contract
 fix out to every port in both languages, recorded with its full inventory in the
@@ -261,16 +264,20 @@ serves, where the adapter rejects one its manager cannot lease. The whole accoun
 seven breaks that proved the list able to fail and the eighth that deliberately did not, is the
 [ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day.
 
-**The trigger below counts nine and the tree now holds seventeen**, which is the entry's own text
-aging rather than a defect in it: sixteen in Python, fifteen named `*_contract.py` plus
-`session/tests/contract.py`, and the overlay's `bridgeContract.ts`. The trigger keeps its
+**The trigger below counts nine and the tree now holds eighteen**, which is the entry's own text
+aging rather than a defect in it: seventeen in Python, fifteen lists named `<port>_contract.py`,
+`session/tests/contract.py`, and the own-text list defined inside
+`tools/tests/test_own_text_contract.py`, plus the overlay's `bridgeContract.ts`. The trigger keeps its
 wording because the arrangement it points at is unchanged and the number was true when it was
 written; the count that matters to the next reader is here and in the ADR tables.
 
-**What is left is every Rust row**, and nothing else: the four OS ports, three of whose fakes are
-hand-written twice in two crates, `BrainTransport` with three independent suites over one
-eleven-method trait, and the two small ones beside them. The Python half and the overlay are
-done, so this entry is now one language wide.
+**What is left is every Rust row and one Python port**: the four OS ports, three of whose fakes
+are hand-written twice in two crates, `BrainTransport` with three independent suites over one
+eleven-method trait, the two small ones beside them, and `EmailSender`, whose `FakeSender`
+(inside `email/tests/test_email_server.py`) and `SmtpSender` share no list. That last one was
+missing from the inventory until 2026-09-17, when the Python ports were enumerated by grep rather
+than from the table; it is one method wide, as `Embedder` was, and the email package it lives in
+is the one `Mailbox`'s list already runs in. The overlay is done.
 
 **Why deferred rather than done.** The ports named above come to five in Python counting the
 partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
@@ -357,3 +364,21 @@ shared list would have named.
   suites, the five generic helpers are still where they were, no file under `body/crates/` is
   named for a contract, and the overlay's coverage exclude still names `main.tsx` and
   `tauriBridge.ts` as its only source files.
+- 2026-09-17: read against the tree with the ports enumerated by grep, and the entry was wrong
+  about its own scope. `class <Name>(Protocol` across `brain/packages/*/src` gives 43 names and
+  the origin's Python table named 25. Of the eighteen missing, `EmailSender` is a fake and a real
+  adapter with no shared list, so the Python half is not done and the body above now says so;
+  `Mailbox`, `PaceSink` and `MemoryScope` needed rows and have them, the last with no list by
+  design; `RecallPolicy`, a port with five shipped policies whose shared obligations are restated
+  per policy, opened [R-682](682-the-recall-policies-restate-what-they-share.md); and the other
+  thirteen are protocols their own docs do not call ports, argued at the origin's addendum of the
+  same day. The list count was one short, eighteen rather than seventeen. The Rust
+  side, `pub trait` across `body/crates` and `body/app/src-tauri/src`, is still the seven traits
+  the table names, `BrainTransport` still has eleven methods, `FakeAudio`, `FakeNotify` and
+  `FakeScreen` are still written in `core/tests/` and again in `rpc/tests/body_server.rs`, both
+  `FakeBrain` copies are where the previous bullet puts them, no file under `body/crates` is named
+  for a contract, and the overlay's coverage exclude still names `main.tsx` and `tauriBridge.ts`.
+  Neither arm has fired: no list has been added anywhere since 2026-09-02, and the one Rust port
+  change since this was opened, the capture target of 2026-08-10, was mirrored into both
+  `FakeScreen` copies without a drift. Its first arm had already fired twice without closing the
+  entry, so the trigger now names only what would move this entry.

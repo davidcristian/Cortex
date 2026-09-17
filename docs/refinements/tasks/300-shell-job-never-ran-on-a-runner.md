@@ -3,9 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Trigger:** the first CI run whose diff touches `body/app/src-tauri/`, which is the first time
-this job executes at all.
-**Verified:** 2026-09-11
+**Trigger:** the first run of `ci.yml` whose `changes` job sets `shell=true`, which is the first
+time this job executes at all. None can happen while Actions stays off for the repository, which
+is R-594's subject, and the reading is
+`gh api repos/<owner>/<repo>/actions/workflows/ci.yml/runs`, whose `total_count` is 0.
+**Verified:** 2026-09-17
 
 **Everything about the shell clippy job was verified locally, and the one thing that cannot be
 is the runner half.** The check itself is proven: `just check-shell` exits 0 over the shell and
@@ -21,12 +23,15 @@ raises no complaint from the workflow parser. Each is likely and none is checked
 own rule is that a gate which has never run is indistinguishable from one that cannot fail.
 
 The reason this is a follow-up rather than a hole in the landing is that the maintainer pushes and
-the agent does not, so the first real execution is a push away and costs nothing to wait for. It
-closes on the first CI run whose diff reaches the shell, which is also the first run that executes
-the job: a passing run closes it, and a failure on the apt line, the cache key or the job id is a
-small fix at a known place rather than a re-argued design. Note that the commit landing the job
-touches `.github/workflows/` and `justfile`, both shared gate files, so the classifier sets
-`shell=true` for that commit and the job runs on its own landing. The measurements it should
+the agent does not, so the first real execution was expected a push away. It was not: pushes
+carrying a shell edit and a workflow edit have both reached the remote since, and no run followed.
+The maintainer's standing answer is that Actions is off for the repository, a setting on the
+account and [R-594](594-no-workflow-in-this-repository-has-ever-run.md)'s subject. So this closes
+on the first run of the job once that setting changes: a passing run closes it, and a failure on
+the apt line, the cache key or the job id is a small fix at a known place rather than a re-argued
+design. The commit landing the job touched `.github/workflows/` and `justfile`, both shared gate
+files, so the classifier would have set `shell=true` for it had any run happened, and any later
+push touching a shared gate file does the same. The measurements it should
 confirm, for comparison against whatever the runner reports, are in the origin's 2026-08-17 addendum
 and in [009](009-shell-clippy-in-ci.md).
 
@@ -48,3 +53,15 @@ and in [009](009-shell-clippy-in-ci.md).
   covers whether that package puts `x86_64-w64-mingw32-windres` where the recipe's default
   expects it and whether the target installs. Both entries close their runner half on this
   trigger. The 30.9 s measurement was not re-run.
+- 2026-09-17: read against the remote this time, and not fired. The runs listing for `ci.yml`
+  answers `total_count` 0, and the whole repository's four runs are Dependabot update jobs, the
+  newest on 2026-09-15. The body's premise that the first run was a push away is refuted rather
+  than pending: the 2026-09-13 commit raising the turn's idle gap, which edits
+  `body/app/src-tauri/src/seam.rs`, and the 2026-09-11 one repointing the header of
+  `.github/workflows/ci.yml`, are both ancestors of `origin/master`, and neither started a run. So the trigger now names the run it waits on and points at the entry about the setting that
+  prevents one, and the body says why the wait is longer than it expected. The permissions call
+  answers 403 to the token available here, so Actions being off is the maintainer's standing
+  answer rather than a reading. The job is as the previous bullet describes it: `shell` at
+  `.github/workflows/ci.yml:182`, gated on `needs.changes.outputs.shell`, the six-package apt line
+  with `binutils-mingw-w64-x86-64`, the Windows target, `workspaces: body/app/src-tauri`, and
+  `just check-shell` last.
