@@ -22,6 +22,7 @@ from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
 from cortex_orchestrator.config_swap import SwapConfig
 from cortex_orchestrator.config_tools import ToolsConfig
+from cortex_orchestrator.dispatch_builders import DispatchSetup, tool_audit_from_config
 from cortex_orchestrator.engines import DeepTier, StreamEngines
 from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
@@ -61,9 +62,9 @@ async def run_from_env(
     swap_config = SwapConfig()
     reply_bounds = ReplyBoundsConfig().bounds()
     clock = SystemClock()
-    # The settings record is kept in the same Redis the conversation state is: durable for the
-    # same reason (append-only + a named volume), so a choice outlives a body reinstall.
     stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)
+    # One placer for the process: the subagent pool places against it, and the residency scope
+    # tells it which model holds the GPU while a handoff runs, so the two must be one object.
     placer = VramBudgetPlacer(
         soft_cap_gb=runtime.vram_soft_cap_gb,
         cortex_reservation_gb=runtime.cortex_reservation_gb,
@@ -78,14 +79,11 @@ async def run_from_env(
         memory_config, clock, backend, runtime.cortex_model
     )
     tool_registry, close_tools = build_tool_registry(tools_config)
+    dispatch = DispatchSetup(tools_config.dispatch_policy, tool_audit_from_config(tools_config))
     body, close_body = await build_body_gateway(body_config, token=seam_config.token)
     spawn_tool, scheduler, close_subagents = await build_subagents(
         subagents_config,
-        build_subagent_tools(
-            tool_registry,
-            clock,
-            policy=tools_config.dispatch_policy,
-        ),
+        build_subagent_tools(tool_registry, clock, setup=dispatch),
         runtime.redis_url,
         clock,
         placer=placer,
@@ -115,16 +113,11 @@ async def run_from_env(
         clock,
         spawn_tool=spawn_tool,
         body=body,
-        policy=tools_config.dispatch_policy,
+        setup=dispatch,
     )
     ticker_task = start_ticker(ticker)
-    # The handoff's other boot half, beside the deadline check and for the same reason: both are
-    # swap wiring, so both live in `swap_builders.py` and the root only calls them.
     await recover_boot_residency(swap, clock)
     try:
-        # The per-stream factory (`engines.py`), which is the one thing here that runs again
-        # after boot: a Converse stream's own confirmer and progress sink are what it adds to
-        # everything above, so it takes those names once instead of closing over them.
         engines = StreamEngines(
             sessions=stores.sessions,
             backend=backend,
@@ -133,9 +126,8 @@ async def run_from_env(
             memory=memory,
             tools=tool_registry,
             builtins=builtins,
-            policy=tools_config.dispatch_policy,
+            dispatch=dispatch,
             sight=sight,
-            # The core takes a bool; the composition root maps the string (ADR-0019).
             record_tainted_memory=memory_config.on_tainted == "record",
             bounds=reply_bounds,
             deep=None if swap is None else DeepTier(swap, deep_builtins, scheduler),
@@ -147,9 +139,6 @@ async def run_from_env(
             SeamPorts(
                 schedules=schedules,
                 memory_cascade=memory_cascade,
-                # The manager is the seam's residency reporter too (ADR-0030 decision 6): Health
-                # reads it synchronously, so a probe between turns says what the GPU is really
-                # doing. Absent with escalation off, where nothing can make the brain not-ready.
                 residency=None if swap is None else swap.manager,
                 preferences=stores.preferences,
             ),

@@ -191,6 +191,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   this bound times `delegated_call_bounds`, must also sit **strictly under**
   `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` whenever both capabilities are on, which no field here can see
   and `check_tool_call_deadline` enforces at boot (ADR-0009 ordering addendum).
+  `audit_file: str = ""` (`CORTEX_TOOLS_AUDIT_FILE`, ADR-0009 durable-trail addendum) names a file
+  every dispatcher also appends its audit trail to, one JSON object per call. Empty, the default,
+  writes no file. `tool_audit_from_config(config)` in `dispatch_builders.py` maps it: empty gives
+  `LoggingAuditSink`, a path gives `TeeAuditSink` over that sink and a `JsonLinesAuditSink` on the
+  path, the log line first. It is not in any compose file, so turning it on also means mounting a
+  writable directory into the brain container (the tools runbook says how).
   `gated: tuple[str, ...]` (`CORTEX_TOOLS_GATED`, ADR-0022) defaults to
   `(ESCALATE_TOOL_NAME, "send_email")`: the email fail-closed pairing, plus the escalate
   built-in as the dispatcher-side backstop behind that tool's own always-gated advertised flag
@@ -821,7 +827,7 @@ The service:
     Redis `TaskStore`, GPU-first placement with CPU overflow,
     ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; `tools` is the subagent
     dispatcher, pre-assembled at the root by
-    `build_subagent_tools(tool_registry, clock, policy=CORTEX_TOOLS_*)`: the shared
+    `build_subagent_tools(tool_registry, clock, setup=...)`: the shared
     registry wrapped in `UngatedToolRegistry`, so a subagent is never handed a gated/outbound
     tool (ADR-0013 subagent-exclusion addendum), with the user's gated names as the
     dispatcher's authoritative backstop, which `confirmer=None` turns into a hard deny even if
@@ -832,7 +838,7 @@ The service:
     `schedule_builders.py`, ADR-0025, giving the durable `RedisScheduleStore` or `None`; its
     built-ins come from `build_schedule_tools(config, schedules, clock, tasks_enabled=...)`
     and its firing loop from `build_ticker(config, schedules, clock, spawn_tool=..., body=...,
-    policy=...)`,
+    setup=...)`,
     started beside `serve` via `start_ticker` (a named task with the death-logging callback)
     and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
     `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
@@ -895,8 +901,14 @@ The service:
   the other resource), or is a clean no-op when nothing was built. `build_subagents` returns its `ResourceBudgetScheduler` alongside
   the spawn tool for the same reason: the conductor must quiesce that very pool before a swap
   evicts anything, and a second budget object would admit past the drain.
+  Every dispatcher in the process is built from one `DispatchSetup` (`dispatch_builders.py`), the
+  root's `dispatch`: `policy`, the `CORTEX_TOOLS_*` declarations `ToolsConfig.dispatch_policy`
+  bundles, and `audit`, the sink `tool_audit_from_config` picks. The three builders and
+  `StreamEngines.dispatch` take that one value, which keeps `build_cortex_tools` and `build_ticker`
+  at the six-argument ceiling, and `DEFAULT_DISPATCH_SETUP` (the shipped policy and the log line
+  alone) is what a builder uses when its caller names none.
   The cortex's dispatcher is
-  `build_cortex_tools(registry, builtins, clock, confirmer=..., policy=...)` over the
+  `build_cortex_tools(registry, builtins, clock, confirmer=..., setup=...)` over the
   built-in set
   `build_builtin_tools(spawn_tool, body, schedule_tools=..., escalation=..., vision=...)`
   assembles **once** (both in `dispatch_builders.py`, split from `builders.py` for the

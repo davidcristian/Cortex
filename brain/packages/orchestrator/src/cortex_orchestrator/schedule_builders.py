@@ -1,4 +1,4 @@
-"""Schedule wiring: the store, the built-ins, the ticker, and its lifecycle (ADR-0025)."""
+"""Schedule wiring: the store, the built-ins, the ticker, and its lifecycle."""
 
 import asyncio
 import logging
@@ -6,13 +6,11 @@ from collections.abc import Awaitable, Callable
 from datetime import timedelta
 
 from cortex_core import (
-    DEFAULT_DISPATCH_POLICY,
     BodyGateway,
     BuiltinTool,
     CancelScheduledTool,
     Clock,
     CompositeToolRegistry,
-    DispatchPolicy,
     EditScheduledTool,
     ListScheduledTool,
     ScheduleStore,
@@ -24,12 +22,10 @@ from cortex_core import (
 )
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config_schedule import ScheduleConfig
+from cortex_orchestrator.dispatch_builders import DEFAULT_DISPATCH_SETUP, DispatchSetup
 from cortex_orchestrator.ticker import ScheduleTicker, TickerSettings
 from cortex_session import ZONEINFO_RESOLVER, RedisScheduleStore
-from cortex_tools import LoggingAuditSink
 
-# How long a graceful stop waits for the in-flight pass before the forced cancel; the
-# store's claim lease recovers whatever a forced cancel interrupted.
 TICKER_STOP_GRACE_S = 5.0
 
 _logger = logging.getLogger(__name__)
@@ -41,11 +37,7 @@ def build_schedule(
     *,
     store_factory: Callable[[str], RedisScheduleStore] = RedisScheduleStore.from_url,
 ) -> tuple[ScheduleStore | None, Callable[[], Awaitable[None]]]:
-    """The durable ScheduleStore, or None when scheduling is disabled (the default).
-
-    ``store_factory`` exists so tests substitute a fakeredis-backed store; production
-    always dials ``CORTEX_REDIS_URL``, the same append-only Redis the sessions use.
-    """
+    """The durable ScheduleStore, or None when scheduling is disabled (the default)."""
     if config.backend != "redis":
         return None, noop_aclose
     store = store_factory(redis_url)
@@ -59,13 +51,10 @@ def build_schedule_tools(
     *,
     tasks_enabled: bool,
 ) -> list[BuiltinTool]:
-    """The five cortex-only built-ins, or nothing when scheduling is off (ADR-0025)."""
+    """The five cortex-only built-ins, or nothing when scheduling is off."""
     if schedules is None:
         return []
     zone = config.display_zone()
-    # The zoneinfo-backed resolver validates a per-rule ``in_zone`` at creation/edit; it is the
-    # same instance the codec decodes stored zones with (ADR-0025 per-rule addendum). It is passed
-    # in a ``ZoneContext`` beside the default zone so the two parsing tools take one collaborator.
     zones = ZoneContext(default=zone, resolver=ZONEINFO_RESOLVER)
     return [
         ScheduleTaskTool(
@@ -89,7 +78,7 @@ def build_ticker(
     *,
     spawn_tool: SpawnSubagentsTool | None,
     body: BodyGateway | None,
-    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
+    setup: DispatchSetup = DEFAULT_DISPATCH_SETUP,
 ) -> ScheduleTicker | None:
     """The firing loop over the store, or None when scheduling is off."""
     if schedules is None:
@@ -97,9 +86,9 @@ def build_ticker(
     spawn = (
         ToolDispatcher(
             CompositeToolRegistry([spawn_tool]),
-            LoggingAuditSink(),
+            setup.audit,
             clock,
-            policy=policy,
+            policy=setup.policy,
         )
         if spawn_tool is not None
         else None
@@ -108,20 +97,16 @@ def build_ticker(
         poll_s=config.poll_s,
         lease=timedelta(seconds=config.lease_s),
         claim_limit=config.claim_limit,
-        # The same configured zone the rendering built-ins get: a calendar item's re-arm is
-        # wall-clock arithmetic, so creating and firing must read one zone or a rule would
-        # fire somewhere other than where it was scheduled (ADR-0025 calendar addendum).
+        # The same zone the rendering built-ins get: a calendar item's next fire is wall-clock
+        # arithmetic, so creating and firing must read one zone or a rule fires somewhere other
+        # than where it was scheduled.
         zone=config.display_zone(),
     )
     return ScheduleTicker(schedules, clock, settings, spawn=spawn, body=body)
 
 
 def start_ticker(ticker: ScheduleTicker | None) -> "asyncio.Task[None] | None":
-    """Start the loop beside ``serve`` (the pump-task discipline); None stays None.
-
-    The done-callback logs an unexpected death as an error (the ADR-0025 supervision
-    posture). With the loop's own pass guard it should never fire.
-    """
+    """Start the loop beside ``serve`` (the pump-task discipline); None stays None."""
     if ticker is None:
         return None
     task = asyncio.create_task(ticker.run(), name="schedule-ticker")
@@ -143,11 +128,7 @@ async def stop_ticker(
     *,
     grace_s: float = TICKER_STOP_GRACE_S,
 ) -> None:
-    """Graceful stop: signal, wait out the in-flight pass, force-cancel past the grace.
-
-    The graceful path strands no claims (fires complete before the loop exits); a forced
-    cancel leaves the store's lease to recover whatever was interrupted (ADR-0025 risks).
-    """
+    """Graceful stop: signal, wait out the in-flight pass, force-cancel past the grace."""
     if ticker is None or task is None:
         return
     ticker.stop()

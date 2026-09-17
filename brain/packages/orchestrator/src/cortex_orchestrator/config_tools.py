@@ -1,4 +1,4 @@
-"""Tool-dispatch configuration (ADR-0009): env-driven, root-read only."""
+"""Tool-dispatch configuration: env-driven, root-read only."""
 
 from typing import Literal
 
@@ -24,11 +24,13 @@ ToolsSalienceName = Literal["repeat", "off"]
 
 DEFAULT_SALIENCE: ToolsSalienceName = "repeat"
 
+# A quarter of the turn's dispatch budget, so a turn may delegate four times: one spawn is a
+# whole batch of model runs, where the flat price of one would have allowed thirty two batches.
 DEFAULT_SPAWN_COST = MAX_TOOL_DISPATCHES // 4
 
 
 class ToolsConfig(BaseSettings):
-    """Whether the cortex can call tools over MCP (ADR-0009, refinements addendum)."""
+    """Whether the cortex can call tools over MCP."""
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
 
@@ -43,6 +45,7 @@ class ToolsConfig(BaseSettings):
     salience: ToolsSalienceName = DEFAULT_SALIENCE
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
     call_timeout_s: float = Field(default=DEFAULT_TOOL_CALL_TIMEOUT_S, gt=0)
+    audit_file: str = ""
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
@@ -58,11 +61,12 @@ class ToolsConfig(BaseSettings):
         if unmatched := set(self.allow) - set(self.named_endpoints):
             msg = f"CORTEX_TOOLS_ALLOW names no configured endpoint: {sorted(unmatched)}"
             raise ValueError(msg)
+        # A price outside the range has no visible symptom at runtime: zero or less makes the
+        # tool free, and above the budget makes it unaffordable, so its first call closes the
+        # turn's budget.
         if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
             msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
             raise ValueError(msg)
-        # A blank gate reason would render an empty confirm card line, leaving a consent surface
-        # that no longer says what is being approved, so it fails at boot rather than on screen.
         if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
             msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
             raise ValueError(msg)
@@ -73,17 +77,20 @@ class ToolsConfig(BaseSettings):
 
     @property
     def cost_policy(self) -> ToolCostPolicy:
-        """The effective prices as the core's policy value (ADR-0009 cost addendum)."""
+        """The effective prices as the core's policy value."""
+        # The built-in prices are merged under the user's rather than being the field's default,
+        # because a nested-dict env key replaces the whole mapping: pricing one filesystem tool
+        # would otherwise drop ``spawn_subagents`` back to one with nothing reporting it.
         return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
 
     @property
     def gate_reason_map(self) -> dict[str, str]:
-        """The effective per-tool confirm-card reasons (ADR-0030 decision 1)."""
+        """The effective per-tool confirm-card reasons."""
         return {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON} | self.gate_reasons
 
     @property
     def salience_policy(self) -> SaliencePolicy:
-        """The core policy deciding which calls a tool loop dispatches (salience addendum)."""
+        """The core policy deciding which calls a tool loop dispatches."""
         if self.salience != "repeat":
             return ALWAYS_SALIENT
         return RepeatSalience(limit=self.salience_limit)

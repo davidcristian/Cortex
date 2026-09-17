@@ -1,6 +1,12 @@
-"""MCP-client adapter for the core's ToolRegistry port (docs/modules/brain-tools.md)."""
+"""MCP ToolRegistry adapter and the ToolAuditSink adapters (docs/modules/brain-tools.md)."""
 
-from cortex_tools.audit import LoggingAuditSink
+from cortex_tools.audit import LoggingAuditSink, invocation_fields
+from cortex_tools.audit_file import (
+    JsonLinesAuditSink,
+    TeeAuditSink,
+    durable_line,
+    durable_value,
+)
 from cortex_tools.registry import (
     McpSession,
     McpToolRegistry,
@@ -9,9 +15,14 @@ from cortex_tools.registry import (
 )
 
 __all__ = [
+    "JsonLinesAuditSink",
     "LoggingAuditSink",
     "McpSession",
     "McpToolRegistry",
     "ReconnectingMcpToolRegistry",
+    "TeeAuditSink",
+    "durable_line",
+    "durable_value",
+    "invocation_fields",
     "streamable_http_session",
 ]

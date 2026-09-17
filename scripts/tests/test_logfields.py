@@ -317,7 +317,9 @@ def test_the_real_deep_phase_attaches_the_same_fields_but_one_to_its_decode_read
 
 
 def test_the_real_tool_audit_stays_unquotable() -> None:
-    """Its mapping grows by condition, so no one sample could print what it attaches."""
+    """Its mapping is built by a function that grows it by condition, so no one sample could
+    print what it attaches, and the call names a mapping no literal above it writes out.
+    """
     source, _ = _real(TOOL_AUDIT)
-    with pytest.raises(logcalls.LogCallError, match="used again at line"):
+    with pytest.raises(logcalls.LogCallError, match="does not bind above the call to a mapping"):
         logcalls.logged(source, "tool.invocation", TOOL_AUDIT)

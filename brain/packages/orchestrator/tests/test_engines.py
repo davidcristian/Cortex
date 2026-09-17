@@ -1,5 +1,3 @@
-"""The per-stream engine factory, driven directly rather than through ``run_from_env``."""
-
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 
@@ -33,6 +31,7 @@ from cortex_core import (
 )
 from cortex_orchestrator import (
     BrainRuntimeConfig,
+    DispatchSetup,
     InferenceConfig,
     SwapConfig,
     SwapRuntime,
@@ -59,11 +58,7 @@ class _Request:
 
 
 class _Model:
-    """An ``InferenceBackend`` that records every request and replays a script per model id.
-
-    The core's ``ScriptedInferenceBackend`` deliberately reads none of the request, and what the
-    cases here assert is the request: which tools a tier was offered and what bound its decode.
-    """
+    """An ``InferenceBackend`` that records every request and replays a script per model id."""
 
     def __init__(self, script: Mapping[str, Sequence[Sequence[InferenceEvent]]]) -> None:
         self._script = {model: list(rounds) for model, rounds in script.items()}
@@ -105,7 +100,7 @@ def _engines(backend: _Model, *, tools: ToolRegistry | None = None) -> StreamEng
         memory=None,
         tools=tools,
         builtins=(),
-        policy=ToolsConfig().dispatch_policy,
+        dispatch=DispatchSetup(ToolsConfig().dispatch_policy),
         sight=None,
         record_tainted_memory=False,
         bounds=None,
@@ -114,7 +109,7 @@ def _engines(backend: _Model, *, tools: ToolRegistry | None = None) -> StreamEng
 
 
 async def _sent(arguments: Mapping[str, object]) -> str:
-    """The one remote tool these cases dispatch; gated by the shipped `CORTEX_TOOLS_GATED`."""
+    """The one remote tool these cases dispatch; it needs approval under `CORTEX_TOOLS_GATED`."""
     del arguments
     return "ok"
 
@@ -155,7 +150,6 @@ def _escalating(backend: _Model, swap: SwapRuntime) -> StreamEngines:
 
 
 async def test_each_stream_confirms_through_its_own_overlay() -> None:
-    """Two streams, two confirmers, and each gated call reaches the one that asked for it."""
     backend = _Model(
         {"cortex": [[_SEND_CALL], [TextChunk("sent")], [_SEND_CALL], [TextChunk("sent")]]}
     )
@@ -171,7 +165,6 @@ async def test_each_stream_confirms_through_its_own_overlay() -> None:
 
 
 async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
-    """Escalation is off by default, and with it off the factory returns a plain `TurnEngine`."""
     backend = _Model({"cortex": [[TextChunk("hi")]]})
     plain = _engines(backend)
     confirmer = RecordingConfirmer(answer=True)
@@ -187,9 +180,6 @@ async def test_only_a_wired_handoff_wraps_a_streams_engine() -> None:
 
 
 async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() -> None:
-    """One turn across both tiers: the cortex keeps the screen tool and the tier that swaps in
-    is not offered it.
-    """
     backend = _Model(
         {
             "cortex": [[_ESCALATE_CALL], [TextChunk("handing over. ")]],
@@ -212,9 +202,6 @@ async def test_the_deep_model_is_offered_the_tier_set_the_root_built_for_it() ->
 
 
 async def test_the_deployments_reply_bounds_reach_both_phases_of_a_turn() -> None:
-    """The bound travels with the capability bundle, so the phase that continues a turn decodes
-    under it too.
-    """
     bounds = GenerationBounds(max_tokens=512, thinking=False)
     backend = _Model(
         {

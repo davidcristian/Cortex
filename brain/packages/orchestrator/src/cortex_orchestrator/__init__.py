@@ -39,6 +39,11 @@ from cortex_orchestrator.converse import (
     TurnIdFactory,
     converse,
 )
+from cortex_orchestrator.dispatch_builders import (
+    DEFAULT_DISPATCH_SETUP,
+    DispatchSetup,
+    tool_audit_from_config,
+)
 from cortex_orchestrator.memory_builders import (
     build_memory,
     memory_scope_from_name,
@@ -86,6 +91,7 @@ __all__ = [
     "ABANDONED_MESSAGE",
     "DEFAULT_BRAIN_MODEL",
     "DEFAULT_CONFIRM_TIMEOUT_S",
+    "DEFAULT_DISPATCH_SETUP",
     "DEFAULT_MAX_BUFFERED_EVENTS",
     "DEFAULT_SESSION_LIST_LIMIT",
     "ERROR_CODE_INFERENCE_FAILED",
@@ -102,6 +108,7 @@ __all__ = [
     "BrainRuntimeConfig",
     "BrainService",
     "ControlDeadlineError",
+    "DispatchSetup",
     "EngineFactory",
     "InferenceConfig",
     "MemoryConfig",
@@ -150,4 +157,5 @@ __all__ = [
     "start_ticker",
     "stop_ticker",
     "swap_closer",
+    "tool_audit_from_config",
 ]

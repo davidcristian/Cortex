@@ -1,9 +1,8 @@
 # The trail is now worth querying and has nowhere to be queried
 
-**Status:** open, feature breadth
+**Status:** landed 2026-09-17
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-13
 
 `ToolAuditSink` has exactly one adapter, `LoggingAuditSink`, so the audit trail is a stream of
 `logging` records and nothing else. That was proportionate while a line said only which tool ran:
@@ -39,3 +38,15 @@ one an operator does by eye. It is written down because the widening is what mad
   a durable sink is now a policy decision over two ports rather than one, and the three open
   questions above, on retention, on the fidelity a store keeps an argument at, and on whether a
   failed durable write may fail the work it audits, are asked of both.
+- 2026-09-17: landed as the file half, `JsonLinesAuditSink` in `cortex_tools/audit_file.py`,
+  behind the port as it stood, off unless `CORTEX_TOOLS_AUDIT_FILE` names a file, and recorded in
+  the ADR-0009 durable-trail addendum. The three questions were answered there: retention is the
+  operator's, since the sink reopens the path per record and a `mv` rotates it; the file keeps
+  exactly what the log line prints, the formatter's cut and credential rules included, rather
+  than full arguments; and a failed append is logged as a `tool.audit.gap` warning and never
+  fails the dispatch, because the dispatcher awaits its sink unguarded and the log line is written
+  first. The Postgres half was not built, a table tying the trail to the optional memory
+  override. The port gained a shared list over the fake, the file sink and a tee of the two. The
+  recall trail's half is
+  [683](683-the-recall-trail-has-no-store.md), and a secret-named argument key, which both trails
+  print, is [684](684-a-secret-named-argument-prints-on-both-audit-trails.md).

@@ -168,6 +168,55 @@ mount would only `EROFS`-block, and there is no point showing the model a tool t
 work. The mount stays the security boundary; the allowlist is UX plus defense in depth. If a
 pin bump renames tools, update that allowlist alongside it.
 
+## Keep the audit trail in a file
+
+The lines above live as long as the container's log driver keeps them, and they answer a `grep`.
+Setting `CORTEX_TOOLS_AUDIT_FILE` to a path makes every dispatcher, the cortex's, the subagents'
+and the ticker's, also append one JSON object per call to that file, after writing the log line
+(ADR-0009 durable-trail addendum). It holds the same fields the line prints and no more: the size
+of a successful result rather than its content, every URL credential withheld, and a value the
+line cuts kept as the line's own cut text, a string ending in `<cut N chars>`, rather than as the
+object it was. No compose file sets it, so it is off unless you set it.
+
+The brain runs as uid 10001, and the file must be somewhere that user can write and that outlives
+the container. A named volume mounted at a path the image does not already have is created
+owned by root, and every append then fails; mounted over `/home/cortex`, the user's own home, it
+takes that directory's owner and works. Checked on 2026-09-17 against `cortex-brain:latest`
+with a `touch` under each mount. So an override file of your own, kept outside this repo, looks
+like this:
+
+```yaml
+services:
+  brain:
+    environment:
+      CORTEX_TOOLS_AUDIT_FILE: /home/cortex/tools-audit.jsonl
+    volumes:
+      - cortex-home:/home/cortex
+volumes:
+  cortex-home:
+```
+
+Add it with one more `-f` after the files you already layer. Then read the trail with `jq`:
+
+```bash
+docker compose --project-directory . -f docker/docker-compose.yml -f <your override> \
+  exec -T brain cat /home/cortex/tools-audit.jsonl | jq -c 'select(.turn_id == "<turn id>")'
+```
+
+`select(.task_id == "<task id>")` gives one delegate's calls and `select(.ok == false)` every
+failed one. Test `.arguments | type` before reading into it: it is `"object"` when the line
+printed the arguments whole and `"string"` when it cut them.
+
+A record that could not be appended is on the log line all the same, followed by a
+`cortex_tools.audit_file` warning, `tool.audit.gap`, whose `error` says why (a refused open, or
+arguments the formatter could not render either), with `path` and `tool` beside it. A trail with
+gaps is incomplete rather than wrong, and the log lines of that period are the complete record.
+
+Nothing rotates or deletes the file. The sink opens it again for every record, so rotating is a
+`mv` (or `logrotate` without `copytruncate`) and the next call creates a fresh file with mode
+`0600`. A record torn by a full disk stays on a line of its own, since the next append starts a new
+line first; `jq -R 'fromjson? // empty'` reads past such a line where plain `jq` stops at it.
+
 ## Both tool families at once (filesystem + email)
 
 Layer the email override on top and the brain aggregates the two sidecars behind one registry

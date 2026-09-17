@@ -1,13 +1,11 @@
-"""Subagent wiring: the roster, the runner, and the spawn tool from config (ADR-0010/0012/0018)."""
+"""Subagent wiring: the roster, the runner, and the spawn tool from config."""
 
 from collections.abc import Awaitable, Callable
 
 import httpx
 
 from cortex_core import (
-    DEFAULT_DISPATCH_POLICY,
     Clock,
-    DispatchPolicy,
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
@@ -26,8 +24,8 @@ from cortex_core import (
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.builders import build_generation_client, noop_aclose
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
+from cortex_orchestrator.dispatch_builders import DEFAULT_DISPATCH_SETUP, DispatchSetup
 from cortex_session import RedisTaskStore
-from cortex_tools import LoggingAuditSink
 
 
 def _entry_profile(
@@ -65,7 +63,7 @@ async def build_subagents(
     placer: SubagentPlacer,
     task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
 ) -> tuple[SpawnSubagentsTool | None, SubagentScheduler | None, Callable[[], Awaitable[None]]]:
-    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010/0012/0018)."""
+    """The `spawn_subagents` tool, or None when delegation is disabled."""
     if config.backend == "none":
         return None, None, noop_aclose
     client = build_generation_client(config.stall_timeout_s)
@@ -100,14 +98,14 @@ def build_subagent_tools(
     tool_registry: ToolRegistry | None,
     clock: Clock,
     *,
-    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
+    setup: DispatchSetup = DEFAULT_DISPATCH_SETUP,
 ) -> ToolDispatcher | None:
-    """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013)."""
+    """A subagent's audited dispatcher over the MCP subset it may call, or None."""
     if tool_registry is None:
         return None
     return ToolDispatcher(
         UngatedToolRegistry(tool_registry),
-        LoggingAuditSink(),
+        setup.audit,
         clock,
-        policy=policy,
+        policy=setup.policy,
     )

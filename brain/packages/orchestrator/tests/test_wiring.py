@@ -9,6 +9,7 @@ import socket
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import cast
 
 import httpx
@@ -75,11 +76,13 @@ from cortex_core import (
     TextChunk,
     ToolCall,
     ToolDispatcher,
+    ToolInvocation,
     ToolNotFoundError,
     ToolSpec,
     TurnStamp,
     UrlRedactingGuardrail,
     VramBudgetPlacer,
+    record_fields,
 )
 from cortex_core.summarizing import SummarizingHistoryWindow
 from cortex_core.windowing import HistoryWindow
@@ -87,8 +90,10 @@ from cortex_inference import LlamaCppBackend
 from cortex_inference.request import TRACE_BUDGET_KEY
 from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator import (
+    DEFAULT_DISPATCH_SETUP,
     BodyConfig,
     BrainRuntimeConfig,
+    DispatchSetup,
     InferenceConfig,
     MemoryConfig,
     SubagentRosterEntry,
@@ -107,6 +112,7 @@ from cortex_orchestrator import (
     recall_audit_from_config,
     recall_policy_from_config,
     run_from_env,
+    tool_audit_from_config,
 )
 from cortex_orchestrator.config_subagents import DEFAULT_SUBAGENT_MODEL
 from cortex_orchestrator.window_builders import build_history_window
@@ -119,6 +125,7 @@ from cortex_seam import (
     UserTurn,
 )
 from cortex_session import RedisScheduleStore, RedisSessionStore, RedisTaskStore
+from cortex_tools import LoggingAuditSink
 
 
 def _free_loopback_port() -> int:
@@ -464,6 +471,52 @@ def test_recall_audit_from_config_is_opt_in() -> None:
     assert recall_audit_from_config(MemoryConfig()) is None
     audited = recall_audit_from_config(MemoryConfig(recall_audit=True))
     assert isinstance(audited, LoggingRecallSink)
+
+
+def test_tool_audit_from_config_is_the_log_line_alone_by_default() -> None:
+    """With no file named, every dispatcher records to the log line and to nothing else."""
+    assert isinstance(tool_audit_from_config(ToolsConfig()), LoggingAuditSink)
+    assert isinstance(DEFAULT_DISPATCH_SETUP.audit, LoggingAuditSink)
+
+
+async def test_tool_audit_from_config_writes_the_line_then_the_file(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A named file adds the file trail behind the log line, so one call reaches both (ADR-0009
+    durable-trail addendum), and a subagent's dispatcher records to the same file.
+    """
+    caplog.set_level(logging.INFO, logger="cortex.tools.audit")
+    path = tmp_path / "audit.jsonl"
+    audit = tool_audit_from_config(ToolsConfig(audit_file=str(path)))
+    registry = InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="", parameters={}), _reply_ok)}
+    )
+    tools = build_subagent_tools(registry, SystemClock(), setup=DispatchSetup(audit=audit))
+    assert tools is not None
+    await tools.dispatch(
+        ToolCall(id="c-1", name="read", arguments={}), stamp=TurnStamp(task_id="st")
+    )
+    (line,) = [record for record in caplog.records if record.name == "cortex.tools.audit"]
+    (row,) = [json.loads(text) for text in path.read_text(encoding="ascii").splitlines()]
+    assert (row["tool"], row["call_id"], row["task_id"]) == ("read", "c-1", "st")
+    assert row == record_fields(line)  # the file keeps exactly the fields the line prints
+
+
+async def test_tool_audit_from_config_logs_the_call_before_its_gap(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The log line is written first, so a failed append reads as a gap after a call the line
+    already holds rather than before one.
+    """
+    caplog.set_level(logging.INFO)
+    audit = tool_audit_from_config(ToolsConfig(audit_file=str(tmp_path / "missing" / "a.jsonl")))
+    await audit.record(
+        ToolInvocation(name="read", arguments={}, ok=True, detail="", at=datetime.now(UTC))
+    )
+    assert [record.getMessage() for record in caplog.records] == [
+        "tool.invocation",
+        "tool.audit.gap",
+    ]
 
 
 def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
@@ -1402,7 +1455,7 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
         (),
         SystemClock(),
         confirmer=RecordingConfirmer(answer=True),
-        policy=DispatchPolicy(gated_names={"send_email"}),
+        setup=DispatchSetup(DispatchPolicy(gated_names={"send_email"})),
     )
     assert tools is not None
     # The registry never stamped it gated, yet a tainted turn's call is denied outright.
@@ -1422,7 +1475,7 @@ async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -
         {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
     )
     tools = build_subagent_tools(
-        registry, SystemClock(), policy=DispatchPolicy(gated_names={"send_email"})
+        registry, SystemClock(), setup=DispatchSetup(DispatchPolicy(gated_names={"send_email"}))
     )
     assert tools is not None
     result = await tools.dispatch(
@@ -1445,8 +1498,8 @@ def test_the_configured_tool_prices_reach_both_tool_loop_dispatchers() -> None:
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )
     policy = ToolsConfig(costs={"read_file": 5}).dispatch_policy
-    cortex = build_cortex_tools(registry, (), SystemClock(), policy=policy)
-    subagent = build_subagent_tools(registry, SystemClock(), policy=policy)
+    cortex = build_cortex_tools(registry, (), SystemClock(), setup=DispatchSetup(policy))
+    subagent = build_subagent_tools(registry, SystemClock(), setup=DispatchSetup(policy))
     assert cortex is not None
     assert subagent is not None
     assert (cortex.cost_of("read_file"), subagent.cost_of("read_file")) == (5, 5)
@@ -1521,15 +1574,15 @@ def test_the_configured_salience_policy_reaches_both_tool_loop_dispatchers() -> 
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )
     policy = ToolsConfig(salience="off").dispatch_policy
-    cortex = build_cortex_tools(registry, (), SystemClock(), policy=policy)
-    subagent = build_subagent_tools(registry, SystemClock(), policy=policy)
+    cortex = build_cortex_tools(registry, (), SystemClock(), setup=DispatchSetup(policy))
+    subagent = build_subagent_tools(registry, SystemClock(), setup=DispatchSetup(policy))
     assert cortex is not None
     assert subagent is not None
     call = ToolCall(id="c2", name="read_file", arguments={"path": "a"})
     already = [[ToolCall(id="c1", name="read_file", arguments={"path": "a"})]]
     assert (cortex.admits(call, already), subagent.admits(call, already)) == (True, True)
     on = ToolsConfig().dispatch_policy
-    strict = build_cortex_tools(registry, (), SystemClock(), policy=on)
+    strict = build_cortex_tools(registry, (), SystemClock(), setup=DispatchSetup(on))
     assert strict is not None
     assert strict.admits(call, already) is False
 
@@ -1540,14 +1593,14 @@ def test_the_configured_salience_limit_reaches_both_tool_loop_dispatchers() -> N
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )
     policy = ToolsConfig(salience_limit=1).dispatch_policy
-    cortex = build_cortex_tools(registry, (), SystemClock(), policy=policy)
-    subagent = build_subagent_tools(registry, SystemClock(), policy=policy)
+    cortex = build_cortex_tools(registry, (), SystemClock(), setup=DispatchSetup(policy))
+    subagent = build_subagent_tools(registry, SystemClock(), setup=DispatchSetup(policy))
     assert cortex is not None
     assert subagent is not None
     call = ToolCall(id="c2", name="read_file", arguments={"path": "a"})
     already = [[ToolCall(id="c1", name="read_file", arguments={"path": "a"})], []]
     assert (cortex.admits(call, already), subagent.admits(call, already)) == (False, False)
     default = ToolsConfig().dispatch_policy
-    loose = build_cortex_tools(registry, (), SystemClock(), policy=default)
+    loose = build_cortex_tools(registry, (), SystemClock(), setup=DispatchSetup(default))
     assert loose is not None
     assert loose.admits(call, already) is True

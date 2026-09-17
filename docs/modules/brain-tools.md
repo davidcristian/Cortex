@@ -1,6 +1,7 @@
 # brain/packages/tools (`cortex_tools`)
 
-**Purpose.** The MCP-client adapter for the core's `ToolRegistry` port (ADR-0009). A thin
+**Purpose.** The MCP-client adapter for the core's `ToolRegistry` port, and the adapters of its
+`ToolAuditSink` port (ADR-0009). A thin
 translator between the core's tool values and the MCP Python SDK's `ClientSession`: it lists
 a server's tools and calls them, holding no state (the one hard rule) beyond the injected
 session. The core keeps talking only to `ToolRegistry`; this package makes any MCP server a
@@ -130,6 +131,37 @@ source of audited, model-callable tools.
   process entry's formatter (ADR-0038 rendered-fields addendum); the sink used to serialize its
   own JSON copy into the message because the shipped handler printed no `extra`, and no longer
   does, so the trail now depends on that formatter being installed.
+  The field set is built by `invocation_fields(invocation)`, which the file sink below spends too,
+  so the two trails cannot name different fields.
+- `JsonLinesAuditSink(path)` is the second `ToolAuditSink`, off unless `CORTEX_TOOLS_AUDIT_FILE`
+  names a file (ADR-0009 durable-trail addendum). It appends one JSON object per call, built by
+  `durable_line`, so `jq 'select(.turn_id == "<turn id>")'` answers what the log line could only be
+  grepped for. Its invariants:
+  - **It keeps no more than the line prints.** `durable_value` keeps a field as its parsed value
+    when the line's formatter prints it whole, and otherwise keeps the formatter's own rendering
+    as a string, cut marker included. That covers a value past `VALUE_CHARS` and a URL credential
+    split across two strings of `arguments`, which the formatter withholds over its whole
+    rendering and a string-by-string pass would miss. A successful call still keeps its size and
+    never its content. A secret-named key inside `arguments` is printed on both trails alike,
+    because the formatter's name rule reads top-level field names only.
+  - **One record is one line.** The line is ASCII JSON, so every control character, line
+    separator and lone surrogate arrives escaped and nothing can fail to encode. A file that ends
+    mid-line, from an append a full disk cut short, gets a newline before the next record.
+  - **A failed append never fails the dispatch.** The dispatcher awaits the sink without a guard,
+    so a raise here would end the turn. A refused open or write, and a value the formatter could
+    not render either (a non-string key, a cycle, nesting past the interpreter's depth), is logged
+    instead as a `tool.audit.gap` warning on `cortex_tools.audit_file` carrying `error`, `path`
+    and `tool`, and the call is still on the log line written before it.
+  - **The file is opened per record**, created with mode `0600` and appended through `O_APPEND`,
+    so a file an operator moves away is created afresh on the next call and needs no signal.
+    Retention is the operator's; nothing here rotates or deletes.
+- `TeeAuditSink(sinks)` records each invocation to every sink it holds, in order. The composition
+  root puts `LoggingAuditSink` first.
+- The shared checks are `tests/audit_contract.py`, run by `tests/test_audit_contract.py` over
+  `RecordingAuditSink`, the file sink over a temporary file, and a tee of the two: one row per
+  record in dispatch order, the work ids a record was handed and no others, and a hostile tool
+  name or call id kept inside its own row. `LoggingAuditSink` is not among them, its trail being a
+  stream nothing reads back; `tests/test_audit.py` pins its whole lines instead.
 
 **Error contract.** Every MCP transport/protocol failure crosses the `ToolRegistry` port as
 `ToolError` with the cause chained: a listing/call failure on a live session (`McpError`,

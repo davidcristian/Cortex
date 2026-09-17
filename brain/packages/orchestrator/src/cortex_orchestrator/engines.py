@@ -9,7 +9,6 @@ from cortex_core import (
     CadenceTerms,
     Clock,
     Confirmer,
-    DispatchPolicy,
     EscalatingTurnEngine,
     GenerationBounds,
     InferenceBackend,
@@ -26,6 +25,7 @@ from cortex_core import (
 )
 from cortex_orchestrator.builders import build_cortex_tools, build_output_guardrail
 from cortex_orchestrator.config import BrainRuntimeConfig
+from cortex_orchestrator.dispatch_builders import DispatchSetup
 from cortex_orchestrator.swap_builders import SwapRuntime
 from cortex_orchestrator.window_builders import build_history_window
 
@@ -34,7 +34,7 @@ __all__ = ["DeepTier", "StreamEngines"]
 
 @dataclass(frozen=True, slots=True)
 class DeepTier:
-    """What a stream's engine needs to hand its turn to the deep model (ADR-0030)."""
+    """What a stream's engine needs to hand its turn to the deep model."""
 
     swap: SwapRuntime
     builtins: Sequence[BuiltinTool]
@@ -43,7 +43,7 @@ class DeepTier:
 
 @dataclass(frozen=True, slots=True)
 class StreamEngines:
-    """The standing parts every Converse stream's engine is built from."""
+    """The shared parts every Converse stream's engine is built from."""
 
     sessions: SessionStore
     backend: InferenceBackend
@@ -52,7 +52,7 @@ class StreamEngines:
     memory: MemoryRecaller | None
     tools: ToolRegistry | None
     builtins: Sequence[BuiltinTool]
-    policy: DispatchPolicy
+    dispatch: DispatchSetup
     sight: VisionProbe | None
     record_tainted_memory: bool
     bounds: GenerationBounds | None
@@ -72,7 +72,7 @@ class StreamEngines:
                 deep.builtins,
                 self.clock,
                 confirmer=confirmer,
-                policy=self.policy,
+                setup=self.dispatch,
             ),
         )
         conductor = SwapConductor(
@@ -95,7 +95,7 @@ class StreamEngines:
         )
 
     def _capabilities(self, confirmer: Confirmer, progress: ProgressSink) -> TurnCapabilities:
-        """One capability bundle per Converse stream (ADR-0022/0010)."""
+        """One capability bundle per Converse stream."""
         return TurnCapabilities(
             memory=self.memory,
             tools=build_cortex_tools(
@@ -103,7 +103,7 @@ class StreamEngines:
                 self.builtins,
                 self.clock,
                 confirmer=confirmer,
-                policy=self.policy,
+                setup=self.dispatch,
                 vision=self.sight,
             ),
             window=build_history_window(
