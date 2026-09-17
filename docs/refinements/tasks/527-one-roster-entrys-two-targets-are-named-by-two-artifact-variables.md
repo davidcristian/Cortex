@@ -7,10 +7,13 @@
 default entry answering differently or by reading the two variables side by side; or the hosted
 subagent tier gaining a second pick, at which point the pairing has to be written down anyway. Both
 halves are countable inside the repo: list every place the tree names either variable with a file
-and compare the strings, and count the tiers `ModelHostConfig.tiers()` declares whose artifact
-field is aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable.
+and compare the strings, reading each mention of either variable with the line after it, since a
+runbook sentence can wrap the variable and its file onto two lines; and count the tiers
+`ModelHostConfig().tiers()` declares, with every file variable named, whose artifact field is
+aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. Neither half reads a host's shell or `.env`,
+where a deployment would really write the second file.
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
-**Verified:** 2026-09-11
+**Verified:** 2026-09-17
 
 Opened 2026-09-02 by the close of
 [R-508](508-a-roster-entry-names-an-endpoint-and-not-a-model.md), which declined reading an entry's
@@ -82,3 +85,23 @@ catch.
   builds the default entry two backends over `entry.gpu_endpoint` and `entry.endpoint`, and the
   two modules under `scripts/` that name the variable, `subagentservers.py` and
   `hostedtiers.py`, read its prefix and compare no two spellings of it.
+- 2026-09-17: re-derived and still open, neither half of the trigger having fired, but the count in
+  the two bullets above was one place short. The tree names either variable with a file in four
+  places, not three, and all four spell
+  `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`: line 126 of
+  `docker/docker-compose.subagents.yml`, lines 22 and 23 of `docs/runbooks/subagents-cpu.md`, which
+  give `CORTEX_MODEL_FILE_SUBAGENT` its default in a sentence written on 2026-07-01 and 2026-07-03
+  and wrapped across the two lines, so a search for both on one line does not find it, line 450 of
+  the same runbook in section 2c, and line 1413 of `docs/runbooks/llamacpp-gpu.md`. There is still
+  no `.env`, and `subagent_gpu_file` still defaults to `""`. `ModelHostConfig().tiers()`, run from a
+  scratch script, declares one tier at the shipped defaults and three with the subagent and brain
+  files both named, and `subagent_gpu_file` is still the only field in
+  `cortex_model_manager/config.py` aliased to a `CORTEX_MODEL_FILE_SUBAGENT` variable. The compose
+  config rendered over the base, subagents and roster files, and again over the base, gpu and
+  subagents files, still points both `CORTEX_SUBAGENTS_ENDPOINT` and `CORTEX_SUBAGENTS_GPU_ENDPOINT`
+  at `http://llama-subagent:8082`, and the gpu overlay still hands the model host
+  `CORTEX_MODEL_FILE_SUBAGENT_GPU` as an empty string. The settings scan added the same day holds
+  each settings field to some compose file that names it, and compares no two values, so nothing
+  under `scripts/` compares the spellings yet. `_entry_profile` still builds the default entry its
+  two backends over `entry.gpu_endpoint` and `entry.endpoint`. The ADR-0018 addendum of the same
+  date records the fourth place.

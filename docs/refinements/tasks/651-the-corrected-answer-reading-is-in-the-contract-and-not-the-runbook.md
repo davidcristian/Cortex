@@ -1,14 +1,8 @@
 # The corrected-answer reading is in the contract and not in the runbook
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-17
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-12
-**Trigger:** the own-text set grows another answer recorded `ok`, or a second sidecar this repo
-writes gains one, so the recovery covers more than the two email answers a reader can hold in mind.
-Countable by reading `cortex_orchestrator/own_texts.py` for declarations whose answer the sidecar
-does not mark `isError`: today `read_email`'s not-found answer and `search_emails`'s empty search,
-against three marked ones.
 
 Opened 2026-09-12 by the close of
 [591](591-an-ok-audit-line-carries-a-size-where-the-correction-is.md), which decided that the audit
@@ -40,3 +34,18 @@ than a step in diagnosing a turn.
 - 2026-09-12: opened by the close of
   [591](591-an-ok-audit-line-carries-a-size-where-the-correction-is.md), which wrote the rule down
   for a future agent and left the operator's document alone.
+- 2026-09-17: landed as one sentence in the tools runbook, and the premise was narrower than
+  written. The trigger had not fired: `cortex_orchestrator/own_texts.py` still declares five
+  entries over four texts, and the sidecar still marks three of them `isError` (the refused search
+  and the unknown folder under both tools) and answers two `ok`, the empty search and the
+  not-found uid; the refused-search change of 2026-09-15 sends a refused search on an empty folder
+  to the existing empty-search answer and declares nothing new. But the runbook was not silent: its
+  paragraph on `trust=trusted` beside `ok=False`, written on 2026-09-02 and so ten days before this
+  entry, already listed all four answers, said each is re-stamped trusted, and said the first two
+  arrive failed, so the `ok` reading was implied there and never stated. That paragraph now says
+  which answer an `ok=True`, `trust=trusted` line is under each tool and that the line's own
+  `arguments` render it, and that the file trail added the same day keeps those fields. It is one
+  instance of the coverage question
+  [R-444](444-nothing-says-which-log-lines-a-runbook-should-print.md) holds open, and it adds no
+  second statement of the set, since the paragraph already named its members. Recorded in the
+  ADR-0009 corrected-answer-runbook addendum.

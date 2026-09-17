@@ -3,9 +3,15 @@
 **Status:** open, fix when it bites
 **Area:** subagents
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Trigger:** The first deployment observed refused at the admission bound, or any retune of the run
-deadline or the admission wait.
-**Verified:** 2026-09-11
+**Trigger:** a deployment recorded refused at the admission bound, which is the runner's `a spawn
+was refused before it ran` warning, or a retune of the run deadline or the admission wait. In the
+tree a retune is a move of `DEFAULT_ADMISSION_WAIT_S` (7200.0, `cortex_core/scheduler.py`),
+`DEFAULT_SUBAGENT_RUN_TIMEOUT_S` (2400.0) or `ATTEMPTS_PER_ADMISSION` (2, both in
+`cortex_core/subagents.py`), or a compose file giving `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` or
+`CORTEX_SUBAGENTS_RUN_TIMEOUT_S` a value, counted by
+`grep -rnE 'CORTEX_SUBAGENTS_(ADMISSION_WAIT|RUN_TIMEOUT)_S: *[^ ]' docker/`. A value set only in a
+host's shell or `.env` reaches the brain as well and is outside the tree.
+**Verified:** 2026-09-17
 
 Opened 2026-08-25 by the close of
 [R-392](392-a-re-runs-second-deadline-outlasts-the-queue.md), which made the admission wait outlast
@@ -55,3 +61,17 @@ re-run, rather than against whether the path fires at all.
   opened, so no retune has fired the second half of the trigger. The first half became observable
   on 2026-09-08, when the runner gained a warning at the refusal itself, `a spawn was refused
   before it ran`, shown in the delegation runbook; no deployment has been recorded refused on it.
+- 2026-09-17: re-derived and still open; neither half of the trigger has fired. The three numbers
+  the hold is sized from have not moved since the bullet above (`git log -S` on each finds no
+  commit after 2026-08-25), `_placed` in `cortex_core/runner.py` still writes the one warning with
+  `task_id`, `model` and `detail`, and `SubagentResult` still has no field naming a placement or an
+  attempt. The file audit sink added on 2026-09-17 keeps the tool trail across a restart, but it
+  writes one line per tool call, so a spawn re-run on the CPU is still invisible there. What moved
+  is the retune half: the same day the subagents overlay began passing
+  `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` and `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` into the brain by bare
+  name, so a deployment can now retune either from its shell or `.env` without a change in the
+  tree, and the trigger now names the grep that counts a value written into a compose file.
+  Two corrections to the bullet above: the refusal warning is sampled in
+  `docs/runbooks/subagents-cpu.md` (line 355), since no runbook is called the delegation runbook,
+  and the re-run warning is named in that runbook's prose at line 503 but printed as no sample
+  line, which is why no sample gate holds it.

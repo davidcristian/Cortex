@@ -5,7 +5,11 @@
 **Origin:** [ADR-0010](../../adr/ADR-0010-subagents.md)
 **Trigger:** a llama.cpp image whose `--chat-template-kwargs` no longer parses, or a subagent
 server that fails to start after an image bump; either arrives as a tier that will not come up.
-**Verified:** 2026-09-11
+The compose files name the floating tag `ghcr.io/ggml-org/llama.cpp:server`, so the image is not
+in the tree: read the digest `docker buildx imagetools inspect` names for that tag, and on that
+image check that `strings` over `/app/libllama-common.so*` still carries the deprecation warning
+quoted below and that `--help` still lists `--chat-template-kwargs`, without starting a server.
+**Verified:** 2026-09-17
 
 Opened 2026-08-26 by the close of
 [R-456](456-a-constrained-request-loses-the-thinking-lever.md), whose live runs put the warning in
@@ -39,8 +43,10 @@ on the E4B pick and does nothing on the Qwen pick, which is why the pair stays.
 
 **What would close it.** The trigger firing. When the kwarg stops parsing, the change is a spelling
 swap, `--reasoning off` in place of the kwarg on both compose servers and in the hosted tier's
-`_REASONING_OFF`, with the budget kept beside it and `scripts/flagcheck.py`'s requirement re-spelled
-the same way; the rendering column above says the behaviour follows the spelling.
+`_SUBAGENT_TAIL` (`cortex_model_manager/config.py`), with the budget kept beside it, the `Flag` pair
+in `scripts/subagentflags.py` re-spelled the same way, and the fixtures that spell the pair in
+`test_model_roster.py`, `test_flagcheck.py` and `test_hostedtiers.py` with it; the rendering column
+above says the behaviour follows the spelling.
 
 ## Trail
 
@@ -58,3 +64,17 @@ the same way; the rendering column above says the behaviour follows the spelling
   `docker/docker-compose.subagents-roster.yml`, still the hosted tier's `_REASONING_OFF` in
   `cortex_model_manager/config.py`, and still what `scripts/flagcheck.py` requires at lines 94
   and 95.
+- 2026-09-17: read against the image a fresh pull gets and the tree, and not fired. The tag has
+  moved since the bullet above: `ghcr.io/ggml-org/llama.cpp:server` now names build 10991 at commit
+  `930e2fa59`, created 2026-09-16, whose amd64 manifest is `sha256:053921c63646`, while this
+  machine's cache still holds build 10680, the one every figure above was measured on. That image,
+  pulled by digest and removed afterwards, still carries the same deprecation warning in
+  `libllama-common.so`, still lists `--chat-template-kwargs` in `--help`, and still lists `-rea,
+  --reasoning [on|off|auto]` with default `auto`; its server library still type-checks an
+  `enable_thinking` value. No server was started, so this reading shows that both the warning and
+  the flag are still in the build; it does not show that the flag still parses, nor that the tier
+  renders the same prompt on build 10991 as on build 10680. The places the swap would touch have
+  moved: the hosted tier's tail is now `_SUBAGENT_TAIL`, which since 2026-09-13 also carries
+  `--cache-ram 0`, and the gate's requirement is the `Flag` pair at lines 81 and 82 of
+  `scripts/subagentflags.py`, which `flagcheck.py` reads since the flag rules moved there on
+  2026-09-15; the remedy above now names them.
