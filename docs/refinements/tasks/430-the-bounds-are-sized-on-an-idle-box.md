@@ -1,11 +1,8 @@
 # Every bound on a delegated run is sized on an idle box, and a busy one nearly reaches them
 
-**Status:** open, fix when it bites
+**Status:** satisfied 2026-09-17
 **Area:** resource-governance
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-09
-**Trigger:** The first delegated run observed cut at its own deadline, or the first spawn refused
-at the admission bound.
 
 Opened 2026-08-25 by the close of [R-207](207-whole-subtask-figure-off.md), whose control run is
 what says so.
@@ -66,3 +63,27 @@ control measured and is a compose line rather than a bound.
   body above now names, so the entry asks for the measurement alone. Two smaller repairs: the tier's
   CPU quota is a compose `cpus` limit defaulting off `CORTEX_SUBAGENTS_CPU_BUDGET` rather than a
   `--cpus 4.0` literal, and `--threads` is still on no subagent server's argv.
+- 2026-09-17: **satisfied, because the saturated reading this entry rests on was taken on a server
+  shape the stack no longer starts.** The 1736.6 s subtask and its 0.18 tok/s decode were drawn
+  with the CPU server running 24 threads inside a 4 CPU quota. On 2026-09-11 the close of
+  [R-628](628-the-subagent-cpu-servers-thread-count-is-not-pinned-to-its-quota.md) took the second
+  answer this entry offered: both CPU subagent servers in `docker/docker-compose.subagents.yml`
+  and `docker/docker-compose.subagents-roster.yml` now pass `--threads` from the same
+  `CORTEX_SUBAGENTS_CPU_BUDGET` substitution as their `cpus` cap. The same close took the first
+  answer, a reading under load: on the pinned server a saturated host decodes 4.89 to 5.03 tok/s
+  on one slot and 3.02 to 3.07 on each of two, against 12.24 to 12.44 idle, so load costs one slot
+  a factor of about 2.5 where the unpinned server lost a factor of seven. It then decided the
+  bounds do not move, and recorded that decision in the ADR-0004 thread-pin landing addendum. At the
+  slower of those rates the 2400 s deadline admits at least 7200 decoded tokens, seven times the
+  1024 token cap, so the 28% margin above no longer describes the shipped stack, and the
+  batch reading behind `DEFAULT_ADMISSION_WAIT_S` (the eighth spawn admitted 1624.6 s in, serial,
+  idle, unpinned) sits under
+  the 7200 s wait at the pinned saturated rates too, those being faster than the unpinned idle
+  1.26 to 1.35 tok/s. That last comparison is a ratio of decode rates and not a drawn batch. The
+  three declarations are unchanged (`DEFAULT_STALL_TIMEOUT_S` 600.0,
+  `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` 2400.0, `DEFAULT_ADMISSION_WAIT_S` 7200.0), and no delegated run
+  is recorded cut at its deadline or refused at the admission wait. What is left is drawing the
+  whole-subtask shapes and a full batch on the pinned server, idle and saturated, which is
+  [R-637](637-the-delegated-run-ceilings-were-sized-on-the-unpinned-cpu-tier.md) word for word; its
+  trigger now also carries this entry's refused-spawn half. The runbook paragraph that sent a
+  reader here was restated on the pinned rates.

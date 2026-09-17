@@ -317,10 +317,13 @@ one thread per hardware thread (ADR-0004 thread-pin landing addendum).
 > `--refusal`, `--naming`) move the columns you are shown rather than the verdict.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
-> **Every number here is an idle-box number**, and a saturated host runs the same subtask five to
-> eight times slower, 1736.6 s against a 2400 s deadline, so a busy machine is the one to watch for
-> a narrow subtask reported as a runaway
-> ([refinements/index.md#resource-governance](../refinements/index.md#resource-governance)).
+> **Every whole-subtask number here was drawn on an idle box, and all but the capped attempt were
+> drawn before the thread count was pinned.** Unpinned, a saturated host ran the same subtask five
+> to eight times slower, 1736.6 s against a 2400 s deadline. Pinned, load costs one slot's decode a
+> factor of about 2.5, and at the saturated rate the deadline still admits at least 7200 decoded
+> tokens, so the cap binds first on a busy machine too. Drawing the whole-subtask shapes again on
+> the pinned server, idle and saturated, is still open
+> ([refinements/index.md#subagents](../refinements/index.md#subagents)).
 
 > **Queuing for room is bounded too, and generously.**
 > `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 7200 s) is how long a spawn may wait for the soft

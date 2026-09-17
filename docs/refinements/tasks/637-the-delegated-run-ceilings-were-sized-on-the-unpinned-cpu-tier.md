@@ -5,8 +5,8 @@
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
 **Verified:** 2026-09-15
 **Trigger:** a delegated run on the pinned CPU server that holds its admission for the whole stall
-ceiling or the whole run deadline while a peer queues behind it, or any retune of
-`CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
+ceiling or the whole run deadline while a peer queues behind it, a spawn refused at the admission
+wait, or any retune of `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` or
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`.
 
 Opened 2026-09-11 by the close of
@@ -68,3 +68,8 @@ rules those addenda wrote down.
   rate. That is one shape of the five the ceilings addendum measured and it is a capped attempt
   rather than a tool-using run, so no bound moves on it. The entry stays open for the other four
   shapes, the full batch and the saturated arm.
+- 2026-09-17: took over the refused-spawn half of the trigger from the close of
+  [R-430](430-the-bounds-are-sized-on-an-idle-box.md), which asked for the same measurement under
+  load and was satisfied by the pinned thread count. A spawn refused at the admission wait can
+  follow a queue of runs that each finished inside the deadline, so the half about one run holding
+  its admission did not cover it.

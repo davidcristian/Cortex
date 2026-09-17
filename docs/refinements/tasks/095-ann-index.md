@@ -3,8 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** memory
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Trigger:** A score-delta calibration over a corpus with realistic topic spread.
-**Verified:** 2026-09-11
+**Trigger:** `SELECT count(*) FROM memories` in a deployment's pgvector database reaching 75,000 rows
+while `CORTEX_MEMORY_SCOPE` is `global`, the size at which the exact scan costs a whole recalling
+turn's time to first token; the recall trail's `available` field carries the same count on every
+recalled turn when `CORTEX_MEMORY_RECALL_AUDIT` is on.
+**Verified:** 2026-09-17
 
 Exact cosine now; an approximate index would need a migration, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
@@ -46,6 +49,25 @@ ids the two share, over a corpus with realistic topic spread. If the delta is ne
 is worth its migration and this entry lands; if it is not, the entry closes as declined and the
 answer to a slow scan is scoping or retention rather than approximation.
 
+**Restated 2026-09-17: the calibration is the first step of the work, and the trigger is the size
+at which the work is owed.** "A score-delta calibration" names nothing that happens by itself, so
+it could fire only when somebody chose to do this entry. The 2026-08-11 objection to a size trigger
+was that the scan's cost shows only once the table is already too big to migrate comfortably. The
+tree has read the size since 2026-08-10: `PgVectorMemoryStore.count_candidates` runs a
+`count(*)` beside every search, and the recall trail logs it as `available`. So the trigger now
+fires on the size, before the cost dominates. A straight line through the two measured sizes, 21 ms
+at 1,000 rows and 1,478 ms at 220,000, crosses the 0.515 s time to first token at about 75,000
+rows. Both readings were taken on one machine, so the row count is that machine's ratio of turn
+time to scan time per row; another host would read its own two numbers. When the trigger fires, the
+next step is the calibration, on the CPU `pgvector/pgvector:pg16` image, and its result decides
+between the index and scoping or retention. The trigger depends on four settings: the pgvector
+backend (`CORTEX_MEMORY_BACKEND`), because the default `none` records and recalls nothing; the
+global scope,
+because a session-scoped read ranks one conversation, measured at 40 rows and 1.3 ms; the recall
+trail, which is off by default, for reading the count off the log rather than off the database; and
+the write policy in `record_exchange` (`cortex_core/turn_output.py`), which records at most one
+memory per turn and skips tainted and opaque turns by default, and so sets how fast the count grows. `CORTEX_MEMORY_RECALL_POOL_FACTOR` does not move it, since k=5 and k=20 measured the same.
+
 ## Trail
 
 - 2026-08-11: Measured and re-triggered rather than closed, which the area names explicitly because
@@ -66,3 +88,15 @@ answer to a slow scan is scoping or retention rather than approximation.
   the only mentions of one are the 2026-08-11 addendum's, and no addendum on that record since
   names `hnsw` or `ivfflat`. One name in the body had gone stale, the embedder's variable, which was
   renamed to `CORTEX_MODEL_FILE_EMBED` on 2026-08-30, and it is corrected above.
+- 2026-09-17: read against the tree, and the calibration has not run: outside this entry and the
+  2026-08-11 addendum, `hnsw` and `ivfflat` appear only in the `docker/postgres/init.sql` header
+  comment and in the ADR-0008 line deferring index tuning, and no file spells
+  `maintenance_work_mem`. The schema, the ranked `SELECT`, `DEFAULT_RECALL_K = 5`,
+  `recall_pool_factor: int = 4` and `GlobalMemoryScope.read_scopes` returning `None` are as the
+  2026-09-11 reading gives them, and `scope` still defaults to `"global"` in the orchestrator's
+  `MemoryConfig`. The trigger was restated, because a calibration is work somebody chooses to do
+  and not an event, and because the tree has counted the candidate set on every search since
+  2026-08-10 (`_COUNT_ALL` in `cortex_memory/store.py`, logged as `available` when
+  `recall_audit` is on, which defaults to `False`). Nothing in the tree times the search itself,
+  so the size is the reading to take. The new trigger is a row count derived above from the
+  2026-08-11 measurement.

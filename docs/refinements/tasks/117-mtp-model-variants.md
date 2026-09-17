@@ -1,13 +1,34 @@
 # MTP (multi-token-prediction) model variants
 
-**Status:** open, fix when it bites
+**Status:** open, actionable
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Trigger:** an MTP or draft artifact on the mount for the file a shipped tier is actually started on, which is a narrower set than the candidates the lineup names at that tier, together with a start of the pinned engine on that file that loads.
-**Verified:** 2026-09-11
+**Verified:** 2026-09-17
 
 Deferred until the latency they save justifies the memory they cost, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
+
+**Why this is actionable now.** The deep tier's file is fixed: the ADR-0004 brain-pick addendum of
+2026-08-04 chose `google/gemma-4-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf`, and
+`docker/docker-compose.gpu.yml` names that file beside the empty `CORTEX_MODEL_FILE_BRAIN` default.
+The mount holds a drafter for exactly that model, `google/gemma-4-31B-it-assistant/assistant-F16.gguf`
+(954843360 bytes, `general.architecture` `gemma4-assistant`), and the pinned engine carries both the
+architecture and the flags to hand it over. What is left undecided is whether a start on that pair
+loads and whether it pays, and both are GPU readings this repo's agent takes through Docker.
+
+**What the next slot does**, once the card is free:
+
+1. Start the cached `:server-cuda` tag on the 31B file with
+   `--model-draft /models/google/gemma-4-31B-it-assistant/assistant-F16.gguf` and each of the two
+   spellings the build offers (`--mtp`, and the plain draft path), at the deep tier's shipped
+   `-ngl 99` and 8192 context. Record whether it reaches READY, the load time, and `nvidia-smi`
+   used memory against the 20996 MiB resident total the addendum recorded for the 31B.
+2. If it loads, price decode on a fixed deep-tier prompt with and without the drafter, with the
+   card's clock and power ceiling read at both ends, and the acceptance rate the server logs.
+3. Only if decode improves by more than the run-to-run spread does the build follow: a typed draft
+   field on `TierArgs` and a second artifact variable per tier in
+   `brain/packages/model_manager/`, a VRAM budget row, and the compose line. A null result closes
+   this entry as declined with the reading.
 
 ## Trail
 
@@ -73,3 +94,24 @@ Deferred until the latency they save justifies the memory they cost, per
   over every `.py`, `.yml`, `.rs` and `.toml` still returns the one sentence in
   `fakes_model_host.py`, and `ModelHostConfig.tiers()` still fills `TierArgs.extra` from
   `_vision()` and `_reasoning()` alone.
+- 2026-09-17: **the first half of the trigger had fired before it was written, and two earlier
+  readings here were wrong about the mount.** The trigger asked for an MTP or draft artifact for
+  the file a shipped tier is started on. `google/gemma-4-31B-it-assistant/` and
+  `google/gemma-4-26B-A4B-it-assistant/` have been on the mount since 2026-08-16. Each
+  `config.json` names `Gemma4AssistantForCausalLM`, with a `backbone_hidden_size` of 5376 for the
+  31B one and 2816 for the 26B-A4B one, their model card calls them the MTP drafters for Gemma 4, and each holds an `assistant-F16.gguf`
+  whose header reads `gemma4-assistant`. So the 2026-09-06 reading "the mount holds no gemma MTP
+  artifact at all" and the 2026-09-11 reading "no MTP or draft artifact under `google/`" were
+  both false. The 2026-09-06 reading "the deep pick is still open" was also false: the deep pick
+  was made on 2026-08-04 and is the 31B the first drafter serves. The engine half was read
+  without starting anything, by extracting `/app` from a `docker create` of the cached `:server`
+  tag (still `db057ec90de0`, and `:server-cuda` still `952424b09abc`): `libllama.so.0.3.0` holds
+  `llama_model_gemma4_assistant` and `/app/src/models/gemma4-assistant.cpp`, and
+  `libllama-common.so.0.3.0` spells `--mtp`, `--model-draft`, `--draft-max`, `--gpu-layers-draft`
+  and the message `creating MTP draft context against the target model`. No start was made,
+  because a GPU sitting held the card, so whether the pair loads is unmeasured. The two shipped
+  resident tiers still have no drafter: nothing on the mount serves `gemma-4-12b-it-qat-q4_0.gguf`
+  (6975879296 bytes) or `gemma-4-E4B_q4_0-it.gguf` (5154941280 bytes). The tree still spells no
+  draft flag: the grep for `model-draft`, `spec-draft`, `--draft` and `speculative` returns the
+  one sentence in `fakes_model_host.py`. Re-filed actionable, with the load reading as the next
+  step.
