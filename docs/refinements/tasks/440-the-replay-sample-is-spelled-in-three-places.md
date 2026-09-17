@@ -3,8 +3,8 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-12
-**Trigger:** a change to either number, since the copies drift the moment one of them moves.
+**Verified:** 2026-09-17
+**Trigger:** the `replay` recipe's defaults line in the `justfile` stops reading `count="5" window="25"`, or any of the prose copies stops saying five and twenty five, since the copies drift the moment one of them moves. A caller passing other values to `just replay` changes neither default and does not fire it.
 
 Opened 2026-08-25 by the pass that gave the replay a cadence
 ([R-357](357-a-replay-pass-has-no-cadence.md), [ADR-0002 replay-cadence
@@ -60,3 +60,18 @@ recipe for them, which costs the addendum its argument and is probably the wrong
   ([R-439](439-nothing-counts-the-record-between-passes.md)), spending the recipe's `window`
   default in both roles rather than adding a fifth copy, so the runbook's cadence sentence states
   what a recipe does rather than what a reader should do.
+- 2026-09-17: not fired, and still four places, though three of them spell the numbers more than
+  once. A grep for the digits and the words over the `justfile`, the runbook, ADR-0002, AGENTS.md,
+  `docs/modules/`, `scripts/` and the workflows finds them in: the defaults line (`justfile` line
+  323); the comment above the recipe (line 306); the runbook, in five sentences that state the rule
+  (lines 16, 25, 61, 65 and 138) besides the ledger row at line 158, which records what one pass
+  drew and is a dated reading rather than a copy; and the cadence addendum's decision (ADR-0002
+  lines 1032 to 1048), which the addenda after it quote as dated readings from line 1090 on. Nothing in AGENTS.md, `docs/modules/`, `scripts/` or the workflows spells
+  them. The runbook's five are the ones a retune would have to find by reading, since the
+  recipe's own body spends `{{ window }}` and `{{ count }}` (lines 376 to 388) rather than copying
+  them. The
+  only change since the last reading, the commit that counts the standing gap from the commit a
+  pass drew from, moved neither number: its runbook edit rewrapped the twenty five sentence and
+  its `justfile` edit rewrote the comment around the window without restating either figure.
+  The trigger now names the line that decides it and the one way of using the recipe that does
+  not.

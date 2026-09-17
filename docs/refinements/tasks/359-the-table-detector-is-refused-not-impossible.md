@@ -2,11 +2,13 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Trigger:** the last fifty commit bodies that carry a mutation table all name a path this
-repository tracks and name the suite their counts are over, at which point the refusal rate that
-refused the gate is zero
+**Trigger:** at least fifty commit messages match the `replay` recipe's vocabulary (`git log -i -E
+--grep=redden --grep=mutant --grep=mutation --grep='prove[a-z]* able to fail'`, 41 on 2026-09-17),
+and the most recent fifty of them all name a path this repository tracks and the suite their counts
+are over, at which point the refusal rate that refused the gate is zero. The path half is a script
+over `git ls-files`; the suite half is a reader's judgement, having no machine form
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Verified:** 2026-09-11
+**Verified:** 2026-09-17
 
 Opened 2026-08-21 by the close of [R-349](349-a-mutation-table-nobody-replayed.md), which weighed
 making replayability a requirement `commitlint.py` enforces and declined it on a census rather than
@@ -48,3 +50,13 @@ orchestrator's own cases" the next, and prescribing the spelling is prescribing 
   body says in one sentence that the change was proved by mutation. A rule in `commitlint.py`
   would now read the place the tables have left, which is a second reason for the decline on top
   of the refusal rate.
+- 2026-09-17: not fired, and the population it counts over is still short of fifty. Re-taken over
+  all 912 commits with the `replay` recipe's four patterns, which is the vocabulary a table would be
+  found by now: 41 messages match, and a scratch detector matching a tracked path or file name finds
+  32 of the 41 naming none and 2 naming both a path and a suite word. The 41 over-count the tables,
+  since the practice is now named in bodies that carry none: of the 9 matches since the last
+  reading, `feat: report the replay's standing count off the ledger` and `docs: re-derive four sweep
+  and mutation ledger triggers` use the word for the replay practice and carry no table. So a rule
+  keyed off the vocabulary would still misfire on accurate messages, which is the entry's second
+  number in a new form. The trigger now names the command that counts the population, since the
+  close's census was never committed, and says which of its two halves a script can decide.

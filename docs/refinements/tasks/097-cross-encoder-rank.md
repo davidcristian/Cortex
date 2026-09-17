@@ -3,8 +3,8 @@
 **Status:** open, fix when it bites
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Trigger:** A measured shortfall of the judge on a real corpus, or a latency budget it cannot meet.
-**Verified:** 2026-09-11
+**Trigger:** a judge quality reading taken over memories nobody wrote for the measurement (neither the ten notes inline in `test_rerank_judge_live.py` nor the 41 in `recall_corpus.py`), in which the judge drops an answerable note the cosine kept or ranks worse than it; or a first-token or whole-turn latency budget written into an ADR decision or a config bound that the recorded rank cost of 0.877 s, or its +0.515 s on the first token, exceeds. Neither exists in the tree today. The first needs a deployed store's memories, which live in its Postgres volume, so it can enter the tree only as a recorded result. Both depend on `CORTEX_MEMORY_BACKEND` naming a store and `CORTEX_MEMORY_RECALL=judge`, and the cost on `CORTEX_MEMORY_RECALL_POOL_FACTOR` and `DEFAULT_RECALL_K`.
+**Verified:** 2026-09-17
 
 Recorded inside the ranked-recall entry ([096](096-ranked-recall-widening.md)), as one of the two deferrals that close opened when the
 model rank, the blended key and the recall trail landed together:
@@ -41,3 +41,17 @@ The relevance-floor decline named it again as the candidate signal:
   the rank and partly to an honest refusal's length, without setting a bound. The origin ADR still
   lists this rank as deferred on the same trigger and the relevance-floor decline still names it as
   the candidate signal.
+- 2026-09-17: not fired, and neither half is decidable from the tree as it was written. The grep for
+  a cross-encoder or a scoring-model port over `brain/packages/*/src` still finds nothing, and no
+  commit since the last reading touched the `rerank` modules, the two corpora or their live tests,
+  while none of the five addenda ADR-0038 gained in that time mentions the judge. The tree
+  does hold judge measurements, and none of them can decide the trigger. On latency, the turn-cost
+  addendum times a rank at 0.877 s (pool of 20 at `DEFAULT_RECALL_K` 5 and `recall_pool_factor` 4)
+  and the turn's first token at +0.515 s against the cosine, but no ADR decision or setting states a
+  budget either number could miss. On quality, every reading is over notes written for the
+  measurement: the ten inline in `brain/packages/inference/tests/test_rerank_judge_live.py`, and the
+  41 in `recall_corpus.py` beside it, read by `test_rerank_judge_wide_live.py` and the turn-cost
+  probe, whose own docstring says no sampling of real memories was involved. A real corpus is a
+  deployed store's Postgres volume, which no commit carries. The trigger now names both halves in a form a reader can check, and the
+  settings they depend on: with the memory backend at its default `none`, or `CORTEX_MEMORY_RECALL`
+  set to anything but its default `judge`, the judge never runs and neither half can arrive.
