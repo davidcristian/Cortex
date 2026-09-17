@@ -1,33 +1,20 @@
-"""How a rendered needle is looked for in a file, and what a fault says when one is not found."""
+"""How a rendered search text is looked for in a file, and what a fault says when it is missing."""
 
 import re
 from typing import NamedTuple
 
 from couplings import PLACEHOLDER, Mention
+from linereadings import LineRun, line_of, line_runs, quote, said
 
-# What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
-# itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
 WORD_CHARACTER = re.compile(r"\w")
 
-# The narrower edge, and the only one a point can continue: a digit. Each guard asks for a digit on
-# the far side of the point, the near side being the needle's own edge, which is what keeps `2048.`
-# at a full stop found and `2048.5` unfound.
 DIGIT = re.compile(r"\d")
 
-# The lookarounds each edge may take, in the order they are applied: the word guard both kinds of
-# word edge need, then the decimal guard only a digit edge does.
+# The decimal guard asks for a digit on the far side of the point, which keeps `2048.` at a full
+# stop found and `2048.5` unfound.
 LEAD_GUARDS = (r"(?<!\w)", r"(?<!\d\.)")
 TRAIL_GUARDS = (r"(?!\w)", r"(?!\.\d)")
 
-QUOTED_WIDTH = 100
-
-# What marks a quote that starts or stops inside its line, so a reader reads a window rather than
-# a sentence the file does not have.
-TRIMMED = "..."
-
-# What a fault calls the part of a needle the constant it belongs to answers for: the value the
-# constant's sites declare, or the name the far side spends that value under where the template
-# renders no value.
 VALUE = "value"
 NAME = "name"
 
@@ -43,7 +30,7 @@ APART = (
 
 
 def _guard(edge: str, guards: tuple[str, str]) -> str:
-    """The lookaround one edge of a needle needs: none, the word one, or that and the decimal."""
+    """The lookaround one edge of the search text needs: none, the word one, or both."""
     word, decimal = guards
     if not WORD_CHARACTER.match(edge):
         return ""
@@ -51,11 +38,7 @@ def _guard(edge: str, guards: tuple[str, str]) -> str:
 
 
 def bounded(needle: str) -> re.Pattern[str]:
-    """The needle as a pattern no longer token can contain: a word edge may not touch a word.
-
-    A digit edge may not touch a point with a digit past it either, that point being a decimal
-    one rather than a sentence's.
-    """
+    """The search text as a pattern no longer token contains: a word edge may not touch a word."""
     lead = _guard(needle[:1], LEAD_GUARDS)
     trail = _guard(needle[-1:], TRAIL_GUARDS)
     return re.compile(f"{lead}{re.escape(needle)}{trail}")
@@ -70,11 +53,7 @@ def carried(needle: str, text: str) -> str:
 
 
 def anchors(text: str, run: str) -> list[int]:
-    """Every offset ``text`` stops carrying ``run`` at, and none at all when it carries none.
-
-    The stop rather than the start, because the run stops where the file stops agreeing with the
-    needle. Measuring from the start put the whole length of the run into every distance.
-    """
+    """Every offset where ``text`` stops matching ``run``, and none at all when it matches none."""
     return [found.end() for found in re.finditer(re.escape(run), text)] if run else []
 
 
@@ -86,29 +65,8 @@ def nearest(ends: list[int], matches: list[re.Match[str]]) -> tuple[re.Match[str
     return min(pairs, key=lambda pair: abs(pair[0].start() - pair[1]))
 
 
-def line_of(text: str, at: int) -> int:
-    """The one-based line the offset ``at`` falls on."""
-    return text.count("\n", 0, at) + 1
-
-
-def quote(line: str, start: int, end: int) -> str:
-    """``line`` around the match at ``start``..``end``, trimmed to a width a fault can carry."""
-    if len(line.strip()) <= QUOTED_WIDTH:
-        return line.strip()
-    margin = max(QUOTED_WIDTH - (end - start), 0) // 2
-    opened = max(start - margin, 0)
-    closed = min(end + margin, len(line))
-    lead = "" if opened == 0 else TRIMMED
-    trail = "" if closed == len(line) else TRIMMED
-    return f"{lead}{line[opened:closed].strip()}{trail}"
-
-
 def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> str:
-    """Where ``text`` goes on spelling the value: how many places, and the words at the one meant.
-
-    Worded to follow "spells it as a token of its own", so the sentence the reader gets names a
-    line to open and reads back what is on it.
-    """
+    """Where ``text`` writes the value again: how many places, and the words at the one meant."""
     number = line_of(text, match.start())
     opened = text.rfind("\n", 0, match.start()) + 1
     ends = text.find("\n", match.start())
@@ -121,11 +79,7 @@ def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> st
 
 
 def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
-    """How much of the needle ``text`` carries, and where the occurrence meant stops.
-
-    ``at`` is the stop the value reading was measured against, when there is one. Without it the
-    first stop is named and said to be the first, the same fallback the value reading makes.
-    """
+    """How much of ``needle`` ``text`` contains, and where the occurrence meant stops."""
     if not run:
         return "carrying no part of it"
     held = f"carrying no more of it than {run!r}"
@@ -143,42 +97,48 @@ def verdict(text: str, match: re.Match[str], at: int | None, part: str) -> str:
     return MET.format(part=part)
 
 
+def _stopped(
+    text: str, needle: str, run: str, read: tuple[list[LineRun] | None, list[int]], at: int | None
+) -> str:
+    """The run clause: per line where ``needle`` is one line long, over the whole file otherwise."""
+    runs, ends = read
+    return stops(text, run, ends, at) if runs is None else said(runs, needle, at)
+
+
 class Answered(NamedTuple):
-    """The part of a needle the constant it belongs to answers for, and what a fault calls it."""
+    """The part of the search text its constant supplies, and what a fault calls that part."""
 
     spelling: str
     word: str
 
 
 def answered(mention: Mention, spelled: str) -> Answered:
-    """Which half of a rendered needle this constant answers for: its value, or its name.
-
-    `crosscheck.rendered` refuses a template that renders neither, so a template with no value
-    placeholder carries a name and the mention carries one to render there.
-    """
+    """Which half of the rendered search text this constant supplies: its value, or its name."""
     if PLACEHOLDER in mention.template or mention.name is None:
         return Answered(spelled, VALUE)
     return Answered(mention.name, NAME)
 
 
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
-    """Why ``text`` does not spend ``needle``, said as what of it the file does still carry."""
+    """Why ``text`` does not contain ``needle``, said as how much of it the file still has."""
     run = carried(needle, text)
     stem = f"{mention.path} does not spell {needle!r} as a token of its own"
     if run == needle:
         return f"{stem}, carrying it only inside a longer token"
-    ends = anchors(text, run)
+    runs = line_runs(needle, text, bounded(needle))
+    ends = anchors(text, run) if runs is None else [each.stop for each in runs]
     held = answered(mention, spelled)
     matches = list(bounded(held.spelling).finditer(text))
     if not matches:
-        stopped = stops(text, run, ends, None)
+        stopped = _stopped(text, needle, run, (runs, ends), None)
         return (
             f"{stem}, {stopped}; the file does not spell {held.spelling!r} as a token of its own "
             f"either"
         )
     match, at = nearest(ends, matches)
     return (
-        f"{stem}, {stops(text, run, ends, at)}; the file does still spell {held.spelling!r} as a "
+        f"{stem}, {_stopped(text, needle, run, (runs, ends), at)}; the file does still spell "
+        f"{held.spelling!r} as a "
         f"token of its own{where(text, match, len(matches), anchored=bool(ends))}, "
         f"{verdict(text, match, at, held.word)}"
     )

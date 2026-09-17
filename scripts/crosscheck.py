@@ -1,4 +1,4 @@
-"""Repo gate: fail when one value spelled in two trees stops agreeing with itself."""
+"""Fail when one value written in more than one place stops agreeing with itself."""
 
 import argparse
 import re
@@ -14,23 +14,21 @@ from couplings import (
     Relation,
     Site,
 )
+from linereadings import counted, short
 from needles import bounded, unfound
 from readings import Reading, relation_fault
 from registry import CONSTANTS, shape
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
-# A registry entry naming one place would agree with itself forever. Two is therefore the floor,
-# and it counts mentions: a lone declaration plus one place that spends it is a real coupling.
+# Two places is the minimum: a value written once always agrees with itself.
 MIN_PLACES = 2
 
-# The floor under a pinned occurrence count. Zero would ask a mention to prove the value is
-# absent, which is the opposite of a coupling, and a negative count asks nothing at all.
 MIN_OCCURRENCES = 1
 
-# The two ways a pinned count stops holding, said once and spent by both counted faults: the one
-# over a count that is wrong and the one over a file holding none of the set at all.
 RECOUNT = "move the whole set, or correct occurrences in the registry"
 
+# One declaration form per language. `{name}` is replaced with the constant's name before the
+# search, and the `value` group is the value expression.
 DECLARATIONS = {
     ".py": (
         r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[ \t]*\([ \t]*(?:#[^\n]*)?\n"
@@ -45,7 +43,7 @@ DECLARATIONS = {
 
 
 class Fault(NamedTuple):
-    """One constant that is not tied: a place that cannot be read, or places that disagree."""
+    """One constant with a problem: a place that cannot be read, or places that disagree."""
 
     label: str
     detail: str
@@ -79,7 +77,7 @@ def read_value(root: Path, site: Site) -> Value:
 
 
 def rendered(mention: Mention, value: Value) -> str:
-    """The text a mention pins: its template with the agreed value and its own name rendered in."""
+    """The text a mention asks for: its template with the value and the name filled in."""
     renders_name = NAME_PLACEHOLDER in mention.template
     if PLACEHOLDER not in mention.template and not renders_name:
         msg = (
@@ -100,29 +98,32 @@ def rendered(mention: Mention, value: Value) -> str:
 
 
 def check_mention(root: Path, mention: Mention, value: Value) -> None:
-    """Raise unless the file spends ``value`` in the shape, and the number, the mention names."""
+    """Raise unless the file contains ``value`` in the form, and as often, as the mention says."""
     wanted = mention.occurrences
     if wanted is not None and wanted < MIN_OCCURRENCES:
         msg = f"mention {mention.template!r} pins {wanted} occurrences, which ties nothing"
         raise CrossCheckError(msg)
     needle = rendered(mention, value)
     text = _read(root, mention.path)
-    found = len(bounded(needle).findall(text))
+    pattern = bounded(needle)
+    matches = list(pattern.finditer(text))
+    found = len(matches)
     if not found:
         reading = unfound(mention, needle, text, spell(value, mention.spelling))
         tail = "" if wanted is None else f"; the registry pins {wanted} occurrences, so {RECOUNT}"
         msg = f"{reading}{tail}"
         raise CrossCheckError(msg)
     if wanted is not None and found != wanted:
+        rest = short(needle, text, pattern) if found < wanted else ""
         msg = (
-            f"{mention.path} spells {needle!r} as a token of its own: found {found}, pinned "
-            f"{wanted}; {RECOUNT}"
+            f"{mention.path} spells {needle!r} as a token of its own: found {found}"
+            f"{counted(text, matches)}, pinned {wanted}{rest}; {RECOUNT}"
         )
         raise CrossCheckError(msg)
 
 
 def registry_fault(constant: Constant) -> str | None:
-    """The complaint about how a registry entry is written, or None when it can tie anything."""
+    """What is wrong with how a registry entry is written, or None when it can be checked."""
     if not constant.sites:
         return "names no declaring site, so nothing establishes its value"
     if len(constant.sites) + len(constant.mentions) < MIN_PLACES:
@@ -133,7 +134,7 @@ def registry_fault(constant: Constant) -> str | None:
 
 
 def spend_fault(constant: Constant) -> str | None:
-    """The complaint about a name pinned as a spend that nothing pays the value under."""
+    """What is wrong when a mention uses a name nothing declares the value under, or None."""
     paid = {site.name for site in constant.sites}
     paid |= {
         mention.name
@@ -151,7 +152,7 @@ def spend_fault(constant: Constant) -> str | None:
 
 
 def check_constant(root: Path, constant: Constant) -> list[Fault]:
-    """Return every fault for one constant: unreadable places first, then how they relate."""
+    """Return every fault for one constant: unreadable places first, then disagreements."""
     written = registry_fault(constant)
     if written is not None:
         return [Fault(label=constant.label, detail=written)]
@@ -182,7 +183,7 @@ def check(root: Path, constants: tuple[Constant, ...] | None = None) -> list[Fau
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print any faults and return the process exit code."""
+    """Run the check; print any faults and return the process exit code."""
     parser = argparse.ArgumentParser(
         description="Fail when a constant spelled in two trees stops agreeing with itself.",
     )

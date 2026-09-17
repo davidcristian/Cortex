@@ -335,6 +335,7 @@ scripts/          repo gates and their readers. Eleven scans run in `just check`
                     values.py       what a value reduces to, and how a mention spells it
                     readings.py     how a constant's readings must stand
                     needles.py      how a rendered needle is searched for, and what a miss reports
+                    linereadings.py what a miss says about one line, and its share of the needle
                     seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
                     capturecouplings.py, boundscouplings.py, subagentcouplings.py,
                     modelhostcouplings.py, levercouplings.py, imagecouplings.py,

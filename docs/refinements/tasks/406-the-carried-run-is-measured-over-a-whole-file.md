@@ -1,9 +1,8 @@
 # The run an unfound needle quotes back is measured over a whole file, so it overstates itself
 
-**Status:** open, actionable
+**Status:** landed 2026-09-17
 **Area:** repo-gates
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-09-17
 
 Opened 2026-08-23 by the close of
 [R-403](403-a-needles-literal-reddens-the-wrong-entry.md), which measured this while writing the
@@ -90,3 +89,10 @@ Re-derive before starting: this description is a reading of `scripts/needles.py`
   about its own case: the longest opening run per line picks line 100 as well, and only a run from
   both ends picks 59, measured over the same replay. The registry holds 313 mentions today, and the
   five that cross a line boundary are the same five.
+- 2026-09-17: landed. `scripts/linereadings.py` reads every line from both ends of the needle, and
+  `needles.unfound` uses it for every needle without a newline. The replay above now names line 59
+  with 14 of the needle's 23 characters, reads the port on the same line and gives the verdict that
+  shape moved; the whole-file run is kept only for the five needles that span two lines, which is
+  filed as [R-680](680-a-needle-spanning-two-lines-keeps-the-whole-file-run.md). The measurement
+  over every registered needle, the half floor and the reason no margin is used are in the ADR-0023
+  per-line run addendum. The same reading closed [R-656](656-a-short-count-names-no-line.md).

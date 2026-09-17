@@ -1,9 +1,8 @@
 # A count that is short by one names no line to open
 
-**Status:** open, actionable
+**Status:** landed 2026-09-17
 **Area:** repo-gates
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
-**Verified:** 2026-09-17
 
 Opened 2026-09-12 by the close of
 [R-405](405-a-counted-mention-that-finds-nothing-says-nothing.md), which gave a counted mention
@@ -69,3 +68,11 @@ has to cap the sum or take the closing run only after the opening one ends.
   line keeps 25 of the needle's 26 characters, so it has a line, and the value reading the body
   proposed as the candidate source cannot find it. `crosscheck` passes over 92 constants, 110
   declaring sites and 313 mentions, 27 of them pinned to a count.
+- 2026-09-17: landed with [R-406](406-the-carried-run-is-measured-over-a-whole-file.md). A wrong
+  count now names the lines it found, and a short one adds the per-line reading over what those
+  leave: the renamed runbook replay reads `found 1 (on line 12), pinned 2; outside those, the file is
+  carrying the most of it on line 48, 25 of its 26 characters`. The threshold question was answered
+  by measurement rather than by a margin: no margin separates a deleted occurrence from an edited
+  one, so the fault names the line with its share and its words and never says the occurrence moved
+  there, and a line carrying less than half the needle is not named (ADR-0023 per-line run
+  addendum). With line 48 deleted instead, the fault names line 77 and quotes its prose.

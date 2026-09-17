@@ -8,6 +8,7 @@ import pytest
 
 import couplings
 import crosscheck
+import linereadings
 import logcalls
 import needles
 import registry
@@ -425,7 +426,8 @@ def test_a_moved_neighbour_is_reported_as_shape_and_not_as_this_value(tmp_path: 
     port did not."""
     _publish_on(tmp_path, "127.0.0.2")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
-    assert "carrying no more of it than '127.0.0.', which stops on line 1" in fault.detail
+    assert "carrying the most of it on line 1, 20 of its 21 characters" in fault.detail
+    assert "(its opening '127.0.0.' and its closing ':50051:50051')" in fault.detail
     assert "the file does still spell '50051' as a token of its own" in fault.detail
     assert "the constant to change may not be the one named here" in fault.detail
 
@@ -435,7 +437,7 @@ def test_a_moved_value_is_reported_as_absent_and_blames_no_neighbour(tmp_path: P
     around it."""
     _publish(tmp_path, declared="50052", host="50051", container="50051")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}"))
-    assert "carrying no more of it than '127.0.0.1:5005'" in fault.detail
+    assert "on line 1, 14 of its 15 characters (its opening '127.0.0.1:5005')," in fault.detail
     assert "the file does not spell '50052' as a token of its own either" in fault.detail
 
 
@@ -454,7 +456,9 @@ def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_spelled(
     )
     (fault,) = crosscheck.check_constant(tmp_path, graced)
     assert "does not spell '10 s' as a token of its own" in fault.detail
-    assert "carrying no more of it than '10', which stops on line 1" in fault.detail
+    assert (
+        "on line 1, 4 of its 4 characters (its opening '10' and its closing ' s')" in fault.detail
+    )
     assert "the file does not spell '10' as a token of its own either" in fault.detail
 
 
@@ -463,7 +467,7 @@ def test_a_file_carrying_no_part_of_the_needle_has_no_run_to_report(tmp_path: Pa
     (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
     (tmp_path / "overlay.css").write_text(".panel { height: 100px; }\n", encoding="utf-8")
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
-    assert "carrying no part of it" in fault.detail
+    assert "carrying less than half of it on any line" in fault.detail
     assert "does not spell '--ceiling' as a token of its own either" in fault.detail
 
 
@@ -490,7 +494,7 @@ def test_a_yes_reads_back_the_line_it_read_the_value_on(tmp_path: Path) -> None:
         "the cortex still holds ~11 GB of it while it dies\n",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
-    assert "which stops on line 1" in fault.detail
+    assert "carrying the most of it on line 1, 20 of its 21 characters" in fault.detail
     assert "the file does still spell '11' as a token of its own, once on line 3" in fault.detail
     assert "which reads 'the cortex still holds ~11 GB of it while it dies'" in fault.detail
     assert "and no run stops on that line, so what moved is not settled here" in fault.detail
@@ -511,7 +515,8 @@ def test_the_run_is_measured_where_it_stops_and_not_where_it_starts(tmp_path: Pa
         "11 GB of it is still held\nand the full grace (10 s) is paid\nwhich leaves 11 free\n",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
-    assert "carrying no more of it than 'the full grace (1', which stops on line 2" in fault.detail
+    assert "carrying the most of it on line 2, 20 of its 21 characters" in fault.detail
+    assert "(its opening 'the full grace (1' and its closing ' s)')" in fault.detail
     assert "in 2 places, the nearest to that run on line 3" in fault.detail
     assert "which reads 'which leaves 11 free'" in fault.detail
 
@@ -527,7 +532,7 @@ def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path:
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
-    assert "carrying no more of it than '127.0.0.', which stops on line 8" in fault.detail
+    assert "carrying the most of it on line 8, 20 of its 21 characters" in fault.detail
     assert "in 3 places, the nearest to that run on line 8" in fault.detail
     assert "which reads '- \"127.0.0.2:50051:50051\"'" in fault.detail
 
@@ -541,23 +546,58 @@ def test_a_run_carried_in_several_places_names_the_stop_nearest_the_spelling(
         '      - "127.0.0.1:6379:6379"\n\n\n\n\n\n\n      - "127.0.0.1:9090:50051"\n',
         encoding="utf-8",
     )
-    (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
+    (fault,) = crosscheck.check_constant(tmp_path, _ported('127.0.0.1:{value}:{value}"\n'))
+    assert "carrying no more of it than '127.0.0.1:'" in fault.detail
     assert "which stops in 2 places, the nearest to that spelling on line 8" in fault.detail
     assert "still spell '50051' as a token of its own, once on line 8" in fault.detail
 
 
-def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_path: Path) -> None:
-    """No run means no place to be nearest to, so the first spelling is the one named.
+# A needle holding a newline has no line to be read on, so its run is still measured over the whole
+# file, in the three shapes the per-line reading replaced for every other needle.
 
-    It also means no stop for the spelling to share a line with, so the verdict is withheld: a
-    file carrying no part of the needle has shown nothing about which half of it moved.
+_THREADED = crosscheck.Constant(
+    label="a thread count",
+    why="the flag and the substitution under it are one needle",
+    sites=(crosscheck.Site("config.py", "THREADS"),),
+    mentions=(crosscheck.Mention("stack.yml", '- "--threads"\n      - "{value}"'),),
+)
+
+
+@pytest.mark.parametrize(
+    ("stack", "expected"),
+    [
+        ("ctx: 8\n", "carrying no part of it; the file does not spell '4'"),
+        (
+            '      - "--threads"\n      - "8"\n',
+            'carrying no more of it than \'- "--threads"\\n      - "\', which stops on line 2; '
+            "the file does not spell '4'",
+        ),
+        (
+            '- "--threads"\n  - "8"\n- "--threads"\n  - "9"\n',
+            "which stops in 2 places, the first on line 2; the file does not spell '4'",
+        ),
+    ],
+)
+def test_a_needle_holding_a_newline_is_read_over_the_whole_file(
+    tmp_path: Path, stack: str, expected: str
+) -> None:
+    (tmp_path / "config.py").write_text("THREADS = 4\n", encoding="utf-8")
+    (tmp_path / "stack.yml").write_text(stack, encoding="utf-8")
+    (fault,) = crosscheck.check_constant(tmp_path, _THREADED)
+    assert expected in fault.detail
+    assert "on any line" not in fault.detail
+
+
+def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_path: Path) -> None:
+    """No line carrying half the needle means no place to be nearest to, so the first spelling is
+    the one named.
     """
     (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
     (tmp_path / "overlay.css").write_text(
         ".panel { height: --ceiling; }\n.rail { width: --ceiling; }\n", encoding="utf-8"
     )
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
-    assert "carrying no part of it" in fault.detail
+    assert "carrying less than half of it on any line" in fault.detail
     assert "in 2 places, the first on line 1" in fault.detail
     assert "which reads '.panel { height: --ceiling; }'" in fault.detail
     assert "and no run stops on that line, so what moved is not settled here" in fault.detail
@@ -579,7 +619,8 @@ def test_a_word_still_written_in_prose_settles_nothing_about_what_moved(tmp_path
         '"""Eviction by sender must not sweep a URI."""\n\n\nSENDER = "from"\n', encoding="utf-8"
     )
     (fault,) = crosscheck.check_constant(tmp_path, _KINDED)
-    assert "carrying no more of it than 'SENDER = \"', which stops on line 4" in fault.detail
+    assert "carrying the most of it on line 4, 11 of its 17 characters" in fault.detail
+    assert "(its opening 'SENDER = \"' and its closing '\"')" in fault.detail
     assert "does still spell 'sender' as a token of its own, once on line 1" in fault.detail
     assert "and no run stops on that line, so what moved is not settled here" in fault.detail
     assert "likely shape" not in fault.detail
@@ -624,11 +665,11 @@ def test_a_quote_is_windowed_only_where_the_line_runs_past_it(
 ) -> None:
     """A fault is one sentence, so the widest line this gate reads is quoted around the match."""
     line, start, end = _row(before, after)
-    read = needles.quote(line, start, end)
+    read = linereadings.quote(line, start, end)
     assert "2048" in read
-    assert len(read) <= needles.QUOTED_WIDTH + 2 * len(needles.TRIMMED)
-    assert read.startswith(needles.TRIMMED) is opens
-    assert read.endswith(needles.TRIMMED) is closes
+    assert len(read) <= linereadings.QUOTED_WIDTH + 2 * len(linereadings.TRIMMED)
+    assert read.startswith(linereadings.TRIMMED) is opens
+    assert read.endswith(linereadings.TRIMMED) is closes
 
 
 def test_a_needle_that_renders_only_a_name_is_read_on_that_name(tmp_path: Path) -> None:
@@ -639,8 +680,9 @@ def test_a_needle_that_renders_only_a_name_is_read_on_that_name(tmp_path: Path) 
     )
     (fault,) = crosscheck.check_constant(tmp_path, spent)
     assert "does not spell 'var(--roll)' as a token of its own" in fault.detail
-    assert "carrying no more of it than 'var(--'" in fault.detail
-    assert "which stops in 2 places, the nearest to that spelling on line 2" in fault.detail
+    assert "carrying the most of it on 2 lines, 7 of its 11 characters" in fault.detail
+    assert "(its opening 'var(--' and its closing ')') each" in fault.detail
+    assert "the nearest to that spelling on line 2" in fault.detail
     assert "does still spell '--roll' as a token of its own, once on line 1" in fault.detail
     assert needles.APART in fault.detail
 
@@ -780,7 +822,9 @@ def test_a_half_applied_rename_passes_a_presence_check_and_fails_a_counted_one(
     _compare(tmp_path, "deliberating", "deliberating", "thinking")
     assert crosscheck.check_constant(tmp_path, _counted(None)) == []
     (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
-    spelling = "spells 's === \"deliberating\"' as a token of its own: found 1, pinned 2"
+    spelling = (
+        "spells 's === \"deliberating\"' as a token of its own: found 1 (on line 2), pinned 2"
+    )
     assert spelling in fault.detail
 
 
@@ -806,7 +850,8 @@ def test_a_counted_mention_fails_on_one_occurrence_too_many(tmp_path: Path) -> N
     now stale."""
     _compare(tmp_path, "thinking", "thinking", "thinking", "thinking")
     (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
-    assert "found 3, pinned 2" in fault.detail
+    assert "found 3 (on lines 2, 3 and 4), pinned 2; move the whole set" in fault.detail
+    assert "outside those" not in fault.detail
 
 
 def test_a_counted_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Path) -> None:
@@ -861,7 +906,9 @@ def test_a_mistyped_spend_fails_where_a_rendered_value_never_reached_it(tmp_path
     )
     assert crosscheck.check_constant(tmp_path, value_only) == []
     (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
-    assert "spells 'var(--roll)' as a token of its own: found 1, pinned 2" in fault.detail
+    assert (
+        "spells 'var(--roll)' as a token of its own: found 1 (on line 2), pinned 2" in fault.detail
+    )
 
 
 def test_a_spend_that_pays_a_neighbouring_property_is_a_spend_short(tmp_path: Path) -> None:
@@ -869,7 +916,7 @@ def test_a_spend_that_pays_a_neighbouring_property_is_a_spend_short(tmp_path: Pa
     sheet."""
     _restate(tmp_path, "--roll", "--roll", "--ease")
     (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
-    assert "found 1, pinned 2" in fault.detail
+    assert "found 1 (on line 2), pinned 2" in fault.detail
 
 
 def test_renaming_the_declared_property_leaves_the_declaration_unfound(tmp_path: Path) -> None:
@@ -1089,7 +1136,7 @@ def test_one_of_the_two_limits_moving_alone_is_a_count_short(tmp_path: Path) -> 
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
-    assert "found 1, pinned 2" in fault.detail
+    assert "found 1 (on line 3), pinned 2" in fault.detail
 
 
 def test_a_site_that_drops_its_point_is_still_caught(tmp_path: Path) -> None:
@@ -1747,8 +1794,8 @@ def landed(root: Path, constant: couplings.Constant, site: couplings.Site) -> se
         if mention.path != site.path or mention.name != site.name:
             continue
         for match in needles.bounded(crosscheck.rendered(mention, value)).finditer(text):
-            first = needles.line_of(text, match.start())
-            last = needles.line_of(text, match.end() - 1)
+            first = linereadings.line_of(text, match.start())
+            last = linereadings.line_of(text, match.end() - 1)
             lines.update(range(first, last + 1))
     return lines
 

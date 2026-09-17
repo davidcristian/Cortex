@@ -25,14 +25,15 @@ brain workspace member (ADR-0002).
 `just switch-tail`. Each also exposes a pure,
 unit-tested core function.
 
-**The rest have no CLI of their own**, fifty-six modules, most split out under the line cap and
+**The rest have no CLI of their own**, fifty-seven modules, most split out under the line cap and
 each named for what it holds. Grouped by the gate that reads them:
 
 - `crosscheck.py` reads `couplings.py` for the vocabulary a registry entry is written with,
   `registry.py` for the names of the parts that registry is joined from, `values.py` for what a
   value reduces to and the form a mention writes it in, `readings.py` for how a set of those
-  values must stand, and `needles.py` for how a rendered needle is searched for and what a file
-  missing one is told. The parts themselves are `seamcouplings.py`, `endpointcouplings.py`,
+  values must stand, `needles.py` for how a rendered needle is searched for and what a file
+  missing one is told, and `linereadings.py`, split out of it, for what a fault says about one line:
+  its number, its words, and how much of a needle it carries. The parts themselves are `seamcouplings.py`, `endpointcouplings.py`,
   `shippedcouplings.py`, `boundscouplings.py`, `subagentcouplings.py`, `modelhostcouplings.py`,
   `levercouplings.py`, `imagecouplings.py`, `emailcouplings.py`, `fixturecouplings.py`,
   `capturecouplings.py`, `overlaycouplings.py`, `logcouplings.py` and `trailcouplings.py`.
@@ -283,19 +284,23 @@ answer: a marker written into any other module here is reported by the line it i
   the way one that moved under a value is. **A yes says where it read one** (ADR-0029
   still-spelled addendum): how many places spell the part,
   and of those the one nearest where the run below stops, named by line number and read back with
-  the line's own words, windowed to `needles.QUOTED_WIDTH` because the widest line this gate reads
+  the line's own words, windowed to `linereadings.QUOTED_WIDTH` because the widest line this gate reads
   is a runbook table row. A maybe a reader has to grep is the work the reading exists to save, and
   the case that opened it was a `~11 GB` in a paragraph about VRAM answering yes for a stop grace
   retuned to `11.0`. A needle opening with its own value has no shape in front of it to be nearer
   to and degenerates to the first occurrence; a file carrying no part of the needle names the first
   for want of a run. The
-  second is the **longest opening run of the needle the file carries**, which pinpoints the
-  divergence where the shape is unique to the needle. That run is measured over the whole file
-  rather than one line, because a mention names a file, so a prefix satisfied on another line makes
-  it longer than the divergence a reader is looking at: the compose interface moving still leaves
-  `"127.0.0.1:` carried, by the redis publish below it. It is worded as the most of the needle the
-  file carries anywhere, and it is the second half of the message for that reason. **That run
-  names its line too** (ADR-0029 run-line addendum), and how many places carry it, in the value
+  second is **how much of the needle each line carries**, read by `linereadings.py` from both ends
+  of the needle (ADR-0023 per-line run addendum): each line is credited with the needle's longest
+  opening run and then the longest closing run past it, and the line carrying the most is named with
+  its share, the two runs, and its own words. An opening run over the whole file, which is what this
+  used to be, named the redis publish when the compose interface moved, because the moved line
+  keeps only the needle's opening quote and the redis line keeps `"127.0.0.1:`; an opening run per
+  line picks the same wrong line. The line is named only when it carries at least half the needle,
+  and never as where the needle went, because a deleted occurrence leaves a sibling as the best line.
+  A needle holding a newline has no line to be read on and keeps the opening run over the whole file.
+  A **short count** gets the same per-line reading over what its found occurrences leave, and every
+  wrong count names the lines it found. **That run names its line too** (ADR-0029 run-line addendum), and how many places carry it, in the value
   reading's own three shapes, because the distance between the two lines is the evidence a reader
   weighs: a value on the line the run stops on is the strong form of "what moved is shape" and one
   seventy lines away is the weak form. Which occurrence each names is one rule rather than two.
