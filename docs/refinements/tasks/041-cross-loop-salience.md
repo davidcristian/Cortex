@@ -3,8 +3,9 @@
 **Status:** open, fix when it bites
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-13
-**Trigger:** A batch of subagents handed one instruction.
+**Verified:** 2026-09-19
+**Trigger:** the tool audit trail shows two subagent tasks of one turn (one `turn_id`, two `task_id`
+values) dispatching the same tool with the same arguments.
 
 This item was recorded inside the entry for salience on the tool loop,
 [039](039-salience-on-the-tool-loop.md), in the list of items remaining behind the same seam:
@@ -46,3 +47,15 @@ once per member.
   round. Nothing joins that list across the loops of one batch. The module's own docstring still
   gives the same reason the entry quotes, that reach is a resource a turn's subagents share while a
   repeat is redundant only against the messages holding its answer.
+- 2026-09-19: re-derived, trigger repaired, left open. Every claim holds: both quotations read as
+  written in [039](039-salience-on-the-tool-loop.md), `SaliencePolicy.admits(call, dispatched)`
+  still reads nothing else, and `dispatched` is still the local declared at `tool_loop.py:126` and
+  handed to `run_round` each round. The trigger read "a batch of subagents handed one
+  instruction", which named no observation: `SpawnSubagentsTool` accepts a batch whose items repeat
+  one instruction today, so the clause was true of the code the day it was written, while the cost
+  this entry is about is the repeated call, which a shared instruction over different material does
+  not produce. It now names that call as the audit trail records it. Each `cortex.tools.audit` line
+  carries `tool`, `arguments`, `turn_id` and `task_id`, and since the audit trail can also be kept
+  in the file `CORTEX_TOOLS_AUDIT_FILE` names, the question is one query over that file rather than
+  a grep of a log driver's retention. Nothing in the tree records such a pair, so it has not fired.
+  Recorded in the ADR-0009 shipped-pair addendum.
