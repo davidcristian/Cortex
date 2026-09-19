@@ -4,7 +4,7 @@
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
 **Trigger:** the next red `just check` whose whole output is kept, which names its tree in a `=== check-<tree>: FAILED ===` marker and its seed in the failing suite's own header, that being the one form of this failure a pass can reproduce from.
-**Verified:** 2026-09-14
+**Verified:** 2026-09-19
 
 **What was observed.** Twice on 2026-08-17, `just check` run by the pre-commit hook exited 1 on a
 tree that passed on both sides of it with nothing changed in between. The first was on the commit
@@ -90,3 +90,11 @@ only that the rate is not negligible.
   is still the only thing that runs this gate on a schedule anybody keeps, because no workflow in
   this repository has executed once
   ([R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md) holds today's reading of that).
+- 2026-09-19: read against the tree and not fired. No task file or decision record changed since
+  2026-09-14 describes a red run of the gate: a search of those 148 files for an intermittent or
+  `FAILED` run finds, besides this entry, only mutation-table rows and the brain handoff record's
+  failed-reason addendum, none of them about `just check`, and the files describing an
+  intermittent failure are still this one and [R-115](115-stop-bounds-deadline-check.md). The mechanism is unchanged: the `check` recipe still
+  prints `=== check-$tree: $status ===` ahead of each buffered log, and the four fixed seeds are
+  still 9973, 7919, 104729 and 65537 in the files the reading above names. The trigger can fire
+  as written, since a kept red names its tree in that marker.

@@ -6,13 +6,13 @@
 **Trigger:** the first run this repository records under either workflow, which needs Actions
 enabled for the whole repository and is therefore a setting on the account rather than a change in
 this tree.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-09-06 by the trigger check on
 [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md), which went looking for a shuffle sweep that
 had gone red unread and found instead that neither workflow in this repo has ever executed.
 
-**What was read.** Over the account's token, three calls. The runs listing for `shuffle.yml` under
+**What was read**, on 2026-09-06, over the account's token, three calls. The runs listing for `shuffle.yml` under
 `repos/<owner>/<repo>/actions/workflows` reports `total_count` 0, and the same call for `ci.yml`
 reports 0. The repository's whole run history, `repos/<owner>/<repo>/actions/runs`, holds exactly
 one entry, a Dependabot update that succeeded on 2026-09-01T17:19:39Z. Both workflows were
@@ -44,7 +44,7 @@ so the setting is the maintainer's; the reading afterwards is not, and a run his
 in it closes this. Until then the honest statement in any doc that describes CI is that the
 workflows are written and unexecuted.
 
-**What is in reach before that: nothing.** This entry used to name two lines of
+**What was in reach before that is done.** This entry used to name two lines of
 [docs/index.md](../../index.md) as claims that CI had run, one pointing at the architecture
 record's contract-test addendum for "which implementations CI actually drives it against" and one
 describing the pgvector adapter's behaviour as "proven against the fake in CI". Both were read
@@ -54,8 +54,12 @@ running the suite outside the integration marker, and the memory decision uses i
 throughout, for the service-less suite that runs with no Postgres container. About a hundred
 lines across `docs/` follow that convention. The two sentences are therefore accurate as written,
 and rewording them would leave the convention untouched while making two of its instances read
-differently from the rest. What is left in reach is the negative statement the paragraph above
-names, which no doc carries yet.
+differently from the rest. What was left in reach was the negative statement the paragraph above
+names, and two documents needed it, because they describe the workflows themselves rather than
+the service-less suite: the local-dev runbook said the weekly sweep re-draws orders "without anyone
+remembering" and pointed a failing coverage gate at a CI log, and the repo-gates module doc said
+`shuffle.yml` runs weekly. Both now say that neither workflow has run, and the runbook names the
+`gh api` call that reads a workflow's run count, so a reader can tell when that changes.
 
 ## Trail
 
@@ -90,3 +94,12 @@ names, which no doc carries yet.
   `docs/index.md` this entry called verdicts are instances of the repo-wide convention that names
   the service-less gate suite CI, so the half filed as in reach is not work. This entry now
   carries a verified date, the run counts being a reading of its own claim.
+- 2026-09-19: re-derived on both halves, not fired. The runs listing reports `total_count` 0 for
+  `ci.yml` and 0 for `shuffle.yml`. The repository's whole run history is four entries now, a
+  Dependabot update on 2026-09-15 joining the three above, and all four are Dependabot updates.
+  The permissions call still answers 403 to this token, so `enabled: false` stays the reading of
+  2026-09-06. The tree half was not finished, as the paragraph on what was in reach claimed: the
+  2026-09-13 pass read the two `docs/index.md` lines and stopped, and the two passages that
+  describe the workflows as running, in `docs/runbooks/local-dev-wsl.md` and
+  `docs/modules/repo-gates.md`, were never read against this entry. This change gives both the
+  negative statement, so nothing in reach is left and this entry waits only on the setting.

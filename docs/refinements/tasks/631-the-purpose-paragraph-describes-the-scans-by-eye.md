@@ -6,7 +6,7 @@
 **Trigger:** The Purpose paragraph of `docs/modules/repo-gates.md` is found describing a set of
 cross-tree scans other than the one `scripts/scanrecipes.py` reads out of the justfile and the
 workflow.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-09-11 by the close of
 [R-452](452-a-roster-written-in-descriptions-is-held-by-nobody.md), which decided that a
@@ -14,13 +14,14 @@ description is not a roster and removed the one descriptive copy of the scan lis
 drifted, the workflow header. This is the other descriptive copy, and it is left as prose on
 purpose.
 
-The paragraph runs through the fourteen gates as phrases, the cross-tree line cap, the
+The paragraph runs through the fifteen gates as phrases, the cross-tree line cap, the
 punctuating-dash ban and so on, and names no module. The roster scan compares names, so it cannot
 hold this passage, and holding it as descriptions would put a phrase per gate into
 `scripts/rosters.py`, a hand-written copy of the sentence's wording that fails the gate whenever
 the sentence is reworded. The paragraph has never been found short: it picked up the flag check on
-the day that scan landed, while the workflow header did not, because it sits in the document every
-scan addition already edits twice, for the module bullet and for the two held rosters.
+the day that scan landed, while the workflow header did not, and the compose settings check in the
+commit that added it, because it sits in the document every scan addition already edits twice, for
+the module bullet and for the two held rosters.
 
 **What would close it.** If the trigger fires, the paragraph has shown that being in the edited
 file is not enough, and the choice reopens: rewrite it to name each gate beside its description so
@@ -44,3 +45,10 @@ checked by eye, which is what the origin decision's addendum of 2026-09-11 says 
   in this change. It is the paragraph's own argument holding rather than failing: a description
   that lives in the file every addition already edits stays current, and one that does not
   drifts, a new requirement inside a scan editing only `scripts/`.
+- 2026-09-19: re-derived, and the trigger has not fired. `scan_modules` in
+  `scripts/scanrecipes.py` now reads twelve scans out of the justfile and the workflow, the
+  compose settings check having joined them on 2026-09-17, and the paragraph describes the same
+  twelve before naming the three gates that are not cross-tree scans, fifteen in all. The scan
+  that raised the count edited the paragraph in the commit that added it, so the argument above
+  held a second time on a real addition. This entry's own body did not move with it and still
+  counted fourteen gates; that count is repaired above.

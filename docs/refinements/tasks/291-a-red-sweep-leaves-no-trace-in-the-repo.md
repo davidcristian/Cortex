@@ -6,7 +6,7 @@
 **Trigger:** the first run this repository records under `shuffle.yml`, since every remedy below
 needs a run to exist and none can. Actions is off for the whole repository, which is a setting on
 the account rather than a change in this tree, and R-594 is the entry that waits on the setting.
-**Verified:** 2026-09-14
+**Verified:** 2026-09-19
 
 Opened 2026-08-17 by the pass that put the shuffle sweep on a clock
 ([R-288](288-nothing-schedules-the-shuffle-sweep.md), [ADR-0002 sweep-schedule
@@ -92,3 +92,13 @@ cost of reading it late is bounded by how long the pair it names has already bee
   executed it or any other workflow. The entry's argument is unchanged, since all three remedies
   need a run to exist, so it waits where
   [R-594](594-no-workflow-in-this-repository-has-ever-run.md) waits.
+
+- 2026-09-19: re-derived, not fired. `shuffle.yml` reports `total_count` 0 and so does `ci.yml`;
+  the repository's run history is four Dependabot updates, one on 2026-09-15 having joined the
+  three above; the permissions endpoint still answers 403 to this token. No scheduled opportunity
+  has passed since the reading above, the next being Monday at 03:41 UTC. The trigger
+  can fire as written, since a first recorded run is an event the runs listing reports. What
+  changed is outside this entry: the local-dev runbook said the weekly sweep re-draws orders
+  without anyone remembering, which a reader of the runbook alone would take as true, and it now
+  says the workflow has never run and that the sweep is `just shuffle` by hand until it does
+  ([R-594](594-no-workflow-in-this-repository-has-ever-run.md) records that change).

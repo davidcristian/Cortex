@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 **Trigger:** A retune of `DEFAULT_TOOL_CALL_TIMEOUT_S` or `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` that
 inverts the shipped pair, which nothing would catch until a deployment turned both tools and
 delegation on. Neither number has moved since it was declared.
@@ -84,3 +84,13 @@ ends up the wrong way round.
   `all(lower <= upper for lower, upper in pairwise(numbers))`, which admits equality. The only two
   registered orderings are still the pair of `Relation.ORDERED` couplings in
   `scripts/seamcouplings.py`, so nothing new has been registered on this relation either.
+- 2026-09-19: re-checked and left open. The trigger has not fired: no commit has touched
+  `tool_deadline.py`, `subagents.py` or `scripts/readings.py` since the reading above, and
+  `git log -L64,64` on the first and `git log -L152,152` on the second still return one commit
+  each, so the pair is still 60.0 under 2400.0 at the lines cited. Both halves of the widening
+  are still unbuilt: `relation_fault` still filters to `isinstance(value, int)` and still compares
+  with `lower <= upper`, and `Relation.ORDERED` still documents itself as comparing integers only.
+  The remedy stands with one detail made explicit: a decimal reduces to `Digits`, a named tuple
+  over the digit string, so the widened ordering compares the parsed numbers rather than the
+  tuples, whose string order would put `"60.0"` above `"2400.0"`. The only registered orderings
+  are still the two `Relation.ORDERED` couplings in `scripts/seamcouplings.py`.

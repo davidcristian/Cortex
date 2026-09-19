@@ -30,11 +30,13 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   When the coverage gate fails, read those lines against the ones in a CI log first: a toolchain
   that moved and a commit that broke coverage look identical in the totals and nowhere else. CI
   installs the channel fresh every run, so its compiler is the one dated on the day that run
-  happened, which the version string carries. Two failures here are about the report rather than
-  the code. `FAIL producer:` means the `body/coverage.json` being judged was written by a different
-  cargo-llvm-cov than the one that just ran, so re-run the measurement rather than reading its
-  numbers. `coverage report has no 'cargo_llvm_cov' entry` means the export stopped naming its
-  writer, which the gate treats as a failure by design (ADR-0002 single-verdict addendum).
+  happened, which the version string carries. No such log exists yet, since no workflow in this
+  repository has run, for the reason the weekly-sweep note below gives. Two failures here are about
+  the report rather than the code. `FAIL producer:` means the `body/coverage.json` being judged was
+  written by a different cargo-llvm-cov than the one that just ran, so re-run the measurement rather
+  than reading its numbers. `coverage report has no 'cargo_llvm_cov' entry` means the export stopped
+  naming its writer, which the gate treats as a failure by design (ADR-0002 single-verdict
+  addendum).
 - **just** provides `just check`, THE gate (AGENTS.md gate 6); run it before calling
   anything done.
 - **Every suite in that gate runs shuffled under a fixed seed** (the
@@ -65,16 +67,20 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   something behind, and after landing a batch of tests. It stays out of the gate because its point
   is an order nobody chose, and a pre-commit gate cannot absorb a red the committer cannot
   reproduce.
-- **A weekly workflow runs that sweep** (the same ADR's sweep-schedule addendum):
+- **A weekly workflow is written to run that sweep** (the same ADR's sweep-schedule addendum):
   `.github/workflows/shuffle.yml` draws a seed every Monday, and takes one from the Actions tab on
-  demand, so the pairs the frozen seeds never draw get re-drawn without anyone remembering. It is the
-  one workflow here that is not the `just check` mirror: it gates nothing, is a required check on
-  nothing, and a red there blocks no merge and no push. Read such a red as a real order dependency
-  between two tests that already coexisted, so it is not about whatever commit was at the head; the
-  run's summary names the seed and the `just shuffle <seed>` that replays the whole thing locally.
-  Fix the test, never the seed. Two operational notes: dispatching it with a seed re-runs a red at
-  its own order without a local checkout, and GitHub disables a schedule on a public repository
-  after 60 days of no activity, which is the one way this becomes a sweep that cannot fire.
+  demand, so that the pairs the frozen seeds never draw get re-drawn without anyone remembering.
+  **Neither it nor `ci.yml` has ever run.** Actions is turned off for this repository by the
+  maintainer's choice, so until that setting changes the sweep happens only when somebody runs
+  `just shuffle`. `gh api repos/<owner>/<repo>/actions/workflows/shuffle.yml/runs` reports the
+  workflow's `total_count`, which says whether that has changed. It is the one workflow here that is
+  not the `just check` mirror: it gates nothing, is a required check on nothing, and a red there
+  blocks no merge and no push. Read such a red as a real order dependency between two tests that
+  already coexisted, so it is not about whatever commit was at the head; the run's summary names the
+  seed and the `just shuffle <seed>` that replays the whole thing locally. Fix the test, never the
+  seed. Two operational notes for once it runs: dispatching it with a seed re-runs a red at its own
+  order without a local checkout, and GitHub disables a schedule on a public repository after 60
+  days of no activity, which is the second way this becomes a sweep that cannot fire.
 - **pre-commit** needs `pre-commit install` once; the hook is a literal `just check`
   (ADR-0002 d9).
 - **protoc 35.x** is needed only to regenerate the committed seam stubs (`just proto`,
