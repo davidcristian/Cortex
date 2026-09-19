@@ -25,7 +25,7 @@ somebody asks for it.
 **Why it was not bundled, in the two costs a next reader should re-derive rather than trust.** A
 cortex start is a whole tier load, minutes at tier scale, and it is only worth anything if the pass
 then gates readiness; `TierHealer.aclose` waits out the in-flight pass and its docstring states that
-the wait is bounded by two control calls, so a gating pass would hold shutdown for
+the wait is bounded by the pass's control calls, so a gating pass would hold shutdown for
 `CORTEX_SWAP_LOAD_TIMEOUT_S` instead. Starting without gating is cheap but writes nothing anybody
 can read, since the next pass observes the result anyway. And the state this would act on is one
 where a start has already failed twice inside the swap back, which makes the real question a retry
@@ -54,14 +54,13 @@ that dies while both containers keep running. The verb has nowhere to land yet e
 `BodyService` and none of them is an operator command, and the control API is still the four routes
 it shipped with.
 
-**One number in the cost argument above is true only of the shipped configuration.**
-`TierHealer.aclose`'s docstring says a pass is at most two control calls, and that holds while
-`CORTEX_SWAP_EVICT_MODELS` is unset, which is the shipped default (`config_swap.py` gives
-`evict_models` the empty tuple). With N peers named there a pass is at most 2N + 2 control calls,
-one `status` and one `start` per peer plus the regain's two readings, so on the one deployment that
-sets the variable the shutdown wait a gating start would lengthen is already longer than the
-docstring's number. The bound itself is unaffected, every call being cut by the model host client's
-own deadline; only the count is.
+**The pass costs more than two calls once peers are named.** With N peers in
+`CORTEX_SWAP_EVICT_MODELS` a pass is at most 2N + 2 control calls, one `status` and one `start` per
+peer plus the regain's two readings, and `TierHealer.aclose`'s docstring has said so since
+2026-09-19. Until then it said two, which holds only while the variable is unset, the shipped
+default (`config_swap.py` gives `evict_models` the empty tuple). So on the one deployment that sets
+the variable, the shutdown wait a gating start would lengthen is already longer than two calls. The
+bound itself is unaffected, every call being cut by the model host client's own deadline.
 
 ## Trail
 
@@ -95,6 +94,7 @@ own deadline; only the count is.
   [proto/body.proto](../../../proto/body.proto) still declares 16 RPCs, 11 on `BrainService` and 5
   on `BodyService`, none an operator command; the control API in `api.py` still routes `/health`,
   `GET /models/{model}` and the start and stop posts; and `evict_models` still defaults to the empty
-  tuple, with `TierHealer.aclose`'s docstring still saying two control calls. The 2026-09-17 rule
-  that refuses an evict list naming the cortex or the deep model leaves the 2N + 2 count above as it
-  was, since N only ever counted peers. The trigger has not fired.
+  tuple. `TierHealer.aclose`'s docstring, which still said two control calls, was corrected to
+  2N + 2 later the same day. The 2026-09-17 rule that refuses an evict list naming the cortex or
+  the deep model leaves the 2N + 2 count above as it was, since N only ever counted peers. The
+  trigger has not fired.
