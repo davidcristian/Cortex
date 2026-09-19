@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0019](../../adr/ADR-0019-tainted-memory-recording.md)
 **Trigger:** a source found hostile after the fact, whose derived memories must be forgotten by where they came from rather than by the scope they landed in.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 It was recorded inside the context-preserving tainted-memory recording entry, in its list of what
 remains behind the same seams (ADR-0019 deferred). The fragment, verbatim:
@@ -50,3 +50,17 @@ remains behind the same seams (ADR-0019 deferred). The fragment, verbatim:
   than a marker this entry could spend; that store is the subject of
   [R-077](077-provenance-across-stores.md). The trigger has not fired: no source has been found
   hostile after the fact here, and nothing evicts a memory by anything but its scope.
+- 2026-09-19: Re-derived, and the trigger has not fired: every eviction in the brain's sources is
+  a model leaving the card, and none removes a memory. `MemoryStore` still offers `add`, `search`,
+  `count_candidates` and `delete_scope`, the last called only by `SessionMemoryCascade`;
+  `MemoryRecord` still carries six fields and the `memories` table six columns under the one
+  `memories_scope_idx`; and none of `memory.py`, `ports_stores.py`, `memory_cascade.py`,
+  `provenance.py`, `handoff.py` or `init.sql` has changed since 2026-09-13. Two sentences above
+  were wrong. The 2026-08-16 reading credits `SourceKind.attested` with keeping eviction by sender
+  from sweeping a URI, but `attested` is true for `TOOL` and `MEMORY` and false for both `SENDER`
+  and `URI`, so it cannot tell those two apart; what does is that they are separate kinds, which
+  is the reason the enum's docstring gives for admitting them apart. The 2026-09-13 reading calls
+  the handoff store the subject of [R-077](077-provenance-across-stores.md), which names that store
+  as the one place a turn's ledger already persists; its subject is `ScheduledItem` and
+  `SubagentResult`. The two entries do not wait on each other: this one needs a provenance column
+  on memory records and a predicate delete on the port, and neither row R-077 names is a memory.

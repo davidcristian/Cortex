@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** a structured subagent-result feature, which is the only thing this is revisited for.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 It was recorded inside the grammar-constrained subagent output entry, in its list of what remains
 behind the same seam (ADR-0028 deferred). The fragment, verbatim: a per-task caller-supplied
@@ -23,3 +23,8 @@ schema (rejected for now, revisited only for a structured subagent-result featur
   field names in a schema never reach the model on this engine, so a richer per-task schema would
   buy constraint and explain nothing. That reasoning survives the 2026-09-13 wording change, which
   moved the sentence the model does read and left the schema where it was.
+- 2026-09-19: Re-derived, and the trigger has not fired. `build_spawn_spec` in `spawn_spec.py`
+  still gives each subtask item `instruction` and `context`, and `model` only when the spawn is
+  tool-less and the roster holds more than one entry, so a caller still has no slot for a result
+  shape; `subagent_attempt.py` still sets `REPLY_ENVELOPE` or no schema. Neither file has changed
+  since 2026-09-13, and no structured subagent-result feature has been proposed.

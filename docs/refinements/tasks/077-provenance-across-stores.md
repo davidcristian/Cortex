@@ -3,8 +3,8 @@
 **Status:** open, dead until a consumer
 **Area:** untrusted-content
 **Origin:** [ADR-0027](../../adr/ADR-0027-turn-provenance.md)
-**Trigger:** a design that needs a fired schedule item or a subagent result to name the turn whose provenance produced it, the way a handoff record already names its own.
-**Verified:** 2026-09-13
+**Trigger:** a design that needs a fired schedule item or a subagent result to carry the sources the turn behind it read, the way a handoff record carries its own turn's whole ledger.
+**Verified:** 2026-09-19
 
 It was recorded inside the structured provenance on the `TurnStamp` entry, in its list of what
 remains behind the same seam (ADR-0027 addendum deferred). The fragment, verbatim: **provenance across
@@ -38,3 +38,16 @@ read. The trigger above now asks for what is missing rather than for what has be
   gained `session_id` from the dispatching stamp in the same period, which is attribution to the
   origin chat and not to the turn. Both corrections are written above and the trigger is narrowed to
   the two rows that still attribute nothing, which is what is left of the entry.
+- 2026-09-19: Re-derived, and the trigger has not fired, but its subagent half was true the day it
+  was written. `SubagentTask` has carried `session_id`, `turn_id` and `item_id` since 2026-08-21,
+  taken from the spawning `TurnStamp` in `spawn.py` and persisted by the Redis task store
+  (`cortex_session/tasks.py`), and a `SubagentResult` is stored under its task's id, so a result
+  already names the turn that spawned it through one `get_task`. The correction above lists the
+  result's fields and misses that. What neither row reaches is what the turn read: the task keeps
+  only `tainted`, and nothing keyed by a turn id persists a `TaintLedger` except the handoff record
+  of a turn that escalated, whose settled record expires after an hour. A `ScheduledItem` still
+  names its chat and not its turn. The trigger now asks for the sources, which is what a consumer
+  of provenance would read and what a turn id alone does not give it. None of `subagents.py`,
+  `schedule.py`, `schedule_tools.py`, `spawn.py`, `handoff.py` or `tasks.py` has changed since
+  2026-09-13, and this entry does not wait on [R-074](074-per-provenance-eviction.md), whose
+  subject is memory records.

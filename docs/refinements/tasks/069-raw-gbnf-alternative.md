@@ -4,7 +4,7 @@
 **Area:** untrusted-content
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 **Trigger:** the first constrained caller whose output shape JSON cannot express, which neither shipped envelope is.
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 It was recorded inside the grammar-constrained subagent output entry, in its list of what remains
 behind the same seam (ADR-0028 deferred). The fragment, verbatim: a raw GBNF `grammar`
@@ -45,3 +45,14 @@ alternative to the JSON envelope.
   it, and `settle_reply` unwraps by parsing JSON and nothing else. The reply sentence was reworded
   and a fourth subtask shape was declared for the measurement judges on 2026-09-13, and neither
   touches what the envelope admits.
+- 2026-09-19: Re-derived, and the trigger has not fired. Every `schema=` in the brain's sources
+  still reaches the port from one of the two envelopes: `ORDER_ENVELOPE` in `rerank_judge.py`, and
+  `REPLY_ENVELOPE` in `subagent_attempt.py`, which sets it on the `ToolLoopContext` that
+  `tool_loop.py` forwards, while the cortex turn in `engine.py` and the deep turn in
+  `brain_phase.py` build that context with no schema. The port still takes
+  `schema: JsonSchema | None` (`ports.py`), `build_payload` still wraps a present schema into
+  `response_format.json_schema` with no grammar slot, and `unwrap_envelope` still parses JSON and
+  nothing else. Of those files only `brain_phase.py` has changed since 2026-09-13, and it still
+  passes no schema. The entry does not wait on
+  [R-070](070-per-task-caller-schema.md) or the other way round: a per-task schema would still be
+  JSON, so neither entry's trigger is the other's landing.
