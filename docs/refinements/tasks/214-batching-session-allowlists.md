@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 **Trigger:** a deployment where gated confirmations arrive often enough that the user starts
 approving them without reading them. Which tools can produce one is read off the shipped default,
 `gated` in `brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py`, and how many one
@@ -56,3 +56,11 @@ send mail.
   entry named the policy class wrong: the frozen gate set lives on `DispatchPolicy` in
   `dispatch.py`, and no `ToolPolicy` exists anywhere in the brain, so the name is corrected above.
   The trigger asks about a deployment and this tree runs none, so it has not fired.
+- 2026-09-19: claims held against the code and both readings the trigger names are unchanged. The
+  one commit since 2026-09-13 that touched `config_tools.py`, the audit trail kept in a file, left
+  the shipped `gated` default at `escalate_to_brain` and `send_email`; `MAX_TOOL_DISPATCHES` is
+  still 32, `_confirmed` still builds one `ConfirmationRequest` per call, and the refusal check
+  still returns ahead of the gate. The default is still the whole set that can raise a card:
+  `dispatch` gates on the advertised flag or the set, the only built-in advertising its own flag is
+  `escalate_to_brain`, which the default already names, and the tools adapter builds no remote spec
+  with the flag set. This tree runs no deployment, so the trigger has not fired.

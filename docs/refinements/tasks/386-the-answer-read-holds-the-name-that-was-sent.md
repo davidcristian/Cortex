@@ -10,7 +10,7 @@ image line or `docker/dovecot/` changes, and it is taken after `just up-imap-pro
 of `Guarded`, the mailbox there and shut, past the port. The Bridge limb needs a live run against the
 account. This entry's trail records both readings.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-19
 
 `select` in `brain/packages/email/src/cortex_email/folders.py` classifies a refused SELECT through
 `_says_folder_missing`, which lower-cases `str(err)` and looks for a measured phrase or an RFC 5530
@@ -122,3 +122,14 @@ position RFC 5530 lets a code appear in.
   The Bridge was not read, so its limb is carried over from 2026-09-09. The correction: the cheaper
   half used to anchor only the code, which leaves the phrase needle free to match the echoed name,
   so it now anchors both.
+- 2026-09-19: claims held against the code, neither limb fired, and the probe was not started.
+  `folders.py` has no commit since it was split out on 2026-09-15, so `select` still raises
+  `FolderUnknownError` when `_says_folder_missing` finds a needle anywhere in the lower-cased
+  `str(err)`, and the installed imap-tools is still 1.13.0, whose `UnexpectedCommandStatusError`
+  binds `command_result` and renders `command_result[1]` after `Data: `. `grep -n 'image:'
+  docker/*.yml` still returns one IMAP server image, `dovecot/dovecot:2.3.21`, and the local
+  image resolves to the digest the ADR-0022 addenda record for it,
+  `sha256:1c18c756f20d03867077a1b509a6e2e3008ab1eafa56377b6f2eca12dc1ba581`. By this entry's own
+  rule the probe's reading moves only with that image line or `docker/dovecot/`, and neither has a
+  commit since 2026-09-05, so the reading of 2026-09-17 stands without a restart. The Bridge limb
+  is carried over from 2026-09-09, tonight's run having ruled out a live run against the account.

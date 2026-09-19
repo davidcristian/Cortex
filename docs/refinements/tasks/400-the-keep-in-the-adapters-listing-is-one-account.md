@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-19
 **Trigger:** a second server this repo can reach starts flagging a name in a plain LIST and opening
 it, or the Bridge account whose two flagged parents are the current proof stops being reachable.
 Both limbs come off one reading, a plain `LIST "" "*"` taken past the port with every listed name
@@ -102,3 +102,13 @@ stand-in already does.
   carried over from 2026-09-09, now eight days old; the next sweep of this entry should read it
   live. The stand-in's `OPEN_NODE_FLAGS` is still the Bridge's own pair, at
   `brain/packages/email/tests/imap_stub.py:124`.
+- 2026-09-19: claims held against the code; the probe limb is unmoved by its own rule, and the
+  Bridge limb was not read again. `flagged_unselectable` and `kept_after_opening` in `folders.py`
+  have no commit since 2026-09-15, `OPEN_NODE_FLAGS` is still the Bridge's pair at
+  `brain/packages/email/tests/imap_stub.py:124`, and the live row still reaches
+  `_assert_no_name_this_server_opens_is_withheld`. Neither `docker/dovecot/` nor the probe's
+  compose file has a commit since 2026-09-05, and the local `dovecot/dovecot:2.3.21` resolves to
+  the digest the ADR-0022 addenda record, so the plain LIST read on 2026-09-17 stands without
+  restarting the probe. Tonight's run ruled out a live run against the account, so its
+  reachability is still carried over from 2026-09-09, now ten days old, and the note of 2026-09-17
+  that the next sweep should read it live stands for the next one.

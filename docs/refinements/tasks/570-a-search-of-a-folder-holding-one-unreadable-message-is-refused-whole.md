@@ -2,11 +2,14 @@
 
 **Status:** open, fix when it bites
 **Area:** email
-**Trigger:** a real account holds a message its server cannot open, and every `search_emails`
-of that folder reads back `the mailbox could not run that search` rather than the messages the
-server did deliver.
+**Trigger:** a real account holds a message its server cannot open, and a `search_emails` of
+that folder whose first `limit` matches include it reads back `the mailbox could not run that
+search` rather than the messages the server did deliver. Read past the port by searching every
+folder `list_folders` offers for `ALL` with a limit no smaller than that folder's message count.
+The live row `test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list` searches each
+folder at a limit of 1, so it fetches only the first message each search returns.
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 Opened 2026-09-05 by the close of
 [551](551-a-read-the-server-refuses-is-measured-by-hand-and-driven-by-no-live-row.md), whose
@@ -78,3 +81,15 @@ saving a second message into `Sealed` before sealing the first.
   account lists nineteen folders and every one of them answers a search, none refused. The
   closing move is unchanged and still large, a search that sends its own header fetches and
   reports the uid it skipped, so this stays open.
+- 2026-09-19: the code claims held and the trigger was repaired. `search` in `imap.py` still builds
+  `list(box.fetch(...))`, and the empty-folder change of 2026-09-15 catches only
+  `MailboxUidsError`, which a declined FETCH does not raise, so a sealed message in a folder holding
+  mail is still refused whole; imap-tools is still 1.13.0 in `brain/uv.lock`, and the probe's
+  `Sealed` still holds one message, `docker/dovecot/` having no commit since 2026-09-05. The
+  trigger said every search of the folder is refused, which the body's own limit reading
+  contradicts: a search whose first `limit` matches stop short of the declined uid answers
+  normally. It now says so, and names how to read it, because the two live readings above do not
+  record the limit they searched at, and at the live row's limit of 1 a folder answering shows
+  only that its first message opens. The Bridge was not read tonight; its next reading should take
+  the limit the trigger now names. Recorded in the ADR-0022 addendum of the same day, which
+  narrows what the 2026-09-15 addendum concluded from that reading.
