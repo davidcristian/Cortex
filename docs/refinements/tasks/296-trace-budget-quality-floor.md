@@ -3,9 +3,10 @@
 **Status:** open, fix when it bites
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-19
 **Trigger:** a `CORTEX_REASONING_BUDGET` or `CORTEX_REASONING_BUDGET_BRAIN` default in
-`docker/docker-compose.gpu.yml` other than `-1`, or a recorded run in this repo where the cortex or
+`docker/docker-compose.gpu.yml` other than `-1`, or `CORTEX_REPLY_TRACE_TOKENS` given a value by any
+compose file, recipe or env file in this tree, or a recorded run in this repo where the cortex or
 the deep tier answers a question wrong at a bounded or zero budget and right at the unbounded
 default.
 
@@ -14,13 +15,14 @@ Opened 2026-08-17 by the trace-budget landing
 seconds and left its cost in answers open.
 
 Every number behind that knob is a latency: the trace falls from 2323 to 2996 characters to about
-500 at a budget of 128, and the first word from 10.1 to 12.6 s to 1.7 to 2.6 s, with the reply the
-same size and still finishing on its own. The quality side has one weak reading and one absence.
-The weak reading is four multi-step items with a single right answer (a bat and ball, the five
-machines, a train timetable sum, an ages puzzle), each answered correctly at unbounded, at 128 and
-with thinking off entirely, which says only that the cortex pick does not need its trace for those.
-The absence is everything the trace is actually for: the questions the deep tier was chosen over
-faster candidates to reach an answer on ([ADR-0004](../../adr/ADR-0004-model-lineup.md)).
+500 at a budget of 128, and the first word arrives in 0.17 to 0.23 of the unbounded wait on the same
+question, with the reply the same size and still finishing on its own. The quality side has one weak
+reading and one absence. The weak reading is four multi-step items with a single right answer (a bat
+and ball, the five machines, a train timetable sum, an ages puzzle), each answered correctly at
+unbounded, at 128 and with thinking off entirely, which says only that the cortex pick does not need
+its trace for those. The absence is everything the trace is actually for: the questions the deep
+tier was chosen over faster candidates to reach an answer on
+([ADR-0004](../../adr/ADR-0004-model-lineup.md)).
 
 What would close it is a graded arm rather than a timed one: a set of questions hard enough that the
 shipped model gets some of them wrong, run across unbounded, a few positive budgets and zero, scored
@@ -65,3 +67,17 @@ anything lower as a trade, is the placeholder until this exists.
   did. The answer clause still has no recorded run behind it: the graded corpus and the judge this
   entry asks for do not exist, and nothing in the tree compares one tier's answer to one question
   right unbounded and wrong bounded.
+- 2026-09-19: **neither clause has fired, and the deployment clause missed a second knob.** Both
+  shipped defaults are still `-1`, now at
+  [docker-compose.gpu.yml](../../../docker/docker-compose.gpu.yml) lines 161 and 182 after the
+  2026-09-17 settings pass-through moved them, and nothing else in the tree gives either a value:
+  eight `monkeypatch` spellings in `test_model_roster.py`, the two mentions `crosscheck` holds in
+  `scripts/modelhostcouplings.py`, and comments in `config_reply.py` and
+  `docker-compose.subagents.yml`. The clause read only the argv budget, but
+  `CORTEX_REPLY_TRACE_TOKENS` bounds the same trace per request on both tiers a user reads (the
+  ADR-0005 shared-count addendum), and since 2026-09-17 `docker/docker-compose.yml` passes it
+  through by name, so a value set on the host now reaches the brain. It ships with no value there
+  and in no recipe or env file, and the trigger now names it. The body's first-word figures were
+  seconds on one card; they are now the ratio of each question's bounded wait to its own unbounded
+  one in the trace-budget addendum's table. The answer clause still has no run behind it: no graded
+  corpus or judge exists for the cortex or deep tier.

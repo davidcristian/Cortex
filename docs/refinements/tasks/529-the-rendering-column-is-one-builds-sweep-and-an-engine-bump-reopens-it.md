@@ -2,12 +2,14 @@
 
 **Status:** open, fix when it bites
 **Area:** inference
-**Trigger:** an engine bump under this stack, meaning the `server-cuda` or `server` digest pinned
-by the gpu override's model-host base image or by the subagents override moving to a new llama.cpp
-build, since the column is a property of one build's chat handlers and a handler that started
-gating its reasoning rule on `enable_thinking` would break it with nothing reporting the break.
+**Trigger:** an engine bump under this stack, meaning the cached image compose starts for the
+`server-cuda` tag (the model-host base in `brain/Dockerfile.modelhost`) or the `server` tag (both
+subagents overrides) reporting a llama.cpp build other than b10680 on the GPU runbook's
+`docker image inspect` label command. Nothing pins a digest, so a pull is the bump. The column is a
+property of one build's chat handlers, and a handler that started gating its reasoning rule on
+`enable_thinking` would break it with nothing reporting the break.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-09-02 by the close of
 [R-510](510-nine-rows-of-the-rendering-column-are-hand-read.md), which read every row of the
@@ -34,10 +36,15 @@ worth writing against a build that had just been read.
 **What would close it, when it bites.** Re-run the lineup on the new build and publish every row
 through `just switch-tail`, then rewrite the column where a row moved. The cheaper half is a
 `just switch-lineup` recipe holding the loop above, so the next bump re-reads the column in one
-command rather than from a scratch file; the model-host sidecar already knows how to start and
-stop one llama-server per tier, and is the obvious thing to drive it with. The three rows the
-lineup section places at `-ngl 0` are owed that placement in the re-run, since the sitting that
-opened this read them on the card.
+command rather than from a scratch file. The recipe drives `docker run` of the pinned image per
+pick, as the loop did, and not the model-host sidecar: that sidecar's control API takes a logical
+id and nothing else, its roster is whatever `CORTEX_MODEL_FILE_*` variables it booted with, it
+runs only on the card, and its subagent tier's argv carries the reasoning-off pair, where every
+row of this sweep is served with neither reasoning flag. The three rows the lineup section places
+at `-ngl 0` are owed that placement in the re-run, on the `server` image, since the sitting that
+opened this read them on the card. Every sample the re-run writes carries the context size the
+server reported, so the `-c` half of each row's placement is read off the server and only `-ngl`
+is typed by hand.
 
 ## Trail
 
@@ -77,3 +84,16 @@ opened this read them on the card.
   `server`, so the stack still starts the build every row of the column was read on. The registry
   was not asked again: what the tags resolve to moves without this stack moving, and the reading
   that answers this entry is the digest compose starts.
+
+- 2026-09-19: the trigger has still not fired, and the trigger and the remedy were both repaired.
+  Both cached images are the digests the bullets above read, `sha256:952424b09abc` for
+  `server-cuda` and `sha256:db057ec90de0` for `server`, and the runbook's label command reports
+  `b10680 d7bd3bfca` on each; tonight's detached sitting logged the same `server-cuda` digest at
+  its start. The trigger named a digest "pinned by" the overrides, which the 2026-09-04 reading
+  had already shown nothing does, so it now names the reading that fires it. The remedy named the
+  model-host sidecar as the obvious driver for a sweep recipe, and it cannot be one: its API takes
+  a logical id with no path, argv or layer count (`cortex_model_manager/api.py`), and its subagent
+  tier starts with `_SUBAGENT_TAIL` in `cortex_model_manager/config.py`, whose reasoning-off pair
+  is exactly what the sweep's servers must not carry. The body's other claims hold against the
+  lineup-tails addendum: nine rows in about 26 minutes, eleven in the column, three owed their
+  `-ngl 0` placement. The sample's `n_ctx` field, landed 2026-09-15, is now named in the remedy.

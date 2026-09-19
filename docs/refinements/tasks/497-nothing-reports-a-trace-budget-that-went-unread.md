@@ -3,10 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-14
-**Trigger:** a deployment that set `CORTEX_REPLY_TRACE_TOKENS` to a count and cannot tell whether it
-did anything, or a side call that returns an empty reply on an endpoint whose boot probe answered
-that the engine reads no per-request trace budget.
+**Verified:** 2026-09-19
+**Trigger:** a deployment runs with `CORTEX_REPLY_TRACE_TOKENS` at a positive count while its
+brain's boot line reads `trace lever probe answered` with `lever=false`, or with
+`CORTEX_INFERENCE_TRACE_LEVER=off`; or a side call returns an empty reply on an endpoint whose boot
+probe answered that the engine reads no per-request trace budget.
 
 Opened 2026-08-29 by the close of
 [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which gave the port a count the
@@ -40,9 +41,15 @@ once, rather than never. That one guesses nothing, and it is probably the whole 
 but it is not the few lines this entry first claimed: the composition root holds the count and not
 the lever. `build_inference_backend` resolves the lever inside its own llama.cpp arm, which is where
 it belongs, since that is what keeps an Echo deployment from opening a socket at all, and it returns
-the backend and its closer with the answer visible nowhere. So the boot line costs that builder's
-return shape or an argument carrying the deployment's reply bounds into it, and the choice between
-those two is the whole of the work.
+the backend and its closer without the answer. The probe does log the answer there, once, as the
+GPU runbook's `trace lever probe answered ... lever=<true or false>` line, but that line names the
+endpoint and not the count, and under `CORTEX_INFERENCE_TRACE_LEVER=off` no probe runs and nothing
+is logged. So a boot line joining the two costs that builder's return shape or an argument carrying
+the deployment's reply bounds into it. A third site holds both without either change:
+`LlamaCppBackend` keeps the lever as `_trace_lever` and sees every request's bounds, and
+`build_payload` drops the count when the lever is off, so a warning written there once, the first
+time a request names a positive count it will not send, reports the case on the first reply rather
+than at boot. Choosing among those three is the work.
 
 ## Trail
 
@@ -83,3 +90,16 @@ those two is the whole of the work.
   One relation is worth recording rather than left to be rediscovered: the entry beside this one
   about re-asking the lever when the engine moves shares that obstacle and not the defect. A boot
   line reports an answer once; it does not re-ask a stale one, so neither closes the other.
+- 2026-09-19: neither limb has fired, and the entry was wrong that the lever's answer is visible
+  nowhere. `reads_a_trace_budget` in `cortex_inference/lever.py` logs `trace lever probe answered`
+  with the endpoint and `lever` at `INFO`, and the GPU runbook has quoted that line since the
+  landing that opened this entry on 2026-08-29; what no line says is that a configured count will be
+  dropped, so the defect stands at that narrower width. The adapter is named above as a third place
+  to say it, since it already holds the lever and each request's bounds. The first limb asked
+  whether a deployment "cannot tell" whether its count did anything, which has no truth value, and
+  now names the configuration that drops the count. One reach changed: since 2026-09-17
+  `docker/docker-compose.yml` passes `CORTEX_REPLY_TRACE_TOKENS` through by name with no value, so a
+  count set on the host reaches the composed brain where before it could not, and the first limb is
+  that much easier to reach. Nothing in the tree gives it a value, and there is still no `.env` at
+  the repo root. `drain_text` still reads `bounds.thinking` alone, at `drain.py` line 85, and
+  `CORTEX_ENVELOPE_TRACE_TOKENS` is still the one producer of a positive count.

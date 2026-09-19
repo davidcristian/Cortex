@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-14
+**Verified:** 2026-09-19
 **Trigger:** a newer llama.cpp pulled under a brain that keeps running, where the new build answers
 the lever question differently from the answer that brain cached and the documented restart was
 skipped, which shows as the GPU runbook's own `curl` contradicting the brain's boot line.
@@ -59,3 +59,13 @@ built here has to argue against it with a deployment that was actually bitten.
   prints. This is not the same defect as the entry about a budget that went unread: that one asks
   for the cached answer to be reported, this one for it to be re-asked, and they meet only at
   `build_inference_backend` returning without it.
+- 2026-09-19: the trigger has not fired and every claim re-derived unchanged. The runbook's label
+  command still reads `b10680 d7bd3bfca` off both cached tags, at the digests `sha256:952424b09abc`
+  (`server-cuda`) and `sha256:db057ec90de0` (`server`), and no brain container runs on this host,
+  so there is no boot line for a `curl` to contradict. `resolve_trace_lever` is still called once,
+  in `build_inference_backend`'s llama.cpp arm; the vision answer is still re-asked per
+  advertisement and per call (`cortex_orchestrator/vision.py`); `SwappingModelManager.swap_scope`
+  is still the only boundary after boot, and `CORTEX_ESCALATION` still defaults off. The one
+  change nearby is in the entry about a budget that went unread, which now names a third place a
+  dropped count could be reported; that place reports the cached answer and does not re-ask it, so
+  it closes nothing here.

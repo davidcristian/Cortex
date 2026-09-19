@@ -2,33 +2,33 @@
 
 **Status:** open, fix when it bites
 **Area:** inference
-**Trigger:** a text row that fails the void-row rule is wanted as a number rather than as a
-failure, which on this corpus means one of the two mixture-of-experts deep candidates the GPU
-runbook records consuming a whole context and answering nothing, or a later row whose replies end
-on `length` at the arm's cap in more than a fifth of one reading's draws.
+**Trigger:** a recorded run of the text arm, `test_injection_defense`, prints a void cell or fails
+`assert_measured`: a run with `CORTEX_PROBE_BRAIN` set that reaches either mixture-of-experts deep
+candidate, which the GPU runbook records consuming a whole context and answering nothing, or any
+later text row whose totals line names a void cell.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Verified:** 2026-09-13
+**Verified:** 2026-09-19
 
 Opened 2026-09-05 by the close of
 [R-560](560-the-text-arm-scores-an-empty-or-capped-reply-as-resistance.md), which made every row
 of the injection harness fail on an empty or capped reply.
 
-The text arm posts `max_tokens: 1600` on every completion, the number its published matrices
-were measured under, and the shipped path posts no cap at all (ADR-0029's 2026-08-03 addendum
-and the comment on `_MAX_TOKENS` in
+The text arm posts `max_tokens: 1600` on every completion, the number its published matrices were
+measured under, and the shipped path posts no cap at all (ADR-0029's 2026-08-03 addendum and the
+comment on `_MAX_TOKENS` in
 [test_injection_defense_live.py](../../../brain/packages/inference/tests/test_injection_defense_live.py)).
-So a reply counted out of its reading for ending on `length` was cut by a bound the deployment
-never sends. A reading may now lose a fifth of its own depth that way and still report: the capped
-draws are named and counted out of the denominator, and the count that prints is read off the
-replies that fit under the cap rather than off deliberated ones. A reading that loses more than a
-fifth fails instead. On the gemma pick nothing binds: the longest completion the brain-tier row
-ever drew was 773 tokens against that cap. The case is the two mixture-of-experts deep candidates
-in `BRAIN_CANDIDATES`, which the GPU runbook's brain-tier section records consuming an entire
-8192-token context and returning `"content":""`: such a candidate voids every draw of its arm, so
-it is over the ceiling at any depth and a row for either fails with its count in the message
-rather than printing a 0 of 10, which is what the rule is for. What that failure does not say is
-what such a model does with the injected instruction once it finishes thinking, since no row lets
-it.
+So a reply voided for ending on `length` was cut by a bound the deployment never sends. The text arm
+draws each of its ten cells once per arm, and a void cell is counted out of that arm's denominator
+by `report` and named beside the count, so the count that prints is read off the replies that fit
+under the cap rather than off deliberated ones. `assert_measured` fails the row only when an arm
+voided more cells than it drew, six or more of the ten. On the gemma pick nothing binds: the longest
+completion the brain-tier row ever drew was 773 tokens against that cap. The case is the two
+mixture-of-experts deep candidates in `BRAIN_CANDIDATES`, which the GPU runbook's brain-tier section
+records consuming an entire 8192-token context and returning `"content":""`: such a candidate voids
+every cell of its arm, so a row for either fails with its count in the message rather than printing
+a 0 of 10, which is what the rule is for. What that
+failure does not say is what such a model does with the injected instruction once it finishes
+thinking, since no row lets it.
 
 **Why it was left.** The row's job tonight was to stop a void from reading as resistance, and it
 does. Raising the cap changes the request every published text row was measured under, so a row
@@ -73,3 +73,18 @@ drawn on a model that deliberated past 1600 tokens.
   brain-tier section still records both consuming an entire 8192-token context and returning
   `"content":""`. Neither limb of the trigger has fired: no deep candidate was drawn tonight and
   no text row has come back capped.
+
+- 2026-09-19: neither limb has fired, and the 2026-09-13 bullet above described the wrong rule.
+  The text arm, the only caller of `_reply` and so the only completion that posts `_MAX_TOKENS`,
+  is `test_injection_defense`, and it closes through `report` and `assert_measured`, which count
+  each arm over the cells it drew since 2026-09-10. It never calls `assert_drawn`. The depths 120,
+  280, 400 and 560 and their fifth-share ceilings belong to the pixel rows drawn deep, whose vision
+  call posts `max_tokens=None`, so no draw there can end on this cap. The body now states the text
+  arm's own rule, a row failing only when an arm voids more of its ten cells than it draws, and the
+  trigger names the reading that fires it rather than a wish to have a number. No recorded run
+  since 2026-09-13 drew the text arm: every row in the sittings of 2026-09-17 and tonight is an
+  image row, and the one void count tonight's `measurements/sitting-2026-09-19/run.log` has
+  printed so far, with the sitting still running, is a pixel row at the engine's budget. The rest
+  holds: `_MAX_TOKENS` is still 1600, `BRAIN_CANDIDATES` still carries both mixture-of-experts
+  entries, and the GPU runbook still records both consuming an entire 8192-token context and
+  returning `"content":""`.
