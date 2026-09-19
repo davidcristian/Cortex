@@ -64,14 +64,23 @@ rather than one number going unreported.
 
 ```
 just replay          # five bodies out of the twenty five most recent, at a fresh printed seed
-just replay 4021     # the same five that seed drew before, on any machine
+just replay 4021     # the five that seed draws at this commit, on any machine
 ```
 
-**Five is the sample and the draw is blind.** The one pass this practice has had chose its five by
+**Five is the sample and the draw is blind.** The first pass this practice had chose its five by
 hand, and hand-choosing is the weak half of sampling here: an agent picks what it already
 understands, while the tables most worth replaying are the ones whose wording nobody can
 reconstruct. The recipe keys each candidate on a digest of the seed and the commit and takes the
-five smallest, so the sample is a function of the seed alone and reproduces off this machine.
+five smallest, so the sample is a function of the seed and of the commits in the window, and it
+reproduces off this machine at the same tip. The recipe prints that tip beside the seed.
+
+**A recorded seed reproduces its draw only while the commits under it stay where they were.** The
+window moves as tables land, so `just replay <seed>` at a later HEAD draws over a different pool,
+and reproducing a ledger row's draw means running the recipe on a checkout of its "Drawn from"
+commit. A rewrite of the history under that commit changes every hash in the pool, and after one
+no checkout reproduces the draw, which is what happened to the pass of 2026-08-25 above. The ledger
+records the seed and the tip rather than the five, because nothing in this practice re-runs a
+recorded pass's exact sample: a pass draws fresh.
 
 ## Replaying one row
 

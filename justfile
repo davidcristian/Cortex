@@ -176,7 +176,7 @@ replay seed="" since="" count="5" window="25":
     if [ -n "$since" ]; then
         pool="$(git log --since="$since" "${vocabulary[@]}" --format='%H%x09%s')"
         echo "=== replay draw: seed $seed, over the tables landed since $since ==="
-        echo "=== reproduce this draw with: just replay $seed $since ==="
+        echo "=== reproduce this draw with: just replay $seed $since, at $(git rev-parse --short HEAD) ==="
     else
         ledger="docs/runbooks/mutation-replay.md"
         anchor=""
@@ -210,7 +210,7 @@ replay seed="" since="" count="5" window="25":
         fi
         pool="$(git log --max-count={{ window }} "${vocabulary[@]}" --format='%H%x09%s')"
         echo "=== replay draw: seed $seed, over the {{ window }} most recent tables ==="
-        echo "=== reproduce this draw with: just replay $seed ==="
+        echo "=== reproduce this draw with: just replay $seed, at $(git rev-parse --short HEAD) ==="
     fi
     candidates="$(printf '%s' "$pool" | grep -c . || true)"
     echo "=== $candidates candidate bodies, drawing {{ count }} ==="

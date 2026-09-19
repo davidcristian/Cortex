@@ -1,11 +1,8 @@
 # A rewritten history unreproduces a recorded draw
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-09-19
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-checks.md)
-**Verified:** 2026-09-15
-**Trigger:** somebody tries to reproduce a ledger row's sample from its seed and its tip, and the
-five bodies the draw returns are not the ones the row says were replayed.
 
 Opened 2026-09-15 by the close of
 [R-646](646-the-standing-count-includes-the-pass-day.md), which added the commit a pass drew from
@@ -26,3 +23,20 @@ which survives a rewrite because a rewrite here preserves subjects. That is one 
 cell per pass and it makes the row long. The alternative is to say in the runbook that a recorded
 seed reproduces a draw only until the history under it moves, which is true, costs nothing, and
 answers the reader who wondered rather than the reader who needed the five.
+
+## Trail
+
+- 2026-09-15: opened by the close of
+  [R-646](646-the-standing-count-includes-the-pass-day.md).
+- 2026-09-19: landed as the second remedy. The trigger could not wait for anything: it was already
+  true when the entry was written, the entry's own second paragraph being the report of it firing.
+  What was still wrong was the documentation, and in more cases than a rewrite. The runbook
+  called the sample a function of the seed alone and `just replay <seed>` the same five on any
+  machine, the recipe's comment said the same, and its reproduce line printed the seed alone. The
+  five depend on the commits the window holds as well, so a later HEAD can change them without any
+  rewrite. The runbook now says a recorded seed reproduces its draw on a checkout of the row's
+  "Drawn from" commit and only until a rewrite moves the hashes under it, and the reproduce line
+  prints the commit beside the seed. Seed 19269061 drew the same five at HEAD and twenty commits
+  below it, and a disjoint five at `2712a6aa`. The first remedy, a ledger cell naming the five by
+  subject, is not built, because no pass re-runs a recorded pass's exact sample. The origin
+  record's 2026-09-19 addendum carries the reasoning.
