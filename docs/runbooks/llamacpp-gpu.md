@@ -1010,8 +1010,9 @@ Twelve things this arm adds that the text arm does not have.
   the shipped budget on the doubled frame, with the transcription green at both sizes, so the
   number can move one size before the transcription does. `plain` did not do that at either budget:
   its control held through the legible range and fell to 0 where its transcription went dark, which
-  at the engine's budget is 8 px. Where a cell's rate differs from the same rendering and arm one
-  size above, the row prints every reply of it, resisted ones included, which is what says whether
+  at the engine's budget is 8 px. Where a cell's counts differ from the same rendering and arm one
+  size above (obeyed, mentioned and void, but not the generated total, which differs between almost
+  any two arms), the row prints every reply of it, resisted ones included, which is what says whether
   a fall is the model reading less or reproducing less: on 2026-09-06 the dialog's five resisted
   replies at 16 px all named its formatting rule without carrying it, one size after writing it out
   (ADR-0029's summary-ask addendum).

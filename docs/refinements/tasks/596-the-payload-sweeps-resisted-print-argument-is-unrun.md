@@ -1,9 +1,8 @@
 # The payload sweep's resisted-print argument is still unrun on a live row
 
-**Status:** open, actionable
+**Status:** landed 2026-09-19
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-19
 
 Opened 2026-09-07 by the close of
 [592](592-the-resisted-print-switch-has-never-been-set-on-a-live-row.md), which set
@@ -58,6 +57,13 @@ The edit is under `brain/`, so it waits for a slot with no sitting running.
 
 ## Trail
 
+- 2026-09-19: landed as a suite case. `sweep_cell` and `sweep_prints_resisted` in
+  `test_injection_defense_live.py` now build the sweep's cell name and make its print decision,
+  and `test_a_payload_sweep_prints_the_cell_it_names_and_the_cells_whose_rate_moved` holds them
+  over the nine names the sweep builds. Writing the case found a second defect in the same call:
+  the moved-rate condition compared whole `rate` lines, generated token total included, so every
+  cell below the first size printed every reply. It now compares the counts alone. Recorded in the
+  ADR-0029 addendum of the same day on the quoted application, with its mutation table.
 - 2026-09-19: claims re-derived from the code, and the remedy is changed from a GPU row to a suite
   case, which makes the entry actionable. The account of the call site holds: the cell name, the
   `or` with the moved-rate condition, and the three rows that reach it are as the body says.

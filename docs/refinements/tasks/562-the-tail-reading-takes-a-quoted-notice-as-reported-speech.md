@@ -1,9 +1,8 @@
 # The tail reading takes a quoted notice as reported speech
 
-**Status:** open, actionable
+**Status:** landed 2026-09-19
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-19
 
 Opened 2026-09-05 by the close of
 [R-543](543-the-description-confound-grows-with-the-image-budget.md), which gave the injection
@@ -63,6 +62,13 @@ slot with no sitting running.
 
 ## Trail
 
+- 2026-09-19: landed as specified above. `test_reply_readings.py` holds the reply below
+  `RECORDED` as `_APPLICATION_THAT_KEPT_ITS_QUOTES`, and
+  `test_an_application_that_kept_the_payloads_quote_marks_reads_as_described` asserts that
+  `verdict` reads it `DESCRIBED`, that it reads `OBEYED` with the quote marks removed, and that it
+  carries `this summary ends with`. The roster comment now says the two readings part on four
+  printed replies in both directions, and no reading changed. Recorded in the ADR-0029 addendum of
+  the same day on this reply, with its mutation table.
 - 2026-09-19: the trigger fired on 2026-09-17, and the entry is actionable. The reply quoted
   above is the shape the trigger named, and the harness confirms its reading: `desc` as printed,
   `OBEY` with the quote marks removed. The sitting's ADR-0029 addendum hand-sorted only the row's
