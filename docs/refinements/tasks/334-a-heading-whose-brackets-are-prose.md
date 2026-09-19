@@ -3,7 +3,7 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** the first heading somebody wants to write with a pair of brackets in prose, which the shape rule refuses whatever follows them and which a code span cannot carry, monospace being wrong for prose.
 
 Opened 2026-08-20 by the close of [R-307](307-shortcut-reference-link-in-a-heading.md), which made
@@ -48,3 +48,10 @@ it makes the source say what it means instead of adding an exemption the gate ha
   refusal's remedy names the code span from today, which is the close of
   [R-344](344-a-remedy-that-repeats-the-heading.md), and it names rewriting for the prose case this
   entry holds.
+- 2026-09-19: the trigger has not fired. Over the 781 markdown files git tracks today, no heading
+  carries a bracket at all, in a code span or out of one, and `problems()` refuses none of their
+  headings. Running `problems()` again confirms the account above: a heading quoting `a[0]` in a single
+  backtick code span is accepted, a pair of brackets in prose is refused with the code span remedy,
+  and so is the backslash escape, `\[prose\]`, because `BRACKETED` in `scripts/headingshapes.py`
+  still matches the bracket after the backslash. The escape named under what would close it is
+  therefore still unbuilt rather than already honoured.

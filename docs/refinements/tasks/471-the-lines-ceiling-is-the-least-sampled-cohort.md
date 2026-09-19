@@ -8,7 +8,7 @@ constants and neither is read from the environment, so the change is a diff in t
 deployment's setting: `grep -rn "DEFAULT_RECALL_K\|DROPPED_TRAIL_LIMIT" brain/packages/*/src`
 reports every place either is spelled.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 Opened 2026-08-27 by the close of
 [R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md), which measured the whole trail
@@ -87,3 +87,10 @@ named and could name the cohorts it never saw.
   on it and 2,402 with an ordinary one. That is the arithmetic turned into a check rather than the
   drawn reading this entry asks for, and it moves nothing about the ask: what is still unmeasured
   is a judged run in which the rank keeps the whole of `k`.
+- 2026-09-19: swept, and nothing moved. The trigger's grep returns the same five places:
+  `DEFAULT_RECALL_K` is 5 at `turn_context.py:39` and spent once at `turn_context.py:216`,
+  `DROPPED_TRAIL_LIMIT` is 20 at `ranking.py:111`, spent as the default at `ranking.py:152` and
+  re-exported by `_surface/memory.py`. No commit has touched `ranking.py` or `turn_context.py`
+  since 2026-09-15, so the trigger has not fired. `scripts/trailwidth.py` is still 296 lines, so
+  the cheaper half still means the split the last bullet describes. None of the four measurement
+  directories written since then holds a recall trail line, so the drawn reading is still missing.

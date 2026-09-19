@@ -5,11 +5,12 @@
 **Trigger:** a credential reaching a log line inside a URL the pattern does not match, most
 plausibly a hand-written connection string in an env var whose password was never percent-encoded.
 The env vars that could carry one are read off the compose files, `grep -rn "://" docker/*.yml`,
-and each shape is read by putting the URL through `render_value` and then through each formatter
-twice, as a field and as a message, which is five answers and not one. This entry's trail records
-what the shipped URLs and each shape answered when that was last run.
+and each shape is read by putting the URL through `render_value`, through each formatter twice, as
+a field and as a message, and through the tool audit file's `durable_value`, which is six answers
+and not one. This entry's trail records what the shipped URLs and each shape answered when that was
+last run.
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 
 `_USERINFO` is `(?<=://)[^/\s@]*@`, and it does not match three shapes of credential:
 
@@ -45,6 +46,20 @@ that was already outside the URL grammar.
 
 ## Trail
 
+- 2026-09-19: trigger swept a sixth time and not fired, and the readings are six now. `_USERINFO`
+  in `cortex_core/log_fields.py` is unchanged, and `CORTEX_MEMORY_DSN` is still the only URL the
+  compose files build with a credential in it. Since 2026-09-17 a URL a model writes into a tool
+  argument also reaches the audit file when `CORTEX_TOOLS_AUDIT_FILE` is set, and `durable_value`
+  is a sixth reading of it. Eight of the thirteen shapes were run today: a `/`, a space, a U+00A0,
+  a tab, a newline, a `"`, a credential with no scheme and the shipped DSN. The five old readings
+  reproduce the table below for all eight, and the file reads exactly as a field does, a tab or a
+  newline included. The reason is how `durable_value` chooses: it withholds credentials string by
+  string, compares the result with the line's own rendering, and keeps the rendering whenever the
+  two differ, so the file never holds a credential the field withheld. The carriage return, the
+  vertical tab, the form feed, the U+3000 and the `\` were not run. The path the 2026-09-12 bullet
+  found was read the same day under
+  [R-664](664-a-startup-traceback-reaches-stderr-with-no-formatter.md): with a DSN whose host does
+  not resolve, the boot ended in a raw traceback that carried no fragment of the password.
 - 2026-09-15: trigger swept a fifth time and not fired, and the thirteen shapes were put through
   the five readings again rather than reasoned about. Every cell reproduces: a `/` in the userinfo
   is exposed in all five, a space, a U+00A0 and a U+3000 are exposed in all five, a tab, a newline,

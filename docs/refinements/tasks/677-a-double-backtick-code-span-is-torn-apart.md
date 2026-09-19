@@ -3,10 +3,11 @@
 **Status:** open, fix when it bites
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Verified:** 2026-09-15
+**Verified:** 2026-09-19
 **Trigger:** the first heading quoting something in a double backtick code span, which
 `backlogcheck` refuses whenever what is quoted holds brackets, an angle-bracket tag or an entity
-reference, printing a remedy the author has already followed.
+reference. For brackets the printed remedy is the code span the author already wrote; for a tag or
+an entity it is the shared remedy, which tells the author to drop the quote and write plain text.
 
 Opened 2026-09-15 by the close of [R-344](344-a-remedy-that-repeats-the-heading.md), which made the
 bracketed refusal name the code span as the way a heading carries a literal pair of brackets.
@@ -41,3 +42,11 @@ anything in a double backtick span.
 
 - 2026-09-15: opened by the close of [R-344](344-a-remedy-that-repeats-the-heading.md), whose new
   remedy names a construct the rule reads in one of its two spellings.
+- 2026-09-19: the trigger has not fired, and the trigger's account of the remedy was half right.
+  The four headings above were run through `problems()` again and reproduce exactly: the first
+  three refused, the closed run accepted. The remedy each refusal prints differs, though, which the
+  trigger did not say. Only the bracketed refusal has its own remedy, and it names the code span the
+  author already wrote. The tag and entity refusals print the shared one, `write it as plain text
+  under leading hashes`, which is wrong advice for a quote rather than a repeat of what was done.
+  The trigger now says both. Over the 781 markdown files git tracks, no heading carries a double
+  backtick, and `problems()` refuses none of their headings.
