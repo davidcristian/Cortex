@@ -150,7 +150,7 @@ def test_a_form_the_reader_refuses_is_a_fault(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${OUTER:-${INNER}}"))
     faults = defaultcheck.check(tmp_path).faults
     assert [fault.subject for fault in faults] == ["docker-compose.yml"]
-    assert "nested substitution" in faults[0].detail
+    assert faults[0].detail.startswith("line 4: nested substitution ${OUTER:-${INNER}}, whose")
 
 
 def test_a_compose_file_that_is_not_text_is_a_fault(tmp_path: Path) -> None:

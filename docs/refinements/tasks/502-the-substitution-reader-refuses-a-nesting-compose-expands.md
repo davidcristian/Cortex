@@ -118,6 +118,18 @@ than two is worth reading at all, since compose allows it and no honest use of i
   measured today, and `composetargets.py` refuses any expansion in a short mount target. The same
   overstatement stood in the module's docstring and in
   [repo-gates.md](../../modules/repo-gates.md), which said every rule over these spends compares a
-  default as a value; both now name `defaultcheck.py` as the one that does. The fault still shows a nested spend one brace short
-  (`nested substitution ${A:-${B:-x}`), and no compose file spells a nesting, over the same 78
-  spends across ten files.
+  default as a value; both now name `defaultcheck.py` as the one that does. No compose file
+  spells a nesting, over the same 78 spends across ten files.
+- 2026-09-19: the message half landed apart from the form, recorded in the [ADR-0026 addendum on
+  quoting a nested spend
+  whole](../../adr/ADR-0026-prose-style-gates.md).
+  The 2026-09-15 bullet tied the one-brace-short fault to reading the form; a scan that only builds
+  the quotation widens nothing the gate accepts, so the two were separated. Re-measured first,
+  `defaultcheck.py --root` over a scratch file printed `nested substitution ${A:-${B:-x}`. The
+  fault now quotes the spend to the `}` that balances its opening, which is where compose ends it,
+  and to the first `}` when none does, and names a bare `{` in an argument as that rather than as
+  a nesting. The form itself is still refused and still unread, so this entry stays open for it,
+  and the balanced scan (`_spend_extent`) is there for a reading of the form to reuse. Two
+  neighbours were filed from the same measurement:
+  [R-691](691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md) and
+  [R-692](692-the-defaults-gate-counts-a-file-it-could-not-read-as-a-variable.md).

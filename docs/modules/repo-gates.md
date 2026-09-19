@@ -512,9 +512,15 @@ answer: a marker written into any other module here is reported by the line it i
   marker can only be found by tracking quotes and block scalars across a file, which is a YAML
   parser in a dependency-free project, and the strictness it would buy off is loud and one line
   from its remedy where a mistaken marker would drop a real spend in silence. Everything else
-  raises `SubstitutionReadError`: a `$` opening none of those forms, a
-  brace that never closes, a nested expansion, a name that is not
-  an identifier, and an operator it was not taught. Compose does expand a nested form, under every
+  raises `SubstitutionReadError`: a `$` opening none of those forms, a brace that never closes, a
+  nested expansion, a `{` inside an argument, a name that is not an identifier, and an operator it
+  was not taught. A fault on a spend carrying a `{` quotes the spend as compose delimits it, to the
+  `}` balancing its opening or, when none does, to the first `}`, and says whether the brace opens a
+  nested spend or sits in an argument (ADR-0026 addendum on quoting a nested spend whole); the
+  quotation is built by a scan of its own, and no form it delimits is read. Compose also reads a
+  `{` inside an argument, `${A:-{x}}` as the default `{x}`, and that refusal is a limit
+  ([R-691](../refinements/tasks/691-the-substitution-reader-refuses-a-brace-compose-reads-as-text.md)).
+  Compose does expand a nested form, under every
   operator and at least three deep, measured on v2.39.1; it is refused here because a nested
   default is a second spend rather than a value, standing for one thing with nothing set and
   another once the inner variable is set, and `defaultcheck.py`, the one rule reading these
