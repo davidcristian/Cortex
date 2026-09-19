@@ -211,6 +211,28 @@ gpu overlay already points `CORTEX_BRAIN_ENDPOINT` at `http://model-host:8081`. 
 in the roster at all**, so a stock stack answers 404 for the deep model rather than spawning a
 doomed process, and `GET /health` lists exactly the tiers it can run.
 
+**The deep tier's drafter is a second opt-in, and three settings move with it.** Naming
+`CORTEX_MODEL_FILE_BRAIN_DRAFT` in the `model-host` environment (the pick's drafter is
+`google/gemma-4-31B-it-assistant/assistant-F16.gguf`) starts the deep model with its
+multi-token-prediction drafter, which decoded one reasoning prompt at 1.86 to 1.89 times the plain
+rate on this stack's card (ADR-0004's drafter addenda). It costs 997 to 1020 MiB more on the card.
+The deep model, the E4B subagent tier and the drafter together come to more than a 24 GB card holds
+(arithmetic from the readings, never started), so a deployment naming it:
+
+- adds the drafter's cost to `CORTEX_SWAP_BRAIN_VRAM_MIB`, so the fit check compares the free
+  figure against the load that really runs;
+- lists the GPU subagent tier in `CORTEX_SWAP_EVICT_MODELS`, so a handoff stops it first;
+- leaves `CORTEX_SWAP_CORESIDENT` off: with the subagent tier still resident on such a card, a
+  raised figure is refused on every handoff, and an unraised one lets the load past the check onto
+  a card it does not fit.
+
+To confirm the drafter is drafting, read `timings` on a deep-tier reply: `draft_n` and
+`draft_n_accepted` are present only while it drafts, and the pair started on this card accepted
+0.60 of drafted tokens on a reasoning trace and 0.37 on a tool call. Nothing on `GET /health` says
+whether a drafter is loaded. The drafter is off by default until a tool-call turn and an
+answer-text turn are priced with both arms at one clock
+([R-697](../refinements/tasks/697-the-drafter-is-unpriced-on-a-tool-call-and-an-answer-at-one-clock.md)).
+
 ## The mechanism, as measured
 
 Agent-validated 2026-07-18 on the dev GPU (8 GB card, 8188 MiB, driver 610.74, 2516 MiB

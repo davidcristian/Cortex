@@ -1,9 +1,8 @@
 # MTP (multi-token-prediction) model variants
 
-**Status:** open, actionable
+**Status:** landed 2026-09-19
 **Area:** inference-model-manager
 **Origin:** [ADR-0004](../../adr/ADR-0004-model-lineup.md)
-**Verified:** 2026-09-17
 
 Deferred until the latency they save justifies the memory they cost, per
 [ADR-0004](../../adr/ADR-0004-model-lineup.md).
@@ -164,3 +163,19 @@ count it.
   build writes the two flags as one value. Left open and actionable, with the build above as the
   next landing. A tool-call pair the same morning ran 1.37 times faster with the drafter but
   missed the clock clause, so repricing it is the build's first step.
+- 2026-09-19: landed, with the first item of the build re-derived. `CORTEX_MODEL_FILE_BRAIN_DRAFT`
+  names the deep tier's drafter, empty by default, and a named file appends
+  `--model-draft PATH --spec-type draft-mtp` to that tier's argv, the four items built together by
+  `drafter_flags` in `tiers.py`; a suite case holds every tier of every deployment shape to never
+  carrying the path without the type. The drafter rides the tier's `extra`, as the projector does,
+  and not a field of its own on `TierArgs` written by `llama_server_argv` as item 1 asked:
+  `scripts/hostedtiers.py` reads that builder as one tuple with exactly one splat, the tier's
+  `extra`, and fails on a second. `scripts/artifactnames.py` finds the new field through the
+  `_path` call with no change beyond the two suite cases pinning the committed tree's artifact set,
+  so `flagcheck.py` now counts eight artifacts, and `scripts/settingscheck.py` failed until the
+  compose line was written. Items 2 and 3 landed as written: the compose line, the drafter's cost beside `CORTEX_SWAP_BRAIN_VRAM_MIB`, and the
+  runbook's three settings (evict the GPU subagent tier, raise the figure, keep co-residency off),
+  none of which collides with the refusal of an evict list naming the cortex or the deep model.
+  Item 4 gates only a default, which the build does not write, and is
+  [R-697](697-the-drafter-is-unpriced-on-a-tool-call-and-an-answer-at-one-clock.md). The record is
+  ADR-0004's drafter-setting addendum of 2026-09-19.

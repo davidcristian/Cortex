@@ -1,5 +1,3 @@
-"""What the deployment's env becomes: the roster, its argv, and the refused misconfigurations."""
-
 import pytest
 from pydantic import ValidationError
 
@@ -12,11 +10,13 @@ from cortex_model_manager import (
     llama_server_argv,
     tier_spec,
 )
+from cortex_model_manager.tiers import drafter_flags
 
 _BIN = "/app/llama-server"
-# The child serves the compose network, which is what the flag pair below has to say.
 _BIND_ALL = "0.0.0.0"  # noqa: S104 - asserted as the flag value, not bound by this process
 _CORTEX_GGUF = "google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf"
+_DRAFTER_GGUF = "google/gemma-4-31B-it-assistant/assistant-F16.gguf"
+_DRAFT_FLAG = "--model-draft"
 
 
 def _tier(**overrides: object) -> TierArgs:
@@ -32,11 +32,6 @@ def _tier(**overrides: object) -> TierArgs:
 
 
 def test_the_argv_is_the_compose_command_it_replaces() -> None:
-    """Flag for flag, in order, including the context size named rather than defaulted.
-
-    llama.cpp's own default pre-allocates a KV cache far larger than the VRAM envelope, which is
-    why the tier names a size at all (docker/docker-compose.gpu.yml records the default).
-    """
     assert llama_server_argv(_BIN, _tier(model_path=f"/models/{_CORTEX_GGUF}", ctx_size=16384)) == (
         _BIN,
         "--model",
@@ -56,7 +51,6 @@ def test_the_argv_is_the_compose_command_it_replaces() -> None:
 
 
 def test_a_tiers_tail_rides_extra_rather_than_a_flag_per_knob() -> None:
-    """The subagent tier's reasoning-off pair, which is the only tail any tier carries today."""
     argv = llama_server_argv(_BIN, _tier(extra=("--chat-template-kwargs", '{"a": false}')))
     assert argv[-3:] == ("--jinja", "--chat-template-kwargs", '{"a": false}')
 
@@ -83,8 +77,6 @@ def test_a_spec_refuses_what_could_not_be_run(field: str, value: object, message
 
 
 def test_two_tiers_sharing_a_port_are_refused_at_boot() -> None:
-    """The misconfiguration that would silently defeat a swap, caught where it can still be fixed.
-    """
     with pytest.raises(RosterError, match="share port 8080"):
         build_roster(
             [tier_spec(_BIN, _tier(model="cortex")), tier_spec(_BIN, _tier(model="brain"))]
@@ -99,8 +91,6 @@ def test_two_tiers_sharing_an_id_are_refused_at_boot() -> None:
 def test_the_stock_deployment_hosts_the_cortex_and_nothing_it_has_no_artifact_for(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No deep-model pick exists yet, so a stock model host answers 404 for it rather than
-    spawning a doomed process."""
     for name in ("CORTEX_MODEL_FILE_BRAIN", "CORTEX_MODEL_FILE_SUBAGENT_GPU"):
         monkeypatch.delenv(name, raising=False)
     roster = ModelHostConfig().roster()
@@ -118,7 +108,6 @@ def test_the_stock_deployment_hosts_the_cortex_and_nothing_it_has_no_artifact_fo
 def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The full ADR-0030 topology: cortex 8080, deep model 8081, GPU-placed subagent 8083."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
     monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
     monkeypatch.setenv("CORTEX_MODEL_BRAIN", "deep")
@@ -132,8 +121,6 @@ def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
     }
     assert roster["deep"].argv[:3] == (_BIN, "--model", "/models/deep/brain.gguf")
     assert "32768" in roster["deep"].argv
-    # The GPU-placed subagent is the tier ADR-0012's host half was waiting for: whole model on the
-    # GPU, reasoning off, one server slot per admitted subagent.
     assert roster["subagent-gpu"].argv[-8:] == (
         "3",
         "--jinja",
@@ -157,9 +144,6 @@ def test_the_models_root_is_joined_without_doubling_a_separator(
 
 
 def test_naming_a_projector_gives_the_cortex_tier_eyes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The vision projector rides the cortex tier's argv (ADR-0029), not a compose command block:
-    the model host has owned llama-server's flags since it replaced the always-on service.
-    """
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "google/gemma-4-12B/mmproj.gguf")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert argv[-6:-4] == ("--mmproj", "/models/google/gemma-4-12B/mmproj.gguf")
@@ -184,7 +168,6 @@ def test_the_projector_is_resolved_under_the_read_only_models_mount(
 def test_a_raised_image_budget_carries_the_micro_batch_up_with_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """One knob, two flags, because the pair cannot be split without crashing the server."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
     argv = ModelHostConfig().roster()["cortex"].argv
@@ -194,7 +177,6 @@ def test_a_raised_image_budget_carries_the_micro_batch_up_with_it(
 def test_a_budget_under_the_engine_default_leaves_the_micro_batch_alone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Lowering the budget must not lower the micro-batch, which every text turn also uses."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "128")
     argv = ModelHostConfig().roster()["cortex"].argv
@@ -204,7 +186,6 @@ def test_a_budget_under_the_engine_default_leaves_the_micro_batch_alone(
 def test_the_shipped_default_buys_the_measured_resolution_back(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A seeing deployment that sets nothing gets the pair the 4K measurement settled on."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.delenv("CORTEX_IMAGE_MAX_TOKENS", raising=False)
     argv = ModelHostConfig().roster()["cortex"].argv
@@ -214,8 +195,6 @@ def test_the_shipped_default_buys_the_measured_resolution_back(
 def test_a_deployment_can_still_hand_the_budget_back_to_the_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Zero is off, and off means an argv naming neither flag rather than one restating the
-    engine's own defaults, so a deployment that turns it off gets its VRAM and latency back."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "0")
     argv = ModelHostConfig().roster()["cortex"].argv
@@ -227,7 +206,6 @@ def test_a_deployment_can_still_hand_the_budget_back_to_the_model(
 def test_an_image_budget_without_a_projector_costs_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A text-only tier has no pictures, so the budget must not raise its micro-batch or VRAM."""
     monkeypatch.delenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", raising=False)
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
     argv = ModelHostConfig().roster()["cortex"].argv
@@ -244,14 +222,12 @@ def test_a_negative_image_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> 
 def test_a_thinking_budget_reaches_the_cortex_tier_as_the_engines_own_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A budget bounds the cortex tier's thinking rather than ending it."""
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "128")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert argv[-2:] == ("--reasoning-budget", "128")
 
 
 def test_an_unbudgeted_tier_names_no_flag_at_all(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The default is the argv this repo always came up with, not one restating the engine's."""
     monkeypatch.delenv("CORTEX_REASONING_BUDGET", raising=False)
     assert "--reasoning-budget" not in ModelHostConfig().roster()["cortex"].argv
 
@@ -259,15 +235,11 @@ def test_an_unbudgeted_tier_names_no_flag_at_all(monkeypatch: pytest.MonkeyPatch
 def test_a_zero_budget_is_a_setting_rather_than_an_absent_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Zero is llama.cpp's "end the thought immediately", so it must reach the argv; only the
-    engine's own -1 means nobody asked."""
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "0")
     assert ModelHostConfig().roster()["cortex"].argv[-2:] == ("--reasoning-budget", "0")
 
 
 def test_the_deep_tier_carries_its_own_budget(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Two tiers read on opposite arguments, so one knob each: the cortex answers while somebody
-    watches, and the deep model was picked for reaching an answer inside its trace at all."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET_BRAIN", "1024")
     monkeypatch.delenv("CORTEX_REASONING_BUDGET", raising=False)
@@ -277,7 +249,6 @@ def test_the_deep_tier_carries_its_own_budget(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_a_budgeted_seeing_cortex_keeps_both_tails(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The vision tail and the budget are independent knobs on one tier, so both must survive."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "256")
@@ -296,7 +267,6 @@ def test_a_budgeted_seeing_cortex_keeps_both_tails(monkeypatch: pytest.MonkeyPat
 def test_the_subagent_tier_ends_the_thought_rather_than_bounding_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Both levers, and a zero the deployment cannot raise (ADR-0005 thinking-lever addendum)."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "128")
     argv = ModelHostConfig().roster()["subagent-gpu"].argv
@@ -312,7 +282,6 @@ def test_the_subagent_tier_ends_the_thought_rather_than_bounding_it(
 def test_every_tier_states_the_prompt_cache_it_was_measured_at(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Three tiers, three sizes, none of them the engine's own."""
     monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
     monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
     roster = ModelHostConfig().roster()
@@ -324,7 +293,84 @@ def test_every_tier_states_the_prompt_cache_it_was_measured_at(
 def test_a_budget_below_the_engines_own_default_is_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """-1 is the floor because it is llama.cpp's own word for unrestricted; -2 says nothing."""
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "-2")
     with pytest.raises(ValidationError):
         ModelHostConfig()
+
+
+def _draft_env(monkeypatch: pytest.MonkeyPatch, *, drafter: str | None) -> None:
+    """A deployment with every tier named, and the deep tier's drafter named or left unset."""
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
+    monkeypatch.delenv("CORTEX_REASONING_BUDGET_BRAIN", raising=False)
+    if drafter is None:
+        monkeypatch.delenv("CORTEX_MODEL_FILE_BRAIN_DRAFT", raising=False)
+    else:
+        monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN_DRAFT", drafter)
+
+
+def test_naming_a_drafter_gives_the_deep_tier_the_measured_pair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _draft_env(monkeypatch, drafter=_DRAFTER_GGUF)
+    roster = ModelHostConfig().roster()
+    assert roster["brain"].argv[-6:] == (
+        "--cache-ram",
+        "0",
+        _DRAFT_FLAG,
+        f"/models/{_DRAFTER_GGUF}",
+        "--spec-type",
+        "draft-mtp",
+    )
+    assert _DRAFT_FLAG not in roster["cortex"].argv
+    assert _DRAFT_FLAG not in roster["subagent-gpu"].argv
+
+
+def test_a_deployment_naming_no_drafter_starts_the_deep_tier_it_always_did(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _draft_env(monkeypatch, drafter=None)
+    argv = ModelHostConfig().roster()["brain"].argv
+    assert argv[-2:] == ("--cache-ram", "0")
+    assert _DRAFT_FLAG not in argv
+    assert "--spec-type" not in argv
+
+
+def test_the_drafter_follows_a_budgeted_deep_tier_and_is_resolved_under_the_mount(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _draft_env(monkeypatch, drafter="d.gguf")
+    monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/srv/models/")
+    monkeypatch.setenv("CORTEX_REASONING_BUDGET_BRAIN", "1024")
+    assert ModelHostConfig().roster()["brain"].argv[-6:] == (
+        "--reasoning-budget",
+        "1024",
+        _DRAFT_FLAG,
+        "/srv/models/d.gguf",
+        "--spec-type",
+        "draft-mtp",
+    )
+
+
+@pytest.mark.parametrize("drafter", [None, "", _DRAFTER_GGUF])
+def test_no_argv_names_a_drafter_without_its_speculative_type(
+    monkeypatch: pytest.MonkeyPatch, drafter: str | None
+) -> None:
+    _draft_env(monkeypatch, drafter=drafter)
+    for spec in ModelHostConfig().roster().values():
+        argv = spec.argv
+        drafts = [index for index, item in enumerate(argv) if item == _DRAFT_FLAG]
+        types = [index for index, item in enumerate(argv) if item == "--spec-type"]
+        assert types == [index + 2 for index in drafts]
+        for index in drafts:
+            assert argv[index + 2 : index + 4] == ("--spec-type", "draft-mtp")
+
+
+def test_the_drafter_pair_is_one_value_or_nothing() -> None:
+    assert drafter_flags("") == ()
+    assert drafter_flags("/models/d.gguf") == (
+        _DRAFT_FLAG,
+        "/models/d.gguf",
+        "--spec-type",
+        "draft-mtp",
+    )

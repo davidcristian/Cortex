@@ -8,8 +8,6 @@ from typing import NamedTuple
 from moduleconstants import ModuleReadError, bound, constants, items, parse, text
 from subagentservers import MODEL_PREFIX
 
-# Where the sidecar declares its tiers: the module assembling one tier's argv, and the module
-# declaring which tiers there are and what each of them adds to that argv.
 MODEL_MANAGER = Path("brain/packages/model_manager/src/cortex_model_manager")
 ARGV_MODULE = "tiers.py"
 TIER_MODULE = "config.py"
@@ -23,13 +21,8 @@ SETTINGS_FIELD = "Field"
 SETTINGS_ALIAS = "validation_alias"
 SELF = "self"
 
-# An argv item this reader cannot reduce to a string. It is written so that no flag name and no
-# required value can equal it, its job being to occupy a position without satisfying anything a
-# rule might require at one.
 UNREADABLE = "<computed>"
 
-# A tree declaring no tier at all, or a settings class naming no environment variable, is a
-# reading that would answer emptily forever rather than one with nothing to say.
 MIN_TIERS = 1
 MIN_ALIASES = 1
 
@@ -74,7 +67,7 @@ def _returned(module: ast.Module) -> ast.Tuple:
 
 
 def shared(module: ast.Module) -> tuple[tuple[str | None, ...], tuple[str | None, ...]]:
-    """What every tier's command carries before and after its own tail."""
+    """What every tier's command includes before and after its own extra flags."""
     returned = _returned(module)
     strings, _ = constants(module)
     splatted = [isinstance(item, ast.Starred) for item in returned.elts]

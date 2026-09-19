@@ -1,16 +1,21 @@
+# GPU override: it adds the `model-host` sidecar, which runs one llama-server child per model tier,
+# and points the brain at it instead of the Echo fake. Start it with `just up-gpu`; never in CI.
+# Settings, model picks and measured costs: docs/runbooks/llamacpp-gpu.md and model-swap.md.
 
 services:
   brain:
     environment:
-      # Opt into the real adapter; without this the base image runs Echo (ADR-0007 d4).
+      # Opt into the real adapter; without this the base image runs the Echo fake.
       CORTEX_INFERENCE_BACKEND: "llamacpp"
-      # In-network addresses of the supervised children and of the control API (NOT the
-      # host-published ports). The cortex tier is a child process now, not a service.
+      # The addresses on the compose network, not the host-published ports.
       CORTEX_INFERENCE_ENDPOINT: "http://model-host:8080"
+      # Where the ModelHost adapter sends start, stop and status. Required once
+      # CORTEX_MODELHOST_BACKEND=supervisor, and unused while escalation is off.
       CORTEX_MODELHOST_ENDPOINT: "http://model-host:9300"
-      # The deep tier's in-network address, fixed by the child port the sidecar gives that tier.
-      # Read only when CORTEX_ESCALATION is on, so it is harmless for the same reason.
+      # The deep tier's address, read only when CORTEX_ESCALATION is on.
       CORTEX_BRAIN_ENDPOINT: "http://model-host:8081"
+      # The rest of the inference and handoff settings, passed through from the host by name:
+      # unset, a key never enters the container and the settings class default applies.
       CORTEX_INFERENCE_TRACE_LEVER:
       CORTEX_INFERENCE_STALL_TIMEOUT_S:
       CORTEX_MODEL_CORTEX:
@@ -30,55 +35,91 @@ services:
         condition: service_healthy
 
   model-host:
+    # Built from the uv workspace onto llama.cpp's CUDA server image, which is the only way to get
+    # the Python daemon and the llama-server binary into one image. The build context is relative
+    # to the project directory, always the repo root, which is why it reads ./brain.
     build:
       context: ./brain
       dockerfile: Dockerfile.modelhost
     image: "cortex-model-host"
     init: true
     environment:
-      # The control API's bind address: the compose network reaches it by service name.
+      # The control API's bind address; the compose network reaches it by service name.
       CORTEX_MODELHOST_BIND_HOST: "0.0.0.0"
       CORTEX_MODELHOST_BIND_PORT: "9300"
+      # The resident cortex model. -ngl 99 puts every layer on the GPU, and --ctx-size is explicit
+      # because llama.cpp's own default pre-allocates a KV cache too large for the card.
+      # CORTEX_MODEL_FILE_CORTEX_MMPROJ names the multimodal projector; empty starts it text-only.
       CORTEX_MODEL_FILE_CORTEX: "${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
       CORTEX_MODEL_FILE_CORTEX_MMPROJ: "${CORTEX_MODEL_FILE_CORTEX_MMPROJ:-}"
+      # How many tokens one picture may occupy. 1024 is the default, paired with
+      # CORTEX_BODY_CAPTURE_MAX_EDGE=2048 on the brain; 0 hands the budget back to the model.
+      # Never set llama.cpp's --image-max-tokens by hand: this also emits a matching --ubatch-size.
       CORTEX_IMAGE_MAX_TOKENS: "${CORTEX_IMAGE_MAX_TOKENS:-1024}"
       CORTEX_NGL: "${CORTEX_NGL:-99}"
       CORTEX_CTX_SIZE: "${CORTEX_CTX_SIZE:-16384}"
+      # How many tokens a tier may spend thinking before the engine closes the thought and makes
+      # it answer. -1, the default, emits no flag and leaves the trace unbounded; 0 stops thinking
+      # at once; a positive number allows that many. Measured: docs/runbooks/llamacpp-gpu.md.
       CORTEX_REASONING_BUDGET: "${CORTEX_REASONING_BUDGET:--1}"
-      # The logical ids, which must match the brain's own (the endpoint map is static config on
-      # both sides, since no port carries a path, a layer count, or a URL).
+      # The tier ids, which must match the brain's own: the endpoint map is static on both sides.
       CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
       CORTEX_MODEL_BRAIN: "${CORTEX_MODEL_BRAIN:-brain}"
+      # A tier is started only when a model file is named for it, so these stay empty by default
+      # and the deep tier is opt-in. Name the file here or in a .env; nothing else starts the tier.
+      # The pick and what it was measured at: docs/runbooks/model-swap.md.
       CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
       CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
       CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-8192}"
+      # The deep tier's own thinking budget, separate from the cortex's because that tier was
+      # picked for reaching its answer inside the trace.
       CORTEX_REASONING_BUDGET_BRAIN: "${CORTEX_REASONING_BUDGET_BRAIN:--1}"
+      # The deep tier's multi-token-prediction drafter, a path under the models mount. Unset
+      # starts the tier without one; naming it adds llama.cpp's --model-draft and --spec-type
+      # draft-mtp together. What else a deployment must then change: docs/runbooks/model-swap.md.
+      CORTEX_MODEL_FILE_BRAIN_DRAFT:
       CORTEX_MODEL_FILE_SUBAGENT_GPU: "${CORTEX_MODEL_FILE_SUBAGENT_GPU:-}"
       CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      # How long a child gets on SIGTERM before it is killed, and how long a killed one gets to be
+      # reaped. Keep the sum of these two and the probe timeout below the brain's
+      # CORTEX_MODELHOST_TIMEOUT_S, or a slow but correct eviction reads as a dead sidecar.
       CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10.0}"
       CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30.0}"
       CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5.0}"
+      # What GET /health reads the card with, so the brain can refuse a handoff that will not fit.
+      # The container toolkit installs this binary beside the driver, so the default works wherever
+      # a GPU is reserved, and where none is it is simply absent.
       CORTEX_MODELHOST_NVIDIA_SMI: "${CORTEX_MODELHOST_NVIDIA_SMI:-nvidia-smi}"
-      # The sidecar's half of the brain's CORTEX_LOG_FORMAT, under its own prefix because this
-      # container's env is its own. 'plain' appends each lifecycle line's tier, pid and port after
-      # the message; 'packed' writes the whole record as one JSON object.
+      # The sidecar's own copy of CORTEX_LOG_FORMAT: 'plain' appends each line's tier, pid and
+      # port after the message, and 'packed' writes the whole record as one JSON object.
       CORTEX_MODELHOST_LOG_FORMAT: "${CORTEX_MODELHOST_LOG_FORMAT:-plain}"
+      # The sidecar's remaining settings, passed through from the host by name. What is left out
+      # on purpose, and why, is listed in scripts/settingscheck.py.
       CORTEX_MODELHOST_LOG_LEVEL:
       CORTEX_MODEL_SUBAGENT_GPU:
       CORTEX_NGL_SUBAGENT_GPU:
     volumes:
-      # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
-      # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
+      # Models stay on the host drive, mounted read-only; override the source with
+      # CORTEX_MODELS_DIR.
       - type: bind
         source: "${CORTEX_MODELS_DIR:-./models}"
         target: /models
         read_only: true
     ports:
+      # The cortex tier's own port, on loopback only. Deliberately not published: the control API
+      # (:9300), which can start and stop processes on the container holding the GPU and the models
+      # mount, and the other tiers' ports. A live test uses docker-compose.modelhost-loopback.yml.
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
+    # Long enough for the daemon to stop every child in turn: a child with a request in flight
+    # ignores SIGTERM and pays the whole grace, and there can be three tiers. Docker's default of
+    # 10 s would cut the first one short.
     stop_grace_period: 45s
     healthcheck:
+      # It checks that a model which can serve a turn is READY, not just that the daemon answers.
+      # Either the cortex tier or the deep tier, because a handoff deliberately stops the cortex.
+      # The long start_period covers loading a multi-GB GGUF off the bind mount.
       test:
         - "CMD-SHELL"
         - 'curl -fsS http://127.0.0.1:9300/models/${CORTEX_MODEL_CORTEX:-cortex} | grep -q ''"state":"ready"'' || curl -fs http://127.0.0.1:9300/models/${CORTEX_MODEL_BRAIN:-brain} | grep -q ''"state":"ready"'''
@@ -87,6 +128,9 @@ services:
       retries: 5
       start_period: 180s
       start_interval: 2s
+    # Per-container caps. The cortex, the deep model and the GPU subagent are processes in one
+    # cgroup, so these cap all three together. llama.cpp maps the GGUF into memory, so model pages
+    # count against the memory cap and a cap below the file size makes a load thrash.
     cpus: "${CORTEX_MODELHOST_CPUS:-8.0}"
     mem_limit: "${CORTEX_MODELHOST_MEMORY:-24g}"
     memswap_limit: "${CORTEX_MODELHOST_MEMSWAP:-24g}"

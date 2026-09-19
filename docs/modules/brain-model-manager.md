@@ -179,6 +179,19 @@ engine's own ceiling holds two of three, and the arm restored nothing while pinn
 its cap; `0` on the GPU-placed subagent tier, whose subtasks are one-shot. The two zeros are
 `_NO_PROMPT_CACHE` and the cortex's size `_CORTEX_PROMPT_CACHE`, named beside the tiers for the
 same reason the reasoning zero is.
+`CORTEX_MODEL_FILE_BRAIN_DRAFT` names the deep tier's multi-token-prediction drafter (ADR-0004's
+drafter addenda), resolved under the models mount like every other artifact. Empty, the default,
+emits nothing, so the deep tier's argv is the one it always had. A named file appends
+`--model-draft PATH --spec-type draft-mtp` after that tier's tail, the four items built together by
+`drafter_flags` in `tiers.py`, because the path alone was measured to load the drafter and then
+draft nothing. The drafter reaches the argv through the tier's `extra`, as the projector does,
+rather than through a field of its own on `TierArgs`: `scripts/hostedtiers.py` reads
+`llama_server_argv` as one fixed run of items with exactly one splat, the tier's `extra`, and a
+second splat would leave that reader unable to say where a subagent tier's own flags land.
+`image_budget_flags`, the other flag pair that must not be split, sits beside it in `tiers.py`. The
+drafter costs 997 to 1020 MiB more on the card, which is what `CORTEX_SWAP_BRAIN_VRAM_MIB` grows by
+and why a deployment naming it evicts the GPU subagent tier
+([runbooks/model-swap.md](../runbooks/model-swap.md)).
 
 `RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
 the probe client it owns (the three timing knobs are read off those two objects by a gated test,
@@ -192,9 +205,11 @@ root, and `main()` serves it (`python -m cortex_model_manager`).
   stop the tiers the deployment already declared in the daemon's own env. This is the security
   argument of decision 3: a docker socket or a compose-aware controller would hand the same client
   host-root, where a child-process supervisor's blast radius is its own container.
-- **The roster is fixed at boot, and a tier with no artifact file is not in it.** No deep-model
-  pick exists yet (ADR-0004) and the GPU-placed subagent is opt-in, so a stock host answers 404 for
-  them rather than spawning a process that cannot run. Two tiers sharing a port fails at boot.
+- **The roster is fixed at boot, and a tier with no artifact file is not in it.** The deep tier
+  and the GPU-placed subagent are both opt-in, so a stock host answers 404 for them rather than
+  spawning a process that cannot run. Two tiers sharing a port fails at boot.
+- **A drafter path never reaches an argv without its speculative type.** `drafter_flags` returns
+  the four items or none, and a suite case holds every tier of every deployment shape to it.
 - **`start` and `stop` are idempotent**, because a swap re-issues either without checking first.
   A start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; it also
   removes nothing, so a tier whose child had already died goes on reporting that child's exit code
