@@ -14,7 +14,7 @@ modules and declaring them in its own `__all__`, and `cortex_core/__init__.py` r
 wholesale. Nothing outside the package names `_surface`: `from cortex_core import X` reaches
 every public name, as it always did. A new public name is added to its area's file, which is
 where the 300-line cap now applies, and the choice of area is the only judgement it asks for.
-See the [ADR-0026 barrel addendum](../adr/ADR-0026-prose-style-gates.md) for why the flat form
+See the [ADR-0026 barrel addendum](../adr/ADR-0026-prose-style-checks.md) for why the flat form
 ran out and why this shape was the one that moved no call sites):
 
 Routing (Slice 1):

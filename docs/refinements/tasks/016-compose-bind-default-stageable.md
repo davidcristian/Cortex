@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-08
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-06, when `models/` was found root-owned and
 empty at the repo root, created that morning by a container and matched by no ignore rule;
@@ -27,7 +27,7 @@ already correct.
 **Landed 2026-08-08, ahead of its trigger, and the entry's own sketch of the fix was wrong in
 two ways worth recording.** `scripts/bindcheck.py` is a fourth cross-tree scan beside the line
 cap, the dash ban and the constant registry, run unconditionally by `just check` and by CI
-([ADR-0026 bind addendum](../../adr/ADR-0026-prose-style-gates.md)). The six defaults across five
+([ADR-0026 bind addendum](../../adr/ADR-0026-prose-style-checks.md)). The six defaults across five
 files reproduced exactly as written above. What did not survive contact was the rule: this entry
 proposed "failing when one is not matched by `.gitignore`", and that rule is false about the
 tree it would have gated. Three more binds in `docker-compose.memory.yml` point at

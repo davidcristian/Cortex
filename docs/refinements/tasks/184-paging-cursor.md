@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 **Trigger:** one reply encodes past 4 MiB, the decoding cap of the body's tonic 0.14.6 client, which
 no code under `body/` raises (`max_decoding_message_size` appears nowhere there), while the brain's
 server sets no send cap. For `GetSessionMessages` the summed length of the records that

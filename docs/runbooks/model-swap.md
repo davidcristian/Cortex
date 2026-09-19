@@ -211,11 +211,15 @@ gpu overlay already points `CORTEX_BRAIN_ENDPOINT` at `http://model-host:8081`. 
 in the roster at all**, so a stock stack answers 404 for the deep model rather than spawning a
 doomed process, and `GET /health` lists exactly the tiers it can run.
 
-**The deep tier's drafter is a second opt-in, and three settings move with it.** Naming
+**Name the deep pick's drafter beside it, and three settings move with the drafter.** Naming
 `CORTEX_MODEL_FILE_BRAIN_DRAFT` in the `model-host` environment (the pick's drafter is
 `google/gemma-4-31B-it-assistant/assistant-F16.gguf`) starts the deep model with its
-multi-token-prediction drafter, which decoded one reasoning prompt at 1.86 to 1.89 times the plain
-rate on this stack's card (ADR-0004's drafter addenda). It costs 997 to 1020 MiB more on the card.
+multi-token-prediction drafter, which on this stack's card decoded one reasoning prompt at 1.86 to
+1.89 times the plain rate, and a tool-call turn and an answer-text turn at 1.34 times it, both arms
+under one power ceiling (ADR-0004's drafter addenda). It costs 997 to 1020 MiB more on the card and
+about a tenth more load time, which a handoff recovers within its first 1500 decoded tokens. The
+setting itself stays empty by default, as `CORTEX_MODEL_FILE_BRAIN` does, because the drafter
+serves only this pick: name both or neither.
 The deep model, the E4B subagent tier and the drafter together come to more than a 24 GB card holds
 (arithmetic from the readings, never started), so a deployment naming it:
 
@@ -229,11 +233,14 @@ The deep model, the E4B subagent tier and the drafter together come to more than
 To confirm the drafter is drafting, read `timings` on a deep-tier reply: `draft_n` and
 `draft_n_accepted` are present only while it drafts, and the starts on this card accepted 0.60
 of drafted tokens on a reasoning trace, 0.32 to 0.37 on a tool call and 0.34 on answer text.
-Nothing on `GET /health` says whether a drafter is loaded. The drafter is off by default. With it,
-a tool-call turn and an answer-text turn each decoded about a third faster on this card, but the
-answer-text readings had the two arms' clocks just outside the tenth the price rule allows, so the
-rule does not count them
-([R-697](../refinements/tasks/697-the-drafter-is-unpriced-on-a-tool-call-and-an-answer-at-one-clock.md)).
+Nothing on `GET /health` says whether a drafter is loaded. Expect the card to run a lower SM clock
+while it drafts, 0.45 to 0.48 of `clocks.max.sm` against the plain tier's 0.56 to 0.62 on this card
+under its power cap. A drafting start was measured spending 1.16 to 1.18 times the power per cycle
+at the same ceiling, so a lower clock beside a higher decode rate is the drafter working, not a
+fault. Nothing uses the GPU subagent tier
+during a deep phase with co-residency off, because the handoff closes the subagent pool before it
+evicts anything and reopens it only after the swap back, so evicting that tier costs the deep phase
+nothing. Co-residency is what the drafter rules out on a 24 GB card.
 
 ## The mechanism, as measured
 

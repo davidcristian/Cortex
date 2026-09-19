@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-06
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-06 by the ranked-`select` widening ([ADR-0038](../../adr/ADR-0038-ranked-recall.md)).
 The 2026-07-14 entry in [tools-mcp.md](../index.md#tools-mcp) bought the barrel its headroom back by halving the
@@ -32,7 +32,7 @@ settles which is normal. **Still fix when it bites**, and the fix is now a decis
 barrel's future rather than a hunt for headroom.
 
 **Landed 2026-08-06, the same night, as the third option in the form its objection missed
-([ADR-0026 barrel addendum](../../adr/ADR-0026-prose-style-gates.md)).** The decision this entry
+([ADR-0026 barrel addendum](../../adr/ADR-0026-prose-style-checks.md)).** The decision this entry
 said was owed was taken rather than deferred again, and the criterion was the one the two
 earlier attempts had established: whichever option left call sites alone. That ruled out the first two.
 A sub-barrel per area only moves the problem unless consumers import from the sub-barrel, and

@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-16
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 Opened 2026-07-16 behind the landed titles above. The
 switcher now shows the brain title (`SessionSummary.title`), but opening that chat re-derives the
@@ -12,7 +12,7 @@ unifying them needs a `title` on that read path (a proto field + overlay plumbin
 brain-contained change cannot deliver. Note the smaller alternative first: the overlay could
 carry the switcher's title into `openSession` when the user picks a row, covering the open path
 without a proto change, but not cold-start adoption or cycling, which load by id.
-**Landed 2026-07-16 as the overlay-only carry ([ADR-0021 header-title addendum](../../adr/ADR-0021-session-read-seam.md)),
+**Landed 2026-07-16 as the overlay-only carry ([ADR-0021 header-title addendum](../../adr/ADR-0021-session-read-rpcs.md)),
 and both this entry and the index undersold that option.** The header no longer re-derives
 locally: `openSession` and `adoptSession` read the chat's title from the already-loaded
 `state.sessions` (the same `SessionSummary.title` the switcher row renders) when the chat is in
@@ -34,7 +34,7 @@ mutation-proven (reverting `headerTitle` to the local derivation makes the switc
 in `openSession`, `adoptSession`, and the cold-start hook fail); browser-validated against the demo
 bridge, live-validated against real Redis (below).
 **The truncation-length third of that claim was itself too broad, and closed 2026-08-03
-([ADR-0021 truncation addendum](../../adr/ADR-0021-session-read-seam.md)).** The carry closed the
+([ADR-0021 truncation addendum](../../adr/ADR-0021-session-read-rpcs.md)).** The carry closed the
 gap for a chat being *loaded*, which is the only kind `headerTitle` sees. It left it open for the
 chat being *had*: `turnState.submit` names a brand-new chat from `deriveTitle` in the same render
 that starts its first turn, and never revisits that header, so the 32 bound survived on the one

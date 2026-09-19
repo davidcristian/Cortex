@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-11
 **Area:** repo-gates
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 
 Opened 2026-08-26 by the close of
 [R-446](446-the-scan-roster-is-spelled-in-seven-places.md), which held the three copies of the

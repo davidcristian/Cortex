@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-16
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 A new `SessionStore.set_pinned` verb plus a `pinned` field on `SessionSummary`
 across the wire and all four trees, but the real cost is a **read-path** decision the bounded
@@ -10,7 +10,7 @@ two-round-trip listing does not answer: whether a pinned chat escapes the recenc
 window (the expected UX) and so must be unioned into the listing, reshaping the tuned
 `list_sessions`. A genuine design change, not a drop-in behind the write verb, which is why it did
 not ride the rename that landed 2026-07-16.
-**Landed 2026-07-16 ([ADR-0021 pinning addendum](../../adr/ADR-0021-session-read-seam.md)), and the
+**Landed 2026-07-16 ([ADR-0021 pinning addendum](../../adr/ADR-0021-session-read-rpcs.md)), and the
 entry named its own crux exactly: the read-path union was the whole item.** A pinned chat DOES
 escape the recency window, so `list_sessions` unions the pinned set into every listing. The tuned
 two-round-trip shape held: round trip one now reads BOTH indexes in one transaction (`ZREVRANGE`

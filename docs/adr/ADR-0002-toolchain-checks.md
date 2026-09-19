@@ -246,5 +246,5 @@ whenever real records existed, passing while asserting nothing.
   runs), [mutation-replay](../runbooks/mutation-replay.md) (the procedure and the ledger).
 - Readings: [rust-coverage-toolchain](../readings/rust-coverage-toolchain.md),
   [test-order-shuffle](../readings/test-order-shuffle.md), [replay](../readings/mutation-replay.md).
-- ADRs: [ADR-0001](ADR-0001-architecture.md), [ADR-0006](ADR-0006-gate-performance.md),
+- ADRs: [ADR-0001](ADR-0001-architecture.md), [ADR-0006](ADR-0006-check-performance.md),
   [ADR-0011](ADR-0011-body-v1.md).

@@ -3,7 +3,7 @@
 **Status:** never attempted
 **Sitting:** windows-desktop
 **Capability:** W
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 **Until 2026-07-19 this check was recorded in exactly two places, both of them prose, and one of
 them was about to be cleaned.**
@@ -14,7 +14,7 @@ hop. Both ends are already proven: the brain half was Docker-validated against r
 
 The paragraph below was the ROADMAP's status for that slice; it was **preserved here when the
 ROADMAP was slimmed on 2026-07-19** and is no longer in that file. The live one-line form is
-[ADR-0021](../../adr/ADR-0021-session-read-seam.md)'s 2026-07-07 addendum, "the Windows-native Tauri
+[ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)'s 2026-07-07 addendum, "the Windows-native Tauri
 `list_sessions`/`session_messages` commands remain host validation":
 
 > **Host half (host-validated on Windows):** the `list_sessions`/`session_messages` Tauri commands
@@ -38,7 +38,7 @@ cycling moves through them and loads each one's history; a restart restores the 
 **Fail.** An empty list against a brain that has sessions is the IPC hop or the seam token. A list
 that appears but whose messages never load is `session_messages` specifically.
 
-**Record it.** A dated addendum to [ADR-0021](../../adr/ADR-0021-session-read-seam.md), whose
+**Record it.** A dated addendum to [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md), whose
 2026-07-07 live-validation addendum closes with "the Windows-native Tauri
 `list_sessions`/`session_messages` commands remain host validation" (many later addenda follow
 it, so search for the sentence rather than reading the file's end); then delete this section.

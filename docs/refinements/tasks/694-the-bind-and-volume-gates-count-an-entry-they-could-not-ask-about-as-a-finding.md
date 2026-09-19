@@ -2,13 +2,13 @@
 
 **Status:** open, actionable
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 **Verified:** 2026-09-19
 
 Opened 2026-09-19 by the change that made `scripts/bindcheck.py` and `scripts/volumecheck.py`
 count a compose file their reader refused as a file, with a summary of its own, recorded in the
 [ADR-0026 addendum on quoting a nested spend
-whole](../../adr/ADR-0026-prose-style-gates.md).
+whole](../../adr/ADR-0026-prose-style-checks.md).
 That change separated the refused files only. One level down, each gate still counts an entry it
 read but could not ask its question about under the summary for the findings its rule exists to
 report. Measured on 2026-09-19 over one scratch compose file whose service spells
@@ -42,5 +42,5 @@ whole, as the tests of the refused-file summary do.
 
 - 2026-09-19: opened by the change that counted a refused compose file as a file in the bind and
   volume gates, whose [ADR-0026
-  addendum](../../adr/ADR-0026-prose-style-gates.md)
+  addendum](../../adr/ADR-0026-prose-style-checks.md)
   records the run that showed it.

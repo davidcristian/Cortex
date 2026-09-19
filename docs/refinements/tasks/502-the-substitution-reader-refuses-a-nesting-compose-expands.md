@@ -7,7 +7,7 @@ which is the change a two-variable fallback exists to shim. Checkable with
 `git log -p -- 'docker/*.yml'`, reading for a spend name one commit removes while adding another;
 the embedder's and the projector's model-file renames of 2026-08-30 are the only two so far, both
 taken without a shim
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 **Verified:** 2026-09-19
 
 Opened 2026-08-30 by the close of
@@ -96,7 +96,7 @@ than two is worth reading at all, since compose allows it and no honest use of i
   a value, so `${A:-${B:-x}}` and `${A:-${C:-x}}` agree under a deployment setting neither and
   disagree under one that sets `B`, where `defaultcheck.py` compares a default as one value. All
   three places now carry that reason, recorded in the [ADR-0026 addendum on what a nested compose
-  default stands for](../../adr/ADR-0026-prose-style-gates.md).
+  default stands for](../../adr/ADR-0026-prose-style-checks.md).
   Nothing the gate accepts or refuses moved.
 - 2026-09-15: the reading also found a defect in the fault the refusal prints, which belongs to
   this entry because it needs the same scan reading the form would. `_braced` takes the body as
@@ -122,7 +122,7 @@ than two is worth reading at all, since compose allows it and no honest use of i
   spells a nesting, over the same 78 spends across ten files.
 - 2026-09-19: the message half landed apart from the form, recorded in the [ADR-0026 addendum on
   quoting a nested spend
-  whole](../../adr/ADR-0026-prose-style-gates.md).
+  whole](../../adr/ADR-0026-prose-style-checks.md).
   The 2026-09-15 bullet tied the one-brace-short fault to reading the form; a scan that only builds
   the quotation widens nothing the gate accepts, so the two were separated. Re-measured first,
   `defaultcheck.py --root` over a scratch file printed `nested substitution ${A:-${B:-x}`. The

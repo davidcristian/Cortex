@@ -34,7 +34,7 @@ happens in WSL, Docker and the app run on Windows, and a later move to macOS or 
    transport client, holding no business logic. The language boundary is exactly the process
    boundary and stays a network boundary: [proto/body.proto](../../proto/body.proto) is the single
    source of truth for everything on the wire, and tonic and the Python stub are both generated
-   from it ([ADR-0003](ADR-0003-seam-codegen.md)). There is no PyO3 or other in-process FFI,
+   from it ([ADR-0003](ADR-0003-generated-stubs.md)). There is no PyO3 or other in-process FFI,
    because it would fuse deployment lifecycles, break the container and host split, and let types
    diverge out from under one of the two toolchains.
 
@@ -108,5 +108,5 @@ Each of the six is now settled where named.
 ## Related
 
 - [AGENTS.md](../../AGENTS.md), [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
-- [ADR-0002](ADR-0002-toolchain-checks.md), [ADR-0003](ADR-0003-seam-codegen.md),
+- [ADR-0002](ADR-0002-toolchain-checks.md), [ADR-0003](ADR-0003-generated-stubs.md),
   [ADR-0005](ADR-0005-llamacpp-engine.md), [ADR-0068](ADR-0068-port-contract-lists.md).

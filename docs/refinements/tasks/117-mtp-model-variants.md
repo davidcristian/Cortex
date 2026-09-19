@@ -176,6 +176,8 @@ count it.
   compose line was written. Items 2 and 3 landed as written: the compose line, the drafter's cost beside `CORTEX_SWAP_BRAIN_VRAM_MIB`, and the
   runbook's three settings (evict the GPU subagent tier, raise the figure, keep co-residency off),
   none of which collides with the refusal of an evict list naming the cortex or the deep model.
-  Item 4 gates only a default, which the build does not write, and is
-  [R-697](697-the-drafter-is-unpriced-on-a-tool-call-and-an-answer-at-one-clock.md). The record is
+  Item 4 gated only a default, which the build does not write. Two card sittings the same day
+  priced a tool-call turn and an answer-text turn at 1.34 times the plain rate under one power
+  ceiling, and the model-swap runbook now names the drafter wherever the deep pick is named, while
+  the setting keeps its empty default because the drafter serves only that pick. The record is
   ADR-0004's drafter-setting addendum of 2026-09-19.

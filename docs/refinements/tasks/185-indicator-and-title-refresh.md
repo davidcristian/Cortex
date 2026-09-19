@@ -2,12 +2,12 @@
 
 **Status:** landed 2026-07-16
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 A real connection indicator and a session-title refresh push ride whichever slice first
 streams brain status to the overlay (the ADR-0011 `Health`/status deferral, see
 [body-overlay.md](../index.md#body-overlay)), not this one.
-**Both closed 2026-07-16 ([ADR-0021 refresh addendum](../../adr/ADR-0021-session-read-seam.md)),
+**Both closed 2026-07-16 ([ADR-0021 refresh addendum](../../adr/ADR-0021-session-read-rpcs.md)),
 and the premise they shared was wrong.** Neither needed a status stream. The indicator landed
 by deriving its signal ([body-overlay.md](../index.md#body-overlay)), and this half landed with it: the
 chat list now also refreshes on the **rising edge of visibility**, sharing the one summon latch

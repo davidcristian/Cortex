@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-12
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 `scripts/pyproject.toml` enumerated the modules it measured, once in the pytest `--cov=` list and
 again in pyright's `include`; adding `dashcheck.py` escaped BOTH the 100% coverage gate

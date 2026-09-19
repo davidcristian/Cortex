@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-16
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 Destructive and irreversible: a session delete would remove the transcript
 and catalog entry (a `SessionStore.delete` verb, likely a tombstone rather than a hard `DEL` so an
@@ -16,7 +16,7 @@ cross-conversation space, so there is nothing session-private to cascade and the
 since the `SeamConfirmer` gates in-turn tool calls, not a unary management RPC (see the rename
 finding above). Still deferred: design the `SessionStore.delete` verb, the scope-aware cascade, and
 the confirm surface together.
-**Landed 2026-07-16 ([ADR-0021 delete addendum](../../adr/ADR-0021-session-read-seam.md)), and the
+**Landed 2026-07-16 ([ADR-0021 delete addendum](../../adr/ADR-0021-session-read-rpcs.md)), and the
 entry's one guess it got wrong was the tombstone.** All three halves shipped together as the entry
 asked. The `SessionStore.delete(session_id)` verb is a **hard** delete, not a tombstone: read
 against the code, the reads are stateless snapshots and an unknown session already reads as an

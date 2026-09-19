@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-25
 **Area:** seam-transport
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 
 Opened 2026-08-25 by the close of
 [R-399](399-the-body-edge-is-two-sites-and-no-prose.md), which tied a value spelled in the proto's

@@ -8,12 +8,12 @@ which is the change that would next want the JSON as that spend's default. Check
 one spending a variable in its place; today the JSON values are the subagent roster's endpoint list
 in `docker/docker-compose.subagents-roster.yml` and the two `enable_thinking` template arguments,
 all literal
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 **Verified:** 2026-09-19
 
 Opened 2026-09-19 by the change that made `scripts/composedefaults.py` quote a spend carrying a `{`
 whole, recorded in the [ADR-0026 addendum on quoting a nested spend
-whole](../../adr/ADR-0026-prose-style-gates.md).
+whole](../../adr/ADR-0026-prose-style-checks.md).
 
 The reader raises `SubstitutionReadError` on any spend whose body carries a `{`, and since that
 change a bare `{` in an argument gets its own fault: `${A:-{x}} carries a brace in its argument,
@@ -39,5 +39,5 @@ confirm `bindcheck.py`, whose own pattern reduces a bind source, is unaffected.
 ## Trail
 
 - 2026-09-19: opened by the change that quotes a brace-bearing spend whole, whose [ADR-0026
-  addendum](../../adr/ADR-0026-prose-style-gates.md)
+  addendum](../../adr/ADR-0026-prose-style-checks.md)
   holds the measurement.

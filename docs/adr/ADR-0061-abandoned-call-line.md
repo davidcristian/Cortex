@@ -120,6 +120,6 @@ abandoned needs no such policy, so it is decided first and alone.
 ## Related
 
 - [ADR-0024](ADR-0024-transport-retry.md): the deadlines the body enforces and announces.
-- [ADR-0016](ADR-0016-seam-token.md): the token interceptor this one sits behind.
+- [ADR-0016](ADR-0016-shared-token.md): the token interceptor this one sits behind.
 - [brain-orchestrator.md](../modules/brain-orchestrator.md),
   [abandoned-call readings](../readings/abandoned-call-remaining.md).

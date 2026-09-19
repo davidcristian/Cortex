@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-14
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 The index cache this entry proposed is rejected.
 The entry blamed the N round trips (`ZREVRANGE` + N `LRANGE`s) and called the cost
@@ -26,7 +26,7 @@ keeps its fail-loud guarantee and a corrupt record at either end still fails the
 ## Trail
 
 - 2026-07-14: The bounded read landed as the [ADR-0021 bounded-reads
-  addendum](../../adr/ADR-0021-session-read-seam.md), and the index cache the entry proposed was
+  addendum](../../adr/ADR-0021-session-read-rpcs.md), and the index cache the entry proposed was
   rejected outright. The index counts this entry among the four whose own cost estimate misled
   planning, because it misdiagnosed its own cost and proposed a worse fix than the one that
   shipped.

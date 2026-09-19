@@ -6,7 +6,7 @@
 
 Found and closed the same day, 2026-08-03, so it is recorded here as what it was rather than as
 work waiting. This records an old deferral that had been mis-sized rather than a new one: the
-[ADR-0021 sweep addendum](../../adr/ADR-0021-session-read-seam.md) recorded on 2026-07-14 that the
+[ADR-0021 sweep addendum](../../adr/ADR-0021-session-read-rpcs.md) recorded on 2026-07-14 that the
 live session checks read a fixed recency window with fixture dates in the past, so real sessions
 more recent than those crowd them out, and it sized the residual against a `limit=50` window,
 meaning fifty real sessions before it would bite. Two days later the pinning addendum landed a

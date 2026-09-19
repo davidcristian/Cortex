@@ -119,7 +119,7 @@ def test_main_unions_verdicts_across_paths(capsys: pytest.CaptureFixture[str]) -
 
 
 def test_main_neutral_changes_run_nothing(capsys: pytest.CaptureFixture[str]) -> None:
-    assert ci_paths.main(["docs/adr/ADR-0006-gate-performance.md\n", "LICENSE\n"]) == 0
+    assert ci_paths.main(["docs/adr/ADR-0006-check-performance.md\n", "LICENSE\n"]) == 0
     captured = capsys.readouterr()
     assert captured.out == "python=false\nrust=false\noverlay=false\nshell=false\n"
     assert captured.err.count("\n") == 2

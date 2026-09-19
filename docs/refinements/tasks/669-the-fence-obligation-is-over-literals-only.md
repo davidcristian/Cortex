@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 **Verified:** 2026-09-19
 **Trigger:** a module under `scripts/` decides whether a line is a fence by testing it against
 `markdownfences.MARKERS`, or against anything read off that tuple, rather than by asking `Fences`.

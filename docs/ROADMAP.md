@@ -120,7 +120,7 @@ injection-resistant default whenever the path can include untrusted content.
 
 ## Slice 8.7 (Chat history and cycling over the proto)
 
-**Status:** done 2026-07-07 ([ADR-0021](adr/ADR-0021-session-read-seam.md)).
+**Status:** done 2026-07-07 ([ADR-0021](adr/ADR-0021-session-read-rpcs.md)).
 
 Two **read-only** RPCs, `ListSessions` and `GetSessionMessages`, are views of the durable store as the hard rule
 requires, threaded through one new `SessionStore.list_sessions` method with a shared pure `summarize_session`
@@ -244,7 +244,7 @@ Deferred *decisions* live in ADR-0001's open questions. These are the *assumptio
    gets a narrowly scoped exclusion with an ADR.
 5. **Security model.** A single-user machine: loopback-only listeners, a shared-secret token from the
    environment, no mTLS. Revisit only if anything ever listens beyond loopback. *Both halves are real as of
-   2026-07-03* ([ADR-0016](adr/ADR-0016-seam-token.md)).
+   2026-07-03* ([ADR-0016](adr/ADR-0016-shared-token.md)).
 6. **Email safety.** IMAP read-only first; the send path arrived 2026-07-08 exactly as bet: off by default,
    restricted at the composition root, confirmed per action in the overlay, never on a tainted turn.
 7. **Default hotkey.** `Ctrl+Alt+Space`, configurable from day one, because `Win+Space` is taken by Windows.

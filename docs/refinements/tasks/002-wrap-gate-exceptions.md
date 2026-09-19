@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-09
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-07-19 behind the landing. The entry above named four things a hard wrap must not
 touch, a URL, a pasted command, a fenced code block, and a `BREAKING CHANGE:` footer, and called deciding them
@@ -27,7 +27,7 @@ is precisely the outcome the entry above was recorded to avoid. Until then the g
 message this repo has actually written.
 
 **Landed 2026-08-09, ahead of its trigger and not by it**
-([ADR-0026 line-kind addendum](../../adr/ADR-0026-prose-style-gates.md)). No commit had yet needed
+([ADR-0026 line-kind addendum](../../adr/ADR-0026-prose-style-checks.md)). No commit had yet needed
 a command or a block in its body: over 433 commits the history holds 0 fenced lines, 0
 prompt-marked lines and 0 `BREAKING CHANGE:` footers, so what moved this was the backlog being
 worked rather than an author meeting the wall. **What it became:** `check_widths` in

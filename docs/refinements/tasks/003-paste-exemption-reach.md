@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-09
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-09 behind the landing above, because inviting a paste into a commit body makes the other
 three rules' reach a decision rather than an absence. The kind exemption is width only: inside a
@@ -22,7 +22,7 @@ chooses between mangling the paste and bypassing the hook, which is exactly the 
 above exists to prevent.
 
 **Landed 2026-08-09, ahead of its trigger, and the narrower of the two readings it offered was
-rejected** ([ADR-0026 paste-reach addendum](../../adr/ADR-0026-prose-style-gates.md)). **The trigger
+rejected** ([ADR-0026 paste-reach addendum](../../adr/ADR-0026-prose-style-checks.md)). **The trigger
 had not fired and is reported rather than glossed:** over 437 commits the history holds 0 fenced
 lines and 1 prompt-marked line, that one being the `docker compose` paste in the commit that
 shipped the kind exemption hours earlier, and it carries neither a bare `--` (its dashes are all

@@ -6,7 +6,7 @@ passage's prose before its first name or after its last grows past the figures i
 2026-09-17 trail bullet. The event this entry is about, a widened passage carrying no extra name,
 reports nothing by construction, so those two readings are the ones a sweep can take.
 **Area:** repo-gates
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 **Verified:** 2026-09-17
 
 Opened 2026-08-26 by the close of

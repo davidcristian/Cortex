@@ -2,7 +2,7 @@
 
 **Status:** open, dead until a consumer
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 **Trigger:** A second caller that opens a chat by id from outside the loaded window, beside the reminder card's open control, such as toast activation routing once `NotifyRequest` carries a `session_id` (R-230) or a search.
 **Verified:** 2026-09-19
 

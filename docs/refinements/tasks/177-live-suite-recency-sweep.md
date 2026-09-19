@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-14
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 The live-Redis session suite's `finally` deleted only
 `cortex:session:{id}:messages` keys, leaving every run's `contract-<uuid>` ids as dangling
@@ -38,7 +38,7 @@ this entry landed is gone with the shared keyspace that needed it. Nothing in th
 ## Trail
 
 - 2026-07-14: The suite learned to sweep by key pattern plus the index, recorded as the
-  [ADR-0021 sweep addendum](../../adr/ADR-0021-session-read-seam.md), leaving the fixed-window
+  [ADR-0021 sweep addendum](../../adr/ADR-0021-session-read-rpcs.md), leaving the fixed-window
   residual no sweep could reach.
 - 2026-08-03: The fixed-window residual closed when the live Redis runs took a Redis logical
   database of their own, which the index records against this area and against

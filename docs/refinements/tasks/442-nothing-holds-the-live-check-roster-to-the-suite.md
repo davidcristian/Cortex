@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-26
 **Area:** repo-gates
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 
 Opened 2026-08-25 by the pass that rewrote two of those checks
 ([ADR-0024 host-shape addendum](../../adr/ADR-0024-transport-retry.md)), which found the roster
@@ -33,7 +33,7 @@ same set or dropped, since a tally restated by hand is the half that drifted fir
 - 2026-08-25: opened by the pass that rewrote two of the live checks, which found the roster
   describing four where the suite carried seven.
 - 2026-08-26: landed as the
-  [ADR-0003 live-roster addendum](../../adr/ADR-0003-seam-codegen.md),
+  [ADR-0003 live-roster addendum](../../adr/ADR-0003-generated-stubs.md),
   which built `scripts/rostercheck.py`, a tenth cross-tree scan, with `scripts/rosters.py`
   registering which lists a document keeps, `scripts/rosternames.py` reading what a page names and
   `scripts/rostermembers.py` reading what the tree holds. **Re-derivation moved the entry's

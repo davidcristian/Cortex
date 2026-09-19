@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-25
 **Area:** seam-transport
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 
 Opened 2026-08-25 by the close of
 [R-428](428-nothing-compares-the-committed-stubs-with-the-proto.md), which measured what each

@@ -2,7 +2,7 @@
 
 **Status:** declined 2026-09-15
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-09-08 by the close of
 [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), which made `treewalk.py` the one
@@ -33,7 +33,7 @@ the boundary is a decision rather than the edge of what the first version happen
 
 - 2026-09-08: opened by the close of
   [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), whose
-  [ADR-0026 shaped-obligation addendum](../../adr/ADR-0026-prose-style-gates.md) records the
+  [ADR-0026 shaped-obligation addendum](../../adr/ADR-0026-prose-style-checks.md) records the
   descent's new home and the set the obligation is compared over.
 - 2026-09-10: still not fired, and one of the two descents named here has moved to a plain glob.
   `test_loggernames.py` still walks the brain's packages with `rglob("*.py")` and still drops any
@@ -66,7 +66,7 @@ the boundary is a decision rather than the edge of what the first version happen
   `SKIPPED_DIRS`. Every other glob there is a non-recursive listing of one directory.
 
   What is written down instead is the boundary, per obligation, in the
-  [ADR-0026 addendum on where each obligation stops](../../adr/ADR-0026-prose-style-gates.md),
+  [ADR-0026 addendum on where each obligation stops](../../adr/ADR-0026-prose-style-checks.md),
   which names the git-environment obligation that does cover the suites so the next reader meets
   the inconsistency where it is decided. The first branch is refused on its own terms: the
   independence `test_loggernames.py` needs is of the descent itself, its guard comparing a reading

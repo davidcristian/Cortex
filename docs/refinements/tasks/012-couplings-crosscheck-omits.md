@@ -50,7 +50,7 @@ in `brain/packages/core/src/cortex_core/sessions.py` and 32 in
 `body/app/src/overlay/sessionState.ts`, and the comment above the brain's declaration said the
 overlay "applies the same rule and is kept documented in step, since neither side can see the
 other's constant". It did not. This entry's framing of the artefact, taken from
-[ADR-0021](../../adr/ADR-0021-session-read-seam.md), was also narrower than the code: it named the
+[ADR-0021](../../adr/ADR-0021-session-read-rpcs.md), was also narrower than the code: it named the
 chat being loaded, where the header-title carry had already closed the gap, and the path the 32
 actually governed was the chat being **had**, whose header `turnState.submit` writes from the
 local derivation and never revisits. Measured in Chromium, a 42-character first message read in

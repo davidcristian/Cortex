@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-19
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-07-18, fix-when-it-bites, by an audit that measured the drift rather than assumed it.
 [AGENTS.md](../../../AGENTS.md) states one width rule for a commit message ("the body explains what
@@ -22,7 +22,7 @@ after which the gate is what keeps it reflowed. Until then the rule stands as co
 way imperative mood does, and this entry is the record that it is convention rather than gate.
 
 **Landed 2026-07-19, with one of the four exceptions this entry called the actual design
-([ADR-0026 wrap addendum](../../adr/ADR-0026-prose-style-gates.md)).** `scripts/commitlint.py` now
+([ADR-0026 wrap addendum](../../adr/ADR-0026-prose-style-checks.md)).** `scripts/commitlint.py` now
 measures every line below the header against a new `MAX_BODY_WIDTH = 72`, inside the same walker
 that already read each line for dashes and volatile references, exactly as the entry predicted;
 the header keeps `check_header`'s own cap so one long subject is one complaint rather than two.

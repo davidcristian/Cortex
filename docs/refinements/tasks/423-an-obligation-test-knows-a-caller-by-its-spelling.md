@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-08
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-24 by the closes of
 [R-419](419-the-git-call-inside-a-hook-is-written-three-times.md) and
@@ -80,7 +80,7 @@ earlier, which is the near miss both of them share.
   `test_gitenv.py` was counted a caller for spelling that literal in a constant while running no
   git at all. `rostermembers._filenames` changed with them, from a glob handed its pattern to a
   listing plus a match, since a pattern the reader cannot see is answered as a descent. Recorded
-  at the [ADR-0026 shaped-obligation addendum](../../adr/ADR-0026-prose-style-gates.md), with a
+  at the [ADR-0026 shaped-obligation addendum](../../adr/ADR-0026-prose-style-checks.md), with a
   nine-row mutation table over the 1726-test scripts suite; rows 1, 3, 7 and 8 are cases the old
   searches all pass. It opened
   [R-610](610-the-descent-obligation-stops-at-the-suites.md), the tests being outside the set the

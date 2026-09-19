@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-12
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-26 by the close of
 [R-438](438-a-documented-log-sample-can-still-print-the-wrong-fields.md), which added the third
@@ -43,7 +43,7 @@ written argument that a fence is cheap enough to spell per reader and that the t
 independent by design rather than by accident.
 
 **Landed 2026-09-12 ahead of its trigger, as the first of those two**
-([ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-gates.md)). Its trigger was a fenced
+([ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-checks.md)). Its trigger was a fenced
 block one gate read and another did not, or a fourth reader arriving. **Neither had happened, and
 that is reported rather than glossed:** the three patterns were character for character
 `r"^\s*(?:```|~~~)"` on the day this landed, and no fourth reader had arrived, so what moved it is
@@ -93,7 +93,7 @@ reader that stripped fences would lose that roster's boundary and every name in 
   three gates call it, and `spelled(module)` plus the obligation beside it hold `scripts/` to one
   spelling, read out of each module's syntax rather than out of a list of readers. No gate's
   answers moved. Recorded at the
-  [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-gates.md), with a five-row mutation
+  [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-checks.md), with a five-row mutation
   table over the 1793-test scripts suite and one planted failure per gate on a real document. It
   opened [R-643](643-a-fence-marker-opening-a-line-inside-another-block-toggles-every-reader.md),
   the nesting rule the shared reading still does not have, and

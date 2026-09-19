@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0006](../../adr/ADR-0006-gate-performance.md)
+**Origin:** [ADR-0006](../../adr/ADR-0006-check-performance.md)
 **Trigger:** the first run this repository records under either workflow, which needs Actions
 enabled for the whole repository and is therefore a setting on the account rather than a change in
 this tree.
@@ -22,7 +22,7 @@ and listed as `active`, `gh workflow list` shows all three, and nothing dispatch
 
 **What that costs.** `ci.yml` is the gate mirror, and its value is entirely in running what a
 developer cannot: a GPU-less runner, a clean checkout, the path classifier deciding which
-toolchains a diff reaches ([ADR-0006](../../adr/ADR-0006-gate-performance.md)), and the system
+toolchains a diff reaches ([ADR-0006](../../adr/ADR-0006-check-performance.md)), and the system
 libraries `just check-shell` needs that `just check` deliberately leaves out
 ([ADR-0011](../../adr/ADR-0011-body-v1.md) shell-clippy addendum). None of that has happened once.
 Three things in the backlog are waiting on a run that cannot occur:

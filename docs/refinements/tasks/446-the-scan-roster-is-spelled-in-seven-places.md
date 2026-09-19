@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-26
 **Area:** repo-gates
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 
 Opened 2026-08-26 by the close of
 [R-442](442-nothing-holds-the-live-check-roster-to-the-suite.md), which built a gate holding a
@@ -41,7 +41,7 @@ number, and the standing decision is that a document's tallies are its own busin
   [R-442](442-nothing-holds-the-live-check-roster-to-the-suite.md), which built the roster gate and
   registered three lists, none of them this one.
 - 2026-08-26: landed as the
-  [ADR-0003 scan-roster addendum](../../adr/ADR-0003-seam-codegen.md),
+  [ADR-0003 scan-roster addendum](../../adr/ADR-0003-generated-stubs.md),
   which built `scripts/scanrecipes.py` to answer what the cross-tree scans really are and
   registered the three copies that spell names. **Re-derivation moved the premise twice.** There
   are eight copies rather than seven, and the eighth is the one that was stale: the module-doc line

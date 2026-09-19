@@ -2,7 +2,7 @@
 
 **Status:** declined 2026-09-15
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-09-12 by the close of
 [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), which made
@@ -37,7 +37,7 @@ the boundary is a decision.
 
 - 2026-09-12: opened by the close of
   [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), whose
-  [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-gates.md) records the set the
+  [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-checks.md) records the set the
   obligation is compared over and why the suites are not in it.
 - 2026-09-14: still not fired, and the same correction the sibling entry now carries applies
   here. Seven suites write a fence marker, the seven this entry names, and all 48 of their markers
@@ -69,7 +69,7 @@ the boundary is a decision.
   that count as reading while leaving that hole open, which buys a weaker rule than the one it
   widens. What the obligation holds is that the marker is spelled once, and a suite writing a
   fixture is not a second spelling of it. The written argument is the
-  [ADR-0026 addendum on where each obligation stops](../../adr/ADR-0026-prose-style-gates.md),
+  [ADR-0026 addendum on where each obligation stops](../../adr/ADR-0026-prose-style-checks.md),
   which records the boundary per obligation and names the git-environment one that covers the
   suites; `scripts/tests/test_markdownfences.py`'s docstring now carries the pointer.
 

@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-24
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-24 by the close of
 [R-411](411-the-dash-ban-reads-a-working-tree-not-a-commit.md), which made `dashcheck.py` the third

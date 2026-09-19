@@ -197,7 +197,7 @@ mechanisms, file by file, are in [body-app.md](../modules/body-app.md).
 ## Related
 
 - [ADR-0035](ADR-0035-console-and-motion.md) (the console and the panel's motion);
-  [ADR-0021](ADR-0021-session-read-seam.md) (the switcher's catalog);
+  [ADR-0021](ADR-0021-session-read-rpcs.md) (the switcher's catalog);
   [ADR-0025](ADR-0025-scheduling-reminders.md) (reminders and their ack).
 - [body-app.md](../modules/body-app.md), the module contract;
   [overlay-ux.md §6 and §7](../design/overlay-ux.md) (keyboard and accessibility).

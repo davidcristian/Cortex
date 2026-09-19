@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-12
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 A new reducer action
 (`adoptSession`, in the line-cap-driven `sessionState.ts` split) hydrates `sessions[0]`'s

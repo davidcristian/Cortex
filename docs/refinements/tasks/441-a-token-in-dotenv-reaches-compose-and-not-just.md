@@ -6,11 +6,11 @@ is the first moment the two readers of that file disagree about what is configur
 decide it: `grep -c '^CORTEX_SEAM_TOKEN=' .env` in the checkout (no `.env` exists on 2026-09-17),
 and `grep -n '^set' justfile`, which prints nothing while no `dotenv-load` has been added.
 **Area:** seam-auth
-**Origin:** [ADR-0016](../../adr/ADR-0016-seam-token.md)
+**Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
 **Verified:** 2026-09-17
 
 Opened 2026-08-25 by the pass that gave `just seam-health` a checked precondition
-([ADR-0016 addendum on the checked precondition](../../adr/ADR-0016-seam-token.md)).
+([ADR-0016 addendum on the checked precondition](../../adr/ADR-0016-shared-token.md)).
 
 `docker/docker-compose.yml` documents the token as "passed through from the host env / .env", and
 compose does read that file: `just up` against a `.env` holding `CORTEX_SEAM_TOKEN` serves a

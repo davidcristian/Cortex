@@ -203,7 +203,7 @@ pencil, the trash, the three controls revealed on hover in the order they escala
 reserved at 55px, right-aligned, so the column stays still as the clock runs.
 
 Listing chats and loading their history use the read-only `ListSessions` and `GetSessionMessages`
-RPCs ([ADR-0021](../adr/ADR-0021-session-read-seam.md)). `useOverlay` owns the `session_id`, loads
+RPCs ([ADR-0021](../adr/ADR-0021-session-read-rpcs.md)). `useOverlay` owns the `session_id`, loads
 the list on mount and after each turn, and loads a history on select or cycle.
 
 ## 6. Keyboard shortcuts

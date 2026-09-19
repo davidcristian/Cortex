@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-15
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-09-12 by the close of
 [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), which gave the three
@@ -40,7 +40,7 @@ stays safe by its own layout.
 
 - 2026-09-12: opened by the close of
   [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), recorded at the
-  [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-gates.md), which states what the
+  [ADR-0026 one-home addendum](../../adr/ADR-0026-prose-style-checks.md), which states what the
   shared reading covers and what it leaves.
 - 2026-09-14: still not fired, measured rather than argued. Every `.md` file `treewalk.walk_files`
   hands over was read line by line under markdown's own closing rule, opening on a marker and
@@ -63,4 +63,4 @@ stays safe by its own layout.
   nothing holds to its call site. The shared answer is now `Fences`, a reading of a document
   rather than a test on a line, and `is_fence` is gone. The three gates, the four suites and the
   mutation table are in the
-  [ADR-0026 closing-rule addendum](../../adr/ADR-0026-prose-style-gates.md).
+  [ADR-0026 closing-rule addendum](../../adr/ADR-0026-prose-style-checks.md).

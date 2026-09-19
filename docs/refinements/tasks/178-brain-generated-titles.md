@@ -2,12 +2,12 @@
 
 **Status:** landed 2026-07-16
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 Titles derive from the first user message (`summarize_session`);
 a brain-generated summary title would replace that behind the unchanged `SessionSummary`. The
 overlay's own live-title `deriveTitle` stays for a not-yet-persisted chat.
-**Landed 2026-07-16 ([ADR-0021 titles addendum](../../adr/ADR-0021-session-read-seam.md)), and the
+**Landed 2026-07-16 ([ADR-0021 titles addendum](../../adr/ADR-0021-session-read-rpcs.md)), and the
 entry undersold the cost.** The wire/port value `SessionSummary` is unchanged, but "behind the
 unchanged `SessionSummary`" hid four real costs (this backlog's own warning about this area,
 again): a new `SessionStore.set_title` write method, a store-layout change (a
@@ -30,7 +30,7 @@ the finding is that reliable *content* wants thinking disabled or a token cap, w
 `InferenceBackend.stream` cannot yet express (it reopens as a consumer of the disable-thinking /
 token-budget inference deferral, not as new title work). Gated at 100% with four guards
 mutation-proven (title override, first-turn-only, empty title rejected, reasoning ignored).
-**That half closed 2026-08-06 ([ADR-0021 addendum](../../adr/ADR-0021-session-read-seam.md),
+**That half closed 2026-08-06 ([ADR-0021 addendum](../../adr/ADR-0021-session-read-rpcs.md),
 [ADR-0038](../../adr/ADR-0038-ranked-recall.md) bounded-side-calls addendum):** the port learned to
 carry per-request bounds for the history fold, and the title pass was the caller this entry had
 been waiting for. `generate_title` sends `TITLE_BOUNDS` (`max_tokens=32, thinking=False`, 32

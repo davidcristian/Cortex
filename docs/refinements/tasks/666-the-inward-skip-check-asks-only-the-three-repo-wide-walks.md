@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-15
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-09-14 by the close of
 [R-422](422-a-newly-ignored-tree-reaches-the-list-by-hand.md), which added the inward direction to
@@ -46,7 +46,7 @@ scoped reader has ever met an ignored tree.
   half, and a `.py` named like a test inside an ignored tree under a package's `tests` is read by
   `assertedlines.py` and by nothing in the suffix half. Both were planted and both were reported,
   and with the scoped arm removed the suffix half reported neither: the table is in the
-  [ADR-0026 scoped-reader addendum](../../adr/ADR-0026-prose-style-gates.md). The third reader,
+  [ADR-0026 scoped-reader addendum](../../adr/ADR-0026-prose-style-checks.md). The third reader,
   `samplecheck.py` over the runbooks, adds no reach, the anchor scan reading every `.md` here
   already, and it is asked with its own selection anyway so that the check states what each reader
   answers. The same reading opened

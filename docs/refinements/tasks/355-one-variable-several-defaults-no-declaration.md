@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-22
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-21 by the close of [R-333](333-compose-defaults-that-restate-a-declaration.md). That
 survey settled that a compose default no tree declares is not a coupling and closed the question,
@@ -41,7 +41,7 @@ as a second compose-shaped gate is the design decision to record.
 - 2026-08-22: landed as `scripts/defaultcheck.py`, a sixth cross-tree scan beside `bindcheck.py`,
   with `scripts/composedefaults.py` as its substitution reader and `scripts/composefiles.py`
   holding the compose-file walk both compose gates now share. Recorded in the
-  [ADR-0026 defaults addendum](../../adr/ADR-0026-prose-style-gates.md),
+  [ADR-0026 defaults addendum](../../adr/ADR-0026-prose-style-checks.md),
   which argues the placement against a fold into `crosscheck.py` and carries the proof table.
 - 2026-08-22: two counts here were re-derived rather than trusted. **The survey's three numbers were
   exact at the commit that recorded them** (70 substitutions, 56 variables, 8 spelled more than

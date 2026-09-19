@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 **Verified:** 2026-09-19
 **Trigger:** a directory git ignores that `SKIPPED_DIRS` does not prune is itself named `tests` or
 `_generated`, the two names only the line cap skips, or sits below one, and holds a file the cap

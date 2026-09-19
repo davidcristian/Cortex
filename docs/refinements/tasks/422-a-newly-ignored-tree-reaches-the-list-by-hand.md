@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-09-14
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-24 by the close of
 [R-420](420-the-skipped-dirs-list-restates-what-git-ignores.md), which measured the overlap

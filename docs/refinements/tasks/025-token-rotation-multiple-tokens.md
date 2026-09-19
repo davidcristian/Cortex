@@ -2,7 +2,7 @@
 
 **Status:** open, dead until a consumer
 **Area:** seam-auth
-**Origin:** [ADR-0016](../../adr/ADR-0016-seam-token.md)
+**Origin:** [ADR-0016](../../adr/ADR-0016-shared-token.md)
 **Trigger:** A second party on this seam, meaning a client the pair's own operator does not run, whose credential has to be withdrawn without disturbing the other.
 **Verified:** 2026-09-19
 

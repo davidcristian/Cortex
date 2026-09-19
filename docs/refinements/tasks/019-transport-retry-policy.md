@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-07-08
 **Area:** seam-transport
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 
 The deferred backoff/reconnect refinement, added as a **decorator over the unchanged
 `BrainTransport` port** so the `body_rpc` adapter stays thin (its "no retries" contract is now

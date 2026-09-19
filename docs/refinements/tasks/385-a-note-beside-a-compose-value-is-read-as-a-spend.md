@@ -2,7 +2,7 @@
 
 **Status:** declined 2026-08-23
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-22 by the close of
 [R-355](355-one-variable-several-defaults-no-declaration.md), which landed

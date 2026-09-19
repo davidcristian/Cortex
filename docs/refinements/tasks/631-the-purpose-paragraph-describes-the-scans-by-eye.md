@@ -2,7 +2,7 @@
 
 **Status:** open, fix when it bites
 **Area:** repo-gates
-**Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
+**Origin:** [ADR-0003](../../adr/ADR-0003-generated-stubs.md)
 **Trigger:** The Purpose paragraph of `docs/modules/repo-gates.md` is found describing a set of
 cross-tree scans other than the one `scripts/scanrecipes.py` reads out of the justfile and the
 workflow.

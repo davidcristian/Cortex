@@ -1,214 +1,250 @@
-# ADR-0023: The brain→body seam via `BodyGateway`, `AudioControl`, and volume as the first OS action
+# ADR-0023: The brain to body direction via `BodyGateway`, `AudioControl`, and volume as the first OS action
 
-- **Status:** Accepted (Slice 9)
-- **Date:** 2026-07-08
+**Status:** Accepted (2026-08-22)
 
 ## Context
 
-Every seam call so far runs one direction: the body dials the brain's `BrainService`
-(`Converse`/`Health`/session reads). Slice 9 opens the **reverse** direction (the brain
-calls the host body) and lands the first host **OS action**: reading and setting the
-system volume. Volume is chosen deliberately as the *smallest, reversible* surface that
-proves the bidirectional seam; the OS-action catalogue then grows (brightness, media keys,
-window/app control, input injection, …) as more `BodyService` RPCs + `cfg`-gated OS-trait
-methods behind the *same* seams, never a seam change (ROADMAP Slice 9, AGENTS.md scope
-policy).
+Every call between body and brain once ran one direction: the body connects to the brain's
+`BrainService`. This decision opens the reverse direction, the brain calling the host body, and
+adds the first host OS action: reading and setting the system volume. Volume was chosen as the
+smallest reversible action that proves the direction. Further OS actions arrive as more
+`BodyService` RPCs and `cfg`-conditional OS-trait methods behind the same two ports; the reminder
+toast ([ADR-0025](ADR-0025-scheduling-reminders.md)) and screen capture
+([ADR-0029](ADR-0029-vision-screen-capture.md)) have since done so.
 
-Four facts shape the design:
+Four facts shaped it:
 
-- **The seam already declares it.** `proto/body.proto` has carried `BodyService`
-  (`GetVolume`/`SetVolume`/`CaptureScreen`/`InjectInput`) and its messages since Slice 2,
-  frozen at v0. Both codegens emit client **and** server for every service, so the brain
-  already has `cortex_seam.BodyServiceStub` and the body already has
-  `body_rpc::generated::body_service_server::{BodyService, BodyServiceServer}`. **Slice 9
-  needs no proto edit and no regeneration**. It is only hand-written, fully-gated wiring on both
-  sides (ADR-0003).
-- **Two open questions come due.** ADR-0001 Q2 (do body capabilities surface to models as
-  MCP tools, or as internal tools over a `BodyGateway`?) and Q3 (connectivity direction:
-  brain dials the body, or the body tunnels body-directed calls over a body-initiated
-  stream?). This ADR resolves both.
-- **Assumption 5 is revisited.** The security posture has been *loopback-only listeners +
-  an optional shared-secret seam token* (ADR-0016). This is the first slice where a listener
-  (the body's `BodyService` server) may need to accept a connection from **outside**
-  loopback (the dockerized brain reaching the host), so the seam token stops being optional
-  in that direction (it is the boundary when the bind is not pure loopback).
-- **The one hard rule.** No state in a model process. Volume is read from the OS on demand;
-  the body server is a stateless function over the host, holding nothing turn- or
-  conversation-scoped. It needs no swap-safety design because it holds no state at all.
+- **The wire contract already declared it.** `proto/body.proto` had `BodyService` and its messages,
+  and both code generators emit a client and a server for every service, so the first slice needed
+  no proto edit, only hand-written, fully covered wiring on both sides
+  ([ADR-0003](ADR-0003-generated-stubs.md)).
+- **Two open questions came due.** [ADR-0001](ADR-0001-architecture.md) Q2 (body capabilities as
+  MCP tools, or internal tools over a port) and Q3 (the brain connects to the body, or the body
+  tunnels body-directed calls over a stream it opened). This ADR resolves both.
+- **The roadmap's security assumption is revisited.** The setup was loopback-only listeners plus an
+  optional shared token ([ADR-0016](ADR-0016-shared-token.md)). The body's `BodyService` listener may
+  have to accept a connection from the dockerized brain, which is outside loopback, so the token
+  becomes the boundary in that direction.
+- **The one hard rule.** Volume is read from the OS on demand and the body server holds no turn or
+  conversation state, so it needs no swap-safety design.
 
 ## Decision
 
 ### 1. Internal tool over a `BodyGateway` port, not an MCP tool (resolves Q2)
 
-Volume is a **built-in** tool (`get_volume`, `set_volume`) the cortex calls exactly like
-`spawn_subagents`, merged ahead of the MCP tools by the existing `CompositeToolRegistry` and
-dispatched through the Slice 6 audited `ToolDispatcher`. It is **not** an MCP sidecar tool.
-The tools call a new pure-core port:
+Volume is a pair of built-in tools, `get_volume` and `set_volume`, which the cortex calls like
+`spawn_subagents`: merged ahead of the MCP tools by `CompositeToolRegistry` and dispatched through
+the audited `ToolDispatcher`. They call a pure-core port, `BodyGateway`
+(`cortex_core/ports_body.py`), whose volume methods are `get_volume()` and
+`set_volume(*, level=None, mute=None)`, both returning the core value `VolumeState` (`level`,
+`muted`). No wire type enters the core. The port has since gained `notify` (ADR-0025) and
+`capture_screen` (ADR-0029).
 
-```python
-class BodyGateway(Protocol):
-    async def get_volume(self) -> VolumeState: ...
-    async def set_volume(self, *, level: float | None = None, mute: bool | None = None) -> VolumeState: ...
-```
-
-`VolumeState` is a new pure-core value (`level: float`, `muted: bool`) and **no wire type
-enters the core**. The port is the internal-tool seam ADR-0001 Q2 predicted; keeping OS
-actions internal (not MCP) means a jailbroken *subagent* never gets one, because built-ins
-are cortex-only by construction (subagents receive only the remote MCP subset,
-`UngatedToolRegistry`-stripped, per ADR-0010/0013). Failures cross the port as a typed
-`BodyGatewayError` (the adapter wraps `grpc.aio.AioRpcError`, cause chained); the volume
-tools catch it and return an `is_error` result the cortex can recover from. A dead body is
-a message, never a turn-killing exception.
+Keeping OS actions internal means a jailbroken subagent never gets one: built-ins are cortex-only
+by construction, since subagents receive only the remote MCP subset with the tools needing
+confirmation removed ([ADR-0010](ADR-0010-subagents.md),
+[ADR-0013](ADR-0013-untrusted-content.md)). Failures cross the port as a typed `BodyGatewayError`
+(decision 8); the built-ins catch it and return an `is_error` result, so a dead body is a message
+the cortex can recover from, never a turn-killing exception.
 
 ### 2. `GrpcBodyGateway` makes the brain a gRPC client (`body_client` package)
 
-The real adapter is `GrpcBodyGateway` in a **new workspace package `body_client`**
-(`cortex_body_client`), the typed `BodyService` client wrapper ADR-0003 decision 5 reserved
-for this slice. It wraps `cortex_seam.BodyServiceStub` over an injected `grpc.aio.Channel`,
-translates proto↔domain `VolumeState`, builds `SetVolumeRequest` with **explicit presence**
-(only the fields the caller set, whether level, mute, or both), attaches the seam token as
-`x-cortex-seam-token` metadata, and maps `AioRpcError` → `BodyGatewayError`. It mirrors
-`LlamaCppBackend`: a thin transport translator, no state, transport injected at construction,
-a `connect(endpoint, *, token) -> (adapter, closer)` classmethod owned by the composition
-root. It is 100%-covered without a live body by standing up a real `grpc.aio` loopback
-server hosting a fake `BodyServiceServicer` (the `test_auth.py` pattern); real-body checks
-are `integration`-marked.
-
-Keeping the port abstract is deliberate: the Q3 **fallback** (tunnel body-directed calls
-over a body-initiated bidi stream, if `host.docker.internal` proves brittle) becomes a
-different `BodyGateway` adapter, with no core, tool, or proto change.
+The real adapter is `GrpcBodyGateway` in the workspace package `body_client`
+(`cortex_body_client`), the typed `BodyService` client ADR-0003 decision 5 reserved. It wraps
+`cortex_seam.BodyServiceStub` over an injected `grpc.aio.Channel`, translates between proto and
+domain values, builds `SetVolumeRequest` with explicit presence (only the fields the caller set),
+attaches the token as `x-cortex-seam-token` metadata, and classifies every `AioRpcError` into a
+`BodyGatewayError` kind (decision 9). Like `LlamaCppBackend` it holds no state, takes its transport
+at construction, and offers a `connect(endpoint, *, token)` classmethod the composition root owns.
+It is covered to 100% against a real `grpc.aio` loopback server hosting a fake servicer
+(`test_gateway.py`); checks against a real body are `integration`-marked. The port stays abstract
+on purpose: the Q3 fallback, a tunnel over a stream the body opens, would be a different
+`BodyGateway` adapter with no core, tool or proto change.
 
 ### 3. `AudioControl` OS trait; the body hosts a `BodyService` server
 
-Mirroring the `Hotkey` seam (ADR-0011), a new pure port lives in `body_core::os`:
+Beside `Hotkey` ([ADR-0011](ADR-0011-body-v1.md)), `body_core::os` declares
+`AudioControl: Send + Sync` with `get_volume` and `set_volume(VolumeChange)` over two pure values,
+`VolumeState` (`level: f32`, `muted: bool`) and `VolumeChange` (both fields `Option`).
+`Send + Sync` is required because the tonic service holding it is `Send + Sync + 'static`. The
+clamp to [0.0, 1.0] that the proto documents is pure core logic in `VolumeChange::new` (NaN reads
+as 0.0), covered at 100% in `body_core`, so an OS backend never receives an out-of-range scalar.
 
-```rust
-pub trait AudioControl: Send + Sync {
-    fn get_volume(&self) -> Result<VolumeState, AudioError>;
-    fn set_volume(&self, change: VolumeChange) -> Result<VolumeState, AudioError>;
-}
-```
+The measurable half of the server lives in `body_rpc::server`: `OsService<A: AudioControl, N:
+Notify, S: ScreenCapture>` implements the generated `BodyService` trait, `audio_error_to_status`
+and `notify_error_to_status` map port errors to statuses (the inverse of `status_to_error`), and
+`body_service(audio, notifier, screen, receipts, token)` builds the server behind the token
+validator. `inject_input` answers `Status::unimplemented` (decision 13). It is contract-tested over
+an in-process loopback server driven by a generated client and fake backends, covering every
+`Option` combination and every error branch, to 100% line, region and branch. The bind and serve
+lifecycle lives in the Tauri shell, `body/app/src-tauri/src/body_server.rs`, outside the checks.
 
-with pure value types `VolumeState { level: f32, muted: bool }` and
-`VolumeChange { level: Option<f32>, mute: Option<bool> }`. `AudioControl` gains a `Send + Sync`
-supertrait (unlike `Hotkey`) because the tonic `BodyService` service is `Send + Sync + 'static`
-and holds it. The **clamp-to-[0.0, 1.0]** rule the proto documents is *pure core logic*
-(`VolumeChange::new`, NaN→0.0 the defensive floor), fully tested in `body_core` under the
-100% gate. The OS backend never receives an out-of-range scalar.
+### 4. Volume needs no confirmation; the confirmer is available but not used
 
-The body now **hosts a gRPC server** for the first time. The thin, coverable half lives in
-`body_rpc`: a generic `VolumeService<A: AudioControl>` implementing the generated
-`BodyService` trait (`get_volume`/`set_volume` → the port; `capture_screen`/`inject_input`
-→ `Status::unimplemented`, their slices later), an `audio_error_to_status` mapper (the
-inverse of `status_to_error`), and a `body_service(audio, token)` constructor. It is
-contract-tested over an in-process loopback server driven by a generated `BodyServiceClient`
-and a fake `AudioControl`, covering every `Option` combination, the error arms, and the two
-unimplemented arms, to 100% line+region+branch. The **bind/serve lifecycle** and the real
-backend are host-only (see §5).
+`get_volume` is a read and `set_volume` is reversible and low-harm, so both are `gated=False`: a
+spoken "set volume to 30%" should not raise an approval card. Both results are `Trust.TRUSTED`,
+since host state is system-generated, so a volume call never taints a turn. A later OS action with
+side effects can require confirmation by setting `gated=True` on its spec. Volume itself has a
+zero-code opt-in: adding `set_volume` to `CORTEX_TOOLS_GATED` makes the dispatcher's `gated_names`
+check require confirmation, confirming on a clean turn and denying on a tainted one, as on the
+remote path.
 
-### 4. Volume is ungated (reversible); the gate is available but not spent
+### 5. The token, reversed (mirrors ADR-0016)
 
-`get_volume` is a read; `set_volume` is reversible and low-harm. Both ship `gated=False`, so
-the Slice 6.5/8.8 confirm gate is **not** exercised here, since a spoken "set volume to 30%"
-should not demand an approval card. Both results are `Trust.TRUSTED` (host state is
-system-generated, never third-party content) so a volume call never taints the turn or pulls
-in the URL guardrail.
+The body validates with a tonic server interceptor, `SeamTokenValidator` in `body_rpc::auth`: it
+reads `x-cortex-seam-token`, compares in constant time with a dependency-free fixed-time byte
+compare, and rejects `UNAUTHENTICATED` before any method runs. It is always attached and passes
+everything through when the configured token is empty, which in Rust is simpler than a conditional
+service type, and it deliberately does not derive `Debug`. The brain attaches the token in
+`GrpcBodyGateway`, reusing the one `CORTEX_SEAM_TOKEN`. The header name lives in `cortex_seam` as
+`SEAM_TOKEN_HEADER`, re-exported from `cortex_orchestrator.auth`; `body_client` imports it from the
+`cortex_seam` facade, never from the orchestrator. The Rust side keeps its own `const`.
 
-The gate is nonetheless *inherited for free* by any later side-effectful OS action (input
-injection, launch/focus) by setting `gated=True` on its spec. And volume itself has a
-zero-code **user opt-in**: adding `set_volume` to `CORTEX_TOOLS_GATED` makes the
-dispatcher's authoritative `gated_names` backstop gate it (confirm on a clean turn, hard-deny
-on a tainted one). The built-in path honours the same backstop the remote path uses
-(ADR-0022), no wiring change. Default off.
+### 6. Connectivity: the brain connects to the body (resolves Q3)
 
-### 5. The seam token, reversed (mirrors ADR-0016)
+The brain connects to `CORTEX_BODY_ENDPOINT`, `host.docker.internal:50151` from the container;
+`docker/docker-compose.body.yml` adds the `host-gateway` `extra_hosts` entry native Docker needs.
+The body binds `CORTEX_BODY_ADDR`, default `127.0.0.1:50151`, which is safe for development and the
+loopback contract tests. For the real container-to-host path the operator binds an interface the
+container can reach (`0.0.0.0:50151`), which is the revisit the roadmap's assumption foresaw. The
+boundary then is the token plus the host firewall keeping the port host-local.
 
-ADR-0016 shipped brain-as-server-validates / body-as-client-attaches. This direction is the
-mirror image, reusing the identical header and shared secret (`CORTEX_SEAM_TOKEN`):
+### 7. `unsafe` for Core Audio: a narrowly scoped exception in `os_windows`
 
-- **Body validates** with a new Rust tonic **server** interceptor (`SeamTokenValidator` in
-  `body_rpc`): reads `x-cortex-seam-token`, **constant-time** compares (a dependency-free
-  fixed-time byte compare, matching `secrets.compare_digest`'s posture), rejects
-  `UNAUTHENTICATED` before any method runs. It is **always attached** but a **no-op when the
-  configured token is empty** (the single-type equivalent of the brain's
-  "register-only-when-set", since Rust's type system makes always-attach-noop cleaner than a
-  conditional service type), so a tokenless deployment behaves byte-for-byte as before. It is
-  deliberately not `Debug` (no secret in a log), like the client interceptor.
-- **Brain attaches** the token as call metadata in `GrpcBodyGateway`.
+Windows Core Audio (`IMMDeviceEnumerator` to `IAudioEndpointVolume`) is COM, and the `windows`
+crate presents every COM call as `unsafe`. The body workspace sets `unsafe_code = "forbid"`, which
+a crate cannot relax locally, so `os_windows` opts out with its own `unsafe_code = "deny"`
+(re-declaring the other workspace lints); each module that has an authorization re-enables it with
+a scoped `#![allow(unsafe_code)]` naming the ADR that granted it. This ADR authorizes the
+`audio` module. Three more have their own grants: `notify` (one `CoInitializeEx`, ADR-0025), and
+`screen` and `focus` (GDI and the Z-order walk, ADR-0029). Every other crate keeps `forbid`.
+`os_windows` is `cfg(windows)`, compiles to nothing on Linux and is validated on the host, never in
+CI; `os_linux` and `os_macos` have `unimplemented!()` stubs under `#[coverage(off)]`.
 
-The shared wire constant is **lifted to `cortex_seam`** (`SEAM_TOKEN_HEADER`), its natural
-home as a seam-contract detail, and re-exported from `cortex_orchestrator.auth` so nothing
-downstream breaks; `body_client` imports it from the seam facade, never from the orchestrator
-(dependency direction). The Rust side keeps its own `const` (different language).
+### 8. The port reports every failure as one error with a kind
 
-### 6. Connectivity: the brain dials the body (resolves Q3), and assumption 5's revisit
+`BodyGatewayError` has `kind: BodyFailure`, keyword-only, with the enum beside it in
+`cortex_core/errors.py`. One exception type rather than a subclass tree, so every `except
+BodyGatewayError` keeps its meaning and a caller branches on one attribute. The six kinds are a
+designed family ordered by how far the call got:
 
-Q3's default is taken: **the brain dials the host body** at `CORTEX_BODY_ENDPOINT`
-(`host.docker.internal:<port>` from the dockerized brain; the compose overlay adds the
-`host-gateway` `extra_hosts` entry native Docker needs). The body binds a configurable
-`CORTEX_BODY_ADDR` (default `127.0.0.1:50151`, which is safe for dev and the loopback contract
-tests). For the **real** brain→body path the user binds an interface the container can reach
-(e.g. `0.0.0.0:50151`); this is the moment assumption 5 foresaw ("revisit only if anything
-ever listens beyond loopback"). The boundary when the bind is not pure loopback is the **seam
-token + the host firewall** (the port is host-local, allowed inbound only for the body). The
-abstract `BodyGateway`/`AudioControl` seams keep the tunnel fallback a pure adapter swap if
-`host.docker.internal` proves brittle on a WSL2 host.
+| Kind | The call got as far as |
+| --- | --- |
+| `UNREACHABLE` | nowhere: no answer arrived, for want of a route or of time |
+| `REFUSED` | the body's policy check, which answers the same way every time (capture switched off, a rejected token) |
+| `UNSUPPORTED` | the body, which has no such capability |
+| `UNREADY` | the capability, whose host state is not there (no display, no audio endpoint) |
+| `OVERSIZE` | done, and the result will not fit the reply's size limit |
+| `FAULTED` | tried, and broke |
 
-### 7. `unsafe` for Core Audio: a narrowly-scoped, ADR-authorized exception in `os_windows`
+Three are absences, marked as a set by the `un` prefix, and three are events. `REFUSED` rather than
+`DENIED`, because `DENIED_MSG` is already the denial for a tool that needs confirmation. `FAULTED`
+is the default, and the brain-side refusals of a capture reply end up in it: a failure nobody
+classified must never claim the body was unreachable, which was the defect removed here: before
+it, one failure in eight told the cortex the truth
+([readings](../readings/body-failure-leads.md)).
 
-Windows Core Audio (`IMMDeviceEnumerator` → `IAudioEndpointVolume`) is COM, and the official
-`windows` crate surfaces every COM method call as `unsafe` (unlike `global-hotkey`, which fully
-hides its `unsafe`, so the `WindowsHotkey` precedent does not carry over). The body workspace
-sets `unsafe_code = "forbid"`, which a crate cannot locally downgrade. **This ADR authorizes
-`unsafe` in `os_windows` only** (AGENTS.md gate 5): that crate opts out of the workspace
-`forbid` with its own `[lints.rust] unsafe_code = "deny"` and `#![allow(unsafe_code)]` scoped to
-the Core Audio module, re-declaring the other workspace lints (clippy pedantic, the `coverage`
-cfg). Every other crate keeps `forbid`. `os_windows` is `cfg(windows)`, compiles to nothing on
-Linux, and is host-validated, never in CI, so the exception never touches the gated build;
-`os_linux`/`os_macos` get `unimplemented!()` + `#[coverage(off)]` `AudioControl` stubs. The real
-`WindowsAudioControl` is authored here (host-authored, like `WindowsHotkey` in Slice 8) and
-validated on Windows by the user.
+### 9. The adapter classifies, the core words it, and both tables are declarative
+
+`cortex_body_client/failures.py` holds the one status-code table (`kind_of`), split from
+`gateway.py` as `status.rs` is from `client.rs` on the body side. `cortex_core/body_failure.py`
+holds the one wording table and `body_failure_message(err, action=...)`, so every body built-in
+shares an opening sentence per kind and names only its infinitive (`control volume`, `capture the
+screen`). Neither table has a code path: a kind without a sentence fails a test that walks the
+enum, and an unclassified code falls to `FAULTED`. The body's own sentence follows after a colon.
+
+### 10. A body that answered never says `UNAVAILABLE`
+
+A client-synthesized `UNAVAILABLE` from a connection that never opened is the same code a body
+would send for a shut lid, and grpc-python does not mark a synthesized status as tonic does. So
+here `UNAVAILABLE` means the call did not arrive, and nothing the body writes uses it. Host-state
+failures (`CaptureError::NoDisplay`, `AudioError::NoEndpoint`, `NotifyError::Unavailable`) answer
+`FAILED_PRECONDITION`; `CaptureError::TooLarge` answers `RESOURCE_EXHAUSTED`; `Disabled` stays
+`PERMISSION_DENIED` and backend faults stay `INTERNAL`. `NotifyError` keeps its variant name, which
+is `body_core` vocabulary about the host. The proto did not change, and an older body's
+`UNAVAILABLE` classifies as `UNREACHABLE`, the sentence every failure used to have.
+
+### 11. Every OS call runs off the async worker
+
+Every `OsService` handler hands its one synchronous OS call to `off_worker`, which runs it on
+tokio's blocking pool. The reason is not the call's latency: the `BodyService` server shares its
+runtime with the overlay's own calls to the brain, so a worker parked on COM delays unrelated work.
+It is safe because no `!Send` COM object crosses a thread: `WindowsAudioControl` is a unit struct
+that resolves its `IAudioEndpointVolume` per call and `WindowsNotify` holds only an app-id
+`String`, so each COM pointer is created, used and dropped inside one closure. `OsService` holds
+each backend behind an `Arc` only to lend it to that thread. A backend that panics answers
+`Internal` rather than tearing down the brain's connection.
+
+### 12. The body's port number is declared in the shell
+
+`DEFAULT_BODY_PORT` (`50151`) is a `const` in `body/app/src-tauri/src/body_server.rs`, the module
+that binds it, `cfg(windows)` like `start` itself. Hoisting it into `body_core` or `body_rpc`,
+which `just check` compiles, was declined: neither crate binds anything, so the value would be
+exported for one consumer outside the workspace to buy a compiler's opinion of a `u16`. What can
+diverge is the compose default, the runbooks, the module contracts, the `docs/host/`
+prerequisites and the brain's live gateway test, and `scripts/crosscheck.py` compares every one of
+them with this declaration ([ADR-0042](ADR-0042-cross-tree-constant-registry.md)). The scan fails
+closed, so a rename in the shell fails `just check` even though only CI's `check-shell` compiles it.
+
+### 13. `InjectInput` waits for a consumer; volume is not overlay state
+
+`InjectInput` is the one `BodyService` RPC left unbuilt, and it is built only when a real feature
+drives input injection, as one slice: an input trait covering text, keys and pointer (the server
+dispatches the whole `oneof`), behind one `gated=True` audited tool that inherits the confirmer and
+the tainted-turn denial, one Windows `SendInput` adapter under its own `unsafe` authorization, and
+a proto pointer extension designed with that consumer. Wiring the handler first would let anyone
+holding the token move the real mouse without the check that requires confirmation, since that
+check lives on the brain's dispatch and `BodyService`'s only guard is the token. Pointer injection
+alone is declined for the same reason.
+
+Showing `GetVolume` as overlay state is declined. The body serves `GetVolume` and the overlay lives
+inside the body, so it would need a new Tauri command and overlay port for a number that changes
+from hardware keys and other applications with nothing to tell the overlay, beside an OS tray icon
+that is always right. It reopens with a consumer (an overlay control that changes volume) or a
+producer (a host change event such as `IAudioEndpointVolumeCallback`).
 
 ## Consequences
 
-**CI-gated (mine, 100% under `just check`, no GPU/OS/GUI):** the `BodyGateway` port +
-`VolumeState` value + `BodyGatewayError` + `InMemoryBodyGateway` fake; the `get_volume`/
-`set_volume` built-ins; the `GrpcBodyGateway` adapter (`body_client`) over a loopback fake
-server; `BodyConfig` + `build_body_gateway` + the `build_cortex_tools` extension + the
-`run_from_env` thread-through; the `AudioControl` trait + pure clamp + `body_core` contract
-test; the `VolumeService` server adapter + `SeamTokenValidator` + `audio_error_to_status` in
-`body_rpc` with loopback contract tests; `os_linux`/`os_macos` stubs; the `SEAM_TOKEN_HEADER`
-lift.
+- **Covered by `just check`:** the port, its errors and fake, the built-ins, `GrpcBodyGateway` over
+  a loopback fake, the composition root wiring, `AudioControl` and its clamp, `OsService`,
+  `SeamTokenValidator`, the status mappers, and the Linux and macOS stubs.
+- **Validated in Docker (2026-07-08):** a containerized `GrpcBodyGateway` reached a host-side
+  `BodyService` over `host.docker.internal` with the token, and got `UNAUTHENTICATED` without it.
+- **Host-only:** the real `WindowsAudioControl`, the shell's bind and serve, and "set volume to
+  30%" spoken end to end ([H-002](../host/tasks/002-core-audio-volume-action.md)). It needs a
+  Windows desktop and any GPU that holds the cortex, not a 24 GB one specifically.
+- Both Windows backends call `CoInitializeEx` per call without a matching `CoUninitialize`, now on
+  blocking-pool threads tokio reclaims after its idle keep-alive; the fix is one dedicated
+  COM-initialized thread ([R-224](../refinements/tasks/224-unbalanced-com-initialization.md),
+  observed on the host by [H-009](../host/tasks/009-unbalanced-com-initialization.md)).
+- A safe Core Audio crate would retire only the `audio` module's allow; the one examined
+  initializes COM per call, which R-224 rejects ([R-223](../refinements/tasks/223-safe-core-audio-wrapper.md)).
+- The non-loopback setup stays one shared token over plaintext. Transport credentials would touch
+  four places (`aio.insecure_channel` in `GrpcBodyGateway.connect`, `Server::builder()` in
+  `body_server::start`, the brain's `add_insecure_port` and the body's `Channel::from_shared`), and
+  the tree builds tonic without TLS features, so enabling one is the first step
+  ([R-219](../refinements/tasks/219-hardened-non-loopback-posture.md), triggered by the machine
+  leaving single-user). The tunnel fallback stays deferred while `host.docker.internal` from a
+  bridge container reaches a host listener on `0.0.0.0` ([R-218](../refinements/tasks/218-tunnel-fallback.md)).
 
-**Agent-Docker (mine):** the brain→body dial across the container boundary, with the brain's
-`GrpcBodyGateway` reaching a body-side `BodyService` server over `host.docker.internal`,
-`integration`-marked. On this host the 8 GB GPU cannot hold the gemma-4-12B cortex, so a
-full cortex-*driven* `set_volume` is bounded by what fits; the seam and tool path are
-validated with whatever tool-calling model fits, or against the Echo path for the wire.
+## Alternatives rejected
 
-**Host-Windows (host-only):** the real `WindowsAudioControl` Core Audio backend; the
-`BodyService` server bind/serve started in the Tauri shell's `setup()`; and the end-to-end
-"set volume to 30%" spoken to the overlay moving host volume through the real seam.
+- **Volume as an MCP tool**: needs a body-side MCP server and leaks the capability to subagents.
+- **A new volume RPC or stream**: unary `GetVolume` and `SetVolume` already exist.
+- **Confirming `set_volume` by default**: friction on a reversible action (decision 4).
+- **A separate `BodyService` server crate**: the measurable adapter fits in `body_rpc` beside the
+  client; only the bind glue is host-only, and it lives in the shell.
+- **A loopback-only body bind**: the container cannot reach the host's `127.0.0.1`.
+- **A subclass per failure kind**: callers would need an `isinstance` ladder.
 
-**Deferrals** (recorded in ROADMAP's deferred-refinements section, each behind these unchanged
-seams): the Q3 body-initiated-stream tunnel fallback; a hardened non-loopback posture (mTLS /
-per-direction tokens) if the machine ever leaves single-user; `spawn_blocking` for the sync
-OS call inside the async handler (fine at personal scale, a fast COM call); `GetVolume`
-surfaced as overlay state; and the remaining `BodyService` RPCs (`CaptureScreen` in Slice 10;
-`InjectInput` comes later).
+## Related
 
-## Alternatives considered
-
-- **Volume as an MCP tool.** Rejected (Q2): it would need a body-side MCP server *and* leak
-  the capability into the subagent tool set; the internal `BodyGateway` keeps OS actions
-  first-party and cortex-only.
-- **A new `Volume` RPC / streaming.** Rejected: `GetVolume`/`SetVolume` unary already exist
-  and volume is a point read/write; no stream needed.
-- **Gating `set_volume` by default.** Rejected as UX friction on a reversible action; the
-  opt-in backstop (`CORTEX_TOOLS_GATED`) covers the cautious user without taxing everyone.
-- **A separate `BodyService` server crate.** Rejected: the coverable adapter fits in
-  `body_rpc` beside the client (its natural home); only the bind/serve glue is host-only, and
-  that lives in the ungated shell like every other Tauri command.
-- **Body binds loopback only.** Rejected as insufficient for the container→host path (the
-  brain cannot reach the host's `127.0.0.1`); a configurable bind + the seam token is the
-  chosen resolution of assumption 5's revisit.
+- Modules: [brain-body-client](../modules/brain-body-client.md),
+  [brain-core](../modules/brain-core.md), [body-rpc](../modules/body-rpc.md),
+  [body-os](../modules/body-os.md), [body-app](../modules/body-app.md).
+- Runbook: [body-volume](../runbooks/body-volume.md).
+- Readings: [what the cortex reads when a body call fails](../readings/body-failure-leads.md).
+- ADRs: [ADR-0016](ADR-0016-shared-token.md) (the token this mirrors),
+  [ADR-0025](ADR-0025-scheduling-reminders.md) (the toast in this direction),
+  [ADR-0029](ADR-0029-vision-screen-capture.md) (capture in this direction),
+  [ADR-0042](ADR-0042-cross-tree-constant-registry.md) (the registry covering the port number).

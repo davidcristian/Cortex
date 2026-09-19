@@ -37,7 +37,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   riding the nightly coverage step behind `-Z unstable-options`; the sweep over the orders
   those seeds never draw is `just shuffle [seed]`, run weekly by the one workflow here that
   gates nothing.
-- [ADR-0003: Seam codegen and packaging](adr/ADR-0003-seam-codegen.md): committed
+- [ADR-0003: Seam codegen and packaging](adr/ADR-0003-generated-stubs.md): committed
   stubs in `_generated` dirs (hermetic builds, `just proto` to regen), tonic + grpcio,
   `#[ignore]` tests as the Rust integration suite, stubs shared via `cortex_seam`,
   the CORTEX_SEAM_* env contract.
@@ -65,7 +65,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `finish_reason` into it, the tool loop absorbs it into a `StopLedger` the way it absorbs a
   cadence into a `CadenceWatch`, and a delegated reply the server cut arrives as `TRUNCATED`
   instead of as a short answer.
-- [ADR-0006: Gate performance](adr/ADR-0006-gate-performance.md): path-filtered CI via
+- [ADR-0006: Gate performance](adr/ADR-0006-check-performance.md): path-filtered CI via
   the fail-closed in-repo classifier (`scripts/ci_paths.py`), PR-only run cancellation,
   SHA-pinned actions + dependabot, parallel `just check`.
 - [ADR-0007: Model Manager v1 + llama.cpp adapter](adr/ADR-0007-model-manager-inference.md):
@@ -137,7 +137,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   streaming-safe, persisted-equals-shown (`CORTEX_OUTPUT_GUARDRAIL`, on by default). A policy is a
   set of grounds: the default's collected-identity one, the `lookalike` non-ASCII-host one that a
   chosen homoglyph cannot be picked around, and `strict`'s every-link-on-a-tainted-turn.
-- [ADR-0016: Seam token](adr/ADR-0016-seam-token.md): assumption 5's shared secret made
+- [ADR-0016: Seam token](adr/ADR-0016-shared-token.md): assumption 5's shared secret made
   real, via `CORTEX_SEAM_TOKEN` on both sides of the seam; a brain-side gRPC interceptor
   rejects untokened calls UNAUTHENTICATED (structural, covers future RPCs), the body's
   tonic client attaches it, the healthcheck carries it; empty disables (dev/CI unchanged).
@@ -166,7 +166,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `InferenceEvent` union, the shared tool loop yields `str | ReasoningDelta`, and the engine maps
   reasoning to an ephemeral (unpersisted, non-reply) `StatusUpdate`; the proto/body/overlay status
   path was already built and is now lit end to end. Behind the unchanged `InferenceBackend`.
-- [ADR-0021: Session-read seam](adr/ADR-0021-session-read-seam.md): Slice 8.7. Two read-only
+- [ADR-0021: Session-read seam](adr/ADR-0021-session-read-rpcs.md): Slice 8.7. Two read-only
   unary RPCs (`ListSessions`/`GetSessionMessages`) expose views of the durable store over the seam,
   so the overlay's chat list, switcher, and `Ctrl+↑/↓` cycling load store-backed history instead of
   in-memory. One new port method (`SessionStore.list_sessions`, a `cortex:sessions` ZSET index; a
@@ -209,7 +209,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `UngatedToolRegistry` as the structural safety posture), and delivery over both seam directions:
   pull (`ListDueReminders`/`AckReminder` on `BrainService`) and push (`BodyService.Notify` → a
   native toast, the body's second OS capability).
-- [ADR-0026: Prose style gates](adr/ADR-0026-prose-style-gates.md): the no-dash-as-punctuation and
+- [ADR-0026: Prose style gates](adr/ADR-0026-prose-style-checks.md): the no-dash-as-punctuation and
   no-volatile-reference rules get gates instead of goodwill, after a sweep found 3452 em-dash lines
   and 144 of 148 non-conforming commit messages. `dashcheck.py` scans every text file (em dash and
   en dash alike, spaced or not, since a range takes a plain hyphen, while the minus sign stays

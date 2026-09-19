@@ -2,7 +2,7 @@
 
 **Status:** landed 2026-08-23
 **Area:** repo-gates
-**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
+**Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-checks.md)
 
 Opened 2026-08-23 by the close of
 [R-385](385-a-note-beside-a-compose-value-is-read-as-a-spend.md), which declined to teach the

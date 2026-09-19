@@ -2,11 +2,11 @@
 
 **Status:** landed 2026-07-16
 **Area:** session-read-seam
-**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-seam.md)
+**Origin:** [ADR-0021](../../adr/ADR-0021-session-read-rpcs.md)
 
 Write operations on the catalog, a later *gated* surface
 (Slice 6.5 gate + Slice 8.8 Confirmer), out of scope for this read-only slice.
-**Rename landed 2026-07-16 ([ADR-0021 rename addendum](../../adr/ADR-0021-session-read-seam.md)); pin
+**Rename landed 2026-07-16 ([ADR-0021 rename addendum](../../adr/ADR-0021-session-read-rpcs.md)); pin
 and delete deferred as the two entries below.** The entry's "gated ... Confirmer" framing was
 wrong for a management RPC, read against the code: the `SeamConfirmer` (ADR-0022) gates a
 possibly-jailbroken *model*'s tool call **inside a turn** (bound one-per-`Converse`-stream, a

@@ -1,50 +1,139 @@
 # ADR-0005: llama.cpp as the inference engine
 
-- **Status:** Accepted (design decision, 2026-06-29; supersedes ADR-0001 decision 4's
-  choice of vLLM)
-- **Date:** 2026-06-29
+**Status:** Accepted (2026-09-10); supersedes [ADR-0001](ADR-0001-architecture.md) decision 4's
+choice of vLLM
 
 ## Context
 
-ADR-0004 locked the model candidates. All are GGUF artifacts downloaded via LM Studio.
-vLLM's GGUF support is experimental and per-architecture, and the founding vLLM choice
-carried a class of consumer-hardware quirks (SM120/FP8 config, FlashInfer, the
-CUDA-graph-capture hang on WSL2) that needed a dedicated runbook. This is a consumer
-program on a consumer GPU, not a throughput-serving deployment.
+[ADR-0004](ADR-0004-model-lineup.md) fixed the model candidates, all GGUF artifacts. vLLM's GGUF
+support is experimental and per architecture, and the founding vLLM choice brought a class of
+consumer-hardware quirks (SM120/FP8 config, FlashInfer, the CUDA-graph-capture hang on WSL2) that
+needed a runbook of their own. This is a consumer program on a consumer GPU, not a throughput
+serving deployment.
+
+The brain reaches the engine over HTTP through two generation clients: the resident tier's, which
+the deep tier also streams through after a handoff, and the subagent pool's. A client that waits
+forever on a server that took a request and then stopped sending blocks a turn, and the model lease
+under it, with nothing reported. The engine itself is pulled as a container image by a mutable tag,
+so which build serves a request is decided by whoever last pulled.
+
+This record covers the engine, how the brain talks to it, and how a reader tells which build is
+running. How a generation is bounded and a cut-off reported is
+[ADR-0048](ADR-0048-generation-bounds.md); the thinking switch and the trace budget are
+[ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md); the live probes that measure them are
+[ADR-0050](ADR-0050-live-probe-records.md).
 
 ## Decision
 
-1. **llama.cpp is the engine behind `InferenceBackend`.** Native GGUF (the artifacts
-   run as downloaded), first-class CUDA on consumer GPUs, none of the vLLM/WSL2 quirk
-   class. The planned `blackwell-vllm.md` runbook is replaced by `llamacpp-gpu.md`
-   (written in Slice 4).
-2. **Serving shape: one `llama-server` process per loaded model**, its
-   OpenAI-compatible HTTP API as the adapter surface (chat completions + embeddings).
-   The `InferenceBackend` adapter is a thin HTTP client and is fakeable in tests like every
-   other adapter.
-3. **The Model Manager's swap mechanism is process lifecycle.** Load = start a
-   `llama-server` on the artifact; unload = stop the process. This makes the hard rule
-   literal: a swap kills the serving process outright, so anything not in the external
-   store is gone by construction. That is exactly the discipline the architecture already
-   enforces. The lease/queue design from ADR-0001 is unchanged.
-4. **Embeddings run on the same engine** (nomic-embed GGUF candidates, ADR-0004): one
-   engine for all tiers plus the embedder, one VRAM accounting model (per-process).
-5. **GPU deployment stays dockerized** via the NVIDIA container toolkit in the
-   `docker/docker-compose.gpu.yml` override (pinned llama.cpp CUDA server image or build),
-   with models bind-mounted read-only from `D:\Software\AI\Models` (ADR-0004).
-6. **Portability improves.** llama.cpp runs Metal and CPU: the future macOS move can
-   likely reuse this same adapter against a Metal build (the second portability seam in
-   AGENTS.md/ARCHITECTURE.md; the new MLX adapter ADR-0001 d4 anticipated is likely
-   unnecessary), and a CPU build enables local GPU-less experiments. CI remains
-   inference-free regardless.
+1. **llama.cpp is the engine behind `InferenceBackend`.** Native GGUF (the artifacts run as
+   downloaded), first-class CUDA on consumer GPUs, and none of the vLLM on WSL2 quirks. The GPU
+   runbook is [llamacpp-gpu](../runbooks/llamacpp-gpu.md).
+2. **One `llama-server` process per loaded model**, with its OpenAI-compatible HTTP API (chat
+   completions and embeddings) as the interface the adapter uses. The `InferenceBackend` adapter is
+   a thin HTTP client and is faked in tests like every other adapter.
+3. **The Model Manager's swap mechanism is process lifecycle.** Load starts a `llama-server` on the
+   artifact; unload stops the process. This makes the hard rule literal: a swap kills the serving
+   process, so anything not in the external store is gone. The lease and queue design of ADR-0001
+   is unchanged; the model host that supervises the processes is
+   [ADR-0030](ADR-0030-brain-handoff.md).
+4. **Embeddings run on the same engine** (the nomic-embed GGUF candidates of ADR-0004): one engine
+   for every tier and the embedder, and one way of accounting for VRAM, per process.
+5. **GPU deployment stays dockerized** through the NVIDIA container toolkit in the
+   `docker/docker-compose.gpu.yml` override, with models bind-mounted read-only from
+   `CORTEX_MODELS_DIR` (ADR-0004).
+6. **Portability improves.** llama.cpp runs Metal and CPU builds, so a future macOS move can likely
+   reuse this adapter against a Metal build (the second portability boundary in AGENTS.md), and a
+   CPU build allows GPU-less local experiments. CI stays inference-free either way.
+
+### The generation clients
+
+7. **The read phase of both generation clients is bounded by a per-tier stall timeout.**
+   `builders.build_generation_client(stall_timeout_s)` is the one place a generation client is
+   built. Connect, write and pool share `LLAMACPP_CONNECT_TIMEOUT_S` (10 s), since a dead server is
+   dead at the same speed everywhere; the read phase takes the tier's own number.
+   - **It detects a stall; it does not limit the generation.** httpx applies a read timeout to one
+     socket read, so what it bounds is the gap between two SSE chunks: a reply that keeps arriving
+     streams as long as the model wants, and one that stops arriving fails. The longest legitimate
+     gap is therefore the time to first token. The credit limit on the gRPC stream
+     (`CORTEX_SEAM_CONVERSE_BUFFER`) suspends the reader between reads rather than inside one, so a
+     slow consumer uses none of the timeout.
+   - **Two settings, because the worst legitimate silence differs by an order of magnitude.**
+     `CORTEX_INFERENCE_STALL_TIMEOUT_S` (120 s) covers the resident tier and the deep tier behind
+     it: about 2.6 times the worst measured time to first token once that is scaled by how much
+     slower the deep pick loads than the cortex pick, a margin that covers the deep tier's own
+     first token, which was never measured directly. `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (600 s) is
+     twice the slow end of a whole CPU subtask, which bounds any one call's first token there. One
+     shared number would have to be the loose one, and a stuck cortex stream would then block a
+     turn for the CPU tier's whole allowance. Both are positive `pydantic-settings` fields, retuned
+     without a rebuild. The measurements are in [generation
+     bounds](../readings/generation-bounds.md).
+   - **A stall crosses the port as `InferenceError`, named apart from a dead server**
+     (`_transport_failure` in `backend.py`), so an operator is not sent looking for a connection
+     problem when the server took the request and then stopped sending.
+   - The timeout cannot detect a model that keeps talking; that limit is ADR-0048. The run deadline
+     must outlast the subagent timeout, which [ADR-0047](ADR-0047-delegated-run-bound-ordering.md)
+     enforces at startup.
+
+### Which build is running
+
+8. **The stack names llama.cpp by mutable tags, and fixing a digest is left to the deployment.**
+   The subagent, roster and memory compose files name `ghcr.io/ggml-org/llama.cpp:server`;
+   `brain/Dockerfile.modelhost` builds both stages `FROM ghcr.io/ggml-org/llama.cpp:server-cuda`.
+   No `@sha256` and no `pull_policy` appear, so a cached image stays until somebody pulls. Fixing a
+   digest would make the tag mean one thing and turn every upstream fix into a commit here, which
+   is a deployment choice rather than a design one. A reader establishes which build is behind a
+   tag in three ways that agree: the image's `org.opencontainers.image.version` and `revision`
+   labels (`docker image inspect`, no server needed), `build_info` at `GET /props`, and the
+   `system_fingerprint` llama-server puts on every completion, both written `bNNNNN-<commit>`. A
+   figure measured on the engine is dated and names the build it was taken on.
+9. **A running stack records the build it talks to, on a line it already writes.** The vision probe
+   (`PropsVisionProbe.can_see` in `vision.py`) already issues `GET /props` on the cortex endpoint,
+   so its `vision probe answered` line includes `build`, the server's `build_info`, beside
+   `endpoint` and `vision`; the vision runbook shows the line, which puts the field under
+   [ADR-0045](ADR-0045-documented-log-lines.md). An absent or non-string build renders `None`, the
+   same tolerant reading as the result beside it. The line covers one endpoint in one mode
+   (`CORTEX_VISION=auto`); per-completion provenance, a `system_fingerprint` field on
+   `InferenceEvent`, stays open.
+10. **Engine flags stay adapter and runbook concerns, and a flag the build does not know fails the
+    server at startup.** The core never sees a llama.cpp flag or version. A deployment that names
+    no optional setting emits no flag at all rather than the engine's default written out, so an
+    older build starts with the argv it always had.
 
 ## Consequences
 
-- vLLM-specific text in ADR-0001, AGENTS.md, ARCHITECTURE.md, and ROADMAP.md is
-  updated; ADR-0001 d4 carries a supersession note.
-- vLLM's continuous batching / paged-attention throughput is given up. It is irrelevant for
-  a single user; llama.cpp's single-stream latency is what matters here.
-- Swap latency is now dominated by process start + GGUF load from the bind-mounted
-  Windows drive; if that mount is slow, hot models get mirrored into a WSL-side cache
-  (measured in Slice 4, per ROADMAP assumption 2).
-- llama.cpp flags/versions are adapter + runbook concerns; the core never sees them.
+- vLLM's continuous batching and paged attention are given up; for a single user llama.cpp's
+  single-stream latency is what matters.
+- Swap latency is dominated by process start and GGUF load from the model mount.
+- A stack started on a machine with no cached image runs whatever the tag resolves to that day.
+  Each tag resolved to a new digest at each of three registry readings over five days while the
+  cached images here stayed on one build, so a reading's build stays the running one only until
+  somebody pulls.
+- A stall is reported as a stall. A legitimately slow first token under either timeout would be
+  reported as one too, which is why both are set loose: what they remove is "forever", not "slow".
+- Only the cortex endpoint records its build, and only under `CORTEX_VISION=auto`; the subagent
+  servers and the deep model go unrecorded.
+
+## Alternatives rejected
+
+- **vLLM**: experimental GGUF support and a class of WSL2 quirks, for throughput a single user does
+  not need.
+- **One stall timeout for both clients**: it would have to be the CPU tier's number.
+- **Reading the build in another probe.** The trace-setting probe's refusal body contains no
+  fingerprint, so it would need a second request; the model host's readiness probe is a boolean
+  `HealthProbe` polled for minutes during a load; adding a field to a port is a contract change.
+  None of the three is impossible; none was worth waiting for while nothing recorded a build.
+- **An MLX adapter for macOS**, which ADR-0001 anticipated: a Metal build of this engine likely
+  makes it unnecessary.
+
+## Related
+
+- [ADR-0004](ADR-0004-model-lineup.md) (lineup), [ADR-0007](ADR-0007-model-manager-inference.md)
+  (the adapter), [ADR-0030](ADR-0030-brain-handoff.md) (the model host),
+  [ADR-0047](ADR-0047-delegated-run-bound-ordering.md), [ADR-0048](ADR-0048-generation-bounds.md),
+  [ADR-0049](ADR-0049-thinking-switch-and-trace-budget.md),
+  [ADR-0050](ADR-0050-live-probe-records.md).
+- Runbooks: [llamacpp-gpu](../runbooks/llamacpp-gpu.md),
+  [subagents-cpu](../runbooks/subagents-cpu.md), [vision](../runbooks/vision.md).
+- Module contracts: [brain-inference](../modules/brain-inference.md),
+  [brain-orchestrator](../modules/brain-orchestrator.md).
+- Readings: [generation bounds](../readings/generation-bounds.md).
