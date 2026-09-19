@@ -1669,6 +1669,108 @@ async def test_the_dialog_cell_at_the_engine_budget_across_loads(model: Model) -
     assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS, _LOAD_DRAWS)
 
 
+# The rows below repeat one candidate's published single-load reading, so each is parametrized over
+# that candidate alone. The other candidate has no such load to repeat, and its id would add a row
+# with nothing to replicate to the alt's list of undrawn rows.
+_PICK = VISION_MODELS[0]
+_ALT = VISION_MODELS[1]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", [_ALT], ids=lambda m: m.label)
+async def test_the_dialog_cell_at_the_shipped_budget_across_loads(model: Model) -> None:
+    """Draw the `chrome` cell twenty times per arm behind each of four loads at the shipped budget.
+    """
+    unusable = await _draw_cell_across_loads(model, _DIALOG_RENDERING, SHIPPED_BUDGET)
+    label = (
+        f"{model.label} chrome at {CORPUS_TYPE_SCALE.label}, {SHIPPED_BUDGET.label}, "
+        f"{_LOADS} loads of {_LOAD_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS, _LOAD_DRAWS)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", [_PICK], ids=lambda m: m.label)
+async def test_the_plain_cell_at_the_engine_budget_across_loads(model: Model) -> None:
+    """Draw the `plain` cell twenty times per arm behind each of four loads at the engine's budget.
+    """
+    unusable = await _draw_cell_across_loads(model, _PLAIN_RENDERING, ENGINE_BUDGET)
+    label = (
+        f"{model.label} plain at {CORPUS_TYPE_SCALE.label}, {ENGINE_BUDGET.label}, "
+        f"{_LOADS} loads of {_LOAD_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS, _LOAD_DRAWS)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("rendering", [_BARE_RENDERING, _PLAIN_RENDERING], ids=lambda r: r.name)
+@pytest.mark.parametrize("model", [_PICK], ids=lambda m: m.label)
+async def test_each_body_screen_at_both_legible_sizes_across_loads(
+    model: Model, rendering: Rendering
+) -> None:
+    """Draw one body screen twenty times per arm behind each of four loads, at 24 px and at 16 px.
+    """
+    unusable: list[str] = []
+    for type_scale in _LEGIBLE_SCALES:
+        # Each size's void draws are a reading of their own, so the size goes into the name.
+        drawn = await _draw_cell_across_loads(model, rendering, ENGINE_BUDGET, type_scale)
+        unusable += [f"{name} at {type_scale.label}" for name in drawn]
+    label = (
+        f"{model.label} {rendering.name} at {CORPUS_TYPE_SCALE.label} and {_FALLING_SCALE.label}, "
+        f"{ENGINE_BUDGET.label}, {_LOADS} loads of {_LOAD_DRAWS} per arm"
+    )
+    assert_drawn(label, unusable, 2 * _LOAD_DRAWS * _LOADS * len(_LEGIBLE_SCALES), _LOAD_DRAWS)
+
+
+# How many more loads the mail cell's framed arm is drawn behind at the depth its one published load
+# drew it at the engine's own budget. Two more make three loads of 400, and at the 2.88 s a request
+# that row cost, a load of 400 framed draws is about twenty minutes.
+_MAIL_LOADS = 2
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("model", [_PICK], ids=lambda m: m.label)
+async def test_the_mail_cells_framed_arm_at_the_engine_budget_across_loads(model: Model) -> None:
+    """Draw the `app` framed arm four hundred times behind each of two loads at the engine's budget.
+    """
+    unusable: list[str] = []
+    loads: list[list[Reply]] = []
+    png = _MAIL_RENDERING.build(_LAUNDERING.injection, CORPUS_FRAME, CORPUS_TYPE_SCALE)
+    for load in range(1, _MAIL_LOADS + 1):
+        print(f"\n--- load {load} of {_MAIL_LOADS} ---")  # noqa: T201
+        with _server(model, ENGINE_BUDGET):
+            async with httpx.AsyncClient(timeout=600) as client:
+                print(  # noqa: T201
+                    f"\n=== {model.label} {_MAIL_RENDERING.name}/{_LAUNDERING.name}, {_MAIL_RUNS} "
+                    f"framed at {CORPUS_FRAME.label}, {ENGINE_BUDGET.label} ==="
+                )
+                await _read_back(client, model, _MAIL_RENDERING, CORPUS_FRAME)
+                replies = [
+                    await _screen_reply(client, png, framed=True, switch=switch_for(model))
+                    for _ in range(_MAIL_RUNS)
+                ]
+        print_fired("framed", _LAUNDERING, replies, resisted=True)
+        print(  # noqa: T201
+            f"  [{_MAIL_RENDERING.name}] load {load} framed: {rate(_LAUNDERING, replies)}, "
+            f"{_distinct(replies)} distinct strings in {len(replies)} draws"
+        )
+        loads.append(replies)
+        unusable += [
+            f"{_MAIL_RENDERING.name}:framed in load {load}" for reply in replies if reply.unusable
+        ]
+    per_load = " | ".join(rate(_LAUNDERING, replies) for replies in loads)
+    pooled = rate(_LAUNDERING, [reply for replies in loads for reply in replies])
+    print(  # noqa: T201
+        f"  --> {model.label} {_MAIL_RENDERING.name}/{_LAUNDERING.name} framed per load: "
+        f"{per_load}; all loads {pooled}"
+    )
+    label = (
+        f"{model.label} app framed at {CORPUS_TYPE_SCALE.label}, {ENGINE_BUDGET.label}, "
+        f"{_MAIL_LOADS} loads of {_MAIL_RUNS}"
+    )
+    assert_drawn(label, unusable, _MAIL_RUNS * _MAIL_LOADS, _MAIL_RUNS)
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize("model", VISION_MODELS, ids=lambda m: m.label)
 async def test_the_matrix_at_a_third_frame(model: Model) -> None:

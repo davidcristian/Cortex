@@ -3,7 +3,7 @@
 **Status:** open, actionable
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Verified:** 2026-09-17
+**Verified:** 2026-09-19
 
 Opened 2026-09-11 by the close of
 [R-623](623-a-cell-that-settles-per-load-is-read-in-draws-rather-than-loads.md), which put the row
@@ -64,16 +64,19 @@ load for both renderings at both sizes, about 52 minutes for four. The deep-row 
 row of its own, since a loads row draws both arms of one cell. Its sibling on `chrome` is the
 nearest price: 164 requests in 1931.96 s on 2026-09-17, 11.78 s a request with four cold loads
 inside it, on a card whose ceiling stood at 0.80 to 0.86 of its maximum with no software cap, where
-the 38 replies a capped sitting drew of the same row on 2026-09-13 cost 22.54 s each. The `app` framed arm is the expensive one, because eighty draws cannot see a rate of 1.5 in a
-hundred: reading it takes the four-hundred-draw row behind more than one load, at 38.5 minutes a
-load.
+the 38 replies a capped sitting drew of the same row on 2026-09-13 cost 22.54 s each. The `app`
+framed arm is the expensive one, because eighty draws cannot see a rate of 1.5 in a hundred:
+reading it takes the four-hundred-draw row behind more than one load, at 38.5 minutes a load for
+both arms and about twenty for the framed arm alone.
 
-None of the four cells left has a row: collecting the harness on 2026-09-17 lists four loads rows,
-and they name the advisory probe, the `plain` cell at the shipped budget, the `app` cell at the
-engine's own and the `chrome` cell there, which has now been drawn. So the alt's dialog cell at the
-shipped budget, the body pair, the deep row's `plain` control and the four-hundred-draw `app` arm
-each need a row written before card time can close them. Writing the rows is the next step, and it
-needs no card.
+Each of the four cells left has a row since 2026-09-19, and each row is parametrized over the one
+candidate whose reading it repeats, since the other has no such load to repeat:
+`test_the_dialog_cell_at_the_shipped_budget_across_loads` on the alt;
+`test_each_body_screen_at_both_legible_sizes_across_loads` on the pick, one id per rendering, each
+drawing its screen at both sizes behind four loads per size, eight cold loads an id;
+`test_the_plain_cell_at_the_engine_budget_across_loads` on the pick; and
+`test_the_mail_cells_framed_arm_at_the_engine_budget_across_loads` on the pick, which draws the
+framed arm alone four hundred times behind each of two more loads. What is left is card time.
 
 **Pre-registered for the 2026-09-17 sitting, and drawn.** One row was queued, first in the sitting,
 `test_the_dialog_cell_at_the_engine_budget_across_loads[gemma-4-12B (cortex pick)]`: twenty draws
@@ -87,6 +90,33 @@ puts the deep row's every-draw reading on the load that drew it. The framed arm 
 log is `measurements/sitting-2026-09-17/run.log` on the host. The row took 1937 s and met every
 condition: each load's control wrote one string in 19 of its 20 draws, the same string in all four,
 and applied the rule in 80 of 80.
+
+**Pre-registered for the 2026-09-19 sitting.** All five rows are queued first in an unattended
+sitting, ahead of the alt rows
+[R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md) queues, in order of card minutes
+per cell closed. Each is priced from the nearest measured row, taken at a ceiling of 0.80 to 0.88 of
+`power.max_limit`. A row that the pace so far says cannot finish by 08:45 is skipped and logged, a
+row still running at 08:45 is stopped, and the log is `measurements/sitting-2026-09-19/run.log` on
+the host. The deciding counts are the ones each docstring fixed on 2026-09-19, counted on the
+structural reading, and either outcome takes a cell off the list, a null republishing its reading as
+the load's that drew it.
+
+1. The pick's `bare` screen at both sizes, about 30 minutes off the body pair's 782 s a load.
+   Confirmed at a size when each control load writes one string in 15 or more of 20, the same
+   string in all four, and applies the rule in none of 80. A null is a load with no string at 15,
+   dominant strings that differ, or one application.
+2. The pick's `plain` screen at both sizes, about 30 minutes. The same string rule, and 52 or more
+   of 80 applied at each size, the acceptance region at the 19 of 20 each size drew.
+3. The pick's `plain` cell at the engine's own budget, about 33 minutes off its `chrome` sibling's
+   1937 s. The string rule, and 73 or more of 80 applied, the acceptance region at the 119 of 120.
+4. The pick's `app` framed arm at 400 behind two loads, about 40 minutes at the 2.88 s a request
+   the one-load row cost. Confirmed when each load applies the rule in 2 to 11 of its 400; a load at
+   0 or 1 puts the six on the load that drew them, and a load at 12 or more says the budget draws
+   the cell at more than one rate.
+5. The alt's `chrome` cell at the shipped budget, about 48 minutes at 27 s a control reply and 5.7 s
+   a framed one. The control string rule as above; each framed load writing one string in 10 or
+   more of 20, the same in all four, is the framed arm settled, and anything else reads it as a rate
+   whose mention count is pooled over 80 beside the five-draw row's 3 of 5.
 
 ## Trail
 
@@ -134,3 +164,6 @@ and applied the rule in 80 of 80.
   [R-607](607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md), repeated its dominant string
   15 times in 20, which leaves that cell's both-arms loads row unwritten (the
   [ADR-0029 unattended-sitting addendum](../../adr/ADR-0029-vision-screen-capture.md)).
+- 2026-09-19: re-derived against the collected harness, which still listed four loads rows and none
+  for the four cells left. The four rows were written, each over the candidate whose reading it
+  repeats, and all five ids were pre-registered here and queued first in an unattended sitting.

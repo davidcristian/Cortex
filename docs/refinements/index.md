@@ -68,8 +68,8 @@ never a reading of what the tree does now.
 ### Actionable now (3)
 
 - **[R-117](tasks/117-mtp-model-variants.md)** MTP (multi-token-prediction) model variants (inference-model-manager). Its claim was re-derived from the code on 2026-09-17.
-- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Fifteen of the cortex alt's thirty-five pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-17.
-- **[R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md)** The cells whose published reading is one load's answer are undrawn across loads (vision). Its claim was re-derived from the code on 2026-09-17.
+- **[R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md)** Sixteen of the cortex alt's thirty-six pixel rows are undrawn or refused (inference). Its claim was re-derived from the code on 2026-09-19.
+- **[R-630](tasks/630-the-settled-cells-are-undrawn-across-loads.md)** The cells whose published reading is one load's answer are undrawn across loads (vision). Its claim was re-derived from the code on 2026-09-19.
 
 ### Actionable, once a seam or port changes (7)
 
@@ -425,7 +425,7 @@ never a reading of what the tree does now.
 - [R-586](tasks/586-the-cortex-alts-pixel-rows-are-undrawn-now-that-its-artifact-loads.md) The cortex alt's pixel rows are undrawn now that its artifact loads. landed 2026-09-07.
 - [R-587](tasks/587-one-cell-reads-differently-in-the-two-rows-of-one-sitting.md) One cell reads differently in the two rows of one sitting. landed 2026-09-06.
 - [R-598](tasks/598-the-leaks-denominator-is-53-in-one-place-and-58-in-three.md) The leak's denominator is 53 in the runbook and 58 in the three other places that publish it. landed 2026-09-08.
-- [R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md) Fifteen of the cortex alt's thirty-five pixel rows are undrawn or refused. open, actionable.
+- [R-607](tasks/607-eighteen-of-the-cortex-alts-pixel-rows-are-undrawn.md) Sixteen of the cortex alt's thirty-six pixel rows are undrawn or refused. open, actionable.
 - [R-608](tasks/608-the-cost-rows-assertions-are-the-picks-saturation-and-the-alt-fails-both.md) The cost row's assertions are the pick's saturation and the alt fails both. landed 2026-09-10.
 - [R-611](tasks/611-nothing-reads-the-build-the-engine-names-on-every-response.md) Nothing reads the build the engine names on every response. landed 2026-09-10.
 - [R-617](tasks/617-the-picks-published-cpu-row-was-drawn-before-the-memory-cap.md) The pick's published CPU row was drawn before the memory cap. landed 2026-09-10.

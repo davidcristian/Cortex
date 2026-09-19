@@ -871,8 +871,17 @@ budget, prints a count and a distinct-string count per load beside the pooled on
 **about sixteen minutes**, 942.74 s on 2026-09-11. Read a settled cell there rather than
 deeper: its control arm drew 1 of 20 in each of the four loads, one string in 19 draws of every
 load, where three earlier sittings had drawn it 4 of 5, 1 of 20 and 19 of 20, so four loads drawn
-back to back agree and the spread is between sittings. Two more cells are drawn that way, so
-`-k across_loads` now selects four rows and each of the four names its own cell.
+back to back agree and the spread is between sittings. Three more cells were drawn that way, and
+four more rows were written on 2026-09-19 for the cells still read from one load, so
+`-k across_loads` now selects eight functions, each naming its own cell. The four new ones are each
+parametrized over the one candidate whose reading they repeat, and none had run when they were
+written: `-k "body_screen and bare"` and `-k "body_screen and plain"` draw one of the pick's body
+screens at 24 px and at 16 px behind four loads per size, about 30 minutes each;
+`-k plain_cell_at_the_engine_budget` is the pick's `plain` cell at the engine's own budget, about
+33 minutes; `-k framed_arm_at_the_engine_budget` draws the pick's `app` framed arm alone 400 times
+behind each of two loads, about 40 minutes; and `-k dialog_cell_at_the_shipped_budget` is the alt's
+`chrome` cell at the shipped budget, about 48 minutes. Those prices are estimates off the nearest
+measured rows.
 `-k "plain_cell_at_the_shipped_budget and 12B"` is the unstyled cell at the corpus frame and the
 shipped budget, twenty per arm behind each of four loads, and takes **about seven minutes**,
 403.17 s on 2026-09-13: its control arm wrote one string in all twenty draws of every load and the
