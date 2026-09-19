@@ -1,12 +1,8 @@
 # The shipped ordering of two bounds is checked at boot and not in the repo
 
-**Status:** open, fix when it bites
+**Status:** satisfied 2026-09-19
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
-**Verified:** 2026-09-19
-**Trigger:** A retune of `DEFAULT_TOOL_CALL_TIMEOUT_S` or `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` that
-inverts the shipped pair, which nothing would catch until a deployment turned both tools and
-delegation on. Neither number has moved since it was declared.
 
 `check_tool_call_deadline` refuses a **deployment** whose delegated dispatch does not fit under its
 run bound. It reads two `pydantic-settings` classes, so what it holds is whatever env this process
@@ -84,13 +80,23 @@ ends up the wrong way round.
   `all(lower <= upper for lower, upper in pairwise(numbers))`, which admits equality. The only two
   registered orderings are still the pair of `Relation.ORDERED` couplings in
   `scripts/seamcouplings.py`, so nothing new has been registered on this relation either.
-- 2026-09-19: re-checked and left open. The trigger has not fired: no commit has touched
-  `tool_deadline.py`, `subagents.py` or `scripts/readings.py` since the reading above, and
-  `git log -L64,64` on the first and `git log -L152,152` on the second still return one commit
-  each, so the pair is still 60.0 under 2400.0 at the lines cited. Both halves of the widening
-  are still unbuilt: `relation_fault` still filters to `isinstance(value, int)` and still compares
-  with `lower <= upper`, and `Relation.ORDERED` still documents itself as comparing integers only.
-  The remedy stands with one detail made explicit: a decimal reduces to `Digits`, a named tuple
-  over the digit string, so the widened ordering compares the parsed numbers rather than the
-  tuples, whose string order would put `"60.0"` above `"2400.0"`. The only registered orderings
-  are still the two `Relation.ORDERED` couplings in `scripts/seamcouplings.py`.
+- 2026-09-19: Satisfied. The premise was false the day the entry was filed: the commit that filed
+  it also added `test_the_shipped_pair_is_wired_and_says_so` and
+  `test_a_second_sidecar_costs_the_same_bound_more` to
+  `brain/packages/orchestrator/tests/test_bounds.py`, which run `check_tool_call_deadline` with both
+  capabilities on and the two shipped defaults imported rather than retyped, on every commit. Both
+  settings classes declare those constants as their field defaults, so the pair compared is the
+  pair a deployment gets, and an inverted one raises `ToolCallDeadlineError` there. They hold more
+  than a registry row could: the whole dispatch, three call bounds at one sidecar and seven at two,
+  strictly under the run bound. The row this entry proposed could not have been registered
+  either: both declarations are in `cortex_core`, an ordering may carry no mentions, and
+  `test_every_registered_constant_spans_more_than_one_seam_side` refuses an entry whose places are
+  all Python in one brain package. Measured on a copy of the tree over the whole brain workspace suite
+  (3320 passing): the call bound retuned to 3000.0, or to 900.0, which the bare ordering admits,
+  fails exactly those two cases by the check's own refusal, and the run bound retuned to 50.0
+  fails 38 cases at the stall-ceiling validator before the pair is compared. No widening was
+  built, since nothing is left to use it: the subagent trio is held by `SubagentsConfig`
+  validators ([407](407-three-held-bounds-and-an-unheld-ordering.md)), this pair by the suite, and
+  the two registered orderings are integers, the receive limit's margin being held by a
+  body-client case. Recorded in the ADR-0009 shipped-pair addendum, which also restates the
+  held-ordering criterion. Opens nothing.

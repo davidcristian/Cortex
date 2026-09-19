@@ -774,7 +774,11 @@ The service:
   the **first** wedged dispatch reaches the loop as a `ToolError` instead of being cut mid call and
   reported as a runaway subtask; it promises nothing about the run finishing, a run making many
   dispatches. The config is handed straight back, so the root gates on the way through, and it is
-  gated at the env read before any adapter is built, so a refusal releases nothing.
+  gated at the env read before any adapter is built, so a refusal releases nothing. The repo's
+  own pair is held on every commit by two `test_bounds.py` cases that run this check with both
+  capabilities on and the shipped defaults imported, one sidecar and two, so a retune that inverts
+  the pair fails the orchestrator suite; keep those defaults imported there rather than retyped
+  (ADR-0009 shipped-pair addendum).
 - `run_from_env() -> None` (async) is the composition root. It reads the env configs, gates the
   delegation config through `check_tool_call_deadline` as it reads it, and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
