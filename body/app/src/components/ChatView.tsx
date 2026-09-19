@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef } from "react";
 
+import type { DueReminder } from "../bridge/types";
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
 import { RECENT_CHATS } from "../overlay/notice";
@@ -21,7 +22,8 @@ import { ThemeIcon } from "./ThemeIcon";
 
 export interface ChatViewProps {
   readonly state: OverlayState;
-  /** The column the panel renders this view into, where the log listens for a roll in the chrome. */
+  /** The column the panel renders this view into, where the log listens for a roll in the
+   *  chrome. */
   readonly column: RefObject<HTMLElement | null>;
   readonly open: boolean;
   readonly dark: boolean;
@@ -36,24 +38,20 @@ export interface ChatViewProps {
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  /** Load a chat. Whether the swap is announced depends on which control opened it, and this view
-   *  holds both: a switcher row passes false and a reminder's open control passes true
-   *  (`notice.ts`). */
+  /** Load a chat. `announce` decides whether the live region says which chat arrived. */
   readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
   readonly onPinSession: (sessionId: string, pinned: boolean) => void;
   readonly onRespondConfirm: (confirmId: string, approved: boolean) => void;
-  readonly onDismissReminder: (reminderId: string) => void;
+  readonly onDismissReminder: (reminder: DueReminder) => void;
 }
 
-/** Example prompts on the empty state; tapping one submits it. Real capabilities only. */
+/** Example prompts on the empty state; tapping one submits it. */
 const EXAMPLE_PROMPTS = ["Summarize my unread email", "Remind me to stretch in 20 minutes"];
 
-/**
- * The panel's resting view: header, the roll-open sections, the scrolling history, the composer,
- * and the shortcut hints.
- */
+/** The panel's resting view: header, the roll-open sections, the scrolling history, the composer,
+ *  and the shortcut hints. The history follows the stream unless the reader has scrolled up. */
 export function ChatView({
   state,
   column,
@@ -75,25 +73,30 @@ export function ChatView({
   onRespondConfirm,
   onDismissReminder,
 }: ChatViewProps) {
-  // The chat is the view on screen while no console tab is up, and a view change is the one thing
-  // the log's scroll position cannot survive on its own (`useLogScroll`).
   const showing = state.consoleTab === null;
   const log = useLogScroll(showing, column);
 
+  // Where each list sends the caret when it runs out of rows. Deleting the last other chat leaves
+  // the switcher open and empty, so the caret goes back to the control that opened it; acking the
+  // last reminder removes the whole stack, so the caret goes to the field.
   const chatsButton = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLTextAreaElement>(null!);
 
-  // Follow the stream: each message change (and the approval card) scrolls the tail into view,
-  // unless the reader has scrolled up to read (then their place holds until they return).
   useEffect(log.toTail, [log.toTail, state.messages, state.pendingConfirm]);
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
     <>
       <header className="head">
+        {/* The capture ring comes before the connection dot for a layout reason: the title is the
+            row's only flexible item, so a fixed item next to it costs the title 17px and moves
+            nothing else, while on the far side the dot and all four buttons would slide left. */}
         <span className="title">{state.title}</span>
         <CaptureDot claim={state.capture} />
         <LinkDot link={state.link} />
+        {/* `aria-expanded` is all this control says about the list, which is why the key
+            announces what the list holds and this button does not: pressing the button reads the
+            state back under the reader's own caret. Its name comes from one place for all three. */}
         <button
           className="hbtn"
           ref={chatsButton}
@@ -118,19 +121,19 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
-          // The list places the caret for its own closing as well as for its own rows, and both
-          // land on the anchor below (`overlay/sectionCaret.ts`). `arrival` is how it skips the
-          // closings that are really chat swaps.
           open={state.switcherOpen}
           arrival={state.arrival}
           anchor={chatsButton}
-          // Not announced: the row's own label is the chat's name, so announcing would read it back.
+          // Not announced: the row's label is the chat's name, so announcing would read it back.
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
           onRename={onRenameSession}
           onDelete={onDeleteSession}
           onPin={onPinSession}
         />
       </Collapse>
+      {/* Keyed by the chat, because a new chat is a content swap rather than a section toggle:
+          rolling the stack open in the render that empties the log ran against the panel's own
+          ease. Within one chat the key does not change, so a reminder arriving still rolls. */}
       <Collapse
         aside
         key={state.sessionId}
@@ -141,29 +144,31 @@ export function ChatView({
           currentId={state.sessionId}
           anchor={field}
           onDismiss={onDismissReminder}
-          // Announced: the control is labelled "open chat" rather than with the chat's name, so the
-          // title the reader lands on has not been read out yet.
+          // Announced: the control is labelled "open chat", not with the chat's name, so the
+          // title the reader arrives on has not been read out yet.
           onOpen={(sessionId) => onSelectSession(sessionId, true)}
         />
       </Collapse>
       <div className="history" ref={log.ref} onScroll={log.onScroll}>
+        {/* The history's floor (`--chat-floor`) is on this inner column, not on the scroll box: a
+            floor on `.history` pushed the composer past the panel's clipped edge. `bare` lets the
+            one case that holds only the empty state shrink, so an opening screen does not scroll. */}
         <div className={`log${state.messages.length === 0 && state.pendingConfirm === null ? " bare" : ""}`}>
           {state.messages.length === 0 ? (
-            // The floor is measured off this element, which is present for the whole life of an
-            // empty chat and is removed as the first message lands (overlay/measured.ts).
+            // The chat floor is measured off this element, which is there for the whole life of
+            // an empty chat and goes away with the first message.
             <div className="empty" ref={chatFloorRef}>
               <button
                 className="markbtn"
                 onClick={() => onToggleConsole("appearance")}
-                // Named for where it lands, the console's appearance tab. The settings sheet this
-                // used to open is gone, and an accessible name is the one place a stale view name
-                // would still be read out after a rename.
                 aria-label={`Mark: ${mark.label}. Open appearance`}
                 type="button"
               >
                 <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
               </button>
               <p className="empty-line">Ask me anything</p>
+              {/* Pressing a chip unmounts it with the rest of the empty state, and it is in no
+                  list with a next row to take the caret, so it hands the caret to the field. */}
               <div className="empty-chips">
                 {EXAMPLE_PROMPTS.map((prompt) => (
                   <button
@@ -181,9 +186,8 @@ export function ChatView({
               </div>
             </div>
           ) : null}
-          {/* The whisper's drain outlives the turn's last render (ADR-0037), so a streamed bubble
-              reports its growth and the tail pin responds as it does for a new message: a pinned
-              reader follows, and a reader who scrolled up holds their place. */}
+          {/* The whisper drains after the turn's last render, so a streamed bubble reports its
+              growth and the history follows it as it does a new message. */}
           {state.messages.map((message) => (
             <Message key={message.id} message={message} onGrow={log.toTail} />
           ))}
@@ -192,6 +196,9 @@ export function ChatView({
           ) : null}
         </div>
       </div>
+      {/* The composer takes focus on every change of conversation, so returning from the console
+          puts the caret back in the draft rather than on a tab strip about to be hidden. */}
+      {/* Null while the console is over the chat, so no focus moves behind it. */}
       <Composer
         field={field}
         busy={isTurnActive(state)}
@@ -200,6 +207,9 @@ export function ChatView({
         onSubmit={onSubmit}
         onDraft={onDraft}
         onStop={onStop}
+        // Growing the pill shortens the log: they are flex siblings and the log yields, while the
+        // engine leaves `scrollTop` where it was. At a 720px window a two-line draft left the
+        // newest reply 52px below the visible edge, and a full field 122px.
         onResize={log.toTail}
       />
       <HintStrip onToggleConsole={onToggleConsole} />

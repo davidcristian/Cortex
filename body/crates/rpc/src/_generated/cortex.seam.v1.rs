@@ -10,13 +10,13 @@ pub struct ClientEvent {
 pub mod client_event {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Event {
-        /// text (+ optional attached capture) from the overlay
+        /// text, and an attached capture when there is one
         #[prost(message, tag = "2")]
         UserTurn(super::UserTurn),
         /// stop generating the current turn
         #[prost(message, tag = "3")]
         Cancel(super::Cancel),
-        /// the user's answer to a ConfirmRequest (ADR-0022)
+        /// the user's answer to a ConfirmRequest
         #[prost(message, tag = "4")]
         ConfirmResponse(super::ConfirmResponse),
     }
@@ -25,7 +25,7 @@ pub mod client_event {
 pub struct UserTurn {
     #[prost(string, tag = "1")]
     pub text: ::prost::alloc::string::String,
-    /// e.g. a screen capture the user attached
+    /// for example a screen capture the user attached
     #[prost(message, repeated, tag = "2")]
     pub images: ::prost::alloc::vec::Vec<ImageBlob>,
 }
@@ -43,23 +43,23 @@ pub mod server_event {
         /// streamed assistant tokens
         #[prost(message, tag = "1")]
         TextDelta(super::TextDelta),
-        /// "reading email...", audit-visible tool use
+        /// a tool is about to run
         #[prost(message, tag = "2")]
         ToolActivity(super::ToolActivity),
-        /// model swap in progress, queue position, etc.
+        /// a model swap in progress, a queue position
         #[prost(message, tag = "3")]
         Status(super::StatusUpdate),
         #[prost(message, tag = "4")]
         TurnComplete(super::TurnComplete),
         #[prost(message, tag = "5")]
         Error(super::SeamError),
-        /// a gated tool call awaits user approval (ADR-0022)
+        /// a tool call is waiting for the user's approval
         #[prost(message, tag = "6")]
         ConfirmRequest(super::ConfirmRequest),
-        /// the brain stopped waiting for an answer (ADR-0022)
+        /// the brain stopped waiting for an answer
         #[prost(message, tag = "7")]
         ConfirmResolved(super::ConfirmResolved),
-        /// how a dispatch already announced above ended (ADR-0029)
+        /// how a tool call announced above ended
         #[prost(message, tag = "8")]
         ToolOutcome(super::ToolOutcome),
     }
@@ -76,34 +76,9 @@ pub struct ToolActivity {
     #[prost(string, tag = "2")]
     pub summary: ::prost::alloc::string::String,
 }
-/// How one announced dispatch ENDED, emitted after it resolves (ADR-0029 outcome addendum).
-/// ToolActivity says a tool is about to run and ToolOutcome says how it went, so the pair is
-/// one dispatch seen twice: the brain emits exactly one outcome per activity THE TURN ITSELF
-/// DISPATCHED, on every path out of that dispatch including the gate denials and the tool's own
-/// failures. It exists for the overlay's screen-capture indicator, which is one of
-/// the consent surfaces that let capture ship without an approval card, and which could
-/// otherwise only say the assistant ASKED to look at the screen.
-///
-/// The pairing is a property of the turn's own dispatches and NOT of this stream, and a reader
-/// must not count it as one (ADR-0029 delegated-pairing addendum). A turn that delegates also
-/// surfaces its subagents' tool steps here, as ToolActivity through the progress side channel
-/// (ADR-0010 progress addendum), and those arrive unsettled: the one surface an outcome feeds is
-/// over a built-in no subagent can be handed, and the side channel is best effort and drops an
-/// event on a full buffer, so pairing across it could not be promised anyway. An activity with
-/// no outcome behind it is therefore ordinary, and the proto3 default below is what makes it
-/// safe: a surface that never hears how a step ended keeps the weaker claim it already made.
-///
-/// `ok` is the audit trail's own verdict (`ToolInvocation.ok`, the negation of the result's
-/// is_error), so the consent surface and the audit log cannot disagree about the same dispatch.
-/// It is a bit rather than a taxonomy because the indicator has exactly two honest rungs. The
-/// proto3 default is the safe one: a missing or unread outcome reads false, which leaves an
-/// indicator at the weaker claim it already makes rather than promoting it.
-///
-/// An outcome may only ever STRENGTHEN what a surface claims, never retract it. A capture that
-/// failed after the shutter fired (a reply the brain refused for breaking the bounds it asked
-/// for, a deadline that expired after the body had already read the display and shown its own
-/// receipt) is indistinguishable here from one that never happened, so `ok=false` means "this
-/// side cannot say the screen was read", never "your screen was not read".
+/// How one announced tool call ended. A subagent's steps also reach this stream as activities,
+/// over a channel that drops events when full, so an activity with no outcome is ordinary and
+/// the proto3 default false is the safe reading: it leaves a surface at its weaker claim.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ToolOutcome {
     #[prost(string, tag = "1")]
@@ -130,23 +105,21 @@ pub struct SeamError {
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
-/// Out-of-band user confirmation of a gated (outbound/irreversible) tool call (ADR-0022).
-/// The brain emits ConfirmRequest mid-turn on the Converse stream and suspends the tool
-/// call until the matching ConfirmResponse arrives, the timeout denies, or the stream
-/// dies (deny). The human authorizes, never the model: an unanswered or unmatched
-/// request always resolves as a denial (fail-closed, ADR-0013).
+/// The user's approval of an outbound or irreversible tool call. The brain emits ConfirmRequest
+/// mid-turn and suspends the call until the matching ConfirmResponse arrives, the timeout denies
+/// it, or the stream dies. An unanswered or unmatched request always ends as a denial.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ConfirmRequest {
     /// correlation id, minted per request by the brain
     #[prost(string, tag = "1")]
     pub confirm_id: ::prost::alloc::string::String,
-    /// what would run, e.g. "send_email"
+    /// what would run, for example "send_email"
     #[prost(string, tag = "2")]
     pub tool_name: ::prost::alloc::string::String,
     /// the exact draft being approved, one JSON object
     #[prost(string, tag = "3")]
     pub arguments_json: ::prost::alloc::string::String,
-    /// why confirmation is required, shown verbatim
+    /// why confirmation is required, shown to the user as written
     #[prost(string, tag = "4")]
     pub reason: ::prost::alloc::string::String,
 }
@@ -158,18 +131,15 @@ pub struct ConfirmResponse {
     #[prost(bool, tag = "2")]
     pub approved: bool,
 }
-/// A ConfirmRequest the brain stopped waiting on, so the overlay can close a card the
-/// user can no longer answer (ADR-0022 resolution addendum). Emitted ONLY for endings
-/// the client cannot already know: the confirm timeout, and client input half-closing.
-/// Never for the user's own answer (the client authored it), never for a cancelled or
-/// torn-down turn (its terminal event closes the card), and never for a call refused
-/// after half-close (no request went out, so no card exists).
+/// A ConfirmRequest the brain stopped waiting on, so the overlay can close a card the user can no
+/// longer answer. Emitted only for endings the client cannot already know: the confirm timeout,
+/// and client input half-closing.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ConfirmResolved {
     /// which ConfirmRequest ended
     #[prost(string, tag = "1")]
     pub confirm_id: ::prost::alloc::string::String,
-    /// "timeout" | "unavailable"; explains, never authorizes
+    /// "timeout" or "unavailable"; it explains, it never approves
     #[prost(string, tag = "2")]
     pub outcome: ::prost::alloc::string::String,
 }
@@ -182,8 +152,7 @@ pub struct HealthReply {
     #[prost(string, tag = "2")]
     pub detail: ::prost::alloc::string::String,
 }
-/// Recent chats, most-recently-active first (ADR-0021). `limit` caps the count;
-/// 0 means the server default.
+/// Recent chats, most-recently-active first. `limit` caps the count; 0 means the server default.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ListSessionsRequest {
     #[prost(int32, tag = "1")]
@@ -207,11 +176,11 @@ pub struct SessionSummary {
     /// for a relative timestamp in the switcher
     #[prost(int64, tag = "4")]
     pub last_activity_unix_ms: i64,
-    /// the user pinned this chat above the recency window (unioned in)
+    /// listed whatever its age, above the chats sorted by recency
     #[prost(bool, tag = "5")]
     pub pinned: bool,
 }
-/// One session's persisted history, in append order (ADR-0021).
+/// One session's stored history, in append order.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetSessionMessagesRequest {
     #[prost(string, tag = "1")]
@@ -224,7 +193,7 @@ pub struct GetSessionMessagesReply {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SessionMessage {
-    /// "user" | "assistant" (the only persisted roles)
+    /// "user" or "assistant", the only stored roles
     #[prost(string, tag = "1")]
     pub role: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -234,10 +203,9 @@ pub struct SessionMessage {
     #[prost(int64, tag = "4")]
     pub at_unix_ms: i64,
 }
-/// Rename one chat (ADR-0021 management addendum). `title` is the new display label; ""
-/// clears any custom/brain-generated title so the switcher falls back to the first-message
-/// derivation. The reply is a bare acknowledgement (the overlay re-lists to see the change);
-/// a store failure surfaces as an `UNAVAILABLE` RPC status, the session-read precedent.
+/// Renames one chat. `title` is the new display label, and "" clears any custom or
+/// brain-generated title. The reply is a bare acknowledgement; a store failure arrives as an
+/// UNAVAILABLE status.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RenameSessionRequest {
     #[prost(string, tag = "1")]
@@ -247,13 +215,9 @@ pub struct RenameSessionRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RenameSessionReply {}
-/// Delete one chat (ADR-0021 management addendum). Destructive and irreversible: the brain
-/// hard-deletes the transcript and catalog entry and cascades to the session's private memories.
-/// The reply is a bare acknowledgement (the overlay drops the row and re-lists); a store or memory
-/// failure surfaces as an `UNAVAILABLE` RPC status, the session-read precedent, and the operation
-/// is idempotent, so a retry after such a failure heals cleanly. The one exception is a memory
-/// reply the brain could not decode, which surfaces as `INTERNAL`: the store answered, so nothing
-/// is unavailable and no later attempt reads it differently.
+/// Deletes one chat, its transcript and its private memories. The reply is a bare
+/// acknowledgement; a store or memory failure arrives as UNAVAILABLE and the call is idempotent,
+/// so a later attempt finishes it. A memory reply the brain cannot decode arrives as INTERNAL.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteSessionRequest {
     #[prost(string, tag = "1")]
@@ -261,10 +225,8 @@ pub struct DeleteSessionRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteSessionReply {}
-/// Pin or unpin one chat (ADR-0021 management addendum). `pinned` is the target state (true pins,
-/// false unpins); a pinned chat is always listed, above the recency group. The reply is a bare
-/// acknowledgement (the overlay re-lists to reflect it); a store failure surfaces as an
-/// `UNAVAILABLE` RPC status, the session-read precedent, and the write is idempotent by value.
+/// Sets or clears the `pinned` mark on one chat. The reply is a bare acknowledgement; a store
+/// failure arrives as an UNAVAILABLE status. Setting the same value twice changes nothing.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SetSessionPinnedRequest {
     #[prost(string, tag = "1")]
@@ -274,8 +236,8 @@ pub struct SetSessionPinnedRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SetSessionPinnedReply {}
-/// The user's settings record. One pair is one setting; the brain stores and returns them
-/// verbatim and never parses a value, so adding a preference costs no wire change.
+/// The user's settings record. One pair is one setting; the brain stores and returns them as
+/// given and never reads a value, so adding a setting costs no change here.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Preference {
     #[prost(string, tag = "1")]
@@ -299,9 +261,9 @@ pub struct SetPreferenceRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SetPreferenceReply {}
-/// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
-/// a single-user assistant has one user to remind; session_id rides along so the
-/// overlay can later offer "open the conversation this came from" without a wire change.
+/// Reminders that have fired and are still undelivered, across every session, because a
+/// single-user assistant has one user to remind. session_id is sent too, so the overlay can later
+/// offer to open the conversation a reminder came from without a change here.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ListDueRemindersRequest {}
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -320,10 +282,10 @@ pub struct DueReminder {
     pub fired_at_unix_ms: i64,
     #[prost(bool, tag = "4")]
     pub recurring: bool,
-    /// untrusted provenance, so the overlay may badge it
+    /// untrusted origin, so the overlay may mark it
     #[prost(bool, tag = "5")]
     pub tainted: bool,
-    /// origin chat, filled at creation; "" for session-less callers
+    /// the chat it came from; "" when there was none
     #[prost(string, tag = "6")]
     pub session_id: ::prost::alloc::string::String,
 }
@@ -331,6 +293,11 @@ pub struct DueReminder {
 pub struct AckReminderRequest {
     #[prost(string, tag = "1")]
     pub reminder_id: ::prost::alloc::string::String,
+    /// Which fire this ack delivers, from the card's DueReminder.fired_at_unix_ms. The brain
+    /// clears the slot only while it still holds that fire, so a card dismissed after a later fire
+    /// replaced it clears nothing. 0, from a body built before this field, acks whichever is held.
+    #[prost(int64, tag = "2")]
+    pub fired_at_unix_ms: i64,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AckReminderReply {
@@ -340,21 +307,17 @@ pub struct AckReminderReply {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CaptureScreenRequest {
     /// Longest edge of the returned image, in physical pixels. 0 means "the body's
-    /// default" (1600). The body clamps it and, being proto3, may ignore it entirely,
-    /// so it is a hint the brain re-verifies on receipt, never a guarantee (ADR-0029).
+    /// default" (1600). The body clamps it and, being proto3, may ignore it, so the brain checks
+    /// the reply rather than relying on it.
     #[prost(uint32, tag = "1")]
     pub max_edge: u32,
-    /// What to point at. The body honours this field as of the same commit that
-    /// declared it: proto3 lets an older body ignore an unknown field, so a knob no
-    /// shipping body reads is a silent lie about a constraint the brain believes it
-    /// set. An unrecognized value reads as CAPTURE_TARGET_DISPLAY, which is v1.
+    /// What to point at. A body older than this field ignores it, so the brain checks the reply.
+    /// An unrecognized value reads as CAPTURE_TARGET_DISPLAY.
     #[prost(enumeration = "CaptureTarget", tag = "2")]
     pub target: i32,
-    /// The most bytes the caller will accept, so the brain's own image budget and the
-    /// body's ceiling are one number instead of two constants coupled by prose. 0 means
-    /// "the body's own ceiling", and the body clamps anything larger down to it: this can
-    /// only tighten the bound, never loosen it. Like max_edge it is a hint the brain
-    /// re-verifies on receipt, because an older body ignores it (ADR-0029).
+    /// The most bytes the caller will accept, so the brain's image budget and the body's limit are
+    /// one number. 0 means the body's own limit, and anything larger is clamped down to it, so this
+    /// can only tighten the bound. Like max_edge, the brain checks the reply.
     #[prost(uint32, tag = "3")]
     pub max_bytes: u32,
 }
@@ -362,17 +325,9 @@ pub struct CaptureScreenRequest {
 pub struct CaptureScreenReply {
     #[prost(message, optional, tag = "1")]
     pub image: ::core::option::Option<ImageBlob>,
-    /// What the body actually pointed at, so the brain can say honestly what was read
-    /// instead of describing a crop as a shrunk screen (ADR-0029). Read off the picture
-    /// that was encoded rather than off the request, exactly like the receipt the user
-    /// sees, so the two consent surfaces cannot disagree: a window filling the display
-    /// answers CAPTURE_TARGET_DISPLAY, because the picture really is the whole screen.
-    /// The zero is DISPLAY, so a body that does not set it is read correctly, every
-    /// capture such a body can take being the whole display.
-    ///
-    /// The resolved target and not the rectangle it resolved to. Coordinates on the
-    /// reply would hand the model the coordinate frame this seam declined to take from
-    /// it, and a target is enough for an honest sentence.
+    /// What the body pointed at, so the brain does not describe a crop as a shrunk screen. It is
+    /// read off the encoded picture rather than off the request, so a window filling the display
+    /// answers CAPTURE_TARGET_DISPLAY, and the zero is DISPLAY.
     #[prost(enumeration = "CaptureTarget", tag = "2")]
     pub resolved_target: i32,
 }
@@ -380,7 +335,7 @@ pub struct CaptureScreenReply {
 pub struct ImageBlob {
     #[prost(bytes = "vec", tag = "1")]
     pub data: ::prost::alloc::vec::Vec<u8>,
-    /// e.g. image/png
+    /// for example image/png
     #[prost(string, tag = "2")]
     pub mime_type: ::prost::alloc::string::String,
     /// physical pixels, after the body's downscale
@@ -388,13 +343,13 @@ pub struct ImageBlob {
     pub width: u32,
     #[prost(uint32, tag = "4")]
     pub height: u32,
-    /// The display's own size before the downscale, so the model can say "that text
-    /// is too small for me to read" instead of guessing (ADR-0029).
+    /// The display's own size before the downscale, so the model can say the text is too small to
+    /// read instead of guessing.
     #[prost(uint32, tag = "5")]
     pub source_width: u32,
     #[prost(uint32, tag = "6")]
     pub source_height: u32,
-    /// When the pixels were read, so a multi-round turn can reason about staleness.
+    /// When the pixels were read, so a multi-round turn can tell how old they are.
     #[prost(int64, tag = "7")]
     pub captured_at_unix_ms: i64,
 }
@@ -402,7 +357,7 @@ pub struct ImageBlob {
 pub struct GetVolumeRequest {}
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SetVolumeRequest {
-    /// Both fields have explicit presence so callers can set level, mute, or both.
+    /// Both fields have explicit presence, so a caller can set level, mute, or both.
     ///
     /// clamped to \[0.0, 1.0\]
     #[prost(float, optional, tag = "1")]
@@ -429,7 +384,7 @@ pub mod inject_input_request {
         /// literal text entry
         #[prost(message, tag = "1")]
         TypeText(super::TypeText),
-        /// e.g. ctrl+shift+esc
+        /// for example ctrl+shift+esc
         #[prost(message, tag = "2")]
         KeyChord(super::KeyChord),
     }
@@ -457,7 +412,7 @@ pub struct NotifyRequest {
     pub body: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub reminder_id: ::prost::alloc::string::String,
-    /// symmetric with DueReminder, so the toast may badge provenance
+    /// matches DueReminder, so the toast can mark where the text came from
     #[prost(bool, tag = "4")]
     pub tainted: bool,
 }
@@ -466,26 +421,17 @@ pub struct NotifyReply {
     #[prost(bool, tag = "1")]
     pub shown: bool,
 }
-/// What the body points the camera at (ADR-0029). A closed vocabulary the body
-/// resolves, never a rectangle the caller names: only the body knows where windows
-/// are, and a caller that guessed one would spend a whole capture on the wrong part
-/// of the screen. Zero is the whole display, so a caller that names nothing gets
-/// exactly the behaviour this seam has always had.
-///
-/// The names are plain rather than a designed family on purpose: this is protocol
-/// vocabulary whose end reader is a language model choosing between two options, and
-/// legibility beats charm there.
+/// What the body points the camera at. A closed set the body resolves, never a rectangle the
+/// caller names: only the body knows where windows are, and a caller that guessed one would spend
+/// a whole capture on the wrong part of the screen.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum CaptureTarget {
-    /// The primary display, whole. The v1 behaviour and the proto3 default.
+    /// The primary display, whole, and the proto3 default.
     Display = 0,
-    /// The topmost visible top-level window that is not the body's own and is not
-    /// excluded from capture. Deliberately NOT the foreground window: the user summons
-    /// the overlay to ask, so the overlay IS the foreground window when this runs, and
-    /// it hides itself from capture, which would crop to an absent rectangle. The body
-    /// answers FAILED_PRECONDITION when no such window is on screen rather than falling
-    /// back to the display, because a silent fallback captures more than was asked for.
+    /// The topmost visible top-level window that is neither the body's own nor excluded from
+    /// capture. Not the foreground window: the overlay is in front when this runs. With no such
+    /// window the body answers FAILED_PRECONDITION, because a fallback would capture more.
     Focus = 1,
 }
 impl CaptureTarget {
@@ -521,7 +467,7 @@ pub mod brain_service_client {
     use tonic::codegen::http::Uri;
     /// ---
     ///
-    /// ## BrainService is hosted by the brain (Docker). The body is the client.
+    /// ## BrainService is hosted by the brain, in Docker. The body is the client.
     #[derive(Debug, Clone)]
     pub struct BrainServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -602,9 +548,9 @@ pub mod brain_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        /// One conversational exchange stream per overlay session. Client events carry user
-        /// turns and cancellations; server events stream tokens, tool activity, and status
-        /// (e.g. "brain model loading" during a handoff, so the overlay can show progress).
+        /// One conversational exchange per overlay session. Client events send user turns and
+        /// cancellations; server events stream tokens, tool activity and status, such as a model
+        /// loading during a handoff.
         pub async fn converse(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::ClientEvent>,
@@ -629,7 +575,7 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "Converse"));
             self.inner.streaming(req, path, codec).await
         }
-        /// Liveness/readiness for the overlay to display connection state.
+        /// Liveness and readiness, for the overlay's connection indicator.
         pub async fn health(
             &mut self,
             request: impl tonic::IntoRequest<super::HealthRequest>,
@@ -651,9 +597,7 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "Health"));
             self.inner.unary(req, path, codec).await
         }
-        /// Read-only views of the durable session store (ADR-0021): the overlay's chat
-        /// list + switcher + cycling. Snapshots, not streams; they add no write path and
-        /// so cannot touch the one hard rule beyond reading what the store already holds.
+        /// Read-only views of the session store, for the overlay's chat list and switcher.
         pub async fn list_sessions(
             &mut self,
             request: impl tonic::IntoRequest<super::ListSessionsRequest>,
@@ -704,12 +648,9 @@ pub mod brain_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        /// Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered
-        /// reminders when it opens and acks what it showed. ListDueReminders is a read-only
-        /// store view (the ADR-0021 pattern); AckReminder is the one narrow idempotent write
-        /// the pull loop needs (acking a non-deliverable id is a no-op acked=false). With no
-        /// ScheduleStore wired both answer benignly (empty / acked=false), never an error, because
-        /// a schedule-free brain is indistinguishable from one with nothing due.
+        /// Reminder pull delivery: the overlay shows what has fired and is still undelivered, then
+        /// acks what it showed. A brain with no schedule store answers an empty list and acked=false
+        /// rather than an error, because it cannot be told from one with nothing due.
         pub async fn list_due_reminders(
             &mut self,
             request: impl tonic::IntoRequest<super::ListDueRemindersRequest>,
@@ -760,16 +701,9 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "AckReminder"));
             self.inner.unary(req, path, codec).await
         }
-        /// Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum),
-        /// the overlay's user-driven relabel of one chat. Unlike Converse's model-initiated gated
-        /// tool calls, whose gate is the mid-turn Confirmer (ADR-0022), this RPC is reachable ONLY
-        /// from the overlay's own list controls, driven by the user. No model, tool, or tainted turn
-        /// reaches it: it is not a tool in any registry and is served directly off the store, never
-        /// through the turn engine. That structural user-only path IS its gate. It persists a derived
-        /// DISPLAY title only (never conversation content), so it cannot touch the one hard rule
-        /// beyond the title the store already holds for a brain-generated one, and an empty title
-        /// clears the override to restore the first-message derivation. The brain re-bounds the title
-        /// when listing, so a caller cannot store an unbounded or multi-line label.
+        /// Renames a chat. Reachable only from the overlay's own list controls, never from a model or
+        /// a tool, and it stores a display title only, never conversation content. An empty title
+        /// clears the override, so the title derived from the first message applies again.
         pub async fn rename_session(
             &mut self,
             request: impl tonic::IntoRequest<super::RenameSessionRequest>,
@@ -794,17 +728,9 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "RenameSession"));
             self.inner.unary(req, path, codec).await
         }
-        /// Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog
-        /// (ADR-0021 management addendum). It hard-deletes the whole transcript and catalog entry,
-        /// and cascades to the session's derived memories, but only when those memories are private
-        /// to the session (a session-scoped memory policy); under the shared global memory space
-        /// nothing session-private cascades. Its gate is the SAME structural user-only reachability
-        /// RenameSession has, not the mid-turn Confirmer: it is no tool in any registry and never runs
-        /// through the turn engine, so no model, tool, or tainted turn reaches it. The user's intent is
-        /// secured OUT of band, by an overlay-local "are you sure" confirm before this RPC is ever sent
-        /// (the SeamConfirmer gates in-turn tool calls, not a unary management RPC). It carries a
-        /// destructive effect, so the resilient body transport makes exactly ONE attempt and never
-        /// retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
+        /// Deletes a chat: destructive and irreversible. The transcript, the catalog entry and the
+        /// session's private memories all go. The overlay asks the user to confirm before sending
+        /// this, and the body makes exactly one attempt so a lost reply cannot destroy twice.
         pub async fn delete_session(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteSessionRequest>,
@@ -829,16 +755,9 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "DeleteSession"));
             self.inner.unary(req, path, codec).await
         }
-        /// Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
-        /// Pinning keeps an important chat reachable after it falls out of the recency window: a pinned
-        /// chat is unioned into ListSessions REGARDLESS of recency and sorted above the recency group,
-        /// so pinning an old chat rescues it from ageing off the list. Its gate is the SAME structural
-        /// user-only reachability RenameSession/DeleteSession have, not the mid-turn Confirmer: it is no
-        /// tool in any registry and never runs through the turn engine, so no model, tool, or tainted
-        /// turn reaches it. It carries a display-only effect (never conversation content), so it cannot
-        /// touch the one hard rule. Setting the same pinned value twice is a no-op, but the body still
-        /// makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
-        /// set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
+        /// Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
+        /// chats listed by recency. Reachable only from the overlay's list controls, and the body
+        /// makes exactly one attempt.
         pub async fn set_session_pinned(
             &mut self,
             request: impl tonic::IntoRequest<super::SetSessionPinnedRequest>,
@@ -865,20 +784,9 @@ pub mod brain_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        /// The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a
-        /// body restart or a body reinstall and is readable by any surface rather than trapped in the
-        /// one that set it. Keys are namespaced strings the caller owns ("overlay.theme",
-        /// "overlay.mark"); values are short opaque strings the brain never interprets, which is what
-        /// keeps a new preference from being a seam change. GetPreferences returns every set key.
-        /// SetPreference is idempotent (last write wins) and an EMPTY value CLEARS the key, restoring
-        /// whatever default the reader applies, exactly as RenameSession's empty title clears an
-        /// override. Their gate is the SAME structural user-only reachability RenameSession has: no tool
-        /// in any registry, never through the turn engine, so no model, tool, or tainted turn reaches
-        /// them. They carry display preferences only, never conversation content, so they cannot touch
-        /// the one hard rule. SetPreference carries an effect, so the body makes exactly ONE attempt and
-        /// never retries it (the catalog-write convention): a lost reply must not silently re-assert a
-        /// value the user's next change reversed. GetPreferences is a read and retries like the other
-        /// read-only views.
+        /// The user's settings: a durable key/value record the brain owns, so a choice survives a body
+        /// restart. Keys are namespaced names the caller owns ("overlay.theme"); values are short
+        /// strings the brain stores and returns without reading them. An empty value clears the key.
         pub async fn get_preferences(
             &mut self,
             request: impl tonic::IntoRequest<super::GetPreferencesRequest>,
@@ -950,21 +858,19 @@ pub mod brain_service_server {
             >
             + std::marker::Send
             + 'static;
-        /// One conversational exchange stream per overlay session. Client events carry user
-        /// turns and cancellations; server events stream tokens, tool activity, and status
-        /// (e.g. "brain model loading" during a handoff, so the overlay can show progress).
+        /// One conversational exchange per overlay session. Client events send user turns and
+        /// cancellations; server events stream tokens, tool activity and status, such as a model
+        /// loading during a handoff.
         async fn converse(
             &self,
             request: tonic::Request<tonic::Streaming<super::ClientEvent>>,
         ) -> std::result::Result<tonic::Response<Self::ConverseStream>, tonic::Status>;
-        /// Liveness/readiness for the overlay to display connection state.
+        /// Liveness and readiness, for the overlay's connection indicator.
         async fn health(
             &self,
             request: tonic::Request<super::HealthRequest>,
         ) -> std::result::Result<tonic::Response<super::HealthReply>, tonic::Status>;
-        /// Read-only views of the durable session store (ADR-0021): the overlay's chat
-        /// list + switcher + cycling. Snapshots, not streams; they add no write path and
-        /// so cannot touch the one hard rule beyond reading what the store already holds.
+        /// Read-only views of the session store, for the overlay's chat list and switcher.
         async fn list_sessions(
             &self,
             request: tonic::Request<super::ListSessionsRequest>,
@@ -979,12 +885,9 @@ pub mod brain_service_server {
             tonic::Response<super::GetSessionMessagesReply>,
             tonic::Status,
         >;
-        /// Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered
-        /// reminders when it opens and acks what it showed. ListDueReminders is a read-only
-        /// store view (the ADR-0021 pattern); AckReminder is the one narrow idempotent write
-        /// the pull loop needs (acking a non-deliverable id is a no-op acked=false). With no
-        /// ScheduleStore wired both answer benignly (empty / acked=false), never an error, because
-        /// a schedule-free brain is indistinguishable from one with nothing due.
+        /// Reminder pull delivery: the overlay shows what has fired and is still undelivered, then
+        /// acks what it showed. A brain with no schedule store answers an empty list and acked=false
+        /// rather than an error, because it cannot be told from one with nothing due.
         async fn list_due_reminders(
             &self,
             request: tonic::Request<super::ListDueRemindersRequest>,
@@ -999,16 +902,9 @@ pub mod brain_service_server {
             tonic::Response<super::AckReminderReply>,
             tonic::Status,
         >;
-        /// Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum),
-        /// the overlay's user-driven relabel of one chat. Unlike Converse's model-initiated gated
-        /// tool calls, whose gate is the mid-turn Confirmer (ADR-0022), this RPC is reachable ONLY
-        /// from the overlay's own list controls, driven by the user. No model, tool, or tainted turn
-        /// reaches it: it is not a tool in any registry and is served directly off the store, never
-        /// through the turn engine. That structural user-only path IS its gate. It persists a derived
-        /// DISPLAY title only (never conversation content), so it cannot touch the one hard rule
-        /// beyond the title the store already holds for a brain-generated one, and an empty title
-        /// clears the override to restore the first-message derivation. The brain re-bounds the title
-        /// when listing, so a caller cannot store an unbounded or multi-line label.
+        /// Renames a chat. Reachable only from the overlay's own list controls, never from a model or
+        /// a tool, and it stores a display title only, never conversation content. An empty title
+        /// clears the override, so the title derived from the first message applies again.
         async fn rename_session(
             &self,
             request: tonic::Request<super::RenameSessionRequest>,
@@ -1016,17 +912,9 @@ pub mod brain_service_server {
             tonic::Response<super::RenameSessionReply>,
             tonic::Status,
         >;
-        /// Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog
-        /// (ADR-0021 management addendum). It hard-deletes the whole transcript and catalog entry,
-        /// and cascades to the session's derived memories, but only when those memories are private
-        /// to the session (a session-scoped memory policy); under the shared global memory space
-        /// nothing session-private cascades. Its gate is the SAME structural user-only reachability
-        /// RenameSession has, not the mid-turn Confirmer: it is no tool in any registry and never runs
-        /// through the turn engine, so no model, tool, or tainted turn reaches it. The user's intent is
-        /// secured OUT of band, by an overlay-local "are you sure" confirm before this RPC is ever sent
-        /// (the SeamConfirmer gates in-turn tool calls, not a unary management RPC). It carries a
-        /// destructive effect, so the resilient body transport makes exactly ONE attempt and never
-        /// retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
+        /// Deletes a chat: destructive and irreversible. The transcript, the catalog entry and the
+        /// session's private memories all go. The overlay asks the user to confirm before sending
+        /// this, and the body makes exactly one attempt so a lost reply cannot destroy twice.
         async fn delete_session(
             &self,
             request: tonic::Request<super::DeleteSessionRequest>,
@@ -1034,16 +922,9 @@ pub mod brain_service_server {
             tonic::Response<super::DeleteSessionReply>,
             tonic::Status,
         >;
-        /// Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
-        /// Pinning keeps an important chat reachable after it falls out of the recency window: a pinned
-        /// chat is unioned into ListSessions REGARDLESS of recency and sorted above the recency group,
-        /// so pinning an old chat rescues it from ageing off the list. Its gate is the SAME structural
-        /// user-only reachability RenameSession/DeleteSession have, not the mid-turn Confirmer: it is no
-        /// tool in any registry and never runs through the turn engine, so no model, tool, or tainted
-        /// turn reaches it. It carries a display-only effect (never conversation content), so it cannot
-        /// touch the one hard rule. Setting the same pinned value twice is a no-op, but the body still
-        /// makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
-        /// set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
+        /// Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
+        /// chats listed by recency. Reachable only from the overlay's list controls, and the body
+        /// makes exactly one attempt.
         async fn set_session_pinned(
             &self,
             request: tonic::Request<super::SetSessionPinnedRequest>,
@@ -1051,20 +932,9 @@ pub mod brain_service_server {
             tonic::Response<super::SetSessionPinnedReply>,
             tonic::Status,
         >;
-        /// The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a
-        /// body restart or a body reinstall and is readable by any surface rather than trapped in the
-        /// one that set it. Keys are namespaced strings the caller owns ("overlay.theme",
-        /// "overlay.mark"); values are short opaque strings the brain never interprets, which is what
-        /// keeps a new preference from being a seam change. GetPreferences returns every set key.
-        /// SetPreference is idempotent (last write wins) and an EMPTY value CLEARS the key, restoring
-        /// whatever default the reader applies, exactly as RenameSession's empty title clears an
-        /// override. Their gate is the SAME structural user-only reachability RenameSession has: no tool
-        /// in any registry, never through the turn engine, so no model, tool, or tainted turn reaches
-        /// them. They carry display preferences only, never conversation content, so they cannot touch
-        /// the one hard rule. SetPreference carries an effect, so the body makes exactly ONE attempt and
-        /// never retries it (the catalog-write convention): a lost reply must not silently re-assert a
-        /// value the user's next change reversed. GetPreferences is a read and retries like the other
-        /// read-only views.
+        /// The user's settings: a durable key/value record the brain owns, so a choice survives a body
+        /// restart. Keys are namespaced names the caller owns ("overlay.theme"); values are short
+        /// strings the brain stores and returns without reading them. An empty value clears the key.
         async fn get_preferences(
             &self,
             request: tonic::Request<super::GetPreferencesRequest>,
@@ -1082,7 +952,7 @@ pub mod brain_service_server {
     }
     /// ---
     ///
-    /// ## BrainService is hosted by the brain (Docker). The body is the client.
+    /// ## BrainService is hosted by the brain, in Docker. The body is the client.
     #[derive(Debug)]
     pub struct BrainServiceServer<T> {
         inner: Arc<T>,
@@ -1711,10 +1581,7 @@ pub mod body_service_client {
     use tonic::codegen::http::Uri;
     /// ---
     ///
-    /// ## BodyService is hosted by the body (host-native). The brain is the client.
-    /// Exposes host OS capabilities behind the body's Rust traits.
-    /// (Whether these also surface to models as MCP tools: ADR-0001 open question #2.
-    /// Connectivity direction: ADR-0001 open question #3.)
+    /// ## BodyService is hosted by the body. The brain is the client.
     #[derive(Debug, Clone)]
     pub struct BodyServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -1885,11 +1752,9 @@ pub mod body_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BodyService", "InjectInput"));
             self.inner.unary(req, path, codec).await
         }
-        /// Show a native notification (ADR-0025): the brain->body push half of reminder
-        /// delivery. shown=true means the OS accepted/displayed the toast. The ticker then
-        /// acks the reminder (a toast IS delivery); false or an error leaves it deliverable
-        /// for the pull path. The body renders title/body as inert escaped text: reminder
-        /// text can be attacker-influenced (tainted marks it), and a toast template is XML.
+        /// Shows a native notification, which is the push half of reminder delivery. shown=true means
+        /// the OS displayed it, and the brain then acks the reminder; false or an error leaves the
+        /// reminder deliverable. The body escapes the text, because a toast template is XML.
         pub async fn notify(
             &mut self,
             request: impl tonic::IntoRequest<super::NotifyRequest>,
@@ -1948,11 +1813,9 @@ pub mod body_service_server {
             tonic::Response<super::InjectInputReply>,
             tonic::Status,
         >;
-        /// Show a native notification (ADR-0025): the brain->body push half of reminder
-        /// delivery. shown=true means the OS accepted/displayed the toast. The ticker then
-        /// acks the reminder (a toast IS delivery); false or an error leaves it deliverable
-        /// for the pull path. The body renders title/body as inert escaped text: reminder
-        /// text can be attacker-influenced (tainted marks it), and a toast template is XML.
+        /// Shows a native notification, which is the push half of reminder delivery. shown=true means
+        /// the OS displayed it, and the brain then acks the reminder; false or an error leaves the
+        /// reminder deliverable. The body escapes the text, because a toast template is XML.
         async fn notify(
             &self,
             request: tonic::Request<super::NotifyRequest>,
@@ -1960,10 +1823,7 @@ pub mod body_service_server {
     }
     /// ---
     ///
-    /// ## BodyService is hosted by the body (host-native). The brain is the client.
-    /// Exposes host OS capabilities behind the body's Rust traits.
-    /// (Whether these also surface to models as MCP tools: ADR-0001 open question #2.
-    /// Connectivity direction: ADR-0001 open question #3.)
+    /// ## BodyService is hosted by the body. The brain is the client.
     #[derive(Debug)]
     pub struct BodyServiceServer<T> {
         inner: Arc<T>,

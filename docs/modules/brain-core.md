@@ -500,6 +500,12 @@ here):
   occurrence, drops `every` and `anchor`, and re-arms `PENDING` with deliverability cleared
   exactly as `apply_snooze` does, so a fired reminder never reaches the due index still `DONE`
   (ADR-0025 rule-edit addendum).
+- `acks_fire(item, fired_at) -> bool`, `fire_stamp(moment) -> int` and
+  `stamp_instant(stamp) -> datetime` (`schedule_transitions.py`) name one fire. `fire_stamp` is
+  whole unix-milliseconds by integer arithmetic, the grain `DueReminder.fired_at_unix_ms` carries,
+  and `stamp_instant` is its exact inverse, so a stamp the overlay echoes back compares equal to
+  the one computed from `deliverable_since`. `acks_fire` is the ack's decision both stores share:
+  the slot holds a fire, and an ack naming one names that one (ADR-0025 fire-id addendum).
 - `RuleChange(rule, due_at)` (`schedule_transitions.py`) is what an edit carries to set a
   calendar rule: the rule plus the first occurrence derived from it. They travel as one value
   because `apply_edit` and both stores are clockless, so the derivation happens at the tool
@@ -1212,7 +1218,9 @@ unchanged):
   `async release(claim) -> bool` (both apply only under the claim's token, so a stale claimant
   no-ops `False`; finish ORs fire-time taint onto the item, re-arms at `outcome.next_due` or
   terminates, with terminal records deleted unless deliverable), `async deliverable()`,
-  `async ack(item_id) -> bool`, `async snooze(item_id, *, until) -> bool` (postpones the next
+  `async ack(item_id, *, fired_at) -> bool` (clears the slot only while it holds the fire
+  `fired_at` names, compared by `fire_stamp`, so a card dismissed after a later fire replaced it
+  clears nothing; `fired_at=None` acks whichever fire is held), `async snooze(item_id, *, until) -> bool` (postpones the next
   fire via the pure `apply_snooze`; a recurring item moves only its next occurrence and pins
   `anchor` so the series keeps its cadence; a fired-but-undelivered reminder re-arms with
   deliverability cleared; FIRING and unknown answer `False`, fenced like the rest, ADR-0025

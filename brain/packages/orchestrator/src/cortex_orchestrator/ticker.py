@@ -1,9 +1,9 @@
-"""ScheduleTicker: the stateless firing loop over the ScheduleStore (ADR-0025 decision 4)."""
+"""ScheduleTicker: the stateless firing loop over the ScheduleStore."""
 
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from cortex_core import (
     SPAWN_TOOL_NAME,
@@ -28,9 +28,6 @@ from cortex_core import (
 
 _logger = logging.getLogger(__name__)
 
-# The toast titles; the body renders a title (and the reminder text or task outcome) as inert
-# escaped text. A task's outcome delivers under its own title, so the toast names which of the
-# two kinds it is (ADR-0025 task-outcome addendum).
 REMINDER_TITLE = "Cortex reminder"
 TASK_TITLE = "Cortex task"
 _NO_RUNNER_OUTCOME = "FAILED: subagent delegation is not wired"
@@ -38,8 +35,7 @@ _NO_RUNNER_OUTCOME = "FAILED: subagent delegation is not wired"
 
 @dataclass(frozen=True, slots=True)
 class TickerSettings:
-    """The ticker's pacing and display zone, from ``ScheduleConfig`` (plain values below the edge).
-    """
+    """The ticker's pacing and display zone, as the plain values below the edge take them."""
 
     poll_s: float
     lease: timedelta
@@ -75,12 +71,8 @@ class ScheduleTicker:
         while not self._stopping.is_set():
             try:
                 await self.run_once()
-            except Exception:
-                # The ADR-0025 pass guard: an unenumerated bug costs one skipped pass, which is
-                # logged, rather than ending the loop.
+            except Exception:  # deliberately broad: one bug costs a pass, never the loop
                 _logger.exception("schedule pass failed; the next poll retries")
-            # Wake early on stop(); otherwise pace the next pass. wait_for cancels the inner
-            # wait on timeout, and the loop condition above is then re-read.
             try:
                 await asyncio.wait_for(self._stopping.wait(), timeout=self._settings.poll_s)
             except TimeoutError:
@@ -96,13 +88,14 @@ class ScheduleTicker:
 
         async def fire(claim: ScheduleClaim) -> None:
             await asyncio.wait_for(self._fire(claim), timeout=self._settings.lease.total_seconds())
-            # Only reached when the fire persisted its outcome (or was fenced off).
             pending.pop(claim.token, None)
 
         try:
             results = await asyncio.gather(
                 *(fire(claim) for claim in claims), return_exceptions=True
             )
+            # Zipped rather than filtered: gather answers in the order it was given, so the
+            # claim beside a failure is the item that failed and the line can name it.
             for claim, result in zip(claims, results, strict=True):
                 if isinstance(result, BaseException):
                     _logger.error(
@@ -129,7 +122,7 @@ class ScheduleTicker:
             await self._fire_task(claim, item)
 
     async def _fire_reminder(self, claim: ScheduleClaim, item: ScheduledItem) -> None:
-        """Make the reminder deliverable, then attempt the push (ADR-0025 decisions 4-6)."""
+        """Make the reminder deliverable, then attempt the push."""
         fired_at = self._clock.now()
         outcome = FireOutcome(
             fired_at=fired_at,
@@ -137,9 +130,13 @@ class ScheduleTicker:
             deliverable=True,
         )
         if await self._store.finish(claim, outcome):
-            await self._deliver(item.id, title=REMINDER_TITLE, body=item.text, tainted=item.tainted)
+            await self._deliver(
+                item.id, fired_at, title=REMINDER_TITLE, body=item.text, tainted=item.tainted
+            )
 
-    async def _deliver(self, item_id: str, *, title: str, body: str, tainted: bool) -> None:
+    async def _deliver(
+        self, item_id: str, fired_at: datetime, *, title: str, body: str, tainted: bool
+    ) -> None:
         """Best-effort push of one fired item; any failure means the pull path delivers instead."""
         if self._body is None:
             return
@@ -154,7 +151,7 @@ class ScheduleTicker:
             )
             return
         if shown:
-            await self._store.ack(item_id)
+            await self._store.ack(item_id, fired_at=fired_at)
 
     async def _fire_task(self, claim: ScheduleClaim, item: ScheduledItem) -> None:
         """Run the task, persist its outcome deliverable, then deliver the outcome as a toast."""
@@ -169,7 +166,11 @@ class ScheduleTicker:
         )
         if await self._store.finish(claim, outcome):
             await self._deliver(
-                item.id, title=TASK_TITLE, body=outcome_text, tainted=item.tainted or fire_tainted
+                item.id,
+                fired_at,
+                title=TASK_TITLE,
+                body=outcome_text,
+                tainted=item.tainted or fire_tainted,
             )
 
     async def _run_task(self, item: ScheduledItem) -> tuple[str, bool]:

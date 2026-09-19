@@ -11,6 +11,9 @@ import type {
   TurnSink,
 } from "./types";
 
+// A hand-driven fake `BrainBridge` for tests: `converse` records the call and keeps the sink, so
+// the test decides when events, completion and failures arrive. The session reads resolve from
+// tables the test assigns, or reject when a failure flag is set.
 export class FakeBridge implements BrainBridge {
   private sink: TurnSink | null = null;
   readonly calls: { readonly sessionId: string; readonly text: string }[] = [];
@@ -24,11 +27,11 @@ export class FakeBridge implements BrainBridge {
   listCalls = 0;
   /** What `sessionMessages` resolves with, keyed by session id. */
   messagesBySession: Record<string, readonly SessionMessage[]> = {};
-  /** Rename writes received, in order (session id + new title), proving the args crossed. */
+  /** Rename writes received, in order: session id and new title. */
   readonly renames: { readonly sessionId: string; readonly title: string }[] = [];
-  /** Delete writes received, in order (session id), proving the destructive call crossed. */
+  /** Delete writes received, in order: session id. */
   readonly deletes: string[] = [];
-  /** Pin writes received, in order (session id + target state), proving the args crossed. */
+  /** `setSessionPinned` writes received, in order: session id and target state. */
   readonly pins: { readonly sessionId: string; readonly pinned: boolean }[] = [];
   /** When set, the matching read rejects (the transport-failure path). */
   listFails = false;
@@ -46,11 +49,11 @@ export class FakeBridge implements BrainBridge {
   /** How many times the overlay pulled the due list (proves the open latch fires once). */
   reminderListCalls = 0;
   /** Reminder ids acked so far, in order. */
-  readonly acks: string[] = [];
+  readonly acks: { readonly reminderId: string; readonly firedAtUnixMs: number }[] = [];
   /** When set, the matching reminder call rejects (an unreachable brain). */
   remindersFail = false;
   ackFails = false;
-  /** What `checkLink` resolves with (assignable by a test; ADR-0011 addendum). */
+  /** What `checkLink` resolves with (assignable by a test; ADR-0011 decision 8). */
   link: LinkStatus = { state: "ready", detail: "fake brain" };
   /** How many probes the overlay has fired (proves the summon latch + recovery cadence). */
   linkCalls = 0;
@@ -67,8 +70,8 @@ export class FakeBridge implements BrainBridge {
     };
   }
 
-  // The real command answers a state even for an unreachable brain, so the fake's default is a
-  // resolved status; `linkFails` is the narrower case of the IPC itself failing.
+  // The real command answers a state even for an unreachable brain, so the default resolves;
+  // `linkFails` is the narrower case of the IPC itself failing.
   checkLink(): Promise<LinkStatus> {
     this.linkCalls += 1;
     if (this.linkHangs) {
@@ -80,6 +83,8 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.link);
   }
 
+  // Bounded by `limit` like the real read, so a test cannot pass against rows production would
+  // cut. `0` means the brain's default, which for a table the test assigned is all of it.
   listSessions(limit: number): Promise<readonly SessionSummary[]> {
     this.listCalls += 1;
     if (this.listFails) {
@@ -96,8 +101,6 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.messagesBySession[sessionId] ?? []);
   }
 
-  // Records the write and, on success, reflects it in the injectable list so a subsequent
-  // re-list shows the new label exactly as the brain's `set_title` would (ADR-0021).
   renameSession(sessionId: string, title: string): Promise<void> {
     this.renames.push({ sessionId, title });
     if (this.renameFails) {
@@ -107,8 +110,6 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  // Records the destructive write and, on success, drops the row from the injectable list so a
-  // subsequent re-list no longer offers it, exactly as the brain's hard delete would (ADR-0021).
   deleteSession(sessionId: string): Promise<void> {
     this.deletes.push(sessionId);
     if (this.deleteFails) {
@@ -118,16 +119,13 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  // Records the pin write and, on success, reflects the target state (and re-groups pinned-first)
-  // in the injectable list so a subsequent re-list shows the new grouping, as the brain would.
   setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
     this.pins.push({ sessionId, pinned });
     if (this.pinFails) {
       return Promise.reject(new Error("pin failed"));
     }
     const updated = this.sessions.map((s) => (s.sessionId === sessionId ? { ...s, pinned } : s));
-    // Stable-sort pinned-first, preserving the existing order within each group (the brain's
-    // `merge_pinned` rule, mirrored so the fake's re-list matches what the real listing returns).
+    // A stable sort, so the order inside each group stays as it was.
     this.sessions = [...updated].sort((a, b) => Number(b.pinned) - Number(a.pinned));
     return Promise.resolve();
   }
@@ -150,9 +148,6 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.preferences);
   }
 
-  // Records the write and, on success, reflects it in the served record the way the catalog
-  // writes above reflect theirs: one row per key, an empty value clearing it (ADR-0032). Left
-  // unreflected, a written setting was unreadable through the port it was written to.
   setPreference(key: string, value: string): Promise<void> {
     this.preferenceWrites.push({ key, value });
     if (this.preferenceWriteFails) {
@@ -171,15 +166,16 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.reminders);
   }
 
-  // Answers membership rather than a fixed `true`, so the fake reports "there was nothing to
-  // clear" exactly where the brain would (an unknown or already-dismissed id). The table is not
-  // mutated: what is still deliverable is the test's to say, as it is the brain's in production.
-  ackReminder(reminderId: string): Promise<boolean> {
-    this.acks.push(reminderId);
+  // Answers whether the row is there rather than a fixed `true`, and leaves the table alone:
+  // what is still deliverable is the test's to decide, as it is the brain's in production.
+  ackReminder(reminderId: string, firedAtUnixMs: number): Promise<boolean> {
+    this.acks.push({ reminderId, firedAtUnixMs });
     if (this.ackFails) {
       return Promise.reject(new Error("ack failed"));
     }
-    return Promise.resolve(this.reminders.some((r) => r.reminderId === reminderId));
+    return Promise.resolve(
+      this.reminders.some((r) => r.reminderId === reminderId && r.firedAtUnixMs === firedAtUnixMs),
+    );
   }
 
   respondConfirm(confirmId: string, approved: boolean): Promise<void> {

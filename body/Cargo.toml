@@ -1,7 +1,7 @@
 [workspace]
 members = ["crates/core", "crates/rpc", "crates/os_linux", "crates/os_macos", "crates/os_windows"]
-# The Tauri app (body/app/src-tauri) is its own workspace root, host-native and
-# ungated (ADR-0011 decision 5): keep `cargo --workspace` from ever descending into it.
+# The Tauri app (body/app/src-tauri) is its own workspace root, built and checked on the
+# host, so `cargo --workspace` must never descend into it.
 exclude = ["app"]
 resolver = "3"
 
@@ -25,8 +25,8 @@ tonic-prost-build = "0.14"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-# `coverage` is set by cargo-llvm-cov; the OS-backend stubs gate their
-# coverage(off) escape hatch on it (ADR-0011). Declare it so it isn't "unexpected".
+# `coverage` is set by cargo-llvm-cov, and the OS-backend stubs switch their
+# coverage(off) attribute on with it. Declare it so it is not "unexpected".
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [workspace.lints.clippy]

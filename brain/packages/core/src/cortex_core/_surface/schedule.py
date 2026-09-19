@@ -1,8 +1,4 @@
-"""Public core names for scheduled and recurring items, their calendar, and their tools.
-
-Re-exported wholesale by the ``cortex_core`` barrel, so the import path for every name below
-stays ``cortex_core``. ``__all__`` is this file's contract.
-"""
+"""Public core names for scheduled and recurring items, their calendar, and their tools."""
 
 from cortex_core.schedule import (
     FireOutcome,
@@ -43,7 +39,15 @@ from cortex_core.schedule_tools import (
     ListScheduledTool,
     ScheduleTaskTool,
 )
-from cortex_core.schedule_transitions import RuleChange, ScheduleEdit, apply_edit, apply_snooze
+from cortex_core.schedule_transitions import (
+    RuleChange,
+    ScheduleEdit,
+    acks_fire,
+    apply_edit,
+    apply_snooze,
+    fire_stamp,
+    stamp_instant,
+)
 from cortex_core.schedule_verbs import (
     CANCEL_SCHEDULED_TOOL_NAME,
     EDIT_SCHEDULED_TOOL_NAME,
@@ -90,10 +94,13 @@ __all__ = [
     "YearDays",
     "ZoneContext",
     "ZoneResolver",
+    "acks_fire",
     "apply_edit",
     "apply_snooze",
+    "fire_stamp",
     "next_calendar_due",
     "next_due",
     "next_occurrence",
     "recurrence_base",
+    "stamp_instant",
 ]

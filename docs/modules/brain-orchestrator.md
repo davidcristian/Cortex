@@ -510,7 +510,11 @@ The service:
     pull pair over the injected `ScheduleStore`, covering every fired-but-undelivered item
     (`DueReminder`: id, `text`, fired-at unix-ms, recurrence, the `tainted` provenance bit, the
     origin `session_id`) and the one narrow idempotent write (`acked=false` for an unknown or
-    already-delivered id, so a retried ack is harmless). `text` is a reminder's own text, or, for a
+    already-delivered id, so a retried ack is harmless). The ack names a fire: the request's
+    `fired_at_unix_ms` is the card's own stamp, so an ack for a fire a later one has replaced
+    answers `acked=false` and leaves the later one deliverable. `0`, what a body built before the
+    field sends, acks whichever fire is held, and a stamp beyond a `datetime`'s range names no
+    fire. The listing writes the stamp with `fire_stamp`, the function the store compares by. `text` is a reminder's own text, or, for a
     fired **task**, its `last_outcome` (the result the user is notified of, never the standing
     instruction; the task-outcome addendum reuses this pull surface, so a task outcome and a
     reminder ride the same wire message and overlay card, undistinguished for now). **With no store wired (the default)
@@ -719,8 +723,8 @@ The service:
   pass claims what is due (under the fencing lease), fires the batch concurrently, and
   persists each outcome; the
   ticker holds nothing but its loop (the one hard rule, live). Both kinds deliver through one
-  best-effort `_deliver` ladder (`BodyGateway.notify`; shown → acked at once so pull will not
-  re-show it, declined/failed/absent body → the item stays deliverable and the pull path delivers,
+  best-effort `_deliver` ladder (`BodyGateway.notify`; shown → acked at once, naming the fire it
+  pushed, so pull will not re-show it and a later fire finishing during the push stays due, declined/failed/absent body → the item stays deliverable and the pull path delivers,
   and exactly one of the two ever clears the slot, the double-delivery defense). A `REMINDER`
   finishes deliverable then delivers its text under `REMINDER_TITLE`; a fenced-off finish (cancel
   or re-claim won) delivers nothing. A `TASK` dispatches a synthetic `spawn_subagents`

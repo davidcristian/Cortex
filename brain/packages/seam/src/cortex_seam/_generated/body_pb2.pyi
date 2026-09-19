@@ -283,10 +283,12 @@ class DueReminder(_message.Message):
     def __init__(self, reminder_id: _Optional[str] = ..., text: _Optional[str] = ..., fired_at_unix_ms: _Optional[int] = ..., recurring: _Optional[bool] = ..., tainted: _Optional[bool] = ..., session_id: _Optional[str] = ...) -> None: ...
 
 class AckReminderRequest(_message.Message):
-    __slots__ = ("reminder_id",)
+    __slots__ = ("reminder_id", "fired_at_unix_ms")
     REMINDER_ID_FIELD_NUMBER: _ClassVar[int]
+    FIRED_AT_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
     reminder_id: str
-    def __init__(self, reminder_id: _Optional[str] = ...) -> None: ...
+    fired_at_unix_ms: int
+    def __init__(self, reminder_id: _Optional[str] = ..., fired_at_unix_ms: _Optional[int] = ...) -> None: ...
 
 class AckReminderReply(_message.Message):
     __slots__ = ("acked",)

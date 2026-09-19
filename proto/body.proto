@@ -1,46 +1,51 @@
-// body.proto is the single source of truth for the body<->brain seam (AGENTS.md).
+// body.proto defines the gRPC interface between the body and the brain, and is the single source
+// of truth for it. Field numbers are stable: extend, never renumber. The stubs are committed on
+// both sides; regenerate them with `just proto`.
 
 syntax = "proto3";
 
 package cortex.seam.v1;
 
 // ---------------------------------------------------------------------------
-// BrainService is hosted by the brain (Docker). The body is the client.
+// BrainService is hosted by the brain, in Docker. The body is the client.
 // ---------------------------------------------------------------------------
 service BrainService {
-  // One conversational exchange stream per overlay session. Client events carry user
-  // turns and cancellations; server events stream tokens, tool activity, and status
-  // (e.g. "brain model loading" during a handoff, so the overlay can show progress).
+  // One conversational exchange per overlay session. Client events send user turns and
+  // cancellations; server events stream tokens, tool activity and status, such as a model
+  // loading during a handoff.
   rpc Converse(stream ClientEvent) returns (stream ServerEvent);
 
-  // Liveness/readiness for the overlay to display connection state.
+  // Liveness and readiness, for the overlay's connection indicator.
   rpc Health(HealthRequest) returns (HealthReply);
 
-  // Read-only views of the durable session store (ADR-0021): the overlay's chat
-  // list + switcher + cycling. Snapshots, not streams; they add no write path and
-  // so cannot touch the one hard rule beyond reading what the store already holds.
+  // Read-only views of the session store, for the overlay's chat list and switcher.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsReply);
   rpc GetSessionMessages(GetSessionMessagesRequest) returns (GetSessionMessagesReply);
 
-  // Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered reminders when it
-  // opens and acks what it showed.
+  // Reminder pull delivery: the overlay shows what has fired and is still undelivered, then
+  // acks what it showed. A brain with no schedule store answers an empty list and acked=false
+  // rather than an error, because it cannot be told from one with nothing due.
   rpc ListDueReminders(ListDueRemindersRequest) returns (ListDueRemindersReply);
   rpc AckReminder(AckReminderRequest) returns (AckReminderReply);
 
-  // Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum), the
-  // overlay's user-driven relabel of one chat.
+  // Renames a chat. Reachable only from the overlay's own list controls, never from a model or
+  // a tool, and it stores a display title only, never conversation content. An empty title
+  // clears the override, so the title derived from the first message applies again.
   rpc RenameSession(RenameSessionRequest) returns (RenameSessionReply);
 
-  // Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog (ADR-0021
-  // management addendum).
+  // Deletes a chat: destructive and irreversible. The transcript, the catalog entry and the
+  // session's private memories all go. The overlay asks the user to confirm before sending
+  // this, and the body makes exactly one attempt so a lost reply cannot destroy twice.
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply);
 
-  // Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
+  // Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
+  // chats listed by recency. Reachable only from the overlay's list controls, and the body
+  // makes exactly one attempt.
   rpc SetSessionPinned(SetSessionPinnedRequest) returns (SetSessionPinnedReply);
 
-  // The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a body
-  // restart or a body reinstall and is readable by any surface rather than trapped in the one that
-  // set it.
+  // The user's settings: a durable key/value record the brain owns, so a choice survives a body
+  // restart. Keys are namespaced names the caller owns ("overlay.theme"); values are short
+  // strings the brain stores and returns without reading them. An empty value clears the key.
   rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesReply);
   rpc SetPreference(SetPreferenceRequest) returns (SetPreferenceReply);
 }
@@ -48,15 +53,15 @@ service BrainService {
 message ClientEvent {
   string session_id = 1;
   oneof event {
-    UserTurn user_turn = 2;   // text (+ optional attached capture) from the overlay
+    UserTurn user_turn = 2;   // text, and an attached capture when there is one
     Cancel cancel = 3;        // stop generating the current turn
-    ConfirmResponse confirm_response = 4; // the user's answer to a ConfirmRequest (ADR-0022)
+    ConfirmResponse confirm_response = 4; // the user's answer to a ConfirmRequest
   }
 }
 
 message UserTurn {
   string text = 1;
-  repeated ImageBlob images = 2; // e.g. a screen capture the user attached
+  repeated ImageBlob images = 2; // for example a screen capture the user attached
 }
 
 message Cancel {}
@@ -64,31 +69,35 @@ message Cancel {}
 message ServerEvent {
   oneof event {
     TextDelta text_delta = 1;      // streamed assistant tokens
-    ToolActivity tool_activity = 2; // "reading email...", audit-visible tool use
-    StatusUpdate status = 3;        // model swap in progress, queue position, etc.
+    ToolActivity tool_activity = 2; // a tool is about to run
+    StatusUpdate status = 3;        // a model swap in progress, a queue position
     TurnComplete turn_complete = 4;
     SeamError error = 5;
-    ConfirmRequest confirm_request = 6; // a gated tool call awaits user approval (ADR-0022)
-    ConfirmResolved confirm_resolved = 7; // the brain stopped waiting for an answer (ADR-0022)
-    ToolOutcome tool_outcome = 8;   // how a dispatch already announced above ended (ADR-0029)
+    ConfirmRequest confirm_request = 6; // a tool call is waiting for the user's approval
+    ConfirmResolved confirm_resolved = 7; // the brain stopped waiting for an answer
+    ToolOutcome tool_outcome = 8;   // how a tool call announced above ended
   }
 }
 
 message TextDelta { string text = 1; }
 message ToolActivity { string tool_name = 1; string summary = 2; }
 
-// How one announced dispatch ENDED, emitted after it resolves (ADR-0029 outcome addendum).
+// How one announced tool call ended. A subagent's steps also reach this stream as activities,
+// over a channel that drops events when full, so an activity with no outcome is ordinary and
+// the proto3 default false is the safe reading: it leaves a surface at its weaker claim.
 message ToolOutcome { string tool_name = 1; bool ok = 2; }
 message StatusUpdate { string state = 1; string detail = 2; }
 message TurnComplete { string turn_id = 1; }
 message SeamError { string code = 1; string message = 2; }
 
-// Out-of-band user confirmation of a gated (outbound/irreversible) tool call (ADR-0022).
+// The user's approval of an outbound or irreversible tool call. The brain emits ConfirmRequest
+// mid-turn and suspends the call until the matching ConfirmResponse arrives, the timeout denies
+// it, or the stream dies. An unanswered or unmatched request always ends as a denial.
 message ConfirmRequest {
   string confirm_id = 1;      // correlation id, minted per request by the brain
-  string tool_name = 2;       // what would run, e.g. "send_email"
+  string tool_name = 2;       // what would run, for example "send_email"
   string arguments_json = 3;  // the exact draft being approved, one JSON object
-  string reason = 4;          // why confirmation is required, shown verbatim
+  string reason = 4;          // why confirmation is required, shown to the user as written
 }
 message ConfirmResponse {
   string confirm_id = 1;      // echoes the request it answers
@@ -96,17 +105,17 @@ message ConfirmResponse {
 }
 
 // A ConfirmRequest the brain stopped waiting on, so the overlay can close a card the user can no
-// longer answer (ADR-0022 resolution addendum).
+// longer answer. Emitted only for endings the client cannot already know: the confirm timeout,
+// and client input half-closing.
 message ConfirmResolved {
   string confirm_id = 1;      // which ConfirmRequest ended
-  string outcome = 2;         // "timeout" | "unavailable"; explains, never authorizes
+  string outcome = 2;         // "timeout" or "unavailable"; it explains, it never approves
 }
 
 message HealthRequest {}
 message HealthReply { bool ready = 1; string detail = 2; }
 
-// Recent chats, most-recently-active first (ADR-0021). `limit` caps the count;
-// 0 means the server default.
+// Recent chats, most-recently-active first. `limit` caps the count; 0 means the server default.
 message ListSessionsRequest { int32 limit = 1; }
 message ListSessionsReply { repeated SessionSummary sessions = 1; }
 message SessionSummary {
@@ -114,41 +123,46 @@ message SessionSummary {
   string title = 2;                // derived: first user message, one line, truncated
   string preview = 3;              // derived: last message text, one line, truncated
   int64 last_activity_unix_ms = 4; // for a relative timestamp in the switcher
-  bool pinned = 5;                 // the user pinned this chat above the recency window (unioned in)
+  bool pinned = 5;                 // listed whatever its age, above the chats sorted by recency
 }
 
-// One session's persisted history, in append order (ADR-0021).
+// One session's stored history, in append order.
 message GetSessionMessagesRequest { string session_id = 1; }
 message GetSessionMessagesReply { repeated SessionMessage messages = 1; }
 message SessionMessage {
-  string role = 1; // "user" | "assistant" (the only persisted roles)
+  string role = 1; // "user" or "assistant", the only stored roles
   string text = 2;
   string turn_id = 3;
   int64 at_unix_ms = 4;
 }
 
-// Rename one chat (ADR-0021 management addendum).
+// Renames one chat. `title` is the new display label, and "" clears any custom or
+// brain-generated title. The reply is a bare acknowledgement; a store failure arrives as an
+// UNAVAILABLE status.
 message RenameSessionRequest {
   string session_id = 1;
   string title = 2;
 }
 message RenameSessionReply {}
 
-// Delete one chat (ADR-0021 management addendum).
+// Deletes one chat, its transcript and its private memories. The reply is a bare
+// acknowledgement; a store or memory failure arrives as UNAVAILABLE and the call is idempotent,
+// so a later attempt finishes it. A memory reply the brain cannot decode arrives as INTERNAL.
 message DeleteSessionRequest {
   string session_id = 1;
 }
 message DeleteSessionReply {}
 
-// Pin or unpin one chat (ADR-0021 management addendum).
+// Sets or clears the `pinned` mark on one chat. The reply is a bare acknowledgement; a store
+// failure arrives as an UNAVAILABLE status. Setting the same value twice changes nothing.
 message SetSessionPinnedRequest {
   string session_id = 1;
   bool pinned = 2;
 }
 message SetSessionPinnedReply {}
 
-// The user's settings record. One pair is one setting; the brain stores and returns them
-// verbatim and never parses a value, so adding a preference costs no wire change.
+// The user's settings record. One pair is one setting; the brain stores and returns them as
+// given and never reads a value, so adding a setting costs no change here.
 message Preference {
   string key = 1;
   string value = 2;
@@ -161,9 +175,9 @@ message SetPreferenceRequest {
 }
 message SetPreferenceReply {}
 
-// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
-// a single-user assistant has one user to remind; session_id rides along so the
-// overlay can later offer "open the conversation this came from" without a wire change.
+// Reminders that have fired and are still undelivered, across every session, because a
+// single-user assistant has one user to remind. session_id is sent too, so the overlay can later
+// offer to open the conversation a reminder came from without a change here.
 message ListDueRemindersRequest {}
 message ListDueRemindersReply { repeated DueReminder reminders = 1; }
 message DueReminder {
@@ -171,66 +185,81 @@ message DueReminder {
   string text = 2;
   int64 fired_at_unix_ms = 3; // when it became deliverable
   bool recurring = 4;
-  bool tainted = 5;           // untrusted provenance, so the overlay may badge it
-  string session_id = 6;      // origin chat, filled at creation; "" for session-less callers
+  bool tainted = 5;           // untrusted origin, so the overlay may mark it
+  string session_id = 6;      // the chat it came from; "" when there was none
 }
-message AckReminderRequest { string reminder_id = 1; }
+message AckReminderRequest {
+  string reminder_id = 1;
+  // Which fire this ack delivers, from the card's DueReminder.fired_at_unix_ms. The brain
+  // clears the slot only while it still holds that fire, so a card dismissed after a later fire
+  // replaced it clears nothing. 0, from a body built before this field, acks whichever is held.
+  int64 fired_at_unix_ms = 2;
+}
 message AckReminderReply { bool acked = 1; }
 
-// --------------------------------------------------------------------------- BodyService is hosted
-// by the body (host-native).
+// ---------------------------------------------------------------------------
+// BodyService is hosted by the body. The brain is the client.
+// ---------------------------------------------------------------------------
 service BodyService {
   rpc CaptureScreen(CaptureScreenRequest) returns (CaptureScreenReply);
   rpc GetVolume(GetVolumeRequest) returns (VolumeState);
   rpc SetVolume(SetVolumeRequest) returns (VolumeState);
   rpc InjectInput(InjectInputRequest) returns (InjectInputReply);
-  // Show a native notification (ADR-0025): the brain->body push half of reminder delivery.
+  // Shows a native notification, which is the push half of reminder delivery. shown=true means
+  // the OS displayed it, and the brain then acks the reminder; false or an error leaves the
+  // reminder deliverable. The body escapes the text, because a toast template is XML.
   rpc Notify(NotifyRequest) returns (NotifyReply);
 }
 
-// What the body points the camera at (ADR-0029).
+// What the body points the camera at. A closed set the body resolves, never a rectangle the
+// caller names: only the body knows where windows are, and a caller that guessed one would spend
+// a whole capture on the wrong part of the screen.
 enum CaptureTarget {
-  // The primary display, whole. The v1 behaviour and the proto3 default.
+  // The primary display, whole, and the proto3 default.
   CAPTURE_TARGET_DISPLAY = 0;
-  // The topmost visible top-level window that is not the body's own and is not excluded from
-  // capture.
+  // The topmost visible top-level window that is neither the body's own nor excluded from
+  // capture. Not the foreground window: the overlay is in front when this runs. With no such
+  // window the body answers FAILED_PRECONDITION, because a fallback would capture more.
   CAPTURE_TARGET_FOCUS = 1;
 }
 
 message CaptureScreenRequest {
   // Longest edge of the returned image, in physical pixels. 0 means "the body's
-  // default" (1600). The body clamps it and, being proto3, may ignore it entirely,
-  // so it is a hint the brain re-verifies on receipt, never a guarantee (ADR-0029).
+  // default" (1600). The body clamps it and, being proto3, may ignore it, so the brain checks
+  // the reply rather than relying on it.
   uint32 max_edge = 1;
-  // What to point at.
+  // What to point at. A body older than this field ignores it, so the brain checks the reply.
+  // An unrecognized value reads as CAPTURE_TARGET_DISPLAY.
   CaptureTarget target = 2;
-  // The most bytes the caller will accept, so the brain's own image budget and the body's ceiling
-  // are one number instead of two constants coupled by prose.
+  // The most bytes the caller will accept, so the brain's image budget and the body's limit are
+  // one number. 0 means the body's own limit, and anything larger is clamped down to it, so this
+  // can only tighten the bound. Like max_edge, the brain checks the reply.
   uint32 max_bytes = 3;
 }
 message CaptureScreenReply {
   ImageBlob image = 1;
-  // What the body actually pointed at, so the brain can say honestly what was read instead of
-  // describing a crop as a shrunk screen (ADR-0029).
+  // What the body pointed at, so the brain does not describe a crop as a shrunk screen. It is
+  // read off the encoded picture rather than off the request, so a window filling the display
+  // answers CAPTURE_TARGET_DISPLAY, and the zero is DISPLAY.
   CaptureTarget resolved_target = 2;
 }
 
 message ImageBlob {
   bytes data = 1;
-  string mime_type = 2; // e.g. image/png
+  string mime_type = 2; // for example image/png
   uint32 width = 3;     // physical pixels, after the body's downscale
   uint32 height = 4;
-  // The display's own size before the downscale, so the model can say "that text
-  // is too small for me to read" instead of guessing (ADR-0029).
+  // The display's own size before the downscale, so the model can say the text is too small to
+  // read instead of guessing.
   uint32 source_width = 5;
   uint32 source_height = 6;
-  // When the pixels were read, so a multi-round turn can reason about staleness.
+  // When the pixels were read, so a multi-round turn can tell how old they are.
   int64 captured_at_unix_ms = 7;
 }
 
 message GetVolumeRequest {}
 message SetVolumeRequest {
-  // Both fields have explicit presence so callers can set level, mute, or both.
+  // Both fields have explicit presence, so a caller can set level, mute, or both.
   optional float level = 1; // clamped to [0.0, 1.0]
   optional bool mute = 2;
 }
@@ -242,7 +271,7 @@ message VolumeState {
 message InjectInputRequest {
   oneof input {
     TypeText type_text = 1; // literal text entry
-    KeyChord key_chord = 2; // e.g. ctrl+shift+esc
+    KeyChord key_chord = 2; // for example ctrl+shift+esc
   }
 }
 message TypeText { string text = 1; }
@@ -253,6 +282,6 @@ message NotifyRequest {
   string title = 1;
   string body = 2;
   string reminder_id = 3;
-  bool tainted = 4; // symmetric with DueReminder, so the toast may badge provenance
+  bool tainted = 4; // matches DueReminder, so the toast can mark where the text came from
 }
 message NotifyReply { bool shown = 1; }

@@ -1,5 +1,3 @@
-"""The end-to-end reminder fire over the live seam (ADR-0025): seed → ticker → pull → ack."""
-
 import asyncio
 import os
 from datetime import UTC, datetime
@@ -21,7 +19,6 @@ from cortex_seam import (
 from cortex_session import DEFAULT_REDIS_URL, RedisScheduleStore
 
 _SEAM_ENDPOINT = os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:50051")
-# The default CORTEX_SCHEDULE_POLL_S is 5.0; wait out at least two passes with margin.
 _ATTEMPTS = 40
 _RETRY_S = 0.5
 
@@ -38,12 +35,12 @@ async def _list(stub: BrainServiceStub) -> ListDueRemindersReply:
     )
 
 
-async def _ack(stub: BrainServiceStub, reminder_id: str) -> AckReminderReply:
+async def _ack(stub: BrainServiceStub, fired: DueReminder) -> AckReminderReply:
     method = stub.AckReminder  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-    return cast(
-        "AckReminderReply",
-        await method(AckReminderRequest(reminder_id=reminder_id), metadata=_metadata()),
+    request = AckReminderRequest(
+        reminder_id=fired.reminder_id, fired_at_unix_ms=fired.fired_at_unix_ms
     )
+    return cast("AckReminderReply", await method(request, metadata=_metadata()))
 
 
 async def _wait_for_fire(stub: BrainServiceStub, item_id: str) -> DueReminder | None:
@@ -81,10 +78,9 @@ async def test_reminder_fires_and_round_trips_over_the_live_seam() -> None:
             assert fired.recurring is False
             assert fired.tainted is False
             assert fired.session_id == "live-seam"
-            assert (await _ack(stub, item_id)).acked is True
-            # Once acked the reminder leaves the pull view, and a second ack does nothing.
+            assert (await _ack(stub, fired)).acked is True
             assert [r for r in (await _list(stub)).reminders if r.reminder_id == item_id] == []
-            assert (await _ack(stub, item_id)).acked is False
+            assert (await _ack(stub, fired)).acked is False
     finally:
-        await store.cancel(item_id)  # a leftover on failure; acked success already deleted it
+        await store.cancel(item_id)
         await store.aclose()

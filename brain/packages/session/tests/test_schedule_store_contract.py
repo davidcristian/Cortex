@@ -1,7 +1,3 @@
-"""One behavior suite over BOTH ScheduleStore implementations, plus adapter mechanics
-(ADR-0025).
-"""
-
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -95,7 +91,7 @@ async def test_backend_failure_wraps_into_schedule_store_error(operation: str) -
         "finish": lambda: store.finish(_dummy_claim(), outcome),
         "release": lambda: store.release(_dummy_claim()),
         "deliverable": store.deliverable,
-        "ack": lambda: store.ack("s1"),
+        "ack": lambda: store.ack("s1", fired_at=None),
     }
     with pytest.raises(ScheduleStoreError) as excinfo:
         await ops[operation]()
@@ -159,7 +155,6 @@ async def test_unknown_kind_or_version_fails_loudly_naming_the_reader() -> None:
 
 
 async def test_a_monthly_rule_still_decodes_as_monthly_beside_the_yearly_key() -> None:
-    """The present-key contract holds for all THREE rule variants, not only the original two."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("monthly")
@@ -172,7 +167,6 @@ async def test_a_monthly_rule_still_decodes_as_monthly_beside_the_yearly_key() -
 
 
 async def test_a_malformed_year_date_pair_fails_loudly_like_any_corrupt_field() -> None:
-    """A stored year-date pair that is not a pair is corruption, so the decoder raises."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("bent")
@@ -184,7 +178,6 @@ async def test_a_malformed_year_date_pair_fails_loudly_like_any_corrupt_field() 
 
 
 async def test_a_stored_unknown_zone_fails_loudly_naming_the_key() -> None:
-    """A per-rule zone the tz database no longer resolves raises instead of falling back."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("gone-zone")
@@ -196,7 +189,6 @@ async def test_a_stored_unknown_zone_fails_loudly_naming_the_key() -> None:
 
 
 async def test_a_stored_non_string_zone_fails_loudly() -> None:
-    """A stored zone that is not a string is corruption, so the decoder raises on it too."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("bent-zone")
@@ -208,13 +200,11 @@ async def test_a_stored_non_string_zone_fails_loudly() -> None:
 
 
 async def test_a_rule_written_before_per_rule_zones_decodes_as_zone_less() -> None:
-    """The additive-key contract: a rule record with no ``zone`` key reads back zone-less, so it
-    keeps taking the deployment zone exactly as it did before per-rule zones (per-rule addendum)."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("no-zone")
     record = json.loads(encode(item, claim=None, claimed_at=None))
-    record["rule"] = {"hour": 9, "minute": 0, "days": [0, 4]}  # a pre-addendum rule: no zone key
+    record["rule"] = {"hour": 9, "minute": 0, "days": [0, 4]}
     await _seed_raw(client, "no-zone", json.dumps(record))
     loaded = await store.get("no-zone")
     assert loaded is not None
@@ -224,7 +214,6 @@ async def test_a_rule_written_before_per_rule_zones_decodes_as_zone_less() -> No
 
 
 async def test_a_rule_written_before_month_days_decodes_as_a_weekly_one() -> None:
-    """The additive-key contract: an old record carries ``days`` and no discriminator."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     item = schedule_contract.make_item("legacy")
@@ -245,11 +234,6 @@ async def test_corrupt_record_fails_loudly_on_list_active() -> None:
 
 
 async def test_claim_path_quarantines_a_corrupt_record() -> None:
-    """The poison-pill defense: one bad record dead-letters; the pass still claims the rest.
-
-    The poison is due EARLIER than the healthy item, so it is the FIRST claim candidate, and
-    a regression back to halt-the-pass would leave `good` unclaimed and fail here.
-    """
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     good = schedule_contract.make_item("good", due_at=_NOW - timedelta(minutes=1))
@@ -260,14 +244,12 @@ async def test_claim_path_quarantines_a_corrupt_record() -> None:
     assert await client.hget(DEAD_KEY, "poison") == b"not json"
     assert await client.get(record_key("poison")) is None
     assert await client.zscore(DUE_KEY, "poison") is None
-    # The next pass no longer sees the quarantined id at all.
     assert await store.claim_due(_NOW + _LEASE + _LEASE, lease=_LEASE, limit=8) != ()
 
 
 async def test_the_quarantine_lines_carry_the_id_and_the_key_as_fields(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Both quarantine lines attach the item id as a field a reader can select on."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     await _seed_raw(client, "poison", "not json")
@@ -280,12 +262,10 @@ async def test_the_quarantine_lines_carry_the_id_and_the_key_as_fields(
         "ERROR:cortex_session.schedule_claims:quarantining a corrupt schedule record"
         f" dead_key={DEAD_KEY} item_id=poison",
     ]
-    # On the record itself, not only in the rendered line: a packed deployment reads it from here.
     assert [record.__dict__["item_id"] for record in caplog.records] == ["poison", "poison"]
 
 
 async def test_claim_drops_a_dangling_index_entry() -> None:
-    """An index member without a record (a crash relic) is dropped, not an error."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     await client.zadd(DUE_KEY, {"ghost": _NOW.timestamp()})
@@ -308,35 +288,24 @@ async def test_deliverable_skips_a_dangling_index_entry() -> None:
 
 
 async def test_claim_due_releases_the_surplus_past_limit() -> None:
-    """Claims merged from both indexes past the limit are released back to PENDING."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     older = schedule_contract.make_item("older", due_at=_NOW - timedelta(minutes=10))
     newer = schedule_contract.make_item("newer", due_at=_NOW - timedelta(minutes=2))
     await store.add(older)
-    # Claim `older` one lease ago so it is FIRING and exactly lease-expired at _NOW.
     (first_claim,) = await store.claim_due(_NOW - _LEASE, lease=_LEASE, limit=1)
     await store.add(newer)
-    # One slot, two candidates (one per index): the oldest-due wins across both classes.
     (winner,) = await store.claim_due(_NOW, lease=_LEASE, limit=1)
     assert winner.item.id == "older"
-    assert winner.token != first_claim.token  # re-claimed under a fresh fencing token
-    # The surplus (`newer`) was claimed then released: immediately claimable again.
+    assert winner.token != first_claim.token
     (surplus,) = await store.claim_due(_NOW, lease=_LEASE, limit=1)
     assert surplus.item.id == "newer"
-
-
-# --- the WATCH fence: a racing transition between guard read and write loses cleanly ---
 
 
 def _poke_on_decode(
     monkeypatch: pytest.MonkeyPatch, server: FakeServer, poke: Callable[[FakeStrictRedis], None]
 ) -> None:
-    """Patch the transition-side decode to run `poke` (a concurrent write) mid-transition.
-
-    `decode` runs between the WATCH'd guard read and the MULTI/EXEC write in every fenced
-    transition, so a poke here lands exactly in the race window the WATCH must close.
-    """
+    """Patch the transition-side decode to run `poke` (a concurrent write) mid-transition."""
     poker = FakeStrictRedis(server=server)
     original = schedule_claims.decode  # pyright: ignore[reportPrivateImportUsage] - patched in place
     fired: list[bool] = []
@@ -354,7 +323,6 @@ def _poke_on_decode(
 async def test_finish_racing_a_cancel_is_fenced_not_resurrected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A cancel landing between finish's guard read and its write wins, so nothing re-arms."""
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     store = RedisScheduleStore(client)
@@ -368,7 +336,7 @@ async def test_finish_racing_a_cancel_is_fenced_not_resurrected(
     _poke_on_decode(monkeypatch, server, cancel_it)
     outcome = FireOutcome(fired_at=_NOW, next_due=_NOW + timedelta(hours=1), deliverable=True)
     assert await store.finish(claim, outcome) is False
-    assert await client.get(record_key("raced")) is None  # the cancel stuck
+    assert await client.get(record_key("raced")) is None
     assert await client.zscore(DUE_KEY, "raced") is None
     assert await client.zscore(DELIVERABLE_KEY, "raced") is None
 
@@ -392,7 +360,6 @@ async def test_release_racing_a_cancel_is_fenced(monkeypatch: pytest.MonkeyPatch
 async def test_ack_racing_a_concurrent_transition_is_fenced(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An ack whose record was touched mid-transition must not write back its stale read."""
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     store = RedisScheduleStore(client)
@@ -404,18 +371,17 @@ async def test_ack_racing_a_concurrent_transition_is_fenced(
     def touch_it(poker: FakeStrictRedis) -> None:
         raw = poker.get(record_key("raced"))
         assert raw is not None
-        poker.set(record_key("raced"), raw)  # any touch: e.g. a re-claim racing the ack
+        poker.set(record_key("raced"), raw)
 
     _poke_on_decode(monkeypatch, server, touch_it)
-    assert await store.ack("raced") is False
-    (still_due,) = await store.deliverable()  # nothing was clobbered; the ack can retry
+    assert await store.ack("raced", fired_at=_NOW) is False
+    (still_due,) = await store.deliverable()
     assert still_due.id == "raced"
 
 
 async def test_edit_racing_a_cancel_is_fenced_not_resurrected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A cancel landing between edit's guard read and its write wins; nothing is written back."""
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     store = RedisScheduleStore(client)
@@ -427,7 +393,7 @@ async def test_edit_racing_a_cancel_is_fenced_not_resurrected(
 
     _poke_on_decode(monkeypatch, server, delete_it)
     assert await store.edit("raced", ScheduleEdit(text="new")) is False
-    assert await client.get(record_key("raced")) is None  # the cancel stuck; not re-written
+    assert await client.get(record_key("raced")) is None
     assert await client.zscore(DUE_KEY, "raced") is None
 
 
@@ -442,11 +408,10 @@ async def test_claim_racing_a_cancel_is_fenced(monkeypatch: pytest.MonkeyPatch) 
 
     _poke_on_decode(monkeypatch, server, delete_it)
     assert await store.claim_due(_NOW, lease=_LEASE, limit=8) == ()
-    assert await client.get(record_key("raced")) is None  # the cancel stuck; nothing FIRING
+    assert await client.get(record_key("raced")) is None
 
 
 async def test_dead_letters_lists_in_id_order_and_purges_one_scope() -> None:
-    """The operator inspection pair over the quarantine hash (dead-letter addendum)."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     await _seed_raw(client, "zeta", "junk-z")
@@ -454,29 +419,26 @@ async def test_dead_letters_lists_in_id_order_and_purges_one_scope() -> None:
     survivor = schedule_contract.make_item("survivor", due_at=_NOW - timedelta(minutes=1))
     await store.add(survivor)
     claims = await store.claim_due(_NOW, lease=_LEASE, limit=8)
-    assert [claim.item.id for claim in claims] == ["survivor"]  # the pass skipped both bad records
+    assert [claim.item.id for claim in claims] == ["survivor"]
     assert await store.dead_letters() == (
         DeadLetter(item_id="alpha", raw="junk-a"),
         DeadLetter(item_id="zeta", raw="junk-z"),
     )
     assert await store.purge_dead_letter("alpha") is True
-    assert await store.dead_letters() == (
-        DeadLetter(item_id="zeta", raw="junk-z"),
-    )  # zeta survived
+    assert await store.dead_letters() == (DeadLetter(item_id="zeta", raw="junk-z"),)
     assert await store.purge_dead_letter("alpha") is False
     assert await store.purge_dead_letter("zeta") is True
     assert await store.dead_letters() == ()
 
 
 async def test_dead_letters_render_hostile_bytes_with_replacement() -> None:
-    """Corrupt bytes stay inspectable: decoding never becomes a second crash."""
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
     await client.hset(DEAD_KEY, "bad", b"\xff\xfe not utf-8")  # pyright: ignore[reportUnknownMemberType]
     (letter,) = await store.dead_letters()
     assert letter.item_id == "bad"
     assert "not utf-8" in letter.raw
-    assert "�" in letter.raw  # the undecodable bytes became replacement characters
+    assert "�" in letter.raw
 
 
 async def test_dead_letter_operations_wrap_backend_failure() -> None:
@@ -490,7 +452,6 @@ async def test_dead_letter_operations_wrap_backend_failure() -> None:
 async def test_snooze_racing_a_cancel_is_fenced_not_resurrected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A cancel landing between snooze's guard read and its write wins; nothing is written back."""
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     store = RedisScheduleStore(client)
@@ -502,16 +463,13 @@ async def test_snooze_racing_a_cancel_is_fenced_not_resurrected(
 
     _poke_on_decode(monkeypatch, server, delete_it)
     assert await store.snooze("raced", until=_NOW + timedelta(minutes=30)) is False
-    assert await client.get(record_key("raced")) is None  # the cancel stuck
-    assert await client.zscore(DUE_KEY, "raced") is None  # not re-indexed by the loser
+    assert await client.get(record_key("raced")) is None
+    assert await client.zscore(DUE_KEY, "raced") is None
 
 
 async def test_claim_honors_a_snooze_that_committed_before_the_watch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The before-WATCH race: a snooze commits between claim_due's due snapshot and the per-item
-    WATCH, moving the record forward.
-    """
     server = FakeServer()
     client = FakeAsyncRedis(server=server)
     store = RedisScheduleStore(client)
@@ -523,15 +481,14 @@ async def test_claim_honors_a_snooze_that_committed_before_the_watch(
     async def snoozing_ids(client_: Redis, key: str, **kwargs: object) -> list[str]:
         result = await original_ids(client_, key, **kwargs)  # pyright: ignore[reportArgumentType]
         if key == DUE_KEY and not snoozed:
-            # The due snapshot has just captured "raced"; commit the snooze before the WATCH.
             snoozed.append(True)
             await store.snooze("raced", until=until)
         return result
 
     monkeypatch.setattr(schedule_claims, "ids", snoozing_ids)
-    assert await store.claim_due(_NOW, lease=_LEASE, limit=8) == ()  # the snoozed item is skipped
+    assert await store.claim_due(_NOW, lease=_LEASE, limit=8) == ()
     loaded = await store.get("raced")
     assert loaded is not None
-    assert loaded.status is ScheduleStatus.PENDING  # still armed, not fired
-    assert loaded.due_at == until  # the snooze survives
-    assert await client.zscore(DUE_KEY, "raced") == until.timestamp()  # its future due-entry intact
+    assert loaded.status is ScheduleStatus.PENDING
+    assert loaded.due_at == until
+    assert await client.zscore(DUE_KEY, "raced") == until.timestamp()

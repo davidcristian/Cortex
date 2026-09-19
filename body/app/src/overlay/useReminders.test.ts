@@ -53,8 +53,6 @@ describe("useReminders", () => {
     await flush();
     expect(bridge.reminderListCalls).toBe(1);
 
-    // Mid-turn dismiss parks the panel as the orb, the reply lands as a preview, and tapping it
-    // reopens the panel. The overlay never hid, so the reminders already pulled still stand.
     for (const mode of ["orb", "preview", "panel"] as const) {
       rerender({ mode });
       await flush();
@@ -74,8 +72,6 @@ describe("useReminders", () => {
   });
 
   it("pulls once under StrictMode, whose mount effect fires twice", async () => {
-    // Production renders inside <StrictMode> (main.tsx), so the summon effect really does run
-    // twice on mount. The latch is what keeps that one read, as it does for cold-start adopt.
     const bridge = new FakeBridge();
     renderHook(() => useReminders(bridge, "panel", () => undefined), { wrapper: StrictMode });
     await flush();
@@ -88,7 +84,6 @@ describe("useReminders", () => {
     const { actions } = harness(bridge, "panel");
     await flush();
     expect(bridge.reminderListCalls).toBe(1);
-    // No action at all: the reducer keeps whatever it last loaded (the chat list's rule).
     expect(actions).toEqual([]);
   });
 
@@ -98,11 +93,10 @@ describe("useReminders", () => {
     const { result, actions } = harness(bridge, "panel");
     await flush();
 
-    act(() => result.current("r-1"));
-    // The dispatch is synchronous with the click; the ack is in flight behind it.
+    act(() => result.current(reminder("r-1")));
     expect(actions.at(-1)).toEqual({ kind: "reminderDismissed", reminderId: "r-1" });
     await flush();
-    expect(bridge.acks).toEqual(["r-1"]);
+    expect(bridge.acks).toEqual([{ reminderId: "r-1", firedAtUnixMs: 1000 }]);
   });
 
   it("a failed ack still dismisses the card, and the next open re-surfaces it", async () => {
@@ -112,10 +106,9 @@ describe("useReminders", () => {
     const { result, rerender, actions } = harness(bridge, "panel");
     await flush();
 
-    await act(async () => result.current("r-1"));
+    await act(async () => result.current(reminder("r-1")));
     expect(actions.at(-1)).toEqual({ kind: "reminderDismissed", reminderId: "r-1" });
 
-    // The brain never heard the ack, so the reminder is still deliverable on the next summon.
     rerender({ mode: "hidden" });
     await flush();
     rerender({ mode: "panel" });

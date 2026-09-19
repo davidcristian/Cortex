@@ -38,42 +38,36 @@ enum Script {
     Ready,
     /// `Health` fails with a gRPC `Internal` status.
     Failing,
-    /// `Health` never answers: the connection is accepted and the call hangs forever. This is
-    /// the failure no status can report, and the reason the seam has a deadline (ADR-0024
-    /// deadline addendum).
+    /// `Health` never answers: the connection is accepted and the call hangs forever.
     Hanging,
-    /// `Health` fails `DEADLINE_EXCEEDED`: the brain gave up on the call itself, which is what
-    /// the announced `grpc-timeout` invites it to do (ADR-0024 courtesy-header addendum).
+    /// `Health` fails `DEADLINE_EXCEEDED`: the brain gave up on the call itself, which is what the
+    /// announced `grpc-timeout` invites it to do.
     Expired,
 }
 
 /// A scripted fake implementing the generated `BrainService` server trait.
-/// With `expected_token` set it mirrors the brain's seam-token check
-/// (ADR-0016): `Health` demands the matching `x-cortex-seam-token` metadata.
 struct FakeBrain {
     script: Script,
     expected_token: Option<&'static str>,
-    /// When set, the read-only session RPCs (ADR-0021) fail `Unavailable` (a
-    /// store-down abort); otherwise they answer with canned rows.
+    /// When set, the read-only session RPCs fail `Unavailable` (a store-down abort); otherwise they
+    /// answer with canned rows.
     sessions_fail: bool,
-    /// The same for the reminder RPCs (ADR-0025): a `ScheduleStoreError` aborts
-    /// `Unavailable`. Separate from `sessions_fail` because the two read different
-    /// stores, so a body sees one fail while the other answers.
+    /// The same for the reminder RPCs: a `ScheduleStoreError` aborts `Unavailable`.
     reminders_fail: bool,
-    /// Records each `RenameSession` write `(session_id, title)` the fake received, so a test
-    /// can prove both fields crossed the wire (the reply is a bare ack, ADR-0021).
+    /// Records each `RenameSession` write `(session_id, title)` the fake received, so a test can
+    /// prove both fields crossed the wire (the reply is a bare ack).
     renames: Arc<Mutex<Vec<(String, String)>>>,
     /// Records each `DeleteSession` write's `session_id`, so a test can prove the id crossed the
-    /// wire (the reply is a bare ack, ADR-0021).
+    /// wire (the reply is a bare ack).
     deletes: Arc<Mutex<Vec<String>>>,
     /// Records each `SetSessionPinned` write `(session_id, pinned)`, so a test can prove both
-    /// fields crossed the wire (the reply is a bare ack, ADR-0021 pinning addendum).
+    /// fields crossed the wire (the reply is a bare ack).
     pins: Arc<Mutex<Vec<(String, bool)>>>,
     /// Records each `SetPreference` write `(key, value)`, so a test can prove both fields crossed
     /// the wire, the empty clearing value included (the reply is a bare ack).
     preference_writes: Arc<Mutex<Vec<(String, String)>>>,
-    /// Records the `grpc-timeout` metadata of every call the fake serves, `None` for a call that
-    /// carried none.
+    /// Records the `grpc-timeout` metadata of every call the fake serves, `None` when a call
+    /// sent none.
     timeouts: Arc<Mutex<Vec<Option<String>>>>,
 }
 
@@ -105,9 +99,8 @@ impl FakeBrain {
     }
 }
 
-/// The `grpc-timeout` header read back as the duration it spells (the gRPC unit suffixes: hours,
-/// minutes, seconds, milli-, micro-, nanoseconds). Parsed rather than string-compared so a test
-/// asserts the duration the brain was told and not the unit tonic happened to pick for it.
+/// The `grpc-timeout` header read back as a duration, over the gRPC unit suffixes: hours,
+/// minutes, seconds, milli-, micro- and nanoseconds.
 fn announced_deadline(header: &str) -> Duration {
     let (value, unit) = header.split_at(header.len() - 1);
     let Ok(value) = value.parse::<u64>() else {
@@ -166,12 +159,9 @@ impl BrainService for FakeBrain {
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
-        // Echo the requested limit into the first title so the test can prove the
-        // request field crossed the wire; two rows prove order is preserved.
         let limit = request.into_inner().limit;
         Ok(Response::new(ListSessionsReply {
             sessions: vec![
-                // `beta` is pinned, so it also proves the `pinned` flag crosses the wire.
                 PbSessionSummary {
                     session_id: String::from("beta"),
                     title: format!("limit={limit}"),
@@ -197,7 +187,6 @@ impl BrainService for FakeBrain {
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
-        // Echo the session id into the first message text (same wire-round-trip proof).
         let session_id = request.into_inner().session_id;
         Ok(Response::new(GetSessionMessagesReply {
             messages: vec![
@@ -224,8 +213,6 @@ impl BrainService for FakeBrain {
         if self.reminders_fail {
             return Err(Status::unavailable("schedule store down"));
         }
-        // Two rows, differing in every flag, so the mapping cannot pass by luck: a
-        // trusted recurring one and a tainted session-less one-shot.
         Ok(Response::new(ListDueRemindersReply {
             reminders: vec![
                 PbDueReminder {
@@ -255,11 +242,9 @@ impl BrainService for FakeBrain {
         if self.reminders_fail {
             return Err(Status::unavailable("schedule store down"));
         }
-        // Only the listed id is deliverable, mirroring the brain: acking anything else
-        // clears nothing and answers false. This also proves the id crossed the wire.
-        let reminder_id = request.into_inner().reminder_id;
+        let request = request.into_inner();
         Ok(Response::new(AckReminderReply {
-            acked: reminder_id == "r1",
+            acked: request.reminder_id == "r1" && request.fired_at_unix_ms == 2000,
         }))
     }
 
@@ -267,8 +252,6 @@ impl BrainService for FakeBrain {
         &self,
         request: Request<RenameSessionRequest>,
     ) -> Result<Response<RenameSessionReply>, Status> {
-        // A store-down abort behaves like the reads; otherwise record the write so the test can
-        // prove both fields crossed the wire (the reply carries nothing to echo).
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
@@ -284,8 +267,6 @@ impl BrainService for FakeBrain {
         &self,
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<DeleteSessionReply>, Status> {
-        // A store/memory-down abort behaves like the reads; otherwise record the deleted id so the
-        // test can prove it crossed the wire (the reply carries nothing to echo).
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
@@ -300,8 +281,6 @@ impl BrainService for FakeBrain {
         &self,
         request: Request<SetSessionPinnedRequest>,
     ) -> Result<Response<SetSessionPinnedReply>, Status> {
-        // A store-down abort behaves like the reads; otherwise record the write so the test can
-        // prove both fields crossed the wire (the reply carries nothing to echo).
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
@@ -317,8 +296,6 @@ impl BrainService for FakeBrain {
         &self,
         _request: Request<GetPreferencesRequest>,
     ) -> Result<Response<GetPreferencesReply>, Status> {
-        // A store-down abort behaves like the reads; otherwise answer a canned record, sorted
-        // by key exactly as the brain sorts it.
         if self.sessions_fail {
             return Err(Status::unavailable("store down"));
         }
@@ -366,9 +343,9 @@ async fn spawn_fake_brain(fake: FakeBrain) -> Result<SocketAddr, std::io::Error>
     Ok(addr)
 }
 
-/// Like [`spawn_fake_brain`], but with graceful shutdown wired to the
-/// returned sender; awaiting the returned handle after firing it guarantees
-/// the listener is released and nothing serves on the address anymore.
+/// Like [`spawn_fake_brain`], but with graceful shutdown wired to the returned sender; awaiting the
+/// returned handle after firing it guarantees the listener is released and nothing serves on the
+/// address anymore.
 async fn spawn_stoppable_fake_brain(
     fake: FakeBrain,
 ) -> Result<
@@ -432,7 +409,6 @@ async fn non_ok_grpc_status_maps_to_the_rpc_variant() {
 
 #[tokio::test]
 async fn connection_refused_maps_to_the_connection_variant() {
-    // Bind and immediately drop a loopback port so nothing is listening on it.
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     drop(listener);
@@ -442,8 +418,6 @@ async fn connection_refused_maps_to_the_connection_variant() {
     let TransportError::Connection(message) = error else {
         panic!("expected the connection variant, got: {error:?}");
     };
-    // The folded source chain must name the root cause rather than only tonic's opaque
-    // "transport error" wrapper.
     assert!(
         message.contains("refused") || message.contains("os error"),
         "message should name the root cause, got: {message}"
@@ -494,8 +468,6 @@ async fn client_clones_share_the_connection_and_debug_formats() {
 
 #[tokio::test]
 async fn fake_brain_scripts_converse_as_unimplemented() {
-    // Drives the committed streaming codegen directly: the scripted fake
-    // answers `Converse` with `Unimplemented` until a later slice ships it.
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
@@ -524,10 +496,10 @@ async fn list_sessions_maps_summaries_in_order() {
         vec![
             SessionSummary {
                 session_id: String::from("beta"),
-                title: String::from("limit=7"), // the limit crossed the wire
+                title: String::from("limit=7"),
                 preview: String::from("newest chat"),
                 last_activity_unix_ms: 2000,
-                pinned: true, // the pin flag crossed the wire
+                pinned: true,
             },
             SessionSummary {
                 session_id: String::from("alpha"),
@@ -554,7 +526,7 @@ async fn session_messages_maps_history_in_order() {
         vec![
             SessionMessage {
                 role: String::from("user"),
-                text: String::from("chat-9"), // the session id crossed the wire
+                text: String::from("chat-9"),
                 turn_id: String::from("t1"),
                 at_unix_ms: 1000,
             },
@@ -615,7 +587,6 @@ async fn rename_session_writes_both_fields_across_the_wire() {
         .rename_session("chat-9", "Everything about cats")
         .await
         .unwrap();
-    // The user's label and the target chat both crossed the seam intact.
     assert_eq!(
         *recorder.lock().unwrap(),
         vec![(
@@ -623,7 +594,6 @@ async fn rename_session_writes_both_fields_across_the_wire() {
             String::from("Everything about cats"),
         )]
     );
-    // An empty title (the clear-the-override signal) crosses just as faithfully.
     client.rename_session("chat-9", "").await.unwrap();
     assert_eq!(recorder.lock().unwrap().len(), 2);
     assert_eq!(recorder.lock().unwrap()[1].1, "");
@@ -656,7 +626,6 @@ async fn delete_session_writes_the_session_id_across_the_wire() {
         .await
         .unwrap();
     client.delete_session("chat-9").await.unwrap();
-    // The target chat crossed the seam intact (the reply is a bare ack).
     assert_eq!(*recorder.lock().unwrap(), vec![String::from("chat-9")]);
 }
 
@@ -687,12 +656,10 @@ async fn set_session_pinned_writes_both_fields_across_the_wire() {
         .await
         .unwrap();
     client.set_session_pinned("chat-9", true).await.unwrap();
-    // The target chat and the pin state both crossed the seam intact (the reply is a bare ack).
     assert_eq!(
         *recorder.lock().unwrap(),
         vec![(String::from("chat-9"), true)]
     );
-    // Unpinning crosses just as faithfully.
     client.set_session_pinned("chat-9", false).await.unwrap();
     assert_eq!(recorder.lock().unwrap()[1], (String::from("chat-9"), false));
 }
@@ -739,7 +706,7 @@ async fn list_due_reminders_maps_every_field_in_order() {
                 text: String::from("read the flagged mail"),
                 fired_at_unix_ms: 3000,
                 recurring: false,
-                tainted: true, // the provenance bit survives the seam, so a surface can badge it
+                tainted: true,
                 session_id: String::new(),
             },
         ]
@@ -754,10 +721,9 @@ async fn ack_reminder_reports_what_the_brain_cleared() {
     let client = BrainSeamClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
-    assert!(client.ack_reminder("r1").await.unwrap()); // the id crossed the wire
-    // Nothing to clear answers `false` rather than failing: the overlay dismissing a reminder
-    // the brain already dropped is a no-op.
-    assert!(!client.ack_reminder("r-gone").await.unwrap());
+    assert!(client.ack_reminder("r1", 2000).await.unwrap());
+    assert!(!client.ack_reminder("r-gone", 2000).await.unwrap());
+    assert!(!client.ack_reminder("r1", 1999).await.unwrap());
 }
 
 #[tokio::test]
@@ -773,7 +739,10 @@ async fn reminder_store_failure_maps_to_the_rpc_variant() {
         message: String::from("schedule store down"),
     };
     assert_eq!(client.list_due_reminders().await.unwrap_err(), unavailable);
-    assert_eq!(client.ack_reminder("r1").await.unwrap_err(), unavailable);
+    assert_eq!(
+        client.ack_reminder("r1", 2000).await.unwrap_err(),
+        unavailable
+    );
 }
 
 #[tokio::test]
@@ -786,8 +755,6 @@ async fn seam_token_round_trips_when_the_brain_requires_it() {
             .await
             .unwrap();
     assert!(client.health().await.unwrap().ready);
-    // The client's Debug never carries the secret: tonic prints the interceptor by type name,
-    // and the interceptor itself has no Debug.
     let debugged = format!("{client:?}");
     assert!(debugged.contains("BrainSeamClient"));
     assert!(!debugged.contains("sekrit-seam-token"));
@@ -827,7 +794,6 @@ async fn wrong_seam_token_maps_to_the_rpc_unauthenticated_variant() {
 
 #[tokio::test]
 async fn non_ascii_seam_token_maps_to_the_connection_variant() {
-    // The parse fails before any dial, so no server is needed at the address.
     let error = BrainSeamClient::connect_with_token("http://127.0.0.1:1", Some("bad\ntoken"))
         .await
         .unwrap_err();
@@ -842,8 +808,6 @@ async fn non_ascii_seam_token_maps_to_the_connection_variant() {
 
 #[tokio::test]
 async fn lazy_connect_health_round_trips_over_a_lazy_channel() {
-    // The lazy constructor (ADR-0024) never dials at construction; the first RPC
-    // establishes the connection, so a healthy round-trip still works.
     let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
         .await
         .unwrap();
@@ -895,7 +859,6 @@ async fn get_preferences_maps_every_pair_in_the_brains_order() {
         .await
         .unwrap();
     let record = client.get_preferences().await.unwrap();
-    // Pairs arrive as the brain sorted them; the port hands them over verbatim.
     assert_eq!(
         record,
         vec![
@@ -915,7 +878,6 @@ async fn set_preference_writes_both_fields_across_the_wire() {
         .await
         .unwrap();
     client.set_preference("overlay.mark", "ping").await.unwrap();
-    // The clearing write is the one that must not be mistaken for "nothing to send".
     client.set_preference("overlay.theme", "").await.unwrap();
     assert_eq!(
         *recorder.lock().unwrap(),
@@ -950,9 +912,7 @@ async fn preference_store_failures_map_to_the_rpc_variant() {
     }
 }
 
-/// The real `Sleeper` over `tokio::time`, as the shell composes it. Repeated here because the
-/// shell is un-gated and this suite cannot import it. The check below needs a real clock, since
-/// what it asserts is that a genuine gRPC call which never answers is ended by one.
+/// The real `Sleeper` over `tokio::time`, as the shell composes it.
 struct RealSleeper;
 
 impl Sleeper for RealSleeper {
@@ -989,9 +949,6 @@ async fn a_brain_that_accepts_the_call_and_never_answers_is_ended_by_the_deadlin
         transport.health().await.unwrap_err(),
         TransportError::Timeout { after: deadline }
     );
-    // And the classification the overlay renders from it: nothing answered, so `Down`, with the
-    // deadline in the detail. A status-shaped timeout would have drawn `Degraded` here, claiming
-    // the brain replied, which is what this design avoids.
     let status = probe_link(&transport).await;
     assert_eq!(status.state, LinkState::Down);
     assert_eq!(status.detail, format!("no reply within {deadline:?}"));
@@ -1006,19 +963,15 @@ async fn tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure
         .await
         .expect("the fake brain accepts connections; it just never answers");
     let mut request = Request::new(HealthRequest {});
-    // Real time, and little of it: an armed clock is what this measures, 60 ms is enough of
-    // one, and the hanging brain cannot beat it by answering early.
     request.set_timeout(Duration::from_millis(60));
     let status = raw
         .health(request)
         .await
         .expect_err("a brain that never answers cannot beat the timeout");
 
-    // The half of the original reading that was right, kept so the correction is legible here.
     assert_eq!(status.code(), tonic::Code::Cancelled);
     assert_eq!(status.message(), "Timeout expired");
 
-    // The half it got wrong, which is why this test exists.
     let error = body_rpc::status_to_error(&status);
     let TransportError::Connection(message) = &error else {
         panic!("tonic's own expiry should carry a transport source, got: {error:?}");
@@ -1029,7 +982,6 @@ async fn tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure
     );
     assert_eq!(LinkStatus::from_error(&error).state, LinkState::Down);
 
-    // And the consequence that decides where the deadline is enforced.
     assert!(
         is_transient(&error),
         "a transport-armed deadline would be retried, which is why the bound lives in the core"
@@ -1064,8 +1016,6 @@ async fn an_announcing_client_tells_the_brain_each_call_s_own_deadline() {
                 .unwrap(),
         ]
     );
-    // And what the brain heard is longer than what the body holds it to, which is the ordering
-    // this rests on: the announcement arms tonic's clock too, and that clock must expire second.
     for (heard, enforced) in heard.iter().zip([
         plan.deadline_for(SeamMethod::Health).unwrap(),
         plan.deadline_for(SeamMethod::ListSessions).unwrap(),
@@ -1142,8 +1092,6 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
         Duration::from_millis(749)
     );
 
-    // Second, the drop, over the wire: a plan holding exactly that bound announces nothing, and
-    // the call it would have been a courtesy to still succeeds.
     let fake = FakeBrain::new(Script::Ready);
     let heard = Arc::clone(&fake.timeouts);
     let addr = spawn_fake_brain(fake).await.unwrap();
@@ -1156,9 +1104,6 @@ async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_se
         });
     assert_eq!(over.list_sessions(1).await.unwrap().len(), 2);
 
-    // Third, the edge itself, one millisecond lower: the last bound whose announcement lands on
-    // the rung is still sent, decodes to exactly what was announced, and so still stands above
-    // the bound the core enforces. A filter one step too low would silence this call too.
     let plan = RetryPlan {
         call_deadline: Duration::from_millis(99_999_749),
         ..RetryPlan::default()
@@ -1236,9 +1181,6 @@ async fn a_brain_sent_deadline_exceeded_is_the_body_s_own_timeout_coming_back() 
     );
     assert!(!is_transient(&error));
     assert_eq!(LinkStatus::from_error(&error).state, LinkState::Down);
-    // A call that announced nothing stays an `Rpc`: with no deadline of the body's on the wire,
-    // the status is the brain's own report about a bound it chose, and there is no duration to
-    // name. Both are terminal, so the retry decision does not turn on the difference.
     assert_eq!(
         client.health().await.unwrap_err(),
         TransportError::Rpc {

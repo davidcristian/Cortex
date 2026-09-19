@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { DueReminder } from "../bridge/types";
 import { LUCID, STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
 import { parkDraft } from "../overlay/drafts";
@@ -71,7 +72,7 @@ interface Handlers {
   onDeleteSession?: (sessionId: string) => void;
   onPinSession?: (sessionId: string, pinned: boolean) => void;
   onRespondConfirm?: (confirmId: string, approved: boolean) => void;
-  onDismissReminder?: (reminderId: string) => void;
+  onDismissReminder?: (reminder: DueReminder) => void;
 }
 
 function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
@@ -156,8 +157,6 @@ describe("Panel", () => {
     const dot = screen.getByRole("status");
     expect(dot.className).toBe("linkdot warn");
     expect(dot).toHaveAccessibleName("The brain is not serving: store down");
-    // The dot sits after the title rather than before it: the title starts the header (and owns
-    // the panel's rounded corner), and the dot begins the button cluster as its state indicator.
     expect(dot.previousElementSibling?.textContent).toBe("My chat");
     expect(dot.nextElementSibling).toBe(screen.getByLabelText("Recent chats"));
   });
@@ -182,8 +181,6 @@ describe("Panel", () => {
     expect(dialog.className).not.toContain("to-orb");
     const icon = screen.getByLabelText("Toggle theme").querySelector("svg.sunmoon");
     expect(icon?.classList.contains("dark")).toBe(true);
-    // Read off the bubble rather than searched for: a reply is rendered one span per word, so it
-    // matches no single text node, and a loose pattern now finds the "Shift" keycap instead.
     expect(container.querySelector(".b-user")?.textContent).toContain("hi there");
   });
 
@@ -227,8 +224,6 @@ describe("Panel", () => {
       { onSelectSession },
     );
     fireEvent.click(screen.getByText("First chat"));
-    // The load is silent: the row's own accessible name is the title, so a live region repeating
-    // it would read back the label the reader just pressed (`overlay/notice.ts`).
     expect(onSelectSession).toHaveBeenCalledWith("c1", false);
   });
 
@@ -292,14 +287,13 @@ describe("Panel", () => {
     );
     rerender(<Panel {...props} />);
     const stack = screen.getByLabelText("Due reminders");
-    // The stack sits outside the log, so scrolling the conversation cannot move it out of view.
     expect(container.querySelector(".history")?.contains(stack)).toBe(false);
     fireEvent.click(screen.getByText("open chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c9", true);
-    // The ack goes up in the frame the check is pressed; the row it removes is held on screen for
-    // the length of its own roll by the stack itself (`overlay/usePresence.ts`).
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));
-    expect(onDismissReminder).toHaveBeenCalledWith("r-1");
+    expect(onDismissReminder).toHaveBeenCalledWith(
+      expect.objectContaining({ reminderId: "r-1", firedAtUnixMs: 1000 }),
+    );
   });
 
   it("opens the console on the tab each gesture names: the sliders and the mark on appearance", () => {
@@ -323,12 +317,7 @@ describe("Panel", () => {
     });
     expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByRole("tabpanel", { name: "Face" })).toBeInTheDocument();
-    // The chat is still mounted (a half-typed draft survives the trip) but out of the flow, so
-    // the panel is only as tall as the tiles.
     expect(container.querySelector(".view.gone")).not.toBeNull();
-    // Picked by its label, stored under its key, and the two match again: the keys were healed
-    // once the maintainer confirmed the project is private, with the shipped names kept as resolver
-    // aliases so a pick stored under "foam" still lands on Tangent.
     fireEvent.click(screen.getByRole("radio", { name: "Tangent" }));
     expect(onPickMark).toHaveBeenCalledWith("tangent");
     fireEvent.click(screen.getByRole("radio", { name: "Daylight" }));
@@ -365,12 +354,8 @@ describe("Panel", () => {
     const view = render(<Panel {...props(null)} />);
     const field = screen.getByLabelText("Message");
     expect(document.activeElement).toBe(field);
-    // Into the console: the pane that arrives takes focus, because the chat pane it came from is
-    // one morph away from display:none, which would drop focus to the body.
     view.rerender(<Panel {...props("appearance")} />);
     expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Face" }));
-    // And back out: the chat is the active view again, so the caret returns to the draft rather
-    // than staying on a tab strip that is fading out.
     view.rerender(<Panel {...props(null)} />);
     expect(document.activeElement).toBe(field);
   });
@@ -379,8 +364,6 @@ describe("Panel", () => {
     const props = (tab: ConsoleTab | null) => panelProps({ consoleTab: tab }, true, false);
     const view = render(<Panel {...props(null)} />);
     view.rerender(<Panel {...props("appearance")} />);
-    // Nothing in the chat is in the same place as anything in the console, so this crossing is
-    // the full one: the console rises into the space the panel is opening, the chat sinks out.
     expect(view.container.querySelector(".view.out")?.className).toBe("view out");
     expect(view.container.querySelector(".views > div:not(.out):not(.gone)")?.className).toBe(
       "view",
@@ -391,8 +374,6 @@ describe("Panel", () => {
     const props = (over: Partial<OverlayState>) => panelProps(over, true, false);
     const view = render(<Panel {...props({ consoleTab: "shortcuts" })} />);
     expect(view.container.querySelector(".view.out")).toBeNull();
-    // Back to the chat: the shortcut list stays, lifted out of flow so it cannot define the
-    // height the panel is easing to, and fades out over the chat arriving underneath it.
     view.rerender(<Panel {...props({})} />);
     const leaving = view.container.querySelector(".view.out");
     expect(leaving?.textContent).toContain("Switcher");
@@ -403,12 +384,8 @@ describe("Panel", () => {
     const props = (over: Partial<OverlayState>) => panelProps(over, true, false);
     const view = render(<Panel {...props({ consoleTab: "shortcuts" })} />);
     const views = () => [...view.container.querySelectorAll(".views > .view")];
-    // Settled: the chat is `gone`, which is display:none, and the console is the live view.
     expect(views().map((pane) => pane.hasAttribute("inert"))).toEqual([true, false]);
 
-    // Leaving: the console is still mounted and fading, and for that whole 380ms it was announced
-    // as hidden and still reachable by Tab, which is three stops (the chevron and both faces) in a
-    // pane the user has already left. Now the two attributes say the same thing.
     view.rerender(<Panel {...props({})} />);
     const leaving = view.container.querySelector(".view.out") as HTMLElement;
     expect(leaving.getAttribute("aria-hidden")).toBe("true");
@@ -417,9 +394,6 @@ describe("Panel", () => {
   });
 
   it("takes a dismissed panel out of the tab order, orb and hidden alike", () => {
-    // The outermost of the three: the panel is never unmounted, so a dismissed one was opacity 0
-    // with everything in it still tabbable, and Tab walked an invisible panel. Measured in
-    // Chromium at 900x900 before this: six presses reached the reminder rows' buttons.
     for (const mode of ["hidden", "orb"] as const) {
       const { container, unmount } = renderPanel({ mode }, false, false);
       const panel = container.querySelector(".panel") as HTMLElement;
@@ -456,9 +430,6 @@ describe("Panel", () => {
   });
 
   it("sizes that floor off the invitation it is copying, while the invitation is on screen", () => {
-    // The other half of the same contract: the floor is `--chat-floor` and the empty state is what
-    // publishes it (overlay/measured.ts), so an edit to the mark, the invitation or the chips moves
-    // the floor with it instead of leaving a constant behind to drift.
     const settle = laysEverything(207);
     try {
       renderPanel({}, true, false);
@@ -475,15 +446,12 @@ describe("Panel", () => {
     const el = view.container.querySelector(".history") as HTMLDivElement;
     Object.defineProperty(el, "scrollHeight", { configurable: true, value: 500 });
     Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
-    // Pinned at the bottom (the mount default): a new message keeps the tail in view.
     view.rerender(<Panel {...props([userMsg, reply("m1")])} />);
     expect(el.scrollTop).toBe(500);
-    // The reader scrolls up to read; the next message must not yank them back down.
     el.scrollTop = 100;
     fireEvent.scroll(el);
     view.rerender(<Panel {...props([userMsg, reply("m1"), reply("m2")])} />);
     expect(el.scrollTop).toBe(100);
-    // Returning to (near) the bottom re-pins the tail.
     el.scrollTop = 470;
     fireEvent.scroll(el);
     view.rerender(<Panel {...props([userMsg, reply("m1"), reply("m2"), reply("m3")])} />);
@@ -498,13 +466,10 @@ describe("Panel", () => {
     Object.defineProperty(field, "clientHeight", { configurable: true, value: 34 });
     Object.defineProperty(field, "scrollHeight", { configurable: true, get: () => 50 });
     Object.defineProperty(pill, "offsetHeight", { configurable: true, get: () => 90 });
-    // The log's own numbers: the tail is at 500, and the draft is about to take the window with it.
     Object.defineProperty(el, "scrollHeight", { configurable: true, value: 500 });
     Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
     fireEvent.change(field, { target: { value: "a draft\nover two lines" } });
     expect(el.scrollTop).toBe(500);
-    // A reader who has scrolled up keeps their place: growing the pill is not a reason to yank them
-    // back down, exactly as a new message is not.
     el.scrollTop = 100;
     fireEvent.scroll(el);
     Object.defineProperty(pill, "offsetHeight", { configurable: true, get: () => 130 });
@@ -519,8 +484,6 @@ describe("Panel", () => {
       frames.push(callback),
     );
     vi.stubGlobal("cancelAnimationFrame", () => undefined);
-    // One array across both renders, so opening the switcher is the only thing that changed: a new
-    // list of messages is what the tail pin itself answers, and it would scroll this log on its own.
     const messages = [userMsg, reply("m1")];
     const props = (switcherOpen: boolean) => panelProps({ messages, switcherOpen }, true, false);
     const view = render(<Panel {...props(false)} />);
@@ -530,11 +493,8 @@ describe("Panel", () => {
     Object.defineProperty(el, "clientHeight", { configurable: true, get: () => seen });
     el.scrollTop = 408;
     view.rerender(<Panel {...props(true)} />);
-    // Frame zero of the roll, where the log is still the size it was: the ride reads the reader's
-    // distance from the end there (3px, so they are at it) and moves nothing yet.
     frames[frames.length - 1]?.(0);
     expect(el.scrollTop).toBe(408);
-    // And now the roll takes the window, the panel having nothing left to give.
     seen = 73;
     frames[frames.length - 1]?.(0);
     expect(el.scrollTop).toBe(628);
@@ -549,7 +509,6 @@ describe("Panel", () => {
     Object.defineProperty(el, "scrollHeight", { configurable: true, value: 500 });
     Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
 
-    // A reader well up the log, reading rather than following.
     el.scrollTop = 100;
     fireEvent.scroll(el);
     view.rerender(<Panel {...props("appearance")} />);
@@ -558,8 +517,6 @@ describe("Panel", () => {
     view.rerender(<Panel {...props(null)} />);
     expect(el.scrollTop).toBe(100);
 
-    // A reader who was at the tail comes back to the tail, which may be a different line: a reply
-    // can land while the console is up, and staying at the tail is what following the stream means.
     el.scrollTop = 470;
     fireEvent.scroll(el);
     view.rerender(<Panel {...props("shortcuts")} />);
@@ -575,22 +532,16 @@ describe("Panel", () => {
     expect(view.container.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe(
       "Chords",
     );
-    // Closing keeps the console mounted for one morph so it can fade out. Its tab is already null
-    // by then, and the fallback for a null tab used to be the first tab, so leaving from the
-    // shortcuts drew the appearance pane over the one the user was looking at and faded that away.
     view.rerender(<Panel {...props(null)} />);
     const leaving = view.container.querySelector(".view.out");
     expect(leaving?.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe("Chords");
   });
 
   it("marks the log bare only while the empty state is the whole of it", () => {
-    // `.log.bare` is what stops the opening screen scrolling: the column may then be shorter than
-    // its content, and clips instead of offering a bar for a picture with no more of it below.
     const log = (over: Partial<OverlayState>) =>
       renderPanel(over, true, false).container.querySelector(".log")?.className;
     expect(log({})).toBe("log bare");
     expect(log({ messages: [userMsg] })).toBe("log");
-    // An approval card with no messages is still something to scroll to, so the log stays a log.
     expect(
       log({
         pendingConfirm: {
@@ -621,9 +572,6 @@ describe("Panel", () => {
     renderPanel({}, true, false);
     const hint = (text: string) =>
       [...document.querySelectorAll(".hints span")].find((s) => s.textContent?.includes(text));
-    // A chord is drawn as one cap per key: the newline hint is Shift and Return, so two caps, which
-    // is how the console's list renders it too. Shift is spelled out like Ctrl and Alt, so the only
-    // cap drawn as a glyph is return.
     expect(hint("new line")?.querySelectorAll("b")).toHaveLength(2);
     expect(hint("new line")?.querySelector("b")?.textContent).toBe("Shift");
     expect(hint("new line")?.querySelectorAll("b.key")).toHaveLength(1);
@@ -631,7 +579,6 @@ describe("Panel", () => {
       expect(cap.querySelectorAll("svg")).toHaveLength(1);
     }
     expect(hint("send")?.querySelectorAll("b.key")).toHaveLength(1);
-    // Matched on "N new" rather than "new", which "new line" would answer to first.
     expect([...(hint("N new")?.querySelectorAll("b") ?? [])].map((b) => b.textContent)).toEqual([
       "Ctrl",
       "N",

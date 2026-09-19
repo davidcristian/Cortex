@@ -1,7 +1,7 @@
-"""The pure in-place schedule transitions both stores apply (ADR-0025 edit/snooze addenda)."""
+"""The pure in-place schedule transitions both stores apply."""
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from cortex_core.schedule import ScheduledItem, ScheduleStatus, require_aware
 from cortex_core.schedule_calendar import CalendarRule
@@ -20,8 +20,7 @@ class RuleChange:
 
 @dataclass(frozen=True, slots=True)
 class ScheduleEdit:
-    """A validated in-place change to a stored schedule: new text and/or recurrence (edit addendum).
-    """
+    """A validated in-place change to a stored schedule: new text and/or recurrence (decision 9)."""
 
     text: str | None = None
     every: timedelta | None = None
@@ -74,3 +73,27 @@ def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
         deliverable_since=None,
         anchor=anchor,
     )
+
+
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+_MILLISECOND = timedelta(milliseconds=1)
+
+
+def fire_stamp(moment: datetime) -> int:
+    """``moment`` as whole unix-milliseconds, the grain the pull wire names a fire at."""
+    # Integer arithmetic rather than ``timestamp() * 1000``, whose float product can come out a
+    # millisecond low: the overlay echoes this stamp back and the two must compare equal.
+    return (moment - _EPOCH) // _MILLISECOND
+
+
+def stamp_instant(stamp: int) -> datetime:
+    """The instant a ``fire_stamp`` names, exactly (``fire_stamp(stamp_instant(n)) == n``)."""
+    return _EPOCH + stamp * _MILLISECOND
+
+
+def acks_fire(item: ScheduledItem, fired_at: datetime | None) -> bool:
+    """Whether an ack naming the fire at ``fired_at`` clears ``item``'s delivery slot."""
+    since = item.deliverable_since
+    if since is None:
+        return False
+    return fired_at is None or fire_stamp(since) == fire_stamp(fired_at)

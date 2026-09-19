@@ -45,14 +45,10 @@ from cortex_seam import (
 
 ORCHESTRATOR_VERSION = "0.0.0"
 _SHUTDOWN_GRACE_SECONDS = 5.0
-# SIGTERM is what `docker compose down` delivers (via init); SIGINT covers Ctrl-C runs.
-# The brain only runs on dockerized Linux (AGENTS.md), so loop signal handlers always work.
+# SIGTERM is what `docker compose down` delivers; SIGINT covers a Ctrl-C run.
 _HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 _logger = logging.getLogger(__name__)
 
-# Re-exported for the composition root and its tests; the session RPC bodies live in
-# `session_servicer.SessionRpcMixin`, and the mapping/clamp/write helpers in `session_rpc.py`, to
-# keep this shell thin (the two limit constants stay importable from here for the seam's consumers).
 __all__ = [
     "DEFAULT_SESSION_LIST_LIMIT",
     "MAX_SESSION_LIST_LIMIT",
@@ -66,7 +62,7 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class SeamPorts:
-    """The optional ports the seam serves beyond a turn, bundled as one dependency."""
+    """The optional ports the server offers beyond a turn, bundled as one dependency."""
 
     schedules: ScheduleStore | None = None
     memory_cascade: SessionMemoryCascade | None = None
@@ -74,13 +70,11 @@ class SeamPorts:
     preferences: PreferenceStore | None = None
 
 
-# The "nothing beyond a turn" bundle, shared because it is frozen: the default for a service
-# built with no optional capability at all (every seam test that only converses).
 _NO_SEAM_PORTS = SeamPorts()
 
 
 class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
-    """The brain's side of the seam (proto/body.proto BrainService)."""
+    """The brain's side of the gRPC interface (proto/body.proto BrainService)."""
 
     def __init__(
         self,
@@ -106,7 +100,7 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         context: aio.ServicerContext[HealthRequest, HealthReply],
     ) -> HealthReply:
         """Report readiness so the overlay can display connection state."""
-        del request, context  # part of the generated servicer signature; unused here
+        del request, context
         report = None if self._residency is None else self._residency.residency()
         if report is not None and not report.serving:
             return HealthReply(ready=False, detail=report.detail)
@@ -120,7 +114,7 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         context: aio.ServicerContext[ClientEvent, ServerEvent],
     ) -> AsyncGenerator[ServerEvent, None]:
         """Stream the conversation loop; contract and cancel semantics: `converse.py`."""
-        del context  # RPC cancellation/disconnect arrive as generator close, not via context
+        del context  # RPC cancellation and disconnect arrive as a generator close, not here
         events = converse(
             self._make_engine,
             request_iterator,
@@ -131,8 +125,6 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
             async for event in events:
                 yield event
         finally:
-            # Runs on normal end, RPC cancel, and client disconnect alike: closing the
-            # stream tears down its pump task and any in-flight turn deterministically.
             await events.aclose()
 
     async def ListDueReminders(  # noqa: N802 - method name is fixed by the gRPC codegen interface
@@ -140,11 +132,7 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         request: ListDueRemindersRequest,
         context: aio.ServicerContext[ListDueRemindersRequest, ListDueRemindersReply],
     ) -> ListDueRemindersReply:
-        """Fired-but-undelivered reminders (ADR-0025; policy + mapping in `reminders.py`).
-
-        Benignly empty with no ScheduleStore wired; a live store's `ScheduleStoreError`
-        aborts `UNAVAILABLE` (the session-reads precedent).
-        """
+        """Fired-but-undelivered reminders (policy + mapping in `reminders.py`)."""
         del request
         try:
             return await list_due_reminders(self._schedules)
@@ -156,9 +144,11 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         request: AckReminderRequest,
         context: aio.ServicerContext[AckReminderRequest, AckReminderReply],
     ) -> AckReminderReply:
-        """Mark one reminder delivered (ADR-0025). Idempotent, `acked=false` when unknown."""
+        """Mark one fire delivered."""
         try:
-            return await ack_reminder(self._schedules, request.reminder_id)
+            return await ack_reminder(
+                self._schedules, request.reminder_id, request.fired_at_unix_ms
+            )
         except ScheduleStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
@@ -193,7 +183,7 @@ async def serve(
     store: SessionStore,
     ports: SeamPorts = _NO_SEAM_PORTS,
 ) -> None:
-    """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
+    """Run the server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
     server, bound_port = create_server(config, make_engine, store, ports)
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})

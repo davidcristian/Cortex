@@ -1,4 +1,4 @@
-"""RedisScheduleStore: the ScheduleStore port over durable Redis keys (ADR-0025)."""
+"""RedisScheduleStore: the ScheduleStore port over durable Redis keys."""
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
@@ -80,11 +80,7 @@ class RedisScheduleStore:
         return item
 
     async def list_active(self) -> Sequence[ScheduledItem]:
-        """PENDING/FIRING items plus fired-but-undelivered ones, due order.
-
-        A dangling index id (its record deleted) is skipped, the same tolerance
-        ``list_sessions`` has; a present-but-corrupt record raises through ``decode``.
-        """
+        """PENDING/FIRING items plus fired-but-undelivered ones, due order."""
         try:
             found: list[str] = []
             for key in (DUE_KEY, FIRING_KEY, DELIVERABLE_KEY):
@@ -101,8 +97,7 @@ class RedisScheduleStore:
         return tuple(sorted(items, key=lambda item: item.due_at))
 
     async def cancel(self, item_id: str) -> bool:
-        """Delete the record and every index entry (False for unknown). It never decodes, so a
-        corrupt record is cancellable too, and a cancel holds through an in-flight fire."""
+        """Delete the record and every index entry (False for unknown)."""
         try:
             async with self._client.pipeline(transaction=True) as pipe:
                 pipe.zrem(DUE_KEY, item_id)
@@ -117,7 +112,7 @@ class RedisScheduleStore:
         return deleted > 0
 
     async def snooze(self, item_id: str, *, until: datetime) -> bool:
-        """Postpone an item to ``until`` via ``apply_snooze``; FIRING and unknown answer False."""
+        """Postpone an item to ``until``; a FIRING or unknown item returns False."""
         try:
             async with self._client.pipeline(transaction=True) as pipe:
                 state = await watched_state(pipe, item_id)
@@ -141,7 +136,7 @@ class RedisScheduleStore:
         return True
 
     async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:
-        """Retext / re-recur a non-FIRING item, WATCH-fenced (``schedule_claims.edit_item``)."""
+        """Change a non-FIRING item's text or recurrence, WATCH-fenced."""
         try:
             return await edit_item(self._client, item_id, edit)
         except RedisError as err:
@@ -175,7 +170,7 @@ class RedisScheduleStore:
             raise ScheduleStoreError(msg) from err
 
     async def dead_letters(self) -> Sequence[DeadLetter]:
-        """The quarantined records, for operator inspection (dead-letter addendum)."""
+        """The quarantined records, for operator inspection."""
         try:
             return await dead_letters(self._client)
         except RedisError as err:
@@ -198,10 +193,10 @@ class RedisScheduleStore:
             msg = "listing deliverable reminders failed"
             raise ScheduleStoreError(msg) from err
 
-    async def ack(self, item_id: str) -> bool:
-        """Clear one fired reminder's delivery slot (``schedule_delivery.ack_item``)."""
+    async def ack(self, item_id: str, *, fired_at: datetime | None) -> bool:
+        """Clear the fire ``fired_at`` names from its delivery slot (``ack_item``)."""
         try:
-            return await ack_item(self._client, item_id)
+            return await ack_item(self._client, item_id, fired_at)
         except RedisError as err:
             msg = f"ack of reminder {item_id!r} failed"
             raise ScheduleStoreError(msg) from err

@@ -1,5 +1,5 @@
-//! The reminder pull-delivery IPC commands (ADR-0025): list what has fired and is still
-//! awaiting delivery, and ack what the overlay showed (`bridge/tauriBridge.ts`).
+//! The reminder pull-delivery IPC commands: list what has fired and is still awaiting
+//! delivery, and ack what the overlay showed (`bridge/tauriBridge.ts`).
 
 use body_core::{BrainTransport, DueReminder};
 use serde::Serialize;
@@ -29,8 +29,7 @@ impl From<DueReminder> for WireReminder {
     }
 }
 
-/// Lists fired-but-undelivered reminders across every session
-/// (`BrainService.ListDueReminders`). The overlay calls this each time it opens.
+/// Lists fired-but-undelivered reminders across every session (`BrainService.ListDueReminders`).
 #[tauri::command]
 pub async fn list_due_reminders() -> Result<Vec<WireReminder>, String> {
     let client = crate::seam::connect()?;
@@ -41,14 +40,13 @@ pub async fn list_due_reminders() -> Result<Vec<WireReminder>, String> {
     Ok(reminders.into_iter().map(Into::into).collect())
 }
 
-/// Marks one reminder delivered (`BrainService.AckReminder`). `false` is the brain reporting
-/// there was nothing to clear, not a failure; the overlay dismisses optimistically either way
-/// and re-reads on the next open, which is what makes an unretried ack safe.
+/// Marks the fire a card showed delivered (`BrainService.AckReminder`), named by the card's
+/// `firedAtUnixMs`.
 #[tauri::command]
-pub async fn ack_reminder(reminder_id: String) -> Result<bool, String> {
+pub async fn ack_reminder(reminder_id: String, fired_at_unix_ms: i64) -> Result<bool, String> {
     let client = crate::seam::connect()?;
     client
-        .ack_reminder(&reminder_id)
+        .ack_reminder(&reminder_id, fired_at_unix_ms)
         .await
         .map_err(|error| error.to_string())
 }

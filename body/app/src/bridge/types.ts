@@ -1,11 +1,13 @@
+// The turn events and the `BrainBridge` port the overlay uses, mirroring the Rust `body_core`
+// types of the same names.
 
 export type TurnEvent =
   | { readonly kind: "delta"; readonly text: string }
   | { readonly kind: "toolActivity"; readonly toolName: string; readonly summary: string }
   /**
-   * How a dispatch the `toolActivity` above announced ended (ADR-0029 outcome addendum). The brain
-   * emits exactly one per activity on the turn's own stream, on every path out of the dispatch, so
-   * a surface an activity switched on has an event that switches it off.
+   * How the tool call that `toolActivity` announced ended. `ok: false` means the brain cannot
+   * confirm the tool reached anything, not that nothing happened: a screen capture that failed
+   * after the screen was read looks the same from here.
    */
   | { readonly kind: "toolOutcome"; readonly toolName: string; readonly ok: boolean }
   | { readonly kind: "status"; readonly state: string; readonly detail: string }
@@ -16,10 +18,8 @@ export type TurnEvent =
       readonly argumentsJson: string;
       readonly reason: string;
     }
-  /**
-   * A `confirmRequest` the brain stopped waiting on (ADR-0022), so the card can close rather than
-   * offer an answer nothing is listening for.
-   */
+  /** A `confirmRequest` the brain stopped waiting on, so the card can close. `outcome` is
+   *  "timeout" or "unavailable"; neither one ran the tool. */
   | { readonly kind: "confirmResolved"; readonly confirmId: string; readonly outcome: string }
   | { readonly kind: "complete"; readonly turnId: string }
   | { readonly kind: "failed"; readonly code: string; readonly message: string };
@@ -40,17 +40,13 @@ export interface TurnSink {
 /** Cancels an in-flight turn (drops the stream). */
 export type Cancellation = () => void;
 
-/** One recent chat as the switcher shows it (mirror of the proto `SessionSummary`, ADR-0021). */
+/** One recent chat as the switcher shows it (mirror of the proto `SessionSummary`). */
 export interface SessionSummary {
   readonly sessionId: string;
   readonly title: string;
   readonly preview: string;
   readonly lastActivityUnixMs: number;
-  /**
-   * Whether the user pinned this chat (ADR-0021 pinning addendum). The brain unions pinned chats
-   * into the listing regardless of recency and sorts them above the recency group, so the switcher
-   * receives them already grouped first and only has to render the pin indicator per row.
-   */
+  /** Whether the user has `pinned` this chat. The brain lists those first, whatever their age. */
   readonly pinned: boolean;
 }
 
@@ -62,92 +58,69 @@ export interface SessionMessage {
   readonly atUnixMs: number;
 }
 
-/**
- * One fired-but-undelivered reminder (mirror of the proto `DueReminder`, ADR-0025).
- * `text` is display-only and never linkified: it is the one string the overlay shows
- * that no output guardrail has inspected (ADR-0015 filters replies, not store rows).
- */
+/** One reminder that has fired and has not been delivered yet. `text` is shown as plain text and
+ *  never turned into links: no output filter has inspected it. */
 export interface DueReminder {
   readonly reminderId: string;
   readonly text: string;
   /** When it became deliverable, for the card's relative timestamp. */
   readonly firedAtUnixMs: number;
-  /** Whether the series re-arms, so dismissing reads as "this one", not "cancel it". */
+  /** Whether the reminder repeats, so dismissing it clears this one fire, not the series. */
   readonly recurring: boolean;
-  /** Untrusted provenance: the card badges it (ADR-0013/0025). */
+  /** Whether the text came from an untrusted source; the card shows a badge for it. */
   readonly tainted: boolean;
-  /** The origin chat, or "" for a session-less caller. */
+  /** The chat it came from, or "" when the caller had no session. */
   readonly sessionId: string;
 }
 
-/**
- * What the last seam answer proved about the brain (mirror of the Rust `body_core::LinkState`,
- * ADR-0011 addendum): `ready` = it answered and reports itself serving, `degraded` = it answered
- * and is not serving (not ready, a non-OK status, an unreadable reply), `down` = it could not be
- */
+/** What the last probe found: `ready` = the brain answered and reports itself serving,
+ *  `degraded` = it answered but is not serving, `down` = it could not be reached. The overlay
+ *  adds its own `unknown` for "not asked yet". */
 export type LinkState = "ready" | "degraded" | "down";
 
-/** One classified seam answer: the state plus a display-only line of detail (never parsed). */
+/** One classified answer from the brain: a state plus a line of detail for display only. */
 export interface LinkStatus {
   readonly state: LinkState;
   readonly detail: string;
 }
 
-/** One stored setting (mirror of the proto `Preference`, ADR-0032). Values are opaque strings:
- *  the brain never parses one, and the overlay parses only the keys it owns. */
+/** One stored setting (mirror of the proto `Preference`). Values are opaque strings that the
+ *  brain never parses. */
 export interface Preference {
   readonly key: string;
   readonly value: string;
 }
 
-/** The overlay's port to the brain. Implemented over Tauri IPC (real) or a fake. */
+/** The overlay's port to the brain, implemented over Tauri IPC or by a fake. */
 export interface BrainBridge {
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation;
-  /**
-   * Probe the seam once for the connection indicator. Resolves with a state even when the
-   * brain is unreachable: a failed probe is an answer about the brain, not an error. The
-   * probe rides the resilient transport, so it is also the reconnect attempt (ADR-0024).
-   */
+  /** Probe the brain once for the connection indicator. Resolves with a state even when the
+   *  brain is unreachable: a failed probe is an answer about it, not an error. */
   checkLink(): Promise<LinkStatus>;
   /** Recent chats, newest-active first (at most `limit`; `0` = the brain default). */
   listSessions(limit: number): Promise<readonly SessionSummary[]>;
   /** One session's persisted history, in append order. */
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]>;
-  /**
-   * Rename one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the user's own
-   * relabel from the switcher.
-   */
+  /** Rename one chat. An empty `title` clears the custom title, so the row falls back to the
+   *  one the brain derives. */
   renameSession(sessionId: string, title: string): Promise<void>;
-  /**
-   * Delete one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the user's own
-   * destructive removal from the switcher, fired only after an overlay-local "are you sure"
-   * confirm.
-   */
+  /** Delete one chat and the memories private to it. Not retried, so a lost answer shows as a
+   *  failure instead of repeating the delete. */
   deleteSession(sessionId: string): Promise<void>;
-  /**
-   * Pin or unpin one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum): the user's
-   * own pin toggle from the switcher.
-   */
+  /** Set whether the brain lists this chat regardless of how old it is. */
   setSessionPinned(sessionId: string, pinned: boolean): Promise<void>;
-  /** Reminders that have fired and still await delivery, across every session (ADR-0025). */
+  /** Reminders that have fired and still await delivery, across every session. */
   listDueReminders(): Promise<readonly DueReminder[]>;
-  /**
-   * Mark one reminder delivered. `false` is the brain reporting there was nothing to
-   * clear (unknown or already acked), not a failure. Unretried by design: a lost ack
-   * re-surfaces the reminder on the next open rather than risking a misread answer.
-   */
-  ackReminder(reminderId: string): Promise<boolean>;
-  /**
-   * Answer a mid-turn `confirmRequest` (ADR-0022). A failure is non-fatal: an
-   * unanswered confirmation denies by timeout brain-side (fail-closed).
-   */
+  /** Mark the fire a card showed as delivered, named by its `firedAtUnixMs`, so dismissing a card
+   *  that a later fire has replaced clears nothing and the later fire shows on the next open.
+   *  `false` means there was nothing to clear, not a failure. */
+  ackReminder(reminderId: string, firedAtUnixMs: number): Promise<boolean>;
+  /** Answer a mid-turn `confirmRequest`. A failure is not fatal: an unanswered confirmation is
+   *  denied by the brain's own timeout. */
   respondConfirm(confirmId: string, approved: boolean): Promise<void>;
-  /**
-   * The user's settings record, read whole (`BrainService.GetPreferences`, ADR-0032). The
-   * overlay asks once at startup and applies the keys it knows; an unrecognised key belongs to
-   * some other surface and is ignored, never an error. An empty record is the normal first run.
-   */
+  /** The user's settings record, read whole. A key the overlay does not recognise belongs to
+   *  something else and is ignored. */
   getPreferences(): Promise<readonly Preference[]>;
-  /** Write one setting (`BrainService.SetPreference`, ADR-0032). */
+  /** Write one setting. An empty `value` clears the key, so the reader's own default applies. */
   setPreference(key: string, value: string): Promise<void>;
 }

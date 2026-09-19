@@ -1,6 +1,7 @@
-"""The RedisScheduleStore's post-fire path: settle a claim, then deliver and clear (ADR-0025)."""
+"""The RedisScheduleStore's post-fire path: settle a claim, then deliver and clear."""
 
 from dataclasses import replace
+from datetime import datetime
 
 from redis.asyncio import Redis
 from redis.exceptions import WatchError
@@ -10,6 +11,7 @@ from cortex_core import (
     ScheduleClaim,
     ScheduledItem,
     ScheduleStatus,
+    acks_fire,
 )
 from cortex_session.schedule_claims import ids, watched_state
 from cortex_session.schedule_codec import (
@@ -23,7 +25,7 @@ from cortex_session.schedule_codec import (
 
 
 async def finish_claim(client: Redis, claim: ScheduleClaim, outcome: FireOutcome) -> bool:
-    """Persist one fire under the claim's token; a stale or raced claimant no-ops False."""
+    """Persist one fire under the claim's token; False for a stale or raced claimant."""
     async with client.pipeline(transaction=True) as pipe:
         state = await watched_state(pipe, claim.item.id)
         if state is None:
@@ -70,18 +72,14 @@ async def deliverable_items(client: Redis) -> tuple[ScheduledItem, ...]:
     return tuple(items)
 
 
-async def ack_item(client: Redis, item_id: str) -> bool:
-    """Clear deliverability; a DONE one-shot is deleted. False when not deliverable.
-
-    WATCH-fenced: an ack racing a re-claim (or cancel) fails its EXEC instead of
-    writing back the stale claim state it read (post-review hardening).
-    """
+async def ack_item(client: Redis, item_id: str, fired_at: datetime | None) -> bool:
+    """Clear the fire ``fired_at`` names; a DONE one-shot is deleted."""
     async with client.pipeline(transaction=True) as pipe:
         state = await watched_state(pipe, item_id)
         if state is None:
             return False
         item, live_claim, claimed_at = state
-        if item.deliverable_since is None:
+        if not acks_fire(item, fired_at):
             return False
         pipe.multi()
         pipe.zrem(DELIVERABLE_KEY, item_id)

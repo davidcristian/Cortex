@@ -1,6 +1,3 @@
-//! Behavioral tests for `body_core::retry` covering the `RetryingTransport` decorator, its
-//! `RetryPolicy` schedule, the `is_transient` classifier, and the `Sleeper` seam (ADR-0024).
-
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -41,9 +38,8 @@ impl FailKind {
     }
 }
 
-/// A fake `BrainTransport` that fails its first `remaining` idempotent calls with a scripted
-/// error, then succeeds, counting every call. `Clone` shares the `Arc` counters, so a clone
-/// kept by the test observes what the decorator did after taking ownership of the original.
+/// A fake `BrainTransport` that fails its first `remaining` idempotent calls with a scripted error,
+/// then succeeds, counting every call.
 #[derive(Clone)]
 struct FlakyTransport {
     kind: FailKind,
@@ -135,9 +131,13 @@ impl BrainTransport for FlakyTransport {
         }])
     }
 
-    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
+    async fn ack_reminder(
+        &self,
+        reminder_id: &str,
+        fired_at_unix_ms: i64,
+    ) -> Result<bool, TransportError> {
         self.tick()?;
-        Ok(reminder_id == "r1")
+        Ok(reminder_id == "r1" && fired_at_unix_ms == 1)
     }
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
@@ -174,8 +174,7 @@ impl BrainTransport for FlakyTransport {
     }
 }
 
-/// A `Sleeper` that records each requested delay and returns immediately (no real time). `Clone`
-/// shares the log so the test can read the schedule after the sleeper is moved into the decorator.
+/// A `Sleeper` that records each requested delay and returns immediately (no real time).
 #[derive(Clone, Default)]
 struct FakeSleeper {
     recorded: Arc<Mutex<Vec<Duration>>>,
@@ -208,9 +207,6 @@ impl Sleeper for FakeSleeper {
         let expires = self.expires;
         async move {
             if expires {
-                // The deadline expired first, so the call is dropped without ever being polled
-                // and the fake's own call counter shows the attempt was abandoned rather than
-                // merely losing its result.
                 drop(call);
                 return None;
             }
@@ -244,8 +240,8 @@ impl FakeSleeper {
     }
 }
 
-/// A fast policy for the retry-succeeds cases, where the cap never applies: `max_attempts`
-/// tries, 100 ms base, ×2, capped at 10 s.
+/// A fast policy for the retry-succeeds cases, where the cap never applies: `max_attempts` tries,
+/// 100 ms base, ×2, capped at 10 s.
 fn policy(max_attempts: u32) -> RetryPolicy {
     RetryPolicy {
         max_attempts,
@@ -289,8 +285,7 @@ async fn retries_a_transient_failure_then_succeeds() {
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), untrimmed(policy(3)));
     assert!(transport.health().await.unwrap().ready);
-    assert_eq!(flaky.call_count(), 3); // first + two retries
-    // Exponential backoff before each retry: base, then base × multiplier.
+    assert_eq!(flaky.call_count(), 3);
     assert_eq!(
         sleeper.delays(),
         vec![Duration::from_millis(100), Duration::from_millis(200)]
@@ -304,7 +299,7 @@ async fn gives_up_after_the_last_attempt_and_returns_the_error() {
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(2));
     let error = transport.health().await.unwrap_err();
     assert_eq!(error, TransportError::Connection(String::from("refused")));
-    assert_eq!(flaky.call_count(), 2); // two attempts, one retry
+    assert_eq!(flaky.call_count(), 2);
     assert_eq!(sleeper.delays(), vec![Duration::from_millis(100)]);
 }
 
@@ -321,7 +316,7 @@ async fn does_not_retry_a_non_transient_rpc_error() {
             message: String::from("boom"),
         }
     );
-    assert_eq!(flaky.call_count(), 1); // no retry
+    assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
 }
 
@@ -354,7 +349,7 @@ async fn max_attempts_of_one_disables_retry() {
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(1));
     assert!(transport.health().await.is_err());
-    assert_eq!(flaky.call_count(), 1); // single try, no backoff
+    assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
 }
 
@@ -365,7 +360,7 @@ async fn retries_list_sessions_the_same_way() {
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
     let sessions = transport.list_sessions(7).await.unwrap();
     assert_eq!(sessions.len(), 1);
-    assert_eq!(sessions[0].title, "limit 7"); // the argument survived the retry
+    assert_eq!(sessions[0].title, "limit 7");
     assert_eq!(flaky.call_count(), 2);
     assert_eq!(sleeper.delays().len(), 1);
 }
@@ -384,26 +379,22 @@ async fn retries_list_due_reminders_the_same_way() {
 
 #[tokio::test]
 async fn forwards_ack_reminder_without_retrying_it() {
-    // The write is a pass-through (ADR-0025): a transient failure surfaces on the first
-    // attempt rather than risking a repeat that answers false for an ack that landed.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
     assert_eq!(
-        transport.ack_reminder("r1").await.unwrap_err(),
+        transport.ack_reminder("r1", 1).await.unwrap_err(),
         TransportError::Connection(String::from("refused"))
     );
-    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
-    // And a healthy ack still crosses the decorator with its argument intact.
-    assert!(transport.ack_reminder("r1").await.unwrap());
-    assert!(!transport.ack_reminder("other").await.unwrap());
+    assert!(transport.ack_reminder("r1", 1).await.unwrap());
+    assert!(!transport.ack_reminder("other", 1).await.unwrap());
+    assert!(!transport.ack_reminder("r1", 2).await.unwrap());
 }
 
 #[tokio::test]
 async fn forwards_rename_session_without_retrying_it() {
-    // The catalog write is a pass-through (ADR-0021 management addendum): a transient failure
-    // surfaces on the first attempt rather than risking a repeat that re-applies a stale label.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
@@ -411,17 +402,13 @@ async fn forwards_rename_session_without_retrying_it() {
         transport.rename_session("s1", "Cats").await.unwrap_err(),
         TransportError::Connection(String::from("refused"))
     );
-    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
-    // And a healthy rename still crosses the decorator.
     assert!(transport.rename_session("s1", "Cats").await.is_ok());
 }
 
 #[tokio::test]
 async fn forwards_delete_session_without_retrying_it() {
-    // The destructive write is a pass-through (ADR-0021 management addendum): a transient failure
-    // surfaces on the first attempt rather than risking a silent retry that re-destroys a chat a
-    // still-streaming turn may have re-materialized.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
@@ -429,17 +416,13 @@ async fn forwards_delete_session_without_retrying_it() {
         transport.delete_session("s1").await.unwrap_err(),
         TransportError::Connection(String::from("refused"))
     );
-    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
-    // And a healthy delete still crosses the decorator.
     assert!(transport.delete_session("s1").await.is_ok());
 }
 
 #[tokio::test]
 async fn forwards_set_session_pinned_without_retrying_it() {
-    // The pin toggle is idempotent by value yet still a pass-through (ADR-0021 pinning addendum):
-    // a transient failure surfaces on the first attempt rather than risking a retry that
-    // re-asserts a pinned value the user's next toggle reversed.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
@@ -447,16 +430,13 @@ async fn forwards_set_session_pinned_without_retrying_it() {
         transport.set_session_pinned("s1", true).await.unwrap_err(),
         TransportError::Connection(String::from("refused"))
     );
-    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
-    // And a healthy pin toggle still crosses the decorator.
     assert!(transport.set_session_pinned("s1", true).await.is_ok());
 }
 
 #[tokio::test]
 async fn retries_get_preferences_the_same_way() {
-    // The settings record is a read like the others: a transient failure is worth waiting out,
-    // because a repeat answers the same question and touches nothing.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
@@ -467,9 +447,6 @@ async fn retries_get_preferences_the_same_way() {
 
 #[tokio::test]
 async fn forwards_set_preference_without_retrying_it() {
-    // Last write wins in the store, so a repeat cannot duplicate an effect; it is still a
-    // pass-through under the catalog-write convention, so a lost reply never re-asserts a value
-    // the user's next change reversed.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
@@ -480,9 +457,8 @@ async fn forwards_set_preference_without_retrying_it() {
             .unwrap_err(),
         TransportError::Connection(String::from("refused"))
     );
-    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert_eq!(flaky.call_count(), 1);
     assert!(sleeper.delays().is_empty());
-    // And a healthy write still crosses the decorator.
     assert!(
         transport
             .set_preference("overlay.mark", "ping")
@@ -518,7 +494,6 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     while let Some(item) = stream.next().await {
         events.push(item);
     }
-    // Both items are forwarded, including the terminal error, with no retry and no sleep.
     assert_eq!(events.len(), 2);
     assert_eq!(events[0], Ok(TurnEvent::Delta(String::from("passed:hi"))));
     assert_eq!(
@@ -527,9 +502,6 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     );
     assert_eq!(flaky.call_count(), 0);
     assert!(sleeper.delays().is_empty());
-    // The gaps the items passed under, in the order the stream used them: the first event is
-    // measured against the first-event gap and everything after it against the idle one, and
-    // the last wait is the one that found the stream ended (ADR-0024 idle-gap addendum).
     let gaps = RetryPlan::default().turn_gaps;
     assert_eq!(sleeper.bounds(), vec![gaps.first, gaps.idle, gaps.idle]);
 }
@@ -543,9 +515,8 @@ fn retry_policy_delay_grows_exponentially_and_caps() {
         max_delay: Duration::from_millis(500),
     };
     assert_eq!(capped.delay(0), Duration::from_millis(100));
-    assert_eq!(capped.delay(1), Duration::from_millis(500)); // 1000 clamped to the cap
-    assert_eq!(capped.delay(2), Duration::from_millis(500)); // stays at the cap
-    // A base already above the cap is clamped from the start.
+    assert_eq!(capped.delay(1), Duration::from_millis(500));
+    assert_eq!(capped.delay(2), Duration::from_millis(500));
     let over = RetryPolicy {
         base_delay: Duration::from_secs(1),
         max_delay: Duration::from_millis(500),
@@ -557,17 +528,14 @@ fn retry_policy_delay_grows_exponentially_and_caps() {
 #[test]
 fn retry_policy_backoff_decides_when_to_wait() {
     let policy = policy(2);
-    // Transient with an attempt remaining → wait.
     assert_eq!(
         policy.backoff(0, &TransportError::Connection(String::new())),
         Some(Duration::from_millis(100))
     );
-    // Transient but no attempt left → give up.
     assert_eq!(
         policy.backoff(1, &TransportError::Connection(String::new())),
         None
     );
-    // Non-transient → give up even with attempts left.
     assert_eq!(
         policy.backoff(0, &TransportError::Protocol(String::new())),
         None
@@ -632,9 +600,8 @@ fn the_decorator_is_send_and_sync() {
     assert_send_sync::<RetryingTransport<FlakyTransport, FakeSleeper>>();
 }
 
-/// A `Randomness` that replays scripted unit draws (front to back), sharing the script via
-/// `Arc` like `FakeSleeper`. Draws past the script's end return 1 (full delay), so a test
-/// only scripts the draws it asserts.
+/// A `Randomness` that replays scripted unit draws (front to back), sharing the script via `Arc`
+/// like `FakeSleeper`.
 #[derive(Clone, Default)]
 struct FakeRandomness {
     draws: Arc<Mutex<Vec<f64>>>,
@@ -661,8 +628,6 @@ impl Randomness for FakeRandomness {
 
 #[tokio::test]
 async fn with_randomness_equal_jitters_each_delay() {
-    // Equal jitter (ADR-0024 addendum): each computed delay is scaled by 0.5 + 0.5 * draw,
-    // so a 0 draw halves it (the floor) and a 1 draw keeps it whole (the v1 schedule).
     let flaky = FlakyTransport::new(FailKind::Connection, 2);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::with_randomness(
@@ -680,9 +645,6 @@ async fn with_randomness_equal_jitters_each_delay() {
 
 #[tokio::test]
 async fn out_of_range_and_non_finite_draws_are_sanitized_not_panicked() {
-    // A misbehaving source cannot break the Duration math: finite draws are clamped into
-    // [0, 1] (2.0 -> full delay, a negative draw -> the half-delay floor), and a non-finite
-    // draw (which clamp would propagate as NaN, panicking mul_f64) falls back to full delay.
     let flaky = FlakyTransport::new(FailKind::Connection, 3);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::with_randomness(
@@ -695,15 +657,15 @@ async fn out_of_range_and_non_finite_draws_are_sanitized_not_panicked() {
     assert_eq!(
         sleeper.delays(),
         vec![
-            Duration::from_millis(100), // 2.0 clamps to 1.0: full first delay
-            Duration::from_millis(100), // -3.0 clamps to 0.0: the half-delay floor of 200
-            Duration::from_millis(400), // NaN -> full: the third delay (base*4) whole
+            Duration::from_millis(100),
+            Duration::from_millis(100),
+            Duration::from_millis(400),
         ]
     );
 }
 
-/// A long read schedule, the same one `retry_plan.rs` uses: 6 attempts, 100 ms base, ×2, and no
-/// cap in play, so its backoffs are 100/200/400/800/1600 ms and its worst case is 3.1 s.
+/// A long read schedule, the same one `retry_plan.rs` uses: 6 attempts, 100 ms base, ×2, and no cap
+/// in play, so its backoffs are 100/200/400/800/1600 ms and its worst case is 3.1 s.
 fn patient_reads() -> RetryPolicy {
     policy(6)
 }
@@ -714,7 +676,7 @@ async fn an_unavailable_write_is_still_not_retried() {
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), patient_reads());
     assert_eq!(
-        transport.ack_reminder("r1").await.unwrap_err(),
+        transport.ack_reminder("r1", 1).await.unwrap_err(),
         TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),
@@ -745,8 +707,6 @@ async fn the_probe_budget_shortens_the_health_probe() {
 
 #[tokio::test]
 async fn the_same_plan_leaves_the_session_read_patient() {
-    // The other half of the pair: trimming the probe must not trim the reads. Same plan,
-    // same failure, and `list_sessions` still spends every attempt it was configured for.
     let flaky = FlakyTransport::new(FailKind::Connection, 9);
     let sleeper = FakeSleeper::default();
     let transport = RetryingTransport::new(
@@ -774,8 +734,6 @@ async fn the_same_plan_leaves_the_session_read_patient() {
 
 #[tokio::test]
 async fn retry_with_composes_patience_around_a_dial_style_factory() {
-    // The extracted loop retries any fallible async factory (the shell wraps its eager dial
-    // in exactly this, ADR-0024 addendum): one refused dial, then success.
     let attempts = Arc::new(AtomicUsize::new(0));
     let sleeper = FakeSleeper::default();
     let counted = Arc::clone(&attempts);
@@ -797,7 +755,6 @@ async fn retry_with_composes_patience_around_a_dial_style_factory() {
 
 #[tokio::test]
 async fn retry_with_fails_fast_on_a_non_transient_error() {
-    // A genuine application answer is returned immediately: no sleep, no second attempt.
     let attempts = Arc::new(AtomicUsize::new(0));
     let sleeper = FakeSleeper::default();
     let counted = Arc::clone(&attempts);
@@ -816,9 +773,6 @@ async fn retry_with_fails_fast_on_a_non_transient_error() {
 
 #[tokio::test]
 async fn each_attempt_carries_the_plans_deadline_for_that_method() {
-    // The clock is asked once per attempt, with the duration the plan resolved for that method:
-    // the probe's own for `health`, the general one for a session read. A fake that ignored the
-    // duration would make this vacuous, so it is asserted as a value rather than as a count.
     let flaky = FlakyTransport::new(FailKind::Connection, 1);
     let sleeper = FakeSleeper::default();
     let plan = RetryPlan {
@@ -828,7 +782,6 @@ async fn each_attempt_carries_the_plans_deadline_for_that_method() {
     };
     let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), plan);
     assert!(transport.health().await.is_ok());
-    // One failure, so two attempts, each bounded by the probe's deadline.
     assert_eq!(
         sleeper.bounds(),
         vec![Duration::from_millis(40), Duration::from_millis(40)]
@@ -874,7 +827,7 @@ async fn a_refused_write_is_bounded_even_though_it_is_never_retried() {
         },
     );
     assert_eq!(
-        transport.ack_reminder("r1").await.unwrap_err(),
+        transport.ack_reminder("r1", 1).await.unwrap_err(),
         TransportError::Timeout {
             after: Duration::from_secs(7),
         }
@@ -896,15 +849,11 @@ async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_in
     let first = plan.turn_gaps.first;
     assert_eq!(events, vec![Err(TransportError::Timeout { after: first })]);
     assert_eq!(sleeper.bounds(), vec![first]);
-    // And it is a gap rather than a deadline, since `deadline_for` answers `None` here.
     assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
 }
 
 #[tokio::test]
 async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
-    // The composition driven directly, through the three answers it has. The `None` case is
-    // what `Converse` would take if the decorator ever routed a stream through the loop, and it
-    // is also what a caller composing this around a non-seam future can ask for.
     let granting = FakeSleeper::default();
     assert_eq!(
         within_deadline(
@@ -917,7 +866,6 @@ async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
         "in time"
     );
     assert_eq!(granting.bounds(), vec![Duration::from_millis(5)]);
-    // The call's own failure is returned unchanged: bounding a call does not reclassify it.
     assert_eq!(
         within_deadline(
             Some(Duration::from_millis(5)),
@@ -943,8 +891,6 @@ async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
             after: Duration::from_secs(2),
         }
     );
-    // With no deadline the clock is still asked, with `Duration::MAX`, which is how unbounded
-    // is spelled here and what keeps this generic function free of an arm no caller could take.
     let granted = FakeSleeper::default();
     assert_eq!(
         within_deadline(

@@ -154,13 +154,13 @@ async def check_stale_finish_is_rejected(store: ScheduleStore) -> None:
     assert await store.finish(stale, outcome) is False
     loaded = await store.get(item.id)
     assert loaded is not None
-    assert loaded.status is ScheduleStatus.FIRING  # the stale finish changed nothing
+    assert loaded.status is ScheduleStatus.FIRING
     assert loaded.deliverable_since is None
     assert await store.finish(live, outcome) is True
 
 
 async def check_finish_rearms_a_recurring_item(store: ScheduleStore) -> None:
-    """next_due re-arms PENDING at the new time, outcome recorded, claim cleared."""
+    """``next_due`` sets the item PENDING at the new time, records the outcome, clears the claim."""
     item = make_item(_item_id(), kind=ScheduleKind.TASK, every=timedelta(hours=1))
     await store.add(item)
     (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
@@ -202,14 +202,14 @@ async def check_one_shot_reminder_delivery_lifecycle(store: ScheduleStore) -> No
     assert due.status is ScheduleStatus.DONE
     assert due.deliverable_since == _NOW
     assert [listed.id for listed in await store.list_active()] == [item.id]
-    assert await store.ack(item.id) is True
+    assert await store.ack(item.id, fired_at=_NOW) is True
     assert await store.deliverable() == ()
     assert await store.get(item.id) is None
-    assert await store.ack(item.id) is False
+    assert await store.ack(item.id, fired_at=_NOW) is False
 
 
 async def check_recurring_reminder_coalesces_delivery(store: ScheduleStore) -> None:
-    """A recurring reminder re-arms AND stays deliverable; ack clears only delivery."""
+    """A recurring reminder is rescheduled and stays deliverable; ack clears only the delivery."""
     item = make_item(_item_id(), every=timedelta(hours=1))
     await store.add(item)
     (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
@@ -219,7 +219,7 @@ async def check_recurring_reminder_coalesces_delivery(store: ScheduleStore) -> N
     (due,) = await store.deliverable()
     assert due.status is ScheduleStatus.PENDING
     assert due.deliverable_since == _NOW
-    assert await store.ack(item.id) is True
+    assert await store.ack(item.id, fired_at=_NOW) is True
     loaded = await store.get(item.id)
     assert loaded is not None
     assert loaded.deliverable_since is None
@@ -245,14 +245,14 @@ async def check_fire_taint_ors_onto_the_item(store: ScheduleStore) -> None:
 
 
 async def check_cancel_sticks_through_an_in_flight_fire(store: ScheduleStore) -> None:
-    """cancel during FIRING wins: the fire's later finish no-ops and nothing re-arms."""
+    """A cancel during FIRING holds: the later finish does nothing and nothing is rescheduled."""
     item = make_item(_item_id(), every=timedelta(hours=1))
     await store.add(item)
     (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
     assert await store.cancel(item.id) is True
     outcome = FireOutcome(fired_at=_NOW, next_due=_NOW + timedelta(hours=1), deliverable=True)
     assert await store.finish(claim, outcome) is False
-    assert await store.release(claim) is False  # the un-claim path is equally dead
+    assert await store.release(claim) is False
     assert await store.get(item.id) is None
     assert await store.list_active() == ()
     assert await store.deliverable() == ()
@@ -280,12 +280,11 @@ async def check_release_returns_the_item_to_pending(store: ScheduleStore) -> Non
     assert loaded is not None
     assert loaded.status is ScheduleStatus.PENDING
     assert loaded.due_at == item.due_at
-    # The released claim is dead: neither finish nor release applies to a PENDING item.
     outcome = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
     assert await store.finish(claim, outcome) is False
     (again,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
     assert again.item.id == item.id
-    assert await store.release(claim) is False  # the old token is stale now
+    assert await store.release(claim) is False
 
 
 async def check_claim_orders_across_both_classes(store: ScheduleStore) -> None:
@@ -295,7 +294,6 @@ async def check_claim_orders_across_both_classes(store: ScheduleStore) -> None:
     (first,) = await store.claim_due(_NOW - _LEASE, lease=_LEASE, limit=10)
     newer = make_item(_item_id(), due_at=_NOW - timedelta(minutes=2))
     await store.add(newer)
-    # One slot, one candidate per class: the older due (the lease-expired FIRING) wins.
     (winner,) = await store.claim_due(_NOW, lease=_LEASE, limit=1)
     assert winner.item.id == older.id
     assert winner.token != first.token
@@ -307,8 +305,46 @@ async def check_ack_requires_deliverability(store: ScheduleStore) -> None:
     """ack of a pending or unknown item is False."""
     item = make_item(_item_id())
     await store.add(item)
-    assert await store.ack(item.id) is False
-    assert await store.ack(_item_id()) is False
+    assert await store.ack(item.id, fired_at=None) is False
+    assert await store.ack(item.id, fired_at=_NOW) is False
+    assert await store.ack(_item_id(), fired_at=None) is False
+
+
+async def _fire_a_task_twice(store: ScheduleStore) -> tuple[ScheduledItem, datetime, datetime]:
+    """A recurring task fired twice with neither fire acked; returns it and both fire times."""
+    item = make_item(_item_id(), kind=ScheduleKind.TASK, every=timedelta(hours=1))
+    await store.add(item)
+    first_at = _NOW
+    second_at = _NOW + timedelta(hours=1, microseconds=250)
+    for fired_at, outcome in ((first_at, "outcome one"), (second_at, "outcome two")):
+        (claim,) = await store.claim_due(fired_at, lease=_LEASE, limit=10)
+        fired = FireOutcome(
+            fired_at=fired_at,
+            next_due=fired_at + timedelta(hours=1),
+            deliverable=True,
+            outcome=outcome,
+        )
+        assert await store.finish(claim, fired) is True
+    return item, first_at, second_at
+
+
+async def check_ack_clears_only_the_fire_it_names(store: ScheduleStore) -> None:
+    """An ack naming a fire a later one replaced clears nothing; the later outcome stays due."""
+    item, first_at, second_at = await _fire_a_task_twice(store)
+    assert await store.ack(item.id, fired_at=first_at) is False
+    assert await store.ack(item.id, fired_at=second_at + timedelta(milliseconds=1)) is False
+    (due,) = await store.deliverable()
+    assert due.last_outcome == "outcome two"
+    assert due.deliverable_since == second_at
+    assert await store.ack(item.id, fired_at=second_at + timedelta(microseconds=400)) is True
+    assert await store.deliverable() == ()
+
+
+async def check_an_unstamped_ack_clears_whichever_fire_is_held(store: ScheduleStore) -> None:
+    """``fired_at=None`` (a body too old to send a stamp) acks the fire the slot holds."""
+    item, _, _ = await _fire_a_task_twice(store)
+    assert await store.ack(item.id, fired_at=None) is True
+    assert await store.deliverable() == ()
 
 
 async def check_deliverable_lists_oldest_fired_first(store: ScheduleStore) -> None:
@@ -342,7 +378,7 @@ async def check_snooze_moves_a_pending_one_shot(store: ScheduleStore) -> None:
 
 
 async def check_snooze_rearms_a_deliverable_reminder(store: ScheduleStore) -> None:
-    """snooze of a fired-but-undelivered one-shot re-arms it: it fires fresh, not re-delivers."""
+    """Snoozing a fired but undelivered one-shot makes it fire again rather than re-deliver."""
     item = make_item(_item_id())
     await store.add(item)
     (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
@@ -351,7 +387,7 @@ async def check_snooze_rearms_a_deliverable_reminder(store: ScheduleStore) -> No
     until = _NOW + timedelta(minutes=10)
     assert await store.snooze(item.id, until=until) is True
     assert await store.deliverable() == ()
-    assert await store.ack(item.id) is False  # nothing awaits delivery any more
+    assert await store.ack(item.id, fired_at=_NOW) is False
     loaded = await store.get(item.id)
     assert loaded is not None
     assert loaded.status is ScheduleStatus.PENDING
@@ -361,21 +397,17 @@ async def check_snooze_rearms_a_deliverable_reminder(store: ScheduleStore) -> No
 
 
 async def check_snooze_preserves_a_recurring_grid(store: ScheduleStore) -> None:
-    """Snoozing a recurring item moves only the next occurrence; ``anchor`` pins the grid origin.
-
-    The stored anchor round-trips the codec (the Redis leg exercises encode/decode of the new
-    field), and the item becomes claimable at the snoozed time, not the original one.
-    """
-    item = make_item(_item_id(), every=timedelta(hours=1))  # due at _NOW
+    """Snoozing a recurring item moves only the next occurrence; ``anchor`` keeps the origin."""
+    item = make_item(_item_id(), every=timedelta(hours=1))
     await store.add(item)
     until = _NOW + timedelta(minutes=30)
     assert await store.snooze(item.id, until=until) is True
     loaded = await store.get(item.id)
     assert loaded is not None
-    assert loaded.due_at == until  # the single occurrence moved
-    assert loaded.anchor == _NOW  # the grid origin is pinned to the original due
-    assert loaded.every == timedelta(hours=1)  # still recurring
-    assert await store.claim_due(_NOW, lease=_LEASE, limit=10) == ()  # not due at the old time
+    assert loaded.due_at == until
+    assert loaded.anchor == _NOW
+    assert loaded.every == timedelta(hours=1)
+    assert await store.claim_due(_NOW, lease=_LEASE, limit=10) == ()
     (claim,) = await store.claim_due(until, lease=_LEASE, limit=10)
     assert claim.item.id == item.id
 
@@ -447,7 +479,7 @@ async def check_edit_replaces_a_calendar_rule_with_an_interval(store: ScheduleSt
 async def check_edit_sets_a_rule_and_moves_the_item_on_the_due_index(
     store: ScheduleStore,
 ) -> None:
-    """Setting a rule re-derives the next fire, so the item moves in the due order too."""
+    """Setting a rule recomputes the next fire, so the item moves in the due order too."""
     rule = CalendarRule(hour=9, minute=0)
     moved = replace(make_item(_item_id()), due_at=_NOW + timedelta(minutes=5))
     other = replace(make_item(_item_id()), due_at=_NOW + timedelta(hours=1))
@@ -461,18 +493,12 @@ async def check_edit_sets_a_rule_and_moves_the_item_on_the_due_index(
     assert loaded is not None
     assert loaded.rule == rule
     assert loaded.due_at == due_at
-    # The listing orders by due time, so the retimed item is now the later of the two.
     assert [item.id for item in await store.list_active()] == [other.id, moved.id]
-    # And it is no longer claimable at the time it used to be due.
     assert await store.claim_due(_NOW + timedelta(minutes=10), lease=_LEASE, limit=10) == ()
 
 
 async def check_edit_setting_a_rule_rearms_a_deliverable_reminder(store: ScheduleStore) -> None:
-    """A fired one-shot given a rule re-arms PENDING and leaves the deliverable index.
-
-    Left DONE on the due index it would be claimed again and delivered twice, which is why
-    this branch borrows ``snooze``'s write set rather than only adding a due entry.
-    """
+    """A fired one-shot given a rule returns to PENDING and leaves the deliverable index."""
     item = make_item(_item_id())
     await store.add(item)
     (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=1)
@@ -486,7 +512,6 @@ async def check_edit_setting_a_rule_rearms_a_deliverable_reminder(store: Schedul
     assert loaded is not None
     assert loaded.status is ScheduleStatus.PENDING
     assert loaded.due_at == due_at
-    # It fires once, at its new time, rather than re-delivering the stale one.
     claims = await store.claim_due(due_at, lease=_LEASE, limit=10)
     assert [claimed.item.id for claimed in claims] == [item.id]
 
@@ -498,7 +523,6 @@ async def check_snooze_refuses_firing_and_unknown(store: ScheduleStore) -> None:
     await store.add(item)
     (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
     assert await store.snooze(item.id, until=_NOW + timedelta(minutes=5)) is False
-    # The in-flight fire still finishes normally under its token.
     fired = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
     assert await store.finish(claim, fired) is True
 
@@ -521,8 +545,8 @@ async def check_edit_retexts_a_pending_item(store: ScheduleStore) -> None:
     loaded = await store.get(item.id)
     assert loaded is not None
     assert loaded.text == "new text"
-    assert loaded.due_at == item.due_at  # the next occurrence is unmoved
-    assert loaded.every == timedelta(hours=1)  # recurrence left alone
+    assert loaded.due_at == item.due_at
+    assert loaded.every == timedelta(hours=1)
 
 
 async def check_edit_sets_and_clears_recurrence(store: ScheduleStore) -> None:
@@ -551,7 +575,7 @@ async def check_edit_taint_is_monotone(store: ScheduleStore) -> None:
     assert await store.edit(item.id, ScheduleEdit(text="b", tainted=False)) is True
     loaded = await store.get(item.id)
     assert loaded is not None
-    assert loaded.tainted is True  # OR'd forward, never cleared
+    assert loaded.tainted is True
 
 
 async def check_edit_refuses_a_firing_item(store: ScheduleStore) -> None:
@@ -573,11 +597,11 @@ async def check_edit_unknown_is_false(store: ScheduleStore) -> None:
 
 
 async def check_edit_rerecur_then_fire_uses_the_new_cadence(store: ScheduleStore) -> None:
-    """re-recur leaves the next fire at due_at; the edited interval persists to the re-arm."""
+    """Changing the recurrence keeps the next fire at ``due_at``; the new interval is used after."""
     item = make_item(_item_id(), every=timedelta(hours=1))
     await store.add(item)
     assert await store.edit(item.id, ScheduleEdit(every=timedelta(hours=3), set_every=True)) is True
-    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)  # still due at the old time
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
     assert claim.item.id == item.id
     rearm_at = _NOW + timedelta(hours=3)
     fired = FireOutcome(fired_at=_NOW, next_due=rearm_at, deliverable=False)
@@ -609,6 +633,8 @@ ALL_CHECKS = (
     check_release_returns_the_item_to_pending,
     check_claim_orders_across_both_classes,
     check_ack_requires_deliverability,
+    check_ack_clears_only_the_fire_it_names,
+    check_an_unstamped_ack_clears_whichever_fire_is_held,
     check_deliverable_lists_oldest_fired_first,
     check_snooze_moves_a_pending_one_shot,
     check_snooze_rearms_a_deliverable_reminder,

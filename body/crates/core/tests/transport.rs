@@ -1,7 +1,3 @@
-//! Behavioral tests for `body_core::transport` covering the `SeamHealth` and
-//! `TransportError` types plus a contract-style check that `BrainTransport`
-//! works as a generic bound with `Send` futures, exercised through a fake.
-
 use body_core::{
     BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
     TransportError, TurnEvent,
@@ -50,8 +46,6 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
-        // Canned single row echoing the limit, which is enough to exercise the port shape;
-        // the adapter's row mapping lives in body_rpc's contract tests.
         Ok(vec![SessionSummary {
             session_id: String::from("s1"),
             title: format!("limit {limit}"),
@@ -84,16 +78,15 @@ impl BrainTransport for FakeTransport {
         }])
     }
 
-    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
-        // Only the id the canned listing offers can be acked, which mirrors the brain's own
-        // contract: an unknown id clears nothing and answers false.
-        Ok(reminder_id == "r1")
+    async fn ack_reminder(
+        &self,
+        reminder_id: &str,
+        fired_at_unix_ms: i64,
+    ) -> Result<bool, TransportError> {
+        Ok(reminder_id == "r1" && fired_at_unix_ms == 9)
     }
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
-        // A user-only catalog write; the fake accepts any relabel and reports success. The
-        // real adapter's argument mapping is proven in body_rpc's contract tests. An empty
-        // session id stands in for a store failure so the error arm is exercisable here too.
         if session_id.is_empty() {
             return Err(TransportError::Rpc {
                 code: String::from("Unavailable"),
@@ -105,8 +98,6 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
-        // A user-only destructive write; the fake accepts any delete and reports success, with an
-        // empty session id standing in for a store/memory failure so the error arm is exercisable.
         if session_id.is_empty() {
             return Err(TransportError::Rpc {
                 code: String::from("Unavailable"),
@@ -121,8 +112,6 @@ impl BrainTransport for FakeTransport {
         session_id: &str,
         pinned: bool,
     ) -> Result<(), TransportError> {
-        // A user-only catalog write; the fake accepts any pin toggle and reports success, with an
-        // empty session id standing in for a store failure so the error arm is exercisable here too.
         if session_id.is_empty() {
             return Err(TransportError::Rpc {
                 code: String::from("Unavailable"),
@@ -134,7 +123,6 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
-        // The settings record as the overlay reads it: sorted pairs, values opaque to the port.
         Ok(vec![
             (String::from("overlay.mark"), String::from("foam")),
             (String::from("overlay.theme"), String::from("midnight")),
@@ -142,8 +130,6 @@ impl BrainTransport for FakeTransport {
     }
 
     async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
-        // A user-only write; an empty key stands in for a store failure so the error arm is
-        // exercisable here too, as the neighbouring writes do with an empty session id.
         if key.is_empty() {
             return Err(TransportError::Rpc {
                 code: String::from("Unavailable"),
@@ -161,8 +147,6 @@ async fn probe<T: BrainTransport>(transport: &T) -> Result<SeamHealth, Transport
 }
 
 /// Drains a `converse` turn through a generic bound, collecting every item.
-/// Passes one canned decision so the `decisions` parameter is exercised the
-/// way application code will feed it (the fake is free to ignore it).
 async fn converse_probe<T: BrainTransport>(
     transport: &T,
     session_id: &str,
@@ -261,8 +245,6 @@ fn turn_event_is_clone_eq_and_debug() {
         tool_name: String::from("read_email"),
         summary: String::from("reading"),
     };
-    // The settling half of the activity above, and the pair a consent surface reads: two
-    // outcomes for the same tool must not compare equal when only `ok` differs.
     let outcome = TurnEvent::ToolOutcome {
         tool_name: String::from("read_email"),
         ok: true,
@@ -486,8 +468,10 @@ async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
     async fn pull<T: BrainTransport>(t: &T) -> Vec<DueReminder> {
         t.list_due_reminders().await.unwrap()
     }
-    async fn ack<T: BrainTransport>(t: &T, reminder_id: &str) -> bool {
-        t.ack_reminder(reminder_id).await.unwrap()
+    async fn ack<T: BrainTransport>(t: &T, reminder: &DueReminder) -> bool {
+        t.ack_reminder(&reminder.reminder_id, reminder.fired_at_unix_ms)
+            .await
+            .unwrap()
     }
     let fake = FakeTransport {
         script: Ok(SeamHealth {
@@ -499,10 +483,17 @@ async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
     assert_eq!(due.len(), 1);
     assert_eq!(due[0].text, "stand up");
     assert!(due[0].recurring);
-    // A dismissal acks, and anything the store no longer holds answers false rather than
-    // failing.
-    assert!(assert_send(ack(&fake, &due[0].reminder_id)).await);
-    assert!(!ack(&fake, "gone").await);
+    assert!(assert_send(ack(&fake, &due[0])).await);
+    let gone = DueReminder {
+        reminder_id: String::from("gone"),
+        ..due[0].clone()
+    };
+    assert!(!ack(&fake, &gone).await);
+    let earlier = DueReminder {
+        fired_at_unix_ms: 8,
+        ..due[0].clone()
+    };
+    assert!(!ack(&fake, &earlier).await);
 }
 
 #[tokio::test]
@@ -520,7 +511,6 @@ async fn fake_transport_renames_a_session_through_the_generic_bound() {
             detail: String::new(),
         }),
     };
-    // A relabel and a clear-the-override both report success, and a store failure surfaces.
     assert!(
         assert_send(rename(&fake, "s1", "Everything about cats"))
             .await
@@ -547,8 +537,6 @@ async fn fake_transport_deletes_a_session_through_the_generic_bound() {
             detail: String::new(),
         }),
     };
-    // A delete reports success, and a store or memory failure surfaces rather than being
-    // swallowed.
     assert!(assert_send(delete(&fake, "s1")).await.is_ok());
     assert_eq!(
         delete(&fake, "").await.unwrap_err(),
@@ -574,8 +562,6 @@ async fn fake_transport_sets_the_pin_through_the_generic_bound() {
             detail: String::new(),
         }),
     };
-    // Pinning and unpinning both report success, and a store failure surfaces rather than
-    // being lost.
     assert!(assert_send(set_pinned(&fake, "s1", true)).await.is_ok());
     assert!(set_pinned(&fake, "s1", false).await.is_ok());
     assert_eq!(
@@ -635,7 +621,6 @@ fn session_summary_and_message_are_clone_eq_and_debug() {
             ..summary.clone()
         }
     );
-    // The pin bit participates in Eq, so toggling it alone makes an unequal summary.
     assert_ne!(
         summary,
         SessionSummary {

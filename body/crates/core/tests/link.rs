@@ -1,6 +1,3 @@
-//! Behavioral tests for `body_core::link`: what each seam answer proves about the brain, and
-//! the `probe_link` call that turns an answer (or a failure) into a state the overlay can show.
-
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
@@ -21,9 +18,7 @@ enum Script {
     Timeout(Duration),
 }
 
-/// A `BrainTransport` whose `health` follows a script and counts its calls. The other methods
-/// count the call and answer empty, so a probe that reached one shows up in the count the tests
-/// assert on rather than as a panic from inside the port.
+/// A `BrainTransport` whose `health` follows a script and counts its calls.
 struct ScriptedTransport {
     script: Script,
     health_calls: AtomicUsize,
@@ -95,7 +90,11 @@ impl BrainTransport for ScriptedTransport {
         Ok(Vec::new())
     }
 
-    async fn ack_reminder(&self, _reminder_id: &str) -> Result<bool, TransportError> {
+    async fn ack_reminder(
+        &self,
+        _reminder_id: &str,
+        _fired_at_unix_ms: i64,
+    ) -> Result<bool, TransportError> {
         self.touch_other();
         Ok(false)
     }
@@ -152,15 +151,12 @@ async fn a_ready_brain_probes_ready_and_carries_its_own_detail() {
             detail: String::from("cortex-orchestrator 0.1.0"),
         }
     );
-    // Exactly one seam call, and never a turn or a store read: drawing the dot costs one probe.
     assert_eq!(health_calls, 1);
     assert_eq!(other_calls, 0);
 }
 
 #[tokio::test]
 async fn a_brain_that_reports_itself_not_ready_is_degraded_not_down() {
-    // The brain answered, so it is reachable, and it says it cannot serve. Those are different
-    // facts and the indicator shows different colours for them.
     let (status, ..) = probe(Script::NotReady("loading the brain-tier model")).await;
     assert_eq!(
         status,
@@ -185,8 +181,6 @@ async fn an_unreachable_brain_probes_down_with_the_dial_failure() {
 
 #[tokio::test]
 async fn a_non_ok_status_is_degraded_because_the_brain_answered_it() {
-    // A rejected seam token (ADR-0016) is the everyday case: reporting "cannot reach the brain"
-    // would send the user looking at the wrong thing.
     let (status, ..) = probe(Script::Rpc("Unauthenticated", "invalid seam token")).await;
     assert_eq!(
         status,
@@ -223,8 +217,6 @@ async fn a_probe_that_ran_out_of_time_is_down_and_names_the_deadline() {
 
 #[test]
 fn each_state_has_the_stable_name_the_overlay_knows_it_by() {
-    // The overlay's LinkState union (bridge/types.ts) is these three strings; the shell's
-    // wire mapping is a lookup, so a rename here must be a rename there.
     assert_eq!(LinkState::Ready.as_str(), "ready");
     assert_eq!(LinkState::Degraded.as_str(), "degraded");
     assert_eq!(LinkState::Down.as_str(), "down");

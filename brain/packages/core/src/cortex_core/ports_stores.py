@@ -48,7 +48,7 @@ class MemoryStore(Protocol):
 
 
 class TaskStore(Protocol):
-    """Hot store for in-flight subagent tasks and their results (Redis; ADR-0010)."""
+    """Hot store for in-flight subagent tasks and their results (Redis)."""
 
     async def put_task(self, task: SubagentTask) -> None: ...
 
@@ -60,7 +60,7 @@ class TaskStore(Protocol):
 
 
 class ScheduleStore(Protocol):
-    """Durable schedules with a fenced claim→finish protocol (ADR-0025)."""
+    """Durable schedules with a fenced claim→finish protocol."""
 
     async def add(self, item: ScheduledItem) -> None: ...
 
@@ -84,11 +84,11 @@ class ScheduleStore(Protocol):
 
     async def deliverable(self) -> Sequence[ScheduledItem]: ...
 
-    async def ack(self, item_id: str) -> bool: ...
+    async def ack(self, item_id: str, *, fired_at: datetime | None) -> bool: ...
 
 
 class HandoffStore(Protocol):
-    """Hot store for the one in-flight brain handoff (Redis; ADR-0030)."""
+    """Hot store for the one in-flight brain handoff (Redis)."""
 
     async def put(self, record: HandoffRecord) -> None: ...
 

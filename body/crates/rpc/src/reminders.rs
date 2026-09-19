@@ -6,8 +6,7 @@ use body_core::{DueReminder, TransportError};
 use crate::call::SeamCall;
 use crate::generated::{AckReminderRequest, ListDueRemindersRequest};
 
-/// Lists fired-but-undelivered reminders across every session
-/// (`BrainService.ListDueReminders`).
+/// Lists fired-but-undelivered reminders across every session (`BrainService.ListDueReminders`).
 pub(crate) async fn list_due_reminders(call: SeamCall) -> Result<Vec<DueReminder>, TransportError> {
     let mut client = call.client();
     let reply = client
@@ -29,15 +28,18 @@ pub(crate) async fn list_due_reminders(call: SeamCall) -> Result<Vec<DueReminder
         .collect())
 }
 
-/// Marks one reminder delivered (`BrainService.AckReminder`). `false` is the brain reporting
-/// that there was nothing to clear, which is a state rather than a failure.
+/// Marks one fire delivered (`BrainService.AckReminder`).
 pub(crate) async fn ack_reminder(
     call: SeamCall,
     reminder_id: String,
+    fired_at_unix_ms: i64,
 ) -> Result<bool, TransportError> {
     let mut client = call.client();
     let reply = client
-        .ack_reminder(AckReminderRequest { reminder_id })
+        .ack_reminder(AckReminderRequest {
+            reminder_id,
+            fired_at_unix_ms,
+        })
         .await
         .map_err(|status| call.error(&status))?
         .into_inner();

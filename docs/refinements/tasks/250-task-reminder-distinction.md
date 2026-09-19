@@ -47,6 +47,6 @@ seeded rows ([demoScript.ts](../../../body/app/src/bridge/demoScript.ts)) and `R
   and `_deliver` is still handed `REMINDER_TITLE` or `TASK_TITLE`. The overlay files the hop list
   names are still the three that would change outside the tests (`types.ts`, `demoScript.ts`,
   `Reminders.tsx`); the other overlay readers of `DueReminder` pass it through. Nothing in the
-  overlay asks which kind a row is, so the trigger has not fired.
-  [690](690-dismissing-one-fires-card-acks-the-fire-after-it.md), filed the same day, is a different
-  gap on the same card: a task's outcome lost to an ack, not one mislabelled.
+  overlay asks which kind a row is, so the trigger has not fired. A different gap on the same card,
+  a task's outcome lost to an ack rather than mislabelled, was fixed the same day ([ADR-0025
+  addendum of this date](../../adr/ADR-0025-scheduling-reminders.md)).

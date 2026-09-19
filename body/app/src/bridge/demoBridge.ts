@@ -12,9 +12,8 @@ import type {
   TurnSink,
 } from "./types";
 
-/** Stream `text` word by word; `lead` prefixes the first word. By default each word is a reply
- *  `delta`; pass `emit` to route the words elsewhere (the reasoning burst sends them as thinking
- *  statuses instead), keeping the same paced-word shape for both surfaces. */
+/** Stream `text` word by word; `lead` prefixes the first word. `emit` sends the words somewhere
+ *  other than a reply `delta`, which the reasoning burst uses to send them as thinking statuses. */
 function streamWords(
   sink: TurnSink,
   text: string,
@@ -37,22 +36,18 @@ function streamWords(
   return () => clearInterval(timer);
 }
 
+// A `BrainBridge` for browser development: it streams a canned reply on a timer so `vite dev`
+// shows the real components. Every string it serves lives in `demoScript.ts`.
 export class DemoBridge implements BrainBridge {
   /** Resumes the paused confirm turn with the user's decision (null = none pending). */
   private pending: ((approved: boolean) => void) | null = null;
   /** The demo brain's own deadline for that question, when the prompt asked for one. */
   private expiry: ReturnType<typeof setTimeout> | null = null;
-  /** What the next probe reports, and when the scripted outage heals (0 = never went down). */
+  /** What the next probe reports, and when the scripted outage ends (0 = never went down). */
   private link: LinkState = "ready";
   private healsAt = 0;
-  // Held rather than rebuilt per call, so the writes below actually stick for the session. They
-  // used to be no-ops over a static list, which made rename, delete and pin unexercisable by hand:
-  // the row changed optimistically and the next re-list put it straight back.
   private sessions: SessionSummary[] = script.sessions();
   private due: readonly DueReminder[] = script.reminders();
-  // The user's settings record (ADR-0032). Held in memory for browser dev, so picking a mark or
-  // a theme sticks across a re-summon within the session the way the real record sticks across a
-  // restart; a reload starts fresh, since there is no brain here to hold it.
   private prefs: Preference[] = [];
 
   private remember(sessionId: string, text: string): void {
@@ -79,6 +74,9 @@ export class DemoBridge implements BrainBridge {
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
+    // Say "screen" in a prompt to drive the header's capture indicator, and add "refused" to make
+    // the outcome come back not ok. Both timers fire after `converse` returns, because the shared
+    // check list asks whether a turn delivers anything before it has been handed its cancellation.
     let asked: ReturnType<typeof setTimeout> | undefined;
     let settle: ReturnType<typeof setTimeout> | undefined;
     if (/screen|look at|see this/iu.test(text)) {
@@ -123,7 +121,7 @@ export class DemoBridge implements BrainBridge {
           sink.onEvent({ kind: "complete", turnId: "demo" }),
         );
       };
-      // Park the continuation before asking, because respondConfirm may answer immediately.
+      // Store the continuation before asking, because `respondConfirm` may answer at once.
       this.pending = (approved) => resume(approved ? script.CONFIRM_SENT : script.CONFIRM_DENIED);
       sink.onEvent({
         kind: "confirmRequest",
@@ -134,9 +132,7 @@ export class DemoBridge implements BrainBridge {
       });
       if (expires) {
         this.expiry = setTimeout(() => {
-          // The demo brain answers for the user here, so the continuation is dropped first and a
-          // click landing after the card closes resumes nothing (the stale-answer case,
-          // fail-closed).
+          // Drop the continuation first, so a click arriving after the card closes resumes nothing.
           this.pending = null;
           sink.onEvent({ kind: "confirmResolved", confirmId: "demo-confirm", outcome: "timeout" });
           resume(script.CONFIRM_TIMED_OUT);
@@ -165,7 +161,7 @@ export class DemoBridge implements BrainBridge {
     }
   }
 
-  /** Script an outage that heals on its own, so the recovery re-check has something to find. */
+  /** Script an outage that ends on its own, so the recovery re-check has something to find. */
   private fail(state: LinkState): void {
     this.link = state;
     this.healsAt = Date.now() + script.OUTAGE_MS;
@@ -182,8 +178,7 @@ export class DemoBridge implements BrainBridge {
         : this.link === "degraded"
           ? script.DEGRADED_DETAIL
           : script.DOWN_DETAIL;
-    // A real probe rides the retrying transport, so a down brain answers slowly. Delay the
-    // unhappy answers a little so the "checking" pulse is actually visible by hand.
+    // The unhappy answers are slower, so the "checking" pulse is long enough to watch by hand.
     const delay = this.link === "ready" ? 120 : 900;
     return new Promise((resolve) =>
       setTimeout(() => resolve({ state: this.link, detail }), delay),
@@ -191,13 +186,11 @@ export class DemoBridge implements BrainBridge {
   }
 
   listSessions(limit: number): Promise<readonly SessionSummary[]> {
-    // Pinned first, then by recency, which is the order the brain lists in (ADR-0021).
     const ordered = [...this.sessions].sort(
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) || b.lastActivityUnixMs - a.lastActivityUnixMs,
     );
-    // `0` means the brain's own default (`types.ts`) rather than a limit of none. Read as a limit,
-    // it would answer an empty switcher to every caller that asks for the default listing.
+    // `0` means the brain's own default listing, not a limit of none.
     return Promise.resolve(limit === 0 ? ordered : ordered.slice(0, limit));
   }
 
@@ -217,9 +210,11 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve(this.due);
   }
 
-  ackReminder(reminderId: string): Promise<boolean> {
+  ackReminder(reminderId: string, firedAtUnixMs: number): Promise<boolean> {
     const before = this.due.length;
-    this.due = this.due.filter((reminder) => reminder.reminderId !== reminderId);
+    this.due = this.due.filter(
+      (reminder) => reminder.reminderId !== reminderId || reminder.firedAtUnixMs !== firedAtUnixMs,
+    );
     return Promise.resolve(this.due.length < before);
   }
 

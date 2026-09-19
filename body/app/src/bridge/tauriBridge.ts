@@ -13,14 +13,13 @@ import type {
   TurnSink,
 } from "./types";
 
-// One message on a turn's IPC channel from the Rust `converse` command: exactly
-// one of `event`/`error` is set (mirrors the Rust `WireMessage`; ADR-0011).
+// One message on a turn's IPC channel from the Rust `converse` command: exactly one of
+// `event` and `error` is set.
 type WireMessage = { readonly event: TurnEvent } | { readonly error: TransportError };
 
-/**
- * The real `BrainBridge`: each `converse` opens a Tauri IPC `Channel`, hands it
- * to the Rust `converse` command, and forwards streamed messages to the sink.
- */
+/** The real `BrainBridge`: each `converse` opens a Tauri IPC `Channel`, hands it to the Rust
+ *  `converse` command, and forwards streamed messages to the sink. Excluded from coverage and
+ *  checked on the host, like the Rust OS adapters. */
 export class TauriBridge implements BrainBridge {
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
     const channel = new Channel<WireMessage>();
@@ -40,22 +39,18 @@ export class TauriBridge implements BrainBridge {
         sink.onError({ kind: "connection", message: String(reason) });
       }
     });
-    // Cancellation only stops delivery to the sink. Nothing reaches the Rust command, which
-    // streams the turn to its end, so the brain finishes and persists it (see useOverlay.ts).
+    // Cancelling only stops delivery to the sink. The Rust command streams the turn to its end,
+    // so the brain finishes it and stores it.
     return () => {
       live = false;
     };
   }
 
-  // The connection probe (ADR-0011 addendum). The Rust command is infallible: an unreachable
-  // brain comes back as `{ state: "down", detail }` rather than as a rejected promise, so the
-  // overlay never has to interpret a rejection.
+  // The Rust command never rejects: an unreachable brain comes back as `{ state: "down", detail }`.
   checkLink(): Promise<LinkStatus> {
     return invoke<LinkStatus>("check_link");
   }
 
-  // The read-only session views (ADR-0021): simple request/response Tauri commands
-  // that call the brain's ListSessions / GetSessionMessages over the seam.
   listSessions(limit: number): Promise<readonly SessionSummary[]> {
     return invoke<readonly SessionSummary[]>("list_sessions", { limit });
   }
@@ -76,18 +71,15 @@ export class TauriBridge implements BrainBridge {
     return invoke<void>("set_session_pinned", { sessionId, pinned });
   }
 
-  // Reminder pull delivery (ADR-0025): the overlay reads what has fired when it opens and
-  // acks what the user dismisses. Both are unary commands over the same resilient transport.
   listDueReminders(): Promise<readonly DueReminder[]> {
     return invoke<readonly DueReminder[]>("list_due_reminders");
   }
 
-  ackReminder(reminderId: string): Promise<boolean> {
-    return invoke<boolean>("ack_reminder", { reminderId });
+  ackReminder(reminderId: string, firedAtUnixMs: number): Promise<boolean> {
+    return invoke<boolean>("ack_reminder", { reminderId, firedAtUnixMs });
   }
 
-  // The user's settings record (ADR-0032). The Rust side answers pairs as tuples, which is the
-  // one shape difference from the port, so it is mapped here rather than leaking into the app.
+  // The Rust side returns the pairs as tuples, the one difference from the port, mapped here.
   getPreferences(): Promise<readonly Preference[]> {
     return invoke<readonly [string, string][]>("get_preferences").then((pairs) =>
       pairs.map(([key, value]) => ({ key, value })),
@@ -98,9 +90,7 @@ export class TauriBridge implements BrainBridge {
     return invoke<void>("set_preference", { key, value });
   }
 
-  // The confirm answer (ADR-0022): a fire-and-forget command that pushes the decision
-  // into the open turn's held sender. Failures are the caller's non-fatal `.catch`, since
-  // the brain denies by timeout (fail-closed).
+  // A failure here is not fatal for the caller, because the brain denies by timeout.
   respondConfirm(confirmId: string, approved: boolean): Promise<void> {
     return invoke<void>("confirm_response", { confirmId, approved });
   }

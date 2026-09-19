@@ -27,7 +27,7 @@ if _version_not_supported:
 
 class BrainServiceStub:
     """---------------------------------------------------------------------------
-    BrainService is hosted by the brain (Docker). The body is the client.
+    BrainService is hosted by the brain, in Docker. The body is the client.
     ---------------------------------------------------------------------------
     """
 
@@ -96,30 +96,28 @@ class BrainServiceStub:
 
 class BrainServiceServicer:
     """---------------------------------------------------------------------------
-    BrainService is hosted by the brain (Docker). The body is the client.
+    BrainService is hosted by the brain, in Docker. The body is the client.
     ---------------------------------------------------------------------------
     """
 
     def Converse(self, request_iterator, context):
-        """One conversational exchange stream per overlay session. Client events carry user
-        turns and cancellations; server events stream tokens, tool activity, and status
-        (e.g. "brain model loading" during a handoff, so the overlay can show progress).
+        """One conversational exchange per overlay session. Client events send user turns and
+        cancellations; server events stream tokens, tool activity and status, such as a model
+        loading during a handoff.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def Health(self, request, context):
-        """Liveness/readiness for the overlay to display connection state.
+        """Liveness and readiness, for the overlay's connection indicator.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def ListSessions(self, request, context):
-        """Read-only views of the durable session store (ADR-0021): the overlay's chat
-        list + switcher + cycling. Snapshots, not streams; they add no write path and
-        so cannot touch the one hard rule beyond reading what the store already holds.
+        """Read-only views of the session store, for the overlay's chat list and switcher.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -132,12 +130,9 @@ class BrainServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def ListDueReminders(self, request, context):
-        """Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered
-        reminders when it opens and acks what it showed. ListDueReminders is a read-only
-        store view (the ADR-0021 pattern); AckReminder is the one narrow idempotent write
-        the pull loop needs (acking a non-deliverable id is a no-op acked=false). With no
-        ScheduleStore wired both answer benignly (empty / acked=false), never an error, because
-        a schedule-free brain is indistinguishable from one with nothing due.
+        """Reminder pull delivery: the overlay shows what has fired and is still undelivered, then
+        acks what it showed. A brain with no schedule store answers an empty list and acked=false
+        rather than an error, because it cannot be told from one with nothing due.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -150,69 +145,36 @@ class BrainServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def RenameSession(self, request, context):
-        """Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum),
-        the overlay's user-driven relabel of one chat. Unlike Converse's model-initiated gated
-        tool calls, whose gate is the mid-turn Confirmer (ADR-0022), this RPC is reachable ONLY
-        from the overlay's own list controls, driven by the user. No model, tool, or tainted turn
-        reaches it: it is not a tool in any registry and is served directly off the store, never
-        through the turn engine. That structural user-only path IS its gate. It persists a derived
-        DISPLAY title only (never conversation content), so it cannot touch the one hard rule
-        beyond the title the store already holds for a brain-generated one, and an empty title
-        clears the override to restore the first-message derivation. The brain re-bounds the title
-        when listing, so a caller cannot store an unbounded or multi-line label.
+        """Renames a chat. Reachable only from the overlay's own list controls, never from a model or
+        a tool, and it stores a display title only, never conversation content. An empty title
+        clears the override, so the title derived from the first message applies again.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def DeleteSession(self, request, context):
-        """Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog
-        (ADR-0021 management addendum). It hard-deletes the whole transcript and catalog entry,
-        and cascades to the session's derived memories, but only when those memories are private
-        to the session (a session-scoped memory policy); under the shared global memory space
-        nothing session-private cascades. Its gate is the SAME structural user-only reachability
-        RenameSession has, not the mid-turn Confirmer: it is no tool in any registry and never runs
-        through the turn engine, so no model, tool, or tainted turn reaches it. The user's intent is
-        secured OUT of band, by an overlay-local "are you sure" confirm before this RPC is ever sent
-        (the SeamConfirmer gates in-turn tool calls, not a unary management RPC). It carries a
-        destructive effect, so the resilient body transport makes exactly ONE attempt and never
-        retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
+        """Deletes a chat: destructive and irreversible. The transcript, the catalog entry and the
+        session's private memories all go. The overlay asks the user to confirm before sending
+        this, and the body makes exactly one attempt so a lost reply cannot destroy twice.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def SetSessionPinned(self, request, context):
-        """Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
-        Pinning keeps an important chat reachable after it falls out of the recency window: a pinned
-        chat is unioned into ListSessions REGARDLESS of recency and sorted above the recency group,
-        so pinning an old chat rescues it from ageing off the list. Its gate is the SAME structural
-        user-only reachability RenameSession/DeleteSession have, not the mid-turn Confirmer: it is no
-        tool in any registry and never runs through the turn engine, so no model, tool, or tainted
-        turn reaches it. It carries a display-only effect (never conversation content), so it cannot
-        touch the one hard rule. Setting the same pinned value twice is a no-op, but the body still
-        makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
-        set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
+        """Sets or clears the `pinned` mark on a chat, which lists it whatever its age, above the
+        chats listed by recency. Reachable only from the overlay's list controls, and the body
+        makes exactly one attempt.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def GetPreferences(self, request, context):
-        """The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a
-        body restart or a body reinstall and is readable by any surface rather than trapped in the
-        one that set it. Keys are namespaced strings the caller owns ("overlay.theme",
-        "overlay.mark"); values are short opaque strings the brain never interprets, which is what
-        keeps a new preference from being a seam change. GetPreferences returns every set key.
-        SetPreference is idempotent (last write wins) and an EMPTY value CLEARS the key, restoring
-        whatever default the reader applies, exactly as RenameSession's empty title clears an
-        override. Their gate is the SAME structural user-only reachability RenameSession has: no tool
-        in any registry, never through the turn engine, so no model, tool, or tainted turn reaches
-        them. They carry display preferences only, never conversation content, so they cannot touch
-        the one hard rule. SetPreference carries an effect, so the body makes exactly ONE attempt and
-        never retries it (the catalog-write convention): a lost reply must not silently re-assert a
-        value the user's next change reversed. GetPreferences is a read and retries like the other
-        read-only views.
+        """The user's settings: a durable key/value record the brain owns, so a choice survives a body
+        restart. Keys are namespaced names the caller owns ("overlay.theme"); values are short
+        strings the brain stores and returns without reading them. An empty value clears the key.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -292,7 +254,7 @@ def add_BrainServiceServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class BrainService:
     """---------------------------------------------------------------------------
-    BrainService is hosted by the brain (Docker). The body is the client.
+    BrainService is hosted by the brain, in Docker. The body is the client.
     ---------------------------------------------------------------------------
     """
 
@@ -596,10 +558,7 @@ class BrainService:
 
 class BodyServiceStub:
     """---------------------------------------------------------------------------
-    BodyService is hosted by the body (host-native). The brain is the client.
-    Exposes host OS capabilities behind the body's Rust traits.
-    (Whether these also surface to models as MCP tools: ADR-0001 open question #2.
-    Connectivity direction: ADR-0001 open question #3.)
+    BodyService is hosted by the body. The brain is the client.
     ---------------------------------------------------------------------------
     """
 
@@ -638,10 +597,7 @@ class BodyServiceStub:
 
 class BodyServiceServicer:
     """---------------------------------------------------------------------------
-    BodyService is hosted by the body (host-native). The brain is the client.
-    Exposes host OS capabilities behind the body's Rust traits.
-    (Whether these also surface to models as MCP tools: ADR-0001 open question #2.
-    Connectivity direction: ADR-0001 open question #3.)
+    BodyService is hosted by the body. The brain is the client.
     ---------------------------------------------------------------------------
     """
 
@@ -670,11 +626,9 @@ class BodyServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def Notify(self, request, context):
-        """Show a native notification (ADR-0025): the brain->body push half of reminder
-        delivery. shown=true means the OS accepted/displayed the toast. The ticker then
-        acks the reminder (a toast IS delivery); false or an error leaves it deliverable
-        for the pull path. The body renders title/body as inert escaped text: reminder
-        text can be attacker-influenced (tainted marks it), and a toast template is XML.
+        """Shows a native notification, which is the push half of reminder delivery. shown=true means
+        the OS displayed it, and the brain then acks the reminder; false or an error leaves the
+        reminder deliverable. The body escapes the text, because a toast template is XML.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -718,10 +672,7 @@ def add_BodyServiceServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class BodyService:
     """---------------------------------------------------------------------------
-    BodyService is hosted by the body (host-native). The brain is the client.
-    Exposes host OS capabilities behind the body's Rust traits.
-    (Whether these also surface to models as MCP tools: ADR-0001 open question #2.
-    Connectivity direction: ADR-0001 open question #3.)
+    BodyService is hosted by the body. The brain is the client.
     ---------------------------------------------------------------------------
     """
 

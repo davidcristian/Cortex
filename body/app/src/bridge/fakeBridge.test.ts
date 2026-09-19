@@ -61,17 +61,20 @@ describe("FakeBridge", () => {
     expect(bridge.reminderListCalls).toBe(2);
   });
 
-  it("acks a known id true and an unknown one false, recording both attempts", async () => {
+  it("acks a held fire true and an unknown id or replaced fire false, recording each", async () => {
     const bridge = new FakeBridge();
     bridge.reminders = [reminder("r-1")];
-    expect(await bridge.ackReminder("r-1")).toBe(true);
-    expect(await bridge.ackReminder("gone")).toBe(false);
-    expect(bridge.acks).toEqual(["r-1", "gone"]);
+    expect(await bridge.ackReminder("r-1", 1000)).toBe(true);
+    expect(await bridge.ackReminder("gone", 1000)).toBe(false);
+    expect(await bridge.ackReminder("r-1", 999)).toBe(false);
+    expect(bridge.acks).toEqual([
+      { reminderId: "r-1", firedAtUnixMs: 1000 },
+      { reminderId: "gone", firedAtUnixMs: 1000 },
+      { reminderId: "r-1", firedAtUnixMs: 999 },
+    ]);
   });
 
   it("answers a link status by default, counting the probes", async () => {
-    // The real command answers a state even for a dead brain, so the fake resolves by default
-    // and only the `linkFails` flag models the narrower "the IPC itself broke".
     const bridge = new FakeBridge();
     expect(await bridge.checkLink()).toEqual({ state: "ready", detail: "fake brain" });
     bridge.link = { state: "down", detail: "refused" };
@@ -100,10 +103,9 @@ describe("FakeBridge", () => {
     bridge.remindersFail = true;
     bridge.ackFails = true;
     await expect(bridge.listDueReminders()).rejects.toThrow("reminders failed");
-    await expect(bridge.ackReminder("r-1")).rejects.toThrow("ack failed");
-    // The pull and the attempt are still recorded, so a test can assert a call that failed.
+    await expect(bridge.ackReminder("r-1", 1000)).rejects.toThrow("ack failed");
     expect(bridge.reminderListCalls).toBe(1);
-    expect(bridge.acks).toEqual(["r-1"]);
+    expect(bridge.acks).toEqual([{ reminderId: "r-1", firedAtUnixMs: 1000 }]);
   });
 });
 

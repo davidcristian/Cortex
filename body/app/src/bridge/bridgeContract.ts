@@ -1,31 +1,30 @@
+// The shared behavior checks every `BrainBridge` implementation must pass. They do not cover the
+// content of a turn's stream: the demo bridge plays a recorded conversation on a timer, while the
+// fake is driven by hand from the test that owns it.
 import { expect } from "vitest";
 
 import type { BrainBridge, LinkState, TransportError, TurnEvent, TurnSink } from "./types";
 
-/** One implementation under the shared list, plus the two things the port itself cannot say. */
+/** One implementation to check, plus the two things the port itself cannot do. */
 export interface BridgeCase {
-  /** The implementation every check below runs against. */
   readonly bridge: BrainBridge;
-  /**
-   * Put a chat in this implementation's catalog, by whatever route that implementation has: the
-   * demo bridge remembers a chat it was spoken in, the fake serves the table its test assigns.
-   */
+  /** Add a chat by whatever route this implementation has: the demo bridge remembers a chat it
+   *  was spoken in, the fake serves the table its test assigns. */
   addChat(sessionId: string, firstMessage: string): void;
-  /** Let anything this implementation paced on a timer arrive: the demo delays its answers. */
+  /** Let through anything the implementation put on a timer; the demo delays its answers. */
   advance(milliseconds: number): Promise<void>;
 }
 
-/** One shared check: a name (its function name, which is the test's id) and a body. */
+/** One shared check. Its function name is the test's id. */
 export type BridgeCheck = (under: BridgeCase) => Promise<void>;
 
-/** Longer than any answer either implementation paces on a timer, so awaiting one is not
- *  waiting on which implementation the check happened to be handed. */
+/** Longer than any answer either implementation puts on a timer. */
 const SETTLE_MS = 2_000;
-/** Longer than a whole scripted turn, so "nothing more arrived" means the turn had its chance. */
+/** Longer than a whole scripted turn, so "nothing more arrived" is a real result. */
 const TURN_MS = 60_000;
-/** Roomier than either catalog, so a bounded read still answers the whole listing. */
+/** Larger than either chat list, so a bounded read still returns the whole listing. */
 const ROOMY_LIMIT = 20;
-/** A prompt that trips none of the demo bridge's scripted hooks (outage, confirm, capture). */
+/** A prompt that triggers none of the demo bridge's scripted events (outage, confirm, capture). */
 const PLAIN_PROMPT = "what keeps a turn's state outside the model";
 
 /** Resolve an answer the implementation may have put on a timer. */
@@ -34,9 +33,8 @@ async function settled<T>(under: BridgeCase, pending: Promise<T>): Promise<T> {
   return pending;
 }
 
-/** A sink that records events and errors into one array, so a check can ask what a turn delivered
- *  without splitting the two channels. The array's own `push` is the handler, because a check whose
- *  claim is that nothing arrived would otherwise ship a handler no run of it ever executes. */
+/** A sink that records events and errors into one array, so a check can ask what a turn
+ *  delivered without reading two channels. */
 function recorder(): { delivered: (TurnEvent | TransportError)[]; sink: TurnSink } {
   const delivered: (TurnEvent | TransportError)[] = [];
   const record = delivered.push.bind(delivered);
@@ -49,9 +47,8 @@ async function listedIds(under: BridgeCase): Promise<string[]> {
   return listed.map((chat) => chat.sessionId);
 }
 
-/** One chat's listed row, projected onto `field`, as a one-element array when it is listed at
- *  all. Comparing the projection rather than indexing into a row keeps a missing row a failure,
- *  where indexing would return `undefined` and satisfy a "not the old title" assertion. */
+/** One chat's listed row projected onto `field`, as a one-element array. Projecting rather than
+ *  indexing keeps a missing row a failure, where indexing would return `undefined`. */
 async function listedField<K extends "title" | "pinned">(
   under: BridgeCase,
   sessionId: string,
@@ -61,10 +58,7 @@ async function listedField<K extends "title" | "pinned">(
   return listed.filter((chat) => chat.sessionId === sessionId).map((chat) => chat[field]);
 }
 
-/**
- * A turn hands back a cancellation, delivers nothing during the call, and goes silent once it
- * is cancelled, however often it is cancelled.
- */
+/** Cancelling twice is safe, and nothing is delivered during the `converse` call itself. */
 async function checkACancelledTurnGoesSilent(under: BridgeCase): Promise<void> {
   const seen = recorder();
   const cancel = under.bridge.converse("contract-turn", PLAIN_PROMPT, seen.sink);
@@ -75,7 +69,6 @@ async function checkACancelledTurnGoesSilent(under: BridgeCase): Promise<void> {
   expect(seen.delivered).toEqual([]);
 }
 
-/** The probe answers a classified status rather than rejecting, and answers again. */
 async function checkTheProbeKeepsAnsweringAStatus(under: BridgeCase): Promise<void> {
   const states: LinkState[] = ["ready", "degraded", "down"];
   const first = await settled(under, under.bridge.checkLink());
@@ -85,7 +78,7 @@ async function checkTheProbeKeepsAnsweringAStatus(under: BridgeCase): Promise<vo
   expect(second.state).toBe(first.state);
 }
 
-/** A chat the catalog was given is listed, unpinned, under a title of its own. */
+/** The new chat is listed, not `pinned`, and has a title of its own. */
 async function checkASeededChatIsListed(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   expect(await listedIds(under)).toContain("contract-a");
@@ -95,12 +88,6 @@ async function checkASeededChatIsListed(under: BridgeCase): Promise<void> {
   expect(titles[0]).not.toBe("");
 }
 
-/**
- * A zero limit means the implementation's own default listing, never an empty one.
- *
- * The port documents `0` as "the brain default" (`types.ts`), which is what the real bridge
- * forwards; an implementation reading it as "at most none" answers an empty switcher.
- */
 async function checkAZeroLimitListsTheDefault(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   const bounded = await settled(under, under.bridge.listSessions(ROOMY_LIMIT));
@@ -108,7 +95,6 @@ async function checkAZeroLimitListsTheDefault(under: BridgeCase): Promise<void> 
   expect(defaulted).toEqual(bounded);
 }
 
-/** A positive limit cuts the same listing rather than answering a different one. */
 async function checkAPositiveLimitBoundsTheListing(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   await under.advance(SETTLE_MS);
@@ -119,7 +105,6 @@ async function checkAPositiveLimitBoundsTheListing(under: BridgeCase): Promise<v
   expect(cut).toEqual(whole.slice(0, 1));
 }
 
-/** A rename shows in the next listing, which is what the overlay re-lists to see. */
 async function checkARenameShowsInTheNextListing(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   await under.bridge.renameSession("contract-a", "Everything about model swaps");
@@ -128,12 +113,6 @@ async function checkARenameShowsInTheNextListing(under: BridgeCase): Promise<voi
   ]);
 }
 
-/**
- * An empty title clears the override rather than storing one.
- *
- * What the row then falls back to is each implementation's own choice (the brain derives a title
- * from the first message), so the shared claim is only that the custom title is gone.
- */
 async function checkAnEmptyRenameClearsTheCustomTitle(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   await under.bridge.renameSession("contract-a", "Everything about model swaps");
@@ -143,12 +122,7 @@ async function checkAnEmptyRenameClearsTheCustomTitle(under: BridgeCase): Promis
   expect(titles[0]).not.toBe("Everything about model swaps");
 }
 
-/**
- * A deleted chat is gone from the listing and stays gone on the refresh behind it.
- *
- * The overlay drops the row and immediately re-lists, so a delete that did not stick puts the
- * row back mid-exit; asking twice is what tells a real delete from an optimistic one.
- */
+/** The list is read twice, because the overlay drops the row and then re-lists. */
 async function checkADeletedChatStaysGone(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   under.addChat("contract-b", "what does a subagent cost");
@@ -159,7 +133,6 @@ async function checkADeletedChatStaysGone(under: BridgeCase): Promise<void> {
   expect(await listedIds(under)).not.toContain("contract-a");
 }
 
-/** A pinned chat lists above an unpinned one and carries the flag, and unpinning takes it back. */
 async function checkAPinGroupsAChatAboveAnUnpinnedOne(under: BridgeCase): Promise<void> {
   under.addChat("contract-older", "how does the model swap work");
   await under.advance(TURN_MS);
@@ -172,11 +145,7 @@ async function checkAPinGroupsAChatAboveAnUnpinnedOne(under: BridgeCase): Promis
   expect(await listedField(under, "contract-older", "pinned")).toEqual([false]);
 }
 
-/**
- * A chat's stored history answers well-formed messages, and a chat nobody has spoken in answers an
- * empty list rather than rejecting, since an empty chat is a normal state and not a failure the
- * panel has to render.
- */
+/** A chat nobody has spoken in returns an empty list: an empty chat is normal, not a failure. */
 async function checkAHistoryAnswersRatherThanRejecting(under: BridgeCase): Promise<void> {
   under.addChat("contract-a", "how does the model swap work");
   const history = await settled(under, under.bridge.sessionMessages("contract-a"));
@@ -189,27 +158,19 @@ async function checkAHistoryAnswersRatherThanRejecting(under: BridgeCase): Promi
   expect(Array.isArray(unknown)).toBe(true);
 }
 
-/**
- * A due reminder acks true and an id nobody was told about acks false.
- *
- * `false` means there was nothing to clear rather than a failure (`types.ts`), so an implementation
- * that answered true for an unknown id would report a delivery it never made.
- */
 async function checkADueReminderAcksTrueAndAnUnknownIdFalse(under: BridgeCase): Promise<void> {
   const due = await settled(under, under.bridge.listDueReminders());
   expect(due.length).toBeGreaterThan(0);
-  const ids = due.map((reminder) => reminder.reminderId);
-  expect(ids).not.toContain("contract-never-fired");
-  expect(await settled(under, under.bridge.ackReminder(ids[0] as string))).toBe(true);
-  expect(await settled(under, under.bridge.ackReminder("contract-never-fired"))).toBe(false);
+  const first = due[0] as (typeof due)[number];
+  expect(due.map((reminder) => reminder.reminderId)).not.toContain("contract-never-fired");
+  const earlier = first.firedAtUnixMs - 1;
+  expect(await settled(under, under.bridge.ackReminder(first.reminderId, earlier))).toBe(false);
+  const { reminderId, firedAtUnixMs } = first;
+  expect(await settled(under, under.bridge.ackReminder(reminderId, firedAtUnixMs))).toBe(true);
+  const unknown = under.bridge.ackReminder("contract-never-fired", firedAtUnixMs);
+  expect(await settled(under, unknown)).toBe(false);
 }
 
-/**
- * A setting reads back, a second write to one key replaces it, and an empty value clears it.
- *
- * The record is the brain's (ADR-0032), so a bridge that dropped a write would hand the overlay
- * a record that never carries what the user just chose.
- */
 async function checkASettingRoundTripsAndAnEmptyValueClears(under: BridgeCase): Promise<void> {
   await under.bridge.setPreference("overlay.contract", "still");
   expect(await settled(under, under.bridge.getPreferences())).toContainEqual({
@@ -226,18 +187,12 @@ async function checkASettingRoundTripsAndAnEmptyValueClears(under: BridgeCase): 
   expect(cleared.filter((pref) => pref.key === "overlay.contract")).toEqual([]);
 }
 
-/**
- * Answering a confirmation nobody is waiting for resolves rather than rejecting.
- *
- * The card can close while the user is reaching for it (the brain's own timeout, ADR-0022), so a
- * click landing after it closed is absorbed without running the gated call.
- */
+/** The card can close before the click arrives, so a late answer resolves instead of failing. */
 async function checkAStaleConfirmAnswerIsAbsorbed(under: BridgeCase): Promise<void> {
   await expect(under.bridge.respondConfirm("contract-nobody-asked", true)).resolves.toBeUndefined();
 }
 
-/** Every check, in the order a reader meets the port: the turn, the probe, the catalog, the
- *  history, the reminders, the record, the confirm answer. */
+/** Every check, in the order a reader meets the port. */
 export const ALL_CHECKS: readonly BridgeCheck[] = [
   checkACancelledTurnGoesSilent,
   checkTheProbeKeepsAnsweringAStatus,

@@ -1,4 +1,7 @@
 //! [`BrainSeamClient`] is the gRPC adapter behind `body_core::BrainTransport`.
+//!
+//! Translation only: every failure to reach the brain becomes [`TransportError::Connection`],
+//! and a non-OK status the brain reported becomes [`TransportError::Rpc`]. There are no retries.
 
 use std::fmt;
 
@@ -22,9 +25,8 @@ pub struct BrainSeamClient {
     plan: Option<RetryPlan>,
 }
 
-/// The token is a shared secret (ADR-0016) and the only field here that must never reach a log,
-/// so this prints whether it is present and never its value. It is written out rather than
-/// derived for that reason, since the derive printed the `MetadataValue` itself.
+/// The token is a shared secret and must never reach a log, so this prints whether it is present
+/// and never its value.
 impl fmt::Debug for BrainSeamClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BrainSeamClient")
@@ -36,15 +38,20 @@ impl fmt::Debug for BrainSeamClient {
 }
 
 impl BrainSeamClient {
-    /// Connects to the brain at `addr`, e.g. `http://127.0.0.1:50051`
-    /// (the `CORTEX_BRAIN_ADDR` default, see `docs/modules/body-rpc.md`),
-    /// sending no seam token. This suits a brain with auth disabled.
+    /// Connects to the brain at `addr`, for example `http://127.0.0.1:50051`, sending no token.
+    ///
+    /// # Errors
+    ///
+    /// [`TransportError::Connection`] when `addr` is not a valid URI or cannot be reached.
     pub async fn connect(addr: &str) -> Result<Self, TransportError> {
         Self::connect_with_token(addr, None).await
     }
 
-    /// Like [`BrainSeamClient::connect`], additionally attaching `token` as `x-cortex-seam-token`
-    /// metadata on every call when `Some`.
+    /// Like [`BrainSeamClient::connect`], also sending `token` as `x-cortex-seam-token` metadata.
+    ///
+    /// # Errors
+    ///
+    /// As `connect`, and also when `token` is not valid ASCII metadata.
     pub async fn connect_with_token(
         addr: &str,
         token: Option<&str>,
@@ -57,9 +64,11 @@ impl BrainSeamClient {
         Ok(Self::with_token(channel, token))
     }
 
-    /// Like [`BrainSeamClient::connect_with_token`], but over a lazy channel
-    /// (`Channel::connect_lazy`): construction never dials, so it only fails on a
-    /// bad URI or a non-ASCII token (never on reachability), and each RPC
+    /// As `connect_with_token`, over a lazy channel that reconnects on each call.
+    ///
+    /// # Errors
+    ///
+    /// [`TransportError::Connection`] for a bad URI or a token that is not valid ASCII metadata.
     pub fn connect_lazy_with_token(
         addr: &str,
         token: Option<&str>,
@@ -69,8 +78,7 @@ impl BrainSeamClient {
     }
 
     /// Announces each call's deadline to the brain as `grpc-timeout`, read per method out of
-    /// `plan` (ADR-0024 courtesy-header addendum). Without this the client sends no header at
-    /// all, which is what every constructor above returns.
+    /// `plan`, which must be the same plan the retry decorator above this client enforces.
     #[must_use]
     pub const fn announcing(mut self, plan: RetryPlan) -> Self {
         self.plan = Some(plan);
@@ -87,8 +95,8 @@ impl BrainSeamClient {
         }
     }
 
-    /// One call's generated client, whose interceptor carries the seam token and this method's
-    /// announced deadline, paired with that announcement for the reply mapping ([`SeamCall`]).
+    /// One call's generated client, whose interceptor holds the shared token and this method's
+    /// announced deadline, paired with that announcement for the reply mapping.
     fn call(&self, method: SeamMethod) -> SeamCall {
         SeamCall::new(
             self.channel.clone(),
@@ -99,8 +107,8 @@ impl BrainSeamClient {
     }
 }
 
-/// Parses the optional seam token into gRPC-safe ASCII metadata (ADR-0016), or
-/// [`TransportError::Connection`] if it is not valid ASCII the wire can carry.
+/// Parses the optional token into ASCII metadata, or [`TransportError::Connection`] when it is
+/// not valid ASCII.
 fn parse_seam_token(token: Option<&str>) -> Result<Option<MetadataValue<Ascii>>, TransportError> {
     token
         .map(|value| {
@@ -111,8 +119,7 @@ fn parse_seam_token(token: Option<&str>) -> Result<Option<MetadataValue<Ascii>>,
         .transpose()
 }
 
-/// Builds the tonic endpoint for `addr`, mapping an invalid URI to
-/// [`TransportError::Connection`]. Shared by the eager and lazy constructors.
+/// Builds the tonic endpoint for `addr`, mapping an invalid URI to [`TransportError::Connection`].
 fn endpoint(addr: &str) -> Result<tonic::transport::Endpoint, TransportError> {
     Channel::from_shared(addr.to_owned())
         .map_err(|err| TransportError::Connection(error_chain(&err)))
@@ -139,9 +146,6 @@ impl BrainTransport for BrainSeamClient {
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        // The one method that announces nothing, because it is the one the plan gives no
-        // deadline: a turn is long by design, and a header would hand tonic a clock to end it
-        // with. Its statuses therefore map through the classifier that reads no announcement.
         crate::converse::converse_turn(
             self.call(SeamMethod::Converse).client(),
             session_id.to_owned(),
@@ -169,9 +173,17 @@ impl BrainTransport for BrainSeamClient {
         crate::reminders::list_due_reminders(self.call(SeamMethod::ListDueReminders)).await
     }
 
-    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
-        crate::reminders::ack_reminder(self.call(SeamMethod::AckReminder), reminder_id.to_owned())
-            .await
+    async fn ack_reminder(
+        &self,
+        reminder_id: &str,
+        fired_at_unix_ms: i64,
+    ) -> Result<bool, TransportError> {
+        crate::reminders::ack_reminder(
+            self.call(SeamMethod::AckReminder),
+            reminder_id.to_owned(),
+            fired_at_unix_ms,
+        )
+        .await
     }
 
     async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {

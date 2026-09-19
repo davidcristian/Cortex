@@ -87,5 +87,6 @@ a request the body received, so no kind says a toast was not shown.
   the dedup it needs has to live in the OS's toast history rather than the stateless body server,
   both written above. And the trigger named no reading anyone could take, so it now names the
   brain's log line that marks a fire falling to the pull path and says that the lateness is the
-  user's own report. The trigger has not fired. The same stamp also fences the ack, which is filed
-  as [690](690-dismissing-one-fires-card-acks-the-fire-after-it.md).
+  user's own report. The trigger has not fired. The same stamp now fences the ack as well, which
+  cleared a later fire's task outcome when an earlier card was dismissed and was fixed in the same
+  pass ([ADR-0025 addendum of this date](../../adr/ADR-0025-scheduling-reminders.md)).

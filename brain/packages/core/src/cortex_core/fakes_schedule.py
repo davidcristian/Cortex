@@ -1,4 +1,4 @@
-"""InMemoryScheduleStore: the ScheduleStore port held in dicts (the Redis adapter's twin)."""
+"""In-memory ``ScheduleStore``, tested against the same contract as the Redis adapter."""
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
@@ -11,7 +11,7 @@ from cortex_core.schedule import (
     ScheduledItem,
     ScheduleStatus,
 )
-from cortex_core.schedule_transitions import ScheduleEdit, apply_edit, apply_snooze
+from cortex_core.schedule_transitions import ScheduleEdit, acks_fire, apply_edit, apply_snooze
 
 
 def _uuid4_token() -> str:
@@ -27,7 +27,7 @@ class _LiveClaim:
 
 
 class InMemoryScheduleStore:
-    """ScheduleStore held in dicts; ``token_factory`` is injectable so tests can pin tokens."""
+    """ScheduleStore kept in dicts; ``token_factory`` is injected so a test can fix the tokens."""
 
     def __init__(self, *, token_factory: Callable[[], str] = _uuid4_token) -> None:
         self._items: dict[str, ScheduledItem] = {}
@@ -43,19 +43,11 @@ class InMemoryScheduleStore:
         return self._items.get(item_id)
 
     async def list_active(self) -> Sequence[ScheduledItem]:
-        """PENDING/FIRING items plus fired-but-undelivered ones, due order.
-
-        Every stored item is active by invariant: DONE persists only while deliverable
-        (terminal cleanup deletes the rest at ``finish``/``ack``/``cancel`` time).
-        """
+        """PENDING/FIRING items plus fired-but-undelivered ones, due order."""
         return tuple(sorted(self._items.values(), key=lambda item: item.due_at))
 
     async def cancel(self, item_id: str) -> bool:
-        """Delete the item outright, whether pending, firing, or fired-but-undelivered.
-
-        True when anything was stopped; False for an unknown id. An in-flight fire's later
-        ``finish`` finds no claim to match and no-ops. Cancel sticks (ADR-0025 decision 1).
-        """
+        """Delete the item outright, whether pending, firing, or fired-but-undelivered."""
         self._claims.pop(item_id, None)
         return self._items.pop(item_id, None) is not None
 
@@ -78,11 +70,7 @@ class InMemoryScheduleStore:
     async def claim_due(
         self, now: datetime, *, lease: timedelta, limit: int
     ) -> Sequence[ScheduleClaim]:
-        """Claim due PENDING items and lease-expired FIRING ones, oldest-due-first.
-
-        Each claim carries a fresh fencing token; re-claiming a lease-expired item mints a
-        new token, fencing off the original claimant's late ``finish``/``release``.
-        """
+        """Claim due PENDING items and lease-expired FIRING ones, oldest-due-first."""
         eligible = [
             item
             for item in self._items.values()
@@ -108,11 +96,7 @@ class InMemoryScheduleStore:
         return live.token == claim.token
 
     async def finish(self, claim: ScheduleClaim, outcome: FireOutcome) -> bool:
-        """Persist one fire under the claim's token; a stale claimant no-ops False.
-
-        Fire-time taint ORs onto the item; ``next_due`` re-arms PENDING, ``None`` is
-        terminal, meaning DONE while deliverable, deleted otherwise (terminal cleanup).
-        """
+        """Persist one fire under the claim's token; a stale claimant no-ops False."""
         if not self._holds(claim):
             return False
         item = self._items[claim.item.id]
@@ -155,10 +139,10 @@ class InMemoryScheduleStore:
         due.sort(key=lambda item: item.deliverable_since or item.due_at)
         return tuple(due)
 
-    async def ack(self, item_id: str) -> bool:
-        """Clear deliverability; a DONE one-shot is deleted. False when not deliverable."""
+    async def ack(self, item_id: str, *, fired_at: datetime | None) -> bool:
+        """Clear the fire ``fired_at`` names; a DONE one-shot is deleted."""
         item = self._items.get(item_id)
-        if item is None or item.deliverable_since is None:
+        if item is None or not acks_fire(item, fired_at):
             return False
         if item.status is ScheduleStatus.DONE:
             del self._items[item_id]

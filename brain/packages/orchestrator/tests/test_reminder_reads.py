@@ -1,5 +1,3 @@
-"""The reminder pull RPCs over a real loopback grpc.aio server (ADR-0025, CI-safe)."""
-
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -39,9 +37,10 @@ async def _list(stub: BrainServiceStub) -> ListDueRemindersReply:
     return cast("ListDueRemindersReply", await method(ListDueRemindersRequest()))
 
 
-async def _ack(stub: BrainServiceStub, reminder_id: str) -> AckReminderReply:
+async def _ack(stub: BrainServiceStub, reminder_id: str, fired_at_unix_ms: int) -> AckReminderReply:
     method = stub.AckReminder  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-    return cast("AckReminderReply", await method(AckReminderRequest(reminder_id=reminder_id)))
+    request = AckReminderRequest(reminder_id=reminder_id, fired_at_unix_ms=fired_at_unix_ms)
+    return cast("AckReminderReply", await method(request))
 
 
 async def _serve(schedules: ScheduleStore | None) -> tuple[aio.Server, str]:
@@ -59,7 +58,12 @@ async def _serve(schedules: ScheduleStore | None) -> tuple[aio.Server, str]:
 
 
 async def _fired_reminder(
-    store: InMemoryScheduleStore, item_id: str, *, tainted: bool = False, recurring: bool = False
+    store: InMemoryScheduleStore,
+    item_id: str,
+    *,
+    tainted: bool = False,
+    recurring: bool = False,
+    at: datetime = _NOW,
 ) -> None:
     """Seed one reminder and fire it to deliverable, the way the ticker would."""
     every = timedelta(hours=1) if recurring else None
@@ -69,15 +73,15 @@ async def _fired_reminder(
             kind=ScheduleKind.REMINDER,
             text=f"text of {item_id}",
             session_id="chat-1",
-            due_at=_NOW,
-            created_at=_NOW,
+            due_at=at,
+            created_at=at,
             every=every,
             tainted=tainted,
         )
     )
-    (claim,) = await store.claim_due(_NOW, lease=timedelta(minutes=5), limit=8)
-    next_at = _NOW + timedelta(hours=1) if recurring else None
-    outcome = FireOutcome(fired_at=_NOW, next_due=next_at, deliverable=True)
+    (claim,) = await store.claim_due(at, lease=timedelta(minutes=5), limit=8)
+    next_at = at + timedelta(hours=1) if recurring else None
+    outcome = FireOutcome(fired_at=at, next_due=next_at, deliverable=True)
     assert await store.finish(claim, outcome) is True
 
 
@@ -117,7 +121,6 @@ async def test_list_due_reminders_maps_the_deliverable_view() -> None:
 
 
 async def test_list_due_reminders_maps_a_task_outcome() -> None:
-    """A deliverable task surfaces on the same pull path, carrying its outcome as the wire text."""
     schedules = InMemoryScheduleStore()
     await _fired_task(schedules, "t1", outcome="[subagent 1] 3 emails need replies")
     server, address = await _serve(schedules)
@@ -128,13 +131,11 @@ async def test_list_due_reminders_maps_a_task_outcome() -> None:
         await server.stop(grace=None)
     (notice,) = reply.reminders
     assert notice.reminder_id == "t1"
-    assert notice.text == "[subagent 1] 3 emails need replies"  # the outcome, not the instruction
+    assert notice.text == "[subagent 1] 3 emails need replies"
     assert notice.session_id == "chat-1"
 
 
 def test_reminder_to_proto_falls_back_to_text_without_a_task_outcome() -> None:
-    """A deliverable task with no recorded outcome maps its instruction, so the wire body is
-    never null (the ticker always records one; this guards the pure mapping's totality)."""
     item = ScheduledItem(
         id="t1",
         kind=ScheduleKind.TASK,
@@ -151,16 +152,14 @@ def test_reminder_to_proto_falls_back_to_text_without_a_task_outcome() -> None:
 @pytest.mark.parametrize(
     ("every", "rule", "expected"),
     [
-        (None, None, False),  # one-shot: neither recurrence shape set
-        (timedelta(hours=1), None, True),  # fixed interval
-        (None, CalendarRule(hour=9, minute=0), True),  # wall-clock calendar rule
+        (None, None, False),
+        (timedelta(hours=1), None, True),
+        (None, CalendarRule(hour=9, minute=0), True),
     ],
 )
 def test_reminder_to_proto_recurs_by_either_mechanism(
     *, every: timedelta | None, rule: CalendarRule | None, expected: bool
 ) -> None:
-    """`recurring` reflects a calendar rule as well as an interval, so a day-of-month/weekday/
-    annual item still shows the overlay's repeats badge (it would drop with only `every`)."""
     item = ScheduledItem(
         id="r1",
         kind=ScheduleKind.REMINDER,
@@ -182,9 +181,10 @@ async def test_ack_reminder_clears_the_slot_and_is_idempotent() -> None:
     try:
         async with aio.insecure_channel(address) as channel:
             stub = BrainServiceStub(channel)
-            assert (await _ack(stub, "r1")).acked is True
+            (listed,) = (await _list(stub)).reminders
+            assert (await _ack(stub, "r1", listed.fired_at_unix_ms)).acked is True
             assert (await _list(stub)).reminders == []
-            assert (await _ack(stub, "r1")).acked is False  # already delivered: a no-op
+            assert (await _ack(stub, "r1", listed.fired_at_unix_ms)).acked is False
     finally:
         await server.stop(grace=None)
 
@@ -195,7 +195,7 @@ async def test_schedule_free_brain_answers_benignly() -> None:
         async with aio.insecure_channel(address) as channel:
             stub = BrainServiceStub(channel)
             assert (await _list(stub)).reminders == []
-            assert (await _ack(stub, "ghost")).acked is False
+            assert (await _ack(stub, "ghost", 1)).acked is False
     finally:
         await server.stop(grace=None)
 
@@ -210,8 +210,8 @@ class _FailingScheduleStore(InMemoryScheduleStore):
     async def deliverable(self) -> Sequence[ScheduledItem]:
         raise self._down()
 
-    async def ack(self, item_id: str) -> bool:
-        del item_id
+    async def ack(self, item_id: str, *, fired_at: datetime | None) -> bool:
+        del item_id, fired_at
         raise self._down()
 
 
@@ -222,8 +222,66 @@ async def test_store_failure_aborts_unavailable(rpc: str) -> None:
         async with aio.insecure_channel(address) as channel:
             stub = BrainServiceStub(channel)
             with pytest.raises(aio.AioRpcError) as excinfo:
-                await (_list(stub) if rpc == "list" else _ack(stub, "r1"))
+                await (_list(stub) if rpc == "list" else _ack(stub, "r1", 1))
     finally:
         await server.stop(grace=None)
     assert excinfo.value.code() == grpc.StatusCode.UNAVAILABLE
     assert "redis down" in str(excinfo.value.details())
+
+
+async def test_an_ack_naming_a_replaced_fire_leaves_the_later_one_due() -> None:
+    schedules = InMemoryScheduleStore()
+    await _fired_reminder(schedules, "r1", recurring=True)
+    server, address = await _serve(schedules)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            (listed,) = (await _list(stub)).reminders
+            stale = listed.fired_at_unix_ms - 1
+            assert (await _ack(stub, "r1", stale)).acked is False
+            (still,) = (await _list(stub)).reminders
+            assert still.fired_at_unix_ms == listed.fired_at_unix_ms
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_an_unstamped_ack_from_an_older_body_clears_the_held_fire() -> None:
+    schedules = InMemoryScheduleStore()
+    await _fired_reminder(schedules, "r1")
+    server, address = await _serve(schedules)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            assert (await _ack(stub, "r1", 0)).acked is True
+            assert (await _list(stub)).reminders == []
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_a_stamp_no_datetime_can_hold_names_no_fire() -> None:
+    schedules = InMemoryScheduleStore()
+    await _fired_reminder(schedules, "r1")
+    server, address = await _serve(schedules)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            assert (await _ack(stub, "r1", 2**62)).acked is False
+            assert len((await _list(stub)).reminders) == 1
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_the_listed_stamp_is_the_one_the_ack_compares() -> None:
+    at = datetime(2038, 3, 19, 11, 38, 59, 812000, tzinfo=UTC)
+    assert int(at.timestamp() * 1000) == 2152611539811
+    schedules = InMemoryScheduleStore()
+    await _fired_reminder(schedules, "r1", at=at)
+    server, address = await _serve(schedules)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            (listed,) = (await _list(stub)).reminders
+            assert listed.fired_at_unix_ms == 2152611539812
+            assert (await _ack(stub, "r1", listed.fired_at_unix_ms)).acked is True
+    finally:
+        await server.stop(grace=None)
