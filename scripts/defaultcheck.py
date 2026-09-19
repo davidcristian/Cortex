@@ -42,12 +42,18 @@ class Walk(NamedTuple):
 
 
 class Scan(NamedTuple):
-    """One walk: the collection the verdict is over, then the verdict."""
+    """One walk: the collection the verdict is over, then the verdict, in its two kinds."""
 
     files: int
     variables: int
     compared: int
-    faults: list[Fault]
+    refused: list[Fault]
+    disagreements: list[Fault]
+
+    @property
+    def faults(self) -> list[Fault]:
+        """Every fault, the refused files first, which is the order `main` prints them in."""
+        return self.refused + self.disagreements
 
 
 def same_value(arguments: list[str]) -> bool:
@@ -130,7 +136,7 @@ def group(root: Path) -> Walk:
 def check(root: Path) -> Scan:
     """Return what the walk read under ``root``, and every variable whose spends do not agree."""
     walk = group(root)
-    faults = list(walk.faults)
+    disagreements: list[Fault] = []
     compared = 0
     for name, spends in sorted(walk.groups.items()):
         if len(spends) < MIN_SPENDS:
@@ -138,8 +144,14 @@ def check(root: Path) -> Scan:
         compared += 1
         fault = disagreement(name, spends)
         if fault is not None:
-            faults.append(fault)
-    return Scan(files=walk.files, variables=len(walk.groups), compared=compared, faults=faults)
+            disagreements.append(fault)
+    return Scan(
+        files=walk.files,
+        variables=len(walk.groups),
+        compared=compared,
+        refused=walk.faults,
+        disagreements=disagreements,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -163,16 +175,23 @@ def main(argv: list[str] | None = None) -> int:
     except ComposeSearchError as err:
         print(f"defaultcheck: {err}", file=sys.stderr)
         return 2
-    faults = scanned.faults
-    for fault in faults:
+    for fault in scanned.faults:
         print(f"{fault.subject}: {fault.detail}")
-    if faults:
+    if scanned.refused:
         print(
-            f"\ndefaultcheck: {len(faults)} compose variable(s) do not carry one default. "
-            "Give every spend of one variable the same default, re-spelled only where the far "
-            "side's own syntax cannot take it as written.",
+            f"\ndefaultcheck: {len(scanned.refused)} compose file(s) could not be read, so no "
+            "spend in them was compared. Rewrite a form the reader refuses in one it takes, or "
+            "save the file as UTF-8 text, as the file's own fault says.",
             file=sys.stderr,
         )
+    if scanned.disagreements:
+        print(
+            f"\ndefaultcheck: {len(scanned.disagreements)} compose variable(s) do not carry one "
+            "default. Give every spend of one variable the same default, re-spelled only where "
+            "the far side's own syntax cannot take it as written.",
+            file=sys.stderr,
+        )
+    if scanned.faults:
         return 1
     print(
         f"defaultcheck OK: {scanned.compared} variable(s) spelled twice or more under {given} "

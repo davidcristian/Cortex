@@ -497,8 +497,11 @@ answer: a marker written into any other module here is reported by the line it i
   `$` form the reader was not taught are each a fault. Exit 0 with a summary **leading on the
   variables actually compared**, over the compose files and the variables read to find them,
   since a variable spelled once is not in the collection the verdict is about; exit 1 printing
-  `NAME: detail` per fault, each naming every place the variable is spelled; exit 2 if `--root`
-  is not a directory or the scan could not run at all.
+  `path: detail` per file the reader refused, then `NAME: detail` per disagreeing variable, each
+  naming every place the variable is spelled, and one summary per kind that occurred, so a refused
+  file is counted as a file with its own remedy and never as a variable (ADR-0026 addendum on
+  quoting a nested spend whole); exit 2 if `--root` is not a directory or the scan could not run
+  at all.
 - `composedefaults.py` is `defaultcheck.py`'s reader and has no CLI. `read_substitutions(text)`
   returns one `Substitution(line, name, operator, argument)` per spend, in file order. It is a
   character walk rather than a YAML parse, because compose interpolates the strings a YAML parse

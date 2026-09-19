@@ -1,5 +1,3 @@
-"""Tests for the compose defaults gate: one variable, one value, however it is spelled."""
-
 from pathlib import Path
 
 import pytest
@@ -23,17 +21,12 @@ def _environment(*spends: str) -> str:
     return f"services:\n  brain:\n    environment:\n{lines}\n"
 
 
-# ── the deliberate re-spelling, from both sides ────────────────────────────────
-
-
 def test_a_whole_number_spelled_two_ways_is_one_value(tmp_path: Path) -> None:
-    """The budget pair the tree already carries: `8.0` in an env block, `8` under a size suffix."""
     _compose(tmp_path, _environment("${MEM_BUDGET_GB:-8.0}", "${MEM_BUDGET_GB:-8}g"))
     assert defaultcheck.check(tmp_path).faults == []
 
 
 def test_a_real_drift_in_that_same_variable_is_reported(tmp_path: Path) -> None:
-    """The converse of the test above, so that pair is not passing because every pair passes."""
     _compose(tmp_path, _environment("${MEM_BUDGET_GB:-8.0}", "${MEM_BUDGET_GB:-9}g"))
     faults = defaultcheck.check(tmp_path).faults
     assert [fault.subject for fault in faults] == ["MEM_BUDGET_GB"]
@@ -43,12 +36,8 @@ def test_a_real_drift_in_that_same_variable_is_reported(tmp_path: Path) -> None:
 
 
 def test_a_fraction_that_is_lost_rather_than_zero_is_not_a_re_spelling(tmp_path: Path) -> None:
-    """`8.5` has no whole spelling, so tying it to `8` would cap a container under the budget."""
     _compose(tmp_path, _environment("${MEM_BUDGET_GB:-8.5}", "${MEM_BUDGET_GB:-8}g"))
     assert [fault.subject for fault in defaultcheck.check(tmp_path).faults] == ["MEM_BUDGET_GB"]
-
-
-# ── the rule over the ordinary cases ───────────────────────────────────────────
 
 
 def test_one_default_written_the_same_way_twice_holds(tmp_path: Path) -> None:
@@ -57,7 +46,6 @@ def test_one_default_written_the_same_way_twice_holds(tmp_path: Path) -> None:
 
 
 def test_a_drift_across_two_files_names_both(tmp_path: Path) -> None:
-    """The models mount is spelled in four overrides, which is where this drift would happen."""
     _compose(tmp_path, _environment("${MODELS_DIR:-./models}"), name="docker/docker-compose.yml")
     _compose(tmp_path, _environment("${MODELS_DIR:-./cache}"), name="docker/docker-compose.gpu.yml")
     faults = defaultcheck.check(tmp_path).faults
@@ -67,7 +55,6 @@ def test_a_drift_across_two_files_names_both(tmp_path: Path) -> None:
 
 
 def test_a_spend_with_no_sibling_is_never_compared(tmp_path: Path) -> None:
-    """A lone spend has nothing to disagree with, reducible or not, so it is left alone."""
     _compose(tmp_path, _environment("${ENDPOINT:-http://llama-subagent:8082}"))
     assert defaultcheck.check(tmp_path).faults == []
 
@@ -82,11 +69,7 @@ def test_two_empty_defaults_agree(tmp_path: Path) -> None:
     assert defaultcheck.check(tmp_path).faults == []
 
 
-# ── the operator is part of the answer ─────────────────────────────────────────
-
-
 def test_falling_back_two_different_ways_is_a_drift(tmp_path: Path) -> None:
-    """`${V:-x}` and `${V-x}` part company on a variable set to the empty string."""
     _compose(tmp_path, _environment("${MODELS_DIR:-./models}", "${MODELS_DIR-./models}"))
     faults = defaultcheck.check(tmp_path).faults
     assert [fault.subject for fault in faults] == ["MODELS_DIR"]
@@ -99,8 +82,6 @@ def test_one_file_demanding_what_another_supplies_is_a_drift(tmp_path: Path) -> 
 
 
 def test_two_required_spends_may_word_their_message_differently(tmp_path: Path) -> None:
-    """A `:?` argument is a message for whoever runs compose, so two wordings of it are not a
-    drift."""
     _compose(tmp_path, _environment("${IMAP_USER:?set the username}", "${IMAP_USER:?see runbook}"))
     assert defaultcheck.check(tmp_path).faults == []
 
@@ -108,9 +89,6 @@ def test_two_required_spends_may_word_their_message_differently(tmp_path: Path) 
 def test_two_spends_carrying_no_default_at_all_agree(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${SEAM_TOKEN}", "${SEAM_TOKEN}"))
     assert defaultcheck.check(tmp_path).faults == []
-
-
-# ── what it reduces, in isolation ──────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -138,19 +116,17 @@ def test_a_spend_prints_as_the_place_and_the_text() -> None:
     assert str(spend) == "docker/docker-compose.yml:4 ${V:-8.0}"
 
 
-# ── failing closed ─────────────────────────────────────────────────────────────
-
-
 def test_a_tree_with_no_compose_file_is_a_failure_not_a_pass(tmp_path: Path) -> None:
     with pytest.raises(defaultcheck.ComposeSearchError, match="matched nothing cannot fail"):
         defaultcheck.check(tmp_path)
 
 
-def test_a_form_the_reader_refuses_is_a_fault(tmp_path: Path) -> None:
+def test_a_form_the_reader_refuses_is_a_refused_file_not_a_disagreement(tmp_path: Path) -> None:
     _compose(tmp_path, _environment("${OUTER:-${INNER}}"))
-    faults = defaultcheck.check(tmp_path).faults
-    assert [fault.subject for fault in faults] == ["docker-compose.yml"]
-    assert faults[0].detail.startswith("line 4: nested substitution ${OUTER:-${INNER}}, whose")
+    scanned = defaultcheck.check(tmp_path)
+    assert [fault.subject for fault in scanned.refused] == ["docker-compose.yml"]
+    assert scanned.refused[0].detail.startswith("line 4: nested substitution ${OUTER:-${INNER}}, ")
+    assert scanned.disagreements == []
 
 
 def test_a_compose_file_that_is_not_text_is_a_fault(tmp_path: Path) -> None:
@@ -158,26 +134,25 @@ def test_a_compose_file_that_is_not_text_is_a_fault(tmp_path: Path) -> None:
     assert len(defaultcheck.check(tmp_path).faults) == 1
 
 
+def _both(root: Path) -> None:
+    """Write one file the reader cannot decode and one whose variable has two different defaults."""
+    _compose(root, _environment("${OUTER:-${INNER}}"), name="docker-compose.bad.yml")
+    _compose(root, _environment("${DIR:-./a}", "${DIR:-./b}"))
+
+
 def test_an_unreadable_file_does_not_stop_the_scan(tmp_path: Path) -> None:
-    """One refused file is one fault, and the drift in the next file is still reported."""
-    _compose(tmp_path, _environment("${OUTER:-${INNER}}"), name="docker-compose.bad.yml")
-    _compose(tmp_path, _environment("${DIR:-./a}", "${DIR:-./b}"))
-    assert [fault.subject for fault in defaultcheck.check(tmp_path).faults] == [
-        "docker-compose.bad.yml",
-        "DIR",
-    ]
-
-
-# ── the repo this gate guards, and the CLI ─────────────────────────────────────
+    _both(tmp_path)
+    scanned = defaultcheck.check(tmp_path)
+    assert [fault.subject for fault in scanned.refused] == ["docker-compose.bad.yml"]
+    assert [fault.subject for fault in scanned.disagreements] == ["DIR"]
+    assert scanned.faults == scanned.refused + scanned.disagreements
 
 
 def test_the_repo_itself_carries_one_default_per_variable() -> None:
-    """The gate's own assertion, run as a test so `check-scripts` catches drift too."""
     assert defaultcheck.check(REPO_ROOT).faults == []
 
 
 def test_the_repo_really_spells_variables_more_than_once() -> None:
-    """This guards the test above, which passes vacuously if no variable is spelled twice."""
     walk = defaultcheck.group(REPO_ROOT)
     assert walk.faults == []
     repeated = {name: spends for name, spends in walk.groups.items() if len(spends) > 1}
@@ -185,11 +160,6 @@ def test_the_repo_really_spells_variables_more_than_once() -> None:
 
 
 def test_the_repo_really_spells_one_value_two_ways() -> None:
-    """This guards the re-spelling: the pair the rule was written around is really in the tree.
-
-    The whole set is pinned rather than a membership, so a second re-spelling landing in the tree
-    fails here and has to be argued, instead of riding in on a comparison written for the first.
-    """
     respelled = {
         name
         for name, spends in defaultcheck.group(REPO_ROOT).groups.items()
@@ -203,18 +173,14 @@ def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:
     assert "defaultcheck OK" in capsys.readouterr().out
 
 
-# ── what the walk read ─────────────────────────────────────────────────────────
-
-
 def _counted(root: Path) -> None:
-    """Write three files holding five variables, two of them compared, so the counts all differ."""
+    """Write three files with five variables, two of them compared, so the three counts differ."""
     _compose(root, _environment("${DIR:-./a}", "${DIR:-./a}", "${PORT:-8080}"))
     _compose(root, _environment("${PORT:-8080}", "${HOST:-x}"), name="docker/compose.gpu.yml")
     _compose(root, _environment("${TOKEN}", "${SEED:-1}"), name="docker/docker-compose.email.yml")
 
 
 def test_check_counts_the_files_variables_and_comparisons(tmp_path: Path) -> None:
-    """The verdict is over the compared variables, so that is the count the summary leads with."""
     _counted(tmp_path)
     scanned = defaultcheck.check(tmp_path)
     assert (scanned.files, scanned.variables, scanned.compared) == (3, 5, 2)
@@ -232,6 +198,18 @@ def test_main_states_what_it_read_beside_the_verdict(
     )
 
 
+_REFUSED = (
+    "\ndefaultcheck: 1 compose file(s) could not be read, so no spend in them was compared. "
+    "Rewrite a form the reader refuses in one it takes, or save the file as UTF-8 text, as the "
+    "file's own fault says.\n"
+)
+_DISAGREEING = (
+    "\ndefaultcheck: 1 compose variable(s) do not carry one default. Give every spend of one "
+    "variable the same default, re-spelled only where the far side's own syntax cannot take it as "
+    "written.\n"
+)
+
+
 def test_main_reports_each_fault_and_exits_one(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -239,7 +217,30 @@ def test_main_reports_each_fault_and_exits_one(
     assert defaultcheck.main(["--root", str(tmp_path)]) == 1
     captured = capsys.readouterr()
     assert captured.out.startswith("DIR: is spelled 2 times")
-    assert "1 compose variable(s) do not carry one default" in captured.err
+    assert captured.err == _DISAGREEING
+
+
+def test_main_counts_a_refused_file_as_a_file_and_not_as_a_variable(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _compose(tmp_path, _environment("${OUTER:-${INNER}}"))
+    assert defaultcheck.main(["--root", str(tmp_path)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out.startswith("docker-compose.yml: line 4: nested substitution")
+    assert captured.err == _REFUSED
+
+
+def test_main_prints_one_summary_per_kind_when_both_occur(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _both(tmp_path)
+    assert defaultcheck.main(["--root", str(tmp_path)]) == 1
+    captured = capsys.readouterr()
+    assert [line.split(":")[0] for line in captured.out.splitlines()] == [
+        "docker-compose.bad.yml",
+        "DIR",
+    ]
+    assert captured.err == _REFUSED + _DISAGREEING
 
 
 def test_main_rejects_a_root_that_is_not_a_directory(
@@ -257,12 +258,7 @@ def test_main_reports_a_scan_that_could_not_run(
     assert "defaultcheck: no compose file" in capsys.readouterr().err
 
 
-# ── the note behind a fault that names one line twice ──────────────────────────
-
-
 def test_a_group_all_on_one_line_points_at_the_note_behind_it(tmp_path: Path) -> None:
-    """This is the shape measured in the tree: a stale note after a value is a second spend on the
-    same line."""
     spend = '      DIR: "${MODELS_DIR:-./models}"  # ${MODELS_DIR:-./cache}\n'
     _compose(tmp_path, f"services:\n  brain:\n    environment:\n{spend}")
     (fault,) = defaultcheck.check(tmp_path).faults
@@ -272,8 +268,6 @@ def test_a_group_all_on_one_line_points_at_the_note_behind_it(tmp_path: Path) ->
 
 
 def test_a_group_spread_over_two_lines_is_offered_no_such_remedy(tmp_path: Path) -> None:
-    """The hint is offered only for what was read, and two lines cannot be one value and a note
-    about it."""
     _compose(tmp_path, _environment("${MODELS_DIR:-./models}", "${MODELS_DIR:-./cache}"))
     (fault,) = defaultcheck.check(tmp_path).faults
     assert "does not carry one default" in fault.detail
@@ -281,8 +275,6 @@ def test_a_group_spread_over_two_lines_is_offered_no_such_remedy(tmp_path: Path)
 
 
 def test_one_line_with_no_comment_in_sight_gets_the_hint_as_a_maybe(tmp_path: Path) -> None:
-    """No `#` is looked for, so the sentence offers the note as a possibility rather than as a
-    finding."""
     _compose(tmp_path, _environment("${V:-a}/in:${V:-b}"))
     (fault,) = defaultcheck.check(tmp_path).faults
     assert "more than one of those spends is on docker-compose.yml:4" in fault.detail
